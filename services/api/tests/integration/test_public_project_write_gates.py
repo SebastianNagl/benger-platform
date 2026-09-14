@@ -158,7 +158,7 @@ def _seed_org_member_sync(test_db, role):
     return owner, member, p
 
 
-EVAL_CONFIG_BODY = {"evaluation_configs": [{"id": "a", "metric": "bleu", "enabled": True}]}
+EVAL_CONFIG_BODY = {"evaluation_configs": [{"id": "a", "metric": "bleu", "prediction_fields": ["__all_model__"], "reference_fields": ["task.expected"], "enabled": True}]}
 
 
 @pytest.mark.integration

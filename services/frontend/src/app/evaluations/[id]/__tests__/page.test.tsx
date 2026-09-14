@@ -751,4 +751,54 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(apiClient.evaluations.getSamples).not.toHaveBeenCalled()
     })
   })
+
+  describe('a run that matched nothing', () => {
+    it('shows why it failed and which configs matched no data', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        status: 'failed',
+        error_message:
+          "no cells matched the evaluation configuration (0 of 2 configs matched any cell): 'Bewertungsbogen' (llm_judge_rubric) no_generations",
+        eval_metadata: {
+          ...baseEvaluation.eval_metadata,
+          match_by_config: {
+            cfg1: {
+              metric: 'llm_judge_rubric',
+              display_name: 'Bewertungsbogen',
+              human_fields: [],
+              llm_fields: ['__all_model__'],
+              reason: 'no_generations',
+            },
+            k1: {
+              metric: 'korrektur_custom',
+              display_name: 'Korrektur',
+              human_fields: [],
+              llm_fields: [],
+              reason: 'manual_metric',
+            },
+          },
+        },
+      })
+      renderPage()
+      const banner = await screen.findByTestId('evaluation-run-failed')
+      expect(
+        within(banner).getByText(
+          /no cells matched the evaluation configuration/,
+        ),
+      ).toBeInTheDocument()
+      const list = within(banner).getByTestId('evaluation-unmatched-configs')
+      expect(within(list).getByText('Bewertungsbogen')).toBeInTheDocument()
+      expect(within(list).getByText('no_generations')).toBeInTheDocument()
+      // A benign reason is not a failure and must not be listed as one.
+      expect(within(list).queryByText('Korrektur')).not.toBeInTheDocument()
+    })
+
+    it('shows no failure banner for a completed run', async () => {
+      renderPage()
+      await screen.findAllByText('completed')
+      expect(
+        screen.queryByTestId('evaluation-run-failed'),
+      ).not.toBeInTheDocument()
+    })
+  })
 })

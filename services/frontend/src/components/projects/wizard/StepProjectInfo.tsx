@@ -24,6 +24,13 @@ interface StepProjectInfoProps {
   data: WizardData
   onChange: (partial: Partial<WizardData>) => void
   errors: Record<string, string>
+  /** The organization the wizard preselected because the user is working
+   * inside it, so this step can say why the choice is already made. */
+  preselectedOrganization?: {
+    id: string
+    name: string
+    display_name?: string
+  } | null
 }
 
 const FEATURE_CHECKBOXES: {
@@ -58,6 +65,7 @@ export function StepProjectInfo({
   data,
   onChange,
   errors,
+  preselectedOrganization,
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
@@ -414,6 +422,23 @@ export function StepProjectInfo({
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
               {t('projects.creation.wizard.step1.assignedOrganizationsHelp')}
             </p>
+            {preselectedOrganization &&
+              data.organizationIds.includes(preselectedOrganization.id) && (
+                <p
+                  className="text-sm text-zinc-500 dark:text-zinc-400"
+                  data-testid="wizard-org-preselected-hint"
+                >
+                  {t(
+                    'projects.creation.wizard.step1.orgPreselectedHint',
+                    'Vorausgewählt, weil Sie in der Organisation {name} arbeiten. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.',
+                    {
+                      name:
+                        preselectedOrganization.display_name ||
+                        preselectedOrganization.name,
+                    },
+                  )}
+                </p>
+              )}
             {orgs.length === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t(

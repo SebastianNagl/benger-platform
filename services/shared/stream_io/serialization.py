@@ -39,6 +39,7 @@ def _iso(dt):
 def empty_export_stats() -> dict:
     return {
         "total_tasks": 0,
+        "total_task_rubrics": 0,
         "total_annotations": 0,
         "total_generations": 0,
         "total_evaluations": 0,

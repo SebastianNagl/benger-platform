@@ -352,6 +352,48 @@ class _NestedTopFields:
             setattr(self, key, value)
 
 
+def _remap_rubric_ids(metrics, rubric_id_mapping):
+    """Point imported gradings at the IMPORTED Bewertungsbogen rows.
+
+    A rubric grading records the sheet it was scored against at
+    ``metrics[<key>]["details"]["rubric_id"]``. Import mints fresh rubric ids,
+    so without this every imported grading keeps pointing at a row of the
+    SOURCE deployment. That id is joined on, not merely recorded:
+
+    - clone-on-edit detection (``task_rubric_service.rubric_referenced_by_gradings``)
+      would treat the imported sheet as unreferenced and let an edit rewrite it
+      in place, under gradings that were scored against it;
+    - Notenschlüssel recompute (``grade_scale_recompute``) would not find the
+      sheet and would drop its own grade scale for the project's or the default;
+    - both result views would fail to render the filled sheet.
+
+    Only ids present in the mapping are rewritten; an id whose rubric did not
+    travel stays as recorded. ``judge_prompts_used.task_rubric_id`` is
+    provenance, never joined on, and is deliberately left alone - the same
+    treatment ``serialize_grading_feedback`` documents for its context ids.
+
+    Returns ``metrics`` itself when nothing changes, otherwise a shallow copy
+    with only the affected blobs replaced.
+    """
+    if not isinstance(metrics, dict) or not rubric_id_mapping:
+        return metrics
+    out = None
+    for key, blob in metrics.items():
+        if not isinstance(blob, dict):
+            continue
+        details = blob.get("details")
+        if not isinstance(details, dict):
+            continue
+        old_id = details.get("rubric_id")
+        new_id = rubric_id_mapping.get(old_id) if isinstance(old_id, str) else None
+        if not new_id or new_id == old_id:
+            continue
+        if out is None:
+            out = dict(metrics)
+        out[key] = {**blob, "details": {**details, "rubric_id": new_id}}
+    return metrics if out is None else out
+
+
 def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     """Import a nested Label-Studio payload into an existing project.
 
@@ -376,6 +418,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
     created_task_evaluations = 0
     total_items = 0
     task_id_mapping: Dict[str, str] = {}
+    rubric_id_mapping: Dict[str, str] = {}  # old task_rubric id -> new task_rubric id
     generation_id_mapping: Dict[str, str] = {}  # old generation id -> new generation id
     annotation_id_mapping: Dict[str, str] = {}  # old annotation id -> new annotation id
 
@@ -606,11 +649,29 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         # Import per-task rubrics (Bewertungsbogen). Fresh ids; the exported
         # status round-trips (at most one 'active' per task can exist in a
         # valid export, matching the partial unique index).
+        active_rubric_seen = False
         for rub_data in rubrics_to_import:
             if not isinstance(rub_data, dict) or not isinstance(
                 rub_data.get("criteria"), dict
             ):
                 continue
+            new_rubric_id = str(uuid.uuid4())
+            old_rubric_id = rub_data.get("id")
+            if isinstance(old_rubric_id, str) and old_rubric_id:
+                rubric_id_mapping[old_rubric_id] = new_rubric_id
+            # A valid export has at most one active sheet per task, matching
+            # ux_task_rubrics_one_active. A malformed one must not abort the
+            # whole import on that index: keep the first, demote the rest.
+            rubric_status = rub_data.get("status") or "candidate"
+            if rubric_status == "active":
+                if active_rubric_seen:
+                    logger.warning(
+                        f"[import {project_id}] task {task_id} carries more than one "
+                        f"active Bewertungsbogen; importing {old_rubric_id!r} as candidate"
+                    )
+                    rubric_status = "candidate"
+                else:
+                    active_rubric_seen = True
             # structure / grade_scale round-trip as exported (dict or None);
             # no validation or regeneration on import. total_points is a
             # float since migration 100 (half BE); fall back to 100.0.
@@ -620,7 +681,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 imported_total = 100.0
             db.add(
                 TaskRubric(
-                    id=str(uuid.uuid4()),
+                    id=new_rubric_id,
                     task_id=task_id,
                     project_id=project_id,
                     title=rub_data.get("title"),
@@ -641,7 +702,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                     prompt_key=rub_data.get("prompt_key"),
                     prompt_version=rub_data.get("prompt_version"),
                     generation_metadata=rub_data.get("generation_metadata"),
-                    status=rub_data.get("status") or "candidate",
+                    status=rubric_status,
                     created_by=user_id,
                 )
             )
@@ -790,7 +851,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                         answer_type=eval_data.get("answer_type"),
                         ground_truth=eval_data.get("ground_truth"),
                         prediction=eval_data.get("prediction"),
-                        metrics=eval_data.get("metrics"),
+                        metrics=_remap_rubric_ids(eval_data.get("metrics"), rubric_id_mapping),
                         passed=eval_data.get("passed"),
                         confidence_score=eval_data.get("confidence_score"),
                         error_message=eval_data.get("error_message"),
@@ -841,7 +902,7 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
                 answer_type=eval_data.get("answer_type"),
                 ground_truth=eval_data.get("ground_truth"),
                 prediction=eval_data.get("prediction"),
-                metrics=eval_data.get("metrics"),
+                metrics=_remap_rubric_ids(eval_data.get("metrics"), rubric_id_mapping),
                 passed=eval_data.get("passed"),
                 confidence_score=eval_data.get("confidence_score"),
                 error_message=eval_data.get("error_message"),
@@ -1210,6 +1271,7 @@ class _FullImportContext:
         "catchall_judge_runs",
         "matched_user_ids",
         "grading_feedback_seen",
+        "active_rubric_tasks",
     )
 
     def __init__(self, db, user_id: str):
@@ -1236,7 +1298,12 @@ class _FullImportContext:
             "preference_rankings": {},
             "likert_scale_evaluations": {},
             "post_annotation_responses": {},
+            # old task_rubric id -> new. Filled before any grading is imported
+            # so `_insert_task_evaluation` can repoint `details.rubric_id`.
+            "task_rubrics": {},
         }
+        # New task ids that already received an active Bewertungsbogen.
+        self.active_rubric_tasks: Set[str] = set()
         self.user_email_to_id: Dict[str, str] = {}
         # Old->new user ids that matched a REAL user of this deployment by
         # email. `id_mappings["users"]` cannot answer that question: its
@@ -1306,6 +1373,78 @@ def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
 
     ctx.db.add(new_task)
     ctx.task_counter += 1
+
+
+def _insert_task_rubric(ctx: _FullImportContext, rubric_data: dict) -> None:
+    """Import one Bewertungsbogen row of the comprehensive or NDJSON format.
+
+    Those formats carry rubrics as flat records keyed by ``task_id`` (the
+    per-task nested format nests them under their task instead). Until these
+    helpers existed neither format carried rubrics at all, so a full project
+    export lost every Bewertungsbogen and orphaned every grading scored
+    against one.
+
+    Fresh id, remembered in ``id_mappings["task_rubrics"]`` so gradings
+    imported after it are pointed at this row, not at the source deployment's.
+    """
+    task_id = ctx.id_mappings["tasks"].get(rubric_data.get("task_id"))
+    if not task_id or not isinstance(rubric_data.get("criteria"), dict):
+        return
+
+    new_id = str(uuid.uuid4())
+    old_id = rubric_data.get("id")
+    if isinstance(old_id, str) and old_id:
+        ctx.id_mappings["task_rubrics"][old_id] = new_id
+
+    # total_points is a float since migration 100 (half BE); fall back to 100.
+    try:
+        total = float(rubric_data.get("total_points") or 100.0)
+    except (TypeError, ValueError):
+        total = 100.0
+
+    # A valid export has at most one active sheet per task, matching the
+    # ux_task_rubrics_one_active index. A malformed one must not abort the
+    # whole import on that index: keep the first, demote the rest.
+    status = rubric_data.get("status") or "candidate"
+    if status == "active":
+        if task_id in ctx.active_rubric_tasks:
+            logger.warning(
+                f"[import {ctx.new_project_id}] task {task_id} carries more than "
+                f"one active Bewertungsbogen; importing {old_id!r} as candidate"
+            )
+            status = "candidate"
+        else:
+            ctx.active_rubric_tasks.add(task_id)
+
+    ctx.db.add(
+        TaskRubric(
+            id=new_id,
+            task_id=task_id,
+            project_id=ctx.new_project_id,
+            title=rubric_data.get("title"),
+            criteria=rubric_data["criteria"],
+            total_points=total,
+            structure=(
+                rubric_data.get("structure")
+                if isinstance(rubric_data.get("structure"), dict)
+                else None
+            ),
+            grade_scale=(
+                rubric_data.get("grade_scale")
+                if isinstance(rubric_data.get("grade_scale"), dict)
+                else None
+            ),
+            source=rubric_data.get("source") or "llm",
+            generator_model_id=rubric_data.get("generator_model_id"),
+            prompt_key=rubric_data.get("prompt_key"),
+            prompt_version=rubric_data.get("prompt_version"),
+            generation_metadata=rubric_data.get("generation_metadata"),
+            status=status,
+            created_by=ctx.id_mappings["users"].get(
+                rubric_data.get("created_by"), ctx.user_id
+            ),
+        )
+    )
 
 
 def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
@@ -1529,7 +1668,7 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
             answer_type=te_data.get("answer_type"),
             ground_truth=te_data.get("ground_truth"),
             prediction=te_data.get("prediction"),
-            metrics=te_data.get("metrics"),
+            metrics=_remap_rubric_ids(te_data.get("metrics"), ctx.id_mappings["task_rubrics"]),
             passed=te_data.get("passed"),
             confidence_score=te_data.get("confidence_score"),
             error_message=te_data.get("error_message"),
@@ -2096,6 +2235,7 @@ def _build_full_import_stats(
             "task_assignments": len(ctx.id_mappings["task_assignments"]),
             "post_annotation_responses": len(ctx.id_mappings["post_annotation_responses"]),
             "grading_feedback": len(ctx.grading_feedback_seen),
+            "task_rubrics": len(ctx.id_mappings["task_rubrics"]),
         },
     }
 
@@ -2106,6 +2246,7 @@ def _build_full_import_stats(
 _NDJSON_INSERT_DISPATCH = {
     "user": _insert_user,
     "task": _insert_task,
+    "task_rubric": _insert_task_rubric,
     "annotation": _insert_annotation,
     "response_generation": _insert_response_generation,
     "generation": _insert_generation,
@@ -2384,6 +2525,12 @@ def run_full_project_import(db, fileobj, user_id: str) -> dict:
     # FK-dependency-ordered passes.
     for task_data in _stream_rows(db, fileobj, "tasks.item"):
         _insert_task(ctx, task_data)
+
+    # Bewertungsbogen rows: after their tasks (FK) and before task_evaluations,
+    # whose `details.rubric_id` is repointed through the mapping these fill.
+    # Absent from exports that predate them; `_stream_rows` then yields nothing.
+    for rubric_data in _stream_rows(db, fileobj, "task_rubrics.item"):
+        _insert_task_rubric(ctx, rubric_data)
 
     for annotation_data in _stream_rows(db, fileobj, "annotations.item"):
         _insert_annotation(ctx, annotation_data)

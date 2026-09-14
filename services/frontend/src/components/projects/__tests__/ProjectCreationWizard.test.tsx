@@ -1166,3 +1166,83 @@ describe('ProjectCreationWizard', () => {
     })
   })
 })
+
+// ─── Organization preselection ─────────────────────────────────────────────
+// A project created from inside an organization must default to it: left
+// private, the worker resolves API keys per user and AI grading fails with
+// "No API key found" although the organization has a key. Both mocks default
+// to today's behaviour (no context, no organizations), so every test above is
+// unaffected; only the tests below switch them on.
+let mockAuthValue: any = null
+let mockOrganizations: any[] = []
+jest.mock('@/contexts/AuthContext', () => ({
+  useOptionalAuth: () => mockAuthValue,
+  useAuth: () => mockAuthValue,
+}))
+jest.mock('@/lib/api/organizations', () => ({
+  ...jest.requireActual('@/lib/api/organizations'),
+  organizationsAPI: {
+    getOrganizations: jest.fn(() => Promise.resolve(mockOrganizations)),
+    getGroups: jest.fn(() => Promise.resolve([])),
+  },
+}))
+
+describe('ProjectCreationWizard: organization preselection', () => {
+  const LMU = {
+    id: 'org-lmu',
+    name: 'LMU',
+    display_name: 'LMU München',
+    slug: 'lmu',
+  }
+  const visibilityRadios = () =>
+    (screen.getAllByRole('radio') as HTMLInputElement[]).filter(
+      (radio) => radio.name === 'wizard-visibility',
+    )
+
+  afterEach(() => {
+    mockAuthValue = null
+    mockOrganizations = []
+  })
+
+  it('stays private outside an organization context', () => {
+    render(<ProjectCreationWizard />)
+    expect(visibilityRadios()[0]).toBeChecked()
+    expect(
+      screen.queryByTestId('wizard-organization-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('preselects the organization the user works inside, and says why', async () => {
+    mockAuthValue = { currentOrganization: LMU }
+    mockOrganizations = [LMU]
+    render(<ProjectCreationWizard />)
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('wizard-organization-section'),
+      ).toBeInTheDocument(),
+    )
+    expect(visibilityRadios()[1]).toBeChecked()
+    expect(
+      screen.getByTestId('wizard-org-preselected-hint'),
+    ).toBeInTheDocument()
+  })
+
+  it('never re-applies the preselection once the user chose private', async () => {
+    mockAuthValue = { currentOrganization: LMU }
+    mockOrganizations = [LMU]
+    const { rerender } = render(<ProjectCreationWizard />)
+    await waitFor(() => expect(visibilityRadios()[1]).toBeChecked())
+
+    await userEvent.click(visibilityRadios()[0])
+    await waitFor(() => expect(visibilityRadios()[0]).toBeChecked())
+
+    // The organization context arriving again (a new object for the same
+    // organization) must not override the user's decision.
+    mockAuthValue = { currentOrganization: { ...LMU } }
+    rerender(<ProjectCreationWizard />)
+    await waitFor(() => expect(visibilityRadios()[0]).toBeChecked())
+    expect(
+      screen.queryByTestId('wizard-organization-section'),
+    ).not.toBeInTheDocument()
+  })
+})

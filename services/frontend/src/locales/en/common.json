@@ -308,6 +308,7 @@
           },
           "assignedOrganizations": "Assigned organizations",
           "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
+          "orgPreselectedHint": "Preselected because you are working inside {name}. Choose Private if only you should have access.",
           "noOrganizationsAvailable": "No organizations available.",
           "groupScopeLabel": "Group",
           "groupScopeOrgWide": "Whole organization",
@@ -8218,7 +8219,9 @@
       "scopeModelsCount": "{count} model(s)",
       "scopeOneAnnotator": "1 annotator",
       "scopeAnnotatorsCount": "{count} annotators",
-      "scopeTasksCount": "{count} task(s)"
+      "scopeTasksCount": "{count} task(s)",
+      "runFailedTitle": "Evaluation failed",
+      "unmatchedConfigsTitle": "Evaluations that matched no data"
     },
     "human": {
       "likert": {

@@ -13,11 +13,16 @@ import {
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import {
+  buildPredictionFieldOptions,
+  buildReferenceFieldOptions,
   EvaluationConfig,
+  type FieldOption,
   generateEvaluationId,
+  getBaseFieldName,
   getGroupedMetrics,
   getMetricDefinitions,
   isMetricImmediateEligible,
+  resolveDefaultFieldSelection,
 } from '@/lib/api/evaluation-types'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
 import { useSlot } from '@/lib/extensions/slots'
@@ -68,28 +73,34 @@ export function StepEvaluationMethods({
   const selectedMetrics = new Set(evaluationConfigs.map((c) => c.metric))
 
   // Build prediction field options from label_config output fields
-  const predictionOptions = [
-    {
-      value: '__all_model__',
-      label: t('projects.creation.wizard.step7.allModelOutputs'),
-    },
-    ...annotationFields.map((f) => ({
-      value: `model:${f.name}`,
-      label: `model:${f.name}`,
-    })),
-  ]
+  // One builder for every surface (see `evaluation-types.ts`). This step used
+  // to hand-roll its own lists and offered NO human prediction field at all,
+  // so a judge that grades a submitted answer could not be configured here:
+  // the resulting config pointed at model generations an exam never has and
+  // graded nothing, silently. The label_config being authored is the only
+  // field source at wizard time - no project or data exists yet - so the same
+  // names serve both roles.
+  const fieldNames = annotationFields.map((f) => f.name)
+  const predictionOptions = buildPredictionFieldOptions({
+    model_response_fields: fieldNames,
+    human_annotation_fields: fieldNames,
+  })
+  const referenceOptions = buildReferenceFieldOptions({
+    human_annotation_fields: fieldNames,
+    reference_fields: dataColumns,
+  })
 
-  // Build reference field options
-  const referenceOptions = [
-    ...annotationFields.map((f) => ({
-      value: `human:${f.name}`,
-      label: `${f.name} (${f.type})`,
-    })),
-    ...dataColumns.map((col) => ({
-      value: col,
-      label: `${col} (data)`,
-    })),
-  ]
+  const typeByName = new Map(annotationFields.map((f) => [f.name, f.type]))
+  const labelFor = (opt: FieldOption): string => {
+    if (opt.labelKey) return t(opt.labelKey, opt.label)
+    if (opt.kind === 'data') return `${opt.value} (data)`
+    if (opt.kind === 'human') {
+      const base = getBaseFieldName(opt.value)
+      const type = typeByName.get(base)
+      return type ? `${base} (${type})` : opt.label
+    }
+    return opt.label
+  }
 
   const defaultPrediction =
     predictionOptions.length > 0 ? predictionOptions[0].value : ''
@@ -115,8 +126,16 @@ export function StepEvaluationMethods({
           id: generateEvaluationId(metricKey),
           metric: metricKey,
           display_name: computeDefaultEvalName(def, defaultParams, metricKey),
-          prediction_fields: defaultPrediction ? [defaultPrediction] : [],
-          reference_fields: defaultReference ? [defaultReference] : [],
+          prediction_fields: resolveDefaultFieldSelection(
+            def.default_prediction_fields,
+            predictionOptions,
+            defaultPrediction,
+          ),
+          reference_fields: resolveDefaultFieldSelection(
+            def.default_reference_fields,
+            referenceOptions,
+            defaultReference,
+          ),
           enabled: true,
           metric_parameters:
             Object.keys(defaultParams).length > 0 ? defaultParams : undefined,
@@ -140,8 +159,11 @@ export function StepEvaluationMethods({
     )
   }
 
-  const hasFieldOptions =
-    predictionOptions.length > 0 || referenceOptions.length > 0
+  // Derived from the RAW inputs, not the option lists: the two bulk selectors
+  // are unconditional, so `predictionOptions.length` is always >= 2 and would
+  // report "has fields" for a project that has none, hiding the notice below
+  // and offering a field mapping with nothing to map.
+  const hasFieldOptions = annotationFields.length > 0 || dataColumns.length > 0
   const isKorrekturClassicSelected = selectedMetrics.has('korrektur_classic')
   const korrekturClassicConfig = evaluationConfigs.find(
     (c) => c.metric === 'korrektur_classic',
@@ -373,7 +395,7 @@ export function StepEvaluationMethods({
                                       key={opt.value}
                                       value={opt.value}
                                     >
-                                      {opt.label}
+                                      {labelFor(opt)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -405,7 +427,7 @@ export function StepEvaluationMethods({
                                       key={opt.value}
                                       value={opt.value}
                                     >
-                                      {opt.label}
+                                      {labelFor(opt)}
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
