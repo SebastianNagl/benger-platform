@@ -121,9 +121,21 @@ export function StepEvaluationMethods({
       const def = metricDefinitions[metricKey]
       if (!def) return
 
-      const defaultParams = def.default_parameters
+      const defaultParams: Record<string, any> = def.default_parameters
         ? { ...def.default_parameters }
         : {}
+      // The judge picker below displays the shared default model for a
+      // config that names none, but the worker runs such a config on its own
+      // fallback model. Store what the picker shows, so the judge that grades
+      // is the judge the user saw.
+      if (
+        def.category === LLM_JUDGE_CATEGORY &&
+        !defaultParams.judge_model &&
+        !defaultParams.judges &&
+        models.some((m) => m.id === DEFAULT_MODEL_ID)
+      ) {
+        defaultParams.judge_model = DEFAULT_MODEL_ID
+      }
 
       onEvaluationConfigsChange([
         ...evaluationConfigs,
