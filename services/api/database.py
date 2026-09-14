@@ -2,6 +2,7 @@
 Database configuration and session management
 """
 
+import asyncio
 import logging
 import os
 from typing import AsyncGenerator, Dict, Generator
@@ -9,6 +10,7 @@ from typing import AsyncGenerator, Dict, Generator
 
 from dotenv import load_dotenv  # noqa: E402
 from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import (  # noqa: E402
     AsyncSession,
     async_sessionmaker,
@@ -137,13 +139,108 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
     )
 
 
+# ---- Session cleanup that survives a dead connection ------------------------
+#
+# `idle_in_transaction_session_timeout` (above) makes Postgres terminate a
+# backend whose session sat in an open transaction for 30 s. A request that
+# loaded rows (the `require_user` dependency alone does that) and then waited
+# on a slow provider call or an SSE stream finds its connection gone when the
+# dependency cleanup runs; `close()` tries to ROLLBACK on the dead socket and
+# raises. Raised from dependency cleanup that surfaced as an unhandled
+# "Exception in ASGI application" after the response had already been sent.
+# Cleanup therefore logs one warning line, invalidates the connection so the
+# pool discards it, and never raises.
+_DEAD_CONNECTION_ERRORS: tuple = (DBAPIError, ConnectionError)
+try:
+    import psycopg2
+
+    _DEAD_CONNECTION_ERRORS += (psycopg2.OperationalError, psycopg2.InterfaceError)
+except ImportError:  # pragma: no cover - psycopg2 is a hard dependency
+    pass
+try:
+    import asyncpg
+
+    _DEAD_CONNECTION_ERRORS += (asyncpg.InterfaceError, asyncpg.PostgresConnectionError)
+except ImportError:  # pragma: no cover - asyncpg is a hard dependency
+    pass
+
+
+def _short_error(exc: BaseException) -> str:
+    lines = str(exc).strip().splitlines()
+    return f"{type(exc).__name__}: {lines[0] if lines else ''}"
+
+
+def close_session_safely(db: Session) -> None:
+    """Close a sync session; a dead connection is invalidated, never raised."""
+    try:
+        db.close()
+        return
+    except _DEAD_CONNECTION_ERRORS as exc:
+        logger.warning(
+            "Discarding dead database connection during session cleanup (%s)",
+            _short_error(exc),
+        )
+    except Exception as exc:  # noqa: BLE001 - cleanup must never raise
+        logger.error(
+            "Unexpected error during database session cleanup (%s)", _short_error(exc)
+        )
+    try:
+        db.invalidate()
+    except Exception as exc:  # noqa: BLE001 - the connection is gone either way
+        logger.debug("Session invalidate after failed close raised %s", _short_error(exc))
+
+
+async def aclose_session_safely(db: AsyncSession) -> None:
+    """Async counterpart of :func:`close_session_safely`."""
+    try:
+        # Shielded like AsyncSession.__aexit__: a cancelled request must not
+        # abandon the connection half-closed.
+        await asyncio.shield(db.close())
+        return
+    except _DEAD_CONNECTION_ERRORS as exc:
+        logger.warning(
+            "Discarding dead database connection during session cleanup (%s)",
+            _short_error(exc),
+        )
+    except Exception as exc:  # noqa: BLE001 - cleanup must never raise
+        logger.error(
+            "Unexpected error during database session cleanup (%s)", _short_error(exc)
+        )
+    try:
+        await db.invalidate()
+    except Exception as exc:  # noqa: BLE001 - the connection is gone either way
+        logger.debug("Session invalidate after failed close raised %s", _short_error(exc))
+
+
+async def release_db_sessions(*sessions: "Session | AsyncSession | None") -> None:
+    """End each session's transaction and return its connection to the pool.
+
+    Call this before awaiting anything slow that is not the database (provider
+    API calls, S3 requests, a long-lived stream), so no backend sits idle in a
+    transaction long enough for Postgres to kill it. Pass the request's sync
+    session too (``Depends(get_db)`` is cached per request, so it is the same
+    session ``require_user`` used).
+
+    The sessions stay usable; the next query opens a fresh transaction.
+    Closing expunges loaded ORM objects: their loaded attributes remain
+    readable, but copy what you need first rather than relying on lazy loads.
+    """
+    for db in sessions:
+        if db is None:
+            continue
+        if isinstance(db, AsyncSession):
+            await aclose_session_safely(db)
+        else:
+            close_session_safely(db)
+
+
 def get_db() -> Generator[Session, None, None]:
     """Dependency to get database session"""
     db = SessionLocal()
     try:
         yield db
     finally:
-        db.close()
+        close_session_safely(db)
 
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
@@ -162,8 +259,11 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             "Async DB engine not initialized — DATABASE_URL is missing or "
             "not a postgresql URL. Sync get_db() still works in that case."
         )
-    async with AsyncSessionLocal() as session:
+    session = AsyncSessionLocal()
+    try:
         yield session
+    finally:
+        await aclose_session_safely(session)
 
 
 def init_db() -> None:
