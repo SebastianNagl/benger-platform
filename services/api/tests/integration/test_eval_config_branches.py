@@ -1242,3 +1242,195 @@ class TestEvaluationConfigFieldValidation:
         })
         assert resp.status_code == 200, resp.text
         assert resp.json()["warnings"] == []
+
+
+class TestEvaluationConfigDataWarnings:
+    """A config pointed at a side the project has no data on warns at save.
+
+    The production Bewertungsbogen run that graded nothing had its judge on
+    '__all_model__' in an exam, which has submitted answers and no model
+    generations. That shape is valid, so the validator cannot reject it; the
+    run now fails loudly, and the save says it first. Data-dependent, so a
+    warning and never a 422, and an empty project is never warned about,
+    because configs are saved before data exists.
+    """
+
+    def _put(self, client, auth_headers, test_org, project, *entries):
+        return client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json={"evaluation_configs": list(entries)},
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+
+    @staticmethod
+    def _task(db, project, creator, inner_id):
+        from project_models import Task
+
+        task = Task(
+            id=_uid(),
+            project_id=project.id,
+            inner_id=inner_id,
+            data={"text": "Sachverhalt"},
+            created_by=creator.id,
+            updated_by=creator.id,
+        )
+        db.add(task)
+        db.flush()
+        return task
+
+    def _answers(self, db, project, creator, count):
+        from project_models import Annotation
+
+        for i in range(count):
+            task = self._task(db, project, creator, inner_id=i + 1)
+            db.add(
+                Annotation(
+                    id=_uid(),
+                    task_id=task.id,
+                    project_id=project.id,
+                    completed_by=creator.id,
+                    result=[],
+                    was_cancelled=False,
+                )
+            )
+        db.commit()
+
+    def _generations(self, db, project, creator, count):
+        from models import Generation, ResponseGeneration
+
+        for i in range(count):
+            task = self._task(db, project, creator, inner_id=100 + i)
+            run = ResponseGeneration(
+                id=_uid(),
+                project_id=project.id,
+                task_id=task.id,
+                model_id="test-model",
+                status="completed",
+                responses_generated=1,
+                created_by=creator.id,
+            )
+            db.add(run)
+            db.flush()
+            db.add(
+                Generation(
+                    id=_uid(),
+                    generation_id=run.id,
+                    task_id=task.id,
+                    model_id="test-model",
+                    run_index=0,
+                    case_data="{}",
+                    response_content="...",
+                    status="completed",
+                    parse_status="success",
+                )
+            )
+        db.commit()
+
+    @staticmethod
+    def _entry(prediction_fields, **extra):
+        return {
+            "id": "cfg1",
+            "metric": "exact_match",
+            "display_name": "Bewertung",
+            "prediction_fields": prediction_fields,
+            "reference_fields": ["task.expected"],
+            **extra,
+        }
+
+    @staticmethod
+    def _stored_ids(db, project):
+        db.expire_all()
+        stored = db.query(Project).filter(Project.id == project.id).first()
+        return [c["id"] for c in stored.evaluation_config["evaluation_configs"]]
+
+    def test_a_model_side_config_in_a_project_of_answers_warns(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        self._answers(test_db, project, test_users[0], 2)
+        resp = self._put(client, auth_headers, test_org, project, self._entry(["__all_model__"]))
+        assert resp.status_code == 200, resp.text
+        [warning] = resp.json()["warnings"]
+        assert warning["code"] == "no_matching_subjects"
+        assert warning["config_id"] == "cfg1"
+        assert (warning["side"], warning["generations"], warning["annotations"]) == ("model", 0, 2)
+        # Names the config, what it reads, and the fix.
+        assert "'Bewertung' (exact_match)" in warning["message"]
+        assert "'__all_model__'" in warning["message"]
+        assert "'human:loesung'" in warning["message"]
+        # A warning, not a rejection: the config is stored.
+        assert self._stored_ids(test_db, project) == ["cfg1"]
+
+    def test_a_human_side_config_in_a_project_of_generations_warns(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        self._generations(test_db, project, test_users[0], 3)
+        resp = self._put(client, auth_headers, test_org, project, self._entry(["human:answer"]))
+        assert resp.status_code == 200, resp.text
+        [warning] = resp.json()["warnings"]
+        assert (warning["side"], warning["generations"], warning["annotations"]) == ("human", 3, 0)
+        assert "'__all_model__'" in warning["message"]
+
+    def test_an_empty_project_is_never_warned_about(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """The wizard, the Bewertungsbogen setup and exam creation all save
+        configs before any data exists."""
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = self._put(client, auth_headers, test_org, project, self._entry(["__all_model__"]))
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    @pytest.mark.parametrize("selector", ["human:answer", "__all_human__"])
+    def test_a_config_on_the_side_with_data_is_not_warned_about(
+        self, client, test_db, test_users, auth_headers, test_org, selector
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        self._answers(test_db, project, test_users[0], 1)
+        resp = self._put(client, auth_headers, test_org, project, self._entry([selector]))
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    def test_a_registered_rule_puts_bare_fields_on_the_human_side(
+        self, client, test_db, test_users, auth_headers, test_org, monkeypatch
+    ):
+        """Sides come from the classifier the worker uses. With the
+        unprefixed-is-human rule registered, a bare 'loesung' reads the
+        submitted answers, as the rubric judge's does in production."""
+        import eval_field_classification as efc
+
+        monkeypatch.setitem(efc._RULES, "exact_match", efc.unprefixed_is_human)
+        project = _make_project(test_db, test_users[0], test_org)
+        self._answers(test_db, project, test_users[0], 1)
+        resp = self._put(client, auth_headers, test_org, project, self._entry(["loesung"]))
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    def test_disabled_and_human_grading_configs_are_skipped(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        self._answers(test_db, project, test_users[0], 1)
+        resp = self._put(
+            client, auth_headers, test_org, project,
+            self._entry(["__all_model__"], enabled=False),
+            {"id": "k1", "metric": "korrektur_custom",
+             "prediction_fields": [], "reference_fields": []},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+
+    def test_a_failing_data_check_never_fails_the_committed_save(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        self._answers(test_db, project, test_users[0], 1)
+        with patch(
+            "routers.evaluations.config.count_eval_subject_pools",
+            side_effect=RuntimeError("database went away"),
+        ):
+            resp = self._put(client, auth_headers, test_org, project, self._entry(["__all_model__"]))
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["warnings"] == []
+        assert self._stored_ids(test_db, project) == ["cfg1"]

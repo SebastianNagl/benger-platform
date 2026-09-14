@@ -7154,6 +7154,7 @@
       "evaluationDefaultsSaveFailed": "Failed to save evaluation defaults: {error}",
       "generationDefaultsSaveFailed": "Failed to save generation defaults: {error}",
       "evaluationConfigsSaveFailed": "Failed to save evaluation methods: {error}",
+      "evaluationConfigsSavedWithWarnings": "Saved. Some evaluations will grade nothing as configured: {warnings}",
       "evaluationFailed": "Failed to start evaluation"
     },
     "projects": {

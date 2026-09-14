@@ -153,8 +153,7 @@ def _count_eval_subjects(
         return 0
 
     from eval_field_classification import classify_pred_fields
-    from models import Generation
-    from project_models import Annotation, Task
+    from services.eval_subject_pools import count_eval_subject_pools
 
     classified = [
         (cfg, classify_pred_fields(cfg.metric, cfg.prediction_fields))
@@ -163,28 +162,16 @@ def _count_eval_subjects(
     has_any_human_field = any(human for _, (human, _llm) in classified)
     has_any_llm_field = any(llm for _, (_human, llm) in classified)
 
-    gen_count = 0
-    if has_any_llm_field:
-        # Generation has no `project_id` column — it scopes through Task.
-        gen_q = (
-            db.query(Generation)
-            .join(Task, Generation.task_id == Task.id)
-            .filter(Task.project_id == project_id)
-        )
-        if model_ids:
-            gen_q = gen_q.filter(Generation.model_id.in_(model_ids))
-        gen_count = gen_q.count()
-
-    ann_count = 0
-    if has_any_human_field:
-        ann_q = (
-            db.query(Annotation)
-            .join(Task, Annotation.task_id == Task.id)
-            .filter(Task.project_id == project_id, Annotation.was_cancelled == False)  # noqa: E712
-        )
-        if annotator_user_ids:
-            ann_q = ann_q.filter(Annotation.completed_by.in_(annotator_user_ids))
-        ann_count = ann_q.count()
+    # The pools are shared with the evaluation-config save, which warns about
+    # a config whose side has nothing to grade, so both read one definition.
+    gen_count, ann_count = count_eval_subject_pools(
+        db,
+        project_id,
+        model_ids=model_ids,
+        annotator_user_ids=annotator_user_ids,
+        generations=has_any_llm_field,
+        annotations=has_any_human_field,
+    )
 
     total = 0
     for _cfg, (human_fields, llm_fields) in classified:

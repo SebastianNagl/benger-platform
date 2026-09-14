@@ -20,6 +20,7 @@ from grade_scale_history import (
     HISTORY_KEY as GRADE_SCALE_HISTORY_KEY,
     append_grade_scale_change,
 )
+from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
 from services.grade_scale_recompute import grade_scale_drift, recompute_grade_scale
 from project_models import Project
@@ -378,6 +379,80 @@ def collect_evaluation_config_warnings(eval_configs_list) -> list:
     return warnings
 
 
+def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_configs_list) -> list:
+    """Configs whose prediction side has nothing to grade in this project.
+
+    Data-dependent, so a warning and never a 422: configs are legitimately
+    saved into projects before their data exists, and an empty project is not
+    warned about at all. It fires only when the project HAS subjects but none
+    on the side a config reads, which is the signature of a config pointed at
+    the wrong role. An exam's Bewertungsbogen judge set to '__all_model__'
+    grades nothing, because an exam has submitted answers and no model
+    generations. The run itself fails with the same diagnosis; this says it
+    before anyone starts one.
+
+    Sides come from ``classify_pred_fields``, exactly as the worker decides
+    them, and the pools from ``count_eval_subject_pools``, the same counts the
+    cost preview multiplies.
+    """
+    from eval_field_classification import classify_pred_fields
+
+    if not isinstance(eval_configs_list, list):
+        return []
+    candidates = []
+    for cfg in eval_configs_list:
+        if not isinstance(cfg, dict) or cfg.get("enabled") is False:
+            continue
+        metric = cfg.get("metric") or ""
+        if not isinstance(metric, str) or metric.startswith("korrektur_"):
+            continue
+        pred = cfg.get("prediction_fields")
+        if not isinstance(pred, list) or not pred:
+            continue
+        human, llm = classify_pred_fields(metric, pred)
+        candidates.append((cfg, metric, human, llm))
+    if not candidates:
+        return []
+
+    generations, annotations = count_eval_subject_pools(db, project_id)
+    if generations == 0 and annotations == 0:
+        return []
+
+    warnings: list = []
+    for cfg, metric, human, llm in candidates:
+        if (llm and generations > 0) or (human and annotations > 0):
+            continue
+        where = f"evaluation '{_config_label(cfg)}' ({metric})"
+        if llm:
+            side = "model"
+            selectors = ", ".join(repr(s) for s in llm)
+            message = (
+                f"{where} grades model generations ({selectors}), but this project has none. "
+                f"It has {annotations} submitted answer(s). To grade those, choose a human field, "
+                f"e.g. 'human:loesung' or '__all_human__'."
+            )
+        else:
+            side = "human"
+            selectors = ", ".join(repr(s) for s in human)
+            message = (
+                f"{where} grades submitted answers ({selectors}), but this project has none. "
+                f"It has {generations} model generation(s). To grade those, choose a model field, "
+                f"e.g. '__all_model__'."
+            )
+        warnings.append(
+            {
+                "config_id": cfg.get("id"),
+                "metric": metric,
+                "code": "no_matching_subjects",
+                "side": side,
+                "generations": generations,
+                "annotations": annotations,
+                "message": message,
+            }
+        )
+    return warnings
+
+
 def validate_evaluation_config_entries(eval_configs_list) -> None:
     """Per-entry validation of ``evaluation_configs`` (raises HTTPException 422).
 
@@ -689,6 +764,18 @@ async def update_project_evaluation_config(
         db.refresh(project)
 
         warnings = collect_evaluation_config_warnings(eval_configs_list)
+        # The save is committed at this point. Counting subjects must never
+        # turn it into an error response, so a failure here only loses the
+        # data warnings, and says so in the log.
+        try:
+            warnings += collect_evaluation_config_data_warnings(
+                db, project_id, eval_configs_list
+            )
+        except Exception:
+            logger.exception(
+                f"[evaluation-config {project_id}] could not check the saved configs "
+                f"against project data; data warnings skipped"
+            )
         for warning in warnings:
             logger.warning(
                 f"[evaluation-config {project_id}] saved with a config that will "

@@ -570,13 +570,20 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // written by handleSaveEvalDefaults' PATCH survive without a
   // read-modify-write here (issue #289: the old GET→PUT round-trip re-sent
   // a 30s-cached snapshot of the whole doc and clobbered concurrent saves).
+  //
+  // The save answers with non-blocking warnings: configs that, as saved,
+  // will grade nothing (no reference field, or a prediction side this
+  // project has no data on). The card auto-saves on a debounce, so a warning
+  // is shown when the set of warnings changes, not again on every save.
+  const lastEvaluationConfigWarningsRef = useRef('')
   const saveEvaluationConfigsToProject = async (
     evaluations: EvaluationConfig[],
   ) => {
     if (!projectId) return
 
+    let response: any
     try {
-      await apiClient.put(
+      response = await apiClient.put(
         `/evaluations/projects/${projectId}/evaluation-config`,
         { evaluation_configs: evaluations },
       )
@@ -591,6 +598,29 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       )
       throw error
     }
+
+    const warningMessages: string[] = Array.isArray(response?.warnings)
+      ? response.warnings
+          .map((warning: { message?: unknown }) => warning?.message)
+          .filter(
+            (message: unknown): message is string =>
+              typeof message === 'string' && message.length > 0,
+          )
+      : []
+    const warningSignature = warningMessages.join('\n')
+    if (
+      warningSignature &&
+      warningSignature !== lastEvaluationConfigWarningsRef.current
+    ) {
+      addToast(
+        t('toasts.project.evaluationConfigsSavedWithWarnings', {
+          warnings: warningMessages.join(' '),
+        }),
+        'warning',
+        10000,
+      )
+    }
+    lastEvaluationConfigWarningsRef.current = warningSignature
   }
 
   // Local state, flushed by the eval card's debounced auto-save
