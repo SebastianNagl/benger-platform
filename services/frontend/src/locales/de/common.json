@@ -47,12 +47,12 @@
     "signOut": "Abmelden",
     "signIn": "Anmelden",
     "signUp": "Registrieren",
-    "loggedIn": "Willkommen zurueck!",
+    "loggedIn": "Willkommen zurück!",
     "signupComplete": "Konto angelegt – willkommen!",
     "guard": {
       "loading": "Laden...",
       "authRequired": "Anmeldung erforderlich",
-      "authRequiredDescription": "Sie muessen angemeldet sein, um auf diese Funktion zuzugreifen. Bitte melden Sie sich an und versuchen Sie es erneut.",
+      "authRequiredDescription": "Sie müssen angemeldet sein, um auf diese Funktion zuzugreifen. Bitte melden Sie sich an und versuchen Sie es erneut.",
       "goToSignIn": "Zur Anmeldung",
       "cancel": "Abbrechen"
     },
@@ -1270,7 +1270,7 @@
       "questionnaireEnabled": "Fragebogen aktivieren",
       "questionnaireEnabledDescription": "Feedbackformular nach jeder Annotationsabgabe anzeigen",
       "questionnaireTemplate": "Vorlage",
-      "questionnaireSelectTemplate": "Vorlage auswaehlen...",
+      "questionnaireSelectTemplate": "Vorlage auswählen...",
       "questionnaireTemplateConfidence": "Konfidenz & Schwierigkeit (2 Items)",
       "questionnaireTemplateExtended": "Erweitertes Feedback (4 Items)",
       "questionnaireTemplateUtaut": "UTAUT-Studie (12 Items, Likert 1-7)",
@@ -3802,26 +3802,26 @@
     },
     "milkdown": {
       "level": "Ebene",
-      "promoteLevel": "Eine Ebene hoeher (Shift+Tab)",
+      "promoteLevel": "Eine Ebene höher (Shift+Tab)",
       "demoteLevel": "Eine Ebene tiefer (Tab)",
       "bold": "Fett (Ctrl+B)",
       "italic": "Kursiv (Ctrl+I)",
       "underline": "Unterstrichen (Ctrl+U)",
-      "bulletList": "Aufzaehlung",
+      "bulletList": "Aufzählung",
       "orderedList": "Nummerierte Liste",
-      "heading": "Ueberschrift"
+      "heading": "Überschrift"
     },
     "spanLabels": {
-      "noText": "Kein Text fuer Annotation vorhanden",
+      "noText": "Kein Text für Annotation vorhanden",
       "clickToRemove": "Klicken zum Entfernen",
-      "selectLabelThenHighlight": "Label auswaehlen, dann Text markieren",
-      "orUseKeyboardShortcuts": "oder Tastenkuerzel verwenden",
+      "selectLabelThenHighlight": "Label auswählen, dann Text markieren",
+      "orUseKeyboardShortcuts": "oder Tastenkürzel verwenden",
       "selected": "Markiert",
       "cancel": "Abbrechen",
       "annotations": "Annotationen",
       "removeAnnotation": "Annotation entfernen",
       "tipLabel": "Tipp",
-      "tipText": "Text markieren, dann Label klicken oder Taste 1-9 druecken. Auf markierten Text klicken zum Entfernen."
+      "tipText": "Text markieren, dann Label klicken oder Taste 1-9 drücken. Auf markierten Text klicken zum Entfernen."
     },
     "fileUpload": {
       "uploadFile": "Datei hochladen",
@@ -3830,9 +3830,9 @@
     },
     "pdfViewer": {
       "previousPage": "Vorherige Seite (Pfeiltaste links)",
-      "nextPage": "Naechste Seite (Pfeiltaste rechts)",
+      "nextPage": "Nächste Seite (Pfeiltaste rechts)",
       "zoomOut": "Verkleinern (Ctrl/Cmd -)",
-      "zoomIn": "Vergroessern (Ctrl/Cmd +)",
+      "zoomIn": "Vergrößern (Ctrl/Cmd +)",
       "performanceMetrics": "Leistungskennzahlen",
       "fullscreen": "Vollbild (Ctrl/Cmd F)",
       "downloadPdf": "PDF herunterladen",
@@ -3851,7 +3851,7 @@
       "highlightsTitle": "Markierungen",
       "removeHighlight": "Markierung entfernen",
       "instructionsLabel": "Anleitung",
-      "instructionsText": "Text zum Markieren auswaehlen. Zifferntasten (1-{max}) fuer schnelle Label-Auswahl. Entf-Taste zum Entfernen der ausgewaehlten Markierung."
+      "instructionsText": "Text zum Markieren auswählen. Zifferntasten (1-{max}) für schnelle Label-Auswahl. Entf-Taste zum Entfernen der ausgewählten Markierung."
     },
     "gliederung": {
       "placeholder": "Gliederung im Markdown-Format eingeben...",
@@ -3879,7 +3879,7 @@
       "toCancel": "zum Abbrechen",
       "cancel": "Abbrechen",
       "save": "Speichern",
-      "expandToFullscreen": "Vollbild oeffnen",
+      "expandToFullscreen": "Vollbild öffnen",
       "enterContent": "Inhalt eingeben..."
     }
   },
@@ -4775,7 +4775,7 @@
         "title": "Menschliche Präferenzbewertung",
         "description": "Modellantworten vergleichen und bewerten",
         "instructions": "Wählen Sie aus, welche Antwort Sie bevorzugen",
-        "completionDescription": "Vielen Dank fuer die Bewertung aller Eintraege.",
+        "completionDescription": "Vielen Dank für die Bewertung aller Einträge.",
         "equalDescription": "Wenn beide Antworten gleich gut sind, markieren Sie diese als Gleichstand.",
         "responseA": "Antwort A",
         "responseB": "Antwort B",
@@ -6927,7 +6927,7 @@
       "viewDetails": "Details anzeigen"
     },
     "detail": {
-      "back": "Zurueck",
+      "back": "Zurück",
       "model": "Modell",
       "project": "Projekt",
       "confusionMatrix": "Konfusionsmatrix",
@@ -6937,7 +6937,7 @@
       "failed": "Nicht bestanden",
       "aggregateMetrics": "Aggregierte Metriken",
       "perSampleResults": "Ergebnisse pro Stichprobe",
-      "selectMetric": "Metrik auswaehlen",
+      "selectMetric": "Metrik auswählen",
       "scopedTo": "Eingeschränkt auf:",
       "scopeModelsCount": "{count} Modell(e)",
       "scopeOneAnnotator": "1 Annotator:in",
@@ -6951,35 +6951,35 @@
         "notRated": "Nicht bewertet",
         "rateStars": "{count} Sterne bewerten",
         "projectLabel": "Projekt",
-        "itemsEvaluated": "Bewertete Eintraege",
+        "itemsEvaluated": "Bewertete Einträge",
         "exit": "Beenden",
         "taskData": "Aufgabendaten",
         "modelResponse": "Modellantwort",
         "rateResponse": "Antwort bewerten",
-        "skip": "Ueberspringen",
+        "skip": "Überspringen",
         "ratingGuidelines": "Bewertungsrichtlinien",
         "guidelineRate": "Bewerten Sie jede Dimension von 1 (Schlecht) bis 5 (Ausgezeichnet)",
-        "guidelineConsider": "Beruecksichtigen Sie die Aufgabenanforderungen bei der Bewertung",
+        "guidelineConsider": "Berücksichtigen Sie die Aufgabenanforderungen bei der Bewertung",
         "guidelineConsistent": "Seien Sie konsistent in Ihren Bewertungskriterien",
-        "guidelineSkip": "Sie koennen Eintraege ueberspringen, wenn Sie unsicher sind",
+        "guidelineSkip": "Sie können Einträge überspringen, wenn Sie unsicher sind",
         "rateAllDimensions": "Bitte bewerten Sie alle Dimensionen: {dimensions}"
       },
       "preference": {
         "projectLabel": "Projekt",
-        "itemsEvaluated": "Bewertete Eintraege",
+        "itemsEvaluated": "Bewertete Einträge",
         "exit": "Beenden",
         "task": "Aufgabe",
         "yourSelection": "Ihre Auswahl",
         "hideModelNames": "Modellnamen verbergen",
         "revealModelNames": "Modellnamen anzeigen",
-        "skip": "Ueberspringen",
+        "skip": "Überspringen",
         "guidelines": "Bewertungsrichtlinien",
         "guidelineAnonymized": "Antworten sind anonymisiert, um Voreingenommenheit zu vermeiden",
-        "guidelineClick": "Klicken Sie auf die Antwort, die Sie fuer besser halten",
-        "guidelineConsider": "Beruecksichtigen Sie Genauigkeit, Klarheit und Vollstaendigkeit",
+        "guidelineClick": "Klicken Sie auf die Antwort, die Sie für besser halten",
+        "guidelineConsider": "Berücksichtigen Sie Genauigkeit, Klarheit und Vollständigkeit",
         "guidelineTie": "Verwenden Sie \"Als Gleichstand markieren\", wenn beide Antworten gleich gut sind",
-        "guidelineReveal": "Sie koennen Modellnamen nach Ihrer Auswahl anzeigen lassen",
-        "modelIdentities": "Modellidentitaeten"
+        "guidelineReveal": "Sie können Modellnamen nach Ihrer Auswahl anzeigen lassen",
+        "modelIdentities": "Modellidentitäten"
       }
     },
     "taskCard": {
@@ -7188,7 +7188,7 @@
     "loading": "Modelle werden geladen...",
     "error": "Fehler beim Laden der Modelle",
     "copyJson": "JSON kopieren",
-    "close": "Schliessen",
+    "close": "Schließen",
     "modelCount": "{count} Modelle",
     "contentPolicyWarning": "Kann rechtliche/akademische Inhalte aufgrund strenger Inhaltsrichtlinien blockieren",
     "fetchFailed": "Modelle konnten nicht geladen werden",
@@ -7553,11 +7553,11 @@
       "annotatorSubmission": "Einreichung des Annotators (schreibgeschützt)"
     },
     "annotatedBy": "Annotiert von",
-    "addReviewerComment": "Reviewer-Kommentar hinzufuegen",
+    "addReviewerComment": "Reviewer-Kommentar hinzufügen",
     "reviewerFeedbackPlaceholder": "Reviewer-Feedback (optional)...",
     "accept": "Akzeptieren",
     "fixAndAccept": "Korrigieren & Akzeptieren",
-    "submitIndependentReview": "Unabhaengiges Review einreichen",
+    "submitIndependentReview": "Unabhängiges Review einreichen",
     "reject": "Ablehnen",
     "diff": {
       "annotationComparison": "Annotationsvergleich",
@@ -7567,10 +7567,10 @@
       "rejected": "Abgelehnt",
       "fixed": "Korrigiert",
       "fieldsCompared": "{count} Felder verglichen",
-      "modified": "geaendert",
-      "added": "hinzugefuegt",
+      "modified": "geändert",
+      "added": "hinzugefügt",
       "removed": "entfernt",
-      "unchanged": "unveraendert",
+      "unchanged": "unverändert",
       "reviewerComment": "Reviewer-Kommentar",
       "noDifferences": "Keine Unterschiede zwischen Original- und Review-Annotation gefunden.",
       "empty": "(leer)",
@@ -8036,13 +8036,13 @@
       "updateMetadata": "Metadaten aktualisieren"
     },
     "alertDialog": {
-      "close": "Schliessen"
+      "close": "Schließen"
     },
     "toast": {
-      "close": "Schliessen"
+      "close": "Schließen"
     },
     "breadcrumb": {
-      "ariaLabel": "Brotkruemelnavigation"
+      "ariaLabel": "Brotkrümelnavigation"
     },
     "pagination": {
       "goToPage": "Gehe zu Seite {page}"
@@ -8168,13 +8168,13 @@
       "title": "Leistungsanalyse",
       "loading": "Leistungsdaten werden geladen...",
       "errorTitle": "Fehler beim Laden der Analyse",
-      "close": "Schliessen",
+      "close": "Schließen",
       "stable": "stabil",
       "last7Days": "Letzte 7 Tage",
       "last30Days": "Letzte 30 Tage",
       "last90Days": "Letzte 90 Tage",
       "tabs": {
-        "overview": "Uebersicht",
+        "overview": "Übersicht",
         "fieldAnalysis": "Feldanalyse",
         "trends": "Trends",
         "optimization": "Optimierung"
@@ -8195,11 +8195,11 @@
       "keyInsights": "Wichtige Erkenntnisse",
       "fieldLevelPerformance": "Feldbasierte Leistung",
       "completionTime": "Bearbeitungszeit",
-      "skipRate": "Ueberspringrate",
+      "skipRate": "Überspringrate",
       "errorRate": "Fehlerrate",
       "clarity": "Klarheit",
       "difficulty": "Schwierigkeit",
-      "suggestions": "Vorschlaege",
+      "suggestions": "Vorschläge",
       "performanceTrends": "Leistungstrends",
       "recentTrendAnalysis": "Aktuelle Trendanalyse",
       "significance": "Signifikanz",
@@ -8209,11 +8209,11 @@
     },
     "gallery": {
       "title": "Vorlagengalerie",
-      "subtitle": "Waehlen Sie eine Vorlage fuer einen schnellen Start",
+      "subtitle": "Wählen Sie eine Vorlage für einen schnellen Start",
       "navigate": "Navigieren",
-      "select": "Auswaehlen",
+      "select": "Auswählen",
       "preview": "Vorschau",
-      "close": "Schliessen",
+      "close": "Schließen",
       "createTemplate": "Vorlage erstellen",
       "import": "Importieren",
       "exportAll": "Alle exportieren",
@@ -8221,7 +8221,7 @@
       "searchPlaceholder": "Vorlagen durchsuchen...",
       "smartCategories": "Smarte Kategorien",
       "recommended": "Empfohlen",
-      "suggestions": "Vorschlaege",
+      "suggestions": "Vorschläge",
       "favorites": "Favoriten",
       "saved": "gespeichert",
       "recentlyUsed": "Zuletzt verwendet",
@@ -8229,7 +8229,7 @@
       "allCategories": "Alle Kategorien",
       "allTemplates": "Alle Vorlagen",
       "templatesFound": "Vorlagen gefunden",
-      "forQuery": "fuer \"{query}\"",
+      "forQuery": "für \"{query}\"",
       "edit": "Bearbeiten",
       "export": "Exportieren",
       "share": "Teilen",
@@ -8254,20 +8254,20 @@
       "shareTemplate": "Vorlage teilen",
       "comments": "Kommentare",
       "access": "Zugriff",
-      "activity": "Aktivitaet",
-      "addComment": "Kommentar hinzufuegen",
+      "activity": "Aktivität",
+      "addComment": "Kommentar hinzufügen",
       "commentPlaceholder": "Einen Kommentar hinterlassen...",
       "general": "Allgemein",
       "comment": "Kommentieren",
-      "markAsResolved": "Als geloest markieren",
+      "markAsResolved": "Als gelöst markieren",
       "accessManagement": "Zugriffsverwaltung",
-      "addPeople": "Personen hinzufuegen",
+      "addPeople": "Personen hinzufügen",
       "unknownUser": "Unbekannter Nutzer",
       "noEmail": "Keine E-Mail",
       "viewer": "Betrachter",
       "editor": "Bearbeiter",
-      "owner": "Eigentuemer",
-      "recentActivity": "Letzte Aktivitaet",
+      "owner": "Eigentümer",
+      "recentActivity": "Letzte Aktivität",
       "actionCreated": "hat erstellt",
       "actionUpdated": "hat aktualisiert",
       "actionShared": "hat geteilt",
@@ -8278,10 +8278,10 @@
     },
     "bulkOps": {
       "processing": "{operation} wird verarbeitet... {progress}%",
-      "preparing": "Vorbereitung fuer {operation}...",
+      "preparing": "Vorbereitung für {operation}...",
       "operation": "Vorgang",
       "cancelOperation": "Vorgang abbrechen",
-      "close": "Schliessen",
+      "close": "Schließen",
       "completed": "Abgeschlossen",
       "progress": "Fortschritt",
       "processedSuccessfully": "{count} Vorlage(n) erfolgreich verarbeitet",
@@ -8291,7 +8291,7 @@
       "done": "Fertig"
     },
     "preview": {
-      "selectOption": "Option auswaehlen...",
+      "selectOption": "Option auswählen...",
       "moreFields": "weitere Felder...",
       "formPreview": "Formularvorschau",
       "totalFields": "Felder gesamt",
