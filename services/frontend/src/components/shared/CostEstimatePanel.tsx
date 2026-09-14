@@ -79,7 +79,106 @@ interface CostEstimateResponse {
     output_estimate: number
     encoding: string
   }
+  /** English summary; only rendered when the structured fields are absent
+   *  (older API). */
   note: string
+  accuracy_percent?: number
+  encoding?: string
+  input_basis?: 'task_data' | 'generation_outputs' | 'rendered_judge_prompt'
+  output_utilization_percent?: number | null
+  missing_only?: boolean
+  per_judge_cells?: boolean
+}
+
+type Translate = (key: string, fallback?: string) => unknown
+
+function fill(template: unknown, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (text, [name, value]) => text.split(`{${name}}`).join(String(value)),
+    String(template),
+  )
+}
+
+/** The estimate's assumptions in the reader's language, built from the
+ *  structured response fields. Falls back to the API's English `note`. */
+function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
+  if (estimate.accuracy_percent == null) return estimate.note
+  const encoding = estimate.encoding || estimate.token_estimate.encoding
+  const basis = {
+    task_data: t(
+      'costEstimate.note.basisTaskData',
+      'Der Input wird an den Aufgabendaten gemessen.',
+    ),
+    generation_outputs: t(
+      'costEstimate.note.basisGenerationOutputs',
+      'Der Input wird an aktuellen Modellantworten gemessen, also an dem, was der Judge bewertet.',
+    ),
+    rendered_judge_prompt: t(
+      'costEstimate.note.basisRenderedJudgePrompt',
+      'Der Input ist der vollständige Judge-Prompt: Vorlage, Sachverhalt, Referenz, Bewertungsbogen und eine Beispielantwort, dazu Systemprompt und Antwortschema.',
+    ),
+  }[estimate.input_basis ?? 'task_data']
+  const parts = [
+    fill(
+      t(
+        'costEstimate.note.accuracy',
+        'Genauigkeit der Schätzung ± ~{percent} %.',
+      ),
+      { percent: estimate.accuracy_percent },
+    ),
+    String(basis),
+    estimate.mode === 'evaluation'
+      ? fill(
+          t(
+            'costEstimate.note.outputJudge',
+            'Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.',
+          ),
+          { percent: estimate.output_utilization_percent ?? 15 },
+        )
+      : String(
+          t(
+            'costEstimate.note.outputGeneration',
+            'Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.',
+          ),
+        ),
+    fill(
+      t(
+        'costEstimate.note.encoding',
+        'Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.',
+      ),
+      { encoding },
+    ),
+  ]
+  if (estimate.missing_only) {
+    parts.push(
+      String(
+        t(
+          'costEstimate.note.countingMissing',
+          'Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.',
+        ),
+      ),
+    )
+  } else if (estimate.mode === 'generation') {
+    parts.push(
+      String(
+        t(
+          'costEstimate.note.countingAll',
+          'Gezählt wird jede Zelle (Task × Struktur).',
+        ),
+      ),
+    )
+  }
+  if (estimate.per_judge_cells) {
+    parts.push(
+      String(
+        t(
+          'costEstimate.note.perJudgeCells',
+          'Evaluierungen zählen Zellen pro Judge mit den Läufen der jeweiligen Konfiguration und lassen bereits erfolgreich bewertete Zellen weg. Lückenhafte Vorhersagefelder können die Kosten zusätzlich verschieben.',
+        ),
+      ),
+    )
+  }
+  return parts.join(' ')
 }
 
 /**
@@ -314,22 +413,29 @@ export function CostEstimatePanel({
               {t('costEstimate.tokenLabel', 'Token-Schätzung pro Aufruf')}
             </div>
             <div className="mt-0.5">
-              Input: {estimate.token_estimate.input_mean.toFixed(0)} (mean) /{' '}
-              {estimate.token_estimate.input_p95.toFixed(0)} (p95) · Output:{' '}
-              {estimate.token_estimate.output_estimate.toFixed(0)} · Encoding:{' '}
-              {estimate.token_estimate.encoding} · Sample:{' '}
-              {estimate.sample_size} Tasks
+              {fill(
+                t(
+                  'costEstimate.tokenLine',
+                  'Input: {mean} (Mittel) / {p95} (p95) · Output: {output} · Kodierung: {encoding} · Stichprobe: {sample}',
+                ),
+                {
+                  mean: estimate.token_estimate.input_mean.toFixed(0),
+                  p95: estimate.token_estimate.input_p95.toFixed(0),
+                  output: estimate.token_estimate.output_estimate.toFixed(0),
+                  encoding: estimate.token_estimate.encoding,
+                  sample: estimate.sample_size,
+                },
+              )}
             </div>
           </div>
 
-          {/* Disclaimer / note assembled by the API: "Estimate accuracy
-              ± ~20%…" plus mode-specific utilization detail and (when
-              eval-with-configs is active) a wider-variance caveat for
-              the subject-count formula. Surfaces what assumptions the
-              cost number rests on. */}
-          {estimate.note && (
+          {/* The assumptions the cost number rests on (accuracy band, what
+              the input was measured on, output utilization, tokenizer,
+              which cells are counted), phrased from the structured
+              response fields in the reader's language. */}
+          {(estimate.accuracy_percent != null || estimate.note) && (
             <div className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-500">
-              {estimate.note}
+              {estimateNote(estimate, t)}
             </div>
           )}
         </div>

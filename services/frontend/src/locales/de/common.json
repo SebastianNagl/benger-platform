@@ -8645,7 +8645,20 @@
     "perRunCol": "Pro Lauf",
     "totalCol": "Gesamt",
     "noPricing": "Keine Preisdaten",
-    "tokenLabel": "Token-Schätzung pro Aufruf"
+    "tokenLabel": "Token-Schätzung pro Aufruf",
+    "tokenLine": "Input: {mean} (Mittel) / {p95} (p95) · Output: {output} · Kodierung: {encoding} · Stichprobe: {sample}",
+    "note": {
+      "accuracy": "Genauigkeit der Schätzung ± ~{percent} %.",
+      "basisTaskData": "Der Input wird an den Aufgabendaten gemessen.",
+      "basisGenerationOutputs": "Der Input wird an aktuellen Modellantworten gemessen, also an dem, was der Judge bewertet.",
+      "basisRenderedJudgePrompt": "Der Input ist der vollständige Judge-Prompt: Vorlage, Sachverhalt, Referenz, Bewertungsbogen und eine Beispielantwort, dazu Systemprompt und Antwortschema.",
+      "outputJudge": "Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.",
+      "outputGeneration": "Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.",
+      "encoding": "Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.",
+      "countingMissing": "Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.",
+      "countingAll": "Gezählt wird jede Zelle (Task × Struktur).",
+      "perJudgeCells": "Evaluierungen zählen Zellen pro Judge mit den Läufen der jeweiligen Konfiguration und lassen bereits erfolgreich bewertete Zellen weg. Lückenhafte Vorhersagefelder können die Kosten zusätzlich verschieben."
+    }
   },
   "eval": {
     "judgeAgreement": {

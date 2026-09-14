@@ -8637,7 +8637,20 @@
     "perRunCol": "Per run",
     "totalCol": "Total",
     "noPricing": "No pricing data",
-    "tokenLabel": "Token estimate per call"
+    "tokenLabel": "Token estimate per call",
+    "tokenLine": "Input: {mean} (mean) / {p95} (p95) · Output: {output} · Encoding: {encoding} · Sample: {sample}",
+    "note": {
+      "accuracy": "Estimate accuracy ± ~{percent} %.",
+      "basisTaskData": "Input is measured on the task data.",
+      "basisGenerationOutputs": "Input is measured on recent model outputs, the text the judge grades.",
+      "basisRenderedJudgePrompt": "Input is the full judge prompt: template, case facts, reference, grading sheet and a sample answer, plus system prompt and response schema.",
+      "outputJudge": "Output is assumed at {percent} % of max_tokens because judges only return scores and a short rationale.",
+      "outputGeneration": "Output is assumed at 90 % of max_tokens for reasoning models and 60 % otherwise.",
+      "encoding": "Tokens counted with {encoding}; for other providers' models this is an approximation.",
+      "countingMissing": "Only cells that would actually run are counted.",
+      "countingAll": "Every cell (task × structure) is counted.",
+      "perJudgeCells": "Evaluations count cells per judge with each configuration's own runs and skip cells already scored successfully. Sparse prediction fields can shift the cost further."
+    }
   },
   "eval": {
     "judgeAgreement": {
