@@ -1255,3 +1255,101 @@ class TestTaskRubricRoundtrip:
         assert imported["Legacy"].total_points == 100.0
         target_task_ids = {t.id for t in db_session.query(Task).filter(Task.project_id == target.id).all()}
         assert {r.task_id for r in imported.values()} <= target_task_ids
+
+
+class TestRubricGradingReferencesSurviveImport:
+    """A rubric grading records the sheet it was scored against at
+    ``metrics[<key>]["details"]["rubric_id"]``, and import mints fresh rubric
+    ids. Unless the importer repoints that id, every imported grading names a
+    row of the SOURCE deployment. The id is joined on, not merely recorded:
+    clone-on-edit detection, Notenschlüssel recompute and both result views
+    resolve the sheet through it."""
+
+    RUBRIC_CRITERIA = {"s01_a": {"name": "A", "rubric": "r", "max_score": 10}}
+
+    def _seed(self, db_session, user, data):
+        from models import TaskEvaluation
+        from project_models import TaskRubric
+        from sqlalchemy.orm.attributes import flag_modified
+
+        task_ids = [t.id for t in data["tasks"]]
+        grading = (
+            db_session.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(task_ids))
+            .first()
+        )
+        assert grading is not None, "fixture must provide at least one grading"
+        rubric = TaskRubric(
+            id=str(uuid.uuid4()),
+            task_id=grading.task_id,
+            project_id=data["project"].id,
+            title="Bogen mit Bewertung",
+            criteria=self.RUBRIC_CRITERIA,
+            total_points=10.0,
+            source="human",
+            status="active",
+            created_by=user.id,
+        )
+        db_session.add(rubric)
+        db_session.flush()
+        grading.metrics = {
+            **(grading.metrics or {}),
+            "llm_judge_rubric": {
+                "value": 0.7,
+                "details": {
+                    "rubric_id": rubric.id,
+                    "grade_points": 9,
+                    "total_score": 7.0,
+                    "total_max": 10.0,
+                },
+            },
+        }
+        flag_modified(grading, "metrics")
+        db_session.commit()
+        return rubric
+
+    def _rubric_gradings(self, db_session, project_id):
+        from models import TaskEvaluation
+
+        task_ids = [
+            t.id for t in db_session.query(Task).filter(Task.project_id == project_id).all()
+        ]
+        return [
+            row
+            for row in db_session.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(task_ids))
+            .all()
+            if isinstance(row.metrics, dict) and "llm_judge_rubric" in row.metrics
+        ]
+
+    def test_per_task_import_repoints_gradings_at_the_imported_sheet(
+        self, db_session, user, project_with_full_data
+    ):
+        from project_models import TaskRubric
+
+        data = project_with_full_data
+        source_rubric = self._seed(db_session, user, data)
+
+        rt = TestDataExportImportRoundtrip()
+        export = rt._export(
+            db_session, data["project"].id, [t.id for t in data["tasks"]], user.id
+        )
+        target = Project(
+            id=str(uuid.uuid4()), title="Remap target",
+            label_config="<View></View>", created_by=user.id,
+        )
+        db_session.add(target)
+        db_session.commit()
+        rt._import(db_session, target.id, export, user.id)
+
+        imported = (
+            db_session.query(TaskRubric)
+            .filter(TaskRubric.project_id == target.id,
+                    TaskRubric.title == "Bogen mit Bewertung")
+            .one()
+        )
+        assert imported.id != source_rubric.id
+        gradings = self._rubric_gradings(db_session, target.id)
+        assert gradings, "the rubric grading must travel with its task"
+        for row in gradings:
+            assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id

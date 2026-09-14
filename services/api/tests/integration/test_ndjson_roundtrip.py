@@ -641,3 +641,160 @@ class TestGradingFeedbackRoundtrip:
         assert len(imported) == 2
         assert {f.grading_source for f in imported} == {"llm", "general"}
         assert {f.user_id for f in imported} == {admin.id}
+
+
+class TestTaskRubricsInNdjson:
+    """Bewertungsbogen rows travel in the NDJSON stream, in an order a single
+    forward import pass can use, and imported gradings point at the imported
+    sheet rather than at the source deployment's."""
+
+    def _seed(self, db, project, admin):
+        from models import TaskEvaluation
+        from project_models import TaskRubric
+        from sqlalchemy.orm.attributes import flag_modified
+
+        grading = (
+            db.query(TaskEvaluation)
+            .join(Task, Task.id == TaskEvaluation.task_id)
+            .filter(Task.project_id == project.id)
+            .first()
+        )
+        assert grading is not None, "full_project must carry a grading"
+        rubric = TaskRubric(
+            id=_uid(),
+            task_id=grading.task_id,
+            project_id=project.id,
+            title="Korrekturbogen NDJSON",
+            criteria={"s01_a": {"name": "A", "rubric": "r", "max_score": 12.5}},
+            total_points=12.5,
+            source="human",
+            status="active",
+            created_by=admin.id,
+        )
+        db.add(rubric)
+        db.flush()
+        grading.metrics = {
+            **(grading.metrics or {}),
+            "llm_judge_rubric": {
+                "value": 0.8,
+                "details": {"rubric_id": rubric.id, "grade_points": 11},
+            },
+        }
+        flag_modified(grading, "metrics")
+        db.commit()
+        return rubric
+
+    def test_records_are_ordered_for_a_single_pass_import(self, test_db, full_project):
+        project, admin = full_project
+        rubric = self._seed(test_db, project, admin)
+        lines = [json.loads(ln) for ln in _export_ndjson(test_db, project).splitlines()]
+        types = [r["_type"] for r in lines]
+
+        assert types.count("task_rubric") == 1
+        first_rubric = types.index("task_rubric")
+        last_task = max(i for i, t in enumerate(types) if t == "task")
+        first_grading = types.index("task_evaluation")
+        # After its task (FK) and before any grading that names it.
+        assert last_task < first_rubric < first_grading
+
+        record = lines[first_rubric]
+        assert record["id"] == rubric.id
+        assert record["task_id"] == rubric.task_id
+        assert record["total_points"] == 12.5
+        end = lines[-1]
+        assert end["_type"] == "end"
+        assert end["statistics"]["total_task_rubrics"] == 1
+
+    def test_roundtrip_carries_the_sheet_and_repoints_gradings(
+        self, test_db, full_project
+    ):
+        from models import TaskEvaluation
+        from project_models import TaskRubric
+
+        project, admin = full_project
+        source = self._seed(test_db, project, admin)
+        ndjson = _export_ndjson(test_db, project)
+
+        result = run_ndjson_import(test_db, io.BytesIO(ndjson.encode()), admin.id)
+        new_id = result["project_id"]
+        assert result["statistics"]["imported_counts"]["task_rubrics"] == 1
+
+        imported = (
+            test_db.query(TaskRubric).filter(TaskRubric.project_id == new_id).one()
+        )
+        assert imported.id != source.id
+        assert imported.title == "Korrekturbogen NDJSON"
+        assert imported.status == "active"
+
+        new_task_ids = [
+            t.id for t in test_db.query(Task).filter(Task.project_id == new_id).all()
+        ]
+        gradings = [
+            row
+            for row in test_db.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(new_task_ids))
+            .all()
+            if isinstance(row.metrics, dict) and "llm_judge_rubric" in row.metrics
+        ]
+        assert gradings
+        for row in gradings:
+            assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id
+
+    def test_full_project_export_carries_the_sheet_and_repoints_gradings(
+        self, test_db, full_project
+    ):
+        """The comprehensive format, which production's async project export
+        uses. Before this change it carried no Bewertungsbogen at all, so a
+        restored project lost every sheet and every grading kept a dangling
+        rubric id."""
+        from export_stream import stream_comprehensive_project_data_json
+        from import_stream import run_full_project_import
+        from models import TaskEvaluation
+        from project_models import TaskRubric
+
+        project, admin = full_project
+        source = self._seed(test_db, project, admin)
+        payload = json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+
+        records = payload.get("task_rubrics") or []
+        assert [r["id"] for r in records] == [source.id]
+        assert records[0]["task_id"] == source.task_id
+        export_stats = next(
+            v for v in payload.values() if isinstance(v, dict) and "total_tasks" in v
+        )
+        assert export_stats["total_task_rubrics"] == 1
+
+        result = run_full_project_import(
+            test_db, io.BytesIO(json.dumps(payload).encode()), admin.id
+        )
+        stats = result.get("statistics") or result
+        new_id = (
+            result.get("project_id")
+            or result.get("new_project_id")
+            or stats.get("new_project_id")
+        )
+        assert new_id
+        assert stats["imported_counts"]["task_rubrics"] == 1
+
+        imported = (
+            test_db.query(TaskRubric).filter(TaskRubric.project_id == new_id).one()
+        )
+        assert imported.id != source.id
+        assert imported.status == "active"
+        assert imported.total_points == 12.5
+
+        new_task_ids = [
+            t.id for t in test_db.query(Task).filter(Task.project_id == new_id).all()
+        ]
+        gradings = [
+            row
+            for row in test_db.query(TaskEvaluation)
+            .filter(TaskEvaluation.task_id.in_(new_task_ids))
+            .all()
+            if isinstance(row.metrics, dict) and "llm_judge_rubric" in row.metrics
+        ]
+        assert gradings
+        for row in gradings:
+            assert row.metrics["llm_judge_rubric"]["details"]["rubric_id"] == imported.id

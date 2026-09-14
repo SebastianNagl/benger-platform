@@ -705,6 +705,29 @@ def stream_comprehensive_project_data_json(
         stats["total_tasks"] += 1
     yield "],"
 
+    # --- task_rubrics (light) ---
+    # Until this block the full project export carried no Bewertungsbogen at
+    # all: a restored project lost every sheet and every grading kept a
+    # dangling `details.rubric_id`. Flat records keyed by task_id, since this
+    # format does not nest under tasks.
+    yield '"task_rubrics": ['
+    first = True
+    rubric_q = (
+        db.query(TaskRubric)
+        .filter(TaskRubric.project_id == project_id)
+        .order_by(TaskRubric.created_at)
+    )
+    for rubric in _drain(rubric_q):
+        if rubric.created_by:
+            user_ids.add(rubric.created_by)
+        yield ("" if first else ",") + json.dumps(
+            {**serialize_task_rubric(rubric), "task_id": rubric.task_id},
+            ensure_ascii=False,
+        )
+        first = False
+        stats["total_task_rubrics"] = stats.get("total_task_rubrics", 0) + 1
+    yield "],"
+
     # --- annotations (heavy) ---
     yield '"annotations": ['
     first = True
@@ -1091,6 +1114,14 @@ def stream_export_ndjson(
     ):
         if uid:
             user_ids.add(uid)
+    # Bewertungsbogen authors, so the importer resolves them instead of
+    # attributing every sheet to whoever runs the import.
+    for (uid,) in (
+        db.query(TaskRubric.created_by)
+        .filter(TaskRubric.project_id == project_id)
+    ):
+        if uid:
+            user_ids.add(uid)
 
     if user_ids:
         for u in db.query(User).filter(User.id.in_(user_ids)).all():
@@ -1102,6 +1133,19 @@ def stream_export_ndjson(
             task, mode="full", total_generations=gen_counts.get(task.id, 0),
         ))
         stats["total_tasks"] += 1
+
+    # --- task_rubrics (light) ---
+    # After their tasks (FK) and before any task_evaluation, so the importer's
+    # single forward pass knows the new rubric id when a grading names the old.
+    for rubric in _drain(
+        db.query(TaskRubric)
+        .filter(TaskRubric.project_id == project_id)
+        .order_by(TaskRubric.created_at)
+    ):
+        yield _emit(
+            "task_rubric", {**serialize_task_rubric(rubric), "task_id": rubric.task_id}
+        )
+        stats["total_task_rubrics"] = stats.get("total_task_rubrics", 0) + 1
 
     # --- annotations (heavy) ---
     for ann in _drain(db.query(Annotation).filter(Annotation.project_id == project_id)):
