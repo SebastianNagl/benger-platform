@@ -5,9 +5,11 @@
 import {
   bareMetricName,
   configDisplayLabel,
+  configMetricMean,
   describeConfigMatchReason,
   fieldSelectorLabel,
   formatMetricNumber,
+  headerForField,
   isSidecarMetricKey,
   metricDisplayLabel,
   metricKeyConfigId,
@@ -261,5 +263,81 @@ describe('readable sample values', () => {
     expect(readableSampleValue(undefined).text).toBe('')
     expect(readableSampleValue(3).text).toBe('3')
     expect(readableSampleValue(false).text).toBe('false')
+  })
+})
+
+describe('field headers from the label config', () => {
+  const labelConfig = `<View>
+  <Header value="Gliederung"/>
+  <Gliederung name="gliederung" toName="sachverhalt"/>
+  <Header value="Lösung"/>
+  <Loesung name="loesung" toName="sachverhalt"
+           linkedTo="gliederung"/>
+  <TextArea name="notiz" toName="sachverhalt"/>
+</View>`
+  const t = (key: string) => key
+
+  it('finds the header directly preceding a field', () => {
+    expect(headerForField(labelConfig, 'loesung')).toBe('Lösung')
+    expect(headerForField(labelConfig, 'gliederung')).toBe('Gliederung')
+  })
+
+  it('returns null for a field without its own header or without a config', () => {
+    expect(headerForField(labelConfig, 'notiz')).toBeNull()
+    expect(headerForField(labelConfig, 'missing')).toBeNull()
+    expect(headerForField(null, 'loesung')).toBeNull()
+  })
+
+  it('labels a field selector by its header, else by its bare name', () => {
+    expect(fieldSelectorLabel('human:loesung', t, labelConfig)).toBe('Lösung')
+    expect(fieldSelectorLabel('human:notiz', t, labelConfig)).toBe('notiz')
+    expect(fieldSelectorLabel('human:loesung', t)).toBe('loesung')
+  })
+})
+
+describe('readableSampleValue on converted .docx text', () => {
+  it('drops Markdown escapes and bold markers', () => {
+    expect(
+      readableSampleValue(
+        '__Lösungshinweise__\n\nA\\. Zulässigkeit\n\nPolizei\\- und Sicherheitsrecht \\(PAG\\)',
+      ).text,
+    ).toBe(
+      'Lösungshinweise\n\nA. Zulässigkeit\n\nPolizei- und Sicherheitsrecht (PAG)',
+    )
+  })
+
+  it('keeps underscores and asterisks that are not markers', () => {
+    expect(readableSampleValue('snake_case und 2 * 3').text).toBe(
+      'snake_case und 2 * 3',
+    )
+    expect(readableSampleValue('**fett** und __auch__').text).toBe(
+      'fett und auch',
+    )
+  })
+})
+
+describe('configMetricMean', () => {
+  const results = {
+    paid: {
+      'human:loesung_vs_task.musterloesung': {
+        llm_judge_rubric: 0.53,
+        raw_score: 0.53,
+      },
+      'human:gliederung_vs_task.musterloesung': { llm_judge_rubric: 0.47 },
+    },
+    empty: { pair: { other: 1 } },
+  }
+
+  it('averages the metric over the config field pairs', () => {
+    expect(configMetricMean(results, 'paid', 'llm_judge_rubric')).toBeCloseTo(
+      0.5,
+    )
+  })
+
+  it('is null without values, config or metric', () => {
+    expect(configMetricMean(results, 'empty', 'llm_judge_rubric')).toBeNull()
+    expect(configMetricMean(results, 'missing', 'llm_judge_rubric')).toBeNull()
+    expect(configMetricMean(undefined, 'paid', 'llm_judge_rubric')).toBeNull()
+    expect(configMetricMean(results, 'paid', '')).toBeNull()
   })
 })

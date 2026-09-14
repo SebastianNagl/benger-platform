@@ -50,8 +50,9 @@ describe('PerRunBreakdown branch coverage', () => {
     ]
     render(<PerRunBreakdown rows={rows} metric="m" showTargetModel={false} />)
 
-    const running = screen.getByText('running')
-    const pending = screen.getByText('pending')
+    // Statuses render through runStatusLabel (the mock t echoes the key).
+    const running = screen.getByText('evaluations.detail.statusLabels.running')
+    const pending = screen.getByText('evaluations.detail.statusLabels.pending')
     expect(running).toBeInTheDocument()
     expect(pending).toBeInTheDocument()
     // 'running' → blue palette

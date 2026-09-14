@@ -105,11 +105,46 @@ export function parseSampleFieldKey(fieldName: string): {
   return { configId: null, predictionField: fieldName, referenceField: null }
 }
 
-/** Readable name of a prediction or reference field selector. */
-export function fieldSelectorLabel(field: string, t: Translate): string {
+function xmlAttribute(attrs: string, name: string): string | null {
+  const match = new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`).exec(attrs)
+  return match ? match[1] : null
+}
+
+/** The `<Header value>` directly preceding the element named `field` in a
+ * label config, or null when the field has no header of its own. */
+export function headerForField(
+  labelConfig: string | null | undefined,
+  field: string,
+): string | null {
+  if (!labelConfig || !field) return null
+  const tag = /<\s*([A-Za-z][\w-]*)\b([^>]*)>/g
+  let lastHeader: string | null = null
+  for (let m = tag.exec(labelConfig); m; m = tag.exec(labelConfig)) {
+    const [, type, attrs] = m
+    if (type.toLowerCase() === 'header') {
+      lastHeader = xmlAttribute(attrs, 'value')
+      continue
+    }
+    const name = xmlAttribute(attrs, 'name')
+    if (name === null) continue
+    if (name === field) return lastHeader?.trim() || null
+    lastHeader = null
+  }
+  return null
+}
+
+/** Readable name of a prediction or reference field selector: the special
+ * selectors' translated names, else the header the project's label config
+ * gives the field, else the field name without its role prefix. */
+export function fieldSelectorLabel(
+  field: string,
+  t: Translate,
+  labelConfig?: string | null,
+): string {
   const special = getFieldLabel(field, (key) => t(key))
   if (special !== field) return special
-  return field.replace(/^(human:|model:|task\.)/, '')
+  const bare = field.replace(/^(human:|model:|task\.)/, '')
+  return headerForField(labelConfig, bare) ?? bare
 }
 
 /** Display name of a config: its own name, else its metric's name. */
@@ -123,6 +158,26 @@ export function configDisplayLabel(
   if (config?.display_name) return config.display_name
   const metric = config?.metric || fallbackMetric
   return metric ? metricDisplayLabel(metric, undefined, t) : null
+}
+
+/**
+ * Mean of a bare metric over one config's field pairs in `results_by_config`
+ * (`{config: {pred_vs_ref: {metric: value}}}`), or null when the config has
+ * no numeric value for it.
+ */
+export function configMetricMean(
+  resultsByConfig:
+    Record<string, Record<string, Record<string, unknown>>> | null | undefined,
+  configId: string,
+  metric: string,
+): number | null {
+  const pairs = resultsByConfig?.[configId]
+  if (!pairs || !metric) return null
+  const values = Object.values(pairs)
+    .map((scores) => scores?.[metric])
+    .filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
+  if (values.length === 0) return null
+  return values.reduce((sum, v) => sum + v, 0) / values.length
 }
 
 const RUN_STATUSES = new Set([
@@ -202,12 +257,25 @@ export const BENIGN_MATCH_REASONS = new Set([
 
 // Word bookmark anchors that .docx conversion leaves in stored text.
 const EMPTY_ANCHOR = /<a\s+id="[^"]*"\s*>\s*<\/a>/g
+// Markdown escapes the .docx conversion writes before punctuation
+// (`A\. Zulässigkeit`, `Polizei\- und`).
+const MARKDOWN_ESCAPE = /\\([\\`*_{}[\]()#+\-.!|<>~])/g
+// Bold markers around a run of text (`__Lösungshinweise__`), and empty ones.
+const MARKDOWN_STRONG = /(\*\*|__)(?=\S)([\s\S]*?\S)?\1/g
+
+function plainText(value: string): string {
+  return value
+    .replace(EMPTY_ANCHOR, '')
+    .replace(MARKDOWN_STRONG, (_match, _marker, inner) => inner ?? '')
+    .replace(MARKDOWN_ESCAPE, '$1')
+}
 
 /**
  * A stored reference or prediction as text a reader can follow. Strings are
- * shown as they are (minus empty Word bookmark anchors), a single-string
- * wrapper such as `{text: "..."}` is unwrapped, anything structured is
- * pretty-printed JSON. `isStructured` tells the caller which of the two.
+ * shown as plain text (without Word bookmark anchors, bold markers and the
+ * Markdown escapes of converted .docx files), a single-string wrapper such as
+ * `{text: "..."}` is unwrapped, anything structured is pretty-printed JSON.
+ * `isStructured` tells the caller which of the two.
  */
 export function readableSampleValue(value: unknown): {
   text: string
@@ -217,7 +285,7 @@ export function readableSampleValue(value: unknown): {
     return { text: '', isStructured: false }
   }
   if (typeof value === 'string') {
-    return { text: value.replace(EMPTY_ANCHOR, ''), isStructured: false }
+    return { text: plainText(value), isStructured: false }
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return { text: String(value), isStructured: false }

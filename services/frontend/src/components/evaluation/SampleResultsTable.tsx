@@ -144,6 +144,8 @@ interface SampleResultsTableProps {
   consistencyByTaskId?: Record<string, TaskConsistencyEntry>
   /** The run's evaluation configs, to name a sample by its config. */
   configs?: ReadonlyArray<RunConfigLabel>
+  /** The project's label config, to name answer fields by their headers. */
+  labelConfig?: string | null
 }
 
 type Translate = (
@@ -160,11 +162,12 @@ function describeSampleField(
   sample: SampleResult,
   configs: ReadonlyArray<RunConfigLabel>,
   t: Translate,
+  labelConfig?: string | null,
 ): { title: string; field: string | null } {
   const { configId, predictionField } = parseSampleFieldKey(sample.field_name)
   if (!configId) return { title: sample.field_name, field: null }
   const firstMetric = visibleMetricKeys(sample.metrics ?? {})[0]
-  const field = fieldSelectorLabel(predictionField, t)
+  const field = fieldSelectorLabel(predictionField, t, labelConfig)
   const title = configDisplayLabel(configId, configs, firstMetric, t) ?? field
   return { title, field: title === field ? null : field }
 }
@@ -240,6 +243,7 @@ export function SampleResultsTable({
   onRowClick,
   consistencyByTaskId,
   configs = [],
+  labelConfig = null,
 }: SampleResultsTableProps) {
   const { t } = useI18n()
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
@@ -283,12 +287,22 @@ export function SampleResultsTable({
         // Sorted and filtered by what the reader sees, not the stored key.
         id: 'field_name',
         accessorFn: (sample) => {
-          const { title, field } = describeSampleField(sample, configs, t)
+          const { title, field } = describeSampleField(
+            sample,
+            configs,
+            t,
+            labelConfig,
+          )
           return field ? `${title} ${field}` : title
         },
         header: t('evaluation.sampleResultsTable.field'),
         cell: ({ row }) => {
-          const { title, field } = describeSampleField(row.original, configs, t)
+          const { title, field } = describeSampleField(
+            row.original,
+            configs,
+            t,
+            labelConfig,
+          )
           return (
             <div className="min-w-0">
               <div className="font-medium text-zinc-900 dark:text-white">
@@ -439,7 +453,14 @@ export function SampleResultsTable({
         size: 80,
       },
     ],
-    [expandedRow, t, showConsistencyColumn, consistencyByTaskId, configs],
+    [
+      expandedRow,
+      t,
+      showConsistencyColumn,
+      consistencyByTaskId,
+      configs,
+      labelConfig,
+    ],
   )
 
   const table = useTable<SampleTableFeatures, SampleResult>({

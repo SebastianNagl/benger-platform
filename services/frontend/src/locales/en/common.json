@@ -8731,6 +8731,16 @@
     "judgeAgreement": {
       "titlePearson": "Inter-judge correlation (Pearson)",
       "titleKappa": "Inter-judge agreement (κ)"
+    },
+    "perRun": {
+      "targetModel": "Target model",
+      "judge": "Judge",
+      "runIndex": "Run #",
+      "samples": "Samples",
+      "meanScore": "Mean {metric}",
+      "status": "Status",
+      "deterministic": "(deterministic)",
+      "empty": "No run data for this metric."
     }
   },
   "extended": {

@@ -44,6 +44,7 @@ import {
   bareMetricName,
   BENIGN_MATCH_REASONS,
   configDisplayLabel,
+  configMetricMean,
   describeConfigMatchReason,
   fieldSelectorLabel,
   formatMetricNumber,
@@ -83,6 +84,8 @@ interface EvaluationData {
   error_message?: string | null
   samples_evaluated: number
   metrics: Record<string, number>
+  // Per config and field pair, the metric values (`{config: {pair: {metric}}}`).
+  results_by_config?: Record<string, Record<string, Record<string, unknown>>>
   // The configs this run was dispatched with (snapshot in eval_metadata).
   evaluation_configs?: RunConfigLabel[]
   eval_metadata: {
@@ -125,6 +128,7 @@ interface SampleResult {
 
 interface ProjectSummary {
   title?: string
+  label_config?: string | null
   evaluation_config?: { evaluation_configs?: RunConfigLabel[] } | null
 }
 
@@ -852,6 +856,7 @@ export default function EvaluationDashboard({
             <SampleResultsTable
               data={samples}
               configs={configs}
+              labelConfig={project?.label_config}
               consistencyByTaskId={(() => {
                 // Multi-run consistency lookup (migration 042). Flatten the
                 // task_consistency_by_model_metric block (keyed by
@@ -912,8 +917,36 @@ export default function EvaluationDashboard({
                 </Alert>
               )}
               <PerRunBreakdown
-                rows={perRunRows}
+                rows={perRunRows.map((row) => {
+                  // A config graded by a single judge run: the config's own
+                  // score is that run's mean.
+                  if (row.mean_score !== null || !metricKeys[0]) return row
+                  const cid = Object.keys(
+                    evaluation?.eval_metadata?.judges_by_config ?? {},
+                  ).find((id) =>
+                    evaluation?.eval_metadata?.judges_by_config?.[id]?.some(
+                      (entry) => entry.judge_run_id === row.judge_run_id,
+                    ),
+                  )
+                  const runs = cid
+                    ? evaluation?.eval_metadata?.judges_by_config?.[cid]
+                    : undefined
+                  if (!cid || runs?.length !== 1) return row
+                  return {
+                    ...row,
+                    mean_score: configMetricMean(
+                      evaluation?.results_by_config,
+                      cid,
+                      metricKeys[0],
+                    ),
+                  }
+                })}
                 metric={metricKeys[0] || ''}
+                metricLabel={
+                  metricKeys[0]
+                    ? metricDisplayLabel(metricKeys[0], undefined, t)
+                    : undefined
+                }
                 showTargetModel={false}
               />
             </Card>
