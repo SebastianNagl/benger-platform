@@ -1263,6 +1263,53 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "mode": "multidim_single_call",
         }
 
+        # E2E test mode: a deterministic filled sheet without a provider call.
+        # The per-criterion mock in _evaluate_single_criterion never covered
+        # this path, yet the Bewertungsbogen judge always takes it. In the test
+        # stack there is no key, so the call below raised on a None ai_service,
+        # and the service layer's own structured mock answers `scores` with a
+        # string that the parser rejects. Every rubric row therefore ended as
+        # an error and no end-to-end test could ever see a score. Same seam and
+        # hash scheme as the per-criterion mock, placed after the prompt is
+        # rendered so template binding is still exercised, and on the
+        # half-point grid the strict schema enforces.
+        import os
+
+        if os.environ.get("E2E_TEST_MODE") == "true":
+            import hashlib
+
+            mock_reason = "Mock evaluation (E2E test mode)"
+            mock_scores: Dict[str, Dict[str, Any]] = {}
+            mock_total = 0.0
+            for key, definition in (self.custom_criteria or {}).items():
+                if not isinstance(definition, dict) or definition.get("max_score") is None:
+                    continue
+                max_score = float(definition["max_score"])
+                digest = hashlib.sha256(
+                    f"{key}:{str(context)[:50]}:{str(prediction)[:50]}".encode()
+                ).hexdigest()
+                base = 0.6 + (int(digest[:8], 16) % 40) / 100
+                score = max(0.0, min(max_score, round(max_score * base * 2) / 2))
+                mock_scores[key] = {"score": score, "max": max_score, "reason": mock_reason}
+                mock_total += score
+            mock_body = {
+                "scores": mock_scores,
+                "total_score": mock_total,
+                "overall_assessment": mock_reason,
+            }
+            return {
+                **mock_body,
+                "total_score": float(mock_total),
+                "total_max": float(total_max),
+                "_call_metadata": {
+                    "e2e_test_mode": True,
+                    "finish_reason": "stop",
+                    "truncated": False,
+                },
+                "_raw_output": json.dumps(mock_body, ensure_ascii=False),
+                "_judge_prompts_used": provenance,
+            }
+
         last_failure: Optional[Dict[str, Any]] = None
 
         for attempt in range(self.max_retries):

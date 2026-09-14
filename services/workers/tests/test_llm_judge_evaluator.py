@@ -1213,6 +1213,63 @@ class TestEvaluateMultidimSingleCall:
         assert schema["additionalProperties"] == False
         assert "result_correctness" in schema["properties"]["scores"]["properties"]
 
+    def test_e2e_test_mode_fills_every_step_without_a_provider(self, monkeypatch):
+        """The Bewertungsbogen judge always takes this path, and the E2E stack
+        has no key, so ai_service is None. The mock must still fill the whole
+        sheet: every step, within its budget, on the half-point grid, and the
+        same way every time so an end-to-end test can assert exact numbers."""
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        ev = LLMJudgeEvaluator(
+            ai_service=None,
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+            custom_prompt_template="Fall: {{fall}}",
+        )
+        first = ev._evaluate_multidim_single_call(
+            context="", ground_truth="ref", prediction="pred", task_data={"fall": "x"},
+        )
+        again = ev._evaluate_multidim_single_call(
+            context="", ground_truth="ref", prediction="pred", task_data={"fall": "x"},
+        )
+
+        assert not first.get("error")
+        assert set(first["scores"]) == set(GRUNDPRINZIPIEN_CRITERIA)
+        for key, entry in first["scores"].items():
+            budget = GRUNDPRINZIPIEN_CRITERIA[key]["max_score"]
+            assert 0 <= entry["score"] <= budget
+            assert entry["score"] * 2 == int(entry["score"] * 2)
+            assert entry["max"] == budget
+        assert first["total_score"] == sum(e["score"] for e in first["scores"].values())
+        assert first["total_max"] == 100
+        assert first["scores"] == again["scores"]
+        assert first["_call_metadata"]["e2e_test_mode"] is True
+        assert first["_judge_prompts_used"]["evaluation_prompt"] == "Fall: x"
+
+    def test_e2e_test_mode_never_calls_the_provider(self, monkeypatch):
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        ev = self._evaluator()
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="p",
+            task_data={"fall": "x", "answer": "y"},
+        )
+        assert not result.get("error")
+        assert not ev.ai_service.generate_structured.called
+
+    def test_e2e_test_mode_keeps_the_missing_template_contract(self, monkeypatch):
+        monkeypatch.setenv("E2E_TEST_MODE", "true")
+        ev = LLMJudgeEvaluator(
+            ai_service=None,
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+            custom_prompt_template=None,
+        )
+        ev.custom_prompt_template = None
+        result = ev._evaluate_multidim_single_call(
+            context="", ground_truth="", prediction="", task_data={},
+        )
+        assert result["error"] is True
+        assert "custom_prompt_template" in result["error_message"]
+
 
 class TestRubricSchemaBudgetAndSnapping:
     """Bewertungsbogen judging (migration 100): strict-schema budget guard,
