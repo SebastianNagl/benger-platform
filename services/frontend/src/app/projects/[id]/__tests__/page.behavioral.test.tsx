@@ -311,6 +311,25 @@ describe('ProjectDetailPage — render-state branches', () => {
     expect(screen.getByText('TUM')).toBeInTheDocument()
   })
 
+  it('shows the project description under the title', async () => {
+    render(<ProjectDetailPage params={params()} />)
+    const description = await screen.findByTestId('project-description')
+    expect(description).toHaveTextContent('A legal benchmarking project')
+  })
+
+  it('shows no subtitle when the project has no description', async () => {
+    setStore({ currentProject: { ...baseProject, description: '' } })
+    render(<ProjectDetailPage params={params()} />)
+    await waitFor(() => {
+      expect(screen.getAllByText('Legal Benchmark').length).toBeGreaterThan(0)
+    })
+    expect(screen.queryByTestId('project-description')).not.toBeInTheDocument()
+    // The project list's onboarding text is not a project description.
+    expect(
+      screen.queryByText('projects.noProjectsDescription'),
+    ).not.toBeInTheDocument()
+  })
+
   it('fetches the project on mount via the resolved params id', async () => {
     const store = setStore()
     render(<ProjectDetailPage params={params()} />)
