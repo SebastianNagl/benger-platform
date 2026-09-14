@@ -387,3 +387,98 @@ def test_a_stored_null_judge_model_resolves_to_the_shared_default(stored):
     assert str(exc.value) == _NO_RUBRIC_ERROR.format(task_id="task-1")
     assert providers_asked == [DEFAULT_JUDGE_MODEL_ID]
     assert create_judge.call_args.kwargs["judge_model"] == DEFAULT_JUDGE_MODEL_ID
+
+
+_EVIDENCE_STEP = {
+    "score": 0.0,
+    "max": 100.0,
+    "reason": "nur in der Musterlösung [Punkte nicht vergeben]",
+    "evidence": "",
+    "evidence_verified": False,
+    "model_score": 20.0,
+}
+
+
+def _multidim_with_evidence():
+    return {
+        "scores": {
+            "s01_x": dict(_EVIDENCE_STEP),
+        },
+        "total_score": 0.0,
+        "total_max": 100.0,
+        "overall_assessment": "",
+        "_call_metadata": {},
+        "_raw_output": "",
+        "_judge_prompts_used": {"system": "…"},
+    }
+
+
+def _run_immediate(task_data, metric_type="llm_judge_rubric"):
+    db = MagicMock()
+    task_row = SimpleNamespace(id="task-1", data=task_data)
+    db.query.return_value.filter.return_value.first.return_value = task_row
+    rubric = SimpleNamespace(
+        id="rub-9",
+        generator_model_id=None,
+        criteria={"s01_x": {"name": "X", "rubric": "r", "max_score": 100}},
+        generation_metadata={"rendered_text": "BEWERTUNGSBOGEN"},
+    )
+    judge = _judge_factory_mock()
+    judge.is_multidim_mode.return_value = True
+    judge._evaluate_multidim_single_call.return_value = _multidim_with_evidence()
+    kwargs = _impl_kwargs(db)
+    kwargs["metric_type"] = metric_type
+    with patch(
+        "ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user",
+        return_value=judge,
+    ), patch(
+        "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
+    ):
+        result = _evaluate_llm_judge_single_impl(**kwargs)
+    return result, judge, db
+
+
+def test_rubric_path_turns_on_rubric_mode_and_leads_context_with_the_sachverhalt():
+    """The immediate lane hands the judge the same inputs as the bulk cell
+    path: the Sachverhalt first, then the exam parts, and the evaluator in
+    rubric mode (tags, fixed rules, verified evidence)."""
+    result, judge, _db = _run_immediate(
+        {
+            "sachverhalt": "Der Fall.",
+            "musterlösung": "ML",
+            "bearbeitervermerk": "Nur Polizeirecht prüfen.",
+        }
+    )
+    assert result["status"] == "completed"
+    assert judge.rubric_mode is True
+    context = judge._evaluate_multidim_single_call.call_args.kwargs["context"]
+    assert context == "Der Fall.\n\n## Bearbeitervermerk\n\nNur Polizeirecht prüfen."
+
+
+def test_rubric_path_context_is_the_sachverhalt_alone_without_exam_parts():
+    _result, judge, _db = _run_immediate({"sachverhalt": "Der Fall.", "musterlösung": "ML"})
+    assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == "Der Fall."
+
+
+def test_rubric_path_persists_per_step_evidence_fields():
+    result, _judge, db = _run_immediate({"sachverhalt": "Der Fall.", "musterlösung": "ML"})
+    persisted = db.add.call_args.args[0]
+    details = persisted.metrics["llm_judge_rubric"]["details"]
+    assert details["scores"]["s01_x"] == _EVIDENCE_STEP
+    assert details["total_score"] == 0.0
+    assert set(details) == {
+        "scores", "total_score", "total_max", "overall_assessment",
+        "call_metadata", "raw_output", "rubric_id", "grade_points", "passed",
+        "grade_scale_source",
+    }
+    assert result["total_score"] == 0.0
+
+
+def test_other_multidim_metrics_stay_out_of_rubric_mode():
+    """A generic multi-dim judge (llm_judge_custom with max_score criteria)
+    keeps its context and never switches on the rubric rules."""
+    _result, judge, _db = _run_immediate(
+        {"sachverhalt": "Der Fall.", "musterlösung": "ML"}, metric_type="llm_judge_custom"
+    )
+    assert judge.rubric_mode is not True
+    assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == ""
