@@ -417,10 +417,16 @@ export default function EvaluationDashboard({
               {t('evaluation.human.results.title')}
             </h1>
             <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
-              <span>
-                {t('evaluations.detail.model')}: {evaluation.model_id}
-              </span>
-              <span>•</span>
+              {/* A run over submitted answers has no model: the worker records
+                  'unknown', which says nothing useful in the header. */}
+              {evaluation.model_id && evaluation.model_id !== 'unknown' && (
+                <>
+                  <span data-testid="evaluation-detail-model">
+                    {t('evaluations.detail.model')}: {evaluation.model_id}
+                  </span>
+                  <span>•</span>
+                </>
+              )}
               <span>
                 {t('evaluations.detail.project')}: {evaluation.project_id}
               </span>
@@ -597,7 +603,16 @@ export default function EvaluationDashboard({
               <div className="text-sm text-gray-600">
                 {t('evaluations.detail.passRate')}
               </div>
-              <div className="mt-1 text-3xl font-bold text-green-600">
+              {/* Green only once something was graded: a 0.0% pass rate on a run
+                  with no samples is not a success. */}
+              <div
+                data-testid="evaluation-detail-pass-rate"
+                className={`mt-1 text-3xl font-bold ${
+                  (evaluation.samples_evaluated ?? 0) > 0
+                    ? 'text-green-600'
+                    : 'text-gray-500'
+                }`}
+              >
                 {((evaluation.eval_metadata?.pass_rate || 0) * 100).toFixed(1)}%
               </div>
             </Card>
@@ -605,7 +620,13 @@ export default function EvaluationDashboard({
               <div className="text-sm text-gray-600">
                 {t('evaluations.detail.passed')}
               </div>
-              <div className="mt-1 text-3xl font-bold text-green-600">
+              <div
+                className={`mt-1 text-3xl font-bold ${
+                  (evaluation.samples_evaluated ?? 0) > 0
+                    ? 'text-green-600'
+                    : 'text-gray-500'
+                }`}
+              >
                 {evaluation.eval_metadata?.samples_passed || 0}
               </div>
             </Card>
