@@ -1785,3 +1785,51 @@ class TestRubricSchemaEvidenceBudget:
         assert "enum" not in first(over_schema)["properties"]["score"]
         assert "evidence" in first(over_schema)["properties"]
         assert "enum" in first(over_plain)["properties"]["score"]
+
+
+class TestRubricReasoningEffortDefault:
+    """The rubric judge sends RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT when its
+    config sets none, so an immediate grading fits the interactive queue's
+    time limit. Explicit values win; other metrics and models that cannot
+    take the value are untouched."""
+
+    def _sent(self, model="gpt-5-mini", rubric_mode=True, effort=None):
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model=model,
+            custom_criteria=_STEPS,
+            custom_prompt_template=_RUBRIC_TEMPLATE,
+            reasoning_effort=effort,
+        )
+        ev.rubric_mode = rubric_mode
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": '{"scores": {}}', "usage": {}, "metadata": {},
+        }
+        result = ev._evaluate_multidim_single_call(context="", ground_truth="", prediction="x")
+        sent = ev.ai_service.generate_structured.call_args.kwargs.get("reasoning_effort")
+        return sent, result["_judge_prompts_used"].get("reasoning_effort")
+
+    def test_rubric_mode_applies_the_default_to_an_openai_reasoning_model(self):
+        from ml_evaluation.llm_judge_evaluator import RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT
+
+        assert self._sent() == (
+            RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT,
+            RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT,
+        )
+
+    def test_an_explicit_config_value_wins(self):
+        assert self._sent(effort="high") == ("high", "high")
+
+    def test_other_metrics_get_no_default(self):
+        assert self._sent(rubric_mode=False) == (None, None)
+
+    def test_non_openai_judges_get_no_default(self):
+        assert self._sent(model="claude-sonnet-4-6") == (None, None)
+
+    def test_no_default_when_the_model_family_rejects_the_value(self):
+        import ml_evaluation.llm_judge_evaluator as lje
+
+        # gpt-5.4-mini rejects "minimal" at the API; the judge must not send it.
+        with patch.object(lje, "RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT", "minimal"):
+            assert self._sent(model="gpt-5.4-mini") == (None, None)
+            assert self._sent(model="gpt-5-mini") == ("minimal", "minimal")

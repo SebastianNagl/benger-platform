@@ -1969,6 +1969,7 @@ def run_evaluation(
                                     answer_type=params.get("answer_type"),
                                     field_mappings=params.get("field_mappings"),
                                     score_scale=params.get("score_scale", "1-5"),
+                                    reasoning_effort=params.get("reasoning_effort"),
                                     organization_id=organization_id,
                                     seed=judge_seed,
                                     project_id=project_id,
