@@ -64,7 +64,7 @@ class TestUserApiKeys:
         from routers import api_keys
 
         svc = api_keys.user_api_key_service
-        with patch.object(svc, "validate_api_key", _step(log, "external", True)), patch.object(
+        with patch.object(svc, "validate_api_key", _step(log, "external", (True, "ok", None))), patch.object(
             svc, "set_user_api_key_async", _step(log, "write", True)
         ):
             await api_keys.set_user_api_key(

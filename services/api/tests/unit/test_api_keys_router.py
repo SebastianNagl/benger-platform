@@ -117,7 +117,7 @@ class TestApiKeysRouter:
         await async_test_db.flush()
         with _as_user(user), \
              patch("routers.api_keys.user_api_key_service.validate_api_key",
-                   new=AsyncMock(return_value=True)), \
+                   new=AsyncMock(return_value=(True, "ok", None))), \
              patch("routers.api_keys.user_api_key_service.set_user_api_key_async",
                    new=AsyncMock(return_value=True)):
             response = await async_test_client.post(
@@ -134,7 +134,7 @@ class TestApiKeysRouter:
         await async_test_db.flush()
         with _as_user(user), \
              patch("routers.api_keys.user_api_key_service.validate_api_key",
-                   new=AsyncMock(return_value=True)), \
+                   new=AsyncMock(return_value=(True, "ok", None))), \
              patch("routers.api_keys.user_api_key_service.set_user_api_key_async",
                    new=AsyncMock(return_value=False)):
             response = await async_test_client.post(

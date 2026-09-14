@@ -63,16 +63,21 @@ async def set_user_api_key(
     # The async session is untouched until the write below, so leave it be.
     await release_db_sessions(request_db)
 
-    # Optional: Validate API key by testing it
+    # Validate the key against the provider. A negative verdict (the service
+    # returns (is_valid, message, error_type)) rejects the key; only an
+    # unexpected exception from the check itself proceeds with storage.
     try:
-        is_valid = await user_api_key_service.validate_api_key(api_key, provider)
+        is_valid, message, _error_type = await user_api_key_service.validate_api_key(
+            api_key, provider
+        )
+    except Exception as e:
+        logger.warning(f"API key validation failed, but proceeding with storage: {e}")
+    else:
         if not is_valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid API key - unable to authenticate with provider",
+                detail=f"Invalid API key - unable to authenticate with provider: {message}",
             )
-    except Exception as e:
-        logger.warning(f"API key validation failed, but proceeding with storage: {e}")
 
     # Store the API key
     success = await user_api_key_service.set_user_api_key_async(
