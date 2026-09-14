@@ -550,6 +550,31 @@
           "uploadHint": "Tip: an existing grading sheet (e.g. from the chair, .xlsx/.docx) can be uploaded per task on the task page after creation.",
           "noModelsWarning": "No API key is stored for any provider, so no grading sheet can be generated. Add a key (Profile → API keys, or in your organization); you can still create the project and generate or upload the sheet per task later.",
           "noModelsOption": "No model available"
+        },
+        "keyWarning": {
+          "title": "This project is missing an API key",
+          "manageKeys": "Manage API keys in your profile",
+          "nonBlocking": "You can still create the project.",
+          "purpose": {
+            "evaluation": "Grading with {models}",
+            "generation": "Generation with {models}"
+          },
+          "reason": {
+            "noOrganization": "The project belongs to no organization, so grading uses your own {provider} key, and you have not saved one.",
+            "notMember": "You are not a member of any selected organization, so grading uses your own {provider} key, and you have not saved one.",
+            "organizationWithoutKey": "No {provider} key is available to you in {organizations}.",
+            "noPersonalKey": "You have not saved a {provider} key of your own and belong to no organization.",
+            "noKeyAnywhere": "Neither your own keys nor your organizations provide a {provider} key."
+          },
+          "action": {
+            "noOrganization": "Choose an organization with a {provider} key in the first step, or add your own key in your profile.",
+            "notMember": "Choose an organization you are a member of, or add your own key in your profile.",
+            "requiresPrivateKeys": "The organization requires members to use their own keys. Add a {provider} key in your profile.",
+            "askAdmin": "Ask the organization's admin to add a {provider} key.",
+            "askAdminOrPersonal": "Ask the organization's admin for a {provider} key, or add your own in your profile if the organization requires members to use their own keys.",
+            "addPersonalKey": "Add a {provider} key of your own in your profile.",
+            "noKeyAnywhere": "Add your own key in your profile, or ask your organization's admin for a {provider} key."
+          }
         }
       },
       "structuredExam": {

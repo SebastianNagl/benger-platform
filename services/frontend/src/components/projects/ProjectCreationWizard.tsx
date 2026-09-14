@@ -48,6 +48,7 @@ import {
   WizardData,
   WizardStepDef,
 } from './wizard/types'
+import { WizardKeyWarning } from './wizard/WizardKeyWarning'
 import { WizardStepIndicator } from './wizard/WizardStepIndicator'
 
 export function ProjectCreationWizard() {
@@ -887,6 +888,10 @@ export function ProjectCreationWizard() {
       <Card className="mb-8">
         <div className="p-8">{renderCurrentStep()}</div>
       </Card>
+
+      {/* Before "Create": say which AI features will lack a provider key.
+          Only on the last step, where every choice that decides it is made. */}
+      {isLastStep && <WizardKeyWarning data={wizardData} />}
 
       {/* Navigation */}
       <div className="flex justify-between">

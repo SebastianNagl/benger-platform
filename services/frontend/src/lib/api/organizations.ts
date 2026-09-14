@@ -460,6 +460,18 @@ export class OrganizationsClient extends BaseApiClient {
     })
   }
 
+  /**
+   * Models the caller can run in this organization, resolved like a dispatch
+   * resolves its key: the organization's keys when it pays and the caller may
+   * spend them, the caller's own keys otherwise. Any member may call it,
+   * unlike the admin-only key status.
+   */
+  async getOrgAvailableModels(
+    orgId: string,
+  ): Promise<Array<{ id: string; name: string; provider: string }>> {
+    return this.get(`/organizations/${orgId}/api-keys/available-models`)
+  }
+
   // ===== Org-owned (shared) custom-model credentials =====
 
   /**

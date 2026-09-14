@@ -658,6 +658,16 @@ export class EvaluationsClient extends BaseApiClient {
     return this.request('/users/api-keys/available-models')
   }
 
+  /**
+   * The official model catalog: every active catalog row with its provider,
+   * whatever keys the caller holds. `getAvailableModels` lists only what the
+   * caller can run in the current organization context, so it cannot say
+   * which provider a model the caller cannot run belongs to.
+   */
+  async getPublicModelCatalog(): Promise<LLMModelResponse[]> {
+    return this.request('/llm_models/public/models')
+  }
+
   // Convert imported predictions to LLM responses
   async convertTaskPredictions(taskId: string): Promise<{
     message: string
