@@ -28,6 +28,12 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users/api-keys", tags=["User API Keys"])
 
+# validate_api_key error_types meaning the provider refused the key itself.
+# Anything else (timeout, connection_error, network, api_error, unknown) means
+# the provider could not be asked; the key is stored and can be re-checked via
+# the test-saved endpoint.
+_REJECTED_KEY_ERROR_TYPES = frozenset({"auth", "invalid_key", "invalid_format"})
+
 
 @router.post("/{provider}")
 async def set_user_api_key(
@@ -63,20 +69,25 @@ async def set_user_api_key(
     # The async session is untouched until the write below, so leave it be.
     await release_db_sessions(request_db)
 
-    # Validate the key against the provider. A negative verdict (the service
-    # returns (is_valid, message, error_type)) rejects the key; only an
-    # unexpected exception from the check itself proceeds with storage.
+    # Validate the key against the provider (returns (is_valid, message,
+    # error_type)). Reject only when the provider refused the key; if the
+    # provider could not be reached, store it anyway and log a warning.
     try:
-        is_valid, message, _error_type = await user_api_key_service.validate_api_key(
+        is_valid, message, error_type = await user_api_key_service.validate_api_key(
             api_key, provider
         )
     except Exception as e:
         logger.warning(f"API key validation failed, but proceeding with storage: {e}")
     else:
         if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid API key - unable to authenticate with provider: {message}",
+            if error_type in _REJECTED_KEY_ERROR_TYPES:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid API key - unable to authenticate with provider: {message}",
+                )
+            logger.warning(
+                f"Could not verify {provider} API key ({error_type}: {message}), "
+                "proceeding with storage"
             )
 
     # Store the API key

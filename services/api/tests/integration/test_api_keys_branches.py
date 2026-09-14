@@ -152,15 +152,14 @@ class TestSetUserApiKeyBehavioral:
         assert VALID_OPENAI_KEY not in stored  # encrypted at rest
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("error_type", ["auth", "timeout"])
+    @pytest.mark.parametrize("error_type", ["auth", "invalid_key", "invalid_format"])
     async def test_set_key_rejected_by_provider_returns_400_and_does_not_persist(
         self, async_test_client, async_test_db, error_type
     ):
-        """A key the provider check reports invalid is refused, never stored.
+        """A key the provider refuses is answered with 400 and never stored.
 
         ``validate_api_key`` returns ``(is_valid, message, error_type)``; a
-        ``False`` verdict (auth rejection or a provider timeout it reports)
-        must surface as 400 with the provider's message.
+        ``False`` verdict with an auth-type error_type surfaces the message.
         """
         admin = _seed_user(async_test_db)
         await async_test_db.flush()
@@ -176,6 +175,28 @@ class TestSetUserApiKeyBehavioral:
         assert resp.status_code == status.HTTP_400_BAD_REQUEST
         assert "Invalid API key - check it" in resp.json()["detail"]
         assert (await _reload_user(async_test_db, admin.id)).encrypted_openai_api_key is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error_type", ["timeout", "connection_error", "network", "api_error", "unknown"]
+    )
+    async def test_set_key_provider_unreachable_still_persists(
+        self, async_test_client, async_test_db, error_type
+    ):
+        """If the provider could not be asked, the key is stored (re-checkable later)."""
+        admin = _seed_user(async_test_db)
+        await async_test_db.flush()
+        with _as_user(admin), patch.object(
+            __import__("routers.api_keys", fromlist=["user_api_key_service"]).user_api_key_service,
+            "validate_api_key",
+            new=AsyncMock(return_value=(False, "provider unreachable", error_type)),
+        ):
+            resp = await async_test_client.post(
+                "/api/users/api-keys/openai",
+                json={"api_key": VALID_OPENAI_KEY},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert (await _reload_user(async_test_db, admin.id)).encrypted_openai_api_key is not None
 
     @pytest.mark.asyncio
     async def test_set_key_uppercase_provider_normalized(
