@@ -52,6 +52,10 @@ import { useEffect, useRef, useState } from 'react'
 type SortField = 'title' | 'created_at' | 'task_count' | 'progress'
 type SortOrder = 'asc' | 'desc'
 
+// Code the project importer puts in the job error when the file is a
+// Projektdaten task export (services/shared/import_stream.py).
+const TASK_EXPORT_NOT_PROJECT_CODE = 'task_export_not_project'
+
 interface ProjectListTableProps {
   /** Show only archived projects and enable unarchive functionality */
   showArchivedOnly?: boolean
@@ -402,7 +406,11 @@ export function ProjectListTable({
       // Provide specific error message if available
       let errorMessage = t('projects.list.importFailed')
       if (error instanceof Error) {
-        if (error.message.includes('JSON')) {
+        // Stable code from the importer: a Projektdaten task export was
+        // uploaded here instead of a project export.
+        if (error.message.includes(TASK_EXPORT_NOT_PROJECT_CODE)) {
+          errorMessage = t('projects.list.taskExportNotProject')
+        } else if (error.message.includes('JSON')) {
           errorMessage = t('projects.list.invalidJsonFormat')
         } else if (error.message.includes('format_version')) {
           errorMessage = t('projects.list.unsupportedFileFormat')

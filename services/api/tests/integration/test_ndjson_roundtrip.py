@@ -959,3 +959,63 @@ class TestImportOwningOrganization:
                 organization_id=_uid(),
             )
         assert exc.value.status_code == 404
+
+
+@pytest.mark.integration
+class TestTaskExportRejectedByProjectImport:
+    """A Projektdaten task export must not pass as a project export."""
+
+    def test_task_export_is_rejected_with_a_stable_code(self, test_db, full_project):
+        from import_stream import TASK_EXPORT_NOT_PROJECT
+
+        project, admin = full_project
+        task_export = "".join(select_export_generator(test_db, project, "json"))
+        doc = json.loads(task_export)
+        assert "format_version" not in doc and "evaluation_runs" in doc
+
+        before = test_db.query(Project).count()
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(task_export.encode("utf-8")), admin.id
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.code == TASK_EXPORT_NOT_PROJECT
+        assert exc.value.detail.startswith(f"{TASK_EXPORT_NOT_PROJECT}: ")
+        assert "task export" in exc.value.detail
+        test_db.rollback()
+        assert test_db.query(Project).count() == before
+
+    def test_nested_tasks_without_evaluation_runs_are_rejected(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        doc = json.loads("".join(select_export_generator(test_db, project, "json")))
+        doc.pop("evaluation_runs")
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(json.dumps(doc).encode("utf-8")), admin.id
+            )
+        assert exc.value.code == "task_export_not_project"
+
+    def test_comprehensive_export_is_still_accepted(self, test_db, full_project):
+        project, admin = full_project
+        body = "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        result = run_full_project_import(
+            test_db, io.BytesIO(body.encode("utf-8")), admin.id
+        )
+        assert result["project_id"]
+
+    def test_legacy_export_without_format_version_is_still_accepted(
+        self, test_db, full_project
+    ):
+        """Old comprehensive exports may lack format_version; their flat
+        top-level annotations block keeps them importable."""
+        project, admin = full_project
+        doc = json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+        doc.pop("format_version")
+        result = run_full_project_import(
+            test_db, io.BytesIO(json.dumps(doc).encode("utf-8")), admin.id
+        )
+        assert result["project_id"]

@@ -1109,6 +1109,35 @@ describe('ProjectListTable', () => {
       expect(projectsAPI.runProjectImportJob).not.toHaveBeenCalled()
     })
 
+    it('explains a task export uploaded as a project import', async () => {
+      // The worker records "<status>: <code>: <english detail>" on the job.
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
+        new Error(
+          '400: task_export_not_project: This file is a task export (JSON), not a project export.',
+        ),
+      )
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+
+      render(<ProjectListTable />)
+
+      const fileInput = screen.getByTestId('project-import-file-input')
+      const file = new File(['{}'], 'aufgaben.json', {
+        type: 'application/json',
+      })
+
+      await userEvent.upload(fileInput, file)
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          'This file is a task export, not a project export. Import it on the Project data page of an existing project.',
+          'error',
+        )
+      })
+    })
+
     it('should handle import error', async () => {
       ;(projectsAPI.runProjectImportJob as jest.Mock).mockRejectedValue(
         new Error('Invalid JSON format'),

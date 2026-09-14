@@ -161,12 +161,56 @@ class ImportValidationError(Exception):
     ``HTTPException`` they used to raise, while keeping this /shared module free
     of any FastAPI dependency (the workers container has no fastapi installed).
     The worker records ``detail`` on the failed job row instead.
+
+    ``code`` is an optional stable token for errors a client maps to its own
+    translated message. It is also prefixed to ``detail`` (``"<code>: ..."``)
+    because the job row only stores the message text.
     """
 
-    def __init__(self, status_code: int, detail: str):
+    def __init__(self, status_code: int, detail: str, code: Optional[str] = None):
+        if code:
+            detail = f"{code}: {detail}"
         super().__init__(detail)
         self.status_code = status_code
         self.detail = detail
+        self.code = code
+
+
+#: A Projektdaten task export (``stream_export_json``) given to the create-new
+#: project import. Mapped to a translated message by the frontend.
+TASK_EXPORT_NOT_PROJECT = "task_export_not_project"
+
+# Per-task keys only the nested task export carries (the comprehensive export
+# keeps these as flat top-level blocks).
+_NESTED_TASK_EXPORT_KEYS = ("annotations", "evaluations", "generations")
+
+
+def _is_nested_task_export(fileobj, top_obj: Dict[str, Any], kinds: Dict[str, str]) -> bool:
+    """Whether a single-object JSON body is a task export, not a project export.
+
+    The task export (Projektdaten page) has a ``project`` header and a
+    ``tasks`` array like the comprehensive export, but no ``format_version``,
+    a top-level ``evaluation_runs`` block and annotations / evaluations nested
+    in each task. The comprehensive export always writes ``format_version`` and
+    a flat top-level ``annotations`` block, so either one rules a task export
+    out. Reads at most the first task and then seeks back to 0 (later passes
+    re-seek on their own).
+    """
+    if "format_version" in top_obj or "annotations" in kinds:
+        return False
+    if "evaluation_runs" in kinds:
+        return True
+    if kinds.get("tasks") != "start_array":
+        return False
+    fileobj.seek(0)
+    try:
+        for task in ijson.items(fileobj, "tasks.item", use_float=True):
+            return isinstance(task, dict) and any(
+                key in task for key in _NESTED_TASK_EXPORT_KEYS
+            )
+        return False
+    finally:
+        fileobj.seek(0)
 
 
 def read_top_object(
@@ -2615,9 +2659,22 @@ def run_full_project_import(
     # surfaces here (read_top_object parses through the whole document) and maps
     # to the same 400 the old json.load raised.
     try:
-        top_obj, _kinds = read_top_object(fileobj, {"format_version", "project"})
+        top_obj, kinds = read_top_object(fileobj, {"format_version", "project"})
     except ijson.JSONError:
         raise ImportValidationError(400, "Invalid JSON format")
+
+    # A task export would otherwise pass as a comprehensive export (missing
+    # format_version defaults to 1.0.0) and create a project with only its
+    # tasks, silently dropping the nested annotations and evaluations.
+    if _is_nested_task_export(fileobj, top_obj, kinds):
+        raise ImportValidationError(
+            400,
+            "This file is a task export from the Project data page, not a "
+            "project export. Import it on the Project data page of an "
+            "existing project, or export the whole project from the project "
+            "list and import that file here.",
+            code=TASK_EXPORT_NOT_PROJECT,
+        )
 
     # Validate format version
     format_version = top_obj.get("format_version", "1.0.0")
