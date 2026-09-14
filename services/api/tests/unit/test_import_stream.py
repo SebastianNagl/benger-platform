@@ -203,3 +203,48 @@ class TestMemoryBounded:
         assert kinds["data"] == "start_array"
         assert "data" not in values
         assert top_peak < file_size / 4
+
+
+class TestNestedTaskExportDetection:
+    """``_is_nested_task_export`` separates a Projektdaten task export from a
+    project export without materializing the tasks array."""
+
+    @staticmethod
+    def _check(doc):
+        from import_stream import _is_nested_task_export
+
+        fileobj = _bytesio(doc)
+        values, kinds = read_top_object(fileobj, {"format_version", "project"})
+        return _is_nested_task_export(fileobj, values, kinds)
+
+    def test_task_export_with_evaluation_runs(self):
+        doc = {"project": {"id": "p"}, "evaluation_runs": [], "tasks": []}
+        assert self._check(doc) is True
+
+    def test_nested_annotations_in_first_task(self):
+        doc = {"project": {"id": "p"}, "tasks": [{"id": "t", "annotations": []}]}
+        assert self._check(doc) is True
+
+    def test_format_version_rules_it_out(self):
+        doc = {"format_version": "1.0.0", "project": {}, "evaluation_runs": []}
+        assert self._check(doc) is False
+
+    def test_flat_annotations_block_rules_it_out(self):
+        doc = {
+            "project": {"id": "p"},
+            "tasks": [{"id": "t", "annotations": []}],
+            "annotations": [],
+        }
+        assert self._check(doc) is False
+
+    def test_flat_tasks_are_not_a_task_export(self):
+        doc = {"project": {"id": "p"}, "tasks": [{"id": "t", "data": {}}]}
+        assert self._check(doc) is False
+
+    def test_error_carries_code_in_detail(self):
+        from import_stream import ImportValidationError
+
+        exc = ImportValidationError(400, "msg", code="task_export_not_project")
+        assert exc.code == "task_export_not_project"
+        assert exc.detail == "task_export_not_project: msg"
+        assert ImportValidationError(400, "plain").detail == "plain"

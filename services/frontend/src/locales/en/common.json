@@ -640,6 +640,7 @@
       "invalidJsonFormat": "Invalid JSON format in file",
       "unsupportedFileFormat": "Unsupported file format version",
       "missingRequiredFields": "Missing required fields in import file",
+      "taskExportNotProject": "This file is a task export, not a project export. Import it on the Project data page of an existing project.",
       "projectsSelected": "{count} project(s) selected",
       "showingResults": "Showing {shown} of {total} results",
       "created": "Created",
@@ -5326,11 +5327,14 @@
         "regression": "Regression Metrics",
         "ranking": "Ranking Metrics",
         "semanticSimilarity": "Semantic Similarity",
+        "semantic": "Semantic Metrics",
         "factuality": "Factuality & Coherence",
+        "factualityMetrics": "Factuality Metrics",
         "structuredData": "Structured Data",
         "spanSequence": "Span/Sequence Labeling",
         "hierarchical": "Hierarchical Metrics",
-        "llmJudge": "LLM-as-Judge"
+        "llmJudge": "LLM-as-Judge",
+        "humanEvaluation": "Human grading"
       },
       "categoryDesc": {
         "lexical": "String and surface-level matching",
@@ -5340,10 +5344,32 @@
         "ranking": "For ranked results evaluation",
         "semanticSimilarity": "Embedding-based semantic comparison",
         "factuality": "Content quality evaluation",
+        "factualityMetrics": "Content quality and factual accuracy",
         "structuredData": "JSON and schema validation",
         "spanSequence": "For token or span-level predictions",
         "hierarchical": "For hierarchical classifications",
-        "llmJudge": "AI model-based evaluation (requires API key)"
+        "llmJudge": "AI model-based evaluation (requires API key)",
+        "llmJudgeModel": "AI model-based evaluation with a judge model",
+        "humanEvaluation": "Grading by human graders"
+      },
+      "metricName": {
+        "bleu": "BLEU",
+        "rouge": "ROUGE",
+        "meteor": "METEOR",
+        "chrf": "chrF",
+        "exactMatch": "Exact Match",
+        "bertscore": "BERTScore",
+        "moverscore": "MoverScore",
+        "semanticSimilarity": "Semantic Similarity",
+        "factcc": "FactCC",
+        "qags": "QAGS",
+        "coherence": "Coherence",
+        "accuracy": "Accuracy",
+        "precision": "Precision",
+        "recall": "Recall",
+        "f1": "F1 Score",
+        "llmJudgeClassic": "Classic LLM Judge",
+        "llmJudgeCustom": "Custom LLM Judge"
       },
       "metricDesc": {
         "exactMatch": "Exact string matching",
@@ -5382,7 +5408,15 @@
         "pathAccuracy": "Full hierarchical path matching with level weights (deeper = more important)",
         "lcaAccuracy": "Lowest Common Ancestor proximity scoring for taxonomy hierarchies",
         "llmJudgeClassic": "Evaluate using predefined dimensions (Helpfulness, Correctness, Fluency, etc.)",
-        "llmJudgeCustom": "Create a fully custom evaluation with your own prompt and criteria"
+        "llmJudgeCustom": "Create a fully custom evaluation with your own prompt and criteria",
+        "llmJudgeFalloesung": "German legal exam evaluation with a 10-dimension rubric and grade points",
+        "llmJudgeFalloesungGradePoints": "0–18 grade points from the Falllösung LLM judge.",
+        "llmJudgeRubric": "Fills in each task's grading sheet (units per step, half units allowed) and derives grade points from it.",
+        "llmJudgeRubricGradePoints": "0–18 grade points from the grading-sheet LLM judge.",
+        "llmJudgeLexam": "LEXam benchmark correctness judge (0.0–1.0 against the reference answer), adapted from Swiss to German law.",
+        "korrekturClassic": "Free comments, highlights and labels on annotations, generations and evaluations.",
+        "korrekturFalloesung": "Manual grading with the 10-dimension scheme of the standard Falllösung (identical to the LLM judge).",
+        "korrekturCustom": "Manual grading: fills in the task's grading sheet (or the project-specific dimensions from the custom LLM judge)."
       }
     },
     "sampleResults": {
@@ -5621,6 +5655,10 @@
       "timeMs": "Time (ms)",
       "details": "Details",
       "filterPlaceholder": "Filter by field name...",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "empty": "No content",
+      "consistency": "Consistency",
       "allStatus": "All Status",
       "passedOnly": "Passed Only",
       "failedOnly": "Failed Only",
@@ -5658,6 +5696,12 @@
       "clearAll": "Clear All",
       "searchPlaceholder": "Search metrics...",
       "quickPresets": "Quick Presets",
+      "presets": {
+        "standardNlg": "Standard NLG Metrics",
+        "classification": "Classification Suite",
+        "semantic": "Semantic Suite",
+        "allAvailable": "All Available"
+      },
       "noResults": "No metrics found matching your search"
     },
     "modelSelector": {
@@ -6344,6 +6388,7 @@
       "missingFields": "Missing required data fields: {fields}",
       "configError": "Configuration Error",
       "taskData": "Task Data:",
+      "taskPosition": "Task {current} of {total}",
       "maxAnnotationsReached": "Maximum annotations limit reached for this task",
       "instructions": "Instructions",
       "showInstructions": "Show Instructions",
@@ -8276,7 +8321,37 @@
       "scopeAnnotatorsCount": "{count} annotators",
       "scopeTasksCount": "{count} task(s)",
       "runFailedTitle": "Evaluation failed",
-      "unmatchedConfigsTitle": "Evaluations that matched no data"
+      "unmatchedConfigsTitle": "Evaluations that matched no data",
+      "openProject": "Open project",
+      "judges": "Judges & runs",
+      "perJudgeRun": "Per judge & run",
+      "someJudgesFailed": "At least one judge run failed. The statistics below are based on the successful runs only.",
+      "createdAt": "Started {date}",
+      "technicalDetails": "Technical details",
+      "noMetrics": "This run has no aggregate metrics.",
+      "statusLabels": {
+        "completed": "Completed",
+        "failed": "Failed",
+        "running": "Running",
+        "pending": "Pending",
+        "queued": "Queued",
+        "cancelled": "Cancelled",
+        "paused": "Paused"
+      },
+      "matchReasons": {
+        "noGenerations": "Grades model generations, but this project has none. Generate responses first, or choose a human field (human:…).",
+        "noGenerationsWithAnswers": "Grades model generations, but this project has none. It has {count} submitted answer(s). To grade those, choose a human field such as human:loesung or __all_human__.",
+        "noGenerationsNothing": "Grades model generations. This project has neither model generations nor submitted answers yet, so there is nothing to grade.",
+        "noAnnotations": "Grades submitted answers, but this project has none. Submit an answer first, or choose a model field (model:…).",
+        "noAnnotationsWithGenerations": "Grades submitted answers, but this project has none. It has {count} model generation(s). To grade those, choose a model field such as __all_model__.",
+        "noAnnotationsNothing": "Grades submitted answers. This project has neither submitted answers nor model generations yet, so there is nothing to grade.",
+        "generationFiltersExcludedAll": "Grades model generations, but this run's model or prompt filters excluded all of them.",
+        "allAnnotationsCancelled": "Grades submitted answers, but every answer on these tasks is cancelled.",
+        "annotatorFilterExcludedAll": "Grades submitted answers, but this run's annotator filter excluded all of them.",
+        "noPredictionFields": "Has no prediction field, so it grades nothing.",
+        "classifierUnavailable": "Could not be classified: the worker cannot tell which side to grade.",
+        "other": "Found nothing to grade."
+      }
     },
     "human": {
       "likert": {
@@ -8637,12 +8712,36 @@
     "perRunCol": "Per run",
     "totalCol": "Total",
     "noPricing": "No pricing data",
-    "tokenLabel": "Token estimate per call"
+    "tokenLabel": "Token estimate per call",
+    "tokenLine": "Input: {mean} (mean) / {p95} (p95) · Output: {output} · Encoding: {encoding} · Sample: {sample}",
+    "note": {
+      "accuracy": "Estimate accuracy ± ~{percent} %.",
+      "basisTaskData": "Input is measured on the task data.",
+      "basisGenerationOutputs": "Input is measured on recent model outputs, the text the judge grades.",
+      "basisRenderedJudgePrompt": "Input is the full judge prompt: template, case facts, reference, grading sheet and a sample answer, plus system prompt and response schema.",
+      "outputJudge": "Output is assumed at {percent} % of max_tokens because judges only return scores and a short rationale.",
+      "outputJudgeSteps": "Output grows with the grading sheet: a score, reason and quoted evidence per scored step plus an overall assessment. Reasoning tokens are not included.",
+      "outputGeneration": "Output is assumed at 90 % of max_tokens for reasoning models and 60 % otherwise.",
+      "encoding": "Tokens counted with {encoding}; for other providers' models this is an approximation.",
+      "countingMissing": "Only cells that would actually run are counted.",
+      "countingAll": "Every cell (task × structure) is counted.",
+      "perJudgeCells": "Evaluations count cells per judge with each configuration's own runs and skip cells already scored successfully. Sparse prediction fields can shift the cost further."
+    }
   },
   "eval": {
     "judgeAgreement": {
       "titlePearson": "Inter-judge correlation (Pearson)",
       "titleKappa": "Inter-judge agreement (κ)"
+    },
+    "perRun": {
+      "targetModel": "Target model",
+      "judge": "Judge",
+      "runIndex": "Run #",
+      "samples": "Samples",
+      "meanScore": "Mean {metric}",
+      "status": "Status",
+      "deterministic": "(deterministic)",
+      "empty": "No run data for this metric."
     }
   },
   "extended": {
@@ -9510,7 +9609,12 @@
     "structureRun": "Structure with AI",
     "structuring": "Structuring…",
     "structureFailed": "Structuring failed.",
-    "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog."
+    "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog.",
+    "aiPayerOrg": "Paid by {org}. You do not need your own API key.",
+    "aiPayerOrgUnnamed": "Paid by your organization. You do not need your own API key.",
+    "aiNoOwnModels": "No model is available with your own API keys. Add a key in your profile. Uploading and creating the sheet yourself still work.",
+    "structurePayerOrg": "Paid by {org} ({model}). You do not need your own API key.",
+    "structurePayerOrgUnnamed": "Paid by your organization ({model}). You do not need your own API key."
   },
   "rubricResult": {
     "title": "Grading sheet",
@@ -9531,7 +9635,9 @@
     "notRevealed": "The filled grading sheet is shown once the model solution is revealed.",
     "noScores": "No checkpoints recorded.",
     "headingHuman": "Corrected by a person",
-    "headingLlm": "Corrected by the AI"
+    "headingLlm": "Corrected by the AI",
+    "evidence": "Evidence",
+    "evidenceMissing": "No matching passage found in the answer; the AI had given {score} BE, counted as 0."
   },
   "notenschluessel": {
     "partLabel": "Grade scale",

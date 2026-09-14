@@ -152,7 +152,7 @@ describe('CostEstimatePanel', () => {
     await waitFor(() => expect(screen.getByText('$3.60')).toBeInTheDocument())
     // Token-estimate breakdown line is rendered once the estimate arrives.
     expect(
-      screen.getByText(/Input: 800 \(mean\) \/ 1200 \(p95\)/),
+      screen.getByText(/Input: 800 \(Mittel\) \/ 1200 \(p95\)/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Estimate accuracy ± ~20%/)).toBeInTheDocument()
     // No per-model table in single-priced-model case.

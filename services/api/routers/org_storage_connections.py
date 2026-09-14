@@ -16,11 +16,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from starlette.concurrency import run_in_threadpool
 
 import org_storage_connection_service as storage_conn_service
 from auth_module import User, require_user
-from database import get_async_db
+from database import get_async_db, get_db, release_db_sessions
 from models import (
     Organization,
     OrganizationMembership,
@@ -357,6 +358,7 @@ async def test_unsaved_storage_connection(
     data: dict,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Test unsaved connection params (pre-save "Test connection"). Admin only."""
     await _require_org_exists(org_id, db)
@@ -367,6 +369,9 @@ async def test_unsaved_storage_connection(
     access_key = _required_str(data, "access_key")
     secret_key = _required_str(data, "secret_key")
     _validated_endpoint_url(data)
+
+    # End both read transactions before the bucket round-trips.
+    await release_db_sessions(request_db, db)
 
     result = await run_in_threadpool(
         storage_conn_service.test_connection,
@@ -386,11 +391,16 @@ async def test_saved_storage_connection(
     conn_id: str,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Test a saved connection with its stored credentials. Admin only."""
     await _require_org_exists(org_id, db)
     await _require_org_admin(current_user, org_id, db)
     conn = await _load_connection(db, org_id, conn_id)
+
+    # End both read transactions before the bucket round-trips. `conn` is
+    # detached afterwards; its loaded columns are all the service reads.
+    await release_db_sessions(request_db, db)
 
     result = await run_in_threadpool(storage_conn_service.test_connection, conn)
     return {
@@ -411,6 +421,7 @@ async def browse_storage_connection(
     max_results: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Browse one listing page of the connected bucket. Any org member.
 
@@ -421,6 +432,9 @@ async def browse_storage_connection(
     await _require_org_exists(org_id, db)
     await _require_org_member(current_user, org_id, db)
     conn = await _load_connection(db, org_id, conn_id)
+
+    # End both read transactions before the bucket listing round-trip.
+    await release_db_sessions(request_db, db)
 
     try:
         return await run_in_threadpool(

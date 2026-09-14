@@ -19,9 +19,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
-from database import get_async_db
+from database import get_async_db, get_db, release_db_sessions
 from models import (
     CustomModelCredential,
     CustomModelOrgCredential,
@@ -834,6 +835,7 @@ async def test_custom_endpoint(
     body: EndpointTestRequest,
     request: Request,
     current_user: User = Depends(require_user),
+    request_db: Session = Depends(get_db),
 ):
     """Probe an (unsaved) OpenAI-compatible endpoint.
 
@@ -844,6 +846,9 @@ async def test_custom_endpoint(
     """
     await _enforce_test_rate_limit(request, current_user)
     normalized_url = _validate_base_url_or_400(body.base_url)
+
+    # End the auth lookup's transaction before contacting the endpoint.
+    await release_db_sessions(request_db)
 
     ok, message, error_type = await validate_openai_compatible_endpoint(
         normalized_url, api_key=body.api_key
@@ -859,6 +864,7 @@ async def test_custom_model(
     request: Request,
     access: CustomModelAccess = Depends(require_custom_model_access("view")),
     db: AsyncSession = Depends(get_async_db),
+    request_db: Session = Depends(get_db),
 ):
     """Probe a saved custom model with the caller's key.
 
@@ -885,6 +891,11 @@ async def test_custom_model(
         )
         api_key = resolution.api_key
 
+    # Copy what the probe needs, then end both read transactions before the
+    # endpoint round-trips (the model row is detached from here on).
+    endpoint_model_name = access.model.endpoint_model_name
+    await release_db_sessions(request_db, db)
+
     ok, message, error_type = await validate_openai_compatible_endpoint(
         normalized_url, api_key=api_key
     )
@@ -896,7 +907,7 @@ async def test_custom_model(
 
     if body.chat_ping:
         result["chat_ping"] = await _chat_ping(
-            normalized_url, access.model.endpoint_model_name, api_key
+            normalized_url, endpoint_model_name, api_key
         )
 
     return result

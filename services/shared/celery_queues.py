@@ -138,9 +138,10 @@ EXTENDED_TASK_NAMES = frozenset(
 # There were no time limits at all before this, so a wedged provider call could
 # hold an execution slot forever. (soft, hard) seconds.
 #
-# `interactive` is 180/240 to sit inside the frontend's 300_000 ms poll ceiling
-# (services/frontend/src/lib/api/evaluations.ts, pollImmediateEvaluation) with
-# ~60s of slack for the 2s poller to observe the terminal state. Note this only
+# `interactive` is 180/240 for short interactive tasks. Instant grading
+# (`tasks.run_single_sample_evaluation`) gets its own budget below, inside the
+# frontend's poll ceiling (services/frontend/src/lib/api/evaluations.ts,
+# pollImmediateEvaluation) with ~60s of slack for the 2s poller. Note this only
 # improves UX because run_single_sample_evaluation catches SoftTimeLimitExceeded
 # and marks the EvaluationRun failed -- without that handler the hard kill would
 # leave the row `running` and the UI would spin the full 5 minutes anyway.
@@ -164,6 +165,13 @@ QUEUE_TIME_LIMITS: dict[str, tuple[int, int]] = {
 TASK_TIME_LIMIT_OVERRIDES: dict[str, tuple[int, int]] = {
     "tasks.run_evaluation": (600, 900),
     "tasks.run_multi_field_evaluation": (600, 900),
+    # Instant grading of one answer. A Bewertungsbogen judge on a reasoning
+    # model (the free tier's gpt-5-mini) quotes a passage for every step and
+    # needs roughly two minutes on a long answer, which the interactive 180 s
+    # budget cut off. Kept inside the frontend's 540_000 ms poll ceiling
+    # (services/frontend/src/lib/api/evaluations.ts, pollImmediateEvaluation)
+    # with 60 s of slack so the poller still observes the terminal state.
+    "tasks.run_single_sample_evaluation": (420, 480),
 }
 
 

@@ -224,8 +224,8 @@ def test_worker_app_uses_the_shared_routing_table():
 def test_time_limits_are_ordered_and_present_for_every_task():
     """Soft must be strictly below hard, or the soft handler never runs.
 
-    For interactive work the hard limit also has to stay under the frontend's
-    300s poll ceiling, otherwise the UI times out before the worker gives up and
+    For instant grading the hard limit also has to stay under the frontend's
+    540s poll ceiling, otherwise the UI times out before the worker gives up and
     the user sees a spinner rather than an error.
     """
     for name in celery_queues.TASK_QUEUES:
@@ -233,8 +233,8 @@ def test_time_limits_are_ordered_and_present_for_every_task():
         assert 0 < soft < hard, f"{name}: bad time limits ({soft}, {hard})"
 
     _, hard = celery_queues.time_limits_for("tasks.run_single_sample_evaluation")
-    assert hard < 300, (
-        "immediate eval hard limit must stay under the frontend's 300s poll "
+    assert hard < 540, (
+        "immediate eval hard limit must stay under the frontend's 540s poll "
         f"timeout (pollImmediateEvaluation); got {hard}"
     )
 

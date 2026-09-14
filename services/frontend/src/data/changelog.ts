@@ -7,6 +7,54 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Die Seite eines Evaluierungslaufs sieht jetzt aus wie der Rest der App: Projekttitel statt ID, übersetzter Status, verständliche Metriknamen, lesbare Musterlösung und Antwort sowie erklärte Gründe, wenn ein Lauf nichts bewerten konnte.',
+      en: 'The evaluation run page now matches the rest of the app: project title instead of its id, translated status, readable metric names, readable reference and answer text, and explained reasons when a run found nothing to grade.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Projekt-Import übernimmt jetzt Projektart, Symbol und Einstellungen wie Zeitlimit und Zwischenstände, legt das Projekt in der aktuell gewählten Organisation an und weist Aufgaben-Exporte mit einem Hinweis auf die Seite Projektdaten zurück.',
+      en: 'Project import now keeps the project kind, icon and settings such as time limit and checkpoints, creates the project in the organization you are working in, and rejects task exports with a pointer to the Project data page.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Der Metrik-Katalog, die Aufgabenposition und die Bearbeitungszeit auf der Annotationsseite folgen jetzt der eingestellten Sprache. Beim Anlegen eines Projekts erscheint nur noch eine Erfolgsmeldung, und Projekte ohne Beschreibung zeigen keinen Platzhaltertext mehr.',
+      en: 'The metric catalogue, the task position and the elapsed time on the labeling page now follow the interface language. Creating a project shows a single success message, and projects without a description no longer show placeholder text.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Persönliche API-Schlüssel, die der Anbieter ablehnt, werden beim Speichern jetzt zurückgewiesen, und die Meldung nennt den Grund.',
+      en: 'Personal API keys that the provider rejects are now refused when saving, and the message shows the reason.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'both',
+    text: {
+      de: 'Beim Hochladen von Word-Dateien landen Inhaltsverzeichnis-Links und unsichtbare Textmarken nicht mehr im Text.',
+      en: 'Uploaded Word files no longer leave table-of-contents links and hidden bookmarks in the extracted text.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'both',
+    text: {
+      de: 'Die Kostenschätzung für Bewertungsbogen-Korrekturen zählt jetzt den vollständigen Judge-Prompt mit Bogen und Antwort, und ihre Hinweise erscheinen in der eingestellten Sprache.',
+      en: 'The cost estimate for grading-sheet judges now counts the full judge prompt including sheet and answer, and its notes follow the interface language.',
+    },
+  },
+  {
     date: '2026-09-08',
     audience: 'both',
     text: {

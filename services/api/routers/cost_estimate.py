@@ -29,7 +29,12 @@ from routers.projects.helpers import (
     get_org_context_from_request,
 )
 from services.token_estimation import (
+    ESTIMATE_ACCURACY_PERCENT,
+    JUDGE_OUTPUT_FIXED_TOKENS,
+    JUDGE_OUTPUT_TOKENS_PER_STEP,
     estimate_tokens_for_calls,
+    renders_judge_prompt,
+    sample_judge_calls,
     sample_prediction_inputs,
     sample_task_texts,
 )
@@ -129,7 +134,24 @@ class CostEstimateResponse(BaseModel):
     per_model: List[PerModelCost]
     total_usd: float
     token_estimate: TokenBreakdown
+    # English one-paragraph summary, kept for API clients; the UI phrases the
+    # structured fields below in the reader's language instead.
     note: str
+    accuracy_percent: int = ESTIMATE_ACCURACY_PERCENT
+    encoding: str = ""
+    # What the input tokens were counted on: raw task data, recent generation
+    # outputs, or the rendered LLM-judge prompt (template, context, reference,
+    # Bewertungsbogen, a sampled answer, system + schema overhead).
+    input_basis: Literal["task_data", "generation_outputs", "rendered_judge_prompt"] = "task_data"
+    # Share of max_tokens assumed as output; None when it varies per model
+    # (generation: 90 for reasoning-tier models, 60 otherwise).
+    output_utilization_percent: Optional[int] = None
+    # How output tokens were estimated: a share of max_tokens, or (for
+    # multi-step judges such as a Bewertungsbogen) a fixed part plus a share
+    # per scored step.
+    output_basis: Literal["utilization", "judge_steps"] = "utilization"
+    missing_only: bool = False
+    per_judge_cells: bool = False
 
 
 def _count_eval_subjects(
@@ -376,6 +398,8 @@ def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -
                 "id": config_id,
                 "metric": metric,
                 "prediction_fields": list(c.get("prediction_fields") or []),
+                "reference_fields": list(c.get("reference_fields") or []),
+                "metric_parameters": params,
                 "runs": runs_for_this_judge,
             }
         )
@@ -694,6 +718,12 @@ def _compute_cost_estimate_impl(
         )
     if not sample_texts:
         sample_texts = [""]
+    default_basis = "task_data"
+    if request.mode == "evaluation" and _completed_generation_ids(db, request.project_id):
+        default_basis = "generation_outputs"
+    input_basis = default_basis
+    output_basis = "utilization"
+    reported_sample_size = len(sample_texts)
 
     from project_models import Task
 
@@ -782,14 +812,53 @@ def _compute_cost_estimate_impl(
             )
             runs_already_counted = False
 
+        # LLM-judge input is the rendered judge prompt, not just the answer:
+        # template, case context, Musterlösung, the Bewertungsbogen, the
+        # student's or model's answer and the system/schema overhead. Size the
+        # configs this judge runs from those parts; model-side configs on the
+        # built-in prompts keep the generation-output sample.
+        model_samples: List[str] = sample_texts
+        model_overhead: Optional[List[float]] = None
+        model_outputs: Optional[List[Optional[float]]] = None
+        model_basis = default_basis
+        if request.mode == "evaluation":
+            judge_cfgs = _load_llm_judge_configs(db, request.project_id, model_id)
+            rendered_cfgs = [c for c in judge_cfgs if renders_judge_prompt(c)]
+            rendered = (
+                sample_judge_calls(
+                    db=db,
+                    project_id=request.project_id,
+                    configs=rendered_cfgs,
+                    sample_size=request.task_sample_size,
+                    seed=42,
+                )
+                if rendered_cfgs
+                else []
+            )
+            if rendered:
+                model_samples = [text for text, _, _ in rendered]
+                model_overhead = [extra for _, extra, _ in rendered]
+                model_outputs = [output for _, _, output in rendered]
+                if len(rendered_cfgs) < len(judge_cfgs):
+                    model_samples = model_samples + list(sample_texts)
+                    model_overhead = model_overhead + [0.0] * len(sample_texts)
+                    model_outputs = model_outputs + [None] * len(sample_texts)
+                model_basis = "rendered_judge_prompt"
+
         token_est = estimate_tokens_for_calls(
             project_id=request.project_id,
             model_id=model_id,
-            prompt_samples=sample_texts,
+            prompt_samples=model_samples,
             max_output_tokens=model_max_tokens,
             output_utilization=utilization,
+            overhead_tokens=model_overhead,
+            output_tokens=model_outputs,
         )
+        if model_outputs and any(o is not None for o in model_outputs):
+            output_basis = "judge_steps"
         if token_breakdown is None:
+            input_basis = model_basis
+            reported_sample_size = len(model_samples)
             token_breakdown = TokenBreakdown(
                 input_mean=token_est.input_mean,
                 input_p95=token_est.input_p95,
@@ -847,7 +916,24 @@ def _compute_cost_estimate_impl(
         if request.generation_mode == "missing"
         else " Counting every (task × structure) cell"
     )
-    if request.mode == "evaluation":
+    if request.mode == "evaluation" and output_basis == "judge_steps":
+        utilization_note = (
+            " For evaluation, input is the rendered judge prompt (template, "
+            "case context, reference, Bewertungsbogen and a sampled answer) "
+            "plus system prompt and response-schema overhead; output is "
+            f"{JUDGE_OUTPUT_FIXED_TOKENS} tokens plus {JUDGE_OUTPUT_TOKENS_PER_STEP} "
+            "per scored step (score, reason and quoted evidence), reasoning "
+            "tokens not included."
+        )
+    elif request.mode == "evaluation" and input_basis == "rendered_judge_prompt":
+        utilization_note = (
+            " For evaluation, input is the rendered judge prompt (template, "
+            "case context, reference, Bewertungsbogen and a sampled answer) "
+            "plus system prompt and response-schema overhead, and output "
+            "utilization is 15 % of max_tokens — judges emit a short score + "
+            "rationale, not a full completion."
+        )
+    elif request.mode == "evaluation":
         utilization_note = (
             " For evaluation, input is sampled from recent generation outputs "
             "(the prediction the judge sees) and output utilization is 15 % of "
@@ -864,7 +950,7 @@ def _compute_cost_estimate_impl(
     # active (see the `if eval_uses_subject_count` branch below) so the
     # user knows the variance band is wider for scoped runs.
     note = (
-        "Estimate accuracy ± ~20%. Token counts use cl100k_base as a proxy "
+        f"Estimate accuracy ± ~{ESTIMATE_ACCURACY_PERCENT}%. Token counts use cl100k_base as a proxy "
         "for non-OpenAI models. Each model's max_tokens is read from "
         "selected_configuration.model_configs, falling back to the project "
         "default." + utilization_note + mode_note + "."
@@ -884,7 +970,7 @@ def _compute_cost_estimate_impl(
     return CostEstimateResponse(
         mode=request.mode,
         runs_per_call=request.runs_per_call,
-        sample_size=len(sample_texts),
+        sample_size=reported_sample_size,
         tasks_total=total_tasks,
         subject_count=subject_count,
         # UTC ISO timestamp; the frontend formats to local time for display.
@@ -893,4 +979,13 @@ def _compute_cost_estimate_impl(
         total_usd=round(total_usd, 2),
         token_estimate=token_breakdown,
         note=note,
+        accuracy_percent=ESTIMATE_ACCURACY_PERCENT,
+        encoding=token_breakdown.encoding,
+        input_basis=input_basis,
+        output_basis=output_basis,
+        output_utilization_percent=(
+            round(_EVAL_OUTPUT_UTILIZATION * 100) if request.mode == "evaluation" else None
+        ),
+        missing_only=request.generation_mode == "missing",
+        per_judge_cells=request.mode == "evaluation" and bool(request.evaluation_configs),
     )

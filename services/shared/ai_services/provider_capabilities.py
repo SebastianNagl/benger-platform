@@ -647,3 +647,37 @@ def get_provider_summary(provider: str) -> Optional[Dict[str, Any]]:
         "seed_support": determinism.get("seed_support", False),
         "temperature_range": f"{provider_data.get('temperature', {}).get('min', 0.0)}-{provider_data.get('temperature', {}).get('max', 1.0)}",
     }
+
+
+# Reasoning-effort values OpenAI's Chat Completions API accepts, per model
+# family (verified against the live API 2026-09-14: gpt-5-mini rejects
+# "none", gpt-5.4-mini rejects "minimal"). The catalog carries no
+# reasoning_config for these chat models, so the family is read from the
+# id, the same way the services already pick the GPT-5 / o-series
+# temperature override.
+_GPT5_BASE_EFFORTS = frozenset({"minimal", "low", "medium", "high"})
+_GPT5_POINT_EFFORTS = frozenset({"none", "low", "medium", "high"})
+_O_SERIES_EFFORTS = frozenset({"low", "medium", "high"})
+
+
+def openai_reasoning_efforts(model_name: Optional[str]) -> frozenset:
+    """``reasoning_effort`` values an OpenAI chat model accepts; empty if none.
+
+    * ``gpt-5``, ``gpt-5-mini``, ``gpt-5-nano`` (and dated snapshots):
+      minimal / low / medium / high
+    * ``gpt-5.1`` and later point releases (``gpt-5.4-mini`` …):
+      none / low / medium / high
+    * o-series (``o1``, ``o3``, ``o3-mini``, ``o4-mini``): low / medium / high
+    * ``*-pro`` tiers (Responses API, separate code path), ``*-chat*``
+      variants and every non-reasoning model: empty
+    """
+    m = (model_name or "").lower()
+    if not m or m.endswith("-pro") or "chat" in m:
+        return frozenset()
+    if m.startswith(("o1", "o3", "o4")):
+        return _O_SERIES_EFFORTS
+    if m == "gpt-5" or m.startswith("gpt-5-"):
+        return _GPT5_BASE_EFFORTS
+    if m.startswith("gpt-5."):
+        return _GPT5_POINT_EFFORTS
+    return frozenset()

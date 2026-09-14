@@ -742,7 +742,7 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
     """Flip a stuck immediate-eval run to ``failed``.
 
     Every error path used to leave the row on ``running``. That is not a cosmetic
-    detail: the frontend poller keeps spinning until its own 300s ceiling and
+    detail: the frontend poller keeps spinning until its own 540s ceiling and
     only then soft-fails, AND ``_existing_immediate_run`` treats ``running`` as
     in-flight, so the hourly sweep never retries the annotation either. The
     dispatch path in shared/immediate_eval_dispatch.py already guards this same
@@ -1969,6 +1969,7 @@ def run_evaluation(
                                     answer_type=params.get("answer_type"),
                                     field_mappings=params.get("field_mappings"),
                                     score_scale=params.get("score_scale", "1-5"),
+                                    reasoning_effort=params.get("reasoning_effort"),
                                     organization_id=organization_id,
                                     seed=judge_seed,
                                     project_id=project_id,
@@ -2398,6 +2399,7 @@ def run_evaluation(
                         f"generations={subject_counts['generations']}, "
                         f"answers={subject_counts['answers']})"
                     )
+                _attach_subject_counts(match_records, subject_counts)
 
             evaluation.eval_metadata = {
                 **(evaluation.eval_metadata or {}),
@@ -3182,9 +3184,9 @@ def run_single_sample_evaluation(
         }
 
     except SoftTimeLimitExceeded:
-        # The `interactive` soft limit (180s) fired; the hard kill is 60s out.
-        # Do the minimum and get out: flag the row so the frontend's 2s poller
-        # reports a real failure well inside its own 300s ceiling.
+        # The soft time limit fired (celery_queues: 420s for this task); the
+        # hard kill is 60s out. Do the minimum and get out: flag the row so the
+        # frontend's 2s poller reports a real failure inside its 540s ceiling.
         logger.error(
             "[SingleSampleEval] soft time limit exceeded for run %s",
             evaluation_record_id,
@@ -3633,6 +3635,28 @@ def _match_reason_help(reason, subject_counts=None):
             "grade on either side."
         )
     return _MATCH_REASON_HELP.get(reason, _MATCH_REASON_HELP["other"])
+
+
+def _attach_subject_counts(records, subject_counts):
+    """Store the run's subject counts on every config that matched nothing.
+
+    The run page phrases each unmatched config's reason in the reader's
+    language and names what the other side holds ("it has 3 submitted
+    answers"). The English ``error_message`` already carries that; this puts
+    the numbers into ``eval_metadata.match_by_config`` as data. Additive:
+    existing keys stay, matched configs get nothing, ``None`` counts are a
+    no-op. Mutates and returns ``records``.
+    """
+    if not subject_counts:
+        return records
+    counts = {
+        "generations": int(subject_counts.get("generations") or 0),
+        "annotations": int(subject_counts.get("answers") or 0),
+    }
+    for rec in records:
+        if rec.get("reason") is not None:
+            rec["subject_counts"] = dict(counts)
+    return records
 
 
 def _summarize_config_match(records, subject_counts=None):

@@ -337,9 +337,15 @@ export interface HistorySeries {
  * Metric category for grouping in UI
  */
 export interface MetricCategory {
+  /** English group name. Also the merge identity in `getGroupedMetrics`. */
   name: string
+  /** English description, shown when `descriptionKey` does not resolve. */
   description: string
   metrics: string[]
+  /** Optional i18n key for the group name, tried before `name`. */
+  nameKey?: string
+  /** Optional i18n key for the description, tried before `description`. */
+  descriptionKey?: string
 }
 
 /**
@@ -362,6 +368,10 @@ export interface AvailableMetric {
   name: string
   display_name: string
   description: string
+  /** Optional i18n key for the display name, tried before `display_name`. */
+  displayNameKey?: string
+  /** Optional i18n key for the description, tried before `description`. */
+  descriptionKey?: string
   category: string
   status: 'stable' | 'beta' | 'coming-soon'
   supports_parameters: boolean
@@ -950,6 +960,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   // Lexical Metrics
   bleu: {
     name: 'bleu',
+    displayNameKey: 'evaluation.methodSelector.metricName.bleu',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.bleu',
     display_name: 'BLEU',
     description: 'Bilingual Evaluation Understudy (n-gram precision)',
     category: 'Lexical Metrics',
@@ -975,6 +987,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   rouge: {
     name: 'rouge',
+    displayNameKey: 'evaluation.methodSelector.metricName.rouge',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.rouge',
     display_name: 'ROUGE',
     description: 'Recall-Oriented Understudy for Gisting Evaluation',
     category: 'Lexical Metrics',
@@ -998,6 +1012,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   meteor: {
     name: 'meteor',
+    displayNameKey: 'evaluation.methodSelector.metricName.meteor',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.meteor',
     display_name: 'METEOR',
     description: 'Metric for Evaluation of Translation with Explicit Ordering',
     category: 'Lexical Metrics',
@@ -1034,6 +1050,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   chrf: {
     name: 'chrf',
+    displayNameKey: 'evaluation.methodSelector.metricName.chrf',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.chrf',
     display_name: 'chrF',
     description: 'Character-level F-score (language-agnostic)',
     category: 'Lexical Metrics',
@@ -1068,6 +1086,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   exact_match: {
     name: 'exact_match',
+    displayNameKey: 'evaluation.methodSelector.metricName.exactMatch',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.exactMatch',
     display_name: 'Exact Match',
     description: 'Exact string matching',
     category: 'Lexical Metrics',
@@ -1080,6 +1100,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   // Semantic Metrics
   bertscore: {
     name: 'bertscore',
+    displayNameKey: 'evaluation.methodSelector.metricName.bertscore',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.bertscore',
     display_name: 'BERTScore',
     description: 'BERT-based semantic similarity',
     category: 'Semantic Metrics',
@@ -1092,6 +1114,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   moverscore: {
     name: 'moverscore',
+    displayNameKey: 'evaluation.methodSelector.metricName.moverscore',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.moverscore',
     display_name: 'MoverScore',
     description: "Earth Mover's Distance on embeddings",
     category: 'Semantic Metrics',
@@ -1103,6 +1127,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   semantic_similarity: {
     name: 'semantic_similarity',
+    displayNameKey: 'evaluation.methodSelector.metricName.semanticSimilarity',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.semanticSimilarity',
     display_name: 'Semantic Similarity',
     description: 'Cosine similarity of sentence embeddings',
     category: 'Semantic Metrics',
@@ -1116,6 +1142,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   // Factuality Metrics
   factcc: {
     name: 'factcc',
+    displayNameKey: 'evaluation.methodSelector.metricName.factcc',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.factcc',
     display_name: 'FactCC',
     description: 'Factual consistency checking',
     category: 'Factuality Metrics',
@@ -1134,6 +1162,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   qags: {
     name: 'qags',
+    displayNameKey: 'evaluation.methodSelector.metricName.qags',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.qags',
     display_name: 'QAGS',
     description: 'Question Answering-based summarization quality',
     category: 'Factuality Metrics',
@@ -1145,6 +1175,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   coherence: {
     name: 'coherence',
+    displayNameKey: 'evaluation.methodSelector.metricName.coherence',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.coherence',
     display_name: 'Coherence',
     description: 'Text coherence and logical flow',
     category: 'Factuality Metrics',
@@ -1158,6 +1190,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   // Classification Metrics
   accuracy: {
     name: 'accuracy',
+    displayNameKey: 'evaluation.methodSelector.metricName.accuracy',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.accuracy',
     display_name: 'Accuracy',
     description: 'Percentage of correct predictions',
     category: 'Classification Metrics',
@@ -1168,6 +1202,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   precision: {
     name: 'precision',
+    displayNameKey: 'evaluation.methodSelector.metricName.precision',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.precision',
     display_name: 'Precision',
     description: 'True positives / (True positives + False positives)',
     category: 'Classification Metrics',
@@ -1178,6 +1214,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   recall: {
     name: 'recall',
+    displayNameKey: 'evaluation.methodSelector.metricName.recall',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.recall',
     display_name: 'Recall',
     description: 'True positives / (True positives + False negatives)',
     category: 'Classification Metrics',
@@ -1188,6 +1226,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   f1: {
     name: 'f1',
+    displayNameKey: 'evaluation.methodSelector.metricName.f1',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.f1',
     display_name: 'F1 Score',
     description: 'Harmonic mean of precision and recall',
     category: 'Classification Metrics',
@@ -1200,6 +1240,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   // LLM-as-Judge - Two consolidated options
   llm_judge_classic: {
     name: 'llm_judge_classic',
+    displayNameKey: 'evaluation.methodSelector.metricName.llmJudgeClassic',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.llmJudgeClassic',
     display_name: 'Classic LLM Judge',
     description:
       'Evaluate using predefined dimensions (Helpfulness, Correctness, Fluency, etc.)',
@@ -1211,6 +1253,8 @@ export const METRIC_DEFINITIONS: Record<string, AvailableMetric> = {
   },
   llm_judge_custom: {
     name: 'llm_judge_custom',
+    displayNameKey: 'evaluation.methodSelector.metricName.llmJudgeCustom',
+    descriptionKey: 'evaluation.methodSelector.metricDesc.llmJudgeCustom',
     display_name: 'Custom LLM Judge',
     description:
       'Create a fully custom evaluation with your own prompt and criteria',
@@ -1229,26 +1273,36 @@ export const GROUPED_METRICS: MetricCategory[] = [
   {
     name: 'Lexical Metrics',
     description: 'String and surface-level matching',
+    nameKey: 'evaluation.methodSelector.category.lexical',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.lexical',
     metrics: ['exact_match', 'bleu', 'rouge', 'meteor', 'chrf'],
   },
   {
     name: 'Semantic Metrics',
     description: 'Embedding-based semantic comparison',
+    nameKey: 'evaluation.methodSelector.category.semantic',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.semanticSimilarity',
     metrics: ['semantic_similarity', 'bertscore', 'moverscore'],
   },
   {
     name: 'Factuality Metrics',
     description: 'Content quality and factual accuracy',
+    nameKey: 'evaluation.methodSelector.category.factualityMetrics',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.factualityMetrics',
     metrics: ['factcc', 'qags', 'coherence'],
   },
   {
     name: 'Classification Metrics',
     description: 'For categorical predictions',
+    nameKey: 'evaluation.methodSelector.category.classification',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.classification',
     metrics: ['accuracy', 'precision', 'recall', 'f1'],
   },
   {
     name: 'LLM-as-Judge',
-    description: 'AI model-based evaluation (requires judge_config)',
+    description: 'AI model-based evaluation with a judge model',
+    nameKey: 'evaluation.methodSelector.category.llmJudge',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.llmJudgeModel',
     metrics: ['llm_judge_classic', 'llm_judge_custom'],
   },
 ]
@@ -1383,4 +1437,52 @@ export function getGroupedMetrics(): MetricCategory[] {
     }
   }
   return merged
+}
+
+/**
+ * Translate function shape the catalogue label helpers need. Matches the
+ * `t(key, fallback)` overload of `useI18n`.
+ */
+type CatalogueTranslate = (key: string, fallback?: string) => string
+
+/**
+ * Localized label of a metric group. Tries `nameKey` and falls back to the
+ * English `name`, so an extended group registered without a key (or with a
+ * key the locale lacks) still renders its literal.
+ */
+export function metricGroupLabel(
+  group: MetricCategory,
+  t: CatalogueTranslate,
+): string {
+  return group.nameKey ? t(group.nameKey, group.name) : group.name
+}
+
+/** Localized description of a metric group (`descriptionKey`, then literal). */
+export function metricGroupDescription(
+  group: MetricCategory,
+  t: CatalogueTranslate,
+): string {
+  return group.descriptionKey
+    ? t(group.descriptionKey, group.description)
+    : group.description
+}
+
+/** Localized display name of a metric (`displayNameKey`, then literal). */
+export function metricDisplayName(
+  def: AvailableMetric,
+  t: CatalogueTranslate,
+): string {
+  return def.displayNameKey
+    ? t(def.displayNameKey, def.display_name)
+    : def.display_name
+}
+
+/** Localized description of a metric (`descriptionKey`, then literal). */
+export function metricDescription(
+  def: AvailableMetric,
+  t: CatalogueTranslate,
+): string {
+  return def.descriptionKey
+    ? t(def.descriptionKey, def.description)
+    : def.description
 }

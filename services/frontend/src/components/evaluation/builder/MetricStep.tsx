@@ -11,6 +11,10 @@ import { useI18n } from '@/contexts/I18nContext'
 import {
   getGroupedMetrics,
   getMetricDefinitions,
+  metricDescription,
+  metricDisplayName,
+  metricGroupDescription,
+  metricGroupLabel,
 } from '@/lib/api/evaluation-types'
 
 export interface MetricStepProps {
@@ -41,9 +45,11 @@ export function MetricStep({
             className="rounded-lg border p-3 dark:border-gray-700"
           >
             <h5 className="mb-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-              {group.name}
+              {metricGroupLabel(group, t)}
             </h5>
-            <p className="mb-2 text-xs text-gray-500">{group.description}</p>
+            <p className="mb-2 text-xs text-gray-500">
+              {metricGroupDescription(group, t)}
+            </p>
             <div className="space-y-1">
               {group.metrics.map((metric) => {
                 const def = getMetricDefinitions()[metric]
@@ -61,7 +67,9 @@ export function MetricStep({
                         : 'hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                   >
-                    <span className="text-sm">{def.display_name}</span>
+                    <span className="text-sm" title={metricDescription(def, t)}>
+                      {metricDisplayName(def, t)}
+                    </span>
                     {isSelected && (
                       <svg
                         className="h-4 w-4 text-emerald-600 dark:text-emerald-400"

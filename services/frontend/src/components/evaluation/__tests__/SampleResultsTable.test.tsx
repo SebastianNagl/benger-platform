@@ -139,7 +139,7 @@ describe('SampleResultsTable Component', () => {
         <SampleResultsTable data={mockSampleResults} />,
       )
 
-      const passedIcon = container.querySelector('svg.text-green-500')
+      const passedIcon = container.querySelector('svg.text-emerald-500')
       expect(passedIcon).toBeInTheDocument()
     })
 
@@ -200,9 +200,9 @@ describe('SampleResultsTable Component', () => {
     it('displays first two metrics for each sample', () => {
       render(<SampleResultsTable data={mockSampleResults} />)
 
-      expect(screen.getAllByText('accuracy:').length).toBeGreaterThan(0)
-      expect(screen.getAllByText('f1_score:').length).toBeGreaterThan(0)
-      expect(screen.getAllByText('rouge_1:').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Accuracy:').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('F1 Score:').length).toBeGreaterThan(0)
+      expect(screen.getAllByText('Rouge 1:').length).toBeGreaterThan(0)
     })
 
     it('formats metric values to 3 decimal places', () => {
@@ -257,7 +257,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={mockSampleResults} />)
 
       const highConfidence = screen.getByText('95.0%')
-      expect(highConfidence).toHaveClass('text-green-600')
+      expect(highConfidence).toHaveClass('text-emerald-600')
     })
 
     it('shows yellow color for medium confidence (0.5-0.8)', () => {
@@ -270,7 +270,7 @@ describe('SampleResultsTable Component', () => {
       render(<SampleResultsTable data={mediumConfidenceSample} />)
 
       const mediumConfidence = screen.getByText('65.0%')
-      expect(mediumConfidence).toHaveClass('text-yellow-600')
+      expect(mediumConfidence).toHaveClass('text-amber-600')
     })
 
     it('shows red color for low confidence (< 0.5)', () => {
@@ -531,9 +531,11 @@ describe('SampleResultsTable Component', () => {
       await user.click(fieldHeader)
 
       await waitFor(() => {
-        const headerText = fieldHeader.textContent
-        expect(headerText).toMatch(/Field.*[🔼🔽]/)
+        expect(fieldHeader.closest('th')).toHaveAttribute('aria-sort')
       })
+      // An icon, not an emoji glyph, marks the direction.
+      expect(fieldHeader.closest('th')?.textContent).not.toMatch(/[🔼🔽]/)
+      expect(fieldHeader.closest('th')?.querySelector('svg')).not.toBeNull()
     })
 
     it('toggles sort direction on repeated clicks', async () => {
@@ -544,13 +546,19 @@ describe('SampleResultsTable Component', () => {
       await user.click(fieldHeader)
 
       await waitFor(() => {
-        expect(fieldHeader.textContent).toContain('🔼')
+        expect(fieldHeader.closest('th')).toHaveAttribute(
+          'aria-sort',
+          'ascending',
+        )
       })
 
       await user.click(fieldHeader)
 
       await waitFor(() => {
-        expect(fieldHeader.textContent).toContain('🔽')
+        expect(fieldHeader.closest('th')).toHaveAttribute(
+          'aria-sort',
+          'descending',
+        )
       })
     })
   })
@@ -819,7 +827,7 @@ describe('SampleResultsTable: structured metric blobs', () => {
     // The blob's numeric value, formatted like a plain metric.
     expect(screen.getAllByText('0.750').length).toBeGreaterThan(0)
     // A blob without a numeric value shows N/A instead of throwing.
-    expect(screen.getByText('judge_metric_errored')).toBeInTheDocument()
+    expect(screen.getByText('Judge Metric Errored')).toBeInTheDocument()
     expect(screen.getAllByText('N/A').length).toBeGreaterThan(0)
   })
 

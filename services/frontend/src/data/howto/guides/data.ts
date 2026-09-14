@@ -163,11 +163,15 @@ export const DATA_GUIDES: HowToGuide[] = [
     pitfalls: {
       de: [
         'Ein importiertes Projekt ist eine Kopie mit neuen IDs. Nutzer:innen und Organisationen werden nicht mitkopiert, die Sichtbarkeit setzen Sie neu.',
+        'Das Projekt landet in der Organisation, in der Sie gerade arbeiten. Im privaten Modus nimmt die Plattform Ihre erste Organisation.',
+        '**Projekt importieren** nimmt nur Projekt-Exporte an. Einen Aufgaben-Export aus *Projektdaten* spielen Sie auf der Seite *Projektdaten* eines bestehenden Projekts ein.',
         '*Nicht unterstützte Dateiformatversion* heißt, die Datei stammt aus einer älteren oder fremden Version. Exportieren Sie sie erneut aus der aktuellen Plattform.',
         'Sehr große Aufgaben-Exporte mit Filtern sind gedeckelt. Grenzen Sie enger ein oder exportieren Sie ohne Filter.',
       ],
       en: [
         'An imported project is a copy with new IDs. Users and organizations are not copied, you set the visibility anew.',
+        'The project lands in the organization you are currently working in. In private mode the platform uses your first organization.',
+        '**Import project** only accepts project exports. Import a task export from *Project data* on the *Project data* page of an existing project.',
         '*Unsupported file format version* means the file comes from an older or foreign version. Export it again from the current platform.',
         'Very large filtered task exports are capped. Narrow the filter or export without filters.',
       ],

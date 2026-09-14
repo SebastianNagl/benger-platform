@@ -953,7 +953,10 @@ export class EvaluationsClient extends BaseApiClient {
     // while. This is a generous SAFETY NET, not the expected wait: the modal
     // streams partial results via onUpdate the whole time, so hitting this
     // ceiling is rare and never blanks already-shown results.
-    const timeout = options?.timeoutMs ?? 300000
+    // Kept 60 s above the worker's hard limit for instant grading
+    // (services/shared/celery_queues.py, 480 s) so a slow judge finishes or
+    // fails on the server before the poller gives up.
+    const timeout = options?.timeoutMs ?? 540000
     const startTime = Date.now()
     let last: ImmediateEvaluationData | null = null
     while (Date.now() - startTime < timeout) {

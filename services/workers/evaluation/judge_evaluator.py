@@ -120,6 +120,9 @@ def _evaluate_llm_judge_single_impl(
         score_scale=params.get("score_scale", "1-5"),
         organization_id=organization_id,
         seed=_resolve_judge("seed", 42),
+        # Forwarded like the bulk path does; the rubric judge falls back to
+        # its own default when unset (see RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT).
+        reasoning_effort=params.get("reasoning_effort"),
         org_billing_authorized=org_billing_authorized,
         project_id=project_id,
     )
@@ -191,6 +194,23 @@ def _evaluate_llm_judge_single_impl(
             )
         judge_context = "\n\n".join(_context_blocks)
         if task_rubric is not None:
+            # The rubric judge's {context} slot is the case: lead with the
+            # Sachverhalt exactly like the bulk cell path does. Without it
+            # the immediate lane graded against the exam parts only, so the
+            # two lanes saw different inputs for the same answer.
+            case_text = (
+                tasks._get_insensitive(task_data, "text")
+                or tasks._get_insensitive(task_data, "input")
+                or tasks._get_insensitive(task_data, "sachverhalt")
+                or ""
+            )
+            if case_text:
+                judge_context = (
+                    f"{case_text}\n\n{judge_context}" if judge_context else str(case_text)
+                )
+            # Fixed roles, tagged inputs and verified evidence (see
+            # LLMJudgeEvaluator._evaluate_multidim_single_call).
+            llm_judge.rubric_mode = True
             # Bind the rendered rubric so the grading template's
             # {bewertungsbogen} placeholder resolves (mirror of the bulk path).
             from evaluation.cell_evaluator import _render_rubric_text

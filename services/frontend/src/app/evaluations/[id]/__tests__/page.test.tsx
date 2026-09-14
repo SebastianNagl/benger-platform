@@ -47,6 +47,10 @@ jest.mock('@/lib/api/client', () => ({
   },
 }))
 
+jest.mock('@/lib/api/projects', () => ({
+  projectsAPI: { get: jest.fn() },
+}))
+
 jest.mock('@/lib/utils/logger', () => ({
   logger: {
     debug: jest.fn(),
@@ -108,11 +112,12 @@ jest.mock('@/components/evaluation/PerRunBreakdown', () => ({
 }))
 
 jest.mock('@/components/evaluation/SampleResultsTable', () => ({
-  SampleResultsTable: ({ data, consistencyByTaskId }: any) => (
+  SampleResultsTable: ({ data, consistencyByTaskId, configs }: any) => (
     <div
       data-testid="sample-results-table"
       data-sample-count={data.length}
       data-consistency={JSON.stringify(consistencyByTaskId)}
+      data-configs={JSON.stringify(configs)}
     />
   ),
 }))
@@ -168,11 +173,20 @@ jest.mock('@heroicons/react/24/outline', () => ({
   ArrowLeftIcon: () => <div data-testid="arrow-left-icon" />,
   ArrowPathIcon: () => <div data-testid="arrow-path-icon" />,
   ChartBarIcon: () => <div data-testid="chart-bar-icon" />,
+  // Used by the shared Alert.
+  CheckCircleIcon: () => <div data-testid="check-circle-icon" />,
+  ExclamationTriangleIcon: () => <div data-testid="warning-icon" />,
+  InformationCircleIcon: () => <div data-testid="info-icon" />,
+  XCircleIcon: () => <div data-testid="x-circle-icon" />,
 }))
 
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { registerMetric } from '@/lib/api/evaluation-types'
+import { projectsAPI } from '@/lib/api/projects'
+import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
+import { registerSlot } from '@/lib/extensions/slots'
 import { useRouter } from 'next/navigation'
 import EvaluationDashboard from '../page'
 
@@ -187,8 +201,9 @@ const mockRouter = {
 
 const mockAddToast = jest.fn()
 
-// t() returns the fallback (2nd arg) when present, else the key.
-const mockT = (key: string, fallback?: string) => fallback ?? key
+// t() returns a string fallback (2nd arg) when present, else the key.
+const mockT = (key: string, fallback?: unknown) =>
+  typeof fallback === 'string' ? fallback : key
 
 // Composite-keyed metrics map: `config|pred|ref|metric`.
 const baseEvaluation = {
@@ -262,6 +277,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       data: { buckets: [1, 2, 3] },
     })
     ;(apiClient.post as jest.Mock).mockResolvedValue({})
+    ;(projectsAPI.get as jest.Mock).mockResolvedValue({
+      title: 'Klausur Polizeirecht',
+    })
   })
 
   describe('Loading and not-found', () => {
@@ -312,13 +330,15 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
     })
 
-    it('renders bare metric names parsed from the composite keys', async () => {
+    it('labels metrics parsed from the composite keys by their registry names', async () => {
       renderPage()
       await waitFor(() => {
-        // `cfg1|answer|gt|exact_match` -> bare `exact_match`
-        expect(screen.getAllByText('exact_match').length).toBeGreaterThan(0)
+        // `cfg1|answer|gt|exact_match` -> bare `exact_match` -> its name
+        expect(screen.getAllByText('Exact Match').length).toBeGreaterThan(0)
       })
-      expect(screen.getAllByText('f1_score').length).toBeGreaterThan(0)
+      // Unregistered metrics read as words, not as snake_case keys.
+      expect(screen.getAllByText('F1 Score').length).toBeGreaterThan(0)
+      expect(screen.queryByText('exact_match')).not.toBeInTheDocument()
       // numeric metric value formatted via toFixed(3)
       expect(screen.getByText('0.850')).toBeInTheDocument()
       expect(screen.getByText('0.712')).toBeInTheDocument()
@@ -332,7 +352,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getAllByText('exact_match').length).toBeGreaterThan(0)
+        expect(screen.getAllByText('Exact Match').length).toBeGreaterThan(0)
       })
       expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     })
@@ -346,7 +366,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getAllByText('bleu').length).toBeGreaterThan(0)
+        expect(
+          screen.getAllByText(metricDisplayLabel('bleu')).length,
+        ).toBeGreaterThan(0)
       })
       expect(screen.getByText('0.500')).toBeInTheDocument()
     })
@@ -490,7 +512,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       // The shared Select mock pushes <option>s in via an effect — wait for
       // the f1_score option to mount before driving the change.
       await waitFor(() =>
-        expect(within(select).getByText('f1_score')).toBeInTheDocument(),
+        expect(within(select).getByText('F1 Score')).toBeInTheDocument(),
       )
       await user.selectOptions(select, 'f1_score')
       await waitFor(() => {
@@ -789,13 +811,26 @@ describe('EvaluationDashboard ([id] page)', () => {
       const list = within(banner).getByTestId('evaluation-unmatched-configs')
       expect(within(list).getByText('Bewertungsbogen')).toBeInTheDocument()
       expect(within(list).getByText('no_generations')).toBeInTheDocument()
+      // The reason is phrased in the reader's language.
+      expect(
+        within(list).getByText(
+          /evaluations\.detail\.matchReasons\.noGenerations/,
+        ),
+      ).toBeInTheDocument()
+      // Every reason was phrased, so the worker's English text moves into
+      // the technical details disclosure (still present for the e2e check).
+      const details = banner.querySelector('details')
+      expect(details).not.toBeNull()
+      expect(details).toHaveTextContent(
+        'no cells matched the evaluation configuration',
+      )
       // A benign reason is not a failure and must not be listed as one.
       expect(within(list).queryByText('Korrektur')).not.toBeInTheDocument()
     })
 
     it('shows no failure banner for a completed run', async () => {
       renderPage()
-      await screen.findAllByText('completed')
+      await screen.findAllByText('evaluations.detail.statusLabels.completed')
       expect(
         screen.queryByTestId('evaluation-run-failed'),
       ).not.toBeInTheDocument()
@@ -817,8 +852,8 @@ describe('EvaluationDashboard ([id] page)', () => {
       ).not.toBeInTheDocument()
       // A 0.0% pass rate with nothing graded is not shown as a success.
       const passRate = screen.getByTestId('evaluation-detail-pass-rate')
-      expect(passRate).toHaveClass('text-gray-500')
-      expect(passRate).not.toHaveClass('text-green-600')
+      expect(passRate).toHaveClass('text-zinc-500')
+      expect(passRate).not.toHaveClass('text-emerald-600')
     })
 
     it('keeps the model and the green pass rate for a graded run', async () => {
@@ -827,8 +862,257 @@ describe('EvaluationDashboard ([id] page)', () => {
         await screen.findByTestId('evaluation-detail-model'),
       ).toHaveTextContent('gpt-4o')
       expect(screen.getByTestId('evaluation-detail-pass-rate')).toHaveClass(
-        'text-green-600',
+        'text-emerald-600',
       )
+    })
+  })
+  describe('header', () => {
+    it('shows the project title as a link instead of its id', async () => {
+      renderPage()
+      const link = await screen.findByRole('link', {
+        name: 'Klausur Polizeirecht',
+      })
+      expect(link).toHaveAttribute('href', '/projects/project-1')
+      expect(projectsAPI.get).toHaveBeenCalledWith('project-1')
+      expect(
+        screen.getByTestId('evaluation-detail-project'),
+      ).not.toHaveTextContent('project-1')
+    })
+
+    it('links to the project by a generic label when the project cannot load', async () => {
+      ;(projectsAPI.get as jest.Mock).mockRejectedValue(new Error('403'))
+      renderPage()
+      const link = await screen.findByRole('link', {
+        name: 'evaluations.detail.openProject',
+      })
+      expect(link).toHaveAttribute('href', '/projects/project-1')
+    })
+
+    it('shows the run status localized, and an unknown status as stored', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        status: 'failed',
+      })
+      const { unmount } = renderPage()
+      expect(
+        await screen.findByTestId('evaluation-detail-status'),
+      ).toHaveTextContent('evaluations.detail.statusLabels.failed')
+      unmount()
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        status: 'resuming_somehow',
+      })
+      renderPage()
+      expect(
+        await screen.findByTestId('evaluation-detail-status'),
+      ).toHaveTextContent('resuming_somehow')
+    })
+  })
+
+  describe('aggregate metrics', () => {
+    const rubricEvaluation = {
+      ...baseEvaluation,
+      metrics: {
+        // Companion keys first: they must neither show nor be auto-selected.
+        'rub|human:loesung|task.musterloesung|raw_score': 70,
+        'rub|human:loesung|task.musterloesung|w5_page_rubric_passed': 1,
+        'rub|human:loesung|task.musterloesung|w5_page_rubric': 0.7,
+        'rub|human:loesung|task.musterloesung|w5_page_rubric_grade_points': 11,
+      },
+      evaluation_configs: [
+        { id: 'rub', metric: 'w5_page_rubric', display_name: 'Bogen (paid)' },
+      ],
+    }
+
+    beforeAll(() => {
+      registerMetric('w5_page_rubric', {
+        name: 'w5_page_rubric',
+        display_name: 'Bewertungsbogen (LLM Judge)',
+        description: '',
+        category: 'LLM-as-Judge',
+        status: 'stable',
+        supports_parameters: false,
+        display_scale: '0-1',
+      })
+      registerMetric('w5_page_rubric_grade_points', {
+        name: 'w5_page_rubric_grade_points',
+        display_name: 'Notenpunkte (Bewertungsbogen)',
+        description: '',
+        category: 'LLM-as-Judge',
+        status: 'stable',
+        supports_parameters: false,
+        display_scale: '0-18',
+      })
+    })
+
+    it('hides companion values and labels grade points by the registry', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        rubricEvaluation,
+      )
+      renderPage()
+      const tiles = await screen.findAllByTestId('evaluation-aggregate-metric')
+      expect(tiles).toHaveLength(2)
+      expect(tiles[0]).toHaveTextContent('Bewertungsbogen (LLM Judge)')
+      expect(tiles[0]).toHaveTextContent('0.700')
+      expect(tiles[1]).toHaveTextContent('Notenpunkte (Bewertungsbogen)')
+      expect(tiles[1]).toHaveTextContent('11.0')
+      expect(screen.queryByText(/raw_score|Raw Score/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/_passed|Passed$/)).not.toBeInTheDocument()
+      // One config: no config name repeated on every tile.
+      expect(screen.queryByText('Bogen (paid)')).not.toBeInTheDocument()
+      // The auto-selected distribution metric is a result, not raw_score.
+      await waitFor(() => {
+        expect(apiClient.get).toHaveBeenCalledWith(
+          '/evaluations/eval-1/metrics/w5_page_rubric/distribution',
+        )
+      })
+    })
+
+    it('names the config on each tile when the run holds several', async () => {
+      renderPage()
+      await screen.findAllByTestId('evaluation-aggregate-metric')
+      await waitFor(() => {
+        // The snapshot configs have no display_name: the metric name stands in.
+        expect(
+          screen.getAllByTestId('evaluation-aggregate-metric')[0],
+        ).toHaveTextContent('Exact Match')
+      })
+    })
+
+    it('offers only result metrics, by name, in the distribution picker', async () => {
+      const user = userEvent.setup()
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        rubricEvaluation,
+      )
+      renderPage()
+      await user.click(
+        await screen.findByText('evaluation.human.results.distribution'),
+      )
+      const select = screen.getByRole('combobox')
+      await waitFor(() =>
+        expect(
+          within(select).getByText('Notenpunkte (Bewertungsbogen)'),
+        ).toBeInTheDocument(),
+      )
+      expect(within(select).queryByText(/raw_score/i)).not.toBeInTheDocument()
+      expect(within(select).getAllByRole('option')).toHaveLength(2)
+    })
+
+    it('hands the run configs to the sample table', async () => {
+      const user = userEvent.setup()
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        rubricEvaluation,
+      )
+      renderPage()
+      await user.click(
+        await screen.findByText('evaluation.human.results.detailed'),
+      )
+      const table = await screen.findByTestId('sample-results-table')
+      expect(JSON.parse(table.getAttribute('data-configs') || '[]')).toEqual([
+        { id: 'rub', metric: 'w5_page_rubric', display_name: 'Bogen (paid)' },
+      ])
+    })
+  })
+
+  describe('failed-run diagnostics', () => {
+    const failed = (rec: Record<string, unknown>, message: string) => ({
+      ...baseEvaluation,
+      status: 'failed',
+      error_message: message,
+      eval_metadata: {
+        ...baseEvaluation.eval_metadata,
+        match_by_config: { cfg1: rec },
+      },
+    })
+
+    it('names what the other side holds when the worker counted subjects', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        failed(
+          {
+            metric: 'llm_judge_rubric',
+            display_name: 'Bewertungsbogen',
+            llm_fields: ['__all_model__'],
+            human_fields: [],
+            reason: 'no_generations',
+            subject_counts: { generations: 0, annotations: 1 },
+          },
+          'no cells matched the evaluation configuration',
+        ),
+      )
+      renderPage()
+      const list = await screen.findByTestId('evaluation-unmatched-configs')
+      expect(
+        within(list).getByText(
+          /evaluations\.detail\.matchReasons\.noGenerationsWithAnswers/,
+        ),
+      ).toBeInTheDocument()
+    })
+
+    it('keeps the worker message in view for a reason it cannot phrase', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
+        failed(
+          {
+            metric: 'exact_match',
+            display_name: 'Neu',
+            llm_fields: [],
+            human_fields: [],
+            reason: 'a_reason_from_the_future',
+          },
+          'something new went wrong',
+        ),
+      )
+      renderPage()
+      const banner = await screen.findByTestId('evaluation-run-failed')
+      expect(banner.querySelector('details')).toBeNull()
+      expect(
+        within(banner).getByText('something new went wrong'),
+      ).toBeInTheDocument()
+      expect(
+        within(banner).getByText('a_reason_from_the_future'),
+      ).toBeInTheDocument()
+    })
+
+    it('shows the worker message for a failure without config records', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        status: 'failed',
+        error_message: 'worker crashed',
+      })
+      renderPage()
+      const banner = await screen.findByTestId('evaluation-run-failed')
+      expect(within(banner).getByText('worker crashed')).toBeInTheDocument()
+      expect(
+        within(banner).queryByTestId('evaluation-unmatched-configs'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
+  // Registration is module-global, so these run last in this file.
+  describe('EvaluationRunRubricHost slot', () => {
+    it('renders the page without a host when none is registered', async () => {
+      renderPage()
+      await screen.findByTestId('evaluation-detail-status')
+      expect(screen.queryByTestId('rubric-host')).not.toBeInTheDocument()
+    })
+
+    it('wraps the page content in the registered host with the project id', async () => {
+      registerSlot(
+        'EvaluationRunRubricHost',
+        ({ projectId, children }: any) => (
+          <div data-testid="rubric-host" data-project-id={projectId}>
+            {children}
+          </div>
+        ),
+      )
+      renderPage()
+      const host = await screen.findByTestId('rubric-host')
+      expect(host).toHaveAttribute('data-project-id', 'project-1')
+      expect(
+        within(host).getByTestId('evaluation-detail-status'),
+      ).toBeInTheDocument()
+      expect(
+        within(host).getByText('evaluations.detail.aggregateMetrics'),
+      ).toBeInTheDocument()
     })
   })
 })

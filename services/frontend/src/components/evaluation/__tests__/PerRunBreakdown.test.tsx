@@ -79,9 +79,13 @@ describe('PerRunBreakdown', () => {
         showTargetModel={false}
       />,
     )
-    const completed = screen.getAllByText('completed')
+    const completed = screen.getAllByText(
+      'evaluations.detail.statusLabels.completed',
+    )
     expect(completed.length).toBe(2)
-    expect(screen.getByText('failed')).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluations.detail.statusLabels.failed'),
+    ).toBeInTheDocument()
   })
 
   it('shows sample counts when available', () => {
@@ -150,5 +154,32 @@ describe('PerRunBreakdown', () => {
     )
     // 6 columns: target, judge, run#, samples, mean, status
     expect(headers.length).toBe(6)
+  })
+})
+
+describe('PerRunBreakdown labels', () => {
+  it('names the mean column by the metric label and keeps unknown statuses as stored', () => {
+    const t = jest.fn((key: string, vars?: any) =>
+      key === 'eval.perRun.meanScore' ? `Mittelwert ${vars?.metric}` : key,
+    )
+    const i18n = jest.requireMock('@/contexts/I18nContext')
+    const original = i18n.useI18n
+    i18n.useI18n = () => ({ t })
+    try {
+      render(
+        <PerRunBreakdown
+          rows={[{ ...sampleRows[0], status: 'archived' }]}
+          metric="llm_judge_rubric"
+          metricLabel="Bewertungsbogen (LLM Judge)"
+          showTargetModel={false}
+        />,
+      )
+    } finally {
+      i18n.useI18n = original
+    }
+    expect(
+      screen.getByText('Mittelwert Bewertungsbogen (LLM Judge)'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('archived')).toBeInTheDocument()
   })
 })

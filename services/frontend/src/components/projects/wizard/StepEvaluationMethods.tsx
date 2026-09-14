@@ -24,6 +24,10 @@ import {
   getMetricDefinitions,
   groupPredictionFieldOptions,
   isMetricImmediateEligible,
+  metricDescription,
+  metricDisplayName,
+  metricGroupDescription,
+  metricGroupLabel,
   resolveDefaultFieldSelection,
 } from '@/lib/api/evaluation-types'
 import { computeDefaultEvalName } from '@/lib/evaluation/evalName'
@@ -258,10 +262,10 @@ export function StepEvaluationMethods({
           <div key={group.name}>
             <div className="mb-3">
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
-                {group.name}
+                {metricGroupLabel(group, t)}
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                {group.description}
+                {metricGroupDescription(group, t)}
               </p>
             </div>
 
@@ -286,7 +290,7 @@ export function StepEvaluationMethods({
                     >
                       <div className="flex-1">
                         <p className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
-                          {def.display_name}
+                          {metricDisplayName(def, t)}
                           {immediateEvaluationEnabled &&
                             !isMetricImmediateEligible(metricKey) && (
                               <span
@@ -305,7 +309,7 @@ export function StepEvaluationMethods({
                             )}
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          {def.description}
+                          {metricDescription(def, t)}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

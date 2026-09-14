@@ -14,6 +14,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { runStatusLabel } from '@/lib/evaluation/runDisplay'
 import { useMemo } from 'react'
 
 export interface PerRunRow {
@@ -29,6 +30,8 @@ export interface PerRunRow {
 export interface PerRunBreakdownProps {
   rows: PerRunRow[]
   metric: string
+  /** Readable name of `metric` for the column header; the id otherwise. */
+  metricLabel?: string
   /** When true, render the target_model column. Hide for single-target evaluations. */
   showTargetModel?: boolean
 }
@@ -56,6 +59,7 @@ function statusBadgeClass(status: string): string {
 export function PerRunBreakdown({
   rows,
   metric,
+  metricLabel,
   showTargetModel = true,
 }: PerRunBreakdownProps) {
   const { t } = useI18n()
@@ -101,7 +105,7 @@ export function PerRunBreakdown({
               {t('eval.perRun.samples', 'Samples')}
             </th>
             <th className="px-3 py-2 text-right font-medium">
-              {t('eval.perRun.meanScore', `Mean ${metric}`)}
+              {t('eval.perRun.meanScore', { metric: metricLabel || metric })}
             </th>
             <th className="px-3 py-2 text-left font-medium">
               {t('eval.perRun.status', 'Status')}
@@ -136,7 +140,7 @@ export function PerRunBreakdown({
                 <span
                   className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${statusBadgeClass(row.status)}`}
                 >
-                  {row.status}
+                  {runStatusLabel(row.status, t)}
                 </span>
               </td>
             </tr>

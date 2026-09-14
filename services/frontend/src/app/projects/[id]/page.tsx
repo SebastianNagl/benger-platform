@@ -1767,10 +1767,16 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                 </div>
               ) : (
                 <div className="group flex items-start space-x-3">
-                  <p className="text-zinc-600 dark:text-zinc-400">
-                    {currentProject.description ||
-                      t('projects.noProjectsDescription')}
-                  </p>
+                  {/* No description: no subtitle. The list page's
+                      onboarding text does not describe a project. */}
+                  {currentProject.description && (
+                    <p
+                      className="text-zinc-600 dark:text-zinc-400"
+                      data-testid="project-description"
+                    >
+                      {currentProject.description}
+                    </p>
+                  )}
                   {canEditProject() && (
                     <Button
                       onClick={handleStartEditDescription}

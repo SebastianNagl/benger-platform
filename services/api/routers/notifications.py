@@ -35,7 +35,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from auth_module import User, require_user
-from database import get_db
+from database import get_db, release_db_sessions
 from notification_service import NotificationService
 
 # Import email service for testing
@@ -302,13 +302,25 @@ async def send_test_digest_alias(
 
 # Server-Sent Events endpoint for real-time notifications
 @router.get("/stream")
-async def notification_stream(request: Request, current_user: User = Depends(require_user)):
+async def notification_stream(
+    request: Request,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
     """
     Server-Sent Events endpoint for real-time notification updates
 
     This endpoint maintains a persistent connection and sends new notifications
     as they are created for the authenticated user.
     """
+    # `require_user` loaded the user through the request session (the same
+    # cached `get_db` session as `db`), and FastAPI only closes that session
+    # after the response ends, i.e. when the stream ends. Left alone, it sat
+    # idle in transaction for the whole stream, Postgres killed the backend
+    # after 30 s and the cleanup crashed. Release it now; the generator below
+    # opens its own short-lived session per poll and only needs the user id.
+    user_id = current_user.id
+    await release_db_sessions(db)
 
     async def event_generator():
         try:
@@ -344,7 +356,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
             while loop_count < max_loops:
                 # Check if client disconnected
                 if await request.is_disconnected():
-                    logger.info(f"Client disconnected from notification stream: {current_user.id}")
+                    logger.info(f"Client disconnected from notification stream: {user_id}")
                     break
 
                 try:
@@ -359,7 +371,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                             # newest existing notification so subsequent
                             # polls only fetch genuinely new rows.
                             actual_unread_count = NotificationService.get_unread_count(
-                                db=db_session, user_id=current_user.id
+                                db=db_session, user_id=user_id
                             )
                             yield (
                                 "data: "
@@ -373,7 +385,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                             )
                             newest = (
                                 db_session.query(Notification)
-                                .filter(Notification.user_id == current_user.id)
+                                .filter(Notification.user_id == user_id)
                                 .order_by(
                                     Notification.created_at.desc(),
                                     Notification.id.desc(),
@@ -398,7 +410,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                             new_notifications = (
                                 db_session.query(Notification)
                                 .filter(
-                                    Notification.user_id == current_user.id,
+                                    Notification.user_id == user_id,
                                     or_(
                                         Notification.created_at > cursor_dt,
                                         and_(
@@ -439,7 +451,7 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                         cursor_id = notification.id
 
                 except Exception as e:
-                    logger.error(f"Error in notification stream for user {current_user.id}: {e}")
+                    logger.error(f"Error in notification stream for user {user_id}: {e}")
                     # Send error message but continue stream
                     error_data = {
                         "type": "error",
@@ -457,10 +469,10 @@ async def notification_stream(request: Request, current_user: User = Depends(req
                 loop_count += 1
 
         except Exception as e:
-            logger.error(f"Fatal error in notification stream for user {current_user.id}: {e}")
+            logger.error(f"Fatal error in notification stream for user {user_id}: {e}")
             yield f"data: {json.dumps({'type': 'error', 'message': 'Stream terminated due to error'})}\n\n"
         finally:
-            logger.info(f"Notification stream ended for user {current_user.id}")
+            logger.info(f"Notification stream ended for user {user_id}")
 
     return StreamingResponse(
         event_generator(),

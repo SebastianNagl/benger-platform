@@ -120,7 +120,10 @@ jest.mock('@/contexts/AuthContext', () => ({
 // Mock I18n context
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, params?: any) => params?.defaultValue || key,
+    t: (key: string, params?: any) =>
+      key === 'annotation.interface.taskPosition'
+        ? `Task ${params.current} of ${params.total}`
+        : params?.defaultValue || key,
     locale: 'en',
   }),
 }))

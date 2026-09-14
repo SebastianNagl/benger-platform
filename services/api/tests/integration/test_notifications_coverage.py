@@ -146,7 +146,7 @@ class TestNotificationStream:
         with patch(
             "routers.notifications.get_db", side_effect=_fresh_db_iter(test_db)
         ), patch("routers.notifications.asyncio.sleep", new=AsyncMock()):
-            response = await notification_stream(request, current_user=admin)
+            response = await notification_stream(request, current_user=admin, db=Mock())
             frames = await _drain(response.body_iterator)
 
         types = [f["type"] for f in frames]
@@ -199,7 +199,7 @@ class TestNotificationStream:
         with patch(
             "routers.notifications.get_db", side_effect=_get_db
         ), patch("routers.notifications.asyncio.sleep", new=AsyncMock()):
-            response = await notification_stream(request, current_user=admin)
+            response = await notification_stream(request, current_user=admin, db=Mock())
             frames = await _drain(response.body_iterator)
 
         new_frames = [f for f in frames if f["type"] == "new_notification"]
@@ -224,7 +224,7 @@ class TestNotificationStream:
         with patch(
             "routers.notifications.get_db", side_effect=_fresh_db_iter(test_db)
         ), patch("routers.notifications.asyncio.sleep", new=AsyncMock()):
-            response = await notification_stream(request, current_user=admin)
+            response = await notification_stream(request, current_user=admin, db=Mock())
             frames = await _drain(response.body_iterator)
 
         assert [f["type"] for f in frames] == ["connected"]
@@ -248,7 +248,7 @@ class TestNotificationStream:
         with patch(
             "routers.notifications.get_db", side_effect=_boom
         ), patch("routers.notifications.asyncio.sleep", new=AsyncMock()):
-            response = await notification_stream(request, current_user=admin)
+            response = await notification_stream(request, current_user=admin, db=Mock())
             frames = await _drain(response.body_iterator)
 
         types = [f["type"] for f in frames]
@@ -270,7 +270,7 @@ class TestNotificationStream:
         with patch(
             "routers.notifications.get_db", side_effect=_fresh_db_iter(test_db)
         ), patch("routers.notifications.asyncio.sleep", new=AsyncMock()):
-            response = await notification_stream(request, current_user=admin)
+            response = await notification_stream(request, current_user=admin, db=Mock())
 
         assert response.headers["Content-Type"] == "text/event-stream"
         assert response.headers["Cache-Control"] == "no-cache"
