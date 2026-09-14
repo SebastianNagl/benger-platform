@@ -36,20 +36,21 @@ import userEvent from '@testing-library/user-event'
 import { EvaluationBuilder } from '../EvaluationBuilder'
 
 // ---------- i18n: key passthrough, fallback string honored ----------
+// A jest.fn so tests can assert the interpolation values a line receives,
+// which the key passthrough does not render.
+const mockT = jest.fn((key: string, fallbackOrVars?: any) => {
+  if (typeof fallbackOrVars === 'string') return fallbackOrVars
+  if (fallbackOrVars && typeof fallbackOrVars === 'object') {
+    let result = key
+    for (const [k, v] of Object.entries(fallbackOrVars)) {
+      result = result.replace(`{${k}}`, String(v))
+    }
+    return result
+  }
+  return key
+})
 jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, fallbackOrVars?: any) => {
-      if (typeof fallbackOrVars === 'string') return fallbackOrVars
-      if (fallbackOrVars && typeof fallbackOrVars === 'object') {
-        let result = key
-        for (const [k, v] of Object.entries(fallbackOrVars)) {
-          result = result.replace(`{${k}}`, String(v))
-        }
-        return result
-      }
-      return key
-    },
-  }),
+  useI18n: () => ({ t: mockT }),
 }))
 
 const mockAddToast = jest.fn()
@@ -452,6 +453,19 @@ describe('BYOM judge gating (credential-less custom judges)', () => {
       .getAllByText('customModels.picker.configureKey')
       .filter((el) => !grid.contains(el))
     expect(outsideGrid).toHaveLength(1)
+
+    // The line names the locked custom judge. The generic "No API key
+    // stored." read as if grading itself had no key.
+    const hint = screen.getByTestId('judge-credential-hint')
+    expect(grid.contains(hint)).toBe(false)
+    expect(hint.textContent).toContain('customModels.picker.lockedCustomJudges')
+    expect(hint.textContent).not.toContain('customModels.picker.missingKey')
+    expect(mockT).toHaveBeenCalledWith(
+      'customModels.picker.lockedCustomJudges',
+      {
+        models: 'Locked Llama',
+      },
+    )
   })
 
   it('locks the custom judge without a credential in the ensemble grid too', async () => {

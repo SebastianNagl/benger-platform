@@ -201,15 +201,25 @@ export function EvaluationBuilder({
   // One hint line under the judge Select when any custom judge is locked —
   // per-option links don't work inside a disabled Listbox option, so the
   // pointer to /models (community section) lives below the control.
-  const renderJudgeCredentialHint = () =>
-    customJudges.some(isJudgeMissingCredential) ? (
-      <div className="mt-1 text-xs text-amber-600">
-        {t('customModels.picker.missingKey')}{' '}
+  // Names the locked custom judges. The generic "No API key stored." read as
+  // if grading itself lacked a key, even with an official judge selected
+  // and a working organization key.
+  const renderJudgeCredentialHint = () => {
+    const locked = customJudges.filter(isJudgeMissingCredential)
+    return locked.length > 0 ? (
+      <div
+        className="mt-1 text-xs text-amber-600"
+        data-testid="judge-credential-hint"
+      >
+        {t('customModels.picker.lockedCustomJudges', {
+          models: locked.map((m) => m.name).join(', '),
+        })}{' '}
         <Link href="/models" className="underline hover:text-amber-700">
           {t('customModels.picker.configureKey')}
         </Link>
       </div>
     ) : null
+  }
 
   // Field types for LLM Judge auto-detection
   const [fieldTypes, setFieldTypes] = useState<Record<string, FieldTypeInfo>>(

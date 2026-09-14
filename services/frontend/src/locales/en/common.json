@@ -8579,7 +8579,8 @@
       "officialSection": "Official models",
       "customSection": "Custom models",
       "missingKey": "No API key stored.",
-      "configureKey": "Add key"
+      "configureKey": "Add key",
+      "lockedCustomJudges": "Locked without an API key: {models}."
     },
     "catalog": {
       "communityTitle": "Community models",

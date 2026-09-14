@@ -8587,7 +8587,8 @@
       "officialSection": "Offizielle Modelle",
       "customSection": "Eigene Modelle",
       "missingKey": "Kein API-Schlüssel hinterlegt.",
-      "configureKey": "Schlüssel hinterlegen"
+      "configureKey": "Schlüssel hinterlegen",
+      "lockedCustomJudges": "Ohne API-Schlüssel gesperrt: {models}."
     },
     "catalog": {
       "communityTitle": "Community-Modelle",
