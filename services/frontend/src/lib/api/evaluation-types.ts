@@ -784,6 +784,16 @@ export function getFieldDisplayNameKey(field: string): string | undefined {
   return undefined
 }
 
+/** A field's display name, through `t` when the field has an i18n key and
+ * the English fallback name otherwise. */
+export function getFieldLabel(
+  field: string,
+  t: (key: string) => string,
+): string {
+  const key = getFieldDisplayNameKey(field)
+  return key ? t(key) : getFieldDisplayName(field)
+}
+
 /** What a selectable evaluation field refers to, for grouping and labelling. */
 export type FieldOptionKind = 'special' | 'model' | 'human' | 'data'
 

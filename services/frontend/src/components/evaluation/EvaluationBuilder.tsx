@@ -37,7 +37,7 @@ import {
   type EvaluationConfig,
   type FieldTypeInfo,
   generateEvaluationId,
-  getFieldDisplayName,
+  getFieldLabel,
   getMetricDefinitions,
   HUMAN_FIELD_PREFIX,
   LLM_JUDGE_TEMPLATES,
@@ -751,7 +751,11 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select answer type..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.answerType',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {Object.entries(LLM_JUDGE_TEMPLATES).map(
@@ -804,7 +808,11 @@ export function EvaluationBuilder({
                     })()}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select judge model..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.judgeModel',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>{renderJudgeModelOptions()}</SelectContent>
                   </Select>
@@ -902,7 +910,11 @@ export function EvaluationBuilder({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select reasoning level..." />
+                        <SelectValue
+                          placeholder={t(
+                            'evaluationBuilder.placeholders.reasoningLevel',
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">
@@ -1014,7 +1026,11 @@ export function EvaluationBuilder({
                     })()}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select judge model..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.judgeModel',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>{renderJudgeModelOptions()}</SelectContent>
                   </Select>
@@ -1112,7 +1128,11 @@ export function EvaluationBuilder({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select reasoning level..." />
+                        <SelectValue
+                          placeholder={t(
+                            'evaluationBuilder.placeholders.reasoningLevel',
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">
@@ -1246,7 +1266,11 @@ export function EvaluationBuilder({
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select score scale..." />
+                        <SelectValue
+                          placeholder={t(
+                            'evaluationBuilder.placeholders.scoreScale',
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="1-5">
@@ -1311,13 +1335,25 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select max order..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.bleuMaxOrder',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">1 (unigram only)</SelectItem>
-                      <SelectItem value="2">2 (up to bigram)</SelectItem>
-                      <SelectItem value="3">3 (up to trigram)</SelectItem>
-                      <SelectItem value="4">4 (standard BLEU-4)</SelectItem>
+                      <SelectItem value="1">
+                        {t('evaluation.metricParams.bleu.ngram1')}
+                      </SelectItem>
+                      <SelectItem value="2">
+                        {t('evaluation.metricParams.bleu.ngram2')}
+                      </SelectItem>
+                      <SelectItem value="3">
+                        {t('evaluation.metricParams.bleu.ngram3')}
+                      </SelectItem>
+                      <SelectItem value="4">
+                        {t('evaluation.metricParams.bleu.ngram4')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1340,18 +1376,24 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select smoothing method..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.bleuSmoothing',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="method1">
-                        Method 1 (add epsilon)
+                        {t('evaluation.metricParams.bleu.smoothing1')}
                       </SelectItem>
-                      <SelectItem value="method2">Method 2 (add 1)</SelectItem>
+                      <SelectItem value="method2">
+                        {t('evaluation.metricParams.bleu.smoothing2')}
+                      </SelectItem>
                       <SelectItem value="method3">
-                        Method 3 (NIST geometric)
+                        {t('evaluation.metricParams.bleu.smoothing3')}
                       </SelectItem>
                       <SelectItem value="method4">
-                        Method 4 (exponential decay)
+                        {t('evaluation.metricParams.bleu.smoothing4')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -1376,16 +1418,24 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select ROUGE variant..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.rougeVariant',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rouge1">ROUGE-1 (unigram)</SelectItem>
-                      <SelectItem value="rouge2">ROUGE-2 (bigram)</SelectItem>
+                      <SelectItem value="rouge1">
+                        {t('evaluation.metricParams.rouge.rouge1')}
+                      </SelectItem>
+                      <SelectItem value="rouge2">
+                        {t('evaluation.metricParams.rouge.rouge2')}
+                      </SelectItem>
                       <SelectItem value="rougeL">
-                        ROUGE-L (LCS-based)
+                        {t('evaluation.metricParams.rouge.rougeL')}
                       </SelectItem>
                       <SelectItem value="rougeLsum">
-                        ROUGE-Lsum (summary level)
+                        {t('evaluation.metricParams.rouge.rougeLsum')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -1414,7 +1464,7 @@ export function EvaluationBuilder({
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Alpha (precision weight):{' '}
+                    {t('evaluation.metricParams.meteor.alpha')}:{' '}
                     {newEvaluation.metric_parameters.alpha || 0.9}
                   </label>
                   <input
@@ -1437,7 +1487,7 @@ export function EvaluationBuilder({
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Beta (recall weight):{' '}
+                    {t('evaluation.metricParams.meteor.beta')}:{' '}
                     {newEvaluation.metric_parameters.beta || 3.0}
                   </label>
                   <input
@@ -1460,7 +1510,7 @@ export function EvaluationBuilder({
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Gamma (fragmentation penalty):{' '}
+                    {t('evaluation.metricParams.meteor.gamma')}:{' '}
                     {newEvaluation.metric_parameters.gamma || 0.5}
                   </label>
                   <input
@@ -1486,7 +1536,7 @@ export function EvaluationBuilder({
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Character N-gram Order
+                    {t('evaluation.metricParams.chrf.charOrder')}
                   </label>
                   <Select
                     value={(
@@ -1503,7 +1553,11 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select char order..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.chrfCharOrder',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
@@ -1516,7 +1570,7 @@ export function EvaluationBuilder({
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Word N-gram Order (0 = character-only)
+                    {t('evaluation.metricParams.chrf.wordOrder')}
                   </label>
                   <Select
                     value={(
@@ -1533,22 +1587,34 @@ export function EvaluationBuilder({
                     }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select word order..." />
+                      <SelectValue
+                        placeholder={t(
+                          'evaluationBuilder.placeholders.chrfWordOrder',
+                        )}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">
-                        0 (character-level only)
+                        {t('evaluationBuilder.parameters.chrf.wordOrder0')}
                       </SelectItem>
-                      <SelectItem value="1">1 (include unigrams)</SelectItem>
-                      <SelectItem value="2">2 (include bigrams)</SelectItem>
-                      <SelectItem value="3">3 (include trigrams)</SelectItem>
-                      <SelectItem value="4">4 (include 4-grams)</SelectItem>
+                      <SelectItem value="1">
+                        {t('evaluationBuilder.parameters.chrf.wordOrder1')}
+                      </SelectItem>
+                      <SelectItem value="2">
+                        {t('evaluationBuilder.parameters.chrf.wordOrder2')}
+                      </SelectItem>
+                      <SelectItem value="3">
+                        {t('evaluationBuilder.parameters.chrf.wordOrder3')}
+                      </SelectItem>
+                      <SelectItem value="4">
+                        {t('evaluationBuilder.parameters.chrf.wordOrder4')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
                   <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                    Beta (recall weight):{' '}
+                    {t('evaluation.metricParams.chrf.beta')}:{' '}
                     {newEvaluation.metric_parameters.beta || 2}
                   </label>
                   <input
@@ -1573,7 +1639,7 @@ export function EvaluationBuilder({
             ) : newEvaluation.metric === 'factcc' ? (
               <div>
                 <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-                  Factuality Method
+                  {t('evaluationBuilder.parameters.factcc.method')}
                 </label>
                 <Select
                   value={newEvaluation.metric_parameters.method || 'summac'}
@@ -1588,11 +1654,19 @@ export function EvaluationBuilder({
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select factuality method..." />
+                    <SelectValue
+                      placeholder={t(
+                        'evaluationBuilder.placeholders.factccMethod',
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="summac">SummaC (recommended)</SelectItem>
-                    <SelectItem value="factcc">Original FactCC</SelectItem>
+                    <SelectItem value="summac">
+                      {t('evaluationBuilder.parameters.factcc.summac')}
+                    </SelectItem>
+                    <SelectItem value="factcc">
+                      {t('evaluationBuilder.parameters.factcc.original')}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1801,7 +1875,7 @@ export function EvaluationBuilder({
                       </span>
                       {!evaluation.enabled && (
                         <Badge variant="secondary" className="text-[10px]">
-                          disabled
+                          {t('evaluationBuilder.list.disabled')}
                         </Badge>
                       )}
                     </div>
@@ -1813,7 +1887,7 @@ export function EvaluationBuilder({
                         {/* Scripted/imported configs may omit the field
                             arrays — never crash the whole builder on it. */}
                         {(evaluation.prediction_fields ?? [])
-                          .map(getFieldDisplayName)
+                          .map((field) => getFieldLabel(field, t))
                           .join(', ')}
                       </div>
                       <div>

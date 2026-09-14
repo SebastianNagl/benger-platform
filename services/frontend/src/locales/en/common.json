@@ -6221,7 +6221,31 @@
       "judgeUnavailable": "no longer available",
       "removeJudge": "Remove",
       "runsPerJudge": "Runs per judge",
-      "runsPerJudgeHelp": "How often each judge grades the same sample (variance analysis). Cap 25."
+      "runsPerJudgeHelp": "How often each judge grades the same sample (variance analysis). Cap 25.",
+      "chrf": {
+        "wordOrder0": "0 (character-level only)",
+        "wordOrder1": "1 (include unigrams)",
+        "wordOrder2": "2 (include bigrams)",
+        "wordOrder3": "3 (include trigrams)",
+        "wordOrder4": "4 (include 4-grams)"
+      },
+      "factcc": {
+        "method": "Factuality Method",
+        "summac": "SummaC (recommended)",
+        "original": "Original FactCC"
+      }
+    },
+    "placeholders": {
+      "answerType": "Select answer type...",
+      "judgeModel": "Select judge model...",
+      "reasoningLevel": "Select reasoning level...",
+      "scoreScale": "Select score scale...",
+      "bleuMaxOrder": "Select max order...",
+      "bleuSmoothing": "Select smoothing method...",
+      "rougeVariant": "Select ROUGE variant...",
+      "chrfCharOrder": "Select char order...",
+      "chrfWordOrder": "Select word order...",
+      "factccMethod": "Select factuality method..."
     },
     "list": {
       "predictions": "Predictions:",
