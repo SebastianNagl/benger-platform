@@ -57,6 +57,8 @@ export function Select({
 function flattenElements(node: ReactNode, out: React.ReactElement[]): void {
   React.Children.forEach(node, (child) => {
     if (!React.isValidElement(child)) return
+    // A heading is not an option and has no place inside a native <select>.
+    if (child.type === SelectGroupLabel) return
     if (child.type === React.Fragment) {
       flattenElements((child.props as { children?: ReactNode }).children, out)
       return
@@ -152,5 +154,16 @@ export function SelectValue({
       </option>
     )
   }
+  return null
+}
+
+/**
+ * Headings have no native <select> counterpart that keeps option queries
+ * stable, so the mock renders none; flattenElements skips them.
+ */
+export function SelectGroupLabel(_props: {
+  children: ReactNode
+  className?: string
+}) {
   return null
 }

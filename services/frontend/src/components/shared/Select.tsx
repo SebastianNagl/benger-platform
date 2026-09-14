@@ -179,6 +179,34 @@ export function SelectItem({
   )
 }
 
+interface SelectGroupLabelProps {
+  children: ReactNode
+  className?: string
+}
+
+/**
+ * A heading inside SelectContent that names the options below it. It is not
+ * an option: keyboard navigation skips it, because only SelectItem registers
+ * with the listbox, and the trigger's label lookup ignores it, because it
+ * carries no value.
+ */
+export function SelectGroupLabel({
+  children,
+  className,
+}: SelectGroupLabelProps) {
+  return (
+    <div
+      role="presentation"
+      className={clsx(
+        'px-3 pt-2 pb-1 text-xs font-medium text-zinc-500 select-none dark:text-zinc-400',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
 export function SelectValue({ placeholder, className }: SelectValueProps) {
   const context = useContext(SelectContext)
   if (!context) throw new Error('SelectValue must be used within Select')
