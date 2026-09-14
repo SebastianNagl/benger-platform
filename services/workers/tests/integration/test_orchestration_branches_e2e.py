@@ -2352,10 +2352,12 @@ def _no_running_judge_runs(db_conn, run):
 
 def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     db_conn, make_user, make_project, make_task, make_annotation,
-    make_evaluation_run, exact_match_config,
+    make_evaluation_run, exact_match_config, caplog,
 ):
     """The production shape: a model-side config over a project that only has
     human annotations. It must fail, and say what to do."""
+    import logging
+
     user = make_user()
     project = make_project(created_by=user.id)
     task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
@@ -2363,7 +2365,8 @@ def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     run = make_evaluation_run(project.id, user.id, status="pending")
     db_conn.commit()
 
-    result = _run(db_conn, run, project, [exact_match_config()])
+    with caplog.at_level(logging.WARNING):
+        result = _run(db_conn, run, project, [exact_match_config()])
 
     assert result["status"] == "error"
     assert result["cells_dispatched"] == 0
@@ -2374,8 +2377,13 @@ def test_zero_cells_from_unmatchable_config_fails_with_diagnostic(
     assert "no cells matched" in (fresh.error_message or "")
     assert "no_generations" in fresh.error_message
     assert "__all_model__" in fresh.error_message
-    # The message points at the fix, not just the fault.
+    # The message points at the fix, not just the fault, and names what the
+    # project could have graded instead.
     assert "human:" in fresh.error_message
+    assert "1 submitted answer(s)" in fresh.error_message
+    # The warning log counts both sides project-wide, not the scoped pool of
+    # a side the run never enumerated.
+    assert "generations=0, answers=1" in caplog.text
 
     meta = fresh.eval_metadata or {}
     record = meta["match_by_config"]["cfg1"]
@@ -2454,6 +2462,7 @@ def test_human_only_config_dispatches_no_generation_cells(
     assert meta["gen_cells_dispatched"] == 0
     assert meta["match_by_config"]["hcfg"]["reason"] == "no_annotations"
     assert "no_annotations" in fresh.error_message
+    assert "1 model generation(s)" in fresh.error_message
 
 
 def test_partial_mismatch_still_grades_and_records_the_unmatched_config(
