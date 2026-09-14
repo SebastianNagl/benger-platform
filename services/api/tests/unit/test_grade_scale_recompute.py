@@ -370,3 +370,44 @@ class TestScaleSourceReport:
         project = SimpleNamespace(id="p", evaluation_config=None)
         assert _scale_source(project, _Scan(sources={"default"})) == "default"
         assert _scale_source(project, _Scan()) == "default"
+
+
+class TestPerStepEvidenceFields:
+    """The rubric judge stores ``evidence`` / ``evidence_verified`` /
+    ``model_score`` per step. Recompute grades from ``total_score`` (the
+    verified sum), never from the model's pre-verification scores, and
+    leaves the step documents untouched."""
+
+    def test_step_evidence_fields_survive_and_do_not_move_the_grade(self):
+        steps = {
+            "a": {
+                "score": 40.0,
+                "max": 50.0,
+                "reason": "ok",
+                "evidence": "Zitat aus der Bearbeitung",
+                "evidence_verified": True,
+                "model_score": 40.0,
+            },
+            "b": {
+                "score": 0.0,
+                "max": 50.0,
+                "reason": "nur in der Musterlösung [Punkte nicht vergeben]",
+                "evidence": "",
+                "evidence_verified": False,
+                "model_score": 33.5,
+            },
+        }
+        with_evidence = _rubric_lane(grade_points=10, scores=steps, total_score=40.0)
+        plain = _rubric_lane(grade_points=10, scores={"a": 40.0, "b": 0.0}, total_score=40.0)
+
+        got = _plan_row(copy.deepcopy(with_evidence), True, UEBUNGSKLAUSUR, {"r1": _rubric()})
+        expected = _plan_row(copy.deepcopy(plain), True, UEBUNGSKLAUSUR, {"r1": _rubric()})
+
+        assert got[1] is not None
+        got_details = got[1]["llm_judge_rubric"]["details"]
+        expected_details = expected[1]["llm_judge_rubric"]["details"]
+        assert got_details["grade_points"] == expected_details["grade_points"]
+        assert got_details["passed"] == expected_details["passed"]
+        assert (got[0], got[2], got[3]) == (expected[0], expected[2], expected[3])
+        assert got_details["scores"] == steps
+        assert got_details["total_score"] == 40.0
