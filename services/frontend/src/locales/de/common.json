@@ -5620,6 +5620,10 @@
       "timeMs": "Zeit (ms)",
       "details": "Details",
       "filterPlaceholder": "Nach Feldname filtern...",
+      "showMore": "Mehr anzeigen",
+      "showLess": "Weniger anzeigen",
+      "empty": "Kein Inhalt",
+      "consistency": "Konsistenz",
       "allStatus": "Alle Status",
       "passedOnly": "Nur bestanden",
       "failedOnly": "Nur fehlgeschlagen",
@@ -6973,7 +6977,37 @@
       "scopeAnnotatorsCount": "{count} Annotator:innen",
       "scopeTasksCount": "{count} Task(s)",
       "runFailedTitle": "Evaluierung fehlgeschlagen",
-      "unmatchedConfigsTitle": "Evaluierungen ohne passende Daten"
+      "unmatchedConfigsTitle": "Evaluierungen ohne passende Daten",
+      "openProject": "Projekt öffnen",
+      "judges": "Judges & Läufe",
+      "perJudgeRun": "Pro Judge & Lauf",
+      "someJudgesFailed": "Mindestens ein Judge-Lauf ist fehlgeschlagen. Die Statistiken unten beruhen nur auf den erfolgreichen Läufen.",
+      "createdAt": "Gestartet am {date}",
+      "technicalDetails": "Technische Details",
+      "noMetrics": "Dieser Lauf hat keine aggregierten Metriken.",
+      "statusLabels": {
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "running": "Läuft",
+        "pending": "Ausstehend",
+        "queued": "In Warteschlange",
+        "cancelled": "Abgebrochen",
+        "paused": "Pausiert"
+      },
+      "matchReasons": {
+        "noGenerations": "Bewertet Modellantworten, dieses Projekt hat aber keine. Erzeugen Sie zuerst Antworten oder wählen Sie ein menschliches Feld (human:…).",
+        "noGenerationsWithAnswers": "Bewertet Modellantworten, dieses Projekt hat aber keine. Es hat {count} eingereichte Antwort(en). Um diese zu bewerten, wählen Sie ein menschliches Feld wie human:loesung oder __all_human__.",
+        "noGenerationsNothing": "Bewertet Modellantworten. Dieses Projekt hat noch weder Modellantworten noch eingereichte Antworten, es gibt also nichts zu bewerten.",
+        "noAnnotations": "Bewertet eingereichte Antworten, dieses Projekt hat aber keine. Reichen Sie zuerst eine Antwort ein oder wählen Sie ein Modellfeld (model:…).",
+        "noAnnotationsWithGenerations": "Bewertet eingereichte Antworten, dieses Projekt hat aber keine. Es hat {count} Modellantwort(en). Um diese zu bewerten, wählen Sie ein Modellfeld wie __all_model__.",
+        "noAnnotationsNothing": "Bewertet eingereichte Antworten. Dieses Projekt hat noch weder eingereichte Antworten noch Modellantworten, es gibt also nichts zu bewerten.",
+        "generationFiltersExcludedAll": "Bewertet Modellantworten, aber die Modell- oder Prompt-Filter dieses Laufs haben alle ausgeschlossen.",
+        "allAnnotationsCancelled": "Bewertet eingereichte Antworten, aber alle Antworten zu diesen Aufgaben sind abgebrochen.",
+        "annotatorFilterExcludedAll": "Bewertet eingereichte Antworten, aber der Annotator-Filter dieses Laufs hat alle ausgeschlossen.",
+        "noPredictionFields": "Hat kein Vorhersagefeld und bewertet daher nichts.",
+        "classifierUnavailable": "Konnte nicht zugeordnet werden: Der Worker kann nicht erkennen, welche Seite bewertet werden soll.",
+        "other": "Hat nichts zum Bewerten gefunden."
+      }
     },
     "human": {
       "likert": {
