@@ -550,6 +550,31 @@
           "uploadHint": "Tipp: Ein vorhandener Korrekturbogen (z. B. vom Lehrstuhl, .xlsx/.docx) kann nach dem Erstellen pro Aufgabe auf der Aufgabenseite hochgeladen werden.",
           "noModelsWarning": "Für keinen Anbieter ist ein API-Schlüssel hinterlegt, daher kann kein Bewertungsbogen erzeugt werden. Hinterlegen Sie einen Schlüssel (Profil → API-Schlüssel oder in Ihrer Organisation); das Projekt lässt sich auch ohne erstellen und der Bogen später pro Aufgabe erzeugen oder hochladen.",
           "noModelsOption": "Kein Modell verfügbar"
+        },
+        "keyWarning": {
+          "title": "Für dieses Projekt fehlt ein API-Schlüssel",
+          "manageKeys": "API-Schlüssel im Profil verwalten",
+          "nonBlocking": "Sie können das Projekt trotzdem erstellen.",
+          "purpose": {
+            "evaluation": "Bewertung mit {models}",
+            "generation": "Generierung mit {models}"
+          },
+          "reason": {
+            "noOrganization": "Das Projekt gehört keiner Organisation an, daher wird mit Ihrem eigenen {provider}-Schlüssel bewertet, und Sie haben keinen hinterlegt.",
+            "notMember": "Sie sind in keiner der gewählten Organisationen Mitglied, daher wird mit Ihrem eigenen {provider}-Schlüssel bewertet, und Sie haben keinen hinterlegt.",
+            "organizationWithoutKey": "In {organizations} steht Ihnen kein {provider}-Schlüssel zur Verfügung.",
+            "noPersonalKey": "Sie haben keinen eigenen {provider}-Schlüssel hinterlegt und gehören keiner Organisation an.",
+            "noKeyAnywhere": "Weder Ihre eigenen Schlüssel noch Ihre Organisationen stellen einen {provider}-Schlüssel bereit."
+          },
+          "action": {
+            "noOrganization": "Wählen Sie im ersten Schritt eine Organisation mit {provider}-Schlüssel, oder hinterlegen Sie einen eigenen Schlüssel im Profil.",
+            "notMember": "Wählen Sie eine Organisation, in der Sie Mitglied sind, oder hinterlegen Sie einen eigenen Schlüssel im Profil.",
+            "requiresPrivateKeys": "Die Organisation verlangt eigene Schlüssel. Hinterlegen Sie einen {provider}-Schlüssel im Profil.",
+            "askAdmin": "Bitten Sie die Administration der Organisation, einen {provider}-Schlüssel zu hinterlegen.",
+            "askAdminOrPersonal": "Bitten Sie die Administration der Organisation um einen {provider}-Schlüssel, oder hinterlegen Sie einen eigenen im Profil, falls die Organisation eigene Schlüssel verlangt.",
+            "addPersonalKey": "Hinterlegen Sie einen eigenen {provider}-Schlüssel im Profil.",
+            "noKeyAnywhere": "Hinterlegen Sie einen eigenen Schlüssel im Profil, oder bitten Sie die Administration Ihrer Organisation um einen {provider}-Schlüssel."
+          }
         }
       },
       "structuredExam": {
@@ -7231,6 +7256,7 @@
       "evaluationDefaultsSaveFailed": "Evaluierungs-Standardeinstellungen konnten nicht gespeichert werden: {error}",
       "generationDefaultsSaveFailed": "Generierungs-Standardeinstellungen konnten nicht gespeichert werden: {error}",
       "evaluationConfigsSaveFailed": "Evaluierungsmethoden konnten nicht gespeichert werden: {error}",
+      "evaluationConfigsSavedWithWarnings": "Gespeichert. Einige Evaluierungen werden so nichts bewerten: {warnings}",
       "evaluationFailed": "Evaluierung konnte nicht gestartet werden"
     },
     "projects": {

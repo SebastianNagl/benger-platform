@@ -15,6 +15,7 @@
 import {
   buildPredictionFieldOptions,
   buildReferenceFieldOptions,
+  groupPredictionFieldOptions,
   resolveDefaultFieldSelection,
 } from '../evaluation-types'
 
@@ -132,5 +133,40 @@ describe('resolveDefaultFieldSelection', () => {
 
   it('returns nothing when there is nothing to fall back to', () => {
     expect(resolveDefaultFieldSelection(undefined, [], '')).toEqual([])
+  })
+})
+
+describe('groupPredictionFieldOptions', () => {
+  it('heads the bulk, model and human options, in option order', () => {
+    const groups = groupPredictionFieldOptions(
+      buildPredictionFieldOptions(FIELDS),
+    )
+    expect(groups.map((g) => g.labelKey)).toEqual([
+      'evaluationBuilder.fields.bulkSelection',
+      'evaluationBuilder.fields.modelResponseFields',
+      'evaluationBuilder.fields.humanAnnotationFields',
+    ])
+    expect(groups.map((g) => g.options.map((o) => o.value))).toEqual([
+      ['__all_model__', '__all_human__'],
+      ['model:loesung', 'model:gliederung'],
+      ['human:loesung', 'human:gliederung'],
+    ])
+  })
+
+  it('keeps every option exactly once and in order', () => {
+    const options = buildPredictionFieldOptions(FIELDS)
+    expect(
+      groupPredictionFieldOptions(options).flatMap((g) => g.options),
+    ).toEqual(options)
+  })
+
+  it('drops a group that has no options', () => {
+    const groups = groupPredictionFieldOptions(
+      buildPredictionFieldOptions({
+        model_response_fields: [],
+        human_annotation_fields: ['loesung'],
+      }),
+    )
+    expect(groups.map((g) => g.kind)).toEqual(['special', 'human'])
   })
 })

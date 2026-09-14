@@ -126,47 +126,51 @@ const config = {
       // Ratcheted 2026-06-15 (issue #33) after the project-page + evaluation +
       // labeling + pages/auth/search backfill. Measured (non-grouped "rest"):
       // 90.54/83.63/85.40/91.94. Stmts/lines clear 90; funcs/branches climbing.
-      statements: 90,
-      branches: 83,
-      functions: 85,
-      lines: 91,
+      // Ratcheted again 2026-09-14 to floor(CI-measured): the coverage gate of
+      // PR #370 (run 34843964926) measured 92.23/85.95/90.35/93.20.
+      statements: 92,
+      branches: 85,
+      functions: 90,
+      lines: 93,
     },
     // Per-dir floors ratcheted 2026-06-15 (issue #33) to floor(measured)
-    // after the project-page/evaluation/labeling/data backfill. Never lower
-    // without a comment on issue #33. Target: 90.
+    // after the project-page/evaluation/labeling/data backfill, and again on
+    // 2026-09-14 to floor(CI-measured) from the coverage gate of PR #370 (run
+    // 34843964926). Never lower without a comment on issue #33. Target: 90.
     // Critical business logic - higher standards
     'src/lib/api/': {
-      statements: 93, // measured 93.33
-      branches: 86, // measured 86.5
-      functions: 92, // dev added an untested fn (92.94); floor relaxed 93->92
-      lines: 93, // measured 93.66
+      statements: 94, // measured 94.04
+      branches: 86, // measured 86.66
+      functions: 93, // measured 93.17
+      lines: 94, // measured 94.29
     },
     // API routes (the old "~0%" note was stale; really ~96%)
     'src/app/api/': {
-      statements: 96, // measured 96.74
-      branches: 92, // measured 92.74
-      functions: 90, // measured 90.7
-      lines: 96, // measured 96.72
+      statements: 97, // measured 97.31
+      branches: 93, // measured 93.50
+      functions: 92, // measured 92.30
+      lines: 97, // measured 97.29
     },
     // Utilities - should be thoroughly tested
     'src/utils/': {
-      statements: 99, // measured 99.04
-      branches: 96, // measured 96.82
+      statements: 99, // measured 99.11
+      branches: 97, // measured 97.32
       functions: 100, // measured 100
-      lines: 99, // measured 99.1
+      lines: 99, // measured 99.15
     },
     // State management - critical
     'src/stores/': {
-      statements: 99, // measured 99.4
-      branches: 86, // measured 86.49
+      statements: 99, // measured 99.41
+      branches: 87, // measured 87.04
       functions: 100, // measured 100
-      lines: 99, // measured 99.38
+      lines: 99, // measured 99.39
     },
     // Components - RESTORED 2026-06-24 to the pre-decomposition ratchet. The
     // Tier-2 decomposition had extracted ~5 cards/hooks (AdvancedSettingsCard,
     // ModelSelectionSection, Evaluation/GenerationDefaultsCard, usePermissions)
     // without tests, which forced a temporary floor relax to 91/85/88/92. Those
     // components now have dedicated tests (all ~100%), so the floors are back up.
+    // 2026-09-14 CI measured 92.34/85.82/90.55/93.39: same integers, unchanged.
     'src/components/': {
       statements: 92,
       branches: 85,

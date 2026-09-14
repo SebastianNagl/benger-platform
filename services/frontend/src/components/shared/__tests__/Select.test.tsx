@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import {
   Select,
   SelectContent,
+  SelectGroupLabel,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -704,5 +705,54 @@ describe('Select Component', () => {
       // Should handle gracefully
       expect(button).toBeInTheDocument()
     })
+  })
+})
+
+describe('SelectGroupLabel', () => {
+  const GroupedSelect = ({
+    value = '',
+    onValueChange = jest.fn(),
+  }: {
+    value?: string
+    onValueChange?: (value: string) => void
+  }) => (
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger>
+        <SelectValue placeholder="Pick a field" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroupLabel>Model fields</SelectGroupLabel>
+        <SelectItem value="model:loesung">model:loesung</SelectItem>
+        <SelectGroupLabel>Human fields</SelectGroupLabel>
+        <SelectItem value="human:loesung">loesung (Loesung)</SelectItem>
+      </SelectContent>
+    </Select>
+  )
+
+  it('names a group of options without becoming an option itself', async () => {
+    const user = userEvent.setup()
+    render(<GroupedSelect />)
+    await user.click(screen.getByRole('button'))
+
+    const listbox = screen.getByRole('listbox')
+    expect(within(listbox).getByText('Model fields')).toBeInTheDocument()
+    expect(within(listbox).getByText('Human fields')).toBeInTheDocument()
+    expect(within(listbox).getAllByRole('option')).toHaveLength(2)
+  })
+
+  it('keeps selection and the trigger label working around the headings', async () => {
+    const user = userEvent.setup()
+    const onValueChange = jest.fn()
+    const { rerender } = render(<GroupedSelect onValueChange={onValueChange} />)
+    await user.click(screen.getByRole('button'))
+    await user.click(screen.getByRole('option', { name: 'loesung (Loesung)' }))
+    expect(onValueChange).toHaveBeenCalledWith('human:loesung')
+
+    rerender(
+      <GroupedSelect value="human:loesung" onValueChange={onValueChange} />,
+    )
+    expect(
+      within(screen.getByRole('button')).getByText('loesung (Loesung)'),
+    ).toBeInTheDocument()
   })
 })

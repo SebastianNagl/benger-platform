@@ -70,6 +70,16 @@ jest.mock('../base', () => ({
         return { status: 'success', message: 'Saved API key is valid' }
       }
 
+      // Models the caller can run in the organization
+      if (
+        endpoint.match(
+          /\/organizations\/[\w-]+\/api-keys\/available-models$/,
+        ) &&
+        method === 'GET'
+      ) {
+        return [{ id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' }]
+      }
+
       // Get API Key Settings
       if (
         endpoint.match(/\/organizations\/[\w-]+\/api-keys\/settings$/) &&
@@ -225,6 +235,20 @@ describe('OrganizationsClient - API Key methods', () => {
         '/organizations/org-1/api-keys/google/test-saved',
         {},
       )
+    })
+  })
+
+  describe('getOrgAvailableModels', () => {
+    it('returns the models the caller can run in the organization', async () => {
+      const getSpy = jest.spyOn(client as any, 'get')
+      const result = await client.getOrgAvailableModels('org-1')
+
+      expect(getSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/api-keys/available-models',
+      )
+      expect(result).toEqual([
+        { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' },
+      ])
     })
   })
 

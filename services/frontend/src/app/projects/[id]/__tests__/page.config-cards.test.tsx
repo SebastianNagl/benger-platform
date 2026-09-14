@@ -814,6 +814,72 @@ describe('Evaluation card', () => {
     )
   })
 
+  it('warns once when a save reports configs that will grade nothing', async () => {
+    ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/evaluation-config')) {
+        return Promise.resolve({
+          evaluation_configs: [
+            {
+              id: 'e1',
+              metric: 'korrektur_falloesung',
+              enabled: true,
+              metric_parameters: {},
+            },
+          ],
+        })
+      }
+      return Promise.resolve({ task: { id: 't' }, remaining: 5 })
+    })
+    ;(apiClient.put as jest.Mock).mockResolvedValue({
+      warnings: [
+        {
+          config_id: 'cfg1',
+          metric: 'llm_judge_rubric',
+          code: 'no_matching_subjects',
+          message:
+            "evaluation 'Bewertungsbogen' (llm_judge_rubric) grades model generations ('__all_model__'), but this project has none.",
+        },
+      ],
+    })
+    setStore()
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId('config-card-project.evaluation.title')
+    await screen.findByText('project.evaluationSettings.korrekturBlindToLlm')
+
+    const configPuts = () =>
+      (apiClient.put as jest.Mock).mock.calls.filter(([url]) =>
+        String(url).includes('/evaluation-config'),
+      )
+    const warningToasts = () =>
+      mockAddToast.mock.calls.filter(([message]) =>
+        String(message).startsWith(
+          'toasts.project.evaluationConfigsSavedWithWarnings',
+        ),
+      )
+    const flipImmediateEval = async () => {
+      const evalSettings = screen.getByTestId(
+        'subsection-project.evaluationSettings.title',
+      )
+      await act(async () => {
+        fireEvent.click(within(evalSettings).getAllByRole('checkbox')[0])
+      })
+    }
+
+    jest.useFakeTimers()
+    await flipImmediateEval()
+    await flushAutosave()
+    expect(configPuts()).toHaveLength(1)
+    expect(warningToasts()).toHaveLength(1)
+    expect(warningToasts()[0][0]).toContain('grades model generations')
+    expect(warningToasts()[0][1]).toBe('warning')
+
+    // The card auto-saves again with the same warnings: no second toast.
+    await flipImmediateEval()
+    await flushAutosave()
+    expect(configPuts()).toHaveLength(2)
+    expect(warningToasts()).toHaveLength(1)
+  })
+
   it('hides blind toggles when no korrektur_falloesung config is present', async () => {
     ;(apiClient.get as jest.Mock).mockImplementation((url: string) => {
       if (url.includes('/evaluation-config')) {

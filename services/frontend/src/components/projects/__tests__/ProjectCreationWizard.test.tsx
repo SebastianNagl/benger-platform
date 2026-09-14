@@ -242,6 +242,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.wizard.customConfigDescription': 'User-defined configuration',
         'projects.wizard.labelStudioDocs': 'Label Studio documentation',
         'projects.wizard.note': 'Note',
+        'toasts.project.evaluationConfigsSaveFailed': `Failed to save evaluation methods: ${params?.error}`,
+        'toasts.project.evaluationConfigsSavedWithWarnings': `Saved with warnings: ${params?.warnings}`,
       }
       return translations[key] || key
     },
@@ -1244,5 +1246,91 @@ describe('ProjectCreationWizard: organization preselection', () => {
     expect(
       screen.queryByTestId('wizard-organization-section'),
     ).not.toBeInTheDocument()
+  })
+})
+
+// ─── Evaluation config save feedback ───────────────────────────────────────
+// The project exists by the time its evaluation configs are saved, so a
+// rejected config must not abort creation. The API's reason names the
+// evaluation and the field to choose, and it used to be replaced by a
+// generic toast. Warnings on a saved config were not shown at all.
+describe('ProjectCreationWizard: evaluation config save feedback', () => {
+  let putMock: jest.Mock
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    putMock = require('@/lib/api/client').apiClient.put as jest.Mock
+    const { projectsAPI } = require('@/lib/api/projects')
+    ;(projectsAPI.update as jest.Mock).mockResolvedValue({})
+    mockCreateProject.mockResolvedValue({ id: 'project-eval' })
+    mockFetchProject.mockResolvedValue({})
+  })
+
+  async function createWithRougeEvaluation(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
+    render(<ProjectCreationWizard />)
+    await user.type(
+      screen.getByTestId('project-create-name-input'),
+      'Eval Project',
+    )
+    await enableFeature(user, 'evaluation')
+    for (let i = 0; i < 8 && !screen.queryByText('Evaluation Setup'); i++) {
+      await user.click(screen.getByTestId('project-create-next-button'))
+    }
+    await waitFor(() => {
+      expect(screen.getByText('Evaluation Setup')).toBeInTheDocument()
+    })
+    await user.click(
+      screen
+        .getByTestId('wizard-metric-rouge')
+        .querySelector('input[type="checkbox"]')!,
+    )
+    for (
+      let i = 0;
+      i < 8 && !screen.queryByTestId('project-create-submit-button');
+      i++
+    ) {
+      await user.click(screen.getByTestId('project-create-next-button'))
+    }
+    await user.click(await screen.findByTestId('project-create-submit-button'))
+  }
+
+  it('names the reason when the API rejects the evaluation config, and still finishes', async () => {
+    const user = userEvent.setup()
+    const reason =
+      "evaluation 'ROUGE' (rouge): prediction_fields is empty, so it can never grade anything."
+    putMock.mockRejectedValue(new Error(reason))
+
+    await createWithRougeEvaluation(user)
+
+    await waitFor(() => {
+      expect(mockToastErrorFn).toHaveBeenCalledWith(
+        `Failed to save evaluation methods: ${reason}`,
+      )
+    })
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/projects/project-eval')
+    })
+  })
+
+  it('shows the warnings of a saved evaluation config', async () => {
+    const user = userEvent.setup()
+    const message =
+      "evaluation 'ROUGE' (rouge) has no reference field, so it will grade nothing."
+    putMock.mockResolvedValue({
+      warnings: [{ code: 'no_reference_fields', message }],
+    })
+
+    await createWithRougeEvaluation(user)
+
+    await waitFor(() => {
+      expect(mockAddToastFn).toHaveBeenCalledWith(
+        `Saved with warnings: ${message}`,
+        'warning',
+        10000,
+      )
+    })
+    expect(mockToastErrorFn).not.toHaveBeenCalled()
   })
 })

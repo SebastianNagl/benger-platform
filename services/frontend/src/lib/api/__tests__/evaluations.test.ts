@@ -383,6 +383,21 @@ jest.mock('../base', () => ({
         } as T
       }
 
+      if (url === '/llm_models/public/models') {
+        return [
+          {
+            id: 'gpt-4o',
+            name: 'GPT-4o',
+            provider: 'OpenAI',
+            model_type: 'chat',
+            capabilities: ['chat'],
+            is_active: true,
+            is_official: true,
+            created_at: '2024-01-01T00:00:00Z',
+          },
+        ] as T
+      }
+
       if (url === '/users/api-keys/available-models') {
         return [
           {
@@ -1367,6 +1382,18 @@ describe('EvaluationsClient', () => {
           status: 'success',
           message: 'Saved API key is valid',
         })
+      })
+    })
+
+    describe('getPublicModelCatalog', () => {
+      it('reads the official catalog, whatever keys the caller holds', async () => {
+        const requestSpy = jest.spyOn(client as any, 'request')
+        const models = await client.getPublicModelCatalog()
+
+        expect(requestSpy).toHaveBeenCalledWith('/llm_models/public/models')
+        expect(models).toEqual([
+          expect.objectContaining({ id: 'gpt-4o', provider: 'OpenAI' }),
+        ])
       })
     })
 

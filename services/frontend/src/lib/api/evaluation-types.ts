@@ -848,6 +848,41 @@ export function buildReferenceFieldOptions(fields: {
   ]
 }
 
+/** The headed groups of a prediction picker, in option order. */
+export const PREDICTION_FIELD_GROUPS: ReadonlyArray<{
+  kind: FieldOptionKind
+  labelKey: string
+  label: string
+}> = [
+  {
+    kind: 'special',
+    labelKey: 'evaluationBuilder.fields.bulkSelection',
+    label: 'Bulk Selection',
+  },
+  {
+    kind: 'model',
+    labelKey: 'evaluationBuilder.fields.modelResponseFields',
+    label: 'Model Response Fields',
+  },
+  {
+    kind: 'human',
+    labelKey: 'evaluationBuilder.fields.humanAnnotationFields',
+    label: 'Human Annotation Fields',
+  },
+]
+
+/**
+ * Split prediction options into headed groups, keeping the option order and
+ * dropping empty groups. The human and the model option for one field carry
+ * the same name, so in a flat list only a prefix tells them apart.
+ */
+export function groupPredictionFieldOptions(options: FieldOption[]) {
+  return PREDICTION_FIELD_GROUPS.map((group) => ({
+    ...group,
+    options: options.filter((option) => option.kind === group.kind),
+  })).filter((group) => group.options.length > 0)
+}
+
 /**
  * Pick the field selection a freshly-toggled metric should start with.
  *
