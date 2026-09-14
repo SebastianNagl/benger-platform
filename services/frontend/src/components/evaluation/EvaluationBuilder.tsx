@@ -31,20 +31,17 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import {
+  type AvailableEvaluationFields,
+  buildPredictionFieldOptions,
   CustomCriteriaDefinition,
-  DEFAULT_PROMPT_TEMPLATES,
-  FIELD_SPECIFIERS,
+  type EvaluationConfig,
+  type FieldTypeInfo,
   generateEvaluationId,
-  getDimensionDisplayName,
   getFieldDisplayName,
   getMetricDefinitions,
   HUMAN_FIELD_PREFIX,
-  LLM_JUDGE_DIMENSIONS,
   LLM_JUDGE_TEMPLATES,
   MODEL_FIELD_PREFIX,
-  type AvailableEvaluationFields,
-  type EvaluationConfig,
-  type FieldTypeInfo,
 } from '@/lib/api/evaluation-types'
 import { MaxTokensInput } from '@/lib/evaluation/MaxTokensInput'
 import { TemperatureInput } from '@/lib/evaluation/TemperatureInput'
@@ -247,37 +244,18 @@ export function EvaluationBuilder({
     fetchFieldTypes()
   }, [projectId])
 
-  // Combine model and human fields for prediction selection
-  const allPredictionOptions = useMemo(() => {
-    const options: {
-      value: string
-      label: string
-      type: 'special' | 'model' | 'human'
-    }[] = [
-      {
-        value: FIELD_SPECIFIERS.ALL_MODEL,
-        label: 'All model responses',
-        type: 'special',
-      },
-      {
-        value: FIELD_SPECIFIERS.ALL_HUMAN,
-        label: 'All human annotations',
-        type: 'special',
-      },
-    ]
-
-    availableFields.model_response_fields.forEach((field) => {
-      const prefixed = MODEL_FIELD_PREFIX + field
-      options.push({ value: prefixed, label: prefixed, type: 'model' })
-    })
-
-    availableFields.human_annotation_fields.forEach((field) => {
-      const prefixed = HUMAN_FIELD_PREFIX + field
-      options.push({ value: prefixed, label: prefixed, type: 'human' })
-    })
-
-    return options
-  }, [availableFields])
+  // Prediction options come from the shared builder, in the order every
+  // picker uses. Its bulk selectors carry an i18n key that this list used to
+  // skip, so German pages showed "All model responses".
+  const allPredictionOptions = useMemo(
+    () =>
+      buildPredictionFieldOptions(availableFields).map((opt) => ({
+        value: opt.value,
+        label: opt.labelKey ? t(opt.labelKey) : opt.label,
+        type: opt.kind as 'special' | 'model' | 'human',
+      })),
+    [availableFields, t],
+  )
 
   // Reference field options
   const referenceOptions = useMemo(() => {

@@ -100,7 +100,7 @@ export function PredictionFieldsStep({
                     {getFieldDisplayName(prefixed)}
                   </span>
                   <Badge variant="secondary" className="text-[10px]">
-                    model
+                    {t('evaluationBuilder.fields.model')}
                   </Badge>
                 </label>
               )
@@ -131,7 +131,7 @@ export function PredictionFieldsStep({
                     {getFieldDisplayName(prefixed)}
                   </span>
                   <Badge variant="secondary" className="text-[10px]">
-                    human
+                    {t('evaluationBuilder.fields.human')}
                   </Badge>
                 </label>
               )
