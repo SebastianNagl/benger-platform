@@ -120,6 +120,9 @@ def _evaluate_llm_judge_single_impl(
         score_scale=params.get("score_scale", "1-5"),
         organization_id=organization_id,
         seed=_resolve_judge("seed", 42),
+        # Forwarded like the bulk path does; the rubric judge falls back to
+        # its own default when unset (see RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT).
+        reasoning_effort=params.get("reasoning_effort"),
         org_billing_authorized=org_billing_authorized,
         project_id=project_id,
     )

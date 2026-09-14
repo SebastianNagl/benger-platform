@@ -482,3 +482,33 @@ def test_other_multidim_metrics_stay_out_of_rubric_mode():
     )
     assert judge.rubric_mode is not True
     assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == ""
+
+
+@pytest.mark.parametrize("configured", [None, "minimal"])
+def test_immediate_lane_forwards_the_configured_reasoning_effort(configured):
+    """The immediate lane hands metric_parameters.reasoning_effort to the
+    judge factory like the bulk path does (None lets the rubric default
+    apply inside the evaluator)."""
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
+        id="task-1", data={"sachverhalt": "Der Fall.", "musterlösung": "ML"}
+    )
+    rubric = SimpleNamespace(
+        id="rub-9",
+        generator_model_id=None,
+        criteria={"s01_x": {"name": "X", "rubric": "r", "max_score": 100}},
+        generation_metadata={"rendered_text": "BEWERTUNGSBOGEN"},
+    )
+    judge = _judge_factory_mock()
+    judge.is_multidim_mode.return_value = True
+    judge._evaluate_multidim_single_call.return_value = _multidim_with_evidence()
+    kwargs = _impl_kwargs(db)
+    kwargs["metric_params"] = {"judge_model": "gpt-5-mini", "reasoning_effort": configured}
+    with patch(
+        "ml_evaluation.llm_judge_evaluator.create_llm_judge_for_user",
+        return_value=judge,
+    ) as factory, patch(
+        "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
+    ):
+        _evaluate_llm_judge_single_impl(**kwargs)
+    assert factory.call_args.kwargs["reasoning_effort"] == configured
