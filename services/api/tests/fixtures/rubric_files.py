@@ -391,7 +391,10 @@ def parity_sheet_docx() -> bytes:
     """Word layout of the same sheet: one table row per outline point, hint
     bullets in the same cell as their heading, and the points paragraph either
     on the heading's line or pushed down next to the bullet it scores."""
-    bullet = lambda text: {"text": text, "bullet": True}  # noqa: E731
+
+    def bullet(text: str) -> Dict[str, Any]:
+        return {"text": text, "bullet": True}
+
     return make_docx(
         [
             [
