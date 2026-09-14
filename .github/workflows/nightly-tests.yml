@@ -68,7 +68,7 @@ jobs:
 
       - name: Add test hostname
         if: matrix.shard == 'e2e'
-        run: echo "127.0.0.1 benger-test.localhost" | sudo tee -a /etc/hosts
+        run: echo "127.0.0.1 benger-test.localhost api-test.localhost" | sudo tee -a /etc/hosts
 
       - name: Build test infrastructure
         if: matrix.shard != 'frontend'
