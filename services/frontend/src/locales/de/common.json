@@ -9590,7 +9590,9 @@
     "structureUnavailable": "Eine KI kann die Datei hier nicht strukturieren. Legen Sie die Klausur zuerst an — im Bearbeiten-Dialog steht die Option zur Verfügung.",
     "aiPayerOrg": "Bezahlt von {org}. Du brauchst keinen eigenen API-Schlüssel.",
     "aiPayerOrgUnnamed": "Bezahlt von deiner Organisation. Du brauchst keinen eigenen API-Schlüssel.",
-    "aiNoOwnModels": "Mit deinen eigenen API-Schlüsseln ist kein Modell verfügbar. Hinterlege einen Schlüssel in deinem Profil. Hochladen und Selbst-Anlegen funktionieren weiterhin."
+    "aiNoOwnModels": "Mit deinen eigenen API-Schlüsseln ist kein Modell verfügbar. Hinterlege einen Schlüssel in deinem Profil. Hochladen und Selbst-Anlegen funktionieren weiterhin.",
+    "structurePayerOrg": "Bezahlt von {org} ({model}). Du brauchst keinen eigenen API-Schlüssel.",
+    "structurePayerOrgUnnamed": "Bezahlt von deiner Organisation ({model}). Du brauchst keinen eigenen API-Schlüssel."
   },
   "rubricResult": {
     "title": "Bewertungsbogen",

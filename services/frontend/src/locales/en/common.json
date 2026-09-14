@@ -9601,7 +9601,9 @@
     "structureUnavailable": "AI cannot structure the file here. Create the exam first — the option is available in the edit dialog.",
     "aiPayerOrg": "Paid by {org}. You do not need your own API key.",
     "aiPayerOrgUnnamed": "Paid by your organization. You do not need your own API key.",
-    "aiNoOwnModels": "No model is available with your own API keys. Add a key in your profile. Uploading and creating the sheet yourself still work."
+    "aiNoOwnModels": "No model is available with your own API keys. Add a key in your profile. Uploading and creating the sheet yourself still work.",
+    "structurePayerOrg": "Paid by {org} ({model}). You do not need your own API key.",
+    "structurePayerOrgUnnamed": "Paid by your organization ({model}). You do not need your own API key."
   },
   "rubricResult": {
     "title": "Grading sheet",
