@@ -612,6 +612,7 @@ async def create_project(
                 project_title=str(db_project.title),
                 creator_name=str(current_user.name),
                 organization_id=str(primary_membership.organization_id),
+                creator_id=str(current_user.id),
             )
         except Exception as e:
             import traceback

@@ -950,8 +950,13 @@ def notify_project_created(
     project_title: str,
     creator_name: str,
     organization_id: str,
+    creator_id: Optional[str] = None,
 ):
-    """Notify about project creation"""
+    """Notify about project creation.
+
+    The creator is left out of the recipients: they already get the success
+    toast of the action itself.
+    """
     import logging
 
     logger = logging.getLogger(__name__)
@@ -976,6 +981,8 @@ def notify_project_created(
             NotificationType.PROJECT_CREATED.value,
             {"organization_id": organization_id, "project_id": project_id},
         )
+        if creator_id and recipients:
+            recipients = [r for r in recipients if str(r) != str(creator_id)]
 
         logger.info(
             f"✅ Found {len(recipients) if recipients else 0} recipients for project creation notification"

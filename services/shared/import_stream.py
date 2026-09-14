@@ -2364,6 +2364,7 @@ def _notify_project_imported(ctx: "_FullImportContext", new_title: str) -> None:
             project_title=new_title,
             creator_name=creator.name if creator else "",
             organization_id=project_org.organization_id,
+            creator_id=ctx.user_id,
         )
     except Exception as e:
         logger.warning(f"Failed to send project import notification: {e}")

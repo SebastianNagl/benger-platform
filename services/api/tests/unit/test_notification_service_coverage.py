@@ -1186,3 +1186,29 @@ class TestNotifySecurityAlertExtended:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+class TestNotifyProjectCreatedSkipsCreator:
+    @patch("notification_service.NotificationService.get_notification_recipients")
+    @patch("notification_service.NotificationService.create_notification")
+    def test_creator_is_not_notified(self, mock_create, mock_recipients, mock_db):
+        """The creator already sees the success toast of their own action."""
+        from notification_service import notify_project_created
+
+        mock_recipients.return_value = ["creator", "colleague"]
+
+        notify_project_created(mock_db, "p1", "Proj", "Alice", "org-1", creator_id="creator")
+
+        mock_create.assert_called_once()
+        assert mock_create.call_args[1]["user_ids"] == ["colleague"]
+
+    @patch("notification_service.NotificationService.get_notification_recipients")
+    @patch("notification_service.NotificationService.create_notification")
+    def test_creator_as_only_member_sends_nothing(self, mock_create, mock_recipients, mock_db):
+        from notification_service import notify_project_created
+
+        mock_recipients.return_value = ["creator"]
+
+        notify_project_created(mock_db, "p1", "Proj", "Alice", "org-1", creator_id="creator")
+
+        mock_create.assert_not_called()
