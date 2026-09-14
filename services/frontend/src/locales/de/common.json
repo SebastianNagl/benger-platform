@@ -6221,7 +6221,31 @@
       "judgeUnavailable": "nicht mehr verfügbar",
       "removeJudge": "Entfernen",
       "runsPerJudge": "Läufe pro Judge",
-      "runsPerJudgeHelp": "Wie oft jeder Judge die gleiche Probe bewertet (Varianzanalyse). Cap 25."
+      "runsPerJudgeHelp": "Wie oft jeder Judge die gleiche Probe bewertet (Varianzanalyse). Cap 25.",
+      "chrf": {
+        "wordOrder0": "0 (nur Zeichenebene)",
+        "wordOrder1": "1 (mit Unigrammen)",
+        "wordOrder2": "2 (mit Bigrammen)",
+        "wordOrder3": "3 (mit Trigrammen)",
+        "wordOrder4": "4 (mit 4-Grammen)"
+      },
+      "factcc": {
+        "method": "Faktizitätsmethode",
+        "summac": "SummaC (empfohlen)",
+        "original": "Ursprüngliches FactCC"
+      }
+    },
+    "placeholders": {
+      "answerType": "Antworttyp auswählen...",
+      "judgeModel": "Judge-Modell auswählen...",
+      "reasoningLevel": "Denkniveau auswählen...",
+      "scoreScale": "Bewertungsskala auswählen...",
+      "bleuMaxOrder": "N-Gramm-Ordnung auswählen...",
+      "bleuSmoothing": "Glättungsmethode auswählen...",
+      "rougeVariant": "ROUGE-Variante auswählen...",
+      "chrfCharOrder": "Zeichen-N-Gramm-Ordnung auswählen...",
+      "chrfWordOrder": "Wort-N-Gramm-Ordnung auswählen...",
+      "factccMethod": "Faktizitätsmethode auswählen..."
     },
     "list": {
       "predictions": "Vorhersagen:",

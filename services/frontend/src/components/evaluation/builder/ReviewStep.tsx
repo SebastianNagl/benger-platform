@@ -9,11 +9,7 @@
 
 import { Badge } from '@/components/shared/Badge'
 import { useI18n } from '@/contexts/I18nContext'
-import {
-  getFieldDisplayName,
-  getFieldDisplayNameKey,
-  getMetricDefinitions,
-} from '@/lib/api/evaluation-types'
+import { getFieldLabel, getMetricDefinitions } from '@/lib/api/evaluation-types'
 
 export interface ReviewStepProps {
   metric: string
@@ -30,10 +26,6 @@ export function ReviewStep({
 }: ReviewStepProps) {
   const { t } = useI18n()
   const reviewMetricDef = getMetricDefinitions()[metric]
-  const fieldLabel = (field: string) => {
-    const key = getFieldDisplayNameKey(field)
-    return key ? t(key) : getFieldDisplayName(field)
-  }
 
   return (
     <div className="space-y-4">
@@ -56,7 +48,7 @@ export function ReviewStep({
           <div className="mt-1 flex flex-wrap gap-1">
             {predictionFields.map((field) => (
               <Badge key={field} variant="secondary" className="text-xs">
-                {fieldLabel(field)}
+                {getFieldLabel(field, t)}
               </Badge>
             ))}
           </div>

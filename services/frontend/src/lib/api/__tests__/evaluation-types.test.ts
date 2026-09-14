@@ -8,6 +8,7 @@ import {
   getDimensionDisplayName,
   getFieldDisplayName,
   getFieldDisplayNameKey,
+  getFieldLabel,
   isSpecialFieldValue,
 } from '../evaluation-types'
 
@@ -107,5 +108,19 @@ describe('getFieldDisplayNameKey', () => {
   it('has no key for a plain field, which keeps its own name', () => {
     expect(getFieldDisplayNameKey('human:loesung')).toBeUndefined()
     expect(getFieldDisplayName('human:loesung')).toBe('human:loesung')
+  })
+})
+
+describe('getFieldLabel', () => {
+  const t = (key: string) => `translated:${key}`
+
+  it('translates a bulk selector through its key', () => {
+    expect(getFieldLabel('__all_model__', t)).toBe(
+      'translated:evaluationBuilder.fields.allModelResponses',
+    )
+  })
+
+  it('keeps a plain field name as it is', () => {
+    expect(getFieldLabel('human:loesung', t)).toBe('human:loesung')
   })
 })

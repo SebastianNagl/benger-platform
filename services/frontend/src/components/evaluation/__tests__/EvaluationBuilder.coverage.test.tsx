@@ -854,3 +854,47 @@ describe('prediction field labels', () => {
     expect(screen.queryByText('All model responses')).not.toBeInTheDocument()
   })
 })
+
+// ====================================================================
+// Saved evaluation list and parameter panels are translated
+// ====================================================================
+
+describe('saved evaluation list labels', () => {
+  it('names bulk selectors and the disabled badge through i18n keys', () => {
+    render(
+      <EvaluationBuilder
+        {...defaultProps}
+        evaluations={[
+          {
+            id: 'e1',
+            metric: 'llm_judge_classic',
+            display_name: 'Judge',
+            prediction_fields: ['__all_model__', 'human:loesung'],
+            reference_fields: ['task.musterloesung'],
+            metric_parameters: {},
+            enabled: false,
+          } as any,
+        ]}
+      />,
+    )
+    const text = document.body.textContent || ''
+    expect(text).toContain(
+      'evaluationBuilder.fields.allModelResponses, human:loesung',
+    )
+    expect(text).toContain('evaluationBuilder.list.disabled')
+    expect(text).not.toContain('All model responses')
+  })
+})
+
+describe('classic metric parameter labels', () => {
+  it('labels ROUGE variants through i18n keys', async () => {
+    const user = userEvent.setup()
+    await gotoParameters(user, 'rouge')
+    for (const key of ['rouge1', 'rouge2', 'rougeL', 'rougeLsum']) {
+      expect(
+        screen.getByText(`evaluation.metricParams.rouge.${key}`),
+      ).toBeInTheDocument()
+    }
+    expect(screen.queryByText('ROUGE-L (LCS-based)')).not.toBeInTheDocument()
+  })
+})
