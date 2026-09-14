@@ -428,11 +428,11 @@ describe('ProjectCreationWizard branch coverage', () => {
     await navigateToSettingsAndSubmit(user)
 
     await waitFor(() => {
-      expect(mockToastSuccess).toHaveBeenCalledWith(
-        'Project created successfully',
-      )
+      expect(mockPush).toHaveBeenCalledWith('/projects/new-project-id')
     })
-    expect(mockPush).toHaveBeenCalledWith('/projects/new-project-id')
+    // The store's createProject confirms the creation (see projectStore
+    // tests); the wizard adds no second success toast of its own.
+    expect(mockToastSuccess).not.toHaveBeenCalled()
   })
 
   it('shows validation error when title is empty', async () => {

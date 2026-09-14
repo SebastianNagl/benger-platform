@@ -8,16 +8,17 @@ import { MetricSelector } from '../MetricSelector'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, params?: Record<string, any>) => {
+    t: (key: string, params?: Record<string, any> | string) => {
       const translations: Record<string, string> = {
         'evaluation.metricSelector.selectMetrics': 'Select Metrics',
-        'evaluation.metricSelector.selectedCount': `${params?.selected} of ${params?.total} selected`,
+        'evaluation.metricSelector.selectedCount': `${(params as any)?.selected} of ${(params as any)?.total} selected`,
         'evaluation.metricSelector.clearAll': 'Clear All',
         'evaluation.metricSelector.searchPlaceholder': 'Search metrics...',
         'evaluation.metricSelector.quickPresets': 'Quick Presets',
         'evaluation.metricSelector.noResults': 'No metrics found',
       }
-      return translations[key] || key
+      // A string second argument is the inline English fallback.
+      return translations[key] || (typeof params === 'string' ? params : key)
     },
   }),
 }))

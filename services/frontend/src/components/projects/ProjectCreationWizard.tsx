@@ -743,7 +743,8 @@ export function ProjectCreationWizard() {
       // 6. Refresh and redirect
       await new Promise((resolve) => setTimeout(resolve, 100))
       await fetchProject(project.id)
-      addToast(t('projects.wizard.projectCreated'), 'success')
+      // No success toast here: `createProject` in the store already confirmed
+      // the creation, and a second toast repeated it.
       router.push(`/projects/${project.id}`)
     } catch (error) {
       addToast(

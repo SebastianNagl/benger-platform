@@ -5,8 +5,13 @@
 import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { formatDistanceToNow } from 'date-fns'
+import { de as dateFnsDe, enUS as dateFnsEn } from 'date-fns/locale'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LabelingInterface } from '../LabelingInterface'
+
+// Active UI language of the mocked I18n context; `mock` prefix = hoist-safe.
+let mockLocale: 'de' | 'en' = 'en'
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -116,6 +121,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         'annotation.interface.skipCommentPlaceholder': 'Enter your comment...',
         'annotation.interface.cancel': 'Cancel',
         'annotation.interface.skip': 'Skip',
+        'annotation.interface.taskPosition':
+          mockLocale === 'de'
+            ? 'Aufgabe {current} von {total}'
+            : 'Task {current} of {total}',
         'annotation.instructions.title': 'Annotation Instructions',
         'annotation.instructions.dontShowAgain':
           "Don't show again for this project",
@@ -134,7 +143,7 @@ jest.mock('@/contexts/I18nContext', () => ({
       }
       return result
     },
-    locale: 'en',
+    locale: mockLocale,
   }),
 }))
 
@@ -873,12 +882,49 @@ describe('LabelingInterface', () => {
   })
 
   describe('Time Tracking', () => {
+    afterEach(() => {
+      mockLocale = 'en'
+    })
+
     it('should display time since task started', async () => {
       render(<LabelingInterface projectId="project-1" />)
 
       await waitFor(() => {
         expect(screen.getByText('5 minutes ago')).toBeInTheDocument()
       })
+    })
+
+    it('formats the elapsed time in German when the UI is German', async () => {
+      mockLocale = 'de'
+      render(<LabelingInterface projectId="project-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByText('5 minutes ago')).toBeInTheDocument()
+      })
+      expect(formatDistanceToNow).toHaveBeenCalledWith(expect.any(Number), {
+        locale: dateFnsDe,
+      })
+    })
+
+    it('formats the elapsed time in English when the UI is English', async () => {
+      render(<LabelingInterface projectId="project-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByText('5 minutes ago')).toBeInTheDocument()
+      })
+      expect(formatDistanceToNow).toHaveBeenCalledWith(expect.any(Number), {
+        locale: dateFnsEn,
+      })
+    })
+
+    it('phrases the task position in the UI language', async () => {
+      mockLocale = 'de'
+      render(<LabelingInterface projectId="project-1" />)
+
+      await waitFor(() => {
+        expect(screen.getByText(/Aufgabe 1 von 10/)).toBeInTheDocument()
+      })
+      expect(screen.queryByText(/Task 1 of 10/)).not.toBeInTheDocument()
     })
   })
 

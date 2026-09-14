@@ -33,6 +33,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
+import { de as dateFnsDe, enUS as dateFnsEn } from 'date-fns/locale'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
@@ -44,7 +45,7 @@ interface LabelingInterfaceProps {
 export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   const { user, apiClient } = useAuth()
   const TimerSlot = useSlot('TimerIntegration')
@@ -989,7 +990,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       positionInCycle != null
                         ? projectTotal - remaining + positionInCycle
                         : positionInCycle
-                    return `Task ${current ?? '?'} of ${total ?? '?'}`
+                    return t('annotation.interface.taskPosition', {
+                      current: current ?? '?',
+                      total: total ?? '?',
+                    })
                   })()}
                 </p>
               </div>
@@ -1113,7 +1117,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               ) : (
                 <div className="text-muted-foreground flex items-center gap-2 text-sm">
                   <ClockIcon className="h-4 w-4" />
-                  {formatDistanceToNow(startTime)}
+                  {formatDistanceToNow(startTime, {
+                    locale: locale === 'en' ? dateFnsEn : dateFnsDe,
+                  })}
                 </div>
               )}
             </div>

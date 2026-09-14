@@ -5327,7 +5327,9 @@
         "regression": "Regression Metrics",
         "ranking": "Ranking Metrics",
         "semanticSimilarity": "Semantic Similarity",
+        "semantic": "Semantic Metrics",
         "factuality": "Factuality & Coherence",
+        "factualityMetrics": "Factuality Metrics",
         "structuredData": "Structured Data",
         "spanSequence": "Span/Sequence Labeling",
         "hierarchical": "Hierarchical Metrics",
@@ -5341,10 +5343,31 @@
         "ranking": "For ranked results evaluation",
         "semanticSimilarity": "Embedding-based semantic comparison",
         "factuality": "Content quality evaluation",
+        "factualityMetrics": "Content quality and factual accuracy",
         "structuredData": "JSON and schema validation",
         "spanSequence": "For token or span-level predictions",
         "hierarchical": "For hierarchical classifications",
-        "llmJudge": "AI model-based evaluation (requires API key)"
+        "llmJudge": "AI model-based evaluation (requires API key)",
+        "llmJudgeModel": "AI model-based evaluation with a judge model"
+      },
+      "metricName": {
+        "bleu": "BLEU",
+        "rouge": "ROUGE",
+        "meteor": "METEOR",
+        "chrf": "chrF",
+        "exactMatch": "Exact Match",
+        "bertscore": "BERTScore",
+        "moverscore": "MoverScore",
+        "semanticSimilarity": "Semantic Similarity",
+        "factcc": "FactCC",
+        "qags": "QAGS",
+        "coherence": "Coherence",
+        "accuracy": "Accuracy",
+        "precision": "Precision",
+        "recall": "Recall",
+        "f1": "F1 Score",
+        "llmJudgeClassic": "Classic LLM Judge",
+        "llmJudgeCustom": "Custom LLM Judge"
       },
       "metricDesc": {
         "exactMatch": "Exact string matching",
@@ -5659,6 +5682,12 @@
       "clearAll": "Clear All",
       "searchPlaceholder": "Search metrics...",
       "quickPresets": "Quick Presets",
+      "presets": {
+        "standardNlg": "Standard NLG Metrics",
+        "classification": "Classification Suite",
+        "semantic": "Semantic Suite",
+        "allAvailable": "All Available"
+      },
       "noResults": "No metrics found matching your search"
     },
     "modelSelector": {
@@ -6345,6 +6374,7 @@
       "missingFields": "Missing required data fields: {fields}",
       "configError": "Configuration Error",
       "taskData": "Task Data:",
+      "taskPosition": "Task {current} of {total}",
       "maxAnnotationsReached": "Maximum annotations limit reached for this task",
       "instructions": "Instructions",
       "showInstructions": "Show Instructions",

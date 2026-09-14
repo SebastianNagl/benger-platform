@@ -5326,7 +5326,9 @@
         "regression": "Regressionsmetriken",
         "ranking": "Rangfolgemetriken",
         "semanticSimilarity": "Semantische Ähnlichkeit",
+        "semantic": "Semantische Metriken",
         "factuality": "Faktizität & Kohärenz",
+        "factualityMetrics": "Faktizitätsmetriken",
         "structuredData": "Strukturierte Daten",
         "spanSequence": "Span-/Sequenz-Labeling",
         "hierarchical": "Hierarchische Metriken",
@@ -5340,10 +5342,31 @@
         "ranking": "Für Rangfolge-Evaluierung",
         "semanticSimilarity": "Embedding-basierter semantischer Vergleich",
         "factuality": "Bewertung der Inhaltsqualität",
+        "factualityMetrics": "Inhaltsqualität und faktische Richtigkeit",
         "structuredData": "JSON- und Schema-Validierung",
         "spanSequence": "Für Token- oder Span-Level-Vorhersagen",
         "hierarchical": "Für hierarchische Klassifikationen",
-        "llmJudge": "KI-modellbasierte Evaluierung (API-Schlüssel erforderlich)"
+        "llmJudge": "KI-modellbasierte Evaluierung (API-Schlüssel erforderlich)",
+        "llmJudgeModel": "KI-modellbasierte Evaluierung mit einem Richtermodell"
+      },
+      "metricName": {
+        "bleu": "BLEU",
+        "rouge": "ROUGE",
+        "meteor": "METEOR",
+        "chrf": "chrF",
+        "exactMatch": "Exakte Übereinstimmung",
+        "bertscore": "BERTScore",
+        "moverscore": "MoverScore",
+        "semanticSimilarity": "Semantische Ähnlichkeit",
+        "factcc": "FactCC",
+        "qags": "QAGS",
+        "coherence": "Kohärenz",
+        "accuracy": "Genauigkeit",
+        "precision": "Präzision",
+        "recall": "Recall",
+        "f1": "F1-Score",
+        "llmJudgeClassic": "Klassischer LLM-Richter",
+        "llmJudgeCustom": "Benutzerdefinierter LLM-Richter"
       },
       "metricDesc": {
         "exactMatch": "Exakter Zeichenkettenabgleich",
@@ -5658,6 +5681,12 @@
       "clearAll": "Alle abwählen",
       "searchPlaceholder": "Metriken suchen...",
       "quickPresets": "Schnellvorlagen",
+      "presets": {
+        "standardNlg": "Standard-NLG-Metriken",
+        "classification": "Klassifikations-Set",
+        "semantic": "Semantik-Set",
+        "allAvailable": "Alle verfügbaren"
+      },
       "noResults": "Keine Metriken zu Ihrer Suche gefunden"
     },
     "modelSelector": {
@@ -6345,6 +6374,7 @@
       "missingFields": "Fehlende erforderliche Datenfelder: {fields}",
       "configError": "Konfigurationsfehler",
       "taskData": "Aufgabendaten:",
+      "taskPosition": "Aufgabe {current} von {total}",
       "maxAnnotationsReached": "Maximales Annotationslimit für diese Aufgabe erreicht",
       "instructions": "Anweisungen",
       "showInstructions": "Anweisungen anzeigen",

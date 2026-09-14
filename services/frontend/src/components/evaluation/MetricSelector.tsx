@@ -16,6 +16,11 @@ import { Card } from '@/components/shared/Card'
 import { Checkbox } from '@/components/shared/Checkbox'
 import { useI18n } from '@/contexts/I18nContext'
 import {
+  metricGroupDescription,
+  metricGroupLabel,
+  type MetricCategory,
+} from '@/lib/api/evaluation-types'
+import {
   ChevronDownIcon,
   ChevronRightIcon,
   MagnifyingGlassIcon,
@@ -29,9 +34,11 @@ interface MetricSelectorProps {
   groupByCategory?: boolean
 }
 
-const METRIC_CATEGORIES = [
+const METRIC_CATEGORIES: MetricCategory[] = [
   {
     name: 'Lexical Metrics',
+    nameKey: 'evaluation.methodSelector.category.lexical',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.lexical',
     description: 'String and surface-level matching',
     metrics: [
       'exact_match',
@@ -44,6 +51,8 @@ const METRIC_CATEGORIES = [
   },
   {
     name: 'Classification Metrics',
+    nameKey: 'evaluation.methodSelector.category.classification',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.classification',
     description: 'For categorical predictions',
     metrics: [
       'accuracy',
@@ -56,16 +65,22 @@ const METRIC_CATEGORIES = [
   },
   {
     name: 'Multi-label/Set Metrics',
+    nameKey: 'evaluation.methodSelector.category.multiLabel',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.multiLabel',
     description: 'For multi-label or set predictions',
     metrics: ['jaccard', 'hamming_loss', 'subset_accuracy', 'token_f1'],
   },
   {
     name: 'Regression Metrics',
+    nameKey: 'evaluation.methodSelector.category.regression',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.regression',
     description: 'For numeric predictions',
     metrics: ['mae', 'rmse', 'mape', 'r2', 'correlation'],
   },
   {
     name: 'Ranking Metrics',
+    nameKey: 'evaluation.methodSelector.category.ranking',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.ranking',
     description: 'For ranked results evaluation',
     metrics: [
       'ndcg',
@@ -77,35 +92,55 @@ const METRIC_CATEGORIES = [
   },
   {
     name: 'Semantic Similarity',
+    nameKey: 'evaluation.methodSelector.category.semanticSimilarity',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.semanticSimilarity',
     description: 'Embedding-based semantic comparison',
     metrics: ['semantic_similarity', 'bertscore', 'moverscore'],
   },
   {
     name: 'Factuality & Coherence',
+    nameKey: 'evaluation.methodSelector.category.factuality',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.factuality',
     description: 'Content quality evaluation',
     metrics: ['factcc', 'qags', 'coherence'],
   },
   {
     name: 'Structured Data',
+    nameKey: 'evaluation.methodSelector.category.structuredData',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.structuredData',
     description: 'JSON and schema validation',
     metrics: ['json_accuracy', 'schema_validation', 'field_accuracy'],
   },
   {
     name: 'Span/Sequence Labeling',
+    nameKey: 'evaluation.methodSelector.category.spanSequence',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.spanSequence',
     description: 'For token or span-level predictions',
     metrics: ['span_exact_match', 'iou', 'partial_match', 'boundary_accuracy'],
   },
   {
     name: 'Hierarchical Metrics',
+    nameKey: 'evaluation.methodSelector.category.hierarchical',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.hierarchical',
     description: 'For hierarchical classifications',
     metrics: ['hierarchical_f1', 'path_accuracy', 'lca_accuracy'],
   },
   {
     name: 'LLM-as-Judge',
+    nameKey: 'evaluation.methodSelector.category.llmJudge',
+    descriptionKey: 'evaluation.methodSelector.categoryDesc.llmJudge',
     description: 'AI model-based evaluation (requires API key)',
     metrics: ['llm_judge_classic', 'llm_judge_custom'],
   },
 ]
+
+// Label keys of the presets; the English names stay the preset identifiers.
+const PRESET_LABEL_KEYS: Record<string, string> = {
+  'Standard NLG Metrics': 'evaluation.metricSelector.presets.standardNlg',
+  'Classification Suite': 'evaluation.metricSelector.presets.classification',
+  'Semantic Suite': 'evaluation.metricSelector.presets.semantic',
+  'All Available': 'evaluation.metricSelector.presets.allAvailable',
+}
 
 const PRESET_SELECTIONS = {
   'Standard NLG Metrics': ['bleu', 'rouge', 'meteor', 'bertscore'],
@@ -226,7 +261,7 @@ export function MetricSelector({
                 onClick={() => applyPreset(presetName)}
                 className="text-xs"
               >
-                {presetName}
+                {t(PRESET_LABEL_KEYS[presetName], presetName)}
               </Button>
             ))}
           </div>
@@ -259,10 +294,10 @@ export function MetricSelector({
                       )}
                       <div>
                         <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {category.name}
+                          {metricGroupLabel(category, t)}
                         </h4>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {category.description}
+                          {metricGroupDescription(category, t)}
                         </p>
                       </div>
                     </div>
