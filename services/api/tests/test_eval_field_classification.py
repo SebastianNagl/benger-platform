@@ -154,3 +154,69 @@ def test_human_and_llm_lists_partition_input(metric, fields):
     human, llm = classify_pred_fields(metric, fields)
     assert sorted(human + llm) == sorted(fields)
     assert set(human).isdisjoint(set(llm))
+
+
+# ---------------------------------------------------------------------------
+# The reusable rule, exported for extended
+# ---------------------------------------------------------------------------
+
+
+def test_unprefixed_is_human_is_public():
+    """Extended registers this rule for ``llm_judge_rubric`` rather than
+    copying its body. A second implementation would drift from this one,
+    which is the failure this module was created to end, so the symbol has
+    to stay importable under this name."""
+    from eval_field_classification import unprefixed_is_human
+
+    assert callable(unprefixed_is_human)
+
+
+def test_falloesung_registration_uses_the_exported_rule():
+    """Pins that the built-in registration and the exported symbol are the
+    same object. If someone later edits one, the other cannot silently keep
+    the old behaviour."""
+    from eval_field_classification import _RULES, unprefixed_is_human
+
+    assert _RULES["llm_judge_falloesung"] is unprefixed_is_human
+
+
+@pytest.mark.parametrize(
+    "fields,expected_human,expected_llm",
+    [
+        (["loesung"], ["loesung"], []),
+        (["model:loesung"], [], ["model:loesung"]),
+        (["__all_model__"], [], ["__all_model__"]),
+        ([], [], []),
+    ],
+)
+def test_unprefixed_is_human_partitions_by_role(fields, expected_human, expected_llm):
+    """The rule only changes what an AMBIGUOUS bare name means. An explicit
+    role prefix and the bulk selectors keep their meaning, so a metric using
+    this rule can still be pointed deliberately at model generations."""
+    from eval_field_classification import unprefixed_is_human
+
+    human, llm = unprefixed_is_human(fields)
+    assert human == expected_human
+    assert llm == expected_llm
+
+
+def test_historical_alias_still_resolves():
+    """``_falloesung_compat`` was the old private name. Kept as an alias so
+    any existing import keeps working."""
+    from eval_field_classification import _falloesung_compat, unprefixed_is_human
+
+    assert _falloesung_compat is unprefixed_is_human
+
+
+def test_all_human_never_reaches_the_rule():
+    """``__all_human__`` is an explicit human selector, so ``classify_pred_fields``
+    resolves it with the DEFAULT rule and never consults the per-metric one.
+
+    The rule's own body would put it on the LLM side, which looks wrong read in
+    isolation but is unreachable: the short-circuit above it means the rule only
+    ever sees inputs that carry no explicit human field. Pinned here so nobody
+    "fixes" the rule body and changes behaviour that is actually decided
+    elsewhere."""
+    human, llm = classify_pred_fields("llm_judge_falloesung", ["__all_human__"])
+    assert human == ["__all_human__"]
+    assert llm == []

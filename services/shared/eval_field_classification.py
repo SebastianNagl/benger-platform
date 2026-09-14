@@ -129,11 +129,24 @@ def classify_pred_fields(
 # ---------------------------------------------------------------------------
 
 
-def _falloesung_compat(fields: List[str]) -> Tuple[List[str], List[str]]:
-    """`llm_judge_falloesung` historically allowed unprefixed prediction
-    fields and treated them as annotation-side. New configs should use the
-    ``human:`` prefix explicitly, but configs created before that
-    convention existed still need to resolve correctly."""
+def unprefixed_is_human(fields: List[str]) -> Tuple[List[str], List[str]]:
+    """Treat an unprefixed prediction field as ANNOTATION-side.
+
+    The reusable rule for any metric whose subject is a human submission.
+    ``model:``-prefixed fields and ``__all_model__`` still resolve LLM-side,
+    so a metric using this rule can still be pointed at generations
+    deliberately; only the ambiguous bare name changes meaning.
+
+    Registered for ``llm_judge_falloesung``, which historically allowed
+    unprefixed fields and has production data relying on it, and for
+    ``llm_judge_rubric`` by ``benger_extended`` at import time. Both grade a
+    submitted answer, and every writer of their configs emits a bare field
+    name.
+
+    Exported rather than private on purpose: extended referencing this
+    implementation is what stops a second copy of the rule drifting from this
+    one, which is the failure this module was created to end.
+    """
     human = [
         f for f in fields
         if not f.startswith("model:") and f not in ("__all_model__", "__all_human__")
@@ -142,4 +155,8 @@ def _falloesung_compat(fields: List[str]) -> Tuple[List[str], List[str]]:
     return human, llm
 
 
-register_classifier_rule("llm_judge_falloesung", _falloesung_compat)
+#: Historical name. Kept so existing imports and tests keep resolving.
+_falloesung_compat = unprefixed_is_human
+
+
+register_classifier_rule("llm_judge_falloesung", unprefixed_is_human)
