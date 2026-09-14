@@ -1326,11 +1326,17 @@ describe('ProjectCreationWizard: evaluation config save feedback', () => {
 
     await waitFor(() => {
       expect(mockAddToastFn).toHaveBeenCalledWith(
-        `Saved with warnings: ${message}`,
+        expect.stringMatching(/^Saved with warnings: /),
         'warning',
         10000,
       )
     })
+    // The toast phrases the warning from its code, not the server's English.
+    const [[toast]] = mockAddToastFn.mock.calls.filter(
+      ([, kind]: unknown[]) => kind === 'warning',
+    )
+    expect(toast).not.toContain(message)
+    expect(toast).toContain('evaluationBuilder.warnings.noReferenceFields')
     expect(mockToastErrorFn).not.toHaveBeenCalled()
   })
 })

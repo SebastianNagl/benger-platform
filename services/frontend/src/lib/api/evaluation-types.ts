@@ -773,6 +773,17 @@ export function getFieldDisplayName(field: string): string {
   }
 }
 
+/** The i18n key of a field's display name, for the fields that have one.
+ * getFieldDisplayName stays the English fallback for callers without an i18n
+ * context. */
+export function getFieldDisplayNameKey(field: string): string | undefined {
+  if (field === FIELD_SPECIFIERS.ALL_MODEL)
+    return 'evaluationBuilder.fields.allModelResponses'
+  if (field === FIELD_SPECIFIERS.ALL_HUMAN)
+    return 'evaluationBuilder.fields.allHumanAnnotations'
+  return undefined
+}
+
 /** What a selectable evaluation field refers to, for grouping and labelling. */
 export type FieldOptionKind = 'special' | 'model' | 'human' | 'data'
 

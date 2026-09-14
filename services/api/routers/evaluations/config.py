@@ -425,6 +425,7 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
         where = f"evaluation '{_config_label(cfg)}' ({metric})"
         if llm:
             side = "model"
+            fields = list(llm)
             selectors = ", ".join(repr(s) for s in llm)
             message = (
                 f"{where} grades model generations ({selectors}), but this project has none. "
@@ -433,6 +434,7 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
             )
         else:
             side = "human"
+            fields = list(human)
             selectors = ", ".join(repr(s) for s in human)
             message = (
                 f"{where} grades submitted answers ({selectors}), but this project has none. "
@@ -447,6 +449,9 @@ def collect_evaluation_config_data_warnings(db: Session, project_id: str, eval_c
                 "side": side,
                 "generations": generations,
                 "annotations": annotations,
+                # The fields read on that side, so a client can phrase the
+                # warning in its own language instead of showing `message`.
+                "selectors": fields,
                 "message": message,
             }
         )

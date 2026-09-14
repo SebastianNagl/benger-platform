@@ -833,3 +833,24 @@ describe('judge model stored on add', () => {
     expect(added.metric_parameters.judge_model).toBe('claude-sonnet-4')
   })
 })
+
+// ====================================================================
+// Bulk selectors are translated
+// ====================================================================
+
+describe('prediction field labels', () => {
+  it('shows the bulk selectors through i18n keys, not English', async () => {
+    const user = userEvent.setup()
+    await openWizard(user, defaultProps)
+    await user.click(screen.getByTestId('metric-button-llm_judge_classic'))
+    await user.click(screen.getByTestId('wizard-next-button'))
+
+    expect(
+      screen.getByText('evaluationBuilder.fields.allModelResponses'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluationBuilder.fields.allHumanAnnotations'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('All model responses')).not.toBeInTheDocument()
+  })
+})

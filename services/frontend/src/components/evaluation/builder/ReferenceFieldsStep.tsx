@@ -58,7 +58,7 @@ export function ReferenceFieldsStep({
               />
               <span className="text-sm">{opt.label}</span>
               <Badge variant="default" className="text-[10px]">
-                reference
+                {t('evaluationBuilder.fields.reference')}
               </Badge>
             </label>
           ))

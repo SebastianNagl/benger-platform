@@ -1354,6 +1354,7 @@ class TestEvaluationConfigDataWarnings:
         assert warning["code"] == "no_matching_subjects"
         assert warning["config_id"] == "cfg1"
         assert (warning["side"], warning["generations"], warning["annotations"]) == ("model", 0, 2)
+        assert warning["selectors"] == ["__all_model__"]
         # Names the config, what it reads, and the fix.
         assert "'Bewertung' (exact_match)" in warning["message"]
         assert "'__all_model__'" in warning["message"]
@@ -1370,6 +1371,7 @@ class TestEvaluationConfigDataWarnings:
         assert resp.status_code == 200, resp.text
         [warning] = resp.json()["warnings"]
         assert (warning["side"], warning["generations"], warning["annotations"]) == ("human", 3, 0)
+        assert warning["selectors"] == ["human:answer"]
         assert "'__all_model__'" in warning["message"]
 
     def test_an_empty_project_is_never_warned_about(
