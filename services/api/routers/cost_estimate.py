@@ -30,9 +30,11 @@ from routers.projects.helpers import (
 )
 from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
+    JUDGE_OUTPUT_FIXED_TOKENS,
+    JUDGE_OUTPUT_TOKENS_PER_STEP,
     estimate_tokens_for_calls,
     renders_judge_prompt,
-    sample_judge_prompts,
+    sample_judge_calls,
     sample_prediction_inputs,
     sample_task_texts,
 )
@@ -144,6 +146,10 @@ class CostEstimateResponse(BaseModel):
     # Share of max_tokens assumed as output; None when it varies per model
     # (generation: 90 for reasoning-tier models, 60 otherwise).
     output_utilization_percent: Optional[int] = None
+    # How output tokens were estimated: a share of max_tokens, or (for
+    # multi-step judges such as a Bewertungsbogen) a fixed part plus a share
+    # per scored step.
+    output_basis: Literal["utilization", "judge_steps"] = "utilization"
     missing_only: bool = False
     per_judge_cells: bool = False
 
@@ -716,6 +722,7 @@ def _compute_cost_estimate_impl(
     if request.mode == "evaluation" and _completed_generation_ids(db, request.project_id):
         default_basis = "generation_outputs"
     input_basis = default_basis
+    output_basis = "utilization"
     reported_sample_size = len(sample_texts)
 
     from project_models import Task
@@ -812,12 +819,13 @@ def _compute_cost_estimate_impl(
         # built-in prompts keep the generation-output sample.
         model_samples: List[str] = sample_texts
         model_overhead: Optional[List[float]] = None
+        model_outputs: Optional[List[Optional[float]]] = None
         model_basis = default_basis
         if request.mode == "evaluation":
             judge_cfgs = _load_llm_judge_configs(db, request.project_id, model_id)
             rendered_cfgs = [c for c in judge_cfgs if renders_judge_prompt(c)]
             rendered = (
-                sample_judge_prompts(
+                sample_judge_calls(
                     db=db,
                     project_id=request.project_id,
                     configs=rendered_cfgs,
@@ -828,11 +836,13 @@ def _compute_cost_estimate_impl(
                 else []
             )
             if rendered:
-                model_samples = [text for text, _ in rendered]
-                model_overhead = [extra for _, extra in rendered]
+                model_samples = [text for text, _, _ in rendered]
+                model_overhead = [extra for _, extra, _ in rendered]
+                model_outputs = [output for _, _, output in rendered]
                 if len(rendered_cfgs) < len(judge_cfgs):
                     model_samples = model_samples + list(sample_texts)
                     model_overhead = model_overhead + [0.0] * len(sample_texts)
+                    model_outputs = model_outputs + [None] * len(sample_texts)
                 model_basis = "rendered_judge_prompt"
 
         token_est = estimate_tokens_for_calls(
@@ -842,7 +852,10 @@ def _compute_cost_estimate_impl(
             max_output_tokens=model_max_tokens,
             output_utilization=utilization,
             overhead_tokens=model_overhead,
+            output_tokens=model_outputs,
         )
+        if model_outputs and any(o is not None for o in model_outputs):
+            output_basis = "judge_steps"
         if token_breakdown is None:
             input_basis = model_basis
             reported_sample_size = len(model_samples)
@@ -903,7 +916,16 @@ def _compute_cost_estimate_impl(
         if request.generation_mode == "missing"
         else " Counting every (task × structure) cell"
     )
-    if request.mode == "evaluation" and input_basis == "rendered_judge_prompt":
+    if request.mode == "evaluation" and output_basis == "judge_steps":
+        utilization_note = (
+            " For evaluation, input is the rendered judge prompt (template, "
+            "case context, reference, Bewertungsbogen and a sampled answer) "
+            "plus system prompt and response-schema overhead; output is "
+            f"{JUDGE_OUTPUT_FIXED_TOKENS} tokens plus {JUDGE_OUTPUT_TOKENS_PER_STEP} "
+            "per scored step (score, reason and quoted evidence), reasoning "
+            "tokens not included."
+        )
+    elif request.mode == "evaluation" and input_basis == "rendered_judge_prompt":
         utilization_note = (
             " For evaluation, input is the rendered judge prompt (template, "
             "case context, reference, Bewertungsbogen and a sampled answer) "
@@ -960,6 +982,7 @@ def _compute_cost_estimate_impl(
         accuracy_percent=ESTIMATE_ACCURACY_PERCENT,
         encoding=token_breakdown.encoding,
         input_basis=input_basis,
+        output_basis=output_basis,
         output_utilization_percent=(
             round(_EVAL_OUTPUT_UTILIZATION * 100) if request.mode == "evaluation" else None
         ),

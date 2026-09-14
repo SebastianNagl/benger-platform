@@ -8728,6 +8728,7 @@
       "basisGenerationOutputs": "Der Input wird an aktuellen Modellantworten gemessen, also an dem, was der Judge bewertet.",
       "basisRenderedJudgePrompt": "Der Input ist der vollständige Judge-Prompt: Vorlage, Sachverhalt, Referenz, Bewertungsbogen und eine Beispielantwort, dazu Systemprompt und Antwortschema.",
       "outputJudge": "Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.",
+      "outputJudgeSteps": "Der Output wächst mit dem Bewertungsbogen: je bewertetem Schritt Punkte, Begründung und Beleg, dazu eine Gesamtwürdigung. Reasoning-Tokens sind nicht eingerechnet.",
       "outputGeneration": "Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.",
       "encoding": "Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.",
       "countingMissing": "Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.",

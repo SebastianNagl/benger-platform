@@ -23,6 +23,8 @@ from rubric_structure import rubric_prompt_text
 from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
     JUDGE_FIXED_OVERHEAD_TOKENS,
+    JUDGE_OUTPUT_FIXED_TOKENS,
+    JUDGE_OUTPUT_TOKENS_PER_STEP,
     JUDGE_SCHEMA_TOKENS_PER_STEP,
 )
 from tests.integration.test_cost_estimate_branches import (
@@ -158,10 +160,16 @@ class TestRubricJudgePromptEstimate:
         assert body["accuracy_percent"] == ESTIMATE_ACCURACY_PERCENT
         assert body["encoding"] == "o200k_base" == body["token_estimate"]["encoding"]
         assert body["output_utilization_percent"] == 15
+        # A Bewertungsbogen judge writes a score, reason and quote per step;
+        # its output grows with the sheet instead of following max_tokens.
+        assert body["output_basis"] == "judge_steps"
+        assert body["token_estimate"]["output_estimate"] == pytest.approx(
+            JUDGE_OUTPUT_FIXED_TOKENS + 5 * JUDGE_OUTPUT_TOKENS_PER_STEP
+        )
         assert body["sample_size"] == 1
         assert body["missing_only"] is False
         assert "rendered judge prompt" in body["note"]
-        assert "output utilization is 15 %" in body["note"]
+        assert "per scored step" in body["note"]
 
     @pytest.mark.asyncio
     async def test_without_template_the_parts_are_still_counted(

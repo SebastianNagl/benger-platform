@@ -86,6 +86,7 @@ interface CostEstimateResponse {
   encoding?: string
   input_basis?: 'task_data' | 'generation_outputs' | 'rendered_judge_prompt'
   output_utilization_percent?: number | null
+  output_basis?: 'utilization' | 'judge_steps'
   missing_only?: boolean
   per_judge_cells?: boolean
 }
@@ -127,20 +128,27 @@ function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
       { percent: estimate.accuracy_percent },
     ),
     String(basis),
-    estimate.mode === 'evaluation'
-      ? fill(
+    estimate.mode === 'evaluation' && estimate.output_basis === 'judge_steps'
+      ? String(
           t(
-            'costEstimate.note.outputJudge',
-            'Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.',
+            'costEstimate.note.outputJudgeSteps',
+            'Der Output wächst mit dem Bewertungsbogen: je bewertetem Schritt Punkte, Begründung und Beleg, dazu eine Gesamtwürdigung. Reasoning-Tokens sind nicht eingerechnet.',
           ),
-          { percent: estimate.output_utilization_percent ?? 15 },
         )
-      : String(
-          t(
-            'costEstimate.note.outputGeneration',
-            'Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.',
+      : estimate.mode === 'evaluation'
+        ? fill(
+            t(
+              'costEstimate.note.outputJudge',
+              'Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.',
+            ),
+            { percent: estimate.output_utilization_percent ?? 15 },
+          )
+        : String(
+            t(
+              'costEstimate.note.outputGeneration',
+              'Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.',
+            ),
           ),
-        ),
     fill(
       t(
         'costEstimate.note.encoding',

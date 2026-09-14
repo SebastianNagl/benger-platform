@@ -99,6 +99,24 @@ describe('CostEstimatePanel localized note', () => {
     ).toBeInTheDocument()
   })
 
+  it('explains a step-based output estimate for a grading-sheet judge', async () => {
+    mockPost.mockResolvedValue({
+      ...baseEstimate,
+      accuracy_percent: 20,
+      encoding: 'o200k_base',
+      input_basis: 'rendered_judge_prompt',
+      output_utilization_percent: 15,
+      output_basis: 'judge_steps',
+      missing_only: false,
+      per_judge_cells: false,
+    })
+    renderPanel()
+
+    const note = await screen.findByText(/Genauigkeit der Schätzung/)
+    expect(note).toHaveTextContent('je bewertetem Schritt')
+    expect(note).not.toHaveTextContent('von max_tokens')
+  })
+
   it('names the generation basis and utilization for generation estimates', async () => {
     mockPost.mockResolvedValue({
       ...baseEstimate,
@@ -141,6 +159,7 @@ describe('CostEstimatePanel localized note', () => {
       'basisGenerationOutputs',
       'basisRenderedJudgePrompt',
       'outputJudge',
+      'outputJudgeSteps',
       'outputGeneration',
       'encoding',
       'countingMissing',

@@ -5,6 +5,7 @@ import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
 import { Dialog, Transition } from '@headlessui/react'
 import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -38,6 +39,23 @@ export interface EvaluationRunScope {
    *  undefined = no filter (all structures), otherwise the run only grades
    *  generations produced under the named structure keys. */
   structureKeys?: string[]
+}
+
+/** A config's name in the metric picker: its own name, else the metric's
+ *  readable name, with the judge model when several configs share a name. */
+function configOptionLabel(
+  cfg: EvaluationConfigInput,
+  all: ReadonlyArray<EvaluationConfigInput>,
+  t: (key: string, fallback?: any) => string,
+): string {
+  const base = (c: EvaluationConfigInput) =>
+    c.display_name || metricDisplayLabel(c.metric, undefined, t)
+  const label = base(cfg)
+  const judge = cfg.metric_parameters?.judge_model
+  const shared = all.filter((c) => base(c) === label).length > 1
+  return shared && typeof judge === 'string' && judge
+    ? `${label} · ${judge}`
+    : label
 }
 
 interface EvaluationControlModalProps {
@@ -538,7 +556,7 @@ export function EvaluationControlModal({
                                   className="mr-2"
                                 />
                                 <span className="text-sm">
-                                  {cfg.display_name || cfg.metric}
+                                  {configOptionLabel(cfg, enabledConfigs, t)}
                                 </span>
                               </label>
                             ))}

@@ -159,7 +159,7 @@ describe('EvaluationControlModal scope picker', () => {
     render(<EvaluationControlModal {...defaultProps} />)
     await waitFor(() => expect(mockGetEvaluatedModels).toHaveBeenCalled())
     // Metrics section: derived from the prop, not the fetch.
-    expect(screen.getByLabelText('llm_judge_falloesung')).toBeInTheDocument()
+    expect(screen.getByLabelText('Llm Judge Falloesung')).toBeInTheDocument()
     // Models + annotators section: from the fetch.
     expect(await screen.findByLabelText('gpt-5.4')).toBeInTheDocument()
     expect(await screen.findByLabelText('Annotator: Alice')).toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('EvaluationControlModal scope picker', () => {
 
   it('defaults to all options selected (preserves today behavior)', async () => {
     render(<EvaluationControlModal {...defaultProps} />)
-    const metricBox = await screen.findByLabelText('llm_judge_falloesung')
+    const metricBox = await screen.findByLabelText('Llm Judge Falloesung')
     const modelBox = await screen.findByLabelText('gpt-5.4')
     const annotatorBox = await screen.findByLabelText('Annotator: Alice')
     expect(metricBox).toBeChecked()
@@ -191,7 +191,7 @@ describe('EvaluationControlModal scope picker', () => {
 
   it('disables Run with role=alert reason when metrics are deselected', async () => {
     render(<EvaluationControlModal {...defaultProps} />)
-    const metricBox = await screen.findByLabelText('llm_judge_falloesung')
+    const metricBox = await screen.findByLabelText('Llm Judge Falloesung')
     fireEvent.click(metricBox)
     expect(metricBox).not.toBeChecked()
     const alert = await screen.findByRole('alert')

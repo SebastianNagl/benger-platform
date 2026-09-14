@@ -104,6 +104,7 @@ def estimate_tokens_for_calls(
     max_output_tokens: int,
     output_utilization: float = DEFAULT_OUTPUT_UTILIZATION,
     overhead_tokens: Optional[Sequence[float]] = None,
+    output_tokens: Optional[Sequence[Optional[float]]] = None,
 ) -> TokenEstimate:
     """
     Estimate input + output tokens per LLM call for `model_id` given a sample
@@ -114,11 +115,21 @@ def estimate_tokens_for_calls(
     rendered text does not contain, e.g. the system prompt and the strict JSON
     schema of a judge call (see :func:`sample_judge_prompts`).
 
+    ``output_tokens`` (aligned with ``prompt_samples``) replaces the
+    ``max_output_tokens × output_utilization`` heuristic for the samples that
+    carry a number, e.g. a multi-step judge whose answer grows with its steps
+    (see :func:`sample_judge_calls`). The estimate is the mean over samples.
+
     Caching: keyed on (project_id, model_id, sha256(joined_prompts)). 1h TTL.
     """
     overhead = [float(o or 0) for o in (overhead_tokens or [])]
     overhead += [0.0] * (len(prompt_samples) - len(overhead))
-    joined = "\n\n".join(prompt_samples) + f"|{sum(overhead)}"
+    heuristic_output = float(max_output_tokens) * float(output_utilization)
+    outputs = [
+        heuristic_output if o is None else float(o) for o in (output_tokens or [])
+    ][: len(prompt_samples)]
+    outputs += [heuristic_output] * (len(prompt_samples) - len(outputs))
+    joined = "\n\n".join(prompt_samples) + f"|{sum(overhead)}|{sum(outputs)}"
     cache_key = f"{project_id}:{model_id}:{_hash_prompt(joined)}"
     now = time.time()
 
@@ -145,7 +156,7 @@ def estimate_tokens_for_calls(
     estimate = TokenEstimate(
         input_mean=float(sum(token_lengths) / len(token_lengths)),
         input_p95=_percentile(token_lengths, 95),
-        output_estimate=float(max_output_tokens) * float(output_utilization),
+        output_estimate=(sum(outputs) / len(outputs)) if outputs else heuristic_output,
         sample_size=len(prompt_samples),
         encoding_name=encoding_name,
         cached_at=now,
@@ -292,6 +303,13 @@ JUDGE_FIXED_OVERHEAD_TOKENS = 600
 #: on prod calls against a 46-step Bewertungsbogen: rendered prompt 16.5k
 #: tokens, billed input 18.4k to 19.6k.
 JUDGE_SCHEMA_TOKENS_PER_STEP = 40
+
+#: What a multi-step judge writes back: per step a score, a short reason and
+#: the quoted evidence, plus an overall assessment. Measured on staging against
+#: a 46-step Bewertungsbogen: 3.2k to 3.5k visible output tokens (about 75 per
+#: step). Reasoning tokens come on top and are not counted.
+JUDGE_OUTPUT_FIXED_TOKENS = 300
+JUDGE_OUTPUT_TOKENS_PER_STEP = 75
 
 _JUDGE_PLACEHOLDER_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}|\{(\w+)\}")
 _MUSTER_METRICS = ("llm_judge_falloesung", "llm_judge_rubric")
@@ -524,10 +542,28 @@ def sample_judge_prompts(
     sample_size: int = 10,
     seed: Optional[int] = None,
 ) -> List[Tuple[str, float]]:
+    """``(rendered_text, overhead_tokens)`` per judge call, see
+    :func:`sample_judge_calls`."""
+    return [
+        (text, overhead)
+        for text, overhead, _ in sample_judge_calls(
+            db=db, project_id=project_id, configs=configs, sample_size=sample_size, seed=seed
+        )
+    ]
+
+
+def sample_judge_calls(
+    *,
+    db,
+    project_id: str,
+    configs: List[Dict[str, Any]],
+    sample_size: int = 10,
+    seed: Optional[int] = None,
+) -> List[Tuple[str, float, Optional[float]]]:
     """Render the prompt an LLM judge call would send, per config and sampled
     task, without calling a model.
 
-    Each sample is ``(rendered_text, overhead_tokens)``. The text mirrors the
+    Each sample is ``(rendered_text, overhead_tokens, output_tokens)``. The text mirrors the
     workers' binding: ``{context}`` (case text plus Bearbeitervermerk,
     Zusatzmaterial and Korrekturhinweise blocks), ``{ground_truth}`` (the
     Musterlösung for Falllösung / Bewertungsbogen judges, else the reference
@@ -536,7 +572,9 @@ def sample_judge_prompts(
     fields and, for ``llm_judge_rubric``, ``{bewertungsbogen}`` rendered from
     the task's rubric row. A config without a template is sized as those parts
     joined. ``overhead_tokens`` covers the system prompt, the fixed rule block
-    and the strict per-step response schema.
+    and the strict per-step response schema. ``output_tokens`` is the expected
+    answer of a multi-step judge (fixed part plus a share per scored step) and
+    None for a single-score judge, which keeps the caller's heuristic.
 
     ``configs`` are dicts with ``metric``, ``prediction_fields``,
     ``metric_parameters`` and optionally ``reference_fields``.
@@ -548,7 +586,7 @@ def sample_judge_prompts(
         return []
     answers = _AnswerPool(db, project_id, [t.id for t in tasks])
 
-    samples: List[Tuple[str, float]] = []
+    samples: List[Tuple[str, float, Optional[float]]] = []
     for config in configs:
         metric = config.get("metric") or ""
         params = config.get("metric_parameters") or {}
@@ -584,6 +622,11 @@ def sample_judge_prompts(
             else:
                 text = "\n\n".join(part for part in (context, reference, sheet, answer) if part)
             overhead = JUDGE_FIXED_OVERHEAD_TOKENS + JUDGE_SCHEMA_TOKENS_PER_STEP * steps
-            samples.append((text, float(overhead)))
+            output = (
+                float(JUDGE_OUTPUT_FIXED_TOKENS + JUDGE_OUTPUT_TOKENS_PER_STEP * steps)
+                if steps
+                else None
+            )
+            samples.append((text, float(overhead), output))
     return samples
 
