@@ -14,6 +14,7 @@ Issue #483: LLM-as-Judge evaluation for research-grade assessment
 
 import json
 import logging
+import random
 import re
 import time
 import unicodedata
@@ -306,6 +307,21 @@ def _rubric_default_reasoning_effort(judge_model: Optional[str]) -> Optional[str
     if RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT in openai_reasoning_efforts(judge_model):
         return RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT
     return None
+
+
+# Provider failures the multi-dim judge loop retries itself. Every provider
+# service catches its SDK exceptions and returns an error dict, so the
+# services' own retry_with_exponential_backoff decorator (it only sees
+# exceptions that escape) never fires: without this loop a single 429 or
+# a socket timeout failed the whole cell. Anything else (auth, config,
+# context length, content filter) is terminal and short-circuits.
+JUDGE_RETRY_ERROR_TYPES = ("rate_limit", "timeout")
+JUDGE_RETRY_MAX_BACKOFF_S = 30.0
+
+
+def _judge_retry_backoff(attempt: int) -> float:
+    """Jittered exponential backoff: 2, 4, 8 … s capped at 30, plus up to 1 s."""
+    return min(2.0 * 2**attempt, JUDGE_RETRY_MAX_BACKOFF_S) + random.random()
 
 
 # Short notes appended to a step's reason when verification zeroes it.
@@ -1157,13 +1173,15 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 )
 
                 if not response.get("success"):
-                    # Phase 6.6 (#4): the provider already retried 5x
-                    # via its own decorator. Retrying again here just
-                    # amplifies (5×3 = 15 attempts on rate-limit). Bail
-                    # out, but keep the metadata so the failure dict
-                    # below can record the typed error_type.
+                    # The provider returns an error dict for every SDK
+                    # failure (its retry decorator only sees exceptions
+                    # that escape, so it never fires). This per-criterion
+                    # path bails out on the first failure and keeps the
+                    # metadata so the failure dict below records the typed
+                    # error_type; the multi-dim path retries rate_limit /
+                    # timeout itself (JUDGE_RETRY_ERROR_TYPES).
                     logger.warning(
-                        f"LLM judge call failed (provider exhausted): {response.get('error')}"
+                        f"LLM judge call failed: {response.get('error')}"
                     )
                     last_failure = {
                         "error": True,
@@ -1733,6 +1751,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
             }
 
         last_failure: Optional[Dict[str, Any]] = None
+        # One entry per retried provider failure; persisted in _call_metadata
+        # so a row shows how many 429s / timeouts preceded its result.
+        judge_retries: List[Dict[str, Any]] = []
 
         for attempt in range(self.max_retries):
             try:
@@ -1760,13 +1781,33 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 )
 
                 if not response.get("success"):
+                    call_meta = _extract_call_metadata(response)
                     last_failure = {
                         "error": True,
                         "error_message": response.get("error"),
-                        "_call_metadata": _extract_call_metadata(response),
+                        "_call_metadata": {**call_meta, "judge_retries": judge_retries},
                         "_raw_output": response.get("content", ""),
                         "_judge_prompts_used": provenance,
                     }
+                    error_type = call_meta.get("error_type")
+                    if (
+                        error_type in JUDGE_RETRY_ERROR_TYPES
+                        and attempt < self.max_retries - 1
+                    ):
+                        delay = _judge_retry_backoff(attempt)
+                        judge_retries.append(
+                            {
+                                "attempt": attempt + 1,
+                                "error_type": error_type,
+                                "backoff_s": round(delay, 2),
+                            }
+                        )
+                        logger.warning(
+                            f"Multi-dim judge ({self.judge_model}) {error_type} on attempt "
+                            f"{attempt + 1}/{self.max_retries}; retrying in {delay:.1f}s"
+                        )
+                        time.sleep(delay)
+                        continue
                     break
 
                 content = response.get("content", "")
@@ -1786,7 +1827,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "total_score": float(total),
                         "total_max": float(total_max),
                         "overall_assessment": str(parsed.get("overall_assessment", "") or ""),
-                        "_call_metadata": _extract_call_metadata(response),
+                        "_call_metadata": {
+                            **_extract_call_metadata(response),
+                            "judge_retries": judge_retries,
+                        },
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
@@ -1803,7 +1847,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "(finish_reason=length); raise metric_parameters.max_tokens "
                             "for this metric"
                         ),
-                        "_call_metadata": {**call_meta, "error_type": "truncated"},
+                        "_call_metadata": {
+                            **call_meta,
+                            "error_type": "truncated",
+                            "judge_retries": judge_retries,
+                        },
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
@@ -1814,10 +1862,15 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     "_call_metadata": {
                         **call_meta,
                         "error_type": "parse_error",
+                        "judge_retries": judge_retries,
                     },
                     "_raw_output": content,
                     "_judge_prompts_used": provenance,
                 }
+                if attempt < self.max_retries - 1:
+                    # A fresh call usually parses; give the provider a moment
+                    # instead of hammering it back to back.
+                    time.sleep(1)
 
             except Exception as e:
                 logger.warning(f"Multi-dim attempt {attempt + 1} failed: {e}")
@@ -1829,7 +1882,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 last_failure = {
                     "error": True,
                     "error_message": str(e),
-                    "_call_metadata": {"error_type": error_type},
+                    "_call_metadata": {"error_type": error_type, "judge_retries": judge_retries},
                     "_raw_output": "",
                     "_judge_prompts_used": provenance,
                 }

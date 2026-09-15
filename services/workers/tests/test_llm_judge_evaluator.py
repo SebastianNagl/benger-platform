@@ -14,7 +14,9 @@ using mocked AI service responses.
 
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Add path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1176,22 +1178,103 @@ class TestEvaluateMultidimSingleCall:
         assert result["_call_metadata"]["error_type"] == "parse_error"
         assert result["_raw_output"] == "not json at all"
 
-    def test_provider_failure_short_circuits(self):
-        ev = self._evaluator()
-        ev.ai_service.generate_structured.return_value = {
+    @staticmethod
+    def _failure(error_type, error="failed"):
+        return {
             "success": False,
-            "error": "rate_limited",
+            "error": error,
             "content": "",
             "usage": {},
-            "metadata": {"error_type": "rate_limit"},
+            "metadata": {"error_type": error_type},
         }
-        result = ev._evaluate_multidim_single_call(
-            context="", ground_truth="", prediction="",
-            task_data={"fall": "x", "answer": "y"},
+
+    def _call(self, ev):
+        with patch("ml_evaluation.llm_judge_evaluator.time.sleep") as sleep:
+            result = ev._evaluate_multidim_single_call(
+                context="", ground_truth="", prediction="",
+                task_data={"fall": "x", "answer": "y"},
+            )
+        return result, [c.args[0] for c in sleep.call_args_list]
+
+    def test_rate_limit_failures_are_retried_with_backoff(self):
+        """The provider services return an error dict on a 429 (their own
+        retry decorator never sees it), so the judge loop retries: three
+        attempts at max_retries=3 with 2 s and 4 s jittered waits."""
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = self._failure("rate_limit", "429")
+        result, delays = self._call(ev)
+        assert result["error"] is True
+        assert result["error_message"] == "429"
+        assert result["_call_metadata"]["error_type"] == "rate_limit"
+        assert ev.ai_service.generate_structured.call_count == 3
+        assert len(delays) == 2
+        assert 2 <= delays[0] < 3 and 4 <= delays[1] < 5
+        retries = result["_call_metadata"]["judge_retries"]
+        assert [r["attempt"] for r in retries] == [1, 2]
+        assert {r["error_type"] for r in retries} == {"rate_limit"}
+        assert [r["backoff_s"] for r in retries] == [round(d, 2) for d in delays]
+
+    def test_backoff_is_capped_at_thirty_seconds(self):
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-4o",
+            custom_criteria=GRUNDPRINZIPIEN_CRITERIA,
+            custom_prompt_template="Fall: {{fall}}\nAntwort: {{answer}}",
+            max_retries=6,
         )
-        assert result["error"] == True
-        # Provider-side failures shouldn't trigger our retries (provider already retried).
+        ev.ai_service.generate_structured.return_value = self._failure("timeout")
+        result, delays = self._call(ev)
+        assert ev.ai_service.generate_structured.call_count == 6
+        assert len(delays) == 5
+        assert 16 <= delays[3] < 17
+        assert 30 <= delays[4] < 31
+        assert len(result["_call_metadata"]["judge_retries"]) == 5
+
+    @pytest.mark.parametrize(
+        "error_type", ["auth", "config_error", "context_length", "content_filter", "api_error"]
+    )
+    def test_terminal_provider_failures_short_circuit(self, error_type):
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = self._failure(error_type)
+        result, delays = self._call(ev)
+        assert result["error"] is True
+        assert result["_call_metadata"]["error_type"] == error_type
+        assert result["_call_metadata"]["judge_retries"] == []
         assert ev.ai_service.generate_structured.call_count == 1
+        assert delays == []
+
+    def test_timeout_then_success_keeps_the_scores_and_records_the_retry(self):
+        ev = self._evaluator()
+        ok = {
+            "success": True,
+            "content": (
+                '{"scores": {"result_correctness": {"score": 38, "max": 40, "reason": "ok"}},'
+                ' "total_score": 38}'
+            ),
+            "usage": {},
+            "metadata": {"finish_reason": "stop"},
+        }
+        ev.ai_service.generate_structured.side_effect = [self._failure("timeout"), ok]
+        result, delays = self._call(ev)
+        assert not result.get("error")
+        assert result["scores"]["result_correctness"]["score"] == 38.0
+        assert ev.ai_service.generate_structured.call_count == 2
+        assert len(delays) == 1 and 2 <= delays[0] < 3
+        retries = result["_call_metadata"]["judge_retries"]
+        assert len(retries) == 1
+        assert retries[0]["attempt"] == 1 and retries[0]["error_type"] == "timeout"
+        assert result["_call_metadata"]["finish_reason"] == "stop"
+
+    def test_parse_errors_wait_a_second_between_attempts(self):
+        ev = self._evaluator()
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": "not json", "usage": {}, "metadata": {"finish_reason": "stop"},
+        }
+        result, delays = self._call(ev)
+        assert result["_call_metadata"]["error_type"] == "parse_error"
+        assert result["_call_metadata"]["judge_retries"] == []
+        assert ev.ai_service.generate_structured.call_count == 3
+        assert delays == [1, 1]
 
     def test_json_schema_passed_to_generate_structured(self):
         """We use generate_structured(json_schema=...) — the provider-aware
@@ -1371,9 +1454,7 @@ class TestRubricSchemaBudgetAndSnapping:
 # =============================================================================
 
 import json as _json
-from unittest.mock import patch
 
-import pytest
 
 from ml_evaluation.llm_judge_evaluator import (
     EVIDENCE_MISSING_NOTE,
