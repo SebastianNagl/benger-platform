@@ -1659,7 +1659,11 @@ def check_task_assigned_to_user(
         )
         .first()
     )
-    return assignment is not None
+    if assignment is not None:
+        return True
+    # An own non-cancelled annotation counts as assigned: the submission stays
+    # readable (attempted tier) even after the assignment row was removed.
+    return user_attempted_task(db, user.id, task_id)
 
 
 def _build_select_task_assignment(task_id, user_id):
@@ -1702,7 +1706,10 @@ async def check_task_assigned_to_user_async(
     # assignments allow multiple rows per (task_id, user_id), so one_or_none
     # would raise MultipleResultsFound → 500. Matches the sync twin's .first().
     assignment_result = await db.execute(_build_select_task_assignment(task_id, user.id))
-    return assignment_result.scalars().first() is not None
+    if assignment_result.scalars().first() is not None:
+        return True
+    # Own non-cancelled annotation counts as assigned (matches the sync twin).
+    return await user_attempted_task_async(db, user.id, task_id)
 
 
 # Canonical definitions live in /shared (usable by workers + extended too);
@@ -2370,30 +2377,47 @@ def _window_403(project, state: str) -> HTTPException:
     )
 
 
-def enforce_project_read_window(db: Session, user, project) -> None:
+def enforce_project_read_window(
+    db: Session, user, project, tier: Optional[str] = None
+) -> None:
     """Sync: raise 403 if the pre-open window hides task data from a non-editor.
 
     No-op when there's no window, when the window is open/closed (reads stay
     allowed then — closed is "viewable but immutable"), or when the user can
     edit the project. Call at the DATA-serving read endpoints only — never the
     project LIST query, so pre-open projects stay listed.
+
+    ``tier``: the caller's already-resolved access tier, if it has one. The
+    attempted tier is never window-gated (its whole point is reading an own
+    submission after the fact). When no tier is passed the predicate is
+    re-checked here, so older call sites stay correct without threading it.
     """
     if project_reads_allowed(project):
+        return
+    if tier == TIER_ATTEMPTED:
         return
     if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
         db, user, project.id
     ):
         return
+    if tier is None and user_attempted_project(db, user.id, project.id):
+        return
     raise _window_403(project, "upcoming")
 
 
-async def enforce_project_read_window_async(db: AsyncSession, user, project) -> None:
+async def enforce_project_read_window_async(
+    db: AsyncSession, user, project, tier: Optional[str] = None
+) -> None:
     """Async twin of :func:`enforce_project_read_window`."""
     if project_reads_allowed(project):
+        return
+    if tier == TIER_ATTEMPTED:
         return
     if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
         db, user, project.id
     ):
+        return
+    if tier is None and await user_attempted_project_async(db, user.id, project.id):
         return
     raise _window_403(project, "upcoming")
 
