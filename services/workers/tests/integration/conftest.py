@@ -226,6 +226,18 @@ def _schema(_eager_celery):
                 """
             )
         )
+        # Migration 104: the evaluation_received_* notification types the
+        # grading triggers insert. create_all never alters an existing enum,
+        # so a long-lived shared test-db rejects the label
+        # (InvalidTextRepresentation). ADD VALUE IF NOT EXISTS is idempotent.
+        for _label in (
+            "evaluation_received_human",
+            "evaluation_received_immediate",
+            "evaluation_received_batch",
+        ):
+            conn.execute(
+                text(f"ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS '{_label}'")
+            )
         # Migration 041 shape: at most one Generation per (parent, run_index).
         # This one IS declared on the model (__table_args__), so create_all
         # makes it — IF NOT EXISTS keeps this idempotent regardless.

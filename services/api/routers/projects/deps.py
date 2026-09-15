@@ -69,8 +69,10 @@ class ProjectAccess:
         self.project = project
         self.user = user
         self.org_context = org_context
-        # "full" (check_project_accessible) or "participant" (narrow tier,
-        # only when the dependency was built with allow_participant=True).
+        # "full" (check_project_accessible), "participant" (narrow tier) or
+        # "attempted" (read-only: own submission) — the latter two only when
+        # the dependency was built with allow_participant=True. Handlers that
+        # WRITE behind allow_participant must call require_write_tier(tier).
         self.tier = tier
 
 
@@ -94,7 +96,10 @@ def require_project_access(
         allow_participant: when True (view only), consented share members /
             entitled students / org-exam participants pass with
             ``ProjectAccess.tier == "participant"`` — the explicit allow-list
-            for solver endpoints. Never combined with ``min_role="edit"``.
+            for solver endpoints — and users with an own non-cancelled
+            annotation pass with ``tier == "attempted"`` (read-only; the
+            handler scopes to their own tasks and refuses writes via
+            ``require_write_tier``). Never combined with ``min_role="edit"``.
 
     Returns:
         A dependency callable yielding a :class:`ProjectAccess`. It raises

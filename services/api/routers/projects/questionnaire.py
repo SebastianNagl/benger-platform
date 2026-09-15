@@ -15,6 +15,7 @@ from project_schemas import PostAnnotationResponseCreate, PostAnnotationResponse
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
     check_task_assigned_to_user_async,
+    require_write_tier,
 )
 
 router = APIRouter()
@@ -41,6 +42,8 @@ async def submit_questionnaire_response(
     """Submit a post-annotation questionnaire response."""
 
     project = access.project
+    # The attempted (read-only) tier passes the dependency but may not write.
+    require_write_tier(access.tier)
 
     if not project.questionnaire_enabled:
         raise HTTPException(status_code=400, detail="Questionnaire is not enabled for this project")

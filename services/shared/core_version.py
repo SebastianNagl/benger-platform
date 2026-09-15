@@ -76,11 +76,20 @@ whenever one is added, renamed or removed):
   endpoints call when a new human grading lands. The workers also look for an
   optional ``benger_extended.workers.get_notification_brand_host_fn`` to brand
   notification emails.
+- 2.19: the attempted access tier — ``routers.projects.helpers.TIER_ATTEMPTED``
+  (an own non-cancelled annotation keeps read access to the submission
+  through window / archive / privacy / membership / share changes; only the
+  soft delete removes it), ``user_attempted_project(_async)``,
+  ``get_attempted_project_ids(_async)``, ``tier_allows_writes`` /
+  ``require_write_tier`` and the ``tier=`` kwarg of
+  ``enforce_project_read_window(_async)`` (attempted exempt). The extended
+  student list/detail, own-review and Korrektur reads honour it; the timer
+  and flashcard writes refuse it.
 """
 
 import os
 
-CORE_API_VERSION = "2.18"
+CORE_API_VERSION = "2.19"
 
 
 def extended_required() -> bool:

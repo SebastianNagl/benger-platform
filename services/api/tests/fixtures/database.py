@@ -204,6 +204,23 @@ def _create_tables():
                     "REFERENCES org_storage_connections(id) ON DELETE SET NULL"
                 )
             )
+            # Migration 104: the evaluation_received_* notification types.
+            # create_all never alters an existing enum, so a long-lived test
+            # DB bootstrapped before they landed rejects every grading notice
+            # (InvalidTextRepresentation). ADD VALUE IF NOT EXISTS is
+            # idempotent; PostgreSQL only forbids USING the new label in the
+            # same transaction, and nothing here does.
+            for _label in (
+                "evaluation_received_human",
+                "evaluation_received_immediate",
+                "evaluation_received_batch",
+            ):
+                conn.execute(
+                    text(
+                        "ALTER TYPE notificationtype "
+                        f"ADD VALUE IF NOT EXISTS '{_label}'"
+                    )
+                )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "
