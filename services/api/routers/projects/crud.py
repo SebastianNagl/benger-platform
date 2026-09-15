@@ -310,11 +310,13 @@ async def list_projects(
         # can't surface archived rows the detail endpoint would refuse. The
         # project creator keeps their own archived projects (a creator resolves
         # to ORG_ADMIN in the role model, so the block doesn't apply to them).
+        annotator_in_context = False
         if not current_user.is_superadmin and org_context and org_context != "private":
             membership_role = await get_org_membership_role_async(
                 db, current_user, org_context
             )
             if membership_role == "ANNOTATOR":
+                annotator_in_context = True
                 archived_ok = [
                     Project.is_archived.is_(False),
                     Project.created_by == str(current_user.id),
@@ -361,6 +363,15 @@ async def list_projects(
             response.created_by_name = project.creator.name if project.creator else None
             via = participant_map.get(str(project.id))
             outside_full = accessible_set is not None and project.id not in accessible_set
+            # The org-annotator archive carve-out of check_project_accessible:
+            # an archived org project is NOT full access for an annotator
+            # (only their own submission, if any, lets the row through above).
+            if (
+                annotator_in_context
+                and bool(getattr(project, "is_archived", False))
+                and project.created_by != str(current_user.id)
+            ):
+                outside_full = True
             if via is not None and outside_full:
                 response.access_tier = TIER_PARTICIPANT
                 response.participant_via = via
