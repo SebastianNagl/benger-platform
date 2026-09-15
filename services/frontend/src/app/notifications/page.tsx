@@ -16,7 +16,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
+import {
+  getEvaluationReceivedHref,
+  isEvaluationReceivedType,
+} from '@/lib/notificationLinks'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import {
   ArrowPathIcon,
@@ -41,6 +46,9 @@ const notificationIcons = {
   llm_generation_completed: CheckCircleIcon,
   annotation_completed: CheckCircleIcon,
   member_joined: UserPlusIcon,
+  evaluation_received_human: CheckCircleIcon,
+  evaluation_received_immediate: CheckCircleIcon,
+  evaluation_received_batch: CheckCircleIcon,
   system_alert: ExclamationTriangleIcon,
   error_occurred: ExclamationTriangleIcon,
 }
@@ -55,6 +63,12 @@ const notificationColors = {
     'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   member_joined:
     'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+  evaluation_received_human:
+    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+  evaluation_received_immediate:
+    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+  evaluation_received_batch:
+    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
@@ -64,6 +78,7 @@ function NotificationsPageContent() {
   const { user } = useAuth()
   const router = useRouter()
   const { t, locale } = useI18n()
+  const uiMode = useResolvedUiMode()
 
   const dateFnsLocale = locale === 'de' ? de : undefined
 
@@ -273,6 +288,14 @@ function NotificationsPageContent() {
     // Mark as read if unread
     if (!notification.is_read) {
       await handleMarkAsRead(notification.id)
+    }
+
+    // A new grading on the user's own submission opens where they can read
+    // it: the exam in the student shell, otherwise the project's task list.
+    if (isEvaluationReceivedType(notification.type)) {
+      const href = getEvaluationReceivedHref(notification.data, uiMode)
+      if (href) router.push(href)
+      return
     }
 
     // Navigate to related project if project_id is available

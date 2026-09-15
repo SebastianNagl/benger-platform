@@ -5,7 +5,9 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
+import { isEvaluationReceivedType } from '@/lib/notificationLinks'
 import {
   ArrowPathIcon,
   BellIcon,
@@ -75,6 +77,29 @@ const getNotificationTypes = (t: any) => [
     name: t('settings.notifications.types.evaluationFailed'),
     description: t('settings.notifications.types.evaluationFailedDesc'),
     icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_human',
+    name: t('settings.notifications.types.evaluationReceivedHuman'),
+    description: t('settings.notifications.types.evaluationReceivedHumanDesc'),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_immediate',
+    name: t('settings.notifications.types.evaluationReceivedImmediate'),
+    description: t(
+      'settings.notifications.types.evaluationReceivedImmediateDesc',
+    ),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_batch',
+    name: t('settings.notifications.types.evaluationReceivedBatch'),
+    description: t('settings.notifications.types.evaluationReceivedBatchDesc'),
+    icon: CheckCircleIcon,
     category: t('settings.notifications.categories.evaluations'),
   },
   {
@@ -269,6 +294,19 @@ const getTimezoneOptions = (t: any) => [
   { value: 'UTC+12', label: t('settings.notifications.timezone.utcPlus12') },
 ]
 
+// Channel defaults for a type without a stored preference. Mirrors the
+// backend's per-type defaults: human gradings email by default, the two AI
+// grading types start switched off, everything else is in-app only.
+const getDefaultPreference = (key: string) => {
+  if (key === 'evaluation_received_human') {
+    return { enabled: true, in_app: true, email: true }
+  }
+  if (isEvaluationReceivedType(key)) {
+    return { enabled: false, in_app: false, email: false }
+  }
+  return { enabled: true, in_app: true, email: false }
+}
+
 interface NotificationPreferences {
   [key: string]: {
     enabled: boolean
@@ -286,6 +324,7 @@ interface EmailStatus {
 function NotificationSettingsContent() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const uiMode = useResolvedUiMode()
   // All hooks must be called before any early returns (rules-of-hooks)
   const [preferences, setPreferences] = useState<NotificationPreferences>({})
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
@@ -302,11 +341,19 @@ function NotificationSettingsContent() {
     }
     try {
       const allNotificationTypes = getNotificationTypes(t)
+      // A student only gets notified about gradings of their own
+      // submissions, so the expert types would just be noise here.
+      const visibleTypes =
+        uiMode === 'student'
+          ? allNotificationTypes.filter((type) =>
+              isEvaluationReceivedType(type.key),
+            )
+          : allNotificationTypes
       return {
-        notificationTypes: allNotificationTypes,
+        notificationTypes: visibleTypes,
         timezoneOptions: getTimezoneOptions(t),
         categories: Array.from(
-          new Set(allNotificationTypes.map((type: any) => type.category)),
+          new Set(visibleTypes.map((type: any) => type.category)),
         ),
       }
     } catch (err) {
@@ -431,10 +478,7 @@ function NotificationSettingsContent() {
     setPreferences((prev) => ({
       ...prev,
       [notificationType]: {
-        ...prev[notificationType],
-        enabled: prev[notificationType]?.enabled || false,
-        in_app: prev[notificationType]?.in_app || false,
-        email: prev[notificationType]?.email || false,
+        ...(prev[notificationType] ?? getDefaultPreference(notificationType)),
         [field]: value,
         // If disabling main toggle, disable both delivery methods
         ...(field === 'enabled' && !value
@@ -601,11 +645,9 @@ function NotificationSettingsContent() {
                 <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
                   {notificationTypes.map((notificationType, index) => {
                     const IconComponent = notificationType.icon
-                    const pref = preferences[notificationType.key] || {
-                      enabled: true,
-                      in_app: true,
-                      email: false,
-                    }
+                    const pref =
+                      preferences[notificationType.key] ||
+                      getDefaultPreference(notificationType.key)
 
                     return (
                       <tr
@@ -725,8 +767,12 @@ function NotificationSettingsContent() {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">
                   {t('settings.notifications.ui.enabledCount', {
-                    enabled: Object.values(preferences).filter(
-                      (p) => p?.enabled,
+                    enabled: notificationTypes.filter(
+                      (type) =>
+                        (
+                          preferences[type.key] ??
+                          getDefaultPreference(type.key)
+                        ).enabled,
                     ).length,
                     total: notificationTypes.length,
                   })}
@@ -740,7 +786,7 @@ function NotificationSettingsContent() {
                           { enabled: false, in_app: false, email: false },
                         ]),
                       )
-                      setPreferences(updates)
+                      setPreferences((prev) => ({ ...prev, ...updates }))
                     }}
                     variant="outline"
                     className="text-xs"
@@ -760,7 +806,7 @@ function NotificationSettingsContent() {
                           },
                         ]),
                       )
-                      setPreferences(updates)
+                      setPreferences((prev) => ({ ...prev, ...updates }))
                     }}
                     variant="outline"
                     className="text-xs"

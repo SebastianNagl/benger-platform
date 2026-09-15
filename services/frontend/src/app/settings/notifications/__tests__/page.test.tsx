@@ -119,6 +119,10 @@ const mockTranslations = {
   'settings.notifications.types.evaluationFailed': 'Evaluation Failed',
   'settings.notifications.types.evaluationFailedDesc':
     'Receive notifications when evaluations fail',
+  'settings.notifications.types.evaluationReceivedHuman': 'New human grading',
+  'settings.notifications.types.evaluationReceivedImmediate':
+    'AI grading ready',
+  'settings.notifications.types.evaluationReceivedBatch': 'New evaluation run',
   'settings.notifications.types.dataUploadCompleted': 'Data Upload Completed',
   'settings.notifications.types.dataUploadCompletedDesc':
     'Receive notifications when data uploads complete',
@@ -250,6 +254,11 @@ jest.mock('@/contexts/I18nContext', () => {
   }
 })
 
+const mockUiMode = jest.fn(() => 'expert')
+jest.mock('@/hooks/useResolvedUiMode', () => ({
+  useResolvedUiMode: () => mockUiMode(),
+}))
+
 jest.mock('@/contexts/FeatureFlagContext', () => {
   const mockUseFeatureFlags = jest.fn()
   return {
@@ -264,6 +273,7 @@ describe('NotificationSettingsPage', () => {
 
     // Reset all mocks to default values
     mockIsEnabled.mockImplementation((flag: string) => true)
+    mockUiMode.mockReturnValue('expert')
 
     // Mock auth context
     ;(useAuth as jest.Mock).mockReturnValue({
@@ -298,6 +308,96 @@ describe('NotificationSettingsPage', () => {
     ;(api.updateNotificationPreferences as jest.Mock).mockResolvedValue({})
     ;(api.notifications.sendTestEmail as jest.Mock).mockResolvedValue({
       message: 'Test email sent successfully!',
+    })
+  })
+
+  describe('Grading notifications', () => {
+    it('lists the three grading types next to the expert types', async () => {
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(screen.getByText('New human grading')).toBeInTheDocument()
+      })
+      expect(screen.getByText('AI grading ready')).toBeInTheDocument()
+      expect(screen.getByText('New evaluation run')).toBeInTheDocument()
+      expect(screen.getByText('Project Created')).toBeInTheDocument()
+    })
+
+    it('shows only the grading types in the student shell', async () => {
+      mockUiMode.mockReturnValue('student')
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(screen.getByText('New human grading')).toBeInTheDocument()
+      })
+      expect(
+        screen.getByTestId(
+          'settings-notification-toggle-evaluation_received_immediate',
+        ),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId(
+          'settings-notification-toggle-evaluation_received_batch',
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByText('Project Created')).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('settings-notification-toggle-project_created'),
+      ).not.toBeInTheDocument()
+      // Only human gradings are on by default.
+      expect(
+        screen.getByText('1 of 3 notification types enabled'),
+      ).toBeInTheDocument()
+    })
+
+    it('saves the per-type defaults and keeps the hidden expert preferences', async () => {
+      const user = userEvent.setup()
+      mockUiMode.mockReturnValue('student')
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId(
+            'settings-notification-inapp-evaluation_received_human',
+          ),
+        ).toBeInTheDocument()
+      })
+      // Human gradings email by default: switching off in-app keeps email.
+      await user.click(
+        screen.getByTestId(
+          'settings-notification-inapp-evaluation_received_human',
+        ),
+      )
+      // The AI gradings start switched off: turn one on for email only.
+      await user.click(
+        screen.getByTestId(
+          'settings-notification-toggle-evaluation_received_immediate',
+        ),
+      )
+      await user.click(
+        screen.getByTestId(
+          'settings-notification-email-evaluation_received_immediate',
+        ),
+      )
+      await user.click(screen.getByText('Save Preferences'))
+
+      await waitFor(() => {
+        expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
+          expect.objectContaining({
+            project_created: mockPreferences.project_created,
+            evaluation_received_human: {
+              enabled: true,
+              in_app: false,
+              email: true,
+            },
+            evaluation_received_immediate: {
+              enabled: true,
+              in_app: false,
+              email: true,
+            },
+          }),
+        )
+      })
     })
   })
 

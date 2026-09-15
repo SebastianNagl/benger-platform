@@ -2979,6 +2979,18 @@
         "title": "Evaluation failed: {task_name}",
         "message": "Evaluation of model '{model_name}' on task '{task_name}' failed: {error_message}"
       },
+      "evaluation_received_human": {
+        "title": "New grading: {project_title}",
+        "message": "A grader has graded your submission in '{project_title}'."
+      },
+      "evaluation_received_immediate": {
+        "title": "AI grading ready: {project_title}",
+        "message": "The AI grading of your submission in '{project_title}' is ready."
+      },
+      "evaluation_received_batch": {
+        "title": "New evaluation: {project_title}",
+        "message": "An evaluation run has graded your submissions in '{project_title}'."
+      },
       "data_upload_completed": {
         "title": "Data upload completed: {task_name}",
         "message": "Successfully uploaded {upload_count} items from '{filename}' to task '{task_name}'."
@@ -3547,6 +3559,12 @@
         "evaluationCompletedDesc": "Receive notifications when evaluations finish successfully",
         "evaluationFailed": "Evaluation Failed",
         "evaluationFailedDesc": "Receive notifications when evaluations fail or encounter errors",
+        "evaluationReceivedHuman": "New human grading",
+        "evaluationReceivedHumanDesc": "Receive notifications when a grader has graded one of your submissions",
+        "evaluationReceivedImmediate": "AI grading ready",
+        "evaluationReceivedImmediateDesc": "Receive notifications when the immediate AI grading of your submission is ready",
+        "evaluationReceivedBatch": "New evaluation run",
+        "evaluationReceivedBatchDesc": "Receive notifications when an evaluation run has graded your submissions",
         "dataUploadCompleted": "Data Upload Completed",
         "dataUploadCompletedDesc": "Receive notifications when data uploads finish processing",
         "llmGenerationCompleted": "LLM Generation Completed",
