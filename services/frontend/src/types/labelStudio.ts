@@ -125,8 +125,10 @@ export interface Project {
   icon?: string | null
   // Caller-relative access info from the API (never stored):
   deleted_at?: string | null
-  access_tier?: 'full' | 'participant' | null
-  participant_via?: 'share' | 'entitlement' | 'org_exam' | null
+  // 'attempted': the user keeps read access to their own submission after
+  // the window closed, the project was archived or their membership ended.
+  access_tier?: 'full' | 'participant' | 'attempted' | null
+  participant_via?: 'share' | 'entitlement' | 'org_exam' | 'attempted' | null
   effective_role?: string | null
   can_manage_shares?: boolean
   origin?: string | null
