@@ -7819,7 +7819,7 @@
       "instructionSection": "Project-specific grading instructions",
       "instructionSectionHelp": "Optional Markdown text shown to graders above the standard grading instructions.",
       "mirrorLlmRubric": "Use the same rubric as the Custom LLM Judge",
-      "mirrorLlmRubricEmpty": "No llm_judge_custom configured on this project yet — add one with dimensions first.",
+      "mirrorLlmRubricEmpty": "No Bewertungsbogen judge or custom LLM judge configured on this project yet. Add one first.",
       "strictTimerEnabled": "Strict mode (timer starts automatically)",
       "timeLimitEnabled": "Enable time limit",
       "timeLimitSeconds": "Time limit in seconds",

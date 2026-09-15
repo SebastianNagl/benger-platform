@@ -7929,7 +7929,7 @@
       "instructionSection": "Projektspezifische Bewertungsanleitung",
       "instructionSectionHelp": "Optionaler Markdown-Text, der Korrektoren über der Standard-Bewertungsanleitung angezeigt wird.",
       "mirrorLlmRubric": "Dieselbe Rubrik wie der Custom LLM Judge verwenden",
-      "mirrorLlmRubricEmpty": "Für dieses Projekt ist noch kein llm_judge_custom konfiguriert — zuerst einen mit Dimensionen anlegen.",
+      "mirrorLlmRubricEmpty": "Für dieses Projekt ist noch kein Bewertungsbogen-Judge oder Custom LLM Judge konfiguriert. Zuerst einen anlegen.",
       "strictTimerEnabled": "Strenger Modus (Timer startet automatisch)",
       "timeLimitEnabled": "Zeitlimit aktivieren",
       "timeLimitSeconds": "Zeitlimit in Sekunden",
