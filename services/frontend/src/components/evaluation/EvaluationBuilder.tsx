@@ -131,11 +131,13 @@ export function EvaluationBuilder({
   const clampJudgeMaxTokens = (
     metric: string,
     modelId: string,
-    value: number,
-  ): number => {
+    value: number | undefined,
+  ): number | undefined => {
     const floor = getMetricDefinitions()[metric]?.min_max_tokens ?? 0
+    // No default and no floor: leave the field unset, as before.
+    if (value === undefined && floor === 0) return undefined
     const cap = getModelConstraints(modelId).maxTokens.max
-    return Math.min(Math.max(value, floor), cap)
+    return Math.min(Math.max(value ?? floor, floor), cap)
   }
 
   const [isAddingNew, setIsAddingNew] = useState(false)
