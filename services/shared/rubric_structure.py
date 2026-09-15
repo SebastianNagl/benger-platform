@@ -547,6 +547,44 @@ def _flat_sort_key(item: Tuple[str, Any]) -> Tuple[int, int]:
     return (0, int(match.group(1))) if match else (1, 0)
 
 
+def order_criteria_keys(
+    criteria: Any, structure: Optional[Dict[str, Any]] = None
+) -> List[str]:
+    """Keys of ``criteria`` in Bewertungsbogen order.
+
+    JSONB does not keep object key order (Postgres stores keys by length,
+    then bytes), so a rubric row's flat ``criteria`` come back scrambled.
+    The structure is the order carrier: the keys of its ``step`` nodes first,
+    in outline order (only those present in ``criteria``), then the remaining
+    keys by their ``s<NN>_`` ordinal when EVERY remaining key carries one,
+    else in stored order. Non-dict ``criteria`` yield ``[]``.
+
+    Why the all-or-nothing rule differs from ``structure_from_flat_criteria``
+    (which sorts as soon as ANY key carries the ordinal, via
+    ``_flat_sort_key``): the lift builds a NEW outline from a legacy sheet
+    and may push unprefixed leftovers to the end, because that outline is
+    then reviewed and re-keyed anyway. This helper orders keys for display
+    and grading of an EXISTING sheet, where a mixed key set means the
+    ordinals are not the sheet's ordering (hand-edited or config-authored
+    criteria), so the stored order is the only faithful one. The Korrektur
+    grading form and the extended human-grading router order with these
+    semantics; keep them in step.
+    """
+    if not isinstance(criteria, dict):
+        return []
+    ordered: List[str] = []
+    if isinstance(structure, dict):
+        for node in structure.get("nodes") or []:
+            if isinstance(node, dict) and node.get("kind") == "step":
+                key = node.get("key")
+                if key in criteria and key not in ordered:
+                    ordered.append(key)
+    remaining = [k for k in criteria if k not in ordered]
+    if remaining and all(_STEP_KEY_ORDER.match(str(k)) for k in remaining):
+        remaining.sort(key=lambda k: int(_STEP_KEY_ORDER.match(str(k)).group(1)))
+    return ordered + remaining
+
+
 def structure_from_flat_criteria(criteria: Any) -> Dict[str, Any]:
     """Lift legacy flat criteria into level-0 step nodes (lossy by design).
 
