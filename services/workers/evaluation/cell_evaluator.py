@@ -89,6 +89,58 @@ def _render_rubric_text(rubric) -> str:
     return rubric_prompt_text(rubric, include_grade_scale=False)
 
 
+def _build_judge_context(
+    task_data, *, include_case=True, include_korrekturhinweise=True
+) -> str:
+    """The ``{context}`` block an LLM judge sees for a task.
+
+    One builder for every judge lane (bulk generation cell, bulk annotation
+    cell, immediate single-sample), so the same task always renders the same
+    context: the case text (``text`` | ``input`` | ``sachverhalt``, first
+    hit wins), then the case-side exam parts stored under their own
+    task-data keys (never composed into the sachverhalt string — highlight
+    spans anchor to its offsets) as labeled blocks, then the author's
+    grading hints. Tasks without the keys keep a bare case text; a task
+    without any key renders ``""``.
+
+    ``include_korrekturhinweise=False`` is for the Bewertungsbogen judge,
+    which receives the hints as their own ``<korrekturhinweise>`` block (see
+    ``LLMJudgeEvaluator._evaluate_multidim_single_call``) instead of inside
+    the case text, where its rules tell it to ignore instructions.
+    """
+    import tasks
+
+    _get_insensitive = tasks._get_insensitive
+    data = task_data or {}
+    context = ""
+    if include_case:
+        case_text = (
+            _get_insensitive(data, "text")
+            or _get_insensitive(data, "input")
+            or _get_insensitive(data, "sachverhalt")
+            or ""
+        )
+        context = str(case_text) if case_text else ""
+    for key, heading in (
+        ("bearbeitervermerk", "## Bearbeitervermerk"),
+        ("zusatzmaterial", "## Zusatzmaterial"),
+    ):
+        value = str(_get_insensitive(data, key) or "").strip()
+        if value:
+            block = f"{heading}\n\n{value}"
+            context = f"{context}\n\n{block}" if context else block
+    if include_korrekturhinweise:
+        hints = str(_get_insensitive(data, "korrekturhinweise") or "").strip()
+        if hints:
+            hint_block = (
+                "Zusätzliche Hinweise für die Korrektur "
+                "(vom Aufgabensteller):\n"
+                f"{hints}"
+            )
+            context = f"{context}\n\n{hint_block}" if context else hint_block
+    return context
+
+
 def _project_eval_config(db, project_id):
     """The project's ``evaluation_config`` document, or ``None``.
 
@@ -153,6 +205,24 @@ def _stamp_rubric_grade(result, task_rubric, project_config=None) -> None:
     result["grade_points"] = grade_points
     result["passed"] = passed
     result["grade_scale_source"] = source
+
+
+def _stamp_rubric_result(result, judge_prompts, task_rubric, project_config=None) -> None:
+    """Stamp an ``llm_judge_rubric`` judge result with its rubric provenance
+    and grade (in place), for every lane that grades against a task rubric.
+
+    ``result`` gets ``rubric_id`` plus the Notenpunkte fields from
+    ``_stamp_rubric_grade``; ``judge_prompts`` (the ``_judge_prompts_used``
+    dict) gets ``task_rubric_id`` / ``task_rubric_generator`` so a reader
+    can tell which sheet and generator the row was scored against.
+    Non-dict inputs (error paths) are left untouched.
+    """
+    if isinstance(result, dict):
+        result["rubric_id"] = task_rubric.id
+        _stamp_rubric_grade(result, task_rubric, project_config)
+    if isinstance(judge_prompts, dict):
+        judge_prompts["task_rubric_id"] = task_rubric.id
+        judge_prompts["task_rubric_generator"] = task_rubric.generator_model_id
 
 
 def _multidim_row_passed(metrics_dict, metric, normalized) -> bool:
@@ -435,17 +505,16 @@ def evaluate_generation_cell_impl(
                         if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
                             # ── Multi-judge / multi-run fan-out (intra-cell) ──
                             per_judge_results: List[Dict[str, Any]] = []
-                            context = (
-                                _get_insensitive(task.data, "text")
-                                or _get_insensitive(task.data, "input")
-                                or _get_insensitive(task.data, "sachverhalt")
-                                or ""
+                            # Case text plus the case-side exam parts. The
+                            # rubric judge gets the author's grading hints
+                            # as their own tagged block instead of inside
+                            # the case (see _build_judge_context).
+                            context = _build_judge_context(
+                                task.data,
+                                include_korrekturhinweise=metric != "llm_judge_rubric",
                             )
-                            # Case-side exam parts stored as separate task-data
-                            # keys (never composed into the sachverhalt string —
-                            # highlight spans anchor to its offsets). Appended
-                            # as labeled blocks so tasks without the keys keep
-                            # a byte-identical context.
+                            # The Falllösung hook takes the exam parts and
+                            # the hints as separate kwargs.
                             bearbeitervermerk = (
                                 _get_insensitive(task.data, "bearbeitervermerk")
                                 if task.data
@@ -456,28 +525,11 @@ def evaluate_generation_cell_impl(
                                 if task.data
                                 else ""
                             ) or ""
-                            if str(bearbeitervermerk).strip():
-                                block = f"## Bearbeitervermerk\n\n{str(bearbeitervermerk).strip()}"
-                                context = f"{context}\n\n{block}" if context else block
-                            if str(zusatzmaterial).strip():
-                                block = f"## Zusatzmaterial\n\n{str(zusatzmaterial).strip()}"
-                                context = f"{context}\n\n{block}" if context else block
-                            # Author-provided grading hints (hidden from the
-                            # solver, meant for the judge).
                             korrekturhinweise = (
                                 _get_insensitive(task.data, "korrekturhinweise")
                                 if task.data
                                 else ""
                             ) or ""
-                            if str(korrekturhinweise).strip():
-                                hint_block = (
-                                    "Zusätzliche Hinweise für die Korrektur "
-                                    "(vom Aufgabensteller):\n"
-                                    f"{str(korrekturhinweise).strip()}"
-                                )
-                                context = (
-                                    f"{context}\n\n{hint_block}" if context else hint_block
-                                )
                             eval_ground_truth = str(ground_truth) if ground_truth else ""
                             if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                 muster = (
@@ -560,18 +612,11 @@ def evaluate_generation_cell_impl(
                                     continue
 
                                 if task_rubric is not None:
-                                    # Inject the task's rubric as this judge's
-                                    # criteria. Evaluators are cell-scoped
-                                    # (reconstructed per sub-task), so the
-                                    # assignment cannot leak across tasks.
-                                    jr_evaluator.custom_criteria = task_rubric.criteria
-                                    # Fixed roles, tagged inputs, verified
-                                    # evidence for the Bewertungsbogen judge.
-                                    jr_evaluator.rubric_mode = True
+                                    jr_evaluator.bind_task_rubric(task_rubric)
 
                                 multidim_mode = (
                                     metric != "llm_judge_falloesung"
-                                    and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                    and jr_evaluator.is_multidim_mode()
                                 )
 
                                 if metric == "llm_judge_falloesung":
@@ -606,8 +651,8 @@ def evaluate_generation_cell_impl(
                                         sachverhalt=str(sachverhalt) if sachverhalt else "",
                                         musterloesung=eval_ground_truth,
                                         prediction=str(prediction) if prediction else "",
-                                        thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
-                                        reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                        thinking_budget=jr_evaluator.thinking_budget,
+                                        reasoning_effort=jr_evaluator.reasoning_effort,
                                         **_falloesung_extra,
                                         **_falloesung_grade_scale_kwargs(
                                             falloesung_bulk_fn, db, project_id
@@ -661,18 +706,12 @@ def evaluate_generation_cell_impl(
 
                                 if multidim_mode:
                                     if task_rubric is not None:
-                                        if isinstance(result, dict):
-                                            result["rubric_id"] = task_rubric.id
-                                            _stamp_rubric_grade(
-                                                result,
-                                                task_rubric,
-                                                _project_eval_config(db, project_id),
-                                            )
-                                        if isinstance(judge_prompts, dict):
-                                            judge_prompts["task_rubric_id"] = task_rubric.id
-                                            judge_prompts["task_rubric_generator"] = (
-                                                task_rubric.generator_model_id
-                                            )
+                                        _stamp_rubric_result(
+                                            result,
+                                            judge_prompts,
+                                            task_rubric,
+                                            _project_eval_config(db, project_id),
+                                        )
                                     error_msg = (
                                         result.get("error_message")
                                         if result and result.get("error")
@@ -1107,12 +1146,13 @@ def evaluate_annotation_cell_impl(
                                 continue
 
                             if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
-                                context = (
-                                    _get_insensitive(task.data, "text")
-                                    or _get_insensitive(task.data, "input")
-                                    or _get_insensitive(task.data, "sachverhalt")
-                                    or ""
-                                ) if task.data else ""
+                                # Same context as the generation cell: case
+                                # text plus exam parts; the rubric judge gets
+                                # the hints as its own tagged block.
+                                context = _build_judge_context(
+                                    task.data,
+                                    include_korrekturhinweise=metric != "llm_judge_rubric",
+                                )
                                 eval_ground_truth = str(ground_truth) if ground_truth else ""
                                 if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                     muster = (
@@ -1197,17 +1237,11 @@ def evaluate_annotation_cell_impl(
                                         continue
 
                                     if task_rubric is not None:
-                                        # Inject the task's rubric as this
-                                        # judge's criteria; evaluators are
-                                        # cell-scoped, no cross-task leak.
-                                        jr_evaluator.custom_criteria = task_rubric.criteria
-                                        # Fixed roles, tagged inputs, verified
-                                        # evidence for the Bewertungsbogen judge.
-                                        jr_evaluator.rubric_mode = True
+                                        jr_evaluator.bind_task_rubric(task_rubric)
 
                                     multidim_mode = (
                                         metric != "llm_judge_falloesung"
-                                        and getattr(jr_evaluator, "is_multidim_mode", lambda: False)()
+                                        and jr_evaluator.is_multidim_mode()
                                     )
 
                                     if metric == "llm_judge_falloesung":
@@ -1234,8 +1268,8 @@ def evaluate_annotation_cell_impl(
                                             sachverhalt=str(sachverhalt) if sachverhalt else "",
                                             musterloesung=eval_ground_truth,
                                             prediction=str(prediction) if prediction else "",
-                                            thinking_budget=getattr(jr_evaluator, "thinking_budget", None),
-                                            reasoning_effort=getattr(jr_evaluator, "reasoning_effort", None),
+                                            thinking_budget=jr_evaluator.thinking_budget,
+                                            reasoning_effort=jr_evaluator.reasoning_effort,
                                             **_falloesung_grade_scale_kwargs(
                                                 falloesung_bulk_fn, db, project_id
                                             ),
@@ -1287,18 +1321,12 @@ def evaluate_annotation_cell_impl(
 
                                     if multidim_mode:
                                         if task_rubric is not None:
-                                            if isinstance(result, dict):
-                                                result["rubric_id"] = task_rubric.id
-                                                _stamp_rubric_grade(
-                                                    result,
-                                                    task_rubric,
-                                                    _project_eval_config(db, project_id),
-                                                )
-                                            if isinstance(judge_prompts, dict):
-                                                judge_prompts["task_rubric_id"] = task_rubric.id
-                                                judge_prompts["task_rubric_generator"] = (
-                                                    task_rubric.generator_model_id
-                                                )
+                                            _stamp_rubric_result(
+                                                result,
+                                                judge_prompts,
+                                                task_rubric,
+                                                _project_eval_config(db, project_id),
+                                            )
                                         error_msg = (
                                             result.get("error_message")
                                             if result and result.get("error")

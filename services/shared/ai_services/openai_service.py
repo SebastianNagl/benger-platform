@@ -627,12 +627,19 @@ Your response must be ONLY the JSON object, no other text before or after.
             is_gpt5 = "gpt-5" in model_lower
             is_o_series = any(model_lower.startswith(p) for p in ["o1", "o3", "o4"])
 
-            # o-series and GPT-5 models require temperature=1 (API rejects other values)
+            # o-series and GPT-5 models require temperature=1 (API rejects
+            # other values). Record BOTH the requested and the sent value,
+            # exactly as generate() does, so a persisted judge row shows
+            # whether determinism was honored or coerced.
+            requested_temperature = temperature
+            temperature_coerced = False
             effective_temperature = temperature
             if is_o_series or is_gpt5:
                 effective_temperature = 1.0
                 if temperature != 1.0:
                     logger.info(f"Overriding temperature={temperature} -> 1.0 for {model_name} (required by API)")
+                    temperature_coerced = True
+            actual_temperature = effective_temperature
 
             api_params = {
                 "model": model_name,
@@ -652,9 +659,12 @@ Your response must be ONLY the JSON object, no other text before or after.
             }
 
             # Only add these params for non-GPT-5 models. Phase 6.6 (#7):
-            # also gate seed on per-model support.
+            # also gate seed on per-model support. The GPT-5 family takes
+            # none of them; list what was withheld (the same list
+            # generate() drops) so the audit trail is complete.
             supports_seed_here = model_supports_seed("openai", model_name)
             seed_in_metadata = requested_seed if supports_seed_here else None
+            unsupported_dropped: list[str] = []
             if not is_gpt5:
                 api_params["top_p"] = 1.0
                 api_params["frequency_penalty"] = 0.0
@@ -662,6 +672,9 @@ Your response must be ONLY the JSON object, no other text before or after.
                 if supports_seed_here:
                     api_params["seed"] = requested_seed
             else:
+                unsupported_dropped = ["top_p", "frequency_penalty", "presence_penalty"]
+                if supports_seed_here:
+                    unsupported_dropped.append("seed")
                 # GPT-5 silently drops seed; record None so the persisted
                 # row reflects what actually happened.
                 seed_in_metadata = None
@@ -717,7 +730,13 @@ Your response must be ONLY the JSON object, no other text before or after.
                     "total_tokens": response.usage.total_tokens,
                 },
                 metadata={
-                    "temperature": temperature,
+                    # Legacy field: the value actually sent, as in generate().
+                    # Researchers comparing runs should rely on the
+                    # requested_/actual_ pair.
+                    "temperature": actual_temperature,
+                    "requested_temperature": requested_temperature,
+                    "actual_temperature": actual_temperature,
+                    "temperature_coerced": temperature_coerced,
                     "max_tokens": max_tokens,
                     "response_time_ms": response_time_ms,
                     "finish_reason": finish_reason,
@@ -727,6 +746,9 @@ Your response must be ONLY the JSON object, no other text before or after.
                     "error_type": None,
                     "structured_output": True,
                     "reasoning_effort": sent_effort,
+                    "unsupported_params_dropped": unsupported_dropped,
+                    "is_gpt5_series": is_gpt5,
+                    "is_o_series": is_o_series,
                     "created_at": end_time.isoformat(),
                     "retry_attempts": _get_retry_history_snapshot(),
                     "retry_count": len(_get_retry_history_snapshot()),

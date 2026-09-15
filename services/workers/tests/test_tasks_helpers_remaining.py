@@ -408,6 +408,88 @@ class TestRunSingleSampleEvaluationCreatePath:
         assert eval_run_after.metrics == {"answer|exact_match": 1.0}
         assert eval_run_after.samples_evaluated == 1
 
+    def test_rubric_config_snapshot_records_floor_and_temperature_clamp(self):
+        """The immediate lane's judge_run snapshot records the same two
+        post-resolution steps as the bulk lane: the llm_judge_rubric
+        max_tokens floor (system default 1500 -> 32000, annotated with
+        floored_for_metric / floored_from) and the per-model temperature
+        constraint (0.0 -> 1.0 with clamped_from). Both are what the judge
+        is actually sent (see _evaluate_llm_judge_single_impl)."""
+        eval_run_after = MagicMock()
+        eval_run_after.eval_metadata = {"configs": []}
+        eval_run_after.metrics = {}
+        eval_run_after.status = "running"
+        judge_model_row = types.SimpleNamespace(
+            id="gpt-5.4-mini",
+            recommended_parameters=None,
+            parameter_constraints={
+                "temperature": {"supported": False, "required_value": 1.0}
+            },
+        )
+        db = _RSSEDispatchDB(
+            project_row=_project_snapshot_row(),
+            eval_run_first=[None, eval_run_after],
+            judge_run_existing=None,
+            judge_model_row=judge_model_row,
+            task_evals=[],
+        )
+        configs = [
+            {
+                "id": "cfg-rubric",
+                "metric": "llm_judge_rubric",
+                "display_name": "Bewertungsbogen",
+                "prediction_fields": ["answer"],
+                "reference_fields": ["task.ref"],
+                "metric_parameters": {"judge_model": "gpt-5.4-mini"},
+            },
+            {
+                "id": "cfg-custom",
+                "metric": "llm_judge_custom",
+                "display_name": "Custom",
+                "prediction_fields": ["answer"],
+                "reference_fields": ["task.ref"],
+                "metric_parameters": {"judge_model": "gpt-5.4-mini", "max_tokens": 3000},
+            },
+        ]
+
+        def fake_job(**kwargs):
+            return {"status": "completed", "metric": kwargs["job"]["metric_type"], "score": 1.0}
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+            with patch.object(tasks_module, "_run_immediate_config_job", side_effect=fake_job):
+                run_single_sample_evaluation.run(
+                    evaluation_record_id="eval-new-2",
+                    project_id="p1",
+                    task_id="t1",
+                    annotation_id="a1",
+                    evaluation_configs=configs,
+                    annotation_results={"answer": "my answer"},
+                    task_data={"ref": "my answer"},
+                    organization_id=None,
+                    user_id="u1",
+                )
+
+        judge_runs = [o for o in db.added if type(o).__name__ == "EvaluationJudgeRun"]
+        assert [jr.judge_model_id for jr in judge_runs] == ["gpt-5.4-mini", "gpt-5.4-mini"]
+        rubric_prov = judge_runs[0].metric_parameters_snapshot["_param_provenance"]
+        assert rubric_prov["max_tokens"] == {
+            "value": 32000,
+            "source": "system",
+            "recommended_at_trigger": None,
+            "floored_for_metric": "llm_judge_rubric",
+            "floored_from": 1500,
+        }
+        assert rubric_prov["temperature"]["value"] == 1.0
+        assert rubric_prov["temperature"]["clamped_from"] == 0.0
+        assert rubric_prov["temperature"]["source"] == "system"
+        # an explicit max_tokens (user tier) is never floored; the clamp
+        # applies to every judge model with the constraint
+        custom_prov = judge_runs[1].metric_parameters_snapshot["_param_provenance"]
+        assert custom_prov["max_tokens"]["value"] == 3000
+        assert custom_prov["max_tokens"]["source"] == "user_per_model"
+        assert "floored_for_metric" not in custom_prov["max_tokens"]
+        assert custom_prov["temperature"]["clamped_from"] == 0.0
+
     def test_revives_terminal_judge_run_on_resume(self):
         """A prior cancel left this config's EvaluationJudgeRun terminal; on a
         resume the get-or-create finds it and flips it back to 'running'
