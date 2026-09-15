@@ -18,6 +18,8 @@ import { runStatusLabel } from '@/lib/evaluation/runDisplay'
 import { useMemo } from 'react'
 
 export interface PerRunRow {
+  /** Evaluation config the judge run graded, when known. */
+  config_id?: string
   target_model_id: string
   judge_model_id: string | null
   run_index: number
@@ -25,10 +27,17 @@ export interface PerRunRow {
   status: string
   samples_evaluated: number | null
   mean_score: number | null
+  /** Metric of the row's config. Rows may differ when a run mixes configs
+   * (an immediate grading holds one config per judge tier); the table then
+   * names the metric per row instead of in the header. */
+  metric?: string
+  /** Readable name of `metric`; the id otherwise. */
+  metric_label?: string
 }
 
 export interface PerRunBreakdownProps {
   rows: PerRunRow[]
+  /** Metric named in the header when every row shares it. */
   metric: string
   /** Readable name of `metric` for the column header; the id otherwise. */
   metricLabel?: string
@@ -77,6 +86,11 @@ export function PerRunBreakdown({
     })
   }, [rows])
 
+  // Rows graded on different metrics: the header goes generic and every
+  // score cell names its own metric.
+  const mixedMetrics =
+    new Set(rows.map((row) => row.metric ?? metric).filter(Boolean)).size > 1
+
   if (sortedRows.length === 0) {
     return (
       <div className="rounded border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
@@ -105,7 +119,9 @@ export function PerRunBreakdown({
               {t('eval.perRun.samples', 'Samples')}
             </th>
             <th className="px-3 py-2 text-right font-medium">
-              {t('eval.perRun.meanScore', { metric: metricLabel || metric })}
+              {mixedMetrics
+                ? t('eval.perRun.meanScoreMixed', 'Mittelwert')
+                : t('eval.perRun.meanScore', { metric: metricLabel || metric })}
             </th>
             <th className="px-3 py-2 text-left font-medium">
               {t('eval.perRun.status', 'Status')}
@@ -135,6 +151,11 @@ export function PerRunBreakdown({
               </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {formatScore(row.mean_score)}
+                {mixedMetrics && (row.metric_label || row.metric) && (
+                  <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    ({row.metric_label || row.metric})
+                  </span>
+                )}
               </td>
               <td className="px-3 py-2">
                 <span

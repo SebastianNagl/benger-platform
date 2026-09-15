@@ -7023,6 +7023,9 @@
       "judges": "Judges & Läufe",
       "perJudgeRun": "Pro Judge & Lauf",
       "someJudgesFailed": "Mindestens ein Judge-Lauf ist fehlgeschlagen. Die Statistiken unten beruhen nur auf den erfolgreichen Läufen.",
+      "loadFailed": "Der Lauf konnte nicht geladen werden.",
+      "notFound": "Dieser Lauf wurde nicht gefunden.",
+      "backToRuns": "Zurück zu den Läufen",
       "createdAt": "Gestartet am {date}",
       "technicalDetails": "Technische Details",
       "noMetrics": "Dieser Lauf hat keine aggregierten Metriken.",
@@ -8747,6 +8750,7 @@
       "runIndex": "Lauf #",
       "samples": "Stichproben",
       "meanScore": "Mittelwert {metric}",
+      "meanScoreMixed": "Mittelwert",
       "status": "Status",
       "deterministic": "(deterministisch)",
       "empty": "Keine Lauf-Daten für diese Metrik."
