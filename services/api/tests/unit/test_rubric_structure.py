@@ -33,6 +33,7 @@ from rubric_structure import (  # noqa: E402
     mirror_rubric_into_task_data,
     normalize_grade_scale,
     normalize_structure,
+    order_criteria_keys,
     render_flat_criteria_text,
     render_grade_scale_text,
     render_structure_text,
@@ -321,6 +322,55 @@ class TestStructureFromFlatCriteria:
     def test_empty_inputs(self):
         assert structure_from_flat_criteria(None) == {"version": 1, "nodes": []}
         assert structure_from_flat_criteria("x") == {"version": 1, "nodes": []}
+
+
+class TestOrderCriteriaKeys:
+    """The shared ordering both grading surfaces use (JSONB scrambles keys)."""
+
+    @staticmethod
+    def _structure(*keys):
+        return {
+            "version": 1,
+            "nodes": [
+                {"id": f"n{i}", "level": 0, "kind": "step", "key": k, "title": k, "max_score": 1}
+                for i, k in enumerate(keys)
+            ],
+        }
+
+    def test_structure_step_order_wins_over_stored_and_ordinal_order(self):
+        criteria = {"s03_c": {}, "s01_a": {}, "s02_b": {}}
+        assert order_criteria_keys(criteria, self._structure("s02_b", "s03_c", "s01_a")) == [
+            "s02_b", "s03_c", "s01_a",
+        ]
+
+    def test_structure_keys_missing_from_criteria_are_skipped_and_sections_ignored(self):
+        structure = self._structure("s02_b", "gone", "s01_a")
+        structure["nodes"].insert(0, {"id": "sec", "level": 0, "kind": "section", "key": "s01_a", "title": "S"})
+        assert order_criteria_keys({"s01_a": {}, "s02_b": {}}, structure) == ["s02_b", "s01_a"]
+
+    def test_remaining_keys_sort_by_ordinal_only_when_all_carry_one(self):
+        # All-ordinal: numeric sort, not lexicographic (s10 after s2).
+        assert order_criteria_keys({"s10_j": {}, "s2_b": {}, "s1_a": {}}) == ["s1_a", "s2_b", "s10_j"]
+        # Keys not in the structure come after the structure's steps, then sorted.
+        assert order_criteria_keys(
+            {"s03_c": {}, "s01_a": {}, "s02_b": {}}, self._structure("s03_c")
+        ) == ["s03_c", "s01_a", "s02_b"]
+
+    def test_mixed_keys_keep_stored_order(self):
+        # One unprefixed key means the ordinals are not the sheet's order:
+        # stored order is the only faithful one (differs from the legacy lift,
+        # which sorts on ANY ordinal).
+        criteria = {"s02_b": {}, "zeta": {}, "s01_a": {}}
+        assert order_criteria_keys(criteria) == ["s02_b", "zeta", "s01_a"]
+        assert [n["key"] for n in structure_from_flat_criteria(
+            {k: {"max_score": 1} for k in criteria}
+        )["nodes"]] == ["s01_a", "s02_b", "zeta"]
+
+    def test_no_ordinals_keep_stored_order_and_non_dicts_are_empty(self):
+        assert order_criteria_keys({"zeta": {}, "alpha": {}}) == ["zeta", "alpha"]
+        assert order_criteria_keys({"zeta": {}}, structure="not-a-dict") == ["zeta"]
+        assert order_criteria_keys(None) == []
+        assert order_criteria_keys("x", self._structure("x")) == []
 
 
 # ---------------------------------------------------------------------------

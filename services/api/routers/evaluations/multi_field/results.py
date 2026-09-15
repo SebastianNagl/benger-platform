@@ -12,6 +12,18 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 # results package (same source `models_methods` uses) so the aggregate-score
 # calc below can coerce both bare-float and {value,…} metric shapes.
 from routers.evaluations.results._common import _coerce_metric_value  # noqa: E402,F401
+from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS  # noqa: E402
+
+# Evaluation-type tags (``eval_metadata.evaluation_type``) both read endpoints
+# accept: legacy "multi_field", standard "evaluation"/"llm_judge", "immediate"
+# (per-task annotation evals the run page opens straight from /runs), and the
+# human-graded singletons (e.g. "korrektur_falloesung") which run forever as
+# the destination for corrector submissions — see
+# services.evaluation.human_eval_runs.
+ACCEPTED_EVAL_RUN_TYPES = frozenset({
+    "multi_field", "evaluation", "llm_judge", "immediate",
+    *HUMAN_GRADED_METRICS,
+})
 
 
 async def _resolve_scope_block(
@@ -115,20 +127,12 @@ async def get_project_evaluation_results(
             .all()
         )
 
-        # Filter for evaluation runs by checking eval_metadata
-        # Accept legacy "multi_field", standard "evaluation"/"llm_judge", "immediate"
-        # (per-task annotation evals), and human-graded singletons (e.g.
-        # "korrektur_falloesung") which run forever as the destination for
-        # corrector submissions — see services.evaluation.human_eval_runs.
-        from services.evaluation.human_eval_runs import HUMAN_GRADED_METRICS
-        accepted_eval_types = {
-            "multi_field", "evaluation", "llm_judge", "immediate",
-            *HUMAN_GRADED_METRICS,
-        }
+        # Filter for evaluation runs by checking eval_metadata (see
+        # ACCEPTED_EVAL_RUN_TYPES for the accepted tags).
         evaluations = [
             e
             for e in all_evaluations
-            if (e.eval_metadata or {}).get("evaluation_type") in accepted_eval_types
+            if (e.eval_metadata or {}).get("evaluation_type") in ACCEPTED_EVAL_RUN_TYPES
         ]
 
         # If latest_only=True, only return the most recent evaluation
@@ -327,10 +331,12 @@ async def get_evaluation_run_results(
                 detail="You don't have access to this evaluation's project",
             )
 
-        # Verify it's an evaluation run (accept both legacy "multi_field" and new "evaluation")
+        # Verify it's an evaluation run. The same tag set the list endpoint
+        # accepts: without "immediate" the run page 400ed on exactly the runs
+        # /runs had just listed (instant gradings of a submission).
         if (
             not evaluation.eval_metadata
-            or evaluation.eval_metadata.get("evaluation_type") not in ("multi_field", "evaluation")
+            or evaluation.eval_metadata.get("evaluation_type") not in ACCEPTED_EVAL_RUN_TYPES
         ):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -347,6 +353,16 @@ async def get_evaluation_run_results(
                 pred_field = parts[1]
                 ref_field = parts[2]
                 metric_name = "|".join(parts[3:])
+            elif len(parts) == 2:
+                # Immediate / human-graded run-level shape: "pred_field|metric"
+                # (no config_id, no ref_field; pred_field may contain ':' as
+                # in "human:loesung"). Same grouping as the list endpoint:
+                # keyed by the metric so the config card headlines the grade
+                # instead of rendering N/A.
+                pred_field = parts[0]
+                ref_field = ""
+                metric_name = parts[1]
+                config_id = metric_name
             elif len(parts) == 1 and ":" in key:
                 # Backward compat: old format used : as separator
                 old_parts = key.split(":")

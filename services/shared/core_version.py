@@ -12,12 +12,69 @@ same value — it was previously hand-copied into all three loaders with
 
 The extended repo's tests/test_version_handshake.py string-parses this file
 (it deliberately avoids importing platform modules), so keep the assignment
-on a single line in the form: CORE_API_VERSION = "<version>".
+on a single line in the form: CORE_API_VERSION = "<version>". The parser
+takes the first line that starts with the constant's name, so no line of
+this docstring may start with it either.
+
+What each version added (the symbols the extended overlay imports; bump
+whenever one is added, renamed or removed):
+
+- 2.8: task_rubrics table + llm_judge_rubric worker routing + TaskRubricPanel
+  slot (Bewertungsbogen feature).
+- 2.9: participant access tier (get_project_access_tier) + share governance
+  (check_user_can_manage_shares) + projects.icon — benger Entdecken wave.
+- 2.10: org_resolution + project_consumers + the org_billing_authorized
+  consumer-inheritance flag.
+- 2.11: organization groups (shared/org_groups: attachment_group_clause,
+  ProjectOrganization.group_id, group-scoped org API keys) — the extended
+  student arms and worker key threading reference them.
+- 2.12: grading_feedback table (project_models.GradingFeedback) — solver
+  thumbs/comment feedback on LLM and human gradings; the extended write
+  router upserts into it.
+- 2.13: Bewertungsbogen as a grading mode — task_rubrics.structure/grade_scale
+  + float total_points (migration 100), the shared pure module
+  ``rubric_structure`` (validate/normalize/criteria projection/grade
+  tables/task.data mirror) and the async ``task_rubric_service``
+  (create/edit-with-clone/activate/archive), platform task-rubrics writes +
+  stateless parse, judge rows carrying grade_points/passed, optional
+  generator keys on llm_judge_rubric configs. The extended routers/worker
+  import both shared modules.
+- 2.14: the Notenschlüssel audit trail — the shared pure module
+  ``grade_scale_history`` (append_grade_scale_change / mark_recomputed /
+  latest_grade_scale_change / carry_grade_scale_history) that BOTH writers
+  of ``evaluation_config.grade_scale`` append through. The extended exam
+  router imports it at module level: without it the Vertretbar exam modal
+  would write the key and record nothing, so the handshake has to fail
+  loudly rather than degrade.
+- 2.15: REMOVES the Falllösung judge's prompt versioning: the bulk fan-out no
+  longer forwards ``metric_parameters.prompt_version`` (the extended compute
+  hook no longer takes it) and migration 101 strips the dead key from stored
+  evaluation configs. One judge prompt, one Notenschlüssel, for every exam.
+  Also widens the rubric importer to .csv/.md/.json and adds
+  ``rubric_import.rubric_document_text``, which the extended AI-structuring
+  fallback reads its document with.
+- 2.16: the Bewertungsbogen fix train (platform #375/#376, extended #118):
+  ``model_defaults.DEFAULT_JUDGE_MODEL_ID`` (the judge a config grades with
+  when it names none; the extended exam/flashcard defaults follow it),
+  ``eval_field_classification.bare_field_name`` / ``same_field`` /
+  ``unprefixed_is_human`` (one authority for the role-prefix rule; migration
+  102 re-files human rubric gradings under the field they grade), the
+  evidence-quoted rubric judge (per-step evidence verified against the
+  step's own part, ``reasoning_effort`` forwarded; the extended
+  ``rubric_judge_backfill`` maintenance script rewrites stored judge
+  configs to it), ``import_jobs.organization_id`` (migration 103) and
+  Bewertungsbogen rows carried through full project export/import.
+- 2.17: ``rubric_structure.order_criteria_keys`` (the one ordering of flat
+  criteria both grading surfaces use), ``model_defaults.RUBRIC_JUDGE_MAX_TOKENS``
+  / ``METRIC_MAX_TOKENS_FLOOR`` (the rubric judge's output budget the builder
+  and the worker floor respect), and creator access to an unattached
+  (private) project under a foreign org context — the extended task-rubric
+  reads route to the platform endpoints instead of re-implementing it.
 """
 
 import os
 
-CORE_API_VERSION = "2.16"
+CORE_API_VERSION = "2.17"
 
 
 def extended_required() -> bool:

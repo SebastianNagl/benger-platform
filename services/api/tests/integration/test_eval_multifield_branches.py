@@ -957,17 +957,71 @@ class TestRunResults:
         assert "access" in resp.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_not_an_evaluation_run_400(
+    async def test_immediate_run_opens_with_two_part_keys(
         self, async_test_client, async_test_db
     ):
-        """A run whose eval_metadata.evaluation_type isn't 'multi_field' or
-        'evaluation' (e.g. 'immediate') hits the 'not an evaluation run' 400."""
+        """An 'immediate' run (instant grading of one submission) is an
+        evaluation run: the run page opens it straight from /runs, so the
+        detail endpoint accepts the tag and parses its run-level
+        ``pred_field|metric`` keys (no config id, no ref field) into a
+        config bucket keyed by the metric — the same grouping the list
+        endpoint uses — instead of 400ing on exactly the runs it listed."""
         owner = await _make_owner(async_test_db)
         org = await _make_org(async_test_db)
         p, _ = await _setup_project_async(async_test_db, owner, org)
         er = await _make_eval_run_async(
             async_test_db, p, owner.id,
+            metrics={
+                "loesung|llm_judge_rubric": 0.61,
+                "human:loesung|korrektur_falloesung": 0.5,
+            },
             eval_metadata={"evaluation_type": "immediate"},
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/run/results/{er.id}",
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["evaluation_id"] == er.id
+        by_cfg = body["results_by_config"]
+        assert by_cfg["llm_judge_rubric"]["loesung_vs_"]["llm_judge_rubric"] == pytest.approx(0.61)
+        # pred_field keeps its ':' role prefix — '|' is the structural separator.
+        assert by_cfg["korrektur_falloesung"]["human:loesung_vs_"]["korrektur_falloesung"] == pytest.approx(0.5)
+
+    @pytest.mark.asyncio
+    async def test_llm_judge_run_accepted(self, async_test_client, async_test_db):
+        """The 'llm_judge' tag the list endpoint accepts opens too."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        p, _ = await _setup_project_async(async_test_db, owner, org)
+        er = await _make_eval_run_async(
+            async_test_db, p, owner.id,
+            eval_metadata={"evaluation_type": "llm_judge"},
+        )
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                f"{BASE}/run/results/{er.id}",
+            )
+        assert resp.status_code == 200, resp.text
+
+    @pytest.mark.asyncio
+    async def test_not_an_evaluation_run_400(
+        self, async_test_client, async_test_db
+    ):
+        """A run whose eval_metadata.evaluation_type is outside
+        ACCEPTED_EVAL_RUN_TYPES (a 'generation' run) still hits the
+        'not an evaluation run' 400."""
+        owner = await _make_owner(async_test_db)
+        org = await _make_org(async_test_db)
+        p, _ = await _setup_project_async(async_test_db, owner, org)
+        er = await _make_eval_run_async(
+            async_test_db, p, owner.id,
+            eval_metadata={"evaluation_type": "generation"},
         )
         await async_test_db.commit()
 
