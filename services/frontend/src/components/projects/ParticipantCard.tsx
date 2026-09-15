@@ -1,7 +1,7 @@
 'use client'
 
 import { UserGroupIcon } from '@heroicons/react/24/outline'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/shared/Button'
 import { useToast } from '@/components/shared/Toast'
@@ -18,10 +18,36 @@ interface Props {
 }
 
 /**
+ * Props the `ProjectCohortLeaderboard` slot component receives.
+ *
+ * The slot reports whether it has anything to show through `onEmpty`: call
+ * it with `true` once the cohort turned out to have no rows, with `false`
+ * once rows are there. The callback identity is stable, so it is safe in an
+ * effect dependency list. Until the slot reports, the card treats the
+ * cohort as possibly non-empty and keeps the box mounted so the slot can
+ * fetch. A slot that never calls `onEmpty` keeps the pre-contract behaviour
+ * (always shown).
+ */
+export interface ProjectCohortLeaderboardSlotProps {
+  projectId: string
+  onEmpty?: (empty: boolean) => void
+}
+
+/**
  * Sidebar card for projects reached through the participant tier (share
  * link, discovery enrollment, org exam): says how the user got in, lets them
  * leave (GDPR Art. 7(3) — withdrawal as easy as consent) and hosts the
  * extended cohort leaderboard slot.
+ *
+ * The card renders nothing when it has nothing actionable: the participation
+ * is known and cannot be left (org exam, purchase) AND the cohort is empty,
+ * i.e. no slot is registered (community edition) or the slot reported
+ * `onEmpty(true)`. A leavable participation always shows the card (the leave
+ * button is the GDPR withdrawal); its cohort box collapses while the slot
+ * reports empty instead of framing an empty table. While the participation
+ * is loading, or when that fetch fails, the card shows the `via` text as
+ * before, so a page whose participation endpoint is unavailable still says
+ * how the user got in.
  */
 export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const { t } = useI18n()
@@ -30,6 +56,11 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const CohortLeaderboard = useSlot('ProjectCohortLeaderboard')
   const [participation, setParticipation] = useState<Participation | null>(null)
   const [leaving, setLeaving] = useState(false)
+  // null until the slot reports; see ProjectCohortLeaderboardSlotProps.
+  const [cohortEmpty, setCohortEmpty] = useState<boolean | null>(null)
+  const onCohortEmpty = useCallback((empty: boolean) => {
+    setCohortEmpty(empty)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -49,6 +80,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
   const effectiveVia = participation?.via ?? via ?? 'share'
   const canLeave = participation?.can_leave ?? false
   const blockedReason = participation?.cannot_leave_reason ?? null
+  const cohortIsEmpty = !CohortLeaderboard || cohortEmpty === true
 
   const handleLeave = async () => {
     const ok = await confirm({
@@ -75,6 +107,9 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
       setLeaving(false)
     }
   }
+
+  // Nothing actionable: the user cannot leave and there is no cohort to show.
+  if (participation && !canLeave && cohortIsEmpty) return null
 
   return (
     <div
@@ -118,8 +153,14 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
         </p>
       ) : null}
       {CohortLeaderboard && (
-        <div className="mt-6" data-testid="participant-cohort">
-          <CohortLeaderboard projectId={projectId} />
+        // Stays mounted while empty (hidden, not unmounted) so the slot can
+        // report rows that arrive later.
+        <div
+          className={cohortEmpty ? 'hidden' : 'mt-6'}
+          data-testid="participant-cohort"
+          data-empty={cohortEmpty === null ? undefined : String(cohortEmpty)}
+        >
+          <CohortLeaderboard projectId={projectId} onEmpty={onCohortEmpty} />
         </div>
       )}
     </div>

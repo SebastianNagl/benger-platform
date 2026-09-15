@@ -2953,14 +2953,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {isParticipant && (
-            <ParticipantCard
-              projectId={projectId}
-              via={currentProject.participant_via ?? null}
-              onLeft={() => router.push('/projects')}
-            />
-          )}
-
           {/* Quick Actions */}
           <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
             <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
@@ -3088,6 +3080,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               )}
             </div>
           </div>
+
+          {/* Participation: how the user got in, leaving, the cohort. Below
+              the actions so the primary action stays first; the card hides
+              itself when it has nothing actionable. */}
+          {isParticipant && (
+            <ParticipantCard
+              projectId={projectId}
+              via={currentProject.participant_via ?? null}
+              onLeft={() => router.push('/projects')}
+            />
+          )}
 
           {/* Billing — whose API key pays for AI evaluations */}
           <ProjectBillingCard project={currentProject} />
