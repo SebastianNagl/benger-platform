@@ -10,6 +10,30 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-15',
     audience: 'benger',
     text: {
+      de: 'Die Seite eines Evaluierungslaufs öffnet jetzt auch Sofort-Bewertungen nach einer Abgabe, und der Reiter Judges zeigt jeden Judge-Lauf mit dem Mittelwert seiner eigenen Metrik.',
+      en: 'The evaluation run page now opens immediate gradings after a submission, and the Judges tab shows each judge run with the mean of its own metric.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Auf der Projektseite steht die Karte Teilnahme jetzt unter den Schnellaktionen und bleibt verborgen, wenn es nichts zu verlassen und keine Kohorte anzuzeigen gibt.',
+      en: 'On the project page the Participation card now sits below the quick actions and stays hidden when there is nothing to leave and no cohort to show.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
+      de: 'Lokale Entwürfe sind jetzt an das angemeldete Konto gebunden: Ein zweites Konto im selben Browser sieht sie nicht mehr, und beim Abmelden werden sie entfernt.',
+      en: 'Local drafts are now bound to the signed-in account: a second account in the same browser no longer sees them, and they are removed on sign-out.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
       de: 'Die Seite eines Evaluierungslaufs sieht jetzt aus wie der Rest der App: Projekttitel statt ID, übersetzter Status, verständliche Metriknamen, lesbare Musterlösung und Antwort sowie erklärte Gründe, wenn ein Lauf nichts bewerten konnte.',
       en: 'The evaluation run page now matches the rest of the app: project title instead of its id, translated status, readable metric names, readable reference and answer text, and explained reasons when a run found nothing to grade.',
     },
