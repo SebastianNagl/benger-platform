@@ -56,9 +56,17 @@ jest.mock('../DynamicAnnotationInterface', () => ({
     onSubmit,
     onSkip,
     onChange,
+    readOnly,
+    showSubmitButton,
+    enableAutoSave,
   }: any) {
     return (
-      <div data-testid="dynamic-annotation-interface">
+      <div
+        data-testid="dynamic-annotation-interface"
+        data-read-only={String(!!readOnly)}
+        data-show-submit={String(!!showSubmitButton)}
+        data-auto-save={String(enableAutoSave !== false)}
+      >
         <button
           data-testid="mock-change"
           onClick={() =>
@@ -924,5 +932,111 @@ describe('LabelingInterface - non-strict overtime (no auto-submit at 0)', () => 
       expect(screen.getAllByTestId('timer-overtime-hint')).toHaveLength(1)
     })
     expect(projectsAPI.createAnnotation).not.toHaveBeenCalled()
+  })
+})
+
+describe('LabelingInterface - read-only views', () => {
+  const readOnlyProject = {
+    id: 'proj-1',
+    title: 'Closed Exam',
+    label_config: '<View/>',
+    show_submit_button: true,
+    show_skip_button: true,
+    annotation_time_limit_enabled: true,
+    strict_timer_enabled: true,
+  }
+
+  it('attempted tier: opens the own annotated task list, view-only, no timer/drafts/skip', async () => {
+    // Saved task id (account-bound key) is restored from the scoped list.
+    Storage.prototype.getItem = jest.fn((key: string) =>
+      key === 'benger_task_id_proj-1_user-1' ? 'task-2' : null,
+    )
+    function TimerSlotStub() {
+      return <div data-testid="timer-slot" />
+    }
+    mockSlots.TimerIntegration = TimerSlotStub
+    const store = setupMocks({
+      currentProject: { ...readOnlyProject, access_tier: 'attempted' },
+      currentTask: { id: 'task-2', data: {} },
+      currentTaskPosition: 2,
+      currentTaskTotal: 2,
+      fetchProjectTasks: jest
+        .fn()
+        .mockResolvedValue([{ id: 'task-1' }, { id: 'task-2' }]),
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    const notice = await screen.findByTestId('labeling-read-only-notice')
+    expect(notice).toHaveTextContent(
+      'Past submission. View only, no further changes.',
+    )
+    const iface = screen.getByTestId('dynamic-annotation-interface')
+    expect(iface).toHaveAttribute('data-read-only', 'true')
+    expect(iface).toHaveAttribute('data-show-submit', 'false')
+    expect(iface).toHaveAttribute('data-auto-save', 'false')
+    expect(screen.queryByTestId('mock-skip')).not.toBeInTheDocument()
+    // No strict-timer gate and no timer slot for a past submission.
+    expect(screen.queryByTestId('klausur-pre-start')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('timer-slot')).not.toBeInTheDocument()
+    expect(mockApiGet).not.toHaveBeenCalled()
+    // Own annotated tasks are loaded without the exclude-completed filter,
+    // the saved task is selected, and /next is never asked for work.
+    await waitFor(() =>
+      expect(store.fetchProjectTasks).toHaveBeenCalledWith('proj-1', false),
+    )
+    expect(store.setTaskByIndex).toHaveBeenCalledWith(1)
+    expect(store.getNextTask).not.toHaveBeenCalled()
+    // Editing is a no-op and never reaches the server draft.
+    fireEvent.click(screen.getByTestId('mock-change'))
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    })
+    await act(async () => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(projectsAPI.saveDraft).not.toHaveBeenCalled()
+  })
+
+  it('attempted tier without any annotated task shows the no-tasks error', async () => {
+    const store = setupMocks({
+      currentProject: { ...readOnlyProject, access_tier: 'attempted' },
+      currentTask: null,
+      fetchProjectTasks: jest.fn().mockResolvedValue([]),
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    expect(
+      await screen.findByText(
+        'No tasks are available for annotation in this project.',
+      ),
+    ).toBeInTheDocument()
+    expect(store.getNextTask).not.toHaveBeenCalled()
+  })
+
+  it('closed window: view-only banner, no submit, drafts off (non-editor)', async () => {
+    setupMocks({
+      currentProject: {
+        ...readOnlyProject,
+        annotation_time_limit_enabled: false,
+        strict_timer_enabled: false,
+        window_end_at: '2000-01-01T00:00:00Z',
+      },
+      currentTask: { id: 'task-1', data: {} },
+      currentTaskPosition: 1,
+      currentTaskTotal: 1,
+    })
+
+    render(<LabelingInterface projectId="proj-1" />)
+
+    const notice = await screen.findByTestId('labeling-read-only-notice')
+    expect(notice).toHaveTextContent('This project has closed')
+    const iface = screen.getByTestId('dynamic-annotation-interface')
+    expect(iface).toHaveAttribute('data-read-only', 'true')
+    expect(iface).toHaveAttribute('data-show-submit', 'false')
+    expect(iface).toHaveAttribute('data-auto-save', 'false')
+    expect(screen.queryByTestId('mock-skip')).not.toBeInTheDocument()
   })
 })

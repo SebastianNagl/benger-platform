@@ -15,6 +15,7 @@ from routers.projects.helpers import (
     check_task_assigned_to_user,
     get_project_access_tier,
     get_org_context_from_request,
+    require_write_tier,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,8 +38,8 @@ async def save_draft(
     Upserts into task_drafts table for crash recovery.
     """
     org_context = get_org_context_from_request(request)
-    if get_project_access_tier(db, current_user, project_id, org_context) is None:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # A draft is a write: the attempted (read-only) tier gets the coded 403.
+    require_write_tier(get_project_access_tier(db, current_user, project_id, org_context))
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
@@ -108,10 +109,17 @@ def _draft_has_content(draft_result: Any) -> bool:
     return False
 
 
-def _require_task_access(db, request, current_user, project_id, task_id):
-    """Shared access guard (mirrors save_draft); returns the Project or raises."""
+def _require_task_access(db, request, current_user, project_id, task_id, *, write=False):
+    """Shared access guard (mirrors save_draft); returns the Project or raises.
+
+    ``write=True`` (checkpoint append) additionally refuses the read-only
+    attempted tier; the checkpoint reads stay open to it (own rows only).
+    """
     org_context = get_org_context_from_request(request)
-    if get_project_access_tier(db, current_user, project_id, org_context) is None:
+    tier = get_project_access_tier(db, current_user, project_id, org_context)
+    if write:
+        require_write_tier(tier)
+    elif tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
@@ -135,7 +143,9 @@ async def save_checkpoint(
     project has ``restorable_checkpoints_enabled``; empty payloads are skipped;
     history is capped at ``CHECKPOINT_RETENTION`` per (task, user).
     """
-    project = _require_task_access(db, request, current_user, project_id, task_id)
+    project = _require_task_access(
+        db, request, current_user, project_id, task_id, write=True
+    )
 
     if not (project and project.restorable_checkpoints_enabled):
         # Feature off for this project — accept the call as a harmless no-op.

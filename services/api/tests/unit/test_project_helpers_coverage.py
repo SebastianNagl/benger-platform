@@ -750,8 +750,37 @@ class TestCheckTaskAssignedToUser:
         assign_q.first.return_value = None
 
         db.query.side_effect = [user_q, org_q, assign_q]
+        # No own annotation either (the attempted-tier fallback).
+        db.execute.return_value.first.return_value = None
 
         assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
+
+    def test_annotator_without_assignment_but_own_annotation(self):
+        """An own non-cancelled annotation counts as assigned (attempted tier)."""
+        db = Mock()
+        user = Mock(is_superadmin=False, id="user-1")
+        project = Mock(assignment_mode="manual", id="proj-1")
+
+        membership = Mock(organization_id="org-1", is_active=True, role="ANNOTATOR")
+        user_with_mem = Mock(organization_memberships=[membership])
+
+        user_q = MagicMock()
+        user_q.options.return_value = user_q
+        user_q.filter.return_value = user_q
+        user_q.first.return_value = user_with_mem
+
+        org_q = MagicMock()
+        org_q.filter.return_value = org_q
+        org_q.all.return_value = [Mock(organization_id="org-1")]
+
+        assign_q = MagicMock()
+        assign_q.filter.return_value = assign_q
+        assign_q.first.return_value = None
+
+        db.query.side_effect = [user_q, org_q, assign_q]
+        db.execute.return_value.first.return_value = ("ann-1",)
+
+        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
     def test_no_memberships(self):
         db = Mock()
@@ -769,6 +798,7 @@ class TestCheckTaskAssignedToUser:
         assign_q.first.return_value = None
 
         db.query.side_effect = [user_q, assign_q]
+        db.execute.return_value.first.return_value = None
 
         assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
 

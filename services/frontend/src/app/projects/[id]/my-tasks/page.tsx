@@ -154,9 +154,13 @@ export default function MyTasksPage() {
       router.push(`/projects/${projectId}/my-korrektur/${task.id}`)
       return
     }
-    // Save task ID so the labeling interface loads this specific task
+    // Save task ID so the labeling interface loads this specific task. The
+    // key is account-bound, matching TASK_ID_KEY in LabelingInterface.
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`benger_task_id_${projectId}`, task.id)
+      localStorage.setItem(
+        `benger_task_id_${projectId}_${user?.id ?? 'anon'}`,
+        task.id,
+      )
     }
     router.push(`/projects/${projectId}/label`)
   }

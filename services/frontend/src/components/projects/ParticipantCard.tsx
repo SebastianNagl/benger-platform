@@ -12,7 +12,7 @@ import { useSlot } from '@/lib/extensions/slots'
 
 interface Props {
   projectId: string
-  via: 'share' | 'entitlement' | 'org_exam' | null
+  via: 'share' | 'entitlement' | 'org_exam' | 'attempted' | null
   /** Called after the user left the project (e.g. navigate to the list). */
   onLeft: () => void
 }
@@ -37,7 +37,10 @@ export interface ProjectCohortLeaderboardSlotProps {
  * Sidebar card for projects reached through the participant tier (share
  * link, discovery enrollment, org exam): says how the user got in, lets them
  * leave (GDPR Art. 7(3) — withdrawal as easy as consent) and hosts the
- * extended cohort leaderboard slot.
+ * extended cohort leaderboard slot. The attempted tier (read access kept
+ * through an own submission) shows the same card without a leave button:
+ * there is no membership to withdraw from, the submission itself is the
+ * access.
  *
  * The card renders nothing when it has nothing actionable: the participation
  * is known and cannot be left (org exam, purchase) AND the cohort is empty,
@@ -146,10 +149,15 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
                 'project.participant.cannotLeavePurchase',
                 'Gekaufter Zugang kann nicht verlassen werden.',
               )
-            : t(
-                'project.participant.cannotLeaveOrg',
-                'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.',
-              )}
+            : blockedReason === 'attempted'
+              ? t(
+                  'project.participant.cannotLeaveAttempted',
+                  'Ihre Abgabe bleibt für Sie einsehbar. Diesen Zugang können Sie nicht verlassen.',
+                )
+              : t(
+                  'project.participant.cannotLeaveOrg',
+                  'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.',
+                )}
         </p>
       ) : null}
       {CohortLeaderboard && (

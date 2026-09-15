@@ -27,6 +27,9 @@ from routers.projects.helpers import (
     get_org_context_from_request,
     get_project_access_tier,
     get_project_access_tier_async,
+    require_write_tier,
+    TIER_ATTEMPTED,
+    user_attempted_task_async,
 )
 
 router = APIRouter()
@@ -51,8 +54,9 @@ async def create_annotation(
     # university-org member on an org-shared exam) hold the narrow tier and
     # may ATTEMPT the task even when check_project_accessible refuses. Keeps
     # the submit gate consistent with the read gates (task listing / next).
-    if get_project_access_tier(db, current_user, task.project_id, org_context) is None:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # The attempted tier (read access through an own submission) never
+    # submits again — coded 403.
+    require_write_tier(get_project_access_tier(db, current_user, task.project_id, org_context))
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     project = db.query(Project).filter(Project.id == task.project_id).first()
@@ -325,10 +329,8 @@ async def list_task_annotations(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     org_context = get_org_context_from_request(request)
-    if (
-        await get_project_access_tier_async(db, current_user, task.project_id, org_context)
-        is None
-    ):
+    tier = await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
@@ -337,6 +339,13 @@ async def list_task_annotations(
     ).scalar_one_or_none()
     if project and not await check_task_assigned_to_user_async(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    # Attempted tier: only the tasks the caller submitted exist for them, and
+    # they only ever see their own rows.
+    if tier == TIER_ATTEMPTED:
+        if not await user_attempted_task_async(db, current_user.id, task_id):
+            raise HTTPException(status_code=404, detail="Task not found")
+        all_users = False
+        completed_by_username = None
 
     # Other users' annotations are editor material: annotators and
     # participants always get their own rows only, whatever the query says.
@@ -347,9 +356,9 @@ async def list_task_annotations(
             completed_by_username = None
 
     # Timed access window: hide data from the access group before the window
-    # opens (editors exempt). No-op when the project has no window.
+    # opens (editors exempt, attempted exempt). No-op without a window.
     if project is not None:
-        await enforce_project_read_window_async(db, current_user, project)
+        await enforce_project_read_window_async(db, current_user, project, tier=tier)
 
     stmt = (
         select(Annotation)
@@ -425,13 +434,12 @@ async def update_annotation(
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     org_context = get_org_context_from_request(request)
-    if (
+    # None -> "Access denied"; attempted -> coded read-only 403 (an edit is a write).
+    require_write_tier(
         await get_project_access_tier_async(
             db, current_user, db_annotation.project_id, org_context
         )
-        is None
-    ):
-        raise HTTPException(status_code=403, detail="Access denied")
+    )
 
     # Enforce task assignment in manual/auto mode
     project = (

@@ -8,6 +8,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-09-15',
+    audience: 'both',
+    text: {
+      de: 'Bearbeitete Klausuren bleiben mit Abgabe, Korrektur und freigegebener Musterlösung einsehbar, auch nach Ablauf des Zeitfensters, Archivierung oder Änderungen an der Organisation.',
+      en: 'Exams you have worked on stay viewable with your submission, grading and any released model solution, even after the time window closed, the project was archived or your organization changed.',
+    },
+  },
+  {
+    date: '2026-09-15',
     audience: 'benger',
     text: {
       de: 'Die Benachrichtigungseinstellungen haben neue Einträge für Bewertungen der eigenen Bearbeitungen, etwa durch KI-Korrekturen und Evaluierungsläufe. E-Mail-Benachrichtigungen kommen jetzt auch an, wenn In-App ausgeschaltet ist.',

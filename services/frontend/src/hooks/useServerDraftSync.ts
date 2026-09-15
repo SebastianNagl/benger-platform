@@ -28,7 +28,11 @@ export function useServerDraftSync(
   projectId: string | undefined | null,
   taskId: string | undefined | null,
   annotations: any[],
+  // `enabled: false` (read-only views: closed window, attempted tier) never
+  // writes a draft: the server would 403 and there is nothing to recover.
+  options: { enabled?: boolean } = {},
 ) {
+  const enabled = options.enabled ?? true
   // Keep the latest annotations in a ref so the periodic timer below does NOT
   // list `annotations` in its effect deps: the parent's array reference can
   // churn many times per second, which would tear down and recreate the 30s
@@ -56,7 +60,7 @@ export function useServerDraftSync(
 
   // ── 30s live draft (task_drafts), + flush on tab-hide ──────────────────────
   useEffect(() => {
-    if (!projectId || !taskId) return
+    if (!enabled || !projectId || !taskId) return
 
     // Reset the de-dup baseline whenever the task changes.
     lastSyncedRef.current = '[]'
@@ -85,7 +89,7 @@ export function useServerDraftSync(
       clearInterval(interval)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [projectId, taskId])
+  }, [enabled, projectId, taskId])
 }
 
 export default useServerDraftSync

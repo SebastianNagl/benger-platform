@@ -286,6 +286,39 @@ async def test_participant_tier_grouped_exam(async_test_db):
     tagged_b = await get_participant_project_ids_async(db, w["annot_b"].id)
     assert w["exam_a"].id not in tagged_b
 
+    # Attempted tier: a submission by group B's annotator (e.g. before the
+    # exam was re-grouped) keeps the read-only tier, and the batch twins
+    # (sync + async) agree with the resolver — lockstep with the participant
+    # batch, which stays untouched by submissions.
+    from sqlalchemy import select
+
+    from project_models import Annotation
+    from routers.projects.helpers import (
+        get_attempted_project_ids,
+        get_attempted_project_ids_async,
+        get_project_access_tier,
+    )
+
+    task_id = (
+        await db.execute(select(Task.id).where(Task.project_id == w["exam_a"].id))
+    ).scalars().first()
+    db.add(Annotation(id=str(uuid.uuid4()), task_id=task_id, project_id=w["exam_a"].id,
+                      completed_by=w["annot_b"].id, result=[{"v": 1}]))
+    await db.commit()
+    assert await get_project_access_tier_async(db, w["annot_b"], w["exam_a"].id) == "attempted"
+    assert await db.run_sync(
+        lambda s: get_project_access_tier(s, w["annot_b"], w["exam_a"].id)
+    ) == "attempted"
+    # Group A's annotator keeps participant even with a submission (precedence).
+    db.add(Annotation(id=str(uuid.uuid4()), task_id=task_id, project_id=w["exam_a"].id,
+                      completed_by=w["annot_a"].id, result=[{"v": 1}]))
+    await db.commit()
+    assert await get_project_access_tier_async(db, w["annot_a"], w["exam_a"].id) == "participant"
+    attempted_b_async = await get_attempted_project_ids_async(db, w["annot_b"].id)
+    attempted_b_sync = await db.run_sync(lambda s: get_attempted_project_ids(s, w["annot_b"].id))
+    assert attempted_b_async == attempted_b_sync == {w["exam_a"].id}
+    assert w["exam_a"].id not in await get_participant_project_ids_async(db, w["annot_b"].id)
+
 
 async def test_admin_gates_group_admin_scope(async_test_db):
     from routers.projects.helpers import (

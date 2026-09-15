@@ -145,6 +145,22 @@ describe('ProjectListTable — discover + participant', () => {
     expect(push).toHaveBeenCalledWith('/projects/d1')
   })
 
+  it('renders the past-submission badge for the attempted tier', () => {
+    ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
+      store([
+        project({ id: 'a1', access_tier: 'attempted', participant_via: null }),
+      ]),
+    )
+    render(<ProjectListTable />)
+    const badge = screen.getByTestId('project-participant-badge-a1')
+    expect(badge).toHaveTextContent('Frühere Abgabe')
+    expect(badge).not.toHaveTextContent('Teilnehmer')
+    expect(badge).toHaveAttribute('title', 'Beigetreten')
+    expect(
+      screen.queryByTestId('projects-table-checkbox-a1'),
+    ).not.toBeInTheDocument()
+  })
+
   it('renders a matching kind badge for exams; generic projects get none', () => {
     ;(useProjectStore as unknown as jest.Mock).mockReturnValue(
       store([
