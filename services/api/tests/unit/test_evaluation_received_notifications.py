@@ -1,9 +1,10 @@
 """Grading notifications to the annotator (the evaluation_received_* types).
 
 Covers the per-type channel defaults, email-only dispatch in
-``create_notification``, the ``notify_evaluation_received`` and
-``annotator_ids_for_annotations`` helpers, the template mapping, the link
-helper and the brand-aware rendering of the notification email.
+``create_notification``, the input handling of ``notify_evaluation_received``,
+the template mapping, the link helper and the rendering of the grading email.
+The preference rows, the recipient query and the unread dedupe run against the
+real DB in tests/integration/test_evaluation_received_notifications.py.
 """
 
 import asyncio
@@ -56,42 +57,6 @@ class TestDefaultChannels:
         channels = ns_module.default_channels("evaluation_received_human")
         channels["email"] = False
         assert ns_module.default_channels("evaluation_received_human")["email"] is True
-
-    def test_user_wants_channel_falls_back_to_type_default(self):
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        wants = ns_module.NotificationService._user_wants_channel
-        assert wants(db, "u1", "evaluation_received_human", "email") is True
-        assert wants(db, "u1", "evaluation_received_human", "in_app") is True
-        assert wants(db, "u1", "evaluation_received_immediate", "in_app") is False
-        assert wants(db, "u1", "evaluation_received_batch", "email") is False
-        assert wants(db, "u1", "project_created", "in_app") is True
-        assert wants(db, "u1", "project_created", "email") is False
-        assert wants(db, "u1", "project_created", "sms") is False
-
-    def test_stored_row_wins_over_type_default(self):
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(
-            in_app_enabled=True, email_enabled=False
-        )
-        wants = ns_module.NotificationService._user_wants_channel
-        assert wants(db, "u1", "evaluation_received_human", "email") is False
-
-    def test_preferences_report_type_defaults(self):
-        db = MagicMock()
-        db.query.return_value.filter.return_value.all.return_value = []
-        prefs = ns_module.NotificationService.get_user_preferences(db, "u1")
-        assert prefs["evaluation_received_human"] == {
-            "enabled": True,
-            "in_app": True,
-            "email": True,
-        }
-        assert prefs["evaluation_received_immediate"] == {
-            "enabled": False,
-            "in_app": False,
-            "email": False,
-        }
-        assert prefs["project_created"] == {"enabled": True, "in_app": True, "email": False}
 
 
 # ---------------------------------------------------------------------------
@@ -200,7 +165,6 @@ class TestNotifyEvaluationReceived:
             "task_id": "t1",
             "evaluation_id": "e1",
             "source": "human",
-            "count": None,
         }
 
     @pytest.mark.parametrize(
@@ -216,10 +180,9 @@ class TestNotifyEvaluationReceived:
             ns_module.NotificationService, "create_notification", return_value=[]
         ) as create:
             ns_module.notify_evaluation_received(
-                db, source=source, project_id="p1", recipient_ids=["u1"], count=3
+                db, source=source, project_id="p1", recipient_ids=["u1"]
             )
         assert create.call_args.kwargs["notification_type"] == expected
-        assert create.call_args.kwargs["data"]["count"] == 3
         assert create.call_args.kwargs["data"]["project_kind"] is None
 
     def test_unknown_source_notifies_nobody(self):
@@ -277,14 +240,6 @@ class TestAnnotatorIdsForAnnotations:
         assert ns_module.annotator_ids_for_annotations(db, [None, ""]) == []
         assert ns_module.annotator_ids_for_annotations(db, None) == []
         db.query.assert_not_called()
-
-    def test_returns_sorted_distinct_ids(self):
-        db = MagicMock()
-        db.query.return_value.filter.return_value.distinct.return_value.all.return_value = [
-            ("u2",),
-            ("u1",),
-        ]
-        assert ns_module.annotator_ids_for_annotations(db, ["a1", "a2"]) == ["u1", "u2"]
 
 
 # ---------------------------------------------------------------------------
@@ -355,57 +310,78 @@ def _grading_notification(source="human", project_title="Klausur 1"):
     )
 
 
-class TestBrandedNotificationEmail:
-    def test_vertretbar_brand_sets_sender_and_renders_german_link(self, email_svc):
-        brand = resolve_email_brand("vertretbar.net")
-        action_url = f"{brand.frontend_url}/student/exams/p1"
-        ok = asyncio.run(
-            email_svc.send_notification_email(
-                "student@example.com",
-                _grading_notification(),
-                context={"action_url": action_url},
-                brand=brand,
-            )
+def _send(email_svc, notification, brand=None, action_url=None):
+    context = {"action_url": action_url} if action_url else None
+    ok = asyncio.run(
+        email_svc.send_notification_email(
+            "user@example.com", notification, context=context, brand=brand
         )
-        assert ok is True
-        kwargs = email_svc.mail_client.send_message.call_args.kwargs
+    )
+    assert ok is True
+    return email_svc.mail_client.send_message.call_args.kwargs
+
+
+# (subject title, source label, button) per source; German for both brands.
+WORDING = {
+    "human": ("Neue Korrektur", "Menschliche Korrektur", "Korrektur ansehen"),
+    "immediate": ("KI-Korrektur fertig", "KI-Korrektur", "Korrektur ansehen"),
+    "batch": ("Neue Evaluierung", "Evaluierungslauf", "Ergebnisse ansehen"),
+}
+# Vertretbar says "du", BenGER "Sie": (expected footer, the other brand's footer).
+VOICE = {
+    "vertretbar.net": ("Du kannst E-Mails", "Sie können E-Mails"),
+    None: ("Sie können E-Mails", "Du kannst E-Mails"),
+}
+
+
+class TestGradingEmail:
+    @pytest.mark.parametrize("host", ["vertretbar.net", None])
+    @pytest.mark.parametrize("source", ["human", "immediate", "batch"])
+    def test_renders_german_wording_voice_and_link(self, email_svc, host, source):
+        brand = resolve_email_brand(host)
+        action_url = f"{brand.frontend_url}/student/exams/p1"
+        kwargs = _send(email_svc, _grading_notification(source), brand, action_url)
+
+        title, label, button = WORDING[source]
+        assert kwargs["subject"] == f"{title}: Klausur 1"
+        html = kwargs["html_body"]
+        assert f"Quelle: {label}" in html
+        assert f'href="{action_url}"' in html
+        assert button in html
+        own_voice, other_voice = VOICE[host]
+        assert own_voice in html
+        assert other_voice not in html
+        assert f"{brand.frontend_url}/settings/notifications" in html
+        assert 'lang="de"' in html
+
+    def test_vertretbar_brand_overrides_the_sender(self, email_svc):
+        brand = resolve_email_brand("vertretbar.net")
+        kwargs = _send(email_svc, _grading_notification(), brand)
         assert kwargs["from_address"] == brand.from_address
         assert kwargs["from_name"] == brand.from_name
-        assert kwargs["subject"] == "Neue Bewertung für deine Bearbeitung: Klausur 1"
-        html = kwargs["html_body"]
-        assert f'href="{action_url}"' in html
-        assert "Bewertung ansehen" in html
-        assert "Korrektur" in html
-        assert f"{brand.frontend_url}/settings/notifications" in html
-        assert "Vertretbar" in html
 
     def test_default_brand_keeps_the_mailer_sender(self, email_svc):
-        ok = asyncio.run(
-            email_svc.send_notification_email(
-                "annotator@example.com", _grading_notification(source="batch")
-            )
-        )
-        assert ok is True
-        kwargs = email_svc.mail_client.send_message.call_args.kwargs
+        kwargs = _send(email_svc, _grading_notification())
         assert "from_address" not in kwargs
         assert "from_name" not in kwargs
-        assert kwargs["subject"] == "New grading for your submission: Klausur 1"
-        html = kwargs["html_body"]
-        assert "AI evaluation run" in html
-        # No action_url in the context: no button.
-        assert "View grading" not in html
+        assert "Sie können E-Mails" in kwargs["html_body"]
 
-    @pytest.mark.parametrize(
-        "source,label",
-        [("immediate", "immediate AI grading"), ("human", "human grader")],
-    )
-    def test_source_label_in_english(self, email_svc, source, label):
-        asyncio.run(
-            email_svc.send_notification_email(
-                "annotator@example.com", _grading_notification(source=source)
-            )
-        )
-        assert label in email_svc.mail_client.send_message.call_args.kwargs["html_body"]
+    def test_without_a_link_there_is_no_button(self, email_svc):
+        html = _send(email_svc, _grading_notification("batch"))["html_body"]
+        assert "Ergebnisse ansehen" not in html
+        assert "<a href=\"None\"" not in html
+
+    def test_without_a_project_title_the_subject_has_no_colon(self, email_svc):
+        kwargs = _send(email_svc, _grading_notification("immediate", project_title=""))
+        assert kwargs["subject"] == "KI-Korrektur fertig"
+        assert "Projekt:" not in kwargs["html_body"]
+
+    def test_unknown_source_reads_as_a_human_grading(self, email_svc):
+        notification = _grading_notification()
+        notification.data["source"] = "oracle"
+        kwargs = _send(email_svc, notification)
+        assert kwargs["subject"] == "Neue Korrektur: Klausur 1"
+        assert "Quelle: Menschliche Korrektur" in kwargs["html_body"]
 
     def test_existing_types_send_exactly_as_before(self, email_svc):
         notification = SimpleNamespace(
