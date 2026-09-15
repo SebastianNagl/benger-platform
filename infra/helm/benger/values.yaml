@@ -318,6 +318,9 @@ workers:
       value: "stripe"
     - name: VERTRETBAR_ORG_ID
       value: "06620390-5817-4bc8-b94f-efa0798d5026"  # prod Vertretbar org
+    # Link host of Vertretbar-branded notification emails (the worker has no request host).
+    - name: VERTRETBAR_FRONTEND_URL
+      value: "https://vertretbar.net"
     - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
       value: "1"
     - name: VERTRETBAR_PER_GRADING_PRICE_CENTS

@@ -1490,6 +1490,35 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
     return {"sent": sent, "failed": failed, "total": len(invitations_data), "results": results}
 
 
+def _resolve_notification_brand_host(db, user, notification_type, data) -> Optional[str]:
+    """Extension hook: the host whose brand a notification email carries.
+
+    The extended edition knows which recipients use the student product and
+    returns its host for them, so the email comes from that brand and links
+    there. Community edition, or no opinion: None, which resolves to the
+    BenGER brand. Never raises: a failing hook must not drop the email.
+    """
+    try:
+        from benger_extended.workers import get_notification_brand_host_fn
+
+        brand_host_fn = get_notification_brand_host_fn()
+    except (ImportError, AttributeError):
+        return None
+    if brand_host_fn is None:
+        return None
+    try:
+        return brand_host_fn(db, user, notification_type, data)
+    except Exception as hook_err:  # defensive: branding must not drop the email
+        logger.error(
+            f"notification brand hook failed for user {getattr(user, 'id', None)}: {hook_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return None
+
+
 @app.task(
     name="emails.send_notification_batch",
     autoretry_for=(OperationalError, DBAPIError),
@@ -1520,6 +1549,11 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
     db = SessionLocal()
     try:
         from email_service import email_service
+        from mailer.branding import is_student_locked_host, resolve_email_brand
+        from mailer.notification_links import (
+            evaluation_received_path,
+            is_evaluation_received_type,
+        )
         from models import Notification, User
         try:
             from email_validation import is_valid_email
@@ -1559,6 +1593,24 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     data=notif_dict.get("data") or {},
                 )
 
+                # Brand (From identity, link host) per recipient. Grading
+                # notifications also get a link to the page that shows the
+                # grading: the student exam page on the student surface,
+                # My Tasks otherwise.
+                notif_data = notif_dict.get("data") or {}
+                brand_host = _resolve_notification_brand_host(
+                    db, user, notif_dict["type"], notif_data
+                )
+                brand = resolve_email_brand(brand_host)
+                email_context = {"user_name": getattr(user, "name", None)}
+                if is_evaluation_received_type(notif_dict["type"]):
+                    student_surface = is_student_locked_host(brand_host) or (
+                        getattr(user, "preferred_ui_mode", None) == "student"
+                    )
+                    path = evaluation_received_path(notif_data, student_surface)
+                    if path:
+                        email_context["action_url"] = brand.frontend_url.rstrip("/") + path
+
                 # `send_notification_email` is `async` but the underlying
                 # SendGrid call is sync. Run via asyncio.run on the worker
                 # process — Celery doesn't have an event loop by default.
@@ -1567,7 +1619,8 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     email_service.send_notification_email(
                         user_email=user.email,
                         notification=notif,
-                        context={"user_name": getattr(user, "name", None)},
+                        context=email_context,
+                        brand=brand,
                     )
                 )
                 if ok:
@@ -2729,6 +2782,103 @@ def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
         )
 
 
+def _notify_immediate_grading_received(
+    db, evaluation_run_id: str, project_id: str, task_id: str, annotation_id: Optional[str]
+) -> None:
+    """Tell the annotator their immediate AI grading is ready (opt-in type).
+
+    Called only for a successful grading, and only when the run wrote at
+    least one TaskEvaluation row: a run that graded nothing has nothing to
+    show. Never raises.
+    """
+    if not annotation_id:
+        return
+    try:
+        from models import TaskEvaluation
+        from notification_service import (
+            annotator_ids_for_annotations,
+            notify_evaluation_received,
+        )
+
+        has_rows = (
+            db.query(TaskEvaluation.id)
+            .filter(TaskEvaluation.evaluation_id == evaluation_run_id)
+            .first()
+            is not None
+        )
+        if not has_rows:
+            return
+        notify_evaluation_received(
+            db,
+            source="immediate",
+            project_id=project_id,
+            recipient_ids=annotator_ids_for_annotations(db, [annotation_id]),
+            task_id=task_id,
+            evaluation_id=evaluation_run_id,
+        )
+    except Exception as notif_err:  # defensive: notifications must not kill evals
+        logger.error(
+            f"[SingleSampleEval] grading notification failed for "
+            f"{evaluation_run_id}: {notif_err}"
+        )
+
+
+def _notify_batch_grading_received(db, evaluation) -> None:
+    """Tell the annotators a completed batch run graded their annotations.
+
+    One notification per annotator per run (opt-in type). The user who
+    started the run already gets EVALUATION_COMPLETED and is left out. The
+    ``annotators_notified`` marker is committed before sending, so a
+    redelivered or re-finalized run cannot notify twice. Never raises.
+    """
+    try:
+        meta = evaluation.eval_metadata or {}
+        if meta.get("annotators_notified"):
+            return
+
+        from sqlalchemy import text as _text
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from notification_service import notify_evaluation_received
+
+        rows = db.execute(
+            _text(
+                """
+                SELECT DISTINCT a.completed_by
+                FROM task_evaluations te
+                JOIN annotations a ON a.id = te.annotation_id
+                WHERE te.evaluation_id = :eid AND a.completed_by IS NOT NULL
+                """
+            ),
+            {"eid": evaluation.id},
+        ).all()
+        recipients = sorted({str(row[0]) for row in rows})
+
+        evaluation.eval_metadata = {**meta, "annotators_notified": True}
+        flag_modified(evaluation, "eval_metadata")
+        db.commit()
+
+        if not recipients:
+            return
+        notify_evaluation_received(
+            db,
+            source="batch",
+            project_id=evaluation.project_id,
+            recipient_ids=recipients,
+            exclude_user_ids=[meta.get("triggered_by")],
+            evaluation_id=evaluation.id,
+        )
+    except Exception as notif_err:  # defensive: notifications must not fail the run
+        logger.error(
+            f"finalize_evaluation_run: annotator notification failed for "
+            f"{getattr(evaluation, 'id', None)}: {notif_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+
+
 @app.task(name="tasks.run_single_sample_evaluation", bind=True)
 def run_single_sample_evaluation(
     self,
@@ -3189,12 +3339,15 @@ def run_single_sample_evaluation(
 
             db.commit()
 
-        _run_grading_finalize_hook(
-            dispatch_eval_id,
-            not any(
-                isinstance(r, dict) and r.get("status") == "error" for r in results
-            ),
+        grading_succeeded = not any(
+            isinstance(r, dict) and r.get("status") == "error" for r in results
         )
+        _run_grading_finalize_hook(dispatch_eval_id, grading_succeeded)
+
+        if grading_succeeded:
+            _notify_immediate_grading_received(
+                db, dispatch_eval_id, project_id, task_id, annotation_id
+            )
 
         return {
             "status": "completed",
@@ -4313,6 +4466,9 @@ def finalize_evaluation_run(
                 )
         except Exception as notif_err:
             logger.error(f"Failed to create completion notification: {notif_err}")
+
+        if evaluation.status == "completed":
+            _notify_batch_grading_received(db, evaluation)
 
         logger.info(
             f"✅ finalize_evaluation_run: eval {evaluation_id} → {evaluation.status} "
