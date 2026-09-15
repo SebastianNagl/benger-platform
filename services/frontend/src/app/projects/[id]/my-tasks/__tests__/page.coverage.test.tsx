@@ -484,7 +484,10 @@ describe('MyTasksPage - branch coverage', () => {
       .closest('[class*="cursor-pointer"]')
     await user.click(card!)
 
-    expect(setItemSpy).toHaveBeenCalledWith('benger_task_id_proj-1', 'task-99')
+    expect(setItemSpy).toHaveBeenCalledWith(
+      'benger_task_id_proj-1_u1',
+      'task-99',
+    )
     expect(mockPush).toHaveBeenCalledWith('/projects/proj-1/label')
 
     setItemSpy.mockRestore()
