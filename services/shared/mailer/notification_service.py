@@ -53,6 +53,24 @@ from models import (
 
 logger = logging.getLogger(__name__)
 
+# Channel flags for a type the user never saved a preference for. Types not
+# listed here keep the general rule: in-app on, email opt-in. A new human
+# grading of your own submission is worth an email by default. The AI grading
+# sources fire on every submission or benchmark run, so both of their channels
+# are opt-in.
+_DEFAULT_CHANNELS: Dict[str, bool] = {"in_app": True, "email": False}
+_DEFAULT_CHANNELS_BY_TYPE: Dict[str, Dict[str, bool]] = {
+    NotificationType.EVALUATION_RECEIVED_HUMAN.value: {"in_app": True, "email": True},
+    NotificationType.EVALUATION_RECEIVED_IMMEDIATE.value: {"in_app": False, "email": False},
+    NotificationType.EVALUATION_RECEIVED_BATCH.value: {"in_app": False, "email": False},
+}
+
+
+def default_channels(notification_type: Union[NotificationType, str]) -> Dict[str, bool]:
+    """Channel flags that apply when the user has no stored preference row."""
+    type_value = getattr(notification_type, "value", notification_type)
+    return dict(_DEFAULT_CHANNELS_BY_TYPE.get(type_value, _DEFAULT_CHANNELS))
+
 
 def check_notification_type_enum_drift(db: Session) -> List[str]:
     """Compare the Python NotificationType enum against the Postgres
@@ -193,11 +211,27 @@ class NotificationService:
         logger.info(f"  🏢 Organization: {organization_id}")
 
         notifications = []
+        # Recipients who turned in-app off but email on. The settings page
+        # lets a user pick email alone, so they get the email without a row.
+        email_only_data: List[Dict] = []
 
         for user_id in user_ids:
             # In-app channel: only insert a notifications row when in_app is enabled.
             if not NotificationService._user_wants_channel(db, user_id, notification_type_str, "in_app"):
-                logger.info(f"  ⏭️ Skipping user {user_id} (in_app disabled)")
+                if NotificationService._user_wants_channel(db, user_id, notification_type_str, "email"):
+                    logger.info(f"  📧 Email only for user {user_id} (in_app disabled)")
+                    email_only_data.append(
+                        {
+                            "id": None,
+                            "user_id": user_id,
+                            "type": notification_type_str,
+                            "title": title,
+                            "message": message,
+                            "data": data or {},
+                        }
+                    )
+                else:
+                    logger.info(f"  ⏭️ Skipping user {user_id} (in_app disabled)")
                 continue
 
             logger.info(f"  ✅ Creating notification for user {user_id}")
@@ -235,7 +269,7 @@ class NotificationService:
                     "data": n.data,
                 }
                 for n in notifications
-            ]
+            ] + email_only_data
         except Exception as e:
             logger.error(f"Failed to create notifications: {e}")
             db.rollback()
@@ -462,9 +496,10 @@ class NotificationService:
         """Check whether a specific channel ('in_app' or 'email') is enabled
         for the given notification type.
 
-        Default when no preference row exists: in-app on, email off. Email
-        is opt-in — users explicitly turn it on per type via the settings
-        page. Existing rows still win regardless of channel.
+        Default when no preference row exists: ``default_channels`` (in-app
+        on, email off, unless the type overrides it). Email is otherwise
+        opt-in: users turn it on per type via the settings page. Existing rows
+        still win regardless of channel.
         """
         if isinstance(notification_type, NotificationType):
             type_value = notification_type.value
@@ -484,7 +519,7 @@ class NotificationService:
             .first()
         )
         if preference is None:
-            return channel == "in_app"
+            return bool(default_channels(type_value).get(channel, False))
         if channel == "in_app":
             return bool(preference.in_app_enabled)
         if channel == "email":
@@ -605,12 +640,16 @@ class NotificationService:
             .filter(UserNotificationPreference.user_id == user_id)
             .all()
         )
-        # Defaults: in-app on, email off. Email is opt-in per type;
-        # users turn it on explicitly from the settings page.
-        pref_map: Dict[str, Dict[str, bool]] = {
-            nt.value: {"enabled": True, "in_app": True, "email": False}
-            for nt in NotificationType
-        }
+        # Defaults: in-app on, email off, except where default_channels
+        # overrides a type. Users change them from the settings page.
+        pref_map: Dict[str, Dict[str, bool]] = {}
+        for nt in NotificationType:
+            channels = default_channels(nt.value)
+            pref_map[nt.value] = {
+                "enabled": channels["in_app"] or channels["email"],
+                "in_app": channels["in_app"],
+                "email": channels["email"],
+            }
         for pref in preferences:
             in_app = bool(pref.in_app_enabled)
             email = bool(pref.email_enabled)
@@ -1073,6 +1112,123 @@ def notify_evaluation_completed(
         data=data,
         organization_id=organization_id,
     )
+
+
+# ==============================================
+# Grading notifications (to the annotator)
+# ==============================================
+
+_EVALUATION_RECEIVED_TYPE_BY_SOURCE = {
+    "human": NotificationType.EVALUATION_RECEIVED_HUMAN,
+    "immediate": NotificationType.EVALUATION_RECEIVED_IMMEDIATE,
+    "batch": NotificationType.EVALUATION_RECEIVED_BATCH,
+}
+
+# Stored title and message. The frontend shows its own translation
+# (notifications.content.<type>) and falls back to these.
+_EVALUATION_RECEIVED_TEXT = {
+    "human": ("New grading", "A grader graded your submission in '{project_title}'."),
+    "immediate": (
+        "AI grading ready",
+        "The AI grading of your submission in '{project_title}' is ready.",
+    ),
+    "batch": (
+        "New AI evaluation",
+        "An AI evaluation run graded your submissions in '{project_title}'.",
+    ),
+}
+
+
+def annotator_ids_for_annotations(db: Session, annotation_ids) -> List[str]:
+    """Distinct users who submitted the given annotations, sorted."""
+    ids = [str(a) for a in (annotation_ids or []) if a]
+    if not ids:
+        return []
+
+    from project_models import Annotation
+
+    rows = (
+        db.query(Annotation.completed_by)
+        .filter(Annotation.id.in_(ids), Annotation.completed_by.isnot(None))
+        .distinct()
+        .all()
+    )
+    return sorted({str(row[0]) for row in rows})
+
+
+def notify_evaluation_received(
+    db: Session,
+    *,
+    source: str,
+    project_id: str,
+    recipient_ids,
+    exclude_user_ids=(),
+    task_id: Optional[str] = None,
+    evaluation_id: Optional[str] = None,
+    count: Optional[int] = None,
+) -> List[Notification]:
+    """Tell annotators that a new grading of their submission arrived.
+
+    ``source`` picks the notification type: ``human`` (a Korrektor saved a
+    grade), ``immediate`` (the AI grading after a submission finished) or
+    ``batch`` (an evaluation run graded their annotations). Each type is its
+    own row in the notification settings with its own defaults (see
+    ``default_channels``).
+
+    Recipients are deduplicated, and ``exclude_user_ids`` (the grader, the
+    user who started the run) are dropped. Never raises: a failed
+    notification must not fail the grading that triggered it.
+    """
+    try:
+        notification_type = _EVALUATION_RECEIVED_TYPE_BY_SOURCE.get(source)
+        if notification_type is None:
+            logger.error(f"notify_evaluation_received: unknown source {source!r}")
+            return []
+
+        excluded = {str(u) for u in (exclude_user_ids or ()) if u}
+        recipients: List[str] = []
+        for user_id in recipient_ids or ():
+            if not user_id:
+                continue
+            user_id = str(user_id)
+            if user_id in excluded or user_id in recipients:
+                continue
+            recipients.append(user_id)
+        if not recipients:
+            return []
+
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        project_title = getattr(project, "title", None) or ""
+        title, message = _EVALUATION_RECEIVED_TEXT[source]
+
+        return NotificationService.create_notification(
+            db=db,
+            user_ids=recipients,
+            notification_type=notification_type,
+            title=title,
+            message=message.format(project_title=project_title),
+            data={
+                "project_id": project_id,
+                "project_title": project_title,
+                "project_kind": getattr(project, "kind", None),
+                "task_id": task_id,
+                "evaluation_id": evaluation_id,
+                "source": source,
+                "count": count,
+            },
+        )
+    except Exception as e:
+        logger.error(
+            f"notify_evaluation_received failed ({source}, project {project_id}): {e}",
+            exc_info=True,
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return []
 
 
 def notify_data_upload_completed(

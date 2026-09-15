@@ -2146,6 +2146,12 @@ class NotificationType(str, Enum):
     EVALUATION_COMPLETED = "evaluation_completed"
     EVALUATION_FAILED = "evaluation_failed"
 
+    # A new grading arrived for an annotation the recipient submitted. One
+    # type per grading source, so each is its own row in the settings.
+    EVALUATION_RECEIVED_HUMAN = "evaluation_received_human"
+    EVALUATION_RECEIVED_IMMEDIATE = "evaluation_received_immediate"
+    EVALUATION_RECEIVED_BATCH = "evaluation_received_batch"
+
     # Organization notifications
     ORGANIZATION_INVITATION_SENT = "organization_invitation_sent"
     ORGANIZATION_INVITATION_ACCEPTED = "organization_invitation_accepted"
