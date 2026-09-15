@@ -70,11 +70,17 @@ whenever one is added, renamed or removed):
   and the worker floor respect), and creator access to an unattached
   (private) project under a foreign org context — the extended task-rubric
   reads route to the platform endpoints instead of re-implementing it.
+- 2.18: the ``evaluation_received_*`` notification types (migration 104) and
+  ``notification_service.notify_evaluation_received`` /
+  ``annotator_ids_for_annotations``, which the extended Korrektur grade
+  endpoints call when a new human grading lands. The workers also look for an
+  optional ``benger_extended.workers.get_notification_brand_host_fn`` to brand
+  notification emails.
 """
 
 import os
 
-CORE_API_VERSION = "2.17"
+CORE_API_VERSION = "2.18"
 
 
 def extended_required() -> bool:
