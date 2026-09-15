@@ -314,8 +314,8 @@ async def skip_task(
     tier = await get_project_access_tier_async(
         db, current_user, project_id, org_context, project=project
     )
-    if tier is None:
-        raise HTTPException(status_code=403, detail="Access denied")
+    # None -> "Access denied"; attempted -> coded read-only 403 (a skip is a write).
+    require_write_tier(tier)
     # In 'ignore_skipped' mode a single SkippedTask row hides the task from
     # EVERY user's queue — a hostile share-joinee could blank the whole
     # cohort. Participants may only skip where skipping is self-scoped.

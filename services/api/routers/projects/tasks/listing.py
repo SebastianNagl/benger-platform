@@ -71,8 +71,9 @@ async def list_project_tasks(
     project = access.project
 
     # Timed access window: hide the task list from the access group before the
-    # window opens (editors exempt). No-op when the project has no window.
-    await enforce_project_read_window_async(db, current_user, project)
+    # window opens (editors exempt, attempted tier exempt). No-op when the
+    # project has no window.
+    await enforce_project_read_window_async(db, current_user, project, tier=access.tier)
 
     # Check user's role and apply visibility rules
     user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
@@ -100,7 +101,11 @@ async def list_project_tasks(
     query = select(Task).where(Task.project_id == project_id)
 
     # Apply role-based filtering
-    if user_role in ["ANNOTATOR", "annotator"] and project.assignment_mode in [
+    if access.tier == TIER_ATTEMPTED:
+        # Attempted tier: only the caller's own submissions, whatever the
+        # assignment mode — there is no new work to hand out.
+        query = query.where(own_active_annotation_exists(current_user.id))
+    elif user_role in ["ANNOTATOR", "annotator"] and project.assignment_mode in [
         "manual",
         "auto",
     ]:
@@ -495,17 +500,18 @@ async def get_next_task(
         return {"detail": "Project not found", "task": None}
 
     org_context = get_org_context_from_request(request)
-    if (
-        await get_project_access_tier_async(
-            db, current_user, project_id, org_context, project=project
-        )
-        is None
-    ):
+    tier = await get_project_access_tier_async(
+        db, current_user, project_id, org_context, project=project
+    )
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
+    if tier == TIER_ATTEMPTED:
+        # Read-only submission: nothing new to hand out.
+        return {"detail": "No tasks available", "task": None}
 
     # Timed access window: no next task to hand out before the window opens
     # (editors exempt).
-    await enforce_project_read_window_async(db, current_user, project)
+    await enforce_project_read_window_async(db, current_user, project, tier=tier)
 
     # Find next task based on assignment mode
     if project.assignment_mode == "manual":
@@ -862,10 +868,8 @@ async def get_task(
         raise HTTPException(status_code=404, detail="Task not found")
 
     org_context = get_org_context_from_request(request)
-    if (
-        await get_project_access_tier_async(db, current_user, task.project_id, org_context)
-        is None
-    ):
+    tier = await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
@@ -876,11 +880,16 @@ async def get_task(
         db, current_user, task_id, project
     ):
         raise HTTPException(status_code=404, detail="Task not found")
+    # Attempted tier: only the tasks the caller submitted exist for them.
+    if tier == TIER_ATTEMPTED and not await user_attempted_task_async(
+        db, current_user.id, task_id
+    ):
+        raise HTTPException(status_code=404, detail="Task not found")
 
     # Timed access window: hide task data from the access group before the
-    # window opens (editors exempt). Serves task.data below.
+    # window opens (editors exempt, attempted exempt). Serves task.data below.
     if project is not None:
-        await enforce_project_read_window_async(db, current_user, project)
+        await enforce_project_read_window_async(db, current_user, project, tier=tier)
 
     # Get generation count for this task
     total_generations = (

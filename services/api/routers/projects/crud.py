@@ -45,6 +45,7 @@ from routers.projects.helpers import (
     get_org_context_from_request,
     get_participant_project_ids_async,
     get_project_access_tier_async,
+    TIER_ATTEMPTED,
     TIER_FULL,
     TIER_PARTICIPANT,
     get_org_membership_role_async,
@@ -716,6 +717,7 @@ async def get_project(
     if tier == TIER_PARTICIPANT:
         participant_map = await get_participant_project_ids_async(db, current_user.id)
         response.participant_via = participant_map.get(str(project.id))
+    if tier in (TIER_PARTICIPANT, TIER_ATTEMPTED):
         _strip_participant_fields(response)
 
     # Calculate statistics
