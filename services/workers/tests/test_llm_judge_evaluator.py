@@ -1654,6 +1654,24 @@ class TestRubricModeSingleCall:
         assert provenance["system_prompt"] == RUBRIC_JUDGE_SYSTEM_PROMPT
         assert provenance["evaluation_prompt"] == prompt
 
+    def test_bind_task_rubric_sets_criteria_and_rubric_mode(self):
+        from types import SimpleNamespace
+
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-5.4-mini",
+            custom_criteria={"legacy": {"name": "L", "rubric": "r"}},
+            custom_prompt_template=_RUBRIC_TEMPLATE,
+        )
+        assert ev.rubric_mode is False
+        assert ev.is_multidim_mode() is False
+        ev.bind_task_rubric(SimpleNamespace(id="rub-1", criteria=_STEPS))
+        assert ev.rubric_mode is True
+        assert ev.custom_criteria == _STEPS
+        assert ev.is_multidim_mode() is True
+        assert "legacy" not in ev.all_criteria
+        assert set(_STEPS) <= set(ev.all_criteria)
+
     def test_the_schema_requires_evidence_first(self):
         ev = self._evaluator()
         self._call(ev)

@@ -43,6 +43,14 @@ def _impl_kwargs(db):
 def _judge_factory_mock():
     judge = MagicMock()
     judge.ai_service = object()  # truthy → passes the availability gate
+
+    # The real bind_task_rubric sets both attributes; the mock mirrors that
+    # so the tests can assert what the lane bound.
+    def _bind(rubric):
+        judge.custom_criteria = rubric.criteria
+        judge.rubric_mode = True
+
+    judge.bind_task_rubric.side_effect = _bind
     return judge
 
 
@@ -100,7 +108,9 @@ def test_rubric_multidim_path_binds_rendering_and_stamps_provenance():
 
     assert result["status"] == "completed"
     assert result["score"] == pytest.approx(0.8)
-    # criteria were injected from the rubric, not from config
+    # criteria were injected from the rubric, not from config, through the
+    # evaluator's own binding (shared with the bulk cell paths)
+    judge.bind_task_rubric.assert_called_once_with(rubric)
     assert judge.custom_criteria == rubric.criteria
     call = judge._evaluate_multidim_single_call.call_args.kwargs
     # rendered document bound for the {bewertungsbogen} placeholder
@@ -474,6 +484,32 @@ def test_rubric_path_persists_per_step_evidence_fields():
         "grade_scale_source",
     }
     assert result["total_score"] == 0.0
+
+
+def test_stamp_rubric_result_marks_result_and_prompts():
+    from evaluation.cell_evaluator import _stamp_rubric_result
+
+    rubric = SimpleNamespace(
+        id="rub-9",
+        generator_model_id="gpt-5.4",
+        criteria={"s01_x": {"name": "X", "rubric": "r", "max_score": 100}},
+        grade_scale=None,
+        generation_metadata={},
+    )
+    result = {"scores": {}, "total_score": 80.0, "total_max": 100.0}
+    prompts = {"system_prompt": "…"}
+    _stamp_rubric_result(result, prompts, rubric, None)
+    assert result["rubric_id"] == "rub-9"
+    assert result["grade_points"] == 13
+    assert result["passed"] is True
+    assert result["grade_scale_source"]
+    assert prompts["task_rubric_id"] == "rub-9"
+    assert prompts["task_rubric_generator"] == "gpt-5.4"
+    # error paths hand over non-dicts; nothing is stamped
+    _stamp_rubric_result(None, None, rubric, None)
+    error = {"error": True, "error_message": "boom"}
+    _stamp_rubric_result(error, "not a dict", rubric, None)
+    assert error == {"error": True, "error_message": "boom", "rubric_id": "rub-9"}
 
 
 def test_other_multidim_metrics_stay_out_of_rubric_mode():

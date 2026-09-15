@@ -804,6 +804,20 @@ class LLMJudgeEvaluator(BaseEvaluator):
         else:
             self.criteria = ["helpfulness", "correctness"]
 
+    def bind_task_rubric(self, rubric) -> None:
+        """Grade against a task's Bewertungsbogen (``llm_judge_rubric``).
+
+        The rubric's criteria replace the config's, which flips
+        ``is_multidim_mode``; rubric mode turns on the fixed system prompt,
+        tagged inputs, closing rules and evidence verification. The dispatch
+        sites call this after construction: the bulk lane resolves the
+        rubric per cell, so it cannot be a factory kwarg. Evaluators are
+        cell-scoped, so the binding cannot leak across tasks.
+        """
+        self.custom_criteria = rubric.criteria
+        self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
+        self.rubric_mode = True
+
     def get_supported_metrics(self) -> List[str]:
         """Return list of supported LLM-as-Judge metrics."""
         # Core supported metrics - Classic and Custom LLM Judge
@@ -1556,7 +1570,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             }
         prompt_template = _preprocess_jinja_placeholders(raw_template)
 
-        rubric_mode = getattr(self, "rubric_mode", False) is True
+        rubric_mode = self.rubric_mode is True
 
         # Built-ins first. No aliases — Issue #107.
         template_vars: Dict[str, str] = {
