@@ -111,12 +111,13 @@ class _FakeSession:
         pass
 
 
-def _student(preferred_ui_mode=None):
+def _student(preferred_ui_mode=None, hashed_password="hashed"):
     return types.SimpleNamespace(
         id="u1",
         email="student@example.com",
         name="Student",
         preferred_ui_mode=preferred_ui_mode,
+        hashed_password=hashed_password,
     )
 
 
@@ -189,6 +190,17 @@ class TestNotificationBatchBranding:
         _, captured, _, _ = _send(notif, _student(), None)
         assert "action_url" not in captured["context"]
         assert captured["brand"] == resolve_email_brand(None)
+
+    def test_passwordless_account_gets_no_grading_email(self):
+        out, captured, _, _ = _send(_grading(), _student(hashed_password=None), "vertretbar.net")
+        assert out["sent"] == 0
+        assert out["skipped"] == 1
+        assert captured == {}
+
+    def test_passwordless_account_still_gets_other_emails(self):
+        notif = _grading(type_value="korrektur_assigned")
+        out, _, _, _ = _send(notif, _student(hashed_password=None), None)
+        assert out["sent"] == 1
 
 
 # ---------------------------------------------------------------------------

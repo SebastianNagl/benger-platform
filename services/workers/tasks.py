@@ -1581,6 +1581,16 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     skipped += 1
                     continue
 
+                # A grading email links to a page behind login. An account
+                # without a password (LTI-provisioned, or never activated)
+                # cannot sign in there directly, so it only gets the in-app
+                # notification.
+                if is_evaluation_received_type(notif_dict["type"]) and not getattr(
+                    user, "hashed_password", None
+                ):
+                    skipped += 1
+                    continue
+
                 # Hydrate a minimal Notification ORM object — only the
                 # attributes the template path reads. We pass an unattached
                 # instance, never add it to the session.
