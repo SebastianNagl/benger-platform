@@ -43,6 +43,11 @@ jest.mock('@/hooks/useNotifications', () => ({
   useNotifications: jest.fn(),
 }))
 
+const mockUiMode = jest.fn(() => 'expert')
+jest.mock('@/hooks/useResolvedUiMode', () => ({
+  useResolvedUiMode: () => mockUiMode(),
+}))
+
 jest.mock('@/lib/api', () => ({
   api: {
     getNotifications: jest.fn(),
@@ -265,6 +270,7 @@ describe('NotificationsPage - branch coverage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue({ push: mockPush })
+    mockUiMode.mockReturnValue('expert')
     ;(useAuth as jest.Mock).mockReturnValue({ user: mockUser })
     ;(useNotifications as jest.Mock).mockReturnValue({
       notifications: [],
@@ -338,6 +344,72 @@ describe('NotificationsPage - branch coverage', () => {
       await user.selectOptions(statusFilter, 'unread')
 
       expect(screen.getByText('All caught up!')).toBeInTheDocument()
+    })
+  })
+
+  describe('Grading notification click behavior', () => {
+    const renderWith = (notification: any) => {
+      ;(useNotifications as jest.Mock).mockReturnValue({
+        notifications: [notification],
+        unreadCount: 0,
+        isLoading: false,
+        markAsRead: mockMarkAsRead,
+        markAllAsRead: mockMarkAllAsRead,
+        refreshNotifications: mockRefreshNotifications,
+        fetchNotifications: mockFetchNotifications,
+      })
+      render(<NotificationsPage />)
+    }
+
+    const grading = (data?: any) =>
+      createNotification({
+        id: 'g1',
+        type: 'evaluation_received_human',
+        title: 'New grading',
+        message: 'Your submission was graded',
+        is_read: true,
+        data,
+      })
+
+    it('opens the project task list in the expert shell', async () => {
+      const user = userEvent.setup()
+      renderWith(grading({ project_id: 'proj-1', project_kind: 'exam' }))
+
+      const row = screen.getByText('Your submission was graded').closest('tr')
+      expect(row).not.toBeNull()
+      await user.click(row!)
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/projects/proj-1/my-tasks')
+      })
+    })
+
+    it('opens the exam in the student shell', async () => {
+      const user = userEvent.setup()
+      mockUiMode.mockReturnValue('student')
+      renderWith(grading({ project_id: 'proj-1', project_kind: 'exam' }))
+
+      const row = screen.getByText('Your submission was graded').closest('tr')
+      expect(row).not.toBeNull()
+      await user.click(row!)
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/student/exams/proj-1')
+      })
+      expect(mockPush).not.toHaveBeenCalledWith('/projects/proj-1')
+    })
+
+    it('does not navigate without a project', async () => {
+      const user = userEvent.setup()
+      renderWith(grading({ task_id: 't1' }))
+
+      const row = screen.getByText('Your submission was graded').closest('tr')
+      expect(row).not.toBeNull()
+      await user.click(row!)
+
+      await waitFor(() => {
+        expect(mockPush).not.toHaveBeenCalled()
+      })
     })
   })
 

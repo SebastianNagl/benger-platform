@@ -104,8 +104,10 @@ class TestExtensionLoader:
         # model_defaults.RUBRIC_JUDGE_MAX_TOKENS / METRIC_MAX_TOKENS_FLOOR and
         # creator access to an unattached project under a foreign org context
         # (the extended task-rubric reads route to the platform endpoints).
+        # 2.18 adds the evaluation_received_* notification types and
+        # notify_evaluation_received (the extended grade endpoints call it).
         # The full per-version log lives in services/shared/core_version.py.
-        assert CORE_API_VERSION == "2.17"
+        assert CORE_API_VERSION == "2.18"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

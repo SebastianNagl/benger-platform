@@ -1,6 +1,11 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import {
+  getEvaluationReceivedHref,
+  isEvaluationReceivedType,
+} from '@/lib/notificationLinks'
 import { getTranslatedNotification } from '@/lib/notificationTranslation'
 import { cn } from '@/lib/utils'
 import {
@@ -45,6 +50,9 @@ const notificationIcons = {
   llm_generation_completed: CheckCircleIcon,
   evaluation_completed: CheckCircleIcon,
   evaluation_failed: ExclamationTriangleIcon,
+  evaluation_received_human: CheckCircleIcon,
+  evaluation_received_immediate: CheckCircleIcon,
+  evaluation_received_batch: CheckCircleIcon,
   annotation_completed: CheckCircleIcon,
   annotation_assigned: UserPlusIcon,
   data_upload_completed: CheckCircleIcon,
@@ -71,6 +79,12 @@ const notificationColors = {
     'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   evaluation_failed:
     'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
+  evaluation_received_human:
+    'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
+  evaluation_received_immediate:
+    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+  evaluation_received_batch:
+    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   annotation_completed:
     'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
   data_upload_completed:
@@ -97,6 +111,7 @@ export function NotificationDropdown({
 }: NotificationDropdownProps) {
   const { t, locale } = useI18n()
   const router = useRouter()
+  const uiMode = useResolvedUiMode()
 
   if (!isOpen) return null
 
@@ -133,6 +148,16 @@ export function NotificationDropdown({
       }
       router.push('/runs?type=generation')
       onClose()
+      return
+    }
+    // A new grading on the user's own submission opens where they can read
+    // it: the exam in the student shell, otherwise the project's task list.
+    if (isEvaluationReceivedType(notification.type)) {
+      const href = getEvaluationReceivedHref(data, uiMode)
+      if (href) {
+        router.push(href)
+        onClose()
+      }
       return
     }
     if (data.task_id && data.project_id) {

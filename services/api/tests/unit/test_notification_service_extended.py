@@ -217,13 +217,24 @@ class TestGetUserPreferences:
         db = MagicMock()
         db.query.return_value.filter.return_value.all.return_value = []
         result = NotificationService.get_user_preferences(db, "user-1")
-        # Defaults: in-app on, email off (email is opt-in per type)
+        # Defaults: in-app on, email off (email is opt-in per type), except
+        # the grading types default_channels overrides.
+        from mailer.notification_service import _DEFAULT_CHANNELS_BY_TYPE
+
         assert isinstance(result, dict)
         assert len(result) > 0
         assert all(
             v == {"enabled": True, "in_app": True, "email": False}
-            for v in result.values()
+            for k, v in result.items()
+            if k not in _DEFAULT_CHANNELS_BY_TYPE
         )
+        assert result["evaluation_received_human"] == {
+            "enabled": True,
+            "in_app": True,
+            "email": True,
+        }
+        for opt_in in ("evaluation_received_immediate", "evaluation_received_batch"):
+            assert result[opt_in] == {"enabled": False, "in_app": False, "email": False}
 
     def test_returns_overridden_prefs(self):
         from services.email.notification_service import NotificationService

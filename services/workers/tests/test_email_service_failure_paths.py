@@ -255,7 +255,21 @@ class TestConvenienceWrappers:
         ) as m:
             out = await es.send_notification_email("u@example.com", notification, {"k": "v"})
         assert out is True
-        m.assert_awaited_once_with("u@example.com", notification, {"k": "v"})
+        m.assert_awaited_once_with("u@example.com", notification, {"k": "v"}, brand=None)
+
+    @pytest.mark.asyncio
+    async def test_send_notification_email_wrapper_forwards_the_brand(self, notification):
+        """A caller-chosen brand (sender identity, link host) reaches the instance."""
+        import email_service as es
+        from mailer.branding import resolve_email_brand
+
+        brand = resolve_email_brand("vertretbar.net")
+        with patch.object(
+            es.email_service, "send_notification_email", new=AsyncMock(return_value=True)
+        ) as m:
+            out = await es.send_notification_email("u@example.com", notification, None, brand=brand)
+        assert out is True
+        m.assert_awaited_once_with("u@example.com", notification, None, brand=brand)
 
     @pytest.mark.asyncio
     async def test_send_digest_email_wrapper_delegates(self, notification):

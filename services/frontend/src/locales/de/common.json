@@ -2978,6 +2978,18 @@
         "title": "Evaluierung fehlgeschlagen: {task_name}",
         "message": "Die Evaluierung des Modells '{model_name}' für die Aufgabe '{task_name}' ist fehlgeschlagen: {error_message}"
       },
+      "evaluation_received_human": {
+        "title": "Neue Korrektur: {project_title}",
+        "message": "Ihre Bearbeitung in '{project_title}' wurde korrigiert."
+      },
+      "evaluation_received_immediate": {
+        "title": "KI-Korrektur fertig: {project_title}",
+        "message": "Die KI-Korrektur Ihrer Bearbeitung in '{project_title}' liegt vor."
+      },
+      "evaluation_received_batch": {
+        "title": "Neue Evaluierung: {project_title}",
+        "message": "Ein Evaluierungslauf hat Ihre Bearbeitungen in '{project_title}' bewertet."
+      },
       "data_upload_completed": {
         "title": "Daten-Upload abgeschlossen: {task_name}",
         "message": "Es wurden {upload_count} Einträge aus '{filename}' in die Aufgabe '{task_name}' hochgeladen."
@@ -3546,6 +3558,12 @@
         "evaluationCompletedDesc": "Benachrichtigungen erhalten, wenn Evaluierungen erfolgreich abgeschlossen werden",
         "evaluationFailed": "Evaluierung fehlgeschlagen",
         "evaluationFailedDesc": "Benachrichtigungen erhalten, wenn Evaluierungen fehlschlagen oder Fehler auftreten",
+        "evaluationReceivedHuman": "Neue Korrektur",
+        "evaluationReceivedHumanDesc": "Benachrichtigungen erhalten, wenn eine Ihrer Bearbeitungen korrigiert wurde",
+        "evaluationReceivedImmediate": "KI-Korrektur fertig",
+        "evaluationReceivedImmediateDesc": "Benachrichtigungen erhalten, wenn die sofortige KI-Korrektur Ihrer Bearbeitung vorliegt",
+        "evaluationReceivedBatch": "Neuer Evaluierungslauf",
+        "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf Ihre Bearbeitungen bewertet hat",
         "dataUploadCompleted": "Datenupload abgeschlossen",
         "dataUploadCompletedDesc": "Benachrichtigungen erhalten, wenn Datenuploads die Verarbeitung abgeschlossen haben",
         "llmGenerationCompleted": "LLM-Generierung abgeschlossen",

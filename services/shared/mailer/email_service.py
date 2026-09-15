@@ -33,6 +33,7 @@ from typing import Any, Dict, List, Optional
 from jinja2 import Environment, FileSystemLoader
 
 from email_templates.template_map import template_for
+from mailer.branding import EmailBrand, resolve_email_brand
 from models import Notification
 from sendgrid_client import SendGridClient
 
@@ -188,6 +189,7 @@ class EmailService:
         user_email: str,
         notification: Notification,
         context: Optional[Dict[str, Any]] = None,
+        brand: Optional[EmailBrand] = None,
     ) -> bool:
         """
         Send a notification email to a user
@@ -196,6 +198,8 @@ class EmailService:
             user_email: Recipient email address
             notification: Notification object
             context: Additional context for the email template
+            brand: Sender identity and link host. Defaults to the BenGER
+                brand, which keeps the mailer's configured From address.
 
         Returns:
             True if email was sent successfully, False otherwise
@@ -215,14 +219,27 @@ class EmailService:
             else (notification.type if isinstance(notification.type, str) else "general")
         )
 
+        if brand is None:
+            brand = resolve_email_brand(None)
+
         template_context = {
             "notification": notification,
             "notification_type": type_value,
             "user_email": user_email,
+            "brand": brand,
+            "action_url": None,
             **(context or {}),
         }
 
         template_name = template_for(notification.type)
+
+        # Only a brand with its own sender (Vertretbar) overrides From; the
+        # BenGER brand leaves the mailer's configured address in place.
+        sender: Dict[str, str] = {}
+        if brand.from_address:
+            sender["from_address"] = brand.from_address
+        if brand.from_name:
+            sender["from_name"] = brand.from_name
 
         try:
             # Render template
@@ -230,7 +247,7 @@ class EmailService:
 
             # Send email
             result = self.mail_client.send_message(
-                to=[user_email], subject=subject, html_body=html_body
+                to=[user_email], subject=subject, html_body=html_body, **sender
             )
 
             if result.get("status") == "success":
@@ -665,9 +682,12 @@ async def send_notification_email(
     user_email: str,
     notification: Notification,
     context: Optional[Dict[str, Any]] = None,
+    brand: Optional[EmailBrand] = None,
 ) -> bool:
     """Send notification email using global email service"""
-    return await email_service.send_notification_email(user_email, notification, context)
+    return await email_service.send_notification_email(
+        user_email, notification, context, brand=brand
+    )
 
 
 async def send_digest_email(

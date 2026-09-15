@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-15',
     audience: 'benger',
     text: {
+      de: 'Die Benachrichtigungseinstellungen haben neue Einträge für Bewertungen der eigenen Bearbeitungen, etwa durch KI-Korrekturen und Evaluierungsläufe. E-Mail-Benachrichtigungen kommen jetzt auch an, wenn In-App ausgeschaltet ist.',
+      en: 'The notification settings have new entries for gradings of your own submissions, such as AI gradings and evaluation runs. Email notifications now also arrive when in-app notifications are switched off.',
+    },
+  },
+  {
+    date: '2026-09-15',
+    audience: 'benger',
+    text: {
       de: 'Die Seite eines Evaluierungslaufs öffnet jetzt auch Sofort-Bewertungen nach einer Abgabe, und der Reiter Judges zeigt jeden Judge-Lauf mit dem Mittelwert seiner eigenen Metrik.',
       en: 'The evaluation run page now opens immediate gradings after a submission, and the Judges tab shows each judge run with the mean of its own metric.',
     },

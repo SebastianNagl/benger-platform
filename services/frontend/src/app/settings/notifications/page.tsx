@@ -5,7 +5,9 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
+import { isEvaluationReceivedType } from '@/lib/notificationLinks'
 import {
   ArrowPathIcon,
   BellIcon,
@@ -75,6 +77,29 @@ const getNotificationTypes = (t: any) => [
     name: t('settings.notifications.types.evaluationFailed'),
     description: t('settings.notifications.types.evaluationFailedDesc'),
     icon: ExclamationTriangleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_human',
+    name: t('settings.notifications.types.evaluationReceivedHuman'),
+    description: t('settings.notifications.types.evaluationReceivedHumanDesc'),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_immediate',
+    name: t('settings.notifications.types.evaluationReceivedImmediate'),
+    description: t(
+      'settings.notifications.types.evaluationReceivedImmediateDesc',
+    ),
+    icon: CheckCircleIcon,
+    category: t('settings.notifications.categories.evaluations'),
+  },
+  {
+    key: 'evaluation_received_batch',
+    name: t('settings.notifications.types.evaluationReceivedBatch'),
+    description: t('settings.notifications.types.evaluationReceivedBatchDesc'),
+    icon: CheckCircleIcon,
     category: t('settings.notifications.categories.evaluations'),
   },
   {
@@ -269,6 +294,10 @@ const getTimezoneOptions = (t: any) => [
   { value: 'UTC+12', label: t('settings.notifications.timezone.utcPlus12') },
 ]
 
+// Fallback for a type the API did not return. GET /preferences sends every
+// type with its server-side default, so this only applies before load.
+const DEFAULT_PREFERENCE = { enabled: true, in_app: true, email: false }
+
 interface NotificationPreferences {
   [key: string]: {
     enabled: boolean
@@ -286,6 +315,7 @@ interface EmailStatus {
 function NotificationSettingsContent() {
   const { user } = useAuth()
   const { t } = useI18n()
+  const uiMode = useResolvedUiMode()
   // All hooks must be called before any early returns (rules-of-hooks)
   const [preferences, setPreferences] = useState<NotificationPreferences>({})
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
@@ -302,11 +332,19 @@ function NotificationSettingsContent() {
     }
     try {
       const allNotificationTypes = getNotificationTypes(t)
+      // A student only gets notified about gradings of their own
+      // submissions, so the expert types would just be noise here.
+      const visibleTypes =
+        uiMode === 'student'
+          ? allNotificationTypes.filter((type) =>
+              isEvaluationReceivedType(type.key),
+            )
+          : allNotificationTypes
       return {
-        notificationTypes: allNotificationTypes,
+        notificationTypes: visibleTypes,
         timezoneOptions: getTimezoneOptions(t),
         categories: Array.from(
-          new Set(allNotificationTypes.map((type: any) => type.category)),
+          new Set(visibleTypes.map((type: any) => type.category)),
         ),
       }
     } catch (err) {
@@ -428,22 +466,27 @@ function NotificationSettingsContent() {
     field: 'enabled' | 'in_app' | 'email',
     value: boolean,
   ) => {
-    setPreferences((prev) => ({
-      ...prev,
-      [notificationType]: {
-        ...prev[notificationType],
-        enabled: prev[notificationType]?.enabled || false,
-        in_app: prev[notificationType]?.in_app || false,
-        email: prev[notificationType]?.email || false,
-        [field]: value,
-        // If disabling main toggle, disable both delivery methods
-        ...(field === 'enabled' && !value
-          ? { in_app: false, email: false }
-          : {}),
-        // If enabling delivery method, ensure main toggle is enabled
-        ...(field !== 'enabled' && value ? { enabled: true } : {}),
-      },
-    }))
+    setPreferences((prev) => {
+      const current = prev[notificationType] ?? DEFAULT_PREFERENCE
+      return {
+        ...prev,
+        [notificationType]: {
+          ...current,
+          [field]: value,
+          // If disabling main toggle, disable both delivery methods
+          ...(field === 'enabled' && !value
+            ? { in_app: false, email: false }
+            : {}),
+          // Enabling a type with no delivery method turns in-app on. A row
+          // without any channel is saved as off and would not stay enabled.
+          ...(field === 'enabled' && value && !current.in_app && !current.email
+            ? { in_app: true }
+            : {}),
+          // If enabling delivery method, ensure main toggle is enabled
+          ...(field !== 'enabled' && value ? { enabled: true } : {}),
+        },
+      }
+    })
   }
 
   const handleBulkToggle = (category: string, enabled: boolean) => {
@@ -601,18 +644,15 @@ function NotificationSettingsContent() {
                 <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
                   {notificationTypes.map((notificationType, index) => {
                     const IconComponent = notificationType.icon
-                    const pref = preferences[notificationType.key] || {
-                      enabled: true,
-                      in_app: true,
-                      email: false,
-                    }
+                    const pref =
+                      preferences[notificationType.key] || DEFAULT_PREFERENCE
 
                     return (
                       <tr
                         key={`notification-${notificationType.key}-${index}`}
                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="shrink-0">
                               <IconComponent className="h-5 w-5 text-zinc-400" />
@@ -725,8 +765,9 @@ function NotificationSettingsContent() {
               <div className="flex items-center justify-between">
                 <div className="text-sm text-zinc-600 dark:text-zinc-400">
                   {t('settings.notifications.ui.enabledCount', {
-                    enabled: Object.values(preferences).filter(
-                      (p) => p?.enabled,
+                    enabled: notificationTypes.filter(
+                      (type) =>
+                        (preferences[type.key] ?? DEFAULT_PREFERENCE).enabled,
                     ).length,
                     total: notificationTypes.length,
                   })}
@@ -740,7 +781,7 @@ function NotificationSettingsContent() {
                           { enabled: false, in_app: false, email: false },
                         ]),
                       )
-                      setPreferences(updates)
+                      setPreferences((prev) => ({ ...prev, ...updates }))
                     }}
                     variant="outline"
                     className="text-xs"
@@ -760,7 +801,7 @@ function NotificationSettingsContent() {
                           },
                         ]),
                       )
-                      setPreferences(updates)
+                      setPreferences((prev) => ({ ...prev, ...updates }))
                     }}
                     variant="outline"
                     className="text-xs"
