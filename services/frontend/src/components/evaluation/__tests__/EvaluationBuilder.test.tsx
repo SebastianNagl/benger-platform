@@ -2,7 +2,11 @@
  * @jest-environment jsdom
  */
 
-import { render, screen, waitFor } from '@testing-library/react'
+import {
+  getMetricDefinitions,
+  registerMetric,
+} from '@/lib/api/evaluation-types'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationBuilder } from '../EvaluationBuilder'
 
@@ -35,6 +39,15 @@ jest.mock('@/hooks/useModels', () => ({
         name: 'GPT-4',
         provider: 'openai',
         default_config: { temperature: 0 },
+      },
+      // Declares its own output cap; the builder must not raise a metric's
+      // max_tokens floor above it.
+      {
+        id: 'small-cap',
+        name: 'Small Cap',
+        provider: 'openai',
+        default_config: { temperature: 0 },
+        parameter_constraints: { max_tokens: { max: 2000 } },
       },
     ],
     loading: false,
@@ -942,4 +955,74 @@ describe('EvaluationBuilder', () => {
       }
     })
   })
+})
+
+describe('EvaluationBuilder judge model pick and the metric max_tokens floor', () => {
+  // The registry override persists across tests; restore the shipped
+  // definitions afterwards.
+  const originals = {
+    llm_judge_classic: getMetricDefinitions().llm_judge_classic,
+    llm_judge_custom: getMetricDefinitions().llm_judge_custom,
+  }
+
+  beforeAll(() => {
+    for (const [key, def] of Object.entries(originals)) {
+      registerMetric(key, { ...def, min_max_tokens: 3000 })
+    }
+  })
+
+  afterAll(() => {
+    for (const [key, def] of Object.entries(originals)) {
+      registerMetric(key, def)
+    }
+  })
+
+  async function openParameters(
+    user: ReturnType<typeof userEvent.setup>,
+    metric: string,
+  ) {
+    render(<EvaluationBuilder {...defaultProps} />)
+    await user.click(screen.getByTestId('add-evaluation-button'))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('evaluation-wizard-header'),
+      ).toBeInTheDocument(),
+    )
+    await user.click(screen.getByTestId(`metric-button-${metric}`))
+    await user.click(screen.getByTestId('wizard-next-button'))
+    await user.click(screen.getAllByRole('checkbox')[0])
+    await user.click(screen.getByTestId('wizard-next-button'))
+    await user.click(screen.getAllByRole('checkbox')[0])
+    await user.click(screen.getByTestId('wizard-next-button'))
+  }
+
+  function pickJudge(modelId: string) {
+    const judgeSelect = screen
+      .getAllByRole('combobox')
+      .find((el) => el.querySelector(`option[value="${modelId}"]`))!
+    fireEvent.change(judgeSelect, { target: { value: modelId } })
+  }
+
+  function maxTokensValues() {
+    return screen
+      .getAllByRole('spinbutton')
+      .map((el) => (el as HTMLInputElement).value)
+  }
+
+  it.each(['llm_judge_classic', 'llm_judge_custom'])(
+    '%s: raises max_tokens to the metric floor and keeps the model cap',
+    async (metric) => {
+      const user = userEvent.setup()
+      await openParameters(user, metric)
+
+      // gpt-4 declares no budget: its 500 default is raised to the floor.
+      pickJudge('gpt-4')
+      await waitFor(() => expect(maxTokensValues()).toContain('3000'))
+
+      // small-cap allows 2000 at most: the floor yields to the cap.
+      pickJudge('small-cap')
+      await waitFor(() => expect(maxTokensValues()).toContain('2000'))
+      expect(maxTokensValues()).not.toContain('3000')
+    },
+  )
 })

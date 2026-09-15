@@ -11,6 +11,18 @@ import { clearAllStores } from '@/utils/clearAllStores'
 
 export class SessionManager {
   private readonly SESSION_USER_KEY = 'benger_last_session_user'
+  /**
+   * localStorage prefixes of locally kept drafts (annotation auto-save, the
+   * exam editors' field drafts, Falllösung and rubric drafts). Removed on
+   * logout and on a user switch so the next account on this browser never
+   * starts from the previous one's text.
+   */
+  private readonly DRAFT_KEY_PREFIXES = [
+    'benger_legal_draft',
+    'benger_draft_',
+    'benger_falloesung_draft_',
+    'benger_rubric_draft_',
+  ]
   private readonly AUTH_VERIFIED_KEY = 'auth_verified'
   private readonly LOGIN_IN_PROGRESS_KEY = 'login_in_progress'
 
@@ -69,9 +81,28 @@ export class SessionManager {
     // Clear all stores but preserve initialized state
     clearAllStores(true)
 
+    // The previous account's local drafts must not seed the new one.
+    this.clearDraftKeys()
+
     // Update session tracking
     if (typeof window !== 'undefined') {
       localStorage.setItem(this.SESSION_USER_KEY, newUserId)
+    }
+  }
+
+  /**
+   * Remove every locally kept draft (see DRAFT_KEY_PREFIXES).
+   */
+  private clearDraftKeys(): void {
+    if (typeof window === 'undefined') return
+    try {
+      Object.keys(localStorage)
+        .filter((key) =>
+          this.DRAFT_KEY_PREFIXES.some((prefix) => key.startsWith(prefix)),
+        )
+        .forEach((key) => localStorage.removeItem(key))
+    } catch {
+      // Storage blocked: nothing to purge.
     }
   }
 
@@ -136,6 +167,9 @@ export class SessionManager {
           key.includes('session'),
       )
       keysToRemove.forEach((key) => localStorage.removeItem(key))
+
+      // Local drafts belong to the account that is signing out.
+      this.clearDraftKeys()
 
       sessionStorage.clear()
     }

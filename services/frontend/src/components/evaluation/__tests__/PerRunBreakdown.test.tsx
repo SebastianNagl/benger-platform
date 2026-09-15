@@ -183,3 +183,60 @@ describe('PerRunBreakdown labels', () => {
     expect(screen.getByText('archived')).toBeInTheDocument()
   })
 })
+
+describe('PerRunBreakdown mixed metrics', () => {
+  const mixedRows: PerRunRow[] = [
+    {
+      config_id: 'cfg-free',
+      target_model_id: 'gpt-5.4',
+      judge_model_id: 'gpt-5-mini',
+      run_index: 0,
+      judge_run_id: 'jr-1',
+      status: 'completed',
+      samples_evaluated: 1,
+      mean_score: 0.85,
+      metric: 'exact_match',
+      metric_label: 'Exact Match',
+    },
+    {
+      config_id: 'cfg-paid',
+      target_model_id: 'gpt-5.4',
+      judge_model_id: 'gpt-5.4-mini',
+      run_index: 0,
+      judge_run_id: 'jr-2',
+      status: 'completed',
+      samples_evaluated: 1,
+      mean_score: 0.7,
+      metric: 'f1_score',
+      metric_label: 'F1',
+    },
+  ]
+
+  it('names the metric per row and keeps the header generic when rows differ', () => {
+    render(
+      <PerRunBreakdown
+        rows={mixedRows}
+        metric="exact_match"
+        metricLabel="Exact Match"
+        showTargetModel={false}
+      />,
+    )
+    expect(screen.getByText('Mittelwert')).toBeInTheDocument()
+    expect(screen.queryByText('eval.perRun.meanScore')).not.toBeInTheDocument()
+    expect(screen.getByText('(Exact Match)')).toBeInTheDocument()
+    expect(screen.getByText('(F1)')).toBeInTheDocument()
+  })
+
+  it('keeps the metric in the header when every row shares it', () => {
+    render(
+      <PerRunBreakdown
+        rows={mixedRows.map((row) => ({ ...row, metric: 'exact_match' }))}
+        metric="exact_match"
+        metricLabel="Exact Match"
+        showTargetModel={false}
+      />,
+    )
+    expect(screen.getByText('eval.perRun.meanScore')).toBeInTheDocument()
+    expect(screen.queryByText('(Exact Match)')).not.toBeInTheDocument()
+  })
+})

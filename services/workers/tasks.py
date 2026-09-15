@@ -23,24 +23,9 @@ SYSTEM_DEFAULTS: Dict[str, Any] = {
     "top_p": 1.0,
 }
 
-# Per-metric floors on the DEFAULT max_tokens. A Bewertungsbogen judge
-# (llm_judge_rubric) answers with one JSON object carrying a reason per step —
-# 40-100 steps for a real Korrekturbogen — which the 1500-token system default
-# (or a small catalog recommendation) truncates mid-document. The floor only
-# lifts values that came from the "system" / "recommended" tiers; an explicit
-# metric_parameters.max_tokens (user tier) always wins.
-#
-# 32000 is measured, not guessed: grading a submission against the 46-step
-# Polizeirecht Korrekturbogen on gpt-5-mini spent the ENTIRE 8000-token budget
-# (6928 prompt + 8000 completion) without closing the JSON. Reasoning models
-# bill their thinking against the same completion budget, so the usable room
-# for ~46 reasons is a fraction of the cap. The generator that writes these
-# sheets already runs at 32000 (bewertungsbogen_tasks.DEFAULT_MAX_TOKENS);
-# grading one is the same order of work. A cap is not a spend — only emitted
-# tokens are billed.
-METRIC_MAX_TOKENS_FLOOR: Dict[str, int] = {
-    "llm_judge_rubric": 32000,
-}
+# METRIC_MAX_TOKENS_FLOOR (read by _apply_metric_max_tokens_floor at call
+# time) is imported from model_defaults further down, once /shared is on
+# sys.path: the worker image's PYTHONPATH is /app only.
 
 
 def _apply_metric_max_tokens_floor(
@@ -461,6 +446,20 @@ _shared_dir = (
 )
 if _shared_dir not in sys.path:
     sys.path.insert(0, _shared_dir)
+
+# Per-metric floors on the DEFAULT max_tokens. A Bewertungsbogen judge
+# (llm_judge_rubric) answers with one JSON object carrying a reason per step —
+# 40-100 steps for a real Korrekturbogen — which the 1500-token system default
+# (or a small catalog recommendation) truncates mid-document. The floor only
+# lifts values that came from the "system" / "recommended" tiers; an explicit
+# metric_parameters.max_tokens (user tier) always wins. The number itself
+# (RUBRIC_JUDGE_MAX_TOKENS, measured) lives in model_defaults so the metric
+# registry and the extended rubric lanes set the same budget; it is
+# re-exported here for worker callers.
+from model_defaults import (  # noqa: E402
+    METRIC_MAX_TOKENS_FLOOR,
+    RUBRIC_JUDGE_MAX_TOKENS,  # noqa: F401  re-export
+)
 
 # Import database and models at top level to avoid import issues in worker processes
 try:
@@ -2965,6 +2964,26 @@ def run_single_sample_evaluation(
                         "source": source,
                         "recommended_at_trigger": rec_at_trigger,
                     }
+                # The two post-resolution steps the bulk lane records too
+                # (run_evaluation), so the snapshot shows what the judge is
+                # actually sent: the per-metric max_tokens floor and the
+                # per-model temperature constraint. The immediate compute
+                # (_evaluate_llm_judge_single_impl) applies the same two.
+                _apply_metric_max_tokens_floor(
+                    cfg.get("metric"),
+                    judge_provenance["max_tokens"]["value"],
+                    judge_provenance["max_tokens"]["source"],
+                    judge_provenance,
+                )
+                judge_constraints = (
+                    getattr(judge_model_obj, "parameter_constraints", None) or None
+                )
+                _clamped_temp, _temp_clamped_from = _clamp_temperature_to_constraint(
+                    judge_provenance["temperature"]["value"], judge_constraints
+                )
+                if _temp_clamped_from is not None:
+                    judge_provenance["temperature"]["clamped_from"] = _temp_clamped_from
+                    judge_provenance["temperature"]["value"] = _clamped_temp
                 snapshot = dict(params)
                 snapshot["_param_provenance"] = judge_provenance
 

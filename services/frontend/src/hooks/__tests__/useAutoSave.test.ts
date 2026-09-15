@@ -38,7 +38,7 @@ describe('useAutoSave', () => {
       savedAt: Date.now() - 5000,
       leadTime: 10,
     }
-    localStorage.setItem('benger_draft_task-1', JSON.stringify(draftData))
+    localStorage.setItem('benger_draft_anon_task-1', JSON.stringify(draftData))
 
     const { result } = renderHook(() =>
       useAutoSave('task-1', emptyAnnotations, emptyValues, startTime),
@@ -56,7 +56,7 @@ describe('useAutoSave', () => {
       savedAt: Date.now(),
       leadTime: 5,
     }
-    localStorage.setItem('benger_draft_task-2', JSON.stringify(draftData))
+    localStorage.setItem('benger_draft_anon_task-2', JSON.stringify(draftData))
 
     const { result } = renderHook(() =>
       useAutoSave('task-2', emptyAnnotations, emptyValues, startTime),
@@ -79,7 +79,7 @@ describe('useAutoSave', () => {
 
   it('should clear draft from localStorage', async () => {
     localStorage.setItem(
-      'benger_draft_task-3',
+      'benger_draft_anon_task-3',
       JSON.stringify({
         taskId: 'task-3',
         annotations: [],
@@ -100,7 +100,7 @@ describe('useAutoSave', () => {
     })
 
     expect(result.current.hasDraft).toBe(false)
-    expect(localStorage.getItem('benger_draft_task-3')).toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-3')).toBeNull()
   })
 
   it('should trigger save when annotations change', () => {
@@ -117,7 +117,7 @@ describe('useAutoSave', () => {
     })
 
     expect(result.current.hasDraft).toBe(true)
-    expect(localStorage.getItem('benger_draft_task-4')).not.toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-4')).not.toBeNull()
   })
 
   it('should debounce saves (not save immediately)', () => {
@@ -130,14 +130,14 @@ describe('useAutoSave', () => {
       jest.advanceTimersByTime(500)
     })
 
-    expect(localStorage.getItem('benger_draft_task-5')).toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-5')).toBeNull()
 
     // After debounce timeout
     act(() => {
       jest.advanceTimersByTime(600)
     })
 
-    expect(localStorage.getItem('benger_draft_task-5')).not.toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-5')).not.toBeNull()
   })
 
   it('should not save when disabled', () => {
@@ -153,7 +153,7 @@ describe('useAutoSave', () => {
       jest.advanceTimersByTime(2000)
     })
 
-    expect(localStorage.getItem('benger_draft_task-6')).toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-6')).toBeNull()
   })
 
   it('should not save when taskId is null', () => {
@@ -165,8 +165,8 @@ describe('useAutoSave', () => {
       jest.advanceTimersByTime(2000)
     })
 
-    // No localStorage entries starting with benger_draft_null
-    expect(localStorage.getItem('benger_draft_null')).toBeNull()
+    // No localStorage entries starting with benger_draft_anon_null
+    expect(localStorage.getItem('benger_draft_anon_null')).toBeNull()
   })
 
   it('should force save immediately', async () => {
@@ -180,7 +180,7 @@ describe('useAutoSave', () => {
       await result.current.forceSave()
     })
 
-    expect(localStorage.getItem('benger_draft_task-7')).not.toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-7')).not.toBeNull()
   })
 
   it('should save immediately with saveNow', async () => {
@@ -195,7 +195,7 @@ describe('useAutoSave', () => {
       await result.current.saveNow()
     })
 
-    expect(localStorage.getItem('benger_draft_task-8')).not.toBeNull()
+    expect(localStorage.getItem('benger_draft_anon_task-8')).not.toBeNull()
   })
 
   it('should save with direct values via saveNow', async () => {
@@ -213,7 +213,7 @@ describe('useAutoSave', () => {
       })
     })
 
-    const saved = JSON.parse(localStorage.getItem('benger_draft_task-9')!)
+    const saved = JSON.parse(localStorage.getItem('benger_draft_anon_task-9')!)
     expect(saved.componentValues.myField).toBe('directValue')
   })
 
@@ -231,7 +231,7 @@ describe('useAutoSave', () => {
   })
 
   it('should handle corrupted localStorage gracefully', () => {
-    localStorage.setItem('benger_draft_task-11', 'not-valid-json')
+    localStorage.setItem('benger_draft_anon_task-11', 'not-valid-json')
 
     const { result } = renderHook(() =>
       useAutoSave('task-11', emptyAnnotations, emptyValues, startTime),
@@ -253,5 +253,37 @@ describe('useAutoSave', () => {
     act(() => {
       jest.advanceTimersByTime(2000)
     })
+  })
+})
+
+describe('useAutoSave draft scope', () => {
+  beforeEach(() => {
+    jest.useFakeTimers()
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('REGRESSION: a draft saved by one account is invisible to the next one', () => {
+    const annotations = new Map([['a1', { id: 'a1', value: 'from A' }]])
+    localStorage.setItem('benger_last_session_user', 'user-a')
+    const first = renderHook(() =>
+      useAutoSave('task-9', annotations, new Map(), Date.now()),
+    )
+    act(() => {
+      first.result.current.saveNow()
+    })
+    expect(localStorage.getItem('benger_draft_user-a_task-9')).not.toBeNull()
+    expect(localStorage.getItem('benger_draft_task-9')).toBeNull()
+    first.unmount()
+
+    // Same browser, another account: the key differs, no draft is seen.
+    localStorage.setItem('benger_last_session_user', 'user-b')
+    const second = renderHook(() =>
+      useAutoSave('task-9', new Map(), new Map(), Date.now()),
+    )
+    expect(second.result.current.hasDraft).toBe(false)
   })
 })

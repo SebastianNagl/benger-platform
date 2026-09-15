@@ -250,6 +250,12 @@ describe('ProjectDetailPage — participant tier', () => {
     const card = screen.getByTestId('participant-card-stub')
     expect(card).toHaveAttribute('data-via', 'share')
     expect(card).toHaveTextContent('test-project-123')
+    // The primary action comes first: quick actions above the card.
+    const quickActions = screen.getByText('project.quickActions.title')
+    expect(
+      quickActions.compareDocumentPosition(card) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
     // No settings / sharing for participants; quick actions reduced.
     expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
     expect(screen.queryByTestId('sharing-stub')).not.toBeInTheDocument()

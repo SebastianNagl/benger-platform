@@ -102,7 +102,12 @@ jest.mock('@/components/evaluation/PerRunBreakdown', () => ({
       data-row-count={rows.length}
     >
       {rows.map((r: any, i: number) => (
-        <div key={i} data-testid="per-run-row">
+        <div
+          key={i}
+          data-testid="per-run-row"
+          data-metric={r.metric}
+          data-metric-label={r.metric_label}
+        >
           {r.target_model_id}|{r.judge_model_id}|{r.run_index}|{r.status}|
           {String(r.samples_evaluated)}|{String(r.mean_score)}
         </div>
@@ -297,10 +302,10 @@ describe('EvaluationDashboard ([id] page)', () => {
       renderPage()
       await waitFor(() => {
         expect(
-          screen.getByText('evaluation.human.results.noResults'),
+          screen.getByText('evaluations.detail.notFound'),
         ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('evaluation.human.preference.next'))
+      await user.click(screen.getByText('evaluations.detail.backToRuns'))
       expect(mockRouter.push).toHaveBeenCalledWith('/runs?type=evaluation')
     })
 
@@ -311,7 +316,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       renderPage()
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
-          'evaluation.human.preference.saveFailed',
+          'evaluations.detail.loadFailed',
           'error',
         )
       })
@@ -648,6 +653,56 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(
         screen.getByText(/Mindestens ein Judge-Lauf ist fehlgeschlagen/),
       ).toBeInTheDocument()
+    })
+
+    it('grades each judge run on the metric of its own config', async () => {
+      // An immediate grading: one config per judge tier, each graded by a
+      // single judge run, on different metrics. The second row must take
+      // its mean from f1_score, not from the first aggregated metric.
+      const user = userEvent.setup()
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        results_by_config: {
+          cfg1: { answer_vs_gt: { exact_match: 0.85 } },
+          cfg2: { answer_vs_gt: { f1_score: 0.7 } },
+        },
+        eval_metadata: {
+          ...baseEvaluation.eval_metadata,
+          judges_by_config: {
+            cfg1: [
+              {
+                judge_model_id: 'judge-free',
+                run_index: 0,
+                judge_run_id: 'jr-1',
+                status: 'completed',
+                samples_evaluated: 1,
+              },
+            ],
+            cfg2: [
+              {
+                judge_model_id: 'judge-paid',
+                run_index: 0,
+                judge_run_id: 'jr-2',
+                status: 'completed',
+                samples_evaluated: 1,
+              },
+            ],
+          },
+        },
+      })
+      renderPage()
+      await user.click(await screen.findByText('Judges & Läufe'))
+
+      const breakdown = await screen.findByTestId('per-run-breakdown')
+      const rows = within(breakdown).getAllByTestId('per-run-row')
+      expect(rows[0]).toHaveTextContent('gpt-4o|judge-free|0|completed|1|0.85')
+      expect(rows[0]).toHaveAttribute('data-metric', 'exact_match')
+      expect(rows[1]).toHaveTextContent('gpt-4o|judge-paid|0|completed|1|0.7')
+      expect(rows[1]).toHaveAttribute('data-metric', 'f1_score')
+      expect(rows[1]).toHaveAttribute(
+        'data-metric-label',
+        metricDisplayLabel('f1_score', undefined, mockT),
+      )
     })
 
     it('renders the agreement heatmap from pearson when cohens dict is empty', async () => {

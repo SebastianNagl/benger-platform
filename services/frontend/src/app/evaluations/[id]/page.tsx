@@ -272,7 +272,7 @@ export default function EvaluationDashboard({
       }
     } catch (error) {
       console.error('Failed to load evaluation:', error)
-      addToast(t('evaluation.human.preference.saveFailed'), 'error')
+      addToast(t('evaluations.detail.loadFailed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -361,6 +361,7 @@ export default function EvaluationDashboard({
     for (const cid of Object.keys(judgesByConfig)) {
       for (const entry of judgesByConfig[cid]) {
         rows.push({
+          config_id: cid,
           target_model_id: evaluation.model_id,
           judge_model_id: entry.judge_model_id,
           run_index: entry.run_index,
@@ -425,13 +426,13 @@ export default function EvaluationDashboard({
       <div className="mx-auto max-w-7xl px-4 pt-16 pb-10 sm:px-6 lg:px-8">
         <Card className="px-6 py-12 text-center">
           <p className="text-zinc-600 dark:text-zinc-400">
-            {t('evaluation.human.results.noResults')}
+            {t('evaluations.detail.notFound')}
           </p>
           <Button
             className="mt-4"
             onClick={() => router.push('/runs?type=evaluation')}
           >
-            {t('evaluation.human.preference.next')}
+            {t('evaluations.detail.backToRuns')}
           </Button>
         </Card>
       </div>
@@ -468,6 +469,37 @@ export default function EvaluationDashboard({
   // Deduped bare names for the distribution dropdown (the endpoint takes the
   // bare name) and the per-run breakdown.
   const metricKeys = Array.from(new Set(metricEntries.map((e) => e.bare)))
+
+  // Rows for the judges tab, each carrying the metric of the config its
+  // judge run graded. A run may mix metrics across configs (an immediate
+  // grading holds one config per judge tier), so the first aggregated metric
+  // is only the fallback for a config the snapshot does not name. A config
+  // graded by a single judge run gets that run's mean from the config's own
+  // aggregate; the per-judge means of an ensemble stay "—" until the stats
+  // endpoint breaks them down per judge run.
+  const judgesByConfig = evaluation.eval_metadata?.judges_by_config ?? {}
+  const judgeRows: PerRunRow[] = perRunRows.map((row) => {
+    const cid = row.config_id
+    const metric =
+      (cid ? configs.find((c) => c.id === cid)?.metric : undefined) ??
+      metricKeys[0]
+    if (!metric) return row
+    const labelled: PerRunRow = {
+      ...row,
+      metric,
+      metric_label: metricDisplayLabel(metric, undefined, t),
+    }
+    if (row.mean_score !== null || !cid) return labelled
+    if (judgesByConfig[cid]?.length !== 1) return labelled
+    return {
+      ...labelled,
+      mean_score: configMetricMean(evaluation.results_by_config, cid, metric),
+    }
+  })
+  // The table names one metric in its header when every row shares it; a
+  // mixed table names the metric per row instead.
+  const judgeTableMetric =
+    judgeRows.find((row) => row.metric)?.metric ?? metricKeys[0] ?? ''
 
   const evaluated = (evaluation.samples_evaluated ?? 0) > 0
   const samplesFailed = evaluation.eval_metadata?.samples_failed || 0
@@ -917,34 +949,11 @@ export default function EvaluationDashboard({
                 </Alert>
               )}
               <PerRunBreakdown
-                rows={perRunRows.map((row) => {
-                  // A config graded by a single judge run: the config's own
-                  // score is that run's mean.
-                  if (row.mean_score !== null || !metricKeys[0]) return row
-                  const cid = Object.keys(
-                    evaluation?.eval_metadata?.judges_by_config ?? {},
-                  ).find((id) =>
-                    evaluation?.eval_metadata?.judges_by_config?.[id]?.some(
-                      (entry) => entry.judge_run_id === row.judge_run_id,
-                    ),
-                  )
-                  const runs = cid
-                    ? evaluation?.eval_metadata?.judges_by_config?.[cid]
-                    : undefined
-                  if (!cid || runs?.length !== 1) return row
-                  return {
-                    ...row,
-                    mean_score: configMetricMean(
-                      evaluation?.results_by_config,
-                      cid,
-                      metricKeys[0],
-                    ),
-                  }
-                })}
-                metric={metricKeys[0] || ''}
+                rows={judgeRows}
+                metric={judgeTableMetric}
                 metricLabel={
-                  metricKeys[0]
-                    ? metricDisplayLabel(metricKeys[0], undefined, t)
+                  judgeTableMetric
+                    ? metricDisplayLabel(judgeTableMetric, undefined, t)
                     : undefined
                 }
                 showTargetModel={false}

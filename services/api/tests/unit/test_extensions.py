@@ -96,7 +96,16 @@ class TestExtensionLoader:
         # Notenschlüssel, for every exam. It also widens the rubric importer
         # to .csv/.md/.json and adds ``rubric_import.rubric_document_text``,
         # which the extended AI-structuring fallback reads its document with.
-        assert CORE_API_VERSION == "2.16"
+        # 2.16 is the Bewertungsbogen fix train: model_defaults.DEFAULT_JUDGE_MODEL_ID,
+        # eval_field_classification.bare_field_name / same_field /
+        # unprefixed_is_human (migration 102), the evidence-quoted rubric
+        # judge and import_jobs.organization_id (migration 103).
+        # 2.17 adds rubric_structure.order_criteria_keys,
+        # model_defaults.RUBRIC_JUDGE_MAX_TOKENS / METRIC_MAX_TOKENS_FLOOR and
+        # creator access to an unattached project under a foreign org context
+        # (the extended task-rubric reads route to the platform endpoints).
+        # The full per-version log lives in services/shared/core_version.py.
+        assert CORE_API_VERSION == "2.17"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

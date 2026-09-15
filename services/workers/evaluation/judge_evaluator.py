@@ -14,24 +14,6 @@ names, and decorator args) remain in ``tasks.py`` and delegate here.
 import tasks
 from typing import Any, Dict, Optional
 
-def _project_eval_config(db, project_id):
-    """The project's ``evaluation_config`` document, or ``None``.
-
-    Only read when a Bewertungsbogen grade is about to be computed — the
-    exam-level Notenschlüssel (``evaluation_config.grade_scale``) beats the
-    sheet's own scale, see ``rubric_structure.resolve_grade_scale``.
-    """
-    if not project_id:
-        return None
-    try:
-        from project_models import Project as _Project
-
-        row = db.query(_Project).filter(_Project.id == project_id).first()
-    except Exception:  # pragma: no cover - defensive, grading must not break
-        return None
-    config = getattr(row, "evaluation_config", None)
-    return config if isinstance(config, dict) else None
-
 
 def _evaluate_llm_judge_single_impl(
     db, record_id, immediate_eval_id, project_id, task_id,
@@ -150,7 +132,9 @@ def _evaluate_llm_judge_single_impl(
         )
         if task_rubric is None:
             raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
-        llm_judge.custom_criteria = task_rubric.criteria
+        # Criteria + rubric mode (fixed roles, tagged inputs, verified
+        # evidence), exactly as the bulk cell paths bind them.
+        llm_judge.bind_task_rubric(task_rubric)
         # Grade against the Musterlösung when the task carries one — mirrors
         # the bulk cell path's ground-truth swap.
         muster = tasks._get_insensitive(
@@ -169,52 +153,22 @@ def _evaluate_llm_judge_single_impl(
         from annotation_utils import extract_all_field_values
         task_row = db.query(ProjectTask).filter(ProjectTask.id == task_id).first()
         task_data = (task_row.data if task_row else {}) or {}
-        # Case-side exam parts + author-provided grading hints, fed via the
-        # prompt's {context} slot — empty for tasks without the keys. The
-        # parts live under separate task-data keys (never composed into the
-        # sachverhalt string, whose highlight spans anchor to char offsets).
-        _context_blocks = []
-        bearbeitervermerk = str(
-            tasks._get_insensitive(task_data, "bearbeitervermerk") or ""
-        ).strip()
-        if bearbeitervermerk:
-            _context_blocks.append(f"## Bearbeitervermerk\n\n{bearbeitervermerk}")
-        zusatzmaterial = str(
-            tasks._get_insensitive(task_data, "zusatzmaterial") or ""
-        ).strip()
-        if zusatzmaterial:
-            _context_blocks.append(f"## Zusatzmaterial\n\n{zusatzmaterial}")
-        korrekturhinweise = str(
-            tasks._get_insensitive(task_data, "korrekturhinweise") or ""
-        ).strip()
-        if korrekturhinweise:
-            _context_blocks.append(
-                "Zusätzliche Hinweise für die Korrektur (vom Aufgabensteller):\n"
-                f"{korrekturhinweise}"
-            )
-        judge_context = "\n\n".join(_context_blocks)
+        # The same {context} block the bulk cell paths build: case text,
+        # exam parts, and (outside rubric mode) the author's grading hints.
+        from evaluation.cell_evaluator import (
+            _build_judge_context,
+            _multidim_row_passed,
+            _project_eval_config,
+            _render_rubric_text,
+            _stamp_rubric_result,
+        )
+
+        judge_context = _build_judge_context(
+            task_data, include_korrekturhinweise=task_rubric is None
+        )
         if task_rubric is not None:
-            # The rubric judge's {context} slot is the case: lead with the
-            # Sachverhalt exactly like the bulk cell path does. Without it
-            # the immediate lane graded against the exam parts only, so the
-            # two lanes saw different inputs for the same answer.
-            case_text = (
-                tasks._get_insensitive(task_data, "text")
-                or tasks._get_insensitive(task_data, "input")
-                or tasks._get_insensitive(task_data, "sachverhalt")
-                or ""
-            )
-            if case_text:
-                judge_context = (
-                    f"{case_text}\n\n{judge_context}" if judge_context else str(case_text)
-                )
-            # Fixed roles, tagged inputs and verified evidence (see
-            # LLMJudgeEvaluator._evaluate_multidim_single_call).
-            llm_judge.rubric_mode = True
             # Bind the rendered rubric so the grading template's
             # {bewertungsbogen} placeholder resolves (mirror of the bulk path).
-            from evaluation.cell_evaluator import _render_rubric_text
-
             task_data = {
                 **task_data,
                 "bewertungsbogen": _render_rubric_text(task_rubric),
@@ -251,50 +205,24 @@ def _evaluate_llm_judge_single_impl(
             )
             raise RuntimeError(err_msg)
 
-        total = float(multidim.get("total_score") or 0.0)
-        total_max = float(multidim.get("total_max") or 0.0)
-        normalized = total / total_max if total_max > 0 else 0.0
-        multidim_details = {
-            "scores": multidim["scores"],
-            "total_score": total,
-            "total_max": total_max,
-            "overall_assessment": multidim.get("overall_assessment", ""),
-            "call_metadata": multidim.get("_call_metadata", {}),
-            "raw_output": multidim.get("_raw_output", ""),
-        }
         judge_prompts_used = multidim.get("_judge_prompts_used")
-        row_passed = float(normalized) >= 0.5
-        row_metrics: Dict[str, Any] = {
-            metric_type: {
-                "value": float(normalized),
-                "method": metric_type,
-                "details": multidim_details,
-                "error": None,
-            },
-            "raw_score": float(normalized),
-        }
         if task_rubric is not None:
-            multidim_details["rubric_id"] = task_rubric.id
-            if isinstance(judge_prompts_used, dict):
-                judge_prompts_used["task_rubric_id"] = task_rubric.id
-                judge_prompts_used["task_rubric_generator"] = (
-                    task_rubric.generator_model_id
-                )
-            # Notenpunkte from the rubric's own Notenschlüssel (or the
-            # default table scaled to its total). The row's pass flag and
-            # the <metric>_grade_points / <metric>_passed siblings mirror
-            # the bulk cell path so every reader (exam card, score history,
-            # report snapshot) sees one shape.
-            from rubric_structure import grade_for_rubric
-
-            grade_points, row_passed, scale_source = grade_for_rubric(
-                task_rubric, total, total_max, _project_eval_config(db, project_id)
+            # rubric_id + Notenpunkte on the result, sheet provenance on the
+            # prompts: the same stamp the bulk cell paths apply.
+            _stamp_rubric_result(
+                multidim, judge_prompts_used, task_rubric, _project_eval_config(db, project_id)
             )
-            multidim_details["grade_points"] = grade_points
-            multidim_details["passed"] = row_passed
-            multidim_details["grade_scale_source"] = scale_source
-            row_metrics[f"{metric_type}_grade_points"] = float(grade_points)
-            row_metrics[f"{metric_type}_passed"] = 1.0 if row_passed else 0.0
+        # One row shape for bulk and immediate rows (details incl. the
+        # <metric>_grade_points / <metric>_passed siblings, scrubbed text),
+        # so every reader (exam card, score history, report snapshot) reads
+        # one shape.
+        row_metrics, normalized = tasks._build_multidim_judge_row_metrics(
+            multidim, metric_type, None
+        )
+        multidim_details = row_metrics[metric_type]["details"]
+        total = multidim_details["total_score"]
+        total_max = multidim_details["total_max"]
+        row_passed = _multidim_row_passed(row_metrics, metric_type, normalized)
         eval_record = TaskEvaluation(
             id=record_id,
             evaluation_id=immediate_eval_id,

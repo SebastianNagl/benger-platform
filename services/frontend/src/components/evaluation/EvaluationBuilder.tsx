@@ -117,8 +117,28 @@ export function EvaluationBuilder({
   customMaxTokens,
 }: EvaluationBuilderProps) {
   const { t } = useI18n()
-  const { judgeModels, getThinkingConfig, getJudgeModelDefaults } =
-    useJudgeModelHelpers()
+  const {
+    judgeModels,
+    getThinkingConfig,
+    getJudgeModelDefaults,
+    getModelConstraints,
+  } = useJudgeModelHelpers()
+
+  // max_tokens for a freshly picked judge model: the model's default budget,
+  // raised to the metric's declared floor (`min_max_tokens`, e.g. a
+  // step-by-step judge that needs its whole sheet in one answer) and capped
+  // at the model's own limit when the two conflict.
+  const clampJudgeMaxTokens = (
+    metric: string,
+    modelId: string,
+    value: number | undefined,
+  ): number | undefined => {
+    const floor = getMetricDefinitions()[metric]?.min_max_tokens ?? 0
+    // No default and no floor: leave the field unset, as before.
+    if (value === undefined && floor === 0) return undefined
+    const cap = getModelConstraints(modelId).maxTokens.max
+    return Math.min(Math.max(value ?? floor, floor), cap)
+  }
 
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [currentStep, setCurrentStep] = useState<WizardStep>('metric')
@@ -793,7 +813,11 @@ export function EvaluationBuilder({
                           judge_model: modelId,
                           // Pre-fill defaults for model-specific requirements
                           temperature: defaults.temperature,
-                          max_tokens: defaults.max_tokens,
+                          max_tokens: clampJudgeMaxTokens(
+                            prev.metric,
+                            modelId,
+                            defaults.max_tokens,
+                          ),
                         },
                       }))
                     }}
@@ -1011,7 +1035,11 @@ export function EvaluationBuilder({
                           judge_model: modelId,
                           // Pre-fill defaults for model-specific requirements
                           temperature: defaults.temperature,
-                          max_tokens: defaults.max_tokens,
+                          max_tokens: clampJudgeMaxTokens(
+                            prev.metric,
+                            modelId,
+                            defaults.max_tokens,
+                          ),
                         },
                       }))
                     }}

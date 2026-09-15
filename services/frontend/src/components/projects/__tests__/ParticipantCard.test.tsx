@@ -3,6 +3,7 @@
  */
 import { registerSlot } from '@/lib/extensions/slots'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { useEffect, useState } from 'react'
 import { ParticipantCard } from '../ParticipantCard'
 
 const mockConfirm = jest.fn()
@@ -104,6 +105,64 @@ describe('ParticipantCard', () => {
     expect(
       await screen.findByTestId('participant-cannot-leave'),
     ).toHaveTextContent('Organisation')
+  })
+
+  it('org_exam with an empty cohort renders nothing', async () => {
+    mockGet.mockResolvedValue({
+      tier: 'participant',
+      via: 'org_exam',
+      can_leave: false,
+      cannot_leave_reason: 'org_membership',
+    })
+    // Community edition: no cohort slot at all.
+    const { unmount } = render(
+      <ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />,
+    )
+    await waitFor(() => expect(mockGet).toHaveBeenCalled())
+    await waitFor(() =>
+      expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
+    )
+    unmount()
+
+    // Extended edition: the slot reports an empty cohort.
+    const EmptyCohort = ({ onEmpty }: any) => {
+      useEffect(() => onEmpty(true), [onEmpty])
+      return <div data-testid="cohort-stub">empty</div>
+    }
+    registerSlot('ProjectCohortLeaderboard', EmptyCohort)
+    render(<ParticipantCard projectId="p2" via="org_exam" onLeft={jest.fn()} />)
+    await waitFor(() =>
+      expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
+    )
+  })
+
+  it('share join still renders with an empty cohort and collapses the box', async () => {
+    mockGet.mockResolvedValue({
+      tier: 'participant',
+      via: 'share',
+      can_leave: true,
+      cannot_leave_reason: null,
+    })
+    const Cohort = ({ onEmpty }: any) => {
+      const [rows, setRows] = useState(0)
+      useEffect(() => onEmpty(rows === 0), [onEmpty, rows])
+      return (
+        <button data-testid="cohort-add" onClick={() => setRows(1)}>
+          {rows}
+        </button>
+      )
+    }
+    registerSlot('ProjectCohortLeaderboard', Cohort)
+    render(<ParticipantCard projectId="p1" via="share" onLeft={jest.fn()} />)
+    expect(await screen.findByTestId('participant-leave')).toBeInTheDocument()
+    const box = screen.getByTestId('participant-cohort')
+    await waitFor(() => expect(box).toHaveAttribute('data-empty', 'true'))
+    expect(box).toHaveClass('hidden')
+    // Rows arriving later bring the box back without a remount.
+    fireEvent.click(screen.getByTestId('cohort-add'))
+    await waitFor(() => expect(box).toHaveAttribute('data-empty', 'false'))
+    expect(box).not.toHaveClass('hidden')
+    expect(screen.getByTestId('participant-card')).toBeInTheDocument()
   })
 
   it('falls back to the via prop when the participation fetch fails', async () => {

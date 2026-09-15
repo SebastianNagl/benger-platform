@@ -324,6 +324,18 @@ class TestBuildMultidimJudgeRowMetrics:
 
 
 class TestApplyMetricMaxTokensFloor:
+    def test_floor_is_the_shared_rubric_budget(self):
+        """One number for every place that sets the rubric judge's budget:
+        the worker floor is the model_defaults object, not a copy."""
+        import model_defaults
+
+        assert model_defaults.RUBRIC_JUDGE_MAX_TOKENS == 32000
+        assert model_defaults.METRIC_MAX_TOKENS_FLOOR == {
+            "llm_judge_rubric": model_defaults.RUBRIC_JUDGE_MAX_TOKENS
+        }
+        assert tasks_module.METRIC_MAX_TOKENS_FLOOR is model_defaults.METRIC_MAX_TOKENS_FLOOR
+        assert tasks_module.RUBRIC_JUDGE_MAX_TOKENS == 32000
+
     def test_system_default_is_lifted_and_recorded(self):
         provenance = {"max_tokens": {"value": 1500, "source": "system"}}
         assert tasks_module._apply_metric_max_tokens_floor(

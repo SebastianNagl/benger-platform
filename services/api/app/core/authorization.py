@@ -154,6 +154,14 @@ class AuthorizationService:
                 # scope entirely. Non-creators get nothing here.
                 return user.id == project.created_by
 
+            # A project attached to NO organization is private whatever
+            # context the client sends: the creator keeps access under a
+            # foreign org context (the extended read endpoints for task
+            # rubrics used to re-implement exactly this rule to work around
+            # the 403), everyone else gets nothing.
+            if not project_org_ids:
+                return user.id == project.created_by
+
             if org_context not in project_org_ids:
                 return False
 

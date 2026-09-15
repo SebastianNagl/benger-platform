@@ -532,3 +532,74 @@ class TestOpenAIStructuredReasoningEffort:
         params, out = self._call("gpt-5-mini")
         assert "reasoning_effort" not in params
         assert out["metadata"]["reasoning_effort"] is None
+
+
+# ===========================================================================
+# OPENAI — generate_structured() temperature / dropped-param provenance
+# ===========================================================================
+class TestStructuredProvenance:
+    """``generate_structured`` records the same temperature and dropped-
+    parameter provenance as ``generate``: the rubric judge is the main
+    caller, and its persisted call_metadata must show whether the
+    requested temperature was honored or coerced by the model family."""
+
+    @pytest.fixture(autouse=True)
+    def _no_e2e_mock(self, monkeypatch):
+        monkeypatch.delenv("E2E_TEST_MODE", raising=False)
+
+    def _call(self, model, temperature=0.0):
+        svc = _make_openai(_openai_response(content='{"ok": "ok"}'))
+        out = svc.generate_structured(
+            prompt="p",
+            system_prompt="s",
+            json_schema={"type": "object", "properties": {}},
+            model_name=model,
+            temperature=temperature,
+        )
+        return svc.client.chat.completions.create.call_args.kwargs, out["metadata"]
+
+    def test_gpt5_point_release_coerces_temperature_and_lists_dropped_params(self):
+        from ai_services.provider_capabilities import model_supports_seed
+
+        params, meta = self._call("gpt-5.4-mini", temperature=0.0)
+        assert params["temperature"] == 1.0
+        assert meta["temperature"] == 1.0
+        assert meta["requested_temperature"] == 0.0
+        assert meta["actual_temperature"] == 1.0
+        assert meta["temperature_coerced"] is True
+        assert meta["is_gpt5_series"] is True
+        assert meta["is_o_series"] is False
+        assert meta["seed"] is None
+        dropped = meta["unsupported_params_dropped"]
+        assert dropped[:3] == ["top_p", "frequency_penalty", "presence_penalty"]
+        # seed counts as dropped only when the model would have taken it
+        assert ("seed" in dropped) is model_supports_seed("openai", "gpt-5.4-mini")
+        for key in ("top_p", "frequency_penalty", "presence_penalty", "seed"):
+            assert key not in params
+
+    def test_gpt5_at_temperature_one_is_not_coerced(self):
+        _params, meta = self._call("gpt-5-mini", temperature=1.0)
+        assert meta["temperature_coerced"] is False
+        assert meta["requested_temperature"] == 1.0
+        assert meta["actual_temperature"] == 1.0
+
+    def test_gpt4o_keeps_the_requested_temperature_and_drops_nothing(self):
+        params, meta = self._call("gpt-4o", temperature=0.2)
+        assert params["temperature"] == 0.2
+        assert meta["temperature"] == 0.2
+        assert meta["requested_temperature"] == 0.2
+        assert meta["actual_temperature"] == 0.2
+        assert meta["temperature_coerced"] is False
+        assert meta["unsupported_params_dropped"] == []
+        assert meta["is_gpt5_series"] is False
+        assert meta["is_o_series"] is False
+        assert params["top_p"] == 1.0
+
+    def test_o_series_is_flagged_and_coerced(self):
+        params, meta = self._call("o3-mini", temperature=0.0)
+        assert params["temperature"] == 1.0
+        assert meta["is_o_series"] is True
+        assert meta["is_gpt5_series"] is False
+        assert meta["temperature_coerced"] is True
+        # o-series is not the GPT-5 family: the penalties are still sent
+        assert meta["unsupported_params_dropped"] == []
