@@ -116,9 +116,12 @@ def test_rubric_multidim_path_binds_rendering_and_stamps_provenance():
 
 
 def test_multidim_path_feeds_exam_parts_into_judge_context():
-    """Case-side exam parts + author grading hints from task.data
-    (bearbeitervermerk / zusatzmaterial / korrekturhinweise) are composed
-    into the judge's {context} block, in the standard German exam order."""
+    """Case-side exam parts from task.data (bearbeitervermerk /
+    zusatzmaterial) are composed into the rubric judge's {context} block in
+    the standard German exam order. The author's grading hints
+    (korrekturhinweise) stay OUT of the case text: the evaluator renders
+    them as their own <korrekturhinweise> block from the task data it is
+    handed (see LLMJudgeEvaluator._evaluate_multidim_single_call)."""
     db = MagicMock()
     task_row = SimpleNamespace(
         id="task-1",
@@ -159,16 +162,15 @@ def test_multidim_path_feeds_exam_parts_into_judge_context():
         result = _evaluate_llm_judge_single_impl(**_impl_kwargs(db))
 
     assert result["status"] == "completed"
-    context = judge._evaluate_multidim_single_call.call_args.kwargs["context"]
+    call = judge._evaluate_multidim_single_call.call_args.kwargs
+    context = call["context"]
     assert "## Bearbeitervermerk\n\nNur Strafrecht prüfen." in context
     assert "## Zusatzmaterial\n\n§ 242 StGB Auszug" in context
-    assert "Schwerpunkt Zueignungsabsicht" in context
-    # Standard exam order: Bearbeitervermerk → Zusatzmaterial → Hinweise.
-    assert (
-        context.index("Bearbeitervermerk")
-        < context.index("Zusatzmaterial")
-        < context.index("Schwerpunkt")
-    )
+    # Standard exam order: Bearbeitervermerk → Zusatzmaterial.
+    assert context.index("Bearbeitervermerk") < context.index("Zusatzmaterial")
+    # The hints reach the evaluator through task_data, not the case text.
+    assert "Schwerpunkt Zueignungsabsicht" not in context
+    assert call["task_data"]["korrekturhinweise"] == "Schwerpunkt Zueignungsabsicht"
 
 
 def test_unusable_rubric_raises_no_rubric_error():
@@ -476,12 +478,36 @@ def test_rubric_path_persists_per_step_evidence_fields():
 
 def test_other_multidim_metrics_stay_out_of_rubric_mode():
     """A generic multi-dim judge (llm_judge_custom with max_score criteria)
-    keeps its context and never switches on the rubric rules."""
+    never switches on the rubric rules. It sees the same context as the
+    bulk cell path: the case text (the immediate lane used to drop it for
+    every metric but the rubric judge)."""
     _result, judge, _db = _run_immediate(
         {"sachverhalt": "Der Fall.", "musterlösung": "ML"}, metric_type="llm_judge_custom"
     )
     assert judge.rubric_mode is not True
-    assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == ""
+    assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == "Der Fall."
+
+
+def test_other_multidim_metrics_keep_the_hints_inside_the_context():
+    """Outside rubric mode there is no <korrekturhinweise> tag, so the hints
+    stay in the context block as before."""
+    _result, judge, _db = _run_immediate(
+        {"sachverhalt": "Der Fall.", "korrekturhinweise": "Schwerpunkt A"},
+        metric_type="llm_judge_custom",
+    )
+    assert judge._evaluate_multidim_single_call.call_args.kwargs["context"] == (
+        "Der Fall.\n\nZusätzliche Hinweise für die Korrektur (vom Aufgabensteller):\n"
+        "Schwerpunkt A"
+    )
+
+
+def test_rubric_path_keeps_the_hints_out_of_the_context():
+    _result, judge, _db = _run_immediate(
+        {"sachverhalt": "Der Fall.", "musterlösung": "ML", "korrekturhinweise": "Schwerpunkt A"}
+    )
+    call = judge._evaluate_multidim_single_call.call_args.kwargs
+    assert call["context"] == "Der Fall."
+    assert call["task_data"]["korrekturhinweise"] == "Schwerpunkt A"
 
 
 @pytest.mark.parametrize("configured", [None, "minimal"])
@@ -512,3 +538,61 @@ def test_immediate_lane_forwards_the_configured_reasoning_effort(configured):
     ):
         _evaluate_llm_judge_single_impl(**kwargs)
     assert factory.call_args.kwargs["reasoning_effort"] == configured
+
+
+# ---------------------------------------------------------------------------
+# _build_judge_context: the one context builder every judge lane uses
+# ---------------------------------------------------------------------------
+
+_FULL_TASK = {
+    "sachverhalt": "Der Fall.",
+    "bearbeitervermerk": " Nur Strafrecht prüfen. ",
+    "zusatzmaterial": "§ 242 StGB Auszug",
+    "korrekturhinweise": "Schwerpunkt Zueignungsabsicht",
+}
+
+
+def test_build_judge_context_composes_case_parts_and_hints_in_order():
+    from evaluation.cell_evaluator import _build_judge_context
+
+    assert _build_judge_context(_FULL_TASK) == (
+        "Der Fall.\n\n"
+        "## Bearbeitervermerk\n\nNur Strafrecht prüfen.\n\n"
+        "## Zusatzmaterial\n\n§ 242 StGB Auszug\n\n"
+        "Zusätzliche Hinweise für die Korrektur (vom Aufgabensteller):\n"
+        "Schwerpunkt Zueignungsabsicht"
+    )
+
+
+def test_build_judge_context_can_leave_out_the_hints():
+    from evaluation.cell_evaluator import _build_judge_context
+
+    context = _build_judge_context(_FULL_TASK, include_korrekturhinweise=False)
+    assert context.endswith("## Zusatzmaterial\n\n§ 242 StGB Auszug")
+    assert "Schwerpunkt" not in context
+
+
+def test_build_judge_context_can_leave_out_the_case():
+    from evaluation.cell_evaluator import _build_judge_context
+
+    context = _build_judge_context(_FULL_TASK, include_case=False)
+    assert context.startswith("## Bearbeitervermerk\n\nNur Strafrecht prüfen.")
+    assert "Der Fall." not in context
+
+
+@pytest.mark.parametrize("data", [None, {}, {"other": "x"}, {"bearbeitervermerk": "  "}])
+def test_build_judge_context_is_empty_without_any_key(data):
+    from evaluation.cell_evaluator import _build_judge_context
+
+    assert _build_judge_context(data) == ""
+
+
+def test_build_judge_context_case_text_precedence_and_case_insensitive_keys():
+    from evaluation.cell_evaluator import _build_judge_context
+
+    # text | input | sachverhalt, first hit wins; keys match case-insensitively
+    assert _build_judge_context({"Text": "T", "input": "I", "sachverhalt": "S"}) == "T"
+    assert _build_judge_context({"Input": "I", "Sachverhalt": "S"}) == "I"
+    assert _build_judge_context({"Sachverhalt": "S"}) == "S"
+    # a task with parts but no case text starts with the first part
+    assert _build_judge_context({"Zusatzmaterial": "Z"}) == "## Zusatzmaterial\n\nZ"

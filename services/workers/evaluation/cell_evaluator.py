@@ -89,6 +89,58 @@ def _render_rubric_text(rubric) -> str:
     return rubric_prompt_text(rubric, include_grade_scale=False)
 
 
+def _build_judge_context(
+    task_data, *, include_case=True, include_korrekturhinweise=True
+) -> str:
+    """The ``{context}`` block an LLM judge sees for a task.
+
+    One builder for every judge lane (bulk generation cell, bulk annotation
+    cell, immediate single-sample), so the same task always renders the same
+    context: the case text (``text`` | ``input`` | ``sachverhalt``, first
+    hit wins), then the case-side exam parts stored under their own
+    task-data keys (never composed into the sachverhalt string — highlight
+    spans anchor to its offsets) as labeled blocks, then the author's
+    grading hints. Tasks without the keys keep a bare case text; a task
+    without any key renders ``""``.
+
+    ``include_korrekturhinweise=False`` is for the Bewertungsbogen judge,
+    which receives the hints as their own ``<korrekturhinweise>`` block (see
+    ``LLMJudgeEvaluator._evaluate_multidim_single_call``) instead of inside
+    the case text, where its rules tell it to ignore instructions.
+    """
+    import tasks
+
+    _get_insensitive = tasks._get_insensitive
+    data = task_data or {}
+    context = ""
+    if include_case:
+        case_text = (
+            _get_insensitive(data, "text")
+            or _get_insensitive(data, "input")
+            or _get_insensitive(data, "sachverhalt")
+            or ""
+        )
+        context = str(case_text) if case_text else ""
+    for key, heading in (
+        ("bearbeitervermerk", "## Bearbeitervermerk"),
+        ("zusatzmaterial", "## Zusatzmaterial"),
+    ):
+        value = str(_get_insensitive(data, key) or "").strip()
+        if value:
+            block = f"{heading}\n\n{value}"
+            context = f"{context}\n\n{block}" if context else block
+    if include_korrekturhinweise:
+        hints = str(_get_insensitive(data, "korrekturhinweise") or "").strip()
+        if hints:
+            hint_block = (
+                "Zusätzliche Hinweise für die Korrektur "
+                "(vom Aufgabensteller):\n"
+                f"{hints}"
+            )
+            context = f"{context}\n\n{hint_block}" if context else hint_block
+    return context
+
+
 def _project_eval_config(db, project_id):
     """The project's ``evaluation_config`` document, or ``None``.
 
@@ -435,17 +487,16 @@ def evaluate_generation_cell_impl(
                         if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
                             # ── Multi-judge / multi-run fan-out (intra-cell) ──
                             per_judge_results: List[Dict[str, Any]] = []
-                            context = (
-                                _get_insensitive(task.data, "text")
-                                or _get_insensitive(task.data, "input")
-                                or _get_insensitive(task.data, "sachverhalt")
-                                or ""
+                            # Case text plus the case-side exam parts. The
+                            # rubric judge gets the author's grading hints
+                            # as their own tagged block instead of inside
+                            # the case (see _build_judge_context).
+                            context = _build_judge_context(
+                                task.data,
+                                include_korrekturhinweise=metric != "llm_judge_rubric",
                             )
-                            # Case-side exam parts stored as separate task-data
-                            # keys (never composed into the sachverhalt string —
-                            # highlight spans anchor to its offsets). Appended
-                            # as labeled blocks so tasks without the keys keep
-                            # a byte-identical context.
+                            # The Falllösung hook takes the exam parts and
+                            # the hints as separate kwargs.
                             bearbeitervermerk = (
                                 _get_insensitive(task.data, "bearbeitervermerk")
                                 if task.data
@@ -456,28 +507,11 @@ def evaluate_generation_cell_impl(
                                 if task.data
                                 else ""
                             ) or ""
-                            if str(bearbeitervermerk).strip():
-                                block = f"## Bearbeitervermerk\n\n{str(bearbeitervermerk).strip()}"
-                                context = f"{context}\n\n{block}" if context else block
-                            if str(zusatzmaterial).strip():
-                                block = f"## Zusatzmaterial\n\n{str(zusatzmaterial).strip()}"
-                                context = f"{context}\n\n{block}" if context else block
-                            # Author-provided grading hints (hidden from the
-                            # solver, meant for the judge).
                             korrekturhinweise = (
                                 _get_insensitive(task.data, "korrekturhinweise")
                                 if task.data
                                 else ""
                             ) or ""
-                            if str(korrekturhinweise).strip():
-                                hint_block = (
-                                    "Zusätzliche Hinweise für die Korrektur "
-                                    "(vom Aufgabensteller):\n"
-                                    f"{str(korrekturhinweise).strip()}"
-                                )
-                                context = (
-                                    f"{context}\n\n{hint_block}" if context else hint_block
-                                )
                             eval_ground_truth = str(ground_truth) if ground_truth else ""
                             if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                 muster = (
@@ -1107,12 +1141,13 @@ def evaluate_annotation_cell_impl(
                                 continue
 
                             if metric.startswith("llm_judge_") and config_id in llm_judge_evaluators:
-                                context = (
-                                    _get_insensitive(task.data, "text")
-                                    or _get_insensitive(task.data, "input")
-                                    or _get_insensitive(task.data, "sachverhalt")
-                                    or ""
-                                ) if task.data else ""
+                                # Same context as the generation cell: case
+                                # text plus exam parts; the rubric judge gets
+                                # the hints as its own tagged block.
+                                context = _build_judge_context(
+                                    task.data,
+                                    include_korrekturhinweise=metric != "llm_judge_rubric",
+                                )
                                 eval_ground_truth = str(ground_truth) if ground_truth else ""
                                 if metric in ("llm_judge_falloesung", "llm_judge_rubric") and task.data:
                                     muster = (
