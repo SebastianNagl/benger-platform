@@ -39,7 +39,8 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Union
 
 import sqlalchemy as sa
-from sqlalchemy import and_, desc
+from sqlalchemy import and_, cast, desc
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from models import (
@@ -1165,7 +1166,6 @@ def notify_evaluation_received(
     exclude_user_ids=(),
     task_id: Optional[str] = None,
     evaluation_id: Optional[str] = None,
-    count: Optional[int] = None,
 ) -> List[Notification]:
     """Tell annotators that a new grading of their submission arrived.
 
@@ -1176,8 +1176,12 @@ def notify_evaluation_received(
     ``default_channels``).
 
     Recipients are deduplicated, and ``exclude_user_ids`` (the grader, the
-    user who started the run) are dropped. Never raises: a failed
-    notification must not fail the grading that triggered it.
+    user who started the run) are dropped. A recipient who still has an
+    unread notice of the same type for the same project gets no new one:
+    one pending notice per project per type until it is read, so a grader
+    working through many tasks sends one email, not one per task. Never
+    raises: a failed notification must not fail the grading that triggered
+    it.
     """
     try:
         notification_type = _EVALUATION_RECEIVED_TYPE_BY_SOURCE.get(source)
@@ -1194,6 +1198,22 @@ def notify_evaluation_received(
             if user_id in excluded or user_id in recipients:
                 continue
             recipients.append(user_id)
+        if not recipients:
+            return []
+
+        pending = {
+            str(row[0])
+            for row in db.query(Notification.user_id)
+            .filter(
+                Notification.user_id.in_(recipients),
+                Notification.type == notification_type,
+                Notification.is_read == False,  # noqa: E712
+                cast(Notification.data, JSONB)["project_id"].astext == str(project_id),
+            )
+            .distinct()
+            .all()
+        }
+        recipients = [user_id for user_id in recipients if user_id not in pending]
         if not recipients:
             return []
 
@@ -1216,7 +1236,6 @@ def notify_evaluation_received(
                 "task_id": task_id,
                 "evaluation_id": evaluation_id,
                 "source": source,
-                "count": count,
             },
         )
     except Exception as e:

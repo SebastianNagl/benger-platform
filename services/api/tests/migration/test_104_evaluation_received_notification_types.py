@@ -1,18 +1,19 @@
-"""Shape tests for migration 104: the evaluation_received_* notification types.
+"""Migration 104: the evaluation_received_* notification types.
 
-``ALTER TYPE ... ADD VALUE`` needs its own ``COMMIT``, which would end the test
-session's transaction, so ``upgrade()`` runs against a stubbed ``op`` here. The
-shared test DB is built from the models, so its enum must already carry the
-three values; the startup drift check confirms that.
+``ALTER TYPE ... ADD VALUE`` cannot run inside a transaction block, so the
+migration issues its own ``COMMIT`` first. The upgrade test runs it for real
+on an autocommit connection of the test engine (not the rolled-back test
+session), twice, and reads the labels back from ``pg_enum``.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import os
+from contextlib import contextmanager
 from unittest.mock import patch
 
-from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from models import NotificationType
 
@@ -41,7 +42,18 @@ def _load_migration():
     return module
 
 
-class TestMigration104Shape:
+@contextmanager
+def _op_context(connection):
+    """Install the alembic ``op`` proxy bound to the given connection."""
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    ctx = MigrationContext.configure(connection)
+    with Operations.context(ctx):
+        yield
+
+
+class TestMigration104:
     def test_revision_chains_after_103(self):
         mig = _load_migration()
         assert mig.revision == "104_add_evaluation_received_notification_types"
@@ -50,24 +62,31 @@ class TestMigration104Shape:
     def test_values_match_the_python_enum(self):
         assert set(_load_migration().NEW_VALUES) == NEW_VALUES
 
-    def test_upgrade_commits_then_adds_each_value(self):
+    def test_upgrade_adds_the_values_and_is_idempotent(self, test_db):
+        # test_db only makes sure the schema (and the enum) exists; the
+        # migration needs a connection outside its transaction.
+        from tests.fixtures.database import _get_engine
+
+        engine, _ = _get_engine()
         mig = _load_migration()
-        with patch.object(mig, "op") as op:
-            mig.upgrade()
-        statements = [c.args[0] for c in op.execute.call_args_list]
-        assert statements[0] == "COMMIT"
-        assert sorted(statements[1:]) == sorted(
-            f"ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS '{value}'"
-            for value in NEW_VALUES
-        )
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+            with _op_context(conn):
+                mig.upgrade()
+                mig.upgrade()
+            labels = {
+                row[0]
+                for row in conn.execute(
+                    text(
+                        "SELECT e.enumlabel FROM pg_enum e "
+                        "JOIN pg_type t ON t.oid = e.enumtypid "
+                        "WHERE t.typname = 'notificationtype'"
+                    )
+                )
+            }
+        assert NEW_VALUES <= labels
 
     def test_downgrade_is_a_no_op(self):
         mig = _load_migration()
         with patch.object(mig, "op") as op:
             mig.downgrade()
         op.execute.assert_not_called()
-
-    def test_test_db_enum_has_no_drift(self, test_db: Session):
-        from mailer.notification_service import check_notification_type_enum_drift
-
-        assert check_notification_type_enum_drift(test_db) == []

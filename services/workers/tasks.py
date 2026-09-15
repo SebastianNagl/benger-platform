@@ -2837,9 +2837,11 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     """Tell the annotators a completed batch run graded their annotations.
 
     One notification per annotator per run (opt-in type). The user who
-    started the run already gets EVALUATION_COMPLETED and is left out. The
+    started the run (``triggered_by``, else the run's ``created_by``) already
+    gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
-    redelivered or re-finalized run cannot notify twice. Never raises.
+    redelivered or re-finalized run cannot notify twice; a run with nobody to
+    tell (generation-only benchmarks) stays unmarked. Never raises.
     """
     try:
         meta = evaluation.eval_metadata or {}
@@ -2862,20 +2864,22 @@ def _notify_batch_grading_received(db, evaluation) -> None:
             ),
             {"eid": evaluation.id},
         ).all()
-        recipients = sorted({str(row[0]) for row in rows})
+        started_by = meta.get("triggered_by") or evaluation.created_by
+        recipients = sorted(
+            {str(row[0]) for row in rows} - ({str(started_by)} if started_by else set())
+        )
+        if not recipients:
+            return
 
         evaluation.eval_metadata = {**meta, "annotators_notified": True}
         flag_modified(evaluation, "eval_metadata")
         db.commit()
 
-        if not recipients:
-            return
         notify_evaluation_received(
             db,
             source="batch",
             project_id=evaluation.project_id,
             recipient_ids=recipients,
-            exclude_user_ids=[meta.get("triggered_by")],
             evaluation_id=evaluation.id,
         )
     except Exception as notif_err:  # defensive: notifications must not fail the run

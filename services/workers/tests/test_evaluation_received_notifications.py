@@ -258,10 +258,11 @@ class TestImmediateGradingNotification:
 # ---------------------------------------------------------------------------
 
 
-def _evaluation(meta=None):
+def _evaluation(meta=None, created_by="owner"):
     return types.SimpleNamespace(
         id="run1",
         project_id="p1",
+        created_by=created_by,
         eval_metadata={"triggered_by": "expert"} if meta is None else meta,
     )
 
@@ -287,10 +288,18 @@ class TestBatchGradingNotification:
         assert kwargs == {
             "source": "batch",
             "project_id": "p1",
-            "recipient_ids": ["expert", "s1", "s2"],
-            "exclude_user_ids": ["expert"],
+            "recipient_ids": ["s1", "s2"],
             "evaluation_id": "run1",
         }
+
+    def test_run_creator_is_left_out_without_triggered_by(self):
+        db = MagicMock()
+        db.execute.return_value.all.return_value = [("owner",), ("s1",)]
+        with patch("sqlalchemy.orm.attributes.flag_modified"), patch(
+            "notification_service.notify_evaluation_received"
+        ) as notify:
+            tasks_module._notify_batch_grading_received(db, _evaluation(meta={}))
+        assert notify.call_args.kwargs["recipient_ids"] == ["s1"]
 
     def test_already_notified_run_is_skipped(self):
         db = MagicMock()
@@ -302,16 +311,15 @@ class TestBatchGradingNotification:
         db.commit.assert_not_called()
         notify.assert_not_called()
 
-    def test_run_without_annotations_sets_the_marker_only(self):
+    @pytest.mark.parametrize("rows", [[], [("expert",)]])
+    def test_run_with_nobody_to_tell_stays_unmarked(self, rows):
         db = MagicMock()
-        db.execute.return_value.all.return_value = []
+        db.execute.return_value.all.return_value = rows
         evaluation = _evaluation()
-        with patch("sqlalchemy.orm.attributes.flag_modified"), patch(
-            "notification_service.notify_evaluation_received"
-        ) as notify:
+        with patch("notification_service.notify_evaluation_received") as notify:
             tasks_module._notify_batch_grading_received(db, evaluation)
-        assert evaluation.eval_metadata["annotators_notified"] is True
-        db.commit.assert_called_once()
+        assert "annotators_notified" not in evaluation.eval_metadata
+        db.commit.assert_not_called()
         notify.assert_not_called()
 
     def test_failure_is_swallowed_and_rolled_back(self):
