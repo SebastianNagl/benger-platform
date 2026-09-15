@@ -138,10 +138,17 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // should advance to the next task (auto-submit case) or just clear the
   // modal (manual-submit case, where the user may want to keep editing).
   const autoSubmittedRef = useRef(false)
-  const isStrictMode = !!(
-    currentProject?.strict_timer_enabled &&
-    currentProject?.annotation_time_limit_enabled
-  )
+  // Attempted tier: the user keeps read access to their own submission after
+  // the window closed / the project was archived / the membership ended. The
+  // backend scopes the task list to their annotated tasks and 403s every
+  // write, so the interface is view-only: no timer, no drafts, no submit.
+  const attemptedReadOnly = currentProject?.access_tier === 'attempted'
+  const isStrictMode =
+    !attemptedReadOnly &&
+    !!(
+      currentProject?.strict_timer_enabled &&
+      currentProject?.annotation_time_limit_enabled
+    )
   // Reset phase synchronously during render when the task changes — otherwise
   // the previous task's 'annotating' phase carries through the render that
   // bumps currentTask.id, TimerSlot stays mounted, and its own useEffect
@@ -215,7 +222,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   useEffect(() => {
     if (!currentProject || !currentTask) return
 
-    if (!currentProject.annotation_time_limit_enabled) {
+    if (!currentProject.annotation_time_limit_enabled || attemptedReadOnly) {
       setStrictTimerPhase('annotating')
       return
     }
@@ -269,6 +276,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     currentTask?.id,
     currentProject?.id,
     currentProject?.annotation_time_limit_enabled,
+    attemptedReadOnly,
     isStrictMode,
     apiClient,
   ])
@@ -313,7 +321,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         logger.debug(
           `Initializing annotation interface for project ${projectId}`,
         )
-        await fetchProject(projectId)
+        const loadedProject = (await fetchProject(projectId)) ?? currentProject
 
         // Check for task parameter in URL (e.g., ?task=2)
         const taskParam = searchParams?.get('task')
@@ -323,6 +331,28 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           typeof window !== 'undefined'
             ? localStorage.getItem(TASK_ID_KEY)
             : null
+
+        // Attempted tier: the task list already is the user's own annotated
+        // tasks and /next hands out no work, so open that list directly
+        // (the saved task if it is in there, else the first) instead of
+        // excluding completed tasks and falling through to /next.
+        if (loadedProject?.access_tier === 'attempted') {
+          const tasks = await fetchProjectTasks(projectId, false)
+          const savedIndex = savedTaskId
+            ? tasks.findIndex((t) => t.id === savedTaskId)
+            : -1
+          if (tasks.length > 0) {
+            setTaskByIndex(savedIndex >= 0 ? savedIndex : 0)
+            return
+          }
+          setInitializationError(
+            t('annotation.errors.noTasksAvailable', {
+              defaultValue:
+                'No tasks are available for annotation in this project.',
+            }),
+          )
+          return
+        }
         const savedTaskPosition =
           typeof window !== 'undefined'
             ? localStorage.getItem(TASK_POSITION_KEY)
@@ -461,9 +491,35 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     }
   }, [currentTaskPosition, currentTask?.id, TASK_POSITION_KEY, TASK_ID_KEY])
 
+  // Timed access window (owner/admins exempt): a gated member sees "not open
+  // yet" before it opens (task reads are 403'd server-side) and a read-only view
+  // after it closes. The backend is authoritative; this mirrors it for UX.
+  const _winRole = currentProject
+    ? getEffectiveProjectRole(
+        user as any,
+        currentProject as any,
+        (user as any)?.role,
+      )
+    : null
+  const _isWindowEditor =
+    !!(user as any)?.is_superadmin ||
+    _winRole === 'ORG_ADMIN' ||
+    _winRole === 'CONTRIBUTOR'
+  const _winState = computeWindowState(
+    (currentProject as any)?.window_start_at,
+    (currentProject as any)?.window_end_at,
+  )
+  const windowUpcoming = !_isWindowEditor && _winState === 'upcoming'
+  const windowReadOnly = !_isWindowEditor && _winState === 'closed'
+  // View-only rendering: closed window or attempted tier. Both hide submit /
+  // skip and stop every draft write (local and server).
+  const readOnlyView = windowReadOnly || attemptedReadOnly
+
   // Periodic server draft sync for all projects (shared with the student exam
   // attempt via useServerDraftSync — one implementation, no duplicate logic).
-  useServerDraftSync(currentProject?.id, currentTask?.id, annotations)
+  useServerDraftSync(currentProject?.id, currentTask?.id, annotations, {
+    enabled: !readOnlyView,
+  })
 
   // Reset state when label configuration changes
   useEffect(() => {
@@ -665,27 +721,6 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     currentProject?.immediate_evaluation_enabled,
     lastSubmittedAnnotationId,
   ])
-
-  // Timed access window (owner/admins exempt): a gated member sees "not open
-  // yet" before it opens (task reads are 403'd server-side) and a read-only view
-  // after it closes. The backend is authoritative; this mirrors it for UX.
-  const _winRole = currentProject
-    ? getEffectiveProjectRole(
-        user as any,
-        currentProject as any,
-        (user as any)?.role,
-      )
-    : null
-  const _isWindowEditor =
-    !!(user as any)?.is_superadmin ||
-    _winRole === 'ORG_ADMIN' ||
-    _winRole === 'CONTRIBUTOR'
-  const _winState = computeWindowState(
-    (currentProject as any)?.window_start_at,
-    (currentProject as any)?.window_end_at,
-  )
-  const windowUpcoming = !_isWindowEditor && _winState === 'upcoming'
-  const windowReadOnly = !_isWindowEditor && _winState === 'closed'
 
   if (windowUpcoming) {
     const opensAt = (currentProject as any)?.window_start_at
@@ -1016,27 +1051,31 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   })}
                 </Button>
               )}
-              {CheckpointPanel && currentProject && currentTask && (
-                <CheckpointPanel
-                  projectId={currentProject.id}
-                  taskId={currentTask.id}
-                  annotations={annotations}
-                  enabled={currentProject.restorable_checkpoints_enabled}
-                  intervalSeconds={currentProject.checkpoint_interval_seconds}
-                  onRestore={(snapshot: any[]) => {
-                    setLoadedAnnotations(snapshot)
-                    setRestoreKey((k) => k + 1)
-                    addToast(
-                      t('annotation.checkpoints.restored', {
-                        defaultValue: 'Checkpoint restored.',
-                      }),
-                      'success',
-                    )
-                  }}
-                />
-              )}
+              {CheckpointPanel &&
+                currentProject &&
+                currentTask &&
+                !attemptedReadOnly && (
+                  <CheckpointPanel
+                    projectId={currentProject.id}
+                    taskId={currentTask.id}
+                    annotations={annotations}
+                    enabled={currentProject.restorable_checkpoints_enabled}
+                    intervalSeconds={currentProject.checkpoint_interval_seconds}
+                    onRestore={(snapshot: any[]) => {
+                      setLoadedAnnotations(snapshot)
+                      setRestoreKey((k) => k + 1)
+                      addToast(
+                        t('annotation.checkpoints.restored', {
+                          defaultValue: 'Checkpoint restored.',
+                        }),
+                        'success',
+                      )
+                    }}
+                  />
+                )}
               {TimerSlot &&
               currentProject?.annotation_time_limit_enabled &&
+              !attemptedReadOnly &&
               strictTimerPhase === 'annotating' ? (
                 <TimerSlot
                   project={currentProject}
@@ -1142,15 +1181,23 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 : 'mx-auto max-w-4xl space-y-6'
             }
           >
-            {windowReadOnly && (
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300">
-                {t('annotation.window.closedReadOnly', {
-                  defaultValue:
-                    'This project has closed — view only, no further changes.',
-                })}
+            {readOnlyView && (
+              <div
+                className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-300"
+                data-testid="labeling-read-only-notice"
+              >
+                {attemptedReadOnly
+                  ? t('annotation.window.attemptedReadOnly', {
+                      defaultValue:
+                        'Past submission. View only, no further changes.',
+                    })
+                  : t('annotation.window.closedReadOnly', {
+                      defaultValue:
+                        'This project has closed — view only, no further changes.',
+                    })}
               </div>
             )}
-            {nonStrictOvertime && !windowReadOnly && (
+            {nonStrictOvertime && !readOnlyView && (
               <div
                 className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
                 data-testid="timer-overtime-hint"
@@ -1173,11 +1220,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   taskData={currentTask.data || {}}
                   taskId={currentTask.id} // Pass task ID for proper state clearing
                   initialValues={loadedAnnotations} // Load existing annotations (Issue #1082)
-                  // Timed access window closed: view-only, no submit (owner exempt).
-                  readOnly={windowReadOnly}
+                  // Closed window or attempted tier: view-only, no submit, no
+                  // local draft (owner exempt from the window).
+                  readOnly={readOnlyView}
+                  enableAutoSave={!readOnlyView}
                   showSubmitButton={
                     currentProject?.show_submit_button !== false &&
-                    !windowReadOnly
+                    !readOnlyView
                   }
                   requireConfirmBeforeSubmit={
                     currentProject?.require_confirm_before_submit === true
@@ -1273,7 +1322,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     }
                   }}
                   onSkip={
-                    currentProject?.show_skip_button !== false
+                    currentProject?.show_skip_button !== false && !readOnlyView
                       ? handleSkip
                       : undefined
                   }

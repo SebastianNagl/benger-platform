@@ -273,6 +273,44 @@ describe('ProjectDetailPage — participant tier', () => {
     registerSlot('project-sharing', null as any)
   })
 
+  it('attempted tier: past-submission badge, no start button, my-tasks kept, card via attempted', async () => {
+    setup({
+      access_tier: 'attempted',
+      participant_via: 'attempted',
+      effective_role: 'ANNOTATOR',
+      can_manage_shares: false,
+      evaluation_config: null,
+      generation_config: null,
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    const badge = await screen.findByTestId('project-participant-badge')
+    expect(badge).toHaveTextContent('projects.list.attemptedBadge')
+    expect(badge).not.toHaveTextContent('projects.list.participantBadge')
+    // No new work: neither the start button nor the extended solver slot.
+    expect(
+      screen.queryByText('project.quickActions.startLabeling'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('project-solver-actions'),
+    ).not.toBeInTheDocument()
+    // The own submissions stay reachable.
+    expect(screen.getByText('project.quickActions.myTasks')).toBeInTheDocument()
+    expect(screen.getByTestId('participant-card-stub')).toHaveAttribute(
+      'data-via',
+      'attempted',
+    )
+    // Same reduced page as a participant: no config cards, no editor fetches.
+    expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.projectData'),
+    ).not.toBeInTheDocument()
+    const calledUrls = (apiClient.get as jest.Mock).mock.calls.map((c) =>
+      String(c[0]),
+    )
+    expect(calledUrls.some((u) => u.includes('evaluation-config'))).toBe(false)
+  })
+
   it('full-tier annotator (effective_role) gets no participant card and no edit controls', async () => {
     setup({ access_tier: 'full', effective_role: 'ANNOTATOR' })
     const params = Promise.resolve({ id: 'test-project-123' })

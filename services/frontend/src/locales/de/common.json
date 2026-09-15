@@ -655,10 +655,12 @@
       "windowClosed": "Beendet",
       "windowOpen": "Offen",
       "participantBadge": "Teilnehmer",
+      "attemptedBadge": "Frühere Abgabe",
       "participantVia": {
         "share": "Über Freigabe-Link beigetreten",
         "entitlement": "Über „Entdecken“ freigeschaltet",
-        "org_exam": "Über Ihre Organisation freigegeben"
+        "org_exam": "Über Ihre Organisation freigegeben",
+        "attempted": "Zugang über Ihre Abgabe"
       },
       "kindDeck": "Kartenstapel",
       "kindExam": "Klausur",
@@ -1473,7 +1475,8 @@
       "leaveConfirm": "Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.",
       "left": "Sie haben das Projekt verlassen.",
       "cannotLeavePurchase": "Gekaufter Zugang kann nicht verlassen werden.",
-      "cannotLeaveOrg": "Der Zugang kommt über Ihre Organisation und wird dort verwaltet."
+      "cannotLeaveOrg": "Der Zugang kommt über Ihre Organisation und wird dort verwaltet.",
+      "cannotLeaveAttempted": "Ihre Abgabe bleibt für Sie einsehbar. Diesen Zugang können Sie nicht verlassen."
     },
     "deck": {
       "title": "Kartenstapel",
@@ -6633,7 +6636,8 @@
     "window": {
       "notOpenTitle": "Noch nicht geöffnet",
       "notOpenDescription": "Dieses Projekt öffnet am {date}. Komm dann wieder, um zu starten.",
-      "closedReadOnly": "Dieses Projekt ist beendet – nur Ansicht, keine weiteren Änderungen."
+      "closedReadOnly": "Dieses Projekt ist beendet – nur Ansicht, keine weiteren Änderungen.",
+      "attemptedReadOnly": "Frühere Abgabe. Nur Ansicht, keine weiteren Änderungen."
     }
   },
   "annotationTab": {

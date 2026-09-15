@@ -154,9 +154,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       (org) => String(org.id) === String(currentOrganization.id),
     )
   )
-  // Narrow tier: joined via share link / discovery enrollment / org exam.
-  // The page then behaves like an annotator's view plus a "Teilnehmer" badge.
-  const isParticipant = currentProject?.access_tier === 'participant'
+  // Narrow tiers: joined via share link / discovery enrollment / org exam
+  // (participant), or read access kept through an own submission after the
+  // window closed / the project was archived / the membership ended
+  // (attempted). The page then behaves like an annotator's view plus a badge;
+  // attempted additionally loses every action that would start new work.
+  const isAttempted = currentProject?.access_tier === 'attempted'
+  const isParticipant =
+    currentProject?.access_tier === 'participant' || isAttempted
   // Editor-only fetches wait for the project (so a participant never fires
   // requests that would 403) and run once its id is known.
   const accessTierKnown = currentProject?.id === projectId
@@ -835,6 +840,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
 
   const canSeeQuickAction = (action: string) => {
     if (user?.is_superadmin) return true
+    if (isAttempted) return action === 'myTasks'
     if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
     if (!isOrgProject) return true
     const role = user?.role
@@ -1718,7 +1724,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       data-testid="project-participant-badge"
                     >
                       <UserGroupIcon className="h-3.5 w-3.5" />
-                      {t('projects.list.participantBadge', 'Teilnehmer')}
+                      {isAttempted
+                        ? t('projects.list.attemptedBadge', 'Frühere Abgabe')
+                        : t('projects.list.participantBadge', 'Teilnehmer')}
                     </span>
                   )}
                   {canEditProject() && (
@@ -2959,32 +2967,33 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               {t('project.quickActions.title')}
             </h2>
             <div className="space-y-3">
-              {currentProject.enable_annotation !== false && (
-                <>
-                  {userCompletedAllTasks && (
-                    <div className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-50 px-4 py-2.5 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                      <CheckCircleIcon className="h-5 w-5" />
-                      <span className="font-medium">
-                        {t('project.quickActions.allTasksAnnotated')}
-                      </span>
-                    </div>
-                  )}
-                  <Button
-                    onClick={handleStartLabeling}
-                    variant="primary"
-                    className="w-full"
-                    disabled={currentProject.task_count === 0}
-                  >
-                    <PlayIcon className="mr-2 h-4 w-4" />
-                    {t('project.quickActions.startLabeling')}
-                  </Button>
-                  {ProjectSolverActions && (
-                    <div data-testid="project-solver-actions">
-                      <ProjectSolverActions project={currentProject} />
-                    </div>
-                  )}
-                </>
-              )}
+              {currentProject.enable_annotation !== false &&
+                canSeeQuickAction('startLabeling') && (
+                  <>
+                    {userCompletedAllTasks && (
+                      <div className="flex w-full items-center justify-center gap-2 rounded-md bg-emerald-50 px-4 py-2.5 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+                        <CheckCircleIcon className="h-5 w-5" />
+                        <span className="font-medium">
+                          {t('project.quickActions.allTasksAnnotated')}
+                        </span>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleStartLabeling}
+                      variant="primary"
+                      className="w-full"
+                      disabled={currentProject.task_count === 0}
+                    >
+                      <PlayIcon className="mr-2 h-4 w-4" />
+                      {t('project.quickActions.startLabeling')}
+                    </Button>
+                    {ProjectSolverActions && (
+                      <div data-testid="project-solver-actions">
+                        <ProjectSolverActions project={currentProject} />
+                      </div>
+                    )}
+                  </>
+                )}
 
               {canSeeQuickAction('projectData') && (
                 <Button

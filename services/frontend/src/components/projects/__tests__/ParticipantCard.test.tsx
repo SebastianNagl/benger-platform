@@ -165,6 +165,40 @@ describe('ParticipantCard', () => {
     expect(screen.getByTestId('participant-card')).toBeInTheDocument()
   })
 
+  it('attempted: explains the access, offers no leave button, hides with an empty cohort', async () => {
+    mockGet.mockResolvedValue({
+      tier: 'attempted',
+      via: 'attempted',
+      can_leave: false,
+      cannot_leave_reason: 'attempted',
+    })
+    const Cohort = ({ projectId }: any) => (
+      <div data-testid="cohort-stub">{projectId}</div>
+    )
+    registerSlot('ProjectCohortLeaderboard', Cohort)
+    const { unmount } = render(
+      <ParticipantCard projectId="p1" via="attempted" onLeft={jest.fn()} />,
+    )
+    expect(
+      await screen.findByTestId('participant-cannot-leave'),
+    ).toHaveTextContent('Abgabe')
+    expect(screen.getByTestId('participant-via')).toBeInTheDocument()
+    expect(screen.queryByTestId('participant-leave')).not.toBeInTheDocument()
+    expect(mockLeave).not.toHaveBeenCalled()
+    expect(screen.getByTestId('cohort-stub')).toHaveTextContent('p1')
+    unmount()
+
+    // Community edition (no cohort slot): nothing actionable, card hidden.
+    registerSlot('ProjectCohortLeaderboard', null as any)
+    render(
+      <ParticipantCard projectId="p2" via="attempted" onLeft={jest.fn()} />,
+    )
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('p2'))
+    await waitFor(() =>
+      expect(screen.queryByTestId('participant-card')).not.toBeInTheDocument(),
+    )
+  })
+
   it('falls back to the via prop when the participation fetch fails', async () => {
     mockGet.mockRejectedValue(new Error('403'))
     render(<ParticipantCard projectId="p1" via="org_exam" onLeft={jest.fn()} />)

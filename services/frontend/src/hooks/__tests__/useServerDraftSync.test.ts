@@ -59,6 +59,19 @@ describe('useServerDraftSync', () => {
     expect(mockSaveDraft).not.toHaveBeenCalled()
   })
 
+  it('never writes when disabled (read-only views), on tick or tab-hide', () => {
+    renderHook(() => useServerDraftSync('p1', 't1', A, { enabled: false }))
+    act(() => jest.advanceTimersByTime(60_000))
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    })
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(mockSaveDraft).not.toHaveBeenCalled()
+  })
+
   it('saves immediately when the tab becomes hidden', () => {
     renderHook(() => useServerDraftSync('p1', 't1', A))
     Object.defineProperty(document, 'visibilityState', {

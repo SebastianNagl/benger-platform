@@ -655,10 +655,12 @@
       "windowClosed": "Closed",
       "windowOpen": "Open",
       "participantBadge": "Participant",
+      "attemptedBadge": "Past submission",
       "participantVia": {
         "share": "Joined via share link",
         "entitlement": "Unlocked via “Discover”",
-        "org_exam": "Shared by your organization"
+        "org_exam": "Shared by your organization",
+        "attempted": "Access through your submission"
       },
       "kindDeck": "Flashcard deck",
       "kindExam": "Exam",
@@ -1473,7 +1475,8 @@
       "leaveConfirm": "You will lose access to this project. Your submissions so far are kept.",
       "left": "You left the project.",
       "cannotLeavePurchase": "Purchased access cannot be left.",
-      "cannotLeaveOrg": "Access comes from your organization and is managed there."
+      "cannotLeaveOrg": "Access comes from your organization and is managed there.",
+      "cannotLeaveAttempted": "Your submission stays viewable for you. This access cannot be left."
     },
     "deck": {
       "title": "Flashcard deck",
@@ -6633,7 +6636,8 @@
     "window": {
       "notOpenTitle": "Not open yet",
       "notOpenDescription": "This project opens at {date}. Come back then to start.",
-      "closedReadOnly": "This project has closed — view only, no further changes."
+      "closedReadOnly": "This project has closed — view only, no further changes.",
+      "attemptedReadOnly": "Past submission. View only, no further changes."
     }
   },
   "annotationTab": {

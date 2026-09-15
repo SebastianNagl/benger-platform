@@ -49,10 +49,11 @@ const asList = <T>(res: unknown): T[] =>
     : ((res as { items?: T[] } | null)?.items ?? [])
 
 export interface Participation {
-  tier: 'full' | 'participant'
-  via: 'share' | 'entitlement' | 'org_exam' | null
+  tier: 'full' | 'participant' | 'attempted'
+  via: 'share' | 'entitlement' | 'org_exam' | 'attempted' | null
   can_leave: boolean
-  cannot_leave_reason: 'entitlement_not_leavable' | 'org_membership' | null
+  cannot_leave_reason:
+    'entitlement_not_leavable' | 'org_membership' | 'attempted' | null
   share_tokens: string[]
   entitlement_source: string | null
 }
