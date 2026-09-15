@@ -294,18 +294,9 @@ const getTimezoneOptions = (t: any) => [
   { value: 'UTC+12', label: t('settings.notifications.timezone.utcPlus12') },
 ]
 
-// Channel defaults for a type without a stored preference. Mirrors the
-// backend's per-type defaults: human gradings email by default, the two AI
-// grading types start switched off, everything else is in-app only.
-const getDefaultPreference = (key: string) => {
-  if (key === 'evaluation_received_human') {
-    return { enabled: true, in_app: true, email: true }
-  }
-  if (isEvaluationReceivedType(key)) {
-    return { enabled: false, in_app: false, email: false }
-  }
-  return { enabled: true, in_app: true, email: false }
-}
+// Fallback for a type the API did not return. GET /preferences sends every
+// type with its server-side default, so this only applies before load.
+const DEFAULT_PREFERENCE = { enabled: true, in_app: true, email: false }
 
 interface NotificationPreferences {
   [key: string]: {
@@ -475,19 +466,27 @@ function NotificationSettingsContent() {
     field: 'enabled' | 'in_app' | 'email',
     value: boolean,
   ) => {
-    setPreferences((prev) => ({
-      ...prev,
-      [notificationType]: {
-        ...(prev[notificationType] ?? getDefaultPreference(notificationType)),
-        [field]: value,
-        // If disabling main toggle, disable both delivery methods
-        ...(field === 'enabled' && !value
-          ? { in_app: false, email: false }
-          : {}),
-        // If enabling delivery method, ensure main toggle is enabled
-        ...(field !== 'enabled' && value ? { enabled: true } : {}),
-      },
-    }))
+    setPreferences((prev) => {
+      const current = prev[notificationType] ?? DEFAULT_PREFERENCE
+      return {
+        ...prev,
+        [notificationType]: {
+          ...current,
+          [field]: value,
+          // If disabling main toggle, disable both delivery methods
+          ...(field === 'enabled' && !value
+            ? { in_app: false, email: false }
+            : {}),
+          // Enabling a type with no delivery method turns in-app on. A row
+          // without any channel is saved as off and would not stay enabled.
+          ...(field === 'enabled' && value && !current.in_app && !current.email
+            ? { in_app: true }
+            : {}),
+          // If enabling delivery method, ensure main toggle is enabled
+          ...(field !== 'enabled' && value ? { enabled: true } : {}),
+        },
+      }
+    })
   }
 
   const handleBulkToggle = (category: string, enabled: boolean) => {
@@ -646,15 +645,14 @@ function NotificationSettingsContent() {
                   {notificationTypes.map((notificationType, index) => {
                     const IconComponent = notificationType.icon
                     const pref =
-                      preferences[notificationType.key] ||
-                      getDefaultPreference(notificationType.key)
+                      preferences[notificationType.key] || DEFAULT_PREFERENCE
 
                     return (
                       <tr
                         key={`notification-${notificationType.key}-${index}`}
                         className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4">
                           <div className="flex items-center space-x-3">
                             <div className="shrink-0">
                               <IconComponent className="h-5 w-5 text-zinc-400" />
@@ -769,10 +767,7 @@ function NotificationSettingsContent() {
                   {t('settings.notifications.ui.enabledCount', {
                     enabled: notificationTypes.filter(
                       (type) =>
-                        (
-                          preferences[type.key] ??
-                          getDefaultPreference(type.key)
-                        ).enabled,
+                        (preferences[type.key] ?? DEFAULT_PREFERENCE).enabled,
                     ).length,
                     total: notificationTypes.length,
                   })}

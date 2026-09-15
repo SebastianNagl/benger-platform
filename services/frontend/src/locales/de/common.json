@@ -2983,8 +2983,8 @@
         "message": "Ihre Bearbeitung in '{project_title}' wurde korrigiert."
       },
       "evaluation_received_immediate": {
-        "title": "KI-Bewertung fertig: {project_title}",
-        "message": "Die KI-Bewertung Ihrer Bearbeitung in '{project_title}' liegt vor."
+        "title": "KI-Korrektur fertig: {project_title}",
+        "message": "Die KI-Korrektur Ihrer Bearbeitung in '{project_title}' liegt vor."
       },
       "evaluation_received_batch": {
         "title": "Neue Evaluierung: {project_title}",
@@ -3560,8 +3560,8 @@
         "evaluationFailedDesc": "Benachrichtigungen erhalten, wenn Evaluierungen fehlschlagen oder Fehler auftreten",
         "evaluationReceivedHuman": "Neue Korrektur",
         "evaluationReceivedHumanDesc": "Benachrichtigungen erhalten, wenn eine Ihrer Bearbeitungen korrigiert wurde",
-        "evaluationReceivedImmediate": "KI-Bewertung fertig",
-        "evaluationReceivedImmediateDesc": "Benachrichtigungen erhalten, wenn die sofortige KI-Bewertung Ihrer Bearbeitung vorliegt",
+        "evaluationReceivedImmediate": "KI-Korrektur fertig",
+        "evaluationReceivedImmediateDesc": "Benachrichtigungen erhalten, wenn die sofortige KI-Korrektur Ihrer Bearbeitung vorliegt",
         "evaluationReceivedBatch": "Neuer Evaluierungslauf",
         "evaluationReceivedBatchDesc": "Benachrichtigungen erhalten, wenn ein Evaluierungslauf Ihre Bearbeitungen bewertet hat",
         "dataUploadCompleted": "Datenupload abgeschlossen",

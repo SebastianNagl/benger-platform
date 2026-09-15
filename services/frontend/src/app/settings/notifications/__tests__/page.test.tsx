@@ -312,6 +312,28 @@ describe('NotificationSettingsPage', () => {
   })
 
   describe('Grading notifications', () => {
+    // GET /preferences returns every type with its server default.
+    const gradingDefaults = {
+      evaluation_received_human: { enabled: true, in_app: true, email: true },
+      evaluation_received_immediate: {
+        enabled: false,
+        in_app: false,
+        email: false,
+      },
+      evaluation_received_batch: {
+        enabled: false,
+        in_app: false,
+        email: false,
+      },
+    }
+
+    beforeEach(() => {
+      ;(api.getNotificationPreferences as jest.Mock).mockResolvedValue({
+        ...mockPreferences,
+        ...gradingDefaults,
+      })
+    })
+
     it('lists the three grading types next to the expert types', async () => {
       render(<NotificationSettingsPage />)
 
@@ -350,33 +372,20 @@ describe('NotificationSettingsPage', () => {
       ).toBeInTheDocument()
     })
 
-    it('saves the per-type defaults and keeps the hidden expert preferences', async () => {
+    it('turning on an AI grading type saves it with in-app on', async () => {
       const user = userEvent.setup()
-      mockUiMode.mockReturnValue('student')
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
         expect(
           screen.getByTestId(
-            'settings-notification-inapp-evaluation_received_human',
+            'settings-notification-toggle-evaluation_received_immediate',
           ),
         ).toBeInTheDocument()
       })
-      // Human gradings email by default: switching off in-app keeps email.
-      await user.click(
-        screen.getByTestId(
-          'settings-notification-inapp-evaluation_received_human',
-        ),
-      )
-      // The AI gradings start switched off: turn one on for email only.
       await user.click(
         screen.getByTestId(
           'settings-notification-toggle-evaluation_received_immediate',
-        ),
-      )
-      await user.click(
-        screen.getByTestId(
-          'settings-notification-email-evaluation_received_immediate',
         ),
       )
       await user.click(screen.getByText('Save Preferences'))
@@ -384,17 +393,42 @@ describe('NotificationSettingsPage', () => {
       await waitFor(() => {
         expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
           expect.objectContaining({
-            project_created: mockPreferences.project_created,
-            evaluation_received_human: {
-              enabled: true,
-              in_app: false,
-              email: true,
-            },
             evaluation_received_immediate: {
               enabled: true,
-              in_app: false,
-              email: true,
+              in_app: true,
+              email: false,
             },
+            evaluation_received_human:
+              gradingDefaults.evaluation_received_human,
+          }),
+        )
+      })
+    })
+
+    it('Disable All in the student shell keeps the hidden expert preferences', async () => {
+      const user = userEvent.setup()
+      mockUiMode.mockReturnValue('student')
+      render(<NotificationSettingsPage />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('settings-disable-all-notifications-button'),
+        ).toBeInTheDocument()
+      })
+      await user.click(
+        screen.getByTestId('settings-disable-all-notifications-button'),
+      )
+      await user.click(screen.getByText('Save Preferences'))
+
+      const off = { enabled: false, in_app: false, email: false }
+      await waitFor(() => {
+        expect(api.updateNotificationPreferences).toHaveBeenCalledWith(
+          expect.objectContaining({
+            project_created: mockPreferences.project_created,
+            project_updated: mockPreferences.project_updated,
+            evaluation_received_human: off,
+            evaluation_received_immediate: off,
+            evaluation_received_batch: off,
           }),
         )
       })
