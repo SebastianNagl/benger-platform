@@ -1713,8 +1713,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "field_mappings": self.field_mappings,
             "mode": "multidim_single_call",
         }
-        if reasoning_effort:
-            provenance["reasoning_effort"] = reasoning_effort
+        # "api_default" says explicitly that no value was sent, so a row
+        # graded at the provider's default is not mistaken for one whose
+        # value went unrecorded.
+        provenance["reasoning_effort"] = reasoning_effort or "api_default"
 
         # E2E test mode: a deterministic filled sheet without a provider call.
         # The per-criterion mock in _evaluate_single_criterion never covered

@@ -2965,6 +2965,26 @@ def run_single_sample_evaluation(
                         "source": source,
                         "recommended_at_trigger": rec_at_trigger,
                     }
+                # The two post-resolution steps the bulk lane records too
+                # (run_evaluation), so the snapshot shows what the judge is
+                # actually sent: the per-metric max_tokens floor and the
+                # per-model temperature constraint. The immediate compute
+                # (_evaluate_llm_judge_single_impl) applies the same two.
+                _apply_metric_max_tokens_floor(
+                    cfg.get("metric"),
+                    judge_provenance["max_tokens"]["value"],
+                    judge_provenance["max_tokens"]["source"],
+                    judge_provenance,
+                )
+                judge_constraints = (
+                    getattr(judge_model_obj, "parameter_constraints", None) or None
+                )
+                _clamped_temp, _temp_clamped_from = _clamp_temperature_to_constraint(
+                    judge_provenance["temperature"]["value"], judge_constraints
+                )
+                if _temp_clamped_from is not None:
+                    judge_provenance["temperature"]["clamped_from"] = _temp_clamped_from
+                    judge_provenance["temperature"]["value"] = _clamped_temp
                 snapshot = dict(params)
                 snapshot["_param_provenance"] = judge_provenance
 

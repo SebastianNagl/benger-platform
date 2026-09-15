@@ -1988,7 +1988,8 @@ class TestRubricReasoningEffortDefault:
     """The rubric judge sends RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT when its
     config sets none, so an immediate grading fits the interactive queue's
     time limit. Explicit values win; other metrics and models that cannot
-    take the value are untouched."""
+    take the value are untouched. When nothing is sent, the provenance says
+    so explicitly ("api_default") instead of leaving the key out."""
 
     def _sent(self, model="gpt-5-mini", rubric_mode=True, effort=None):
         ev = LLMJudgeEvaluator(
@@ -2018,21 +2019,21 @@ class TestRubricReasoningEffortDefault:
         assert self._sent(effort="high") == ("high", "high")
 
     def test_other_metrics_get_no_default(self):
-        assert self._sent(rubric_mode=False) == (None, None)
+        assert self._sent(rubric_mode=False) == (None, "api_default")
 
     def test_non_openai_judges_get_no_default(self):
-        assert self._sent(model="claude-sonnet-4-6") == (None, None)
+        assert self._sent(model="claude-sonnet-4-6") == (None, "api_default")
 
     def test_no_default_when_the_model_family_rejects_the_value(self):
         import ml_evaluation.llm_judge_evaluator as lje
 
         # o3-mini rejects "minimal" at the API; the judge must not send it.
         with patch.object(lje, "RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT", "minimal"):
-            assert self._sent(model="o3-mini") == (None, None)
+            assert self._sent(model="o3-mini") == (None, "api_default")
             assert self._sent(model="gpt-5-mini") == ("minimal", "minimal")
 
     def test_gpt5_point_releases_keep_their_api_default(self):
-        assert self._sent(model="gpt-5.4-mini") == (None, None)
+        assert self._sent(model="gpt-5.4-mini") == (None, "api_default")
         assert self._sent(model="gpt-5.4-mini", effort="low") == ("low", "low")
 
     def test_o_series_gets_the_default(self):
