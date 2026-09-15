@@ -57,7 +57,7 @@ interface ProjectStore {
     includeAllPrivate?: boolean,
     onlyDeleted?: boolean,
   ) => Promise<void>
-  fetchProject: (projectId: string) => Promise<void>
+  fetchProject: (projectId: string) => Promise<Project | null>
   createProject: (data: {
     title: string
     description?: string
@@ -234,6 +234,7 @@ export const useProjectStore = create<ProjectStore>()(
               currentTaskIndex: 0,
             }
           })
+          return project
         } catch (error) {
           const message =
             error instanceof Error
@@ -241,6 +242,7 @@ export const useProjectStore = create<ProjectStore>()(
               : t('store.project.fetchOneFailed')
           set({ error: message, loading: false })
           toast(message, 'error')
+          return null
         }
       },
 
