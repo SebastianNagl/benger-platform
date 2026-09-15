@@ -1852,6 +1852,138 @@ async def get_effective_project_role_async(
 
 TIER_FULL = "full"
 TIER_PARTICIPANT = "participant"
+# "attempted": the user has a non-cancelled annotation on the project and
+# keeps READ access to that submission (grades, corrections, whatever the
+# project reveals after submit) even when nothing else grants access anymore
+# — closed / not-yet-open window, archived, flipped private, membership
+# deactivated, group moved, roster evicted, share link revoked, or the user
+# left. Only the project's soft delete removes it. Never grants a write.
+TIER_ATTEMPTED = "attempted"
+
+# Tiers that may still WRITE (submit / edit / draft / skip). ``attempted`` is
+# read-only by construction; ``None`` is no access.
+WRITE_TIERS = (TIER_FULL, TIER_PARTICIPANT)
+
+
+def tier_allows_writes(tier: Optional[str]) -> bool:
+    """Whether a resolved access tier may mutate solver data on the project."""
+    return tier in WRITE_TIERS
+
+
+def require_write_tier(tier: Optional[str]) -> None:
+    """Raise the write-gate 403 unless :func:`tier_allows_writes`.
+
+    ``None`` keeps the plain ``"Access denied"`` detail every read gate
+    raises; ``attempted`` raises a coded detail so the client can render the
+    read-only state instead of a generic permission error.
+    """
+    if tier is None:
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not tier_allows_writes(tier):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "attempted_read_only",
+                "message": "Your submission on this project is read-only.",
+            },
+        )
+
+
+def _build_select_user_attempted_project(user_id, project_id: str):
+    """Shared SQL builder for the attempted predicate: EXISTS a non-cancelled
+    annotation by the user on the project (served by the partial unique
+    index ``uq_annotations_active_task_user``)."""
+    return (
+        select(Annotation.id)
+        .where(
+            Annotation.project_id == project_id,
+            Annotation.completed_by == str(user_id),
+            Annotation.was_cancelled == False,  # noqa: E712
+        )
+        .limit(1)
+    )
+
+
+def _build_select_user_attempted_task(user_id, task_id: str):
+    """Task-level twin of :func:`_build_select_user_attempted_project`."""
+    return (
+        select(Annotation.id)
+        .where(
+            Annotation.task_id == task_id,
+            Annotation.completed_by == str(user_id),
+            Annotation.was_cancelled == False,  # noqa: E712
+        )
+        .limit(1)
+    )
+
+
+def own_active_annotation_exists(user_id):
+    """Correlated EXISTS clause over ``Task``: the user has a non-cancelled
+    annotation on that task. Used to scope task listings (my-tasks, the
+    attempted tier's task list) to the caller's own submissions."""
+    from sqlalchemy import exists as sa_exists
+
+    return sa_exists().where(
+        (Annotation.task_id == Task.id)
+        & (Annotation.completed_by == str(user_id))
+        & (Annotation.was_cancelled == False)  # noqa: E712
+    )
+
+
+async def user_attempted_project_async(db: AsyncSession, user_id, project_id: str) -> bool:
+    """Attempted predicate: the user holds a non-cancelled annotation on the project."""
+    result = await db.execute(_build_select_user_attempted_project(user_id, project_id))
+    return result.first() is not None
+
+
+def user_attempted_project(db: Session, user_id, project_id: str) -> bool:
+    """Sync twin of :func:`user_attempted_project_async`."""
+    return db.execute(_build_select_user_attempted_project(user_id, project_id)).first() is not None
+
+
+async def user_attempted_task_async(db: AsyncSession, user_id, task_id: str) -> bool:
+    """Whether the user holds a non-cancelled annotation on this task."""
+    result = await db.execute(_build_select_user_attempted_task(user_id, task_id))
+    return result.first() is not None
+
+
+def user_attempted_task(db: Session, user_id, task_id: str) -> bool:
+    """Sync twin of :func:`user_attempted_task_async`."""
+    return db.execute(_build_select_user_attempted_task(user_id, task_id)).first() is not None
+
+
+def _build_select_attempted_project_ids(user_id):
+    """Shared SQL builder: every non-deleted project the user has a
+    non-cancelled annotation on (the attempted set, before tier precedence)."""
+    return (
+        select(Annotation.project_id)
+        .join(Project, Project.id == Annotation.project_id)
+        .where(
+            Annotation.completed_by == str(user_id),
+            Annotation.was_cancelled == False,  # noqa: E712
+            not_deleted(),
+        )
+        .distinct()
+    )
+
+
+async def get_attempted_project_ids_async(db: AsyncSession, user_id) -> set:
+    """Ids of every non-deleted project the user has attempted.
+
+    Deliberately NOT filtered by window / archive / privacy / membership —
+    that is the point of the tier. Callers that stamp list rows combine it
+    with the full and participant sets (both take precedence).
+    """
+    result = await db.execute(_build_select_attempted_project_ids(user_id))
+    return {str(pid) for pid in result.scalars().all()}
+
+
+def get_attempted_project_ids(db: Session, user_id) -> set:
+    """Sync twin of :func:`get_attempted_project_ids_async`."""
+    return {
+        str(pid)
+        for pid in db.execute(_build_select_attempted_project_ids(user_id)).scalars().all()
+    }
 
 
 async def get_project_access_tier_async(
@@ -1870,7 +2002,12 @@ async def get_project_access_tier_async(
     exam) and is only honoured by the explicit allow-list of solver endpoints
     (task listing/next with blinding, own annotations, drafts, my-tasks,
     cohort leaderboard). Archived projects never grant the participant tier
-    (mirrors the org-annotator archived carve-out). ``None`` = no access.
+    (mirrors the org-annotator archived carve-out). ``"attempted"`` is the
+    read-only tier of :func:`user_attempted_project_async`: an own
+    non-cancelled annotation keeps the submission readable whatever happened
+    to the window / archive / privacy / membership / share / enrollment since
+    — only the project's soft delete removes it. Precedence: full >
+    participant > attempted. ``None`` = no access.
     """
     if project is None:
         result = await db.execute(select(Project).where(Project.id == project_id))
@@ -1882,9 +2019,15 @@ async def get_project_access_tier_async(
     if await check_project_accessible_async(db, user, project_id, org_context, project=project):
         return TIER_FULL
     if getattr(project, "is_archived", False):
+        # Archived never grants the narrow tier — but an own submission keeps
+        # its read access (attempted) through the archive.
+        if await user_attempted_project_async(db, user.id, project_id):
+            return TIER_ATTEMPTED
         return None
     if await get_student_read_access_async(db, user, project_id):
         return TIER_PARTICIPANT
+    if await user_attempted_project_async(db, user.id, project_id):
+        return TIER_ATTEMPTED
     return None
 
 
@@ -1905,9 +2048,13 @@ def get_project_access_tier(
     if check_project_accessible(db, user, project_id, org_context, project=project):
         return TIER_FULL
     if getattr(project, "is_archived", False):
+        if user_attempted_project(db, user.id, project_id):
+            return TIER_ATTEMPTED
         return None
     if get_student_read_access(db, user, project_id):
         return TIER_PARTICIPANT
+    if user_attempted_project(db, user.id, project_id):
+        return TIER_ATTEMPTED
     return None
 
 
