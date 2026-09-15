@@ -287,6 +287,74 @@ describe('ProjectListTable', () => {
     })
   })
 
+  describe('Narrow access tiers', () => {
+    const tierRows: Partial<Project>[] = [
+      {
+        id: 'full-1',
+        title: 'Own Project',
+        created_at: '2024-01-01T00:00:00Z',
+        task_count: 1,
+        annotation_count: 0,
+        progress_percentage: 0,
+        access_tier: 'full',
+      },
+      {
+        id: 'part-1',
+        title: 'Joined Project',
+        created_at: '2024-01-02T00:00:00Z',
+        task_count: 1,
+        annotation_count: 0,
+        progress_percentage: 0,
+        access_tier: 'participant',
+        participant_via: 'share',
+      },
+      {
+        id: 'att-1',
+        title: 'Past Exam',
+        created_at: '2024-01-03T00:00:00Z',
+        task_count: 1,
+        annotation_count: 1,
+        progress_percentage: 100,
+        access_tier: 'attempted',
+      },
+    ]
+
+    beforeEach(() => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: tierRows,
+        totalProjects: tierRows.length,
+        totalPages: 1,
+      })
+    })
+
+    it('labels attempted rows as past submissions and keeps them read-only', () => {
+      render(<ProjectListTable />)
+      const attempted = screen.getByTestId('project-participant-badge-att-1')
+      expect(attempted).toHaveTextContent('Past submission')
+      expect(attempted).toHaveAttribute(
+        'title',
+        'Access through your submission',
+      )
+      const participant = screen.getByTestId('project-participant-badge-part-1')
+      expect(participant).toHaveTextContent('Participant')
+      expect(participant).toHaveAttribute('title', 'Joined via share link')
+      expect(
+        screen.queryByTestId('project-participant-badge-full-1'),
+      ).not.toBeInTheDocument()
+      // Bulk selection only for rows the user may act on.
+      expect(
+        screen.getByTestId('projects-table-checkbox-full-1'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('projects-table-checkbox-part-1'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('projects-table-checkbox-att-1'),
+      ).not.toBeInTheDocument()
+    })
+  })
+
   describe('Table Rendering', () => {
     it('should render table with projects', () => {
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
