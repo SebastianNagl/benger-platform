@@ -381,6 +381,14 @@ export interface AvailableMetric {
    * (e.g. Falllösung's Notenpunkte score_scale and 4096 max_tokens) without
    * the platform wizard hardcoding metric names. */
   default_parameters?: Record<string, any>
+  /** Floor for `metric_parameters.max_tokens`, applied when a judge model is
+   * picked in the builder: the model's default budget is raised to this
+   * value (and still capped at the model's own limit). A step-by-step judge
+   * that grades a whole sheet in one call needs far more output than the
+   * generic 500-token default. The worker floors its system default to the
+   * same value (`model_defaults.METRIC_MAX_TOKENS_FLOOR`), so a config saved
+   * without an explicit `max_tokens` grades with the same budget. */
+  min_max_tokens?: number
   /** How this metric should be rendered in leaderboards / score tables.
    * Defaults to `'0-1'` (the historical assumption) when omitted. */
   display_scale?: MetricDisplayScale

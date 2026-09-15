@@ -176,6 +176,25 @@ describe('SessionManager', () => {
       expect(mockApiClient.clearUserCache).not.toHaveBeenCalled()
       expect(mockApiClient.clearCache).toHaveBeenCalled()
     })
+
+    it("removes the previous account's local drafts", () => {
+      localStorage.setItem('benger_draft_888_task-1', '{}')
+      localStorage.setItem('benger_legal_draft_v2_task-1_loesung', 'text')
+      localStorage.setItem('benger_falloesung_draft_task-1', '{}')
+      localStorage.setItem('benger_rubric_draft_task-1', '{}')
+      localStorage.setItem('benger_ui_theme', 'dark')
+
+      manager.handleUserSwitch(mockApiClient, '999', '888')
+
+      expect(localStorage.getItem('benger_draft_888_task-1')).toBeNull()
+      expect(
+        localStorage.getItem('benger_legal_draft_v2_task-1_loesung'),
+      ).toBeNull()
+      expect(localStorage.getItem('benger_falloesung_draft_task-1')).toBeNull()
+      expect(localStorage.getItem('benger_rubric_draft_task-1')).toBeNull()
+      expect(localStorage.getItem('benger_ui_theme')).toBe('dark')
+      expect(localStorage.getItem('benger_last_session_user')).toBe('999')
+    })
   })
 
   describe('isLoginInProgress', () => {
@@ -255,6 +274,25 @@ describe('SessionManager', () => {
       expect(mockApiClient.clearUserCache).toHaveBeenCalledWith('123')
       expect(mockApiClient.clearCache).toHaveBeenCalled()
       expect(clearAllStores).toHaveBeenCalledWith(false)
+    })
+
+    it('removes the local drafts of the account signing out', () => {
+      localStorage.setItem('benger_last_session_user', '123')
+      localStorage.setItem('benger_draft_123_task-1', '{}')
+      localStorage.setItem('benger_legal_draft_v3_123_task-1_loesung', 'text')
+      localStorage.setItem('benger_falloesung_draft_task-1', '{}')
+      localStorage.setItem('benger_rubric_draft_task-1', '{}')
+      localStorage.setItem('benger_ui_theme', 'dark')
+
+      manager.clearSession(mockApiClient)
+
+      expect(localStorage.getItem('benger_draft_123_task-1')).toBeNull()
+      expect(
+        localStorage.getItem('benger_legal_draft_v3_123_task-1_loesung'),
+      ).toBeNull()
+      expect(localStorage.getItem('benger_falloesung_draft_task-1')).toBeNull()
+      expect(localStorage.getItem('benger_rubric_draft_task-1')).toBeNull()
+      expect(localStorage.getItem('benger_ui_theme')).toBe('dark')
     })
 
     it('should clear user-specific cache if user ID exists', () => {
