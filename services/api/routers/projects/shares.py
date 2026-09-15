@@ -576,13 +576,16 @@ async def get_participation(
 ):
     """How the caller reaches this project and whether they can leave it.
 
-    ``tier``: full | participant. ``via`` (participant only): share |
-    entitlement | org_exam. ``can_leave``: share memberships and discovery
-    enrollments can be left; purchases / vendor grants and org-wide exam
-    access cannot (money, resp. org membership is managed by the org).
+    ``tier``: full | participant | attempted. ``via`` (participant only):
+    share | entitlement | org_exam; for the attempted tier ``via`` is
+    ``"attempted"`` (read access through an own submission, nothing to
+    leave). ``can_leave``: share memberships and discovery enrollments can
+    be left; purchases / vendor grants and org-wide exam access cannot
+    (money, resp. org membership is managed by the org).
     ``share_tokens`` lists only the caller's OWN memberships' link tokens.
     """
     from routers.projects.helpers import (
+        TIER_ATTEMPTED,
         get_org_context_from_request,
         get_project_access_tier_async,
     )
@@ -615,7 +618,11 @@ async def get_participation(
     ).scalar_one_or_none()
 
     via = None
-    if share_rows:
+    if tier == TIER_ATTEMPTED:
+        # Whatever rows linger (e.g. a share membership on an archived
+        # project), the standing that is left is the own submission.
+        via = "attempted"
+    elif share_rows:
         via = "share"
     elif entitlement is not None:
         via = "entitlement"
@@ -623,10 +630,12 @@ async def get_participation(
         via = "org_exam"
 
     leavable_entitlement = entitlement is not None and entitlement.source == "discovered"
-    can_leave = bool(share_rows) or leavable_entitlement
+    can_leave = tier != TIER_ATTEMPTED and (bool(share_rows) or leavable_entitlement)
     blocked = None
     if not can_leave:
-        if entitlement is not None:
+        if tier == TIER_ATTEMPTED:
+            blocked = "attempted"
+        elif entitlement is not None:
             blocked = "entitlement_not_leavable"
         elif via == "org_exam":
             blocked = "org_membership"

@@ -41,6 +41,7 @@ from routers.projects.helpers import (
     check_user_can_edit_project_async,
     check_user_can_manage_shares_async,
     get_accessible_project_ids_async,
+    get_attempted_project_ids_async,
     get_effective_project_role_async,
     get_org_context_from_request,
     get_participant_project_ids_async,
@@ -239,8 +240,13 @@ async def list_projects(
         # participant with a stale X-Organization-Context header must still
         # see their joined projects (fall back to the participant-only set).
         participant_map: Dict[str, str] = {}
+        # Likewise the projects the user reaches only through an own
+        # submission (attempted tier): listed read-only whatever the window /
+        # archive / membership state, so a student keeps finding their exam.
+        attempted_ids: set = set()
         if not current_user.is_superadmin:
             participant_map = await get_participant_project_ids_async(db, current_user.id)
+            attempted_ids = await get_attempted_project_ids_async(db, current_user.id)
 
         # Use shared helper for consistent org-context filtering
         try:
@@ -255,7 +261,7 @@ async def list_projects(
                 or (only_deleted and current_user.is_superadmin),
             )
         except HTTPException:
-            if not participant_map:
+            if not participant_map and not attempted_ids:
                 raise
             accessible_ids = []
 
@@ -275,6 +281,8 @@ async def list_projects(
             id_filter = Project.id.in_(accessible_ids)
             if participant_map:
                 id_filter = or_(id_filter, Project.id.in_(list(participant_map.keys())))
+            if attempted_ids:
+                id_filter = or_(id_filter, Project.id.in_(list(attempted_ids)))
             base_filters.append(id_filter)
         if search:
             base_filters.append(
@@ -307,12 +315,14 @@ async def list_projects(
                 db, current_user, org_context
             )
             if membership_role == "ANNOTATOR":
-                base_filters.append(
-                    or_(
-                        Project.is_archived.is_(False),
-                        Project.created_by == str(current_user.id),
-                    )
-                )
+                archived_ok = [
+                    Project.is_archived.is_(False),
+                    Project.created_by == str(current_user.id),
+                ]
+                # An own submission survives the archive (attempted tier).
+                if attempted_ids:
+                    archived_ok.append(Project.id.in_(list(attempted_ids)))
+                base_filters.append(or_(*archived_ok))
 
         # Pagination
         count_stmt = select(func.count()).select_from(Project)
@@ -350,11 +360,15 @@ async def list_projects(
             response = ProjectResponse.from_orm(project)
             response.created_by_name = project.creator.name if project.creator else None
             via = participant_map.get(str(project.id))
-            if via is not None and (
-                accessible_set is not None and project.id not in accessible_set
-            ):
+            outside_full = accessible_set is not None and project.id not in accessible_set
+            if via is not None and outside_full:
                 response.access_tier = TIER_PARTICIPANT
                 response.participant_via = via
+                _strip_participant_fields(response)
+            elif outside_full and str(project.id) in attempted_ids:
+                # Precedence full > participant > attempted, like the
+                # per-project resolver.
+                response.access_tier = TIER_ATTEMPTED
                 _strip_participant_fields(response)
             else:
                 response.access_tier = TIER_FULL
