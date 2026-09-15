@@ -220,7 +220,7 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     // Seed the useAutoSave draft for task-2: content that exists ONLY in the
     // localStorage draft (e.g. typed seconds before a reload).
     localStorage.setItem(
-      'benger_draft_task-2',
+      'benger_draft_anon_task-2',
       JSON.stringify({
         taskId: 'task-2',
         annotations: [

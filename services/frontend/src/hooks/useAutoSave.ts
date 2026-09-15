@@ -41,10 +41,24 @@ export interface UseAutoSaveOptions {
 }
 
 /**
- * Get the localStorage key for a task's draft
+ * Get the localStorage key for a task's draft.
+ *
+ * Scoped to the signed-in user (`benger_last_session_user`, written by the
+ * session manager) so a second account on the same browser never inherits
+ * the first one's draft; `anon` before any session is tracked. Read at call
+ * time rather than module load so the key follows a user switch and the
+ * module stays safe to import under SSR.
  */
 function getDraftKey(taskId: string): string {
-  return `${LOCAL_STORAGE_KEY_PREFIX}${taskId}`
+  let userId = 'anon'
+  try {
+    if (typeof window !== 'undefined') {
+      userId = localStorage.getItem('benger_last_session_user') ?? 'anon'
+    }
+  } catch {
+    // Storage blocked: fall back to the anonymous scope.
+  }
+  return `${LOCAL_STORAGE_KEY_PREFIX}${userId}_${taskId}`
 }
 
 /**

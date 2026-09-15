@@ -71,7 +71,7 @@ describe('useAutoSave - branch coverage extensions', () => {
 
       // Set up valid data first
       localStorage.setItem(
-        'benger_draft_task-err-2',
+        'benger_draft_anon_task-err-2',
         JSON.stringify({
           taskId: 'task-err-2',
           annotations: [{ id: 'a1', value: 'test' }],
@@ -103,7 +103,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
 
       localStorage.setItem(
-        'benger_draft_task-err-3',
+        'benger_draft_anon_task-err-3',
         JSON.stringify({
           taskId: 'task-err-3',
           annotations: [{ id: 'a1' }],
@@ -178,7 +178,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       })
 
       // Should not save because annotations.length === 0
-      expect(localStorage.getItem('benger_draft_task-empty')).toBeNull()
+      expect(localStorage.getItem('benger_draft_anon_task-empty')).toBeNull()
     })
 
     it('should not clear draft when taskId is null', async () => {
@@ -234,7 +234,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       })
 
       const saved = JSON.parse(
-        localStorage.getItem('benger_draft_task-direct')!,
+        localStorage.getItem('benger_draft_anon_task-direct')!,
       )
       expect(saved.componentValues.newField).toBe('newValue')
       expect(saved.componentValues.existingField).toBe('existingValue')
@@ -262,7 +262,9 @@ describe('useAutoSave - branch coverage extensions', () => {
         await result.current.saveNow()
       })
 
-      expect(localStorage.getItem('benger_draft_task-no-direct')).not.toBeNull()
+      expect(
+        localStorage.getItem('benger_draft_anon_task-no-direct'),
+      ).not.toBeNull()
     })
   })
 
@@ -307,7 +309,7 @@ describe('useAutoSave - branch coverage extensions', () => {
       })
 
       // Not saved yet since debounce reset
-      expect(localStorage.getItem('benger_draft_task-debounce')).toBeNull()
+      expect(localStorage.getItem('benger_draft_anon_task-debounce')).toBeNull()
 
       // Advance past debounce threshold
       act(() => {
@@ -315,7 +317,9 @@ describe('useAutoSave - branch coverage extensions', () => {
       })
 
       // Now it should be saved
-      expect(localStorage.getItem('benger_draft_task-debounce')).not.toBeNull()
+      expect(
+        localStorage.getItem('benger_draft_anon_task-debounce'),
+      ).not.toBeNull()
     })
   })
 })
