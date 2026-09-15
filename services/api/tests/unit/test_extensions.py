@@ -106,8 +106,11 @@ class TestExtensionLoader:
         # (the extended task-rubric reads route to the platform endpoints).
         # 2.18 adds the evaluation_received_* notification types and
         # notify_evaluation_received (the extended grade endpoints call it).
+        # 2.19 adds the attempted access tier (TIER_ATTEMPTED,
+        # user_attempted_project / get_attempted_project_ids, the tier= kwarg
+        # of enforce_project_read_window) the extended student reads honour.
         # The full per-version log lives in services/shared/core_version.py.
-        assert CORE_API_VERSION == "2.18"
+        assert CORE_API_VERSION == "2.19"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
