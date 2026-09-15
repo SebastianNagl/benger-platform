@@ -1524,6 +1524,14 @@ class TestVerifyEvidence:
             "denn G hat gegenüber H angeordnet, das Gelände zu verlassen",
             # small inflection difference on a long word
             "Der Platzverweises ist ein Verwaltungsakt",
+            # three tokens: the norm with its paragraph sign, a hyphenated
+            # compound, a short sentence tail
+            "§ 40 I 1 VwGO",
+            "ist öffentlich-rechtlich",
+            "Streitigkeit ist öffentlich-rechtlich",
+            # two tokens carry enough characters (>= 15) to be a quote
+            "verbindlich angeordnet",
+            "Platzverweis ist",
         ],
     )
     def test_quotes_from_the_answer_verify(self, evidence):
@@ -1544,10 +1552,35 @@ class TestVerifyEvidence:
             "(+)",
             "der",
             "…",
+            # a single token is a keyword, not a quote (also inside a word)
+            "VwGO",
+            "Platz",
+            "Verwaltungsrechtswegs",
+            # two short tokens are not a quote either
+            "der Rechtsweg",
+            "ist ein",
+            "Gelände zu",
+            # reordered words of the answer are a paraphrase
+            "öffentlich-rechtliche Streitigkeit",
+            # short fragments sit on word boundaries: a cut word does not match
+            "des Verwaltungsrechtsweg",
+            # one keyword fragment poisons an otherwise verbatim quote
+            "Mangels aufdrängender Sonderzuweisung … VwGO",
         ],
     )
     def test_everything_else_is_rejected(self, evidence):
         assert _verify_evidence(evidence, EvidenceIndex(_ANSWER)) is False
+
+    def test_the_thresholds_are_the_documented_ones(self):
+        from ml_evaluation.llm_judge_evaluator import (
+            EVIDENCE_MIN_LONG_FRAGMENT_CHARS,
+            EVIDENCE_MIN_TOKENS,
+            EVIDENCE_MIN_WORD_CHARS,
+        )
+
+        assert (EVIDENCE_MIN_TOKENS, EVIDENCE_MIN_LONG_FRAGMENT_CHARS, EVIDENCE_MIN_WORD_CHARS) == (
+            3, 15, 4
+        )
 
 
 class TestFinalizeRubricScores:

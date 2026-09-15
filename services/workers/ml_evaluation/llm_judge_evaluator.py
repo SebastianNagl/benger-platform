@@ -403,6 +403,16 @@ _PUNCT_TRANSLATION = str.maketrans(
 # Evidence needs this many word characters in total to count at all, so a
 # quote like "(+)" or "der" cannot verify a step.
 EVIDENCE_MIN_WORD_CHARS = 4
+# A fragment (one ellipsis-separated part of the quote) verifies only with
+# at least EVIDENCE_MIN_TOKENS tokens, or with two tokens that together
+# carry at least EVIDENCE_MIN_LONG_FRAGMENT_CHARS word characters. A single
+# token never does: "VwGO", or "Platz" inside "Platzverweis", is a keyword
+# the answer happens to contain, not a quote of the step's reasoning.
+EVIDENCE_MIN_TOKENS = 3
+EVIDENCE_MIN_LONG_FRAGMENT_CHARS = 15
+# Fragments with fewer tokens than this must match the answer on word
+# boundaries; longer ones may also match token-wise in order.
+_EVIDENCE_SHORT_FRAGMENT_TOKENS = 4
 
 
 def _normalize_evidence_text(text: str) -> str:
@@ -481,14 +491,30 @@ class EvidenceIndex:
         self.tokens = _WORD_RE.findall(self.text)
 
 
+def _fragment_is_quotable(tokens: List[str]) -> bool:
+    """Long enough to be a quote rather than a keyword (see the constants)."""
+    if len(tokens) >= EVIDENCE_MIN_TOKENS:
+        return True
+    return len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
+
+
+def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> bool:
+    """Short fragments must sit on word boundaries ("des Verwaltungsrechtsweg"
+    does not match "des Verwaltungsrechtswegs"); longer ones may be a
+    substring or match token-wise in order (see :func:`_tokens_in_order`)."""
+    if len(tokens) < _EVIDENCE_SHORT_FRAGMENT_TOKENS:
+        return re.search(rf"(?<!\w){re.escape(part)}(?!\w)", index.text) is not None
+    return part in index.text or _tokens_in_order(tokens, index.tokens)
+
+
 def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     """Is every fragment of ``evidence`` really in the answer?
 
     Fragments are split on ellipses (``…``, ``...``, ``[...]``). Each must be
-    a normalized substring of the answer, or its tokens must appear in order
-    within a tight window (see :func:`_tokens_in_order`). Empty evidence, or
-    evidence with fewer than :data:`EVIDENCE_MIN_WORD_CHARS` word characters,
-    is not verified.
+    quotable (:func:`_fragment_is_quotable`: at least three tokens, or two
+    long ones; never a single token) and present in the answer
+    (:func:`_fragment_in_answer`). Empty evidence, or evidence with fewer
+    than :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
     """
     fragments = []
     for part in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence)):
@@ -501,7 +527,7 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     if sum(len(tok) for _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
         return False
     return all(
-        part in index.text or _tokens_in_order(tokens, index.tokens)
+        _fragment_is_quotable(tokens) and _fragment_in_answer(part, tokens, index)
         for part, tokens in fragments
     )
 
