@@ -1,6 +1,45 @@
 schema_version: 1
 doc: Single source of truth for LLM models offered by BenGER. Edit this file, then on next API start the seed will upsert any new/changed entries and deactivate any rows whose id is no longer listed. To force re-apply without restarting, POST /api/admin/llm-models/reseed (superadmin) or run `make reseed-llm-models`.
 models:
+  - id: gpt-6-astra
+    name: GPT-6 Astra
+    description: OpenAI's GPT-6 flagship (GA 2026-09-03), 1.05M context, 128K max output
+    provider: OpenAI
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 10.0
+    output_cost_per_million: 50.0
+    default_config:
+      reasoning_config:
+        parameter: reasoning_effort
+        type: select
+        values: [low, medium, high, xhigh, max]
+        default: medium
+        label: Thinking/Reasoning Level
+    constraints:
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: GPT-6 Astra enforces temperature=1.0 via API (verified live 2026-09-16, HTTP 400 unsupported_value on 0.0)
+      # Reasoning tokens bill against max_output_tokens. Matched to the
+      # *-pro default rather than the 5.6 family's 8000 so a long German
+      # legal Sachverhalt still has room for visible text after reasoning.
+      max_tokens:
+        default: 32000
+      unsupported_params: [top_p, presence_penalty, frequency_penalty, logprobs, top_logprobs, logit_bias]
+      reproducibility_impact: CRITICAL
+      benchmark_notes: Run multiple iterations (n>=5) and report variance. Results cannot be deterministic. Prompts >272K tokens bill at 2x input / 1.5x output for the full request - flat cost map under-reports long-context runs.
+      seed:
+        supported: false
+    recommended_parameters:
+      default:
+        temperature: 1.0
+        max_tokens: 32000
+        reasoning_effort: medium
+      provenance:
+        source: https://developers.openai.com/api/docs/models/gpt-6-astra
+        retrieved: '2026-09-16'
   - id: gpt-5.6-sol
     name: GPT-5.6 Sol
     description: Flagship of the GPT-5.6 family (GA 2026-07-09), 1.05M context
@@ -8,8 +47,9 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
     is_active: true
-    input_cost_per_million: 5.0
-    output_cost_per_million: 30.0
+    # Promotional pricing, held at least through 2026-11-21; re-check then.
+    input_cost_per_million: 4.0
+    output_cost_per_million: 20.0
     constraints:
       temperature:
         supported: false
@@ -28,7 +68,7 @@ models:
         max_tokens: 8000
       provenance:
         source: https://developers.openai.com/api/docs/models/gpt-5.6-sol
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
   - id: gpt-5.6-terra
     name: GPT-5.6 Terra
     description: Mid-tier GPT-5.6 (GA 2026-07-09), 1.05M context
@@ -36,8 +76,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, multimodal, advanced-reasoning]
     is_active: true
-    input_cost_per_million: 2.5
-    output_cost_per_million: 15.0
+    input_cost_per_million: 2.0
+    output_cost_per_million: 12.0
     constraints:
       temperature:
         supported: false
@@ -56,7 +96,7 @@ models:
         max_tokens: 8000
       provenance:
         source: https://developers.openai.com/api/docs/models/gpt-5.6-terra
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
   - id: gpt-5.6-luna
     name: GPT-5.6 Luna
     description: Cost-efficient GPT-5.6 tier (GA 2026-07-09), cheapest 1M-context model
@@ -64,8 +104,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, multimodal]
     is_active: true
-    input_cost_per_million: 1.0
-    output_cost_per_million: 6.0
+    input_cost_per_million: 0.2
+    output_cost_per_million: 1.2
     constraints:
       temperature:
         supported: false
@@ -84,7 +124,7 @@ models:
         max_tokens: 8000
       provenance:
         source: https://developers.openai.com/api/docs/models/gpt-5.6-luna
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
   - id: gpt-5.5
     name: GPT-5.5
     description: Frontier reasoning flagship (superseded by GPT-5.6 Sol; prompts >272K tokens bill 2x/1.5x)
@@ -695,6 +735,44 @@ models:
       provenance:
         source: https://platform.openai.com/docs/api-reference/chat/create#chat-create-temperature
         retrieved: '2026-05-07'
+  - id: claude-fable-5-1
+    name: Claude Fable 5.1
+    description: Anthropic's most capable widely released model (GA 2026-08), 1M context, thinking always on
+    provider: Anthropic
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning, adaptive-thinking]
+    is_active: true
+    input_cost_per_million: 10.0
+    output_cost_per_million: 50.0
+    constraints:
+      # Same rejection surface as Fable 5: any non-default temperature/top_p/
+      # top_k returns HTTP 400, thinking is ALWAYS ON (adaptive) and the
+      # thinking parameter must be omitted. Three deltas vs Fable 5:
+      # forced tool_choice (any/tool) now returns 400, thinking blocks are
+      # bound to the producing model, and editing earlier turns invalidates
+      # them ("preserved thinking" - keep any replay append-only).
+      # Source: https://platform.claude.com/docs/en/about-claude/models/migration-guide
+      temperature:
+        supported: false
+        required_value: 1.0
+        reason: Claude Fable 5.1 rejects any non-default temperature with HTTP 400. Worker coerces to the API default (1.0).
+      unsupported_params: [top_p, top_k]
+      max_tokens:
+        default: 16000
+      reproducibility_impact: CRITICAL
+      benchmark_notes: >-
+        Thinking is always on and non-configurable; run multiple iterations
+        (n>=5) and report variance. Safety classifiers may return HTTP 200
+        with stop_reason=refusal - pipeline must branch on stop_reason
+        before reading content. Forced tool use (tool_choice any/tool)
+        returns 400. Requires the org to be on 30-day data retention
+        (ZDR orgs get 400 on every request).
+    recommended_parameters:
+      default:
+        max_tokens: 16000
+      provenance:
+        source: https://platform.claude.com/docs/en/about-claude/models/migration-guide
+        retrieved: '2026-09-16'
   - id: claude-fable-5
     name: Claude Fable 5
     description: Anthropic's most capable model (above Opus tier), 1M context, thinking always on
@@ -1179,15 +1257,16 @@ models:
       provenance:
         source: https://ai.google.dev/gemini-api/docs/gemini-3
         retrieved: '2026-05-07'
-  - id: gemini-3.6-flash
-    name: Gemini 3.6 Flash
-    description: GA 2026-07; long-horizon agentic Flash, up to 65% fewer agent tokens vs 3.5 Flash
+  - id: gemini-3.8-flash
+    name: Gemini 3.8 Flash
+    description: Newest GA Flash generation, 1M context
     provider: Google
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, thinking]
     is_active: true
-    input_cost_per_million: 1.5
-    output_cost_per_million: 7.5
+    # Promotional pricing through 2026-12-31; reverts to 1.5 / 7.5 after.
+    input_cost_per_million: 0.75
+    output_cost_per_million: 3.75
     default_config:
       reasoning_config:
         parameter: thinking_budget
@@ -1205,7 +1284,62 @@ models:
         temperature: 1.0
       provenance:
         source: https://ai.google.dev/gemini-api/docs/pricing
-        retrieved: '2026-08-04'
+        retrieved: '2026-09-16'
+  - id: gemini-3.7-flash
+    name: Gemini 3.7 Flash
+    description: GA Flash generation between 3.6 and 3.8, 1M context
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    # Promotional pricing through 2026-12-31; reverts to 1.5 / 7.5 after.
+    input_cost_per_million: 0.75
+    output_cost_per_million: 3.75
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 1.0
+      provenance:
+        source: https://ai.google.dev/gemini-api/docs/pricing
+        retrieved: '2026-09-16'
+  - id: gemini-3.6-flash
+    name: Gemini 3.6 Flash
+    description: GA 2026-07; long-horizon agentic Flash, up to 65% fewer agent tokens vs 3.5 Flash
+    provider: Google
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, thinking]
+    is_active: true
+    input_cost_per_million: 0.75
+    output_cost_per_million: 3.75
+    default_config:
+      reasoning_config:
+        parameter: thinking_budget
+        type: number
+        min: 0
+        max: 24576
+        default: 1024
+        label: Thinking/Reasoning Budget (tokens)
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 1.0
+      evaluation:
+        temperature: 1.0
+      provenance:
+        source: https://ai.google.dev/gemini-api/docs/pricing
+        retrieved: '2026-09-16'
   - id: gemini-3.5-flash-lite
     name: Gemini 3.5 Flash-Lite
     description: Cost-efficient 3.5-generation Flash tier
@@ -1429,6 +1563,25 @@ models:
     is_active: false
     input_cost_per_million: 0.1
     output_cost_per_million: 0.4
+  - id: deepseek-ai/DeepSeek-V4.1-Flash
+    name: DeepSeek V4.1 Flash
+    description: Multimodal MoE, 552B backbone params, 1M context; reasoning can be disabled
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding, multimodal]
+    is_active: true
+    input_cost_per_million: 0.2
+    output_cost_per_million: 0.6
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/deepseek-ai/DeepSeek-V4.1-Flash
+        retrieved: '2026-09-16'
   - id: deepseek-ai/DeepSeek-V4-Pro
     name: DeepSeek V4 Pro
     description: 1.6T MoE / 49B activated, 1M context
@@ -1474,7 +1627,7 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, analysis, coding]
     is_active: true
-    input_cost_per_million: 0.09
+    input_cost_per_million: 0.06
     output_cost_per_million: 0.18
     recommended_parameters:
       default:
@@ -1485,7 +1638,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://deepinfra.com/deepseek-ai/DeepSeek-V4-Flash-0731
-        retrieved: '2026-08-04'
+        retrieved: '2026-09-16'
   - id: deepseek-ai/DeepSeek-V3.1
     name: DeepSeek-V3.1
     description: 671B params MoE model with 37B activated
@@ -1600,6 +1753,25 @@ models:
       provenance:
         source: https://deepinfra.com/Qwen/Qwen3.8-Max
         retrieved: '2026-08-04'
+  - id: Qwen/Qwen3.8-Flash
+    name: Qwen3.8 Flash
+    description: Fast low-cost Qwen3.8, 1M context billed flat across the full window
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, analysis, coding]
+    is_active: true
+    input_cost_per_million: 0.113
+    output_cost_per_million: 0.382
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/Qwen/Qwen3.8-Flash
+        retrieved: '2026-09-16'
   - id: Qwen/Qwen3.7-Max
     name: Qwen3.7 Max
     description: Qwen3.7 flagship, 256K context
@@ -1718,7 +1890,7 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, coding]
     is_active: true
-    input_cost_per_million: 0.15
+    input_cost_per_million: 0.1
     output_cost_per_million: 0.95
     recommended_parameters:
       default:
@@ -1729,7 +1901,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://huggingface.co/Qwen/Qwen3.6-35B-A3B#best-practices
-        retrieved: '2026-05-07'
+        retrieved: '2026-09-16'
   - id: Qwen/Qwen3.6-27B
     name: Qwen 3.6 27B
     description: 27B dense, 262K context, agentic coding flagship (Apache 2.0)
@@ -2049,8 +2221,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, analysis, thinking, multimodal]
     is_active: true
-    input_cost_per_million: 0.3
-    output_cost_per_million: 1.2
+    input_cost_per_million: 0.28
+    output_cost_per_million: 1.1
     constraints:
       seed:
         supported: false  # MiniMax backend (Phase 6.6 #7).
@@ -2063,7 +2235,29 @@ models:
         temperature: 0.0
       provenance:
         source: https://deepinfra.com/MiniMaxAI/MiniMax-M3
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
+  - id: moonshotai/Kimi-K3
+    name: Kimi K3
+    description: Moonshot 2.8T-param open-weight multimodal reasoning model for long-horizon agentic work
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding, multimodal]
+    is_active: true
+    input_cost_per_million: 2.85
+    output_cost_per_million: 14.25
+    constraints:
+      seed:
+        supported: false  # Kimi backend (Phase 6.6 #7).
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/moonshotai/Kimi-K3
+        retrieved: '2026-09-16'
   - id: moonshotai/Kimi-K2.6
     name: Kimi K2.6
     description: Open multimodal agentic model, 256K context
@@ -2093,8 +2287,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, coding]
     is_active: true
-    input_cost_per_million: 0.74
-    output_cost_per_million: 3.5
+    input_cost_per_million: 0.68
+    output_cost_per_million: 3.4
     constraints:
       seed:
         supported: false  # Kimi backend (Phase 6.6 #7).
@@ -2107,7 +2301,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://deepinfra.com/moonshotai/Kimi-K2.7-Code
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
   - id: moonshotai/Kimi-K2.5
     name: Kimi K2.5
     description: 262K context model with advanced reasoning
@@ -2130,6 +2324,44 @@ models:
       provenance:
         source: https://huggingface.co/moonshotai/Kimi-K2-Instruct-0905#deployment
         retrieved: '2026-05-07'
+  - id: zai-org/GLM-5.3
+    name: GLM-5.3
+    description: Z.ai large-scale reasoning model for software engineering and long-horizon agents, 1M context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding]
+    is_active: true
+    input_cost_per_million: 1.2
+    output_cost_per_million: 4.0
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/zai-org/GLM-5.3
+        retrieved: '2026-09-16'
+  - id: zai-org/GLM-5.3-Flash
+    name: GLM-5.3 Flash
+    description: Z.ai native multimodal Flash; hybrid sparse/linear attention for efficient long-context agents
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis, coding, multimodal]
+    is_active: true
+    input_cost_per_million: 0.15
+    output_cost_per_million: 0.5
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.6
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/zai-org/GLM-5.3-Flash
+        retrieved: '2026-09-16'
   - id: zai-org/GLM-5.2
     name: GLM-5.2
     description: Z.ai flagship released 2026-06, 753B params, 1M context, hosted on DeepInfra
@@ -2137,8 +2369,8 @@ models:
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
     is_active: true
-    input_cost_per_million: 0.93
-    output_cost_per_million: 3.0
+    input_cost_per_million: 0.75
+    output_cost_per_million: 2.4
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -2148,7 +2380,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://deepinfra.com/zai-org/GLM-5.2
-        retrieved: '2026-07-16'
+        retrieved: '2026-09-16'
   - id: zai-org/GLM-5.1
     name: GLM-5.1
     description: Zhipu AI's latest flagship, 198K context, hosted on DeepInfra
@@ -2263,6 +2495,25 @@ models:
       provenance:
         source: https://deepinfra.com/blog/step-3.7-flash-release
         retrieved: '2026-07-16'
+  - id: nvidia/NVIDIA-Nemotron-3.5-Lightning
+    name: Nemotron 3.5 Lightning
+    description: NVIDIA's fastest open model for always-on agents; up to 4x throughput of Nemotron 3 Nano, 1M context
+    provider: DeepInfra
+    model_type: chat
+    capabilities: [text-generation, reasoning, analysis]
+    is_active: true
+    input_cost_per_million: 0.08
+    output_cost_per_million: 0.2
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://deepinfra.com/nvidia/NVIDIA-Nemotron-3.5-Lightning
+        retrieved: '2026-09-16'
   - id: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
     name: Nemotron 3 Ultra 550B
     description: NVIDIA's 550B MoE / 55B activated, up to 1M context
@@ -2346,8 +2597,8 @@ models:
     model_type: chat
     capabilities: [text-generation, reasoning, multimodal]
     is_active: true
-    input_cost_per_million: 0.12
-    output_cost_per_million: 0.37
+    input_cost_per_million: 0.09
+    output_cost_per_million: 0.34
     recommended_parameters:
       default:
         max_tokens: 8000
@@ -2357,7 +2608,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://deepinfra.com/google/gemma-4-31B-it-turbo
-        retrieved: '2026-06-05'
+        retrieved: '2026-09-16'
   - id: google/gemma-4-26B-A4B-it
     name: Gemma 4 26B A4B
     description: Google Gemma 4 26B A4B MoE instruct, 256K context, multimodal
@@ -2434,6 +2685,25 @@ models:
       provenance:
         source: https://huggingface.co/google/gemma-3-4b-it
         retrieved: '2026-06-05'
+  - id: grok-4.6
+    name: Grok 4.6
+    description: xAI's flagship, recommended default for code and chat (prompts >=200K bill 2x)
+    provider: Grok
+    model_type: chat
+    capabilities: [text-generation, data-synthesis, reasoning, analysis, coding, advanced-reasoning]
+    is_active: true
+    input_cost_per_million: 2.0
+    output_cost_per_million: 6.0
+    recommended_parameters:
+      default:
+        max_tokens: 8000
+      generation:
+        temperature: 0.7
+      evaluation:
+        temperature: 0.0
+      provenance:
+        source: https://docs.x.ai/docs/models
+        retrieved: '2026-09-16'
   - id: grok-4.5
     name: Grok 4.5
     description: xAI's flagship released 2026-07-08 (500K context; prompts >=200K bill 2x)
@@ -2582,11 +2852,11 @@ models:
         label: Thinking/Reasoning Level
   - id: mistral-large-latest
     name: Mistral Large
-    description: Mistral Large 3 — top-tier multimodal model, 262K context
+    description: Mistral Large 3 — NOT served on our API tier (403 tier_not_allowed, verified 2026-09-16); absent from /v1/models
     provider: Mistral
     model_type: chat
     capabilities: [text-generation, data-synthesis, reasoning, analysis, coding]
-    is_active: true
+    is_active: false
     input_cost_per_million: 0.5
     output_cost_per_million: 1.5
     recommended_parameters:
@@ -2598,7 +2868,7 @@ models:
         temperature: 0.0
       provenance:
         source: https://docs.mistral.ai/guides/sampling
-        retrieved: '2026-05-07'
+        retrieved: '2026-09-16'
   - id: mistral-medium-latest
     name: Mistral Medium
     description: Mistral Medium 3.5 — frontier-class multimodal model, 131K context
@@ -2663,6 +2933,11 @@ models:
     model_type: chat
     capabilities: [coding, text-generation, reasoning]
     is_active: true
+    # 2026-09-16: absent from /v1/models for our org key. Could not be
+    # confirmed dead (the Mistral key is rate-limited to 429 on every
+    # probe) and Devstral is gone from Mistral's models overview page.
+    # Left active pending a clean probe - suspect it 403s like
+    # mistral-large-latest did.
     input_cost_per_million: 0.4
     output_cost_per_million: 2.0
     recommended_parameters:
