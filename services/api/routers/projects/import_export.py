@@ -82,9 +82,14 @@ from routers.projects._export_stream import (  # noqa: E402
 )
 from routers.projects._import_stream import (  # noqa: E402,F401
     _IMPORT_BATCH,  # re-exported for tests/integration/test_import_streaming_batch.py
+    LINKED_EXAM_MAX_TASKS,
+    MULTI_TASK_MESSAGE,
+    MULTI_TASK_UNSUPPORTED,
     convert_from_label_studio_format,  # re-exported: shared driver used by tests
+    linked_exam_stmt,
     run_full_project_import,  # re-exported: shared driver used by tests
     run_nested_import,  # re-exported: shared driver used by tests
+    task_count_stmt,
 )
 from models import (  # noqa: E402
     ExportJob,
@@ -386,6 +391,25 @@ async def _load_import_job_for_read(
     return job
 
 
+async def _reject_import_into_linked_exam(db: AsyncSession, project: Project) -> None:
+    """422 ``multi_task_unsupported`` for an import into an exam an LMS
+    activity points at that already holds its one task (owner decision D12).
+
+    Any import adds at least one task. An empty linked exam may still take
+    one; the import worker refuses a file that would add more.
+    """
+    if getattr(project, "kind", None) != "exam":
+        return
+    if (await db.execute(linked_exam_stmt(project.id))).first() is None:
+        return
+    tasks = (await db.execute(task_count_stmt(project.id))).scalar() or 0
+    if tasks >= LINKED_EXAM_MAX_TASKS:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": MULTI_TASK_UNSUPPORTED, "message": MULTI_TASK_MESSAGE},
+        )
+
+
 @router.post("/{project_id}/imports/upload-url")
 async def create_import_upload_url(
     project_id: str,
@@ -411,6 +435,7 @@ async def create_import_upload_url(
             status_code=403,
             detail="Only contributors or admins can import tasks into this project",
         )
+    await _reject_import_into_linked_exam(db, project)
 
     upload = object_storage.get_upload_url(
         filename=filename,
@@ -448,6 +473,7 @@ async def create_import_job(
             status_code=403,
             detail="Only contributors or admins can import tasks into this project",
         )
+    await _reject_import_into_linked_exam(db, project)
 
     object_key = (data or {}).get("object_key")
     if not isinstance(object_key, str) or not object_key:
@@ -590,6 +616,7 @@ async def create_cloud_import_jobs(
             status_code=403,
             detail="Only contributors or admins can import tasks into this project",
         )
+    await _reject_import_into_linked_exam(db, project)
 
     data = data or {}
     connection_id = data.get("connection_id")

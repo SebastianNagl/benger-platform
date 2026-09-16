@@ -1814,6 +1814,27 @@ def run_evaluation(
                     "evaluation_id": evaluation_id,
                 }
 
+            # Billing (extended edition): the policy may name the org whose
+            # keys this run spends, or refuse the run when that org cannot
+            # pay. A refused run fails with the reason before any judge run.
+            (
+                organization_id,
+                batch_billing_block,
+                batch_billing_authorized,
+            ) = _apply_batch_billing(
+                db,
+                evaluation=evaluation,
+                project=project,
+                organization_id=organization_id,
+                configs=enabled_configs,
+            )
+            if batch_billing_block:
+                return {
+                    "status": "blocked",
+                    "evaluation_id": evaluation_id,
+                    "block": batch_billing_block,
+                }
+
             # Probe the task set up-front so we can short-circuit before
             # creating any EvaluationJudgeRun rows. Avoids leaving orphan
             # judge_runs behind when the project has no tasks at all.
@@ -2045,6 +2066,7 @@ def run_evaluation(
                                     organization_id=organization_id,
                                     seed=judge_seed,
                                     project_id=project_id,
+                                    org_billing_authorized=batch_billing_authorized,
                                 )
                                 e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
                                 if not (evaluator.ai_service or e2e_test_mode):
@@ -2799,6 +2821,146 @@ def _unpack_grading_dispatch_policy(result):
 
         block = normalize_billing_block(result[3])
     return org_id, configs, authorized, block
+
+
+def _get_batch_evaluation_policy_fn():
+    """The extended batch billing policy, or None (community edition, or a
+    package without the hook)."""
+    try:
+        from benger_extended.workers import get_batch_evaluation_policy_fn
+    except (ImportError, AttributeError):
+        return None
+    return get_batch_evaluation_policy_fn
+
+
+def _apply_batch_evaluation_policy(
+    db, *, project, user_id, organization_id, configs, evaluation_id
+):
+    """Extension hook: ``(organization_id, billing_block, org_billing_authorized)``
+    for a batch run.
+
+    The extended edition may bill a batch run to another organization (for
+    an exam an LMS activity points at, the connection's organization) or
+    refuse it when that organization cannot pay. The third element lets a
+    starter who is not a member of that organization spend its keys; it is
+    derived by the policy from database state, never read from a payload.
+    The policy may return the older 2-tuple (not authorized). Community
+    edition, a package without the hook, a failing hook or an unexpected
+    result: the dispatched organization, no block, not authorized.
+    """
+    get_policy_fn = _get_batch_evaluation_policy_fn()
+    if get_policy_fn is None:
+        return organization_id, None, False
+    try:
+        policy_fn = get_policy_fn()
+        if policy_fn is None or not user_id:
+            return organization_id, None, False
+        result = policy_fn(
+            db,
+            project=project,
+            user_id=str(user_id),
+            organization_id=organization_id,
+            configs=configs,
+        )
+        if not isinstance(result, (tuple, list)) or len(result) not in (2, 3):
+            raise ValueError(f"unexpected batch evaluation policy result: {result!r}")
+        from immediate_eval_dispatch import normalize_billing_block
+
+        authorized = bool(result[2]) if len(result) == 3 else False
+        block = normalize_billing_block(result[1])
+        return result[0], block, authorized and block is None
+    except Exception as policy_err:
+        logger.error(
+            f"[evaluation {evaluation_id}] batch billing policy failed: {policy_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return organization_id, None, False
+
+
+def _batch_cell_billing_authorized(
+    db, *, project_id, user_id, organization_id, configs
+) -> bool:
+    """Inside one evaluation cell: may the batch starter spend the keys of
+    ``organization_id``?
+
+    Re-runs the batch billing policy in this process (the flag never travels
+    in the task payload). True only when the policy still names the same
+    organization, refuses nothing and grants the authorization.
+    """
+    if not (project_id and user_id and organization_id):
+        return False
+    if _get_batch_evaluation_policy_fn() is None:
+        return False
+    try:
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == str(project_id)).first()
+    except Exception as lookup_err:
+        logger.warning(
+            f"Sub-task: project lookup for the billing check failed: {lookup_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return False
+    if project is None:
+        return False
+    org_id, block, authorized = _apply_batch_evaluation_policy(
+        db,
+        project=project,
+        user_id=user_id,
+        organization_id=organization_id,
+        configs=configs,
+        evaluation_id=f"cell of project {project_id}",
+    )
+    return bool(authorized and block is None and org_id == organization_id)
+
+
+def _apply_batch_billing(db, *, evaluation, project, organization_id, configs):
+    """Run the batch billing hook for ``evaluation`` (started by its
+    ``triggered_by`` user).
+
+    Returns ``(organization_id, billing_block, org_billing_authorized)``. On
+    a block the run is already marked failed (``billing_blocked:<reason>``,
+    the block under ``eval_metadata.billing_block``) and committed; the
+    caller stops.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy.orm.attributes import flag_modified
+
+    triggered_by = (evaluation.eval_metadata or {}).get("triggered_by")
+    org_id, block, authorized = _apply_batch_evaluation_policy(
+        db,
+        project=project,
+        user_id=triggered_by,
+        organization_id=organization_id,
+        configs=configs,
+        evaluation_id=evaluation.id,
+    )
+    if not block:
+        return org_id, None, authorized
+
+    reason = block.get("reason") or "blocked"
+    message = f"billing_blocked:{reason}"[:500]
+    logger.warning(
+        f"[evaluation {evaluation.id}] refused by the billing policy: {reason}"
+    )
+    now = datetime.now(timezone.utc)
+    meta = dict(evaluation.eval_metadata or {})
+    meta["billing_block"] = {**block, "checked_at": now.isoformat()}
+    meta["error"] = message
+    evaluation.eval_metadata = meta
+    flag_modified(evaluation, "eval_metadata")
+    evaluation.status = "failed"
+    evaluation.error_message = message
+    evaluation.completed_at = now
+    db.commit()
+    return organization_id, block, False
 
 
 def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
@@ -3619,6 +3781,7 @@ def _reconstruct_judge_evaluators_for_cell(
 
     judge_runs_by_config: Dict[str, List[Dict[str, Any]]] = {}
     llm_judge_evaluators: Dict[str, Any] = {}
+    billing_authorized = None  # derived once, on the first judge
 
     for config in configs_for_cell:
         metric = config.get("metric", "")
@@ -3638,6 +3801,14 @@ def _reconstruct_judge_evaluators_for_cell(
             # never recompute or re-resolve here so a divergence between
             # orchestrator + sub-task param logic is impossible.
             construct_kwargs = entry.get("judge_evaluator_kwargs") or {}
+            if billing_authorized is None:
+                billing_authorized = _batch_cell_billing_authorized(
+                    db,
+                    project_id=project_id,
+                    user_id=triggered_by_user_id,
+                    organization_id=organization_id,
+                    configs=configs_for_cell,
+                )
 
             try:
                 evaluator = create_llm_judge_for_user(
@@ -3645,6 +3816,7 @@ def _reconstruct_judge_evaluators_for_cell(
                     user_id=triggered_by_user_id,
                     organization_id=organization_id,
                     project_id=project_id,
+                    org_billing_authorized=billing_authorized,
                     **construct_kwargs,
                 )
             except Exception as init_err:

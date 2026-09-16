@@ -417,10 +417,11 @@ async def delete_organization_group(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Group still has {attachment_count} project attachment(s), "
-                f"{key_count} API key(s), {lti_count} LTI registration(s), "
+                f"{key_count} API key(s), {lti_count} LMS connection(s), "
                 f"and {invite_count} open LTI invite(s). "
-                "Reassign the projects, remove the keys, re-scope the LMS "
-                "registrations, and revoke the invites first."
+                "Reassign the projects and remove the keys first. Move or "
+                "delete the LMS connections and revoke the invites in the "
+                "organization's learning platform panel (LTI)."
             ),
         )
 

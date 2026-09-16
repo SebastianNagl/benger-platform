@@ -18,9 +18,9 @@
  * empty state for a fresh org → create a registration through the panel (no
  * org field — it is pinned to the selected org) → its switch is on and the
  * API reports "active" → disable via the fail-closed toggle (confirm step) →
- * switch off, API "disabled" → re-enable. The panel has no delete (by
- * design), so afterAll removes the E2E rows via psql (cascade covers
- * deployments).
+ * switch off, API "disabled" → re-enable. The panel only deletes
+ * switched-off connections, so afterAll removes the E2E rows via psql
+ * (cascade covers deployments), which also works after a failed step.
  */
 import { BrowserContext, expect, Page, test } from '@playwright/test'
 
@@ -122,9 +122,10 @@ test.describe('Org LTI panel @extended', () => {
   })
 
   test.afterAll(async () => {
-    // The panel (deliberately) has no registration delete — tidy the dev DB
-    // directly; ON DELETE CASCADE removes the deployments. The fixed fake
-    // issuer also sweeps strays left by earlier aborted runs.
+    // The panel deletes only switched-off connections; tidy the dev DB
+    // directly so a failed step still cleans up. ON DELETE CASCADE removes
+    // the deployments. The fixed fake issuer also sweeps strays left by
+    // earlier aborted runs.
     bengerDbSql(
       `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`,
     )

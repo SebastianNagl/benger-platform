@@ -1153,7 +1153,8 @@ class LtiGradeSync(Base):
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
     last_synced_score = Column(Float, nullable=True)
     last_synced_hash = Column(String(64), nullable=True)
-    # human | ai — which grade the last successful push carried.
+    # immediate | human — the ``model_id`` of the run whose grade the last
+    # successful push carried (the AI grade comes from immediate runs).
     last_synced_source = Column(String(16), nullable=True)
     last_checked_at = Column(DateTime(timezone=True), nullable=True)
     source_task_evaluation_id = Column(
@@ -1206,9 +1207,10 @@ class LtiRegistrationInvite(Base):
     )
     # Optional group scope carried into the auto-created registration (a
     # chair's one-link Moodle onboarding). SET NULL: a deleted group
-    # degrades the pending invite to org-wide (invites are ephemera). Note
-    # that the resulting registration is active immediately, so such an
-    # invite then creates an org-wide connection.
+    # degrades the pending invite to org-wide (invites are ephemera). The
+    # extended Dynamic Registration then only accepts the invite while its
+    # creator (``created_by``) may still manage the whole organization, so a
+    # group admin's invite never turns into an org-wide connection.
     group_id = Column(
         String,
         ForeignKey("organization_groups.id", ondelete="SET NULL"),

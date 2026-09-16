@@ -1,61 +1,382 @@
-"""Superadmin CRUD for LTI 1.3 (Moodle) platform registrations.
+"""Admin API for LMS (LTI 1.3) connections of an organization.
+
+Who may do what:
+
+* **Superadmins** manage every connection, in every organization.
+* **Org admins** manage the connections of their organization.
+* **Group admins** manage the connections scoped to one of their groups.
+  They never see org-wide connections and cannot grant LMS teachers a higher
+  organization role than their own.
+* Everyone who may manage a connection sees the real names of its LMS users
+  (owner decision D8: org admins of the connection's organization, group
+  admins for their group's connections, superadmins).
+* Connections of **protected organizations**
+  (``extensions.lti_protected_org_ids``) stay superadmin-only.
+
+Every endpoint checks the scope through ``auth_module.org_scope``. List
+endpoints need ``organization_id`` unless the caller is a superadmin. Every
+change writes an ``lti_admin_events`` row (ids and config values only, never
+personal data). Errors use ``{"detail": {"code", "message"}}``.
+
+Tool URLs (invite link, tool sheet) always come from the connection's stored
+``tool_host`` via ``shared/public_hosts.py``, never from the request.
 
 Split-rule note: this router is the generic persistence surface over the
-platform-owned ``lti_*`` tables — registration/deployment CRUD, the
-tool-config echo, and grade-sync outbox reads + retry. It contains NO LTI
-protocol logic: the OIDC login/launch/deep-linking endpoints and the AGS
-grade-passback client live in ``benger_extended`` (which is why the
-tool-config URLs point at ``/api/lti/*`` routes that only exist in the
-extended edition). The community edition ships this admin surface over an
-otherwise-dormant schema.
+platform-owned ``lti_*`` tables. It contains NO LTI protocol logic: the OIDC
+login/launch endpoints, Dynamic Registration and the AGS grade-passback
+client live in ``benger_extended`` (which is why the tool URLs point at
+``/api/lti/*`` routes that only exist in the extended edition). Grade pushes
+are queued through the ``dispatch_lti_grade_sync`` hook. The community
+edition ships this admin surface over an otherwise-dormant schema.
 """
 
 import hashlib
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.concurrency import run_in_threadpool
 
-from auth_module.dependencies import require_superadmin
+import extensions
+from auth_module.dependencies import require_user
+from auth_module.org_scope import OrgAdminScope, require_scope_admin
 from database import get_async_db
 from models import (
+    LtiAdminEvent,
     LtiDeployment,
     LtiGradeSync,
     LtiPlatformRegistration,
     LtiRegistrationInvite,
     LtiResourceLink,
-    Organization,
+    LtiResourceLinkUser,
+    LtiUserLink,
+    OrganizationGroup,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
+from project_models import MarketplaceEntitlement, Project, ProjectOrganization, Task
+from public_hosts import (
+    ToolHostUnavailable,
+    available_tool_hosts,
+    tool_base_url,
+    validate_tool_host,
 )
 from schemas.lti_schemas import (
+    LtiAdminEventRead,
     LtiDeploymentCreate,
     LtiDeploymentRead,
+    LtiDeploymentStatusUpdate,
+    LtiGradeSyncAdminRead,
     LtiGradeSyncRead,
+    LtiGradeSyncRetryRead,
     LtiRegistrationCreate,
     LtiRegistrationInviteCreate,
     LtiRegistrationInviteCreated,
     LtiRegistrationInviteRead,
     LtiRegistrationRead,
     LtiRegistrationUpdate,
+    LtiResourceLinkAdminRead,
+    LtiResourceLinkProjectRead,
     LtiToolConfigRead,
-    _require_http_url,
+    LtiToolHostRead,
+    LtiUserLinkAdminPage,
+    LtiUserLinkAdminRead,
 )
+from user_display import display_name
 
 router = APIRouter(prefix="/api/admin/lti", tags=["admin", "lti"])
 
+# The read-write AGS line item scope. An LMS that grants it lets the tool
+# manage its own grade columns (Moodle: "Notensynchronisation und
+# Spaltenverwaltung").
+AGS_LINEITEM_SCOPE = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"
+EVENTS_LIMIT = 100
+USER_LINKS_MAX_LIMIT = 200
+
+# Instructor org roles a connection can grant, lowest first.
+_INSTRUCTOR_ROLE_RANK = {"none": 0, "contributor": 1, "org_admin": 2}
+_ORG_ROLE_RANK = {
+    OrganizationRole.ANNOTATOR.value: 0,
+    OrganizationRole.CONTRIBUTOR.value: 1,
+    OrganizationRole.ORG_ADMIN.value: 2,
+}
+# Registration fields that may be set to NULL; an explicit null on any other
+# field of the partial update is ignored.
+_NULLABLE_UPDATE_FIELDS = {"group_id", "lms_family"}
+
 
 # --------------------------------------------------------------------------- #
-# Helpers
+# Errors
+# --------------------------------------------------------------------------- #
+def _error(status_code: int, code: str, message: str, **extra: Any) -> HTTPException:
+    return HTTPException(
+        status_code=status_code, detail={"code": code, "message": message, **extra}
+    )
+
+
+def _not_found(code: str, what: str) -> HTTPException:
+    return _error(status.HTTP_404_NOT_FOUND, code, f"{what} not found")
+
+
+def _tool_host_unavailable(key: object) -> HTTPException:
+    return _error(
+        status.HTTP_400_BAD_REQUEST,
+        ToolHostUnavailable.code,
+        f"The tool host {key!r} is not available in this deployment.",
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Scope
+# --------------------------------------------------------------------------- #
+async def _is_protected_org(db: AsyncSession, organization_id: str) -> bool:
+    return await db.run_sync(
+        lambda session: extensions.is_lti_protected_org(session, organization_id)
+    )
+
+
+async def _require_scope(
+    db: AsyncSession,
+    user: Any,
+    organization_id: str,
+    group_id: Optional[str] = None,
+    *,
+    any_group: bool = False,
+) -> OrgAdminScope:
+    """Admin scope for (org, group), refusing protected orgs to non-superadmins."""
+    scope = await require_scope_admin(
+        db, user, organization_id, group_id, any_group=any_group
+    )
+    if not scope.is_superadmin and await _is_protected_org(db, organization_id):
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "connection_protected",
+            "Only platform administrators can manage the LMS connections of "
+            "this organization.",
+        )
+    return scope
+
+
+async def _list_scope(
+    db: AsyncSession, user: Any, organization_id: Optional[str]
+) -> Optional[OrgAdminScope]:
+    """Scope for a list endpoint. None means "superadmin": no row filter
+    beyond the optional org filter, which stays a plain filter for them (an
+    unknown id lists nothing)."""
+    if getattr(user, "is_superadmin", False):
+        return None
+    if organization_id is None:
+        raise _error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "organization_id_required",
+            "Choose an organization.",
+        )
+    return await _require_scope(db, user, organization_id, any_group=True)
+
+
+def _group_filter(scope: Optional[OrgAdminScope], column):
+    """Restrict rows to the caller's groups unless the scope is org-wide."""
+    if scope is None or scope.org_wide:
+        return None
+    return column.in_(sorted(scope.admin_group_ids))
+
+
+def _reveals_names(scope: Optional[OrgAdminScope], group_id: Optional[str]) -> bool:
+    """D8: real names of a connection's LMS users are for superadmins, org
+    admins and the admins of the connection's group."""
+    return scope is None or scope.covers(group_id)
+
+
+async def _load_registration(
+    db: AsyncSession, registration_id: str
+) -> LtiPlatformRegistration:
+    """Fetch a registration with deployments eagerly loaded, or 404."""
+    reg = (
+        await db.execute(
+            select(LtiPlatformRegistration)
+            .options(selectinload(LtiPlatformRegistration.deployments))
+            .where(LtiPlatformRegistration.id == registration_id)
+            # Refresh rows (and the deployment list) a long-lived session
+            # already holds.
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if not reg:
+        raise _not_found("registration_not_found", "Registration")
+    return reg
+
+
+async def _load_registration_scoped(
+    db: AsyncSession, user: Any, registration_id: str
+) -> Tuple[LtiPlatformRegistration, OrgAdminScope]:
+    reg = await _load_registration(db, registration_id)
+    scope = await _require_scope(db, user, reg.organization_id, reg.group_id)
+    return reg, scope
+
+
+async def _require_active_group(
+    db: AsyncSession, organization_id: str, group_id: Optional[str]
+) -> None:
+    """A connection's group must be an ACTIVE group of its org."""
+    if not group_id:
+        return
+    group = (
+        await db.execute(
+            select(OrganizationGroup).where(
+                OrganizationGroup.id == group_id,
+                OrganizationGroup.organization_id == organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if group is None:
+        raise _not_found("group_not_found", "Group")
+    if not group.is_active:
+        raise _error(
+            status.HTTP_400_BAD_REQUEST, "group_inactive", "This group is not active."
+        )
+
+
+async def _max_instructor_role(
+    db: AsyncSession, user: Any, scope: OrgAdminScope
+) -> str:
+    """Highest instructor org role the caller may grant in this org.
+
+    Org admins and superadmins: any. Group admins: never ``org_admin``, and
+    ``contributor`` only when they are at least a contributor themselves.
+    """
+    if scope.org_wide:
+        return "org_admin"
+    role = (
+        await db.execute(
+            select(OrganizationMembership.role).where(
+                OrganizationMembership.user_id == user.id,
+                OrganizationMembership.organization_id == scope.org_id,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+        )
+    ).scalar()
+    rank = _ORG_ROLE_RANK.get(str(getattr(role, "value", role)).upper(), 0)
+    return "contributor" if rank >= 1 else "none"
+
+
+def _check_role_cap(requested: str, allowed: str) -> None:
+    if _INSTRUCTOR_ROLE_RANK[requested] > _INSTRUCTOR_ROLE_RANK[allowed]:
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "instructor_role_cap",
+            "LMS teachers cannot get a higher organization role than you hold.",
+            max_role=allowed,
+        )
+
+
+async def _reject_issuer_client_conflict(
+    db: AsyncSession,
+    scope: OrgAdminScope,
+    issuer: str,
+    client_id: str,
+    *,
+    exclude_id: Optional[str] = None,
+) -> None:
+    """(issuer, client_id) is globally unique.
+
+    Non-superadmins get a generic answer that never names the organization
+    or connection that holds the pair.
+    """
+    stmt = select(LtiPlatformRegistration.id).where(
+        LtiPlatformRegistration.issuer == issuer,
+        LtiPlatformRegistration.client_id == client_id,
+    )
+    if exclude_id:
+        stmt = stmt.where(LtiPlatformRegistration.id != exclude_id)
+    existing_id = (await db.execute(stmt)).scalar_one_or_none()
+    if existing_id is None:
+        return
+    extra = {"registration_id": existing_id} if scope.is_superadmin else {}
+    raise _error(
+        status.HTTP_409_CONFLICT,
+        "issuer_client_taken",
+        "This issuer and client ID are already used by another connection.",
+        **extra,
+    )
+
+
+def _validated_tool_host(key: Optional[str]) -> str:
+    try:
+        return validate_tool_host(key)
+    except ToolHostUnavailable:
+        raise _tool_host_unavailable(key) from None
+
+
+def _base_url_or_none(key: Optional[str]) -> Optional[str]:
+    try:
+        return tool_base_url(key)
+    except ToolHostUnavailable:
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# Audit
+# --------------------------------------------------------------------------- #
+def _json_value(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value
+
+
+def _record_event(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    actor: Any,
+    action: str,
+    registration: Optional[LtiPlatformRegistration] = None,
+    registration_id: Optional[str] = None,
+    registration_name: Optional[str] = None,
+    changes: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Stage one audit row. The caller commits it with the change itself."""
+    if registration is not None:
+        registration_id = registration_id or registration.id
+        registration_name = registration_name or registration.name
+    db.add(
+        LtiAdminEvent(
+            id=str(uuid.uuid4()),
+            organization_id=organization_id,
+            registration_id=registration_id,
+            registration_name=registration_name,
+            actor_user_id=getattr(actor, "id", None),
+            actor_kind="user",
+            action=action,
+            changes={k: _json_value(v) for k, v in (changes or {}).items()},
+            # Wall-clock time, so events of one request keep their order.
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+
+def _diff(old: Dict[str, Any], new: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        field: {"old": _json_value(old.get(field)), "new": _json_value(value)}
+        for field, value in new.items()
+        if old.get(field) != value
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Read shapes
 # --------------------------------------------------------------------------- #
 def _registration_read(
     reg: LtiPlatformRegistration,
     *,
     resource_link_count: Optional[int] = None,
     resource_links_missing_ags: int = 0,
+    user_link_count: Optional[int] = None,
 ) -> LtiRegistrationRead:
     """Build the read shape from an eagerly-loaded registration row."""
     epoch = datetime.min.replace(tzinfo=timezone.utc)
@@ -77,19 +398,22 @@ def _registration_read(
         student_org_role=reg.student_org_role,
         group_id=reg.group_id,
         status=reg.status,
+        tool_host=reg.tool_host,
+        tool_base_url=_base_url_or_none(reg.tool_host),
         created_at=reg.created_at,
         updated_at=reg.updated_at,
         deployments=[LtiDeploymentRead.model_validate(d) for d in deployments],
         deployment_count=len(deployments),
         resource_link_count=resource_link_count,
         resource_links_missing_ags=resource_links_missing_ags,
+        user_link_count=user_link_count,
     )
 
 
 async def _missing_ags_counts(db: AsyncSession, registration_ids) -> dict:
     """registration_id -> count of BOUND resource links without an AGS
     lineitem (activities that cannot receive grades). One grouped query."""
-    ids = [rid for rid in registration_ids]
+    ids = list(registration_ids)
     if not ids:
         return {}
     rows = (
@@ -106,70 +430,39 @@ async def _missing_ags_counts(db: AsyncSession, registration_ids) -> dict:
     return {rid: count for rid, count in rows}
 
 
-async def _load_registration(
-    db: AsyncSession, registration_id: str
-) -> LtiPlatformRegistration:
-    """Fetch a registration with deployments eagerly loaded, or 404."""
-    reg = (
-        await db.execute(
-            select(LtiPlatformRegistration)
-            .options(selectinload(LtiPlatformRegistration.deployments))
-            .where(LtiPlatformRegistration.id == registration_id)
-        )
-    ).scalar_one_or_none()
-    if not reg:
-        raise HTTPException(status_code=404, detail="Registration not found")
-    return reg
+async def _users_by_id(db: AsyncSession, user_ids: Iterable[Optional[str]]) -> dict:
+    ids = sorted({uid for uid in user_ids if uid})
+    if not ids:
+        return {}
+    rows = (await db.execute(select(User).where(User.id.in_(ids)))).scalars().all()
+    return {user.id: user for user in rows}
 
 
-async def _require_organization(db: AsyncSession, organization_id: str) -> None:
-    org = (
-        await db.execute(
-            select(Organization.id).where(Organization.id == organization_id)
-        )
-    ).scalar_one_or_none()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-
-
-async def _require_group_in_org(
-    db: AsyncSession, organization_id: str, group_id: Optional[str]
-) -> None:
-    """A registration's group scope must be an ACTIVE group of its org."""
-    if not group_id:
-        return
-    from models import OrganizationGroup
-
-    group = (
-        await db.execute(
-            select(OrganizationGroup).where(
-                OrganizationGroup.id == group_id,
-                OrganizationGroup.organization_id == organization_id,
-            )
-        )
-    ).scalar_one_or_none()
-    if group is None:
-        raise HTTPException(
-            status_code=404, detail="Group not found in this organization"
-        )
-    if not group.is_active:
-        raise HTTPException(status_code=400, detail="Group is not active")
-
-
-async def _reject_issuer_client_conflict(
-    db: AsyncSession, issuer: str, client_id: str, *, exclude_id: Optional[str] = None
-) -> None:
-    stmt = select(LtiPlatformRegistration.id).where(
-        LtiPlatformRegistration.issuer == issuer,
-        LtiPlatformRegistration.client_id == client_id,
+def _registration_subquery(registration_id: str):
+    return select(LtiResourceLink.id).where(
+        LtiResourceLink.registration_id == registration_id
     )
-    if exclude_id:
-        stmt = stmt.where(LtiPlatformRegistration.id != exclude_id)
-    if (await db.execute(stmt)).scalar_one_or_none():
-        raise HTTPException(
-            status_code=409,
-            detail="A registration for this issuer and client_id already exists",
+
+
+# --------------------------------------------------------------------------- #
+# Tool hosts
+# --------------------------------------------------------------------------- #
+@router.get("/tool-hosts", response_model=List[LtiToolHostRead])
+async def list_tool_hosts(_user=Depends(require_user)):
+    """The public hosts a connection's tool URLs can use in this deployment.
+
+    Public URLs only, so any signed-in user may read them.
+    """
+    return [
+        LtiToolHostRead(
+            key=option.key,
+            label=option.host,
+            host=option.host,
+            base_url=option.base_url,
+            is_default=option.is_default,
         )
+        for option in available_tool_hosts()
+    ]
 
 
 # --------------------------------------------------------------------------- #
@@ -178,17 +471,29 @@ async def _reject_issuer_client_conflict(
 @router.post("/registrations", status_code=201, response_model=LtiRegistrationRead)
 async def create_registration(
     body: LtiRegistrationCreate,
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Register an LTI platform (LMS installation) for an organization.
+    """Register an LMS installation for an organization or one of its groups.
 
-    ``deployment_ids`` become child ``LtiDeployment`` rows (deduplicated,
-    order preserved). The (issuer, client_id) pair is globally unique.
+    The connection is active right away. ``deployment_ids`` become child
+    ``LtiDeployment`` rows (deduplicated, order preserved). The
+    (issuer, client_id) pair is globally unique. A group admin must pick one
+    of their groups; an omitted ``instructor_org_role`` is capped to what the
+    caller may grant.
     """
-    await _require_organization(db, body.organization_id)
-    await _require_group_in_org(db, body.organization_id, body.group_id)
-    await _reject_issuer_client_conflict(db, body.issuer, body.client_id)
+    scope = await _require_scope(db, current_user, body.organization_id, body.group_id)
+    await _require_active_group(db, body.organization_id, body.group_id)
+
+    max_role = await _max_instructor_role(db, current_user, scope)
+    instructor_org_role = body.instructor_org_role
+    if "instructor_org_role" in body.model_fields_set:
+        _check_role_cap(instructor_org_role, max_role)
+    elif _INSTRUCTOR_ROLE_RANK[instructor_org_role] > _INSTRUCTOR_ROLE_RANK[max_role]:
+        instructor_org_role = max_role
+
+    tool_host = _validated_tool_host(body.tool_host)
+    await _reject_issuer_client_conflict(db, scope, body.issuer, body.client_id)
 
     reg = LtiPlatformRegistration(
         id=str(uuid.uuid4()),
@@ -202,11 +507,14 @@ async def create_registration(
         jwks_uri=body.jwks_uri,
         lms_family=body.lms_family,
         link_existing_users_by_email=body.link_existing_users_by_email,
-        instructor_org_role=body.instructor_org_role,
+        instructor_org_role=instructor_org_role,
         student_org_role=body.student_org_role,
+        tool_host=tool_host,
+        status="active",
     )
     db.add(reg)
-    for deployment_id in dict.fromkeys(body.deployment_ids):
+    deployment_ids = list(dict.fromkeys(body.deployment_ids))
+    for deployment_id in deployment_ids:
         db.add(
             LtiDeployment(
                 id=str(uuid.uuid4()),
@@ -214,6 +522,27 @@ async def create_registration(
                 deployment_id=deployment_id,
             )
         )
+    # The audit row references the registration without an ORM relationship,
+    # so the registration must be written first.
+    await db.flush()
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="registration_created",
+        registration=reg,
+        changes={
+            "group_id": reg.group_id,
+            "issuer": reg.issuer,
+            "client_id": reg.client_id,
+            "lms_family": reg.lms_family,
+            "instructor_org_role": reg.instructor_org_role,
+            "student_org_role": reg.student_org_role,
+            "tool_host": reg.tool_host,
+            "status": reg.status,
+            "deployment_ids": deployment_ids,
+        },
+    )
     await db.commit()
 
     return _registration_read(await _load_registration(db, reg.id))
@@ -222,29 +551,29 @@ async def create_registration(
 @router.get("/registrations", response_model=List[LtiRegistrationRead])
 async def list_registrations(
     organization_id: Optional[str] = Query(None),
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """All platform registrations (incl. their deployments + counts).
+    """Connections of one organization (incl. deployments and counts).
 
-    Optionally filtered to one organization. An unknown organization id
-    yields an empty list – it's a list filter, not a lookup.
+    Superadmins may leave out ``organization_id`` to list every connection.
+    Group admins only see the connections of their groups.
     """
+    scope = await _list_scope(db, current_user, organization_id)
     stmt = (
         select(LtiPlatformRegistration)
         .options(selectinload(LtiPlatformRegistration.deployments))
         .order_by(LtiPlatformRegistration.created_at.desc())
     )
     if organization_id:
-        stmt = stmt.where(
-            LtiPlatformRegistration.organization_id == organization_id
-        )
+        stmt = stmt.where(LtiPlatformRegistration.organization_id == organization_id)
+    group_clause = _group_filter(scope, LtiPlatformRegistration.group_id)
+    if group_clause is not None:
+        stmt = stmt.where(group_clause)
     regs = (await db.execute(stmt)).scalars().all()
     missing_ags = await _missing_ags_counts(db, [reg.id for reg in regs])
     return [
-        _registration_read(
-            reg, resource_links_missing_ags=missing_ags.get(reg.id, 0)
-        )
+        _registration_read(reg, resource_links_missing_ags=missing_ags.get(reg.id, 0))
         for reg in regs
     ]
 
@@ -265,11 +594,14 @@ def _invite_status(invite: LtiRegistrationInvite, now: datetime) -> str:
     return "pending"
 
 
-def _invite_read(invite: LtiRegistrationInvite, now: datetime) -> LtiRegistrationInviteRead:
+def _invite_read(
+    invite: LtiRegistrationInvite, now: datetime
+) -> LtiRegistrationInviteRead:
     return LtiRegistrationInviteRead(
         id=invite.id,
         organization_id=invite.organization_id,
         group_id=invite.group_id,
+        tool_host=invite.tool_host,
         created_at=invite.created_at,
         expires_at=invite.expires_at,
         used_at=invite.used_at,
@@ -285,78 +617,81 @@ def _invite_read(invite: LtiRegistrationInvite, now: datetime) -> LtiRegistratio
 )
 async def create_registration_invite(
     body: LtiRegistrationInviteCreate,
-    request: Request,
-    base_url: Optional[str] = Query(
-        None,
-        description=(
-            "Public base URL of this deployment, e.g. https://what-a-benger.net. "
-            "Defaults to the request's base URL."
-        ),
-    ),
-    superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Mint a one-time LTI Dynamic Registration invite for an organization.
+    """Mint a one-time LTI Dynamic Registration invite.
 
     The raw token (and the ``register_url`` embedding it) appears ONLY in
-    this response — like an API key, only its sha256 is stored. The
-    ``/api/lti/register/init`` endpoint that consumes the URL is served by
-    the extended edition.
+    this response — like an API key, only its sha256 is stored. The URL
+    points at the chosen tool host; the ``/api/lti/register/init`` endpoint
+    that consumes it is served by the extended edition.
     """
-    await _require_organization(db, body.organization_id)
-    await _require_group_in_org(db, body.organization_id, body.group_id)
-
-    if base_url is None:
-        base_url = str(request.base_url)
+    await _require_scope(db, current_user, body.organization_id, body.group_id)
+    await _require_active_group(db, body.organization_id, body.group_id)
+    tool_host = _validated_tool_host(body.tool_host)
     try:
-        _require_http_url(base_url)
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="base_url must be an absolute http(s) URL"
-        )
+        base = tool_base_url(tool_host)
+    except ToolHostUnavailable:
+        raise _tool_host_unavailable(tool_host) from None
 
     token = secrets.token_urlsafe(32)
     invite = LtiRegistrationInvite(
         id=str(uuid.uuid4()),
         organization_id=body.organization_id,
         group_id=body.group_id,
+        tool_host=tool_host,
         token_hash=hashlib.sha256(token.encode()).hexdigest(),
-        created_by=superadmin.id,
+        created_by=current_user.id,
         expires_at=datetime.now(timezone.utc) + timedelta(days=body.expires_in_days),
     )
     db.add(invite)
+    _record_event(
+        db,
+        organization_id=invite.organization_id,
+        actor=current_user,
+        action="invite_created",
+        changes={
+            "invite_id": invite.id,
+            "group_id": invite.group_id,
+            "tool_host": invite.tool_host,
+            "expires_at": invite.expires_at,
+        },
+    )
     await db.commit()
     await db.refresh(invite)
 
-    base = base_url.rstrip("/")
     return LtiRegistrationInviteCreated(
         id=invite.id,
         organization_id=invite.organization_id,
         group_id=invite.group_id,
+        tool_host=invite.tool_host,
         token=token,
         register_url=f"{base}/api/lti/register/init?token={token}",
         expires_at=invite.expires_at,
     )
 
 
-@router.get(
-    "/registrations/invites", response_model=List[LtiRegistrationInviteRead]
-)
+@router.get("/registrations/invites", response_model=List[LtiRegistrationInviteRead])
 async def list_registration_invites(
     organization_id: Optional[str] = Query(None),
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """All Dynamic Registration invites, newest first, with computed status.
+    """Dynamic Registration invites, newest first, with computed status.
 
-    Optionally filtered to one organization (an unknown id is a filter miss,
-    not a 404). Never returns the raw token or its hash.
+    Same scope rules as the connection list. Never returns the raw token or
+    its hash.
     """
+    scope = await _list_scope(db, current_user, organization_id)
     stmt = select(LtiRegistrationInvite).order_by(
         LtiRegistrationInvite.created_at.desc()
     )
     if organization_id:
         stmt = stmt.where(LtiRegistrationInvite.organization_id == organization_id)
+    group_clause = _group_filter(scope, LtiRegistrationInvite.group_id)
+    if group_clause is not None:
+        stmt = stmt.where(group_clause)
     invites = (await db.execute(stmt)).scalars().all()
     now = datetime.now(timezone.utc)
     return [_invite_read(invite, now) for invite in invites]
@@ -365,7 +700,7 @@ async def list_registration_invites(
 @router.delete("/registrations/invites/{invite_id}", status_code=204)
 async def revoke_registration_invite(
     invite_id: str,
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Revoke an unused invite (hard delete).
@@ -379,23 +714,34 @@ async def revoke_registration_invite(
         )
     ).scalar_one_or_none()
     if not invite:
-        raise HTTPException(status_code=404, detail="Invite not found")
+        raise _not_found("invite_not_found", "Invite")
+    await _require_scope(db, current_user, invite.organization_id, invite.group_id)
     if invite.used_at is not None:
-        raise HTTPException(
-            status_code=409, detail="Invite already used; it is kept as an audit record"
+        raise _error(
+            status.HTTP_409_CONFLICT,
+            "invite_used",
+            "This invite was used; it is kept as a record.",
         )
+    _record_event(
+        db,
+        organization_id=invite.organization_id,
+        actor=current_user,
+        action="invite_revoked",
+        changes={"invite_id": invite.id, "group_id": invite.group_id},
+    )
     await db.delete(invite)
     await db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/registrations/{registration_id}", response_model=LtiRegistrationRead)
 async def get_registration(
     registration_id: str,
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """One registration with deployments and its resource-link count."""
-    reg = await _load_registration(db, registration_id)
+    """One connection with deployments, activity and linked-user counts."""
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
     resource_link_count = (
         await db.execute(
             select(func.count())
@@ -403,103 +749,298 @@ async def get_registration(
             .where(LtiResourceLink.registration_id == registration_id)
         )
     ).scalar() or 0
+    user_link_count = (
+        await db.execute(
+            select(func.count())
+            .select_from(LtiUserLink)
+            .where(
+                LtiUserLink.registration_id == registration_id,
+                LtiUserLink.unlinked_at.is_(None),
+            )
+        )
+    ).scalar() or 0
     missing_ags = await _missing_ags_counts(db, [registration_id])
     return _registration_read(
         reg,
         resource_link_count=resource_link_count,
         resource_links_missing_ags=missing_ags.get(registration_id, 0),
+        user_link_count=user_link_count,
     )
+
+
+_AUDITED_FIELDS = (
+    "organization_id",
+    "name",
+    "issuer",
+    "client_id",
+    "auth_login_url",
+    "auth_token_url",
+    "jwks_uri",
+    "lms_family",
+    "link_existing_users_by_email",
+    "instructor_org_role",
+    "student_org_role",
+    "group_id",
+    "status",
+    "tool_host",
+)
 
 
 @router.put("/registrations/{registration_id}", response_model=LtiRegistrationRead)
 async def update_registration(
     registration_id: str,
     body: LtiRegistrationUpdate,
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Update registration fields and/or status (partial: only sent fields)."""
-    reg = await _load_registration(db, registration_id)
-    data = body.model_dump(exclude_unset=True)
+    """Update connection fields and/or status (partial: only sent fields).
 
-    if "organization_id" in data:
-        await _require_organization(db, data["organization_id"])
-    # Validate the EFFECTIVE (org, group) pair whenever either side moves —
-    # the composite FK would reject an org/group mismatch at commit anyway,
-    # but a clean 4xx beats an IntegrityError 500. An org move without an
-    # explicit group keeps a stale group only if it still belongs; otherwise
-    # it must be cleared/re-set in the same request.
-    if "group_id" in data or "organization_id" in data:
-        await _require_group_in_org(
-            db,
-            data.get("organization_id", reg.organization_id),
-            data.get("group_id", reg.group_id),
+    Only superadmins may move a connection to another organization. A group
+    change needs admin rights for the old and the new scope.
+    """
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    data = {
+        key: value
+        for key, value in body.model_dump(exclude_unset=True).items()
+        if value is not None or key in _NULLABLE_UPDATE_FIELDS
+    }
+
+    new_org = data.get("organization_id", reg.organization_id)
+    new_group = data.get("group_id", reg.group_id)
+    if new_org != reg.organization_id and not scope.is_superadmin:
+        raise _error(
+            status.HTTP_403_FORBIDDEN,
+            "org_move_forbidden",
+            "Only platform administrators can move a connection to another "
+            "organization.",
         )
+    if (new_org, new_group) != (reg.organization_id, reg.group_id):
+        scope = await _require_scope(db, current_user, new_org, new_group)
+    if "group_id" in data or "organization_id" in data:
+        # Validate the EFFECTIVE (org, group) pair whenever either side
+        # moves: the composite FK would reject a mismatch at commit anyway,
+        # but a clean 4xx beats an IntegrityError 500. An org move keeps the
+        # group only if it belongs to the new org.
+        await _require_active_group(db, new_org, new_group)
+
+    if (
+        "instructor_org_role" in data
+        and data["instructor_org_role"] != reg.instructor_org_role
+    ):
+        _check_role_cap(
+            data["instructor_org_role"],
+            await _max_instructor_role(db, current_user, scope),
+        )
+    if "tool_host" in data:
+        data["tool_host"] = _validated_tool_host(data["tool_host"])
 
     new_issuer = data.get("issuer", reg.issuer)
     new_client_id = data.get("client_id", reg.client_id)
     if (new_issuer, new_client_id) != (reg.issuer, reg.client_id):
         await _reject_issuer_client_conflict(
-            db, new_issuer, new_client_id, exclude_id=registration_id
+            db, scope, new_issuer, new_client_id, exclude_id=registration_id
         )
 
+    old_values = {field: getattr(reg, field) for field in _AUDITED_FIELDS}
+    changes = _diff(old_values, {k: v for k, v in data.items() if k in _AUDITED_FIELDS})
     for field_name, value in data.items():
         setattr(reg, field_name, value)
+    if changes:
+        _record_event(
+            db,
+            organization_id=reg.organization_id,
+            actor=current_user,
+            action="registration_updated",
+            registration=reg,
+            changes=changes,
+        )
     await db.commit()
 
     return _registration_read(await _load_registration(db, registration_id))
 
 
+async def _cleanup_org_attachments(
+    db: AsyncSession, reg: LtiPlatformRegistration
+) -> Tuple[List[str], List[str], int]:
+    """Undo what linking gave the org once no connection of it links a project.
+
+    For every exam this connection links that no OTHER connection of the same
+    org still links: drop the org attachment linking created
+    (``attached_via='lti'``; a manual share stays) and revoke the LMS
+    entitlements of users who no longer reach the exam through any other live
+    link. Returns the exams no longer linked from the org, the exams whose
+    attachment was dropped, and the number of revoked entitlements.
+    """
+    linked = set(
+        (
+            await db.execute(
+                select(LtiResourceLink.project_id)
+                .where(
+                    LtiResourceLink.registration_id == reg.id,
+                    LtiResourceLink.project_id.isnot(None),
+                )
+                .distinct()
+            )
+        ).scalars()
+    )
+    if not linked:
+        return [], [], 0
+    still_linked = set(
+        (
+            await db.execute(
+                select(LtiResourceLink.project_id)
+                .join(
+                    LtiPlatformRegistration,
+                    LtiPlatformRegistration.id == LtiResourceLink.registration_id,
+                )
+                .where(
+                    LtiPlatformRegistration.organization_id == reg.organization_id,
+                    LtiPlatformRegistration.id != reg.id,
+                    LtiResourceLink.project_id.in_(sorted(linked)),
+                )
+                .distinct()
+            )
+        ).scalars()
+    )
+    orphaned = sorted(linked - still_linked)
+    if not orphaned:
+        return [], [], 0
+
+    detached = (
+        await db.execute(
+            delete(ProjectOrganization)
+            .where(
+                ProjectOrganization.organization_id == reg.organization_id,
+                ProjectOrganization.project_id.in_(orphaned),
+                ProjectOrganization.attached_via == "lti",
+            )
+            .returning(ProjectOrganization.project_id)
+        )
+    ).scalars()
+    detached = sorted(detached)
+
+    # An entitlement stays when its user still has a live identity link on
+    # another connection (of any org) that links the same exam.
+    other_link = LtiResourceLink.__table__.alias("other_link")
+    other_user_link = LtiUserLink.__table__.alias("other_user_link")
+    live_path = (
+        select(other_user_link.c.id)
+        .select_from(
+            other_user_link.join(
+                other_link,
+                other_link.c.registration_id == other_user_link.c.registration_id,
+            )
+        )
+        .where(
+            other_user_link.c.user_id == MarketplaceEntitlement.user_id,
+            other_user_link.c.registration_id != reg.id,
+            other_user_link.c.unlinked_at.is_(None),
+            other_link.c.project_id == MarketplaceEntitlement.project_id,
+        )
+        .correlate(MarketplaceEntitlement.__table__)
+        .exists()
+    )
+    revoked = await db.execute(
+        update(MarketplaceEntitlement)
+        .where(
+            MarketplaceEntitlement.project_id.in_(orphaned),
+            MarketplaceEntitlement.source == "lti",
+            MarketplaceEntitlement.revoked_at.is_(None),
+            ~live_path,
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    )
+    return orphaned, detached, revoked.rowcount or 0
+
+
+@router.delete("/registrations/{registration_id}", status_code=204)
+async def delete_registration(
+    registration_id: str,
+    accounts: Optional[Literal["keep"]] = Query(
+        None,
+        description=(
+            "What happens to accounts the connection created. Required when "
+            "there are any; 'keep' leaves them as standalone accounts."
+        ),
+    ),
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Delete a disabled connection.
+
+    Two steps on purpose: switch the connection off first. The database drops
+    its deployments, activities, identity links and grade transfer rows;
+    accounts survive. Exams no other connection of the org links lose the
+    org attachment linking created, and LMS entitlements nobody can reach
+    through another link any more are revoked.
+    """
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    if reg.status != "disabled":
+        raise _error(
+            status.HTTP_409_CONFLICT,
+            "registration_active",
+            "Switch the connection off before deleting it.",
+        )
+
+    counts = (
+        await db.execute(
+            select(
+                func.count(LtiUserLink.id),
+                func.count(LtiUserLink.id).filter(
+                    LtiUserLink.link_method == "provisioned"
+                ),
+            ).where(LtiUserLink.registration_id == reg.id)
+        )
+    ).one()
+    user_links, provisioned = int(counts[0] or 0), int(counts[1] or 0)
+    if provisioned and accounts is None:
+        raise _error(
+            status.HTTP_409_CONFLICT,
+            "accounts_choice_required",
+            "Decide what happens to the accounts this connection created.",
+            provisioned_accounts=provisioned,
+        )
+    resource_links = (
+        await db.execute(
+            select(func.count())
+            .select_from(LtiResourceLink)
+            .where(LtiResourceLink.registration_id == reg.id)
+        )
+    ).scalar() or 0
+
+    unlinked, detached, revoked = await _cleanup_org_attachments(db, reg)
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="registration_deleted",
+        # The row goes away; the event keeps the id in its changes and the
+        # name as a snapshot.
+        registration_name=reg.name,
+        changes={
+            "registration_id": reg.id,
+            "group_id": reg.group_id,
+            "accounts": accounts,
+            "resource_links": resource_links,
+            "user_links": user_links,
+            "provisioned_accounts": provisioned,
+            "unlinked_project_ids": unlinked,
+            "detached_project_ids": detached,
+            "revoked_entitlements": revoked,
+        },
+    )
+    await db.delete(reg)
+    await db.commit()
+    return Response(status_code=204)
+
+
 # --------------------------------------------------------------------------- #
 # Deployments
 # --------------------------------------------------------------------------- #
-@router.post(
-    "/registrations/{registration_id}/deployments",
-    status_code=201,
-    response_model=LtiDeploymentRead,
-)
-async def add_deployment(
-    registration_id: str,
-    body: LtiDeploymentCreate,
-    _superadmin=Depends(require_superadmin),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """Add a deployment id to a registration (unique per registration)."""
-    await _load_registration(db, registration_id)
-    existing = (
-        await db.execute(
-            select(LtiDeployment.id).where(
-                LtiDeployment.registration_id == registration_id,
-                LtiDeployment.deployment_id == body.deployment_id,
-            )
-        )
-    ).scalar_one_or_none()
-    if existing:
-        raise HTTPException(
-            status_code=409, detail="Deployment id already registered"
-        )
-
-    deployment = LtiDeployment(
-        id=str(uuid.uuid4()),
-        registration_id=registration_id,
-        deployment_id=body.deployment_id,
-    )
-    db.add(deployment)
-    await db.commit()
-    await db.refresh(deployment)
-    return LtiDeploymentRead.model_validate(deployment)
-
-
-@router.delete(
-    "/registrations/{registration_id}/deployments/{deployment_pk}", status_code=204
-)
-async def remove_deployment(
-    registration_id: str,
-    deployment_pk: str,
-    _superadmin=Depends(require_superadmin),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """Remove a deployment row (by its primary key) from a registration."""
+async def _load_deployment(
+    db: AsyncSession, registration_id: str, deployment_pk: str
+) -> LtiDeployment:
     deployment = (
         await db.execute(
             select(LtiDeployment).where(
@@ -509,9 +1050,112 @@ async def remove_deployment(
         )
     ).scalar_one_or_none()
     if not deployment:
-        raise HTTPException(status_code=404, detail="Deployment not found")
+        raise _not_found("deployment_not_found", "Deployment")
+    return deployment
+
+
+@router.post(
+    "/registrations/{registration_id}/deployments",
+    status_code=201,
+    response_model=LtiDeploymentRead,
+)
+async def add_deployment(
+    registration_id: str,
+    body: LtiDeploymentCreate,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Add a deployment id to a connection (unique per connection)."""
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    existing = (
+        await db.execute(
+            select(LtiDeployment.id).where(
+                LtiDeployment.registration_id == registration_id,
+                LtiDeployment.deployment_id == body.deployment_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise _error(
+            status.HTTP_409_CONFLICT,
+            "deployment_exists",
+            "This deployment ID is already registered.",
+        )
+
+    deployment = LtiDeployment(
+        id=str(uuid.uuid4()),
+        registration_id=registration_id,
+        deployment_id=body.deployment_id,
+    )
+    db.add(deployment)
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="deployment_added",
+        registration=reg,
+        changes={"deployment_id": body.deployment_id},
+    )
+    await db.commit()
+    await db.refresh(deployment)
+    return LtiDeploymentRead.model_validate(deployment)
+
+
+@router.patch(
+    "/registrations/{registration_id}/deployments/{deployment_pk}",
+    response_model=LtiDeploymentRead,
+)
+async def update_deployment_status(
+    registration_id: str,
+    deployment_pk: str,
+    body: LtiDeploymentStatusUpdate,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Switch one deployment on or off."""
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    deployment = await _load_deployment(db, registration_id, deployment_pk)
+    if deployment.status != body.status:
+        _record_event(
+            db,
+            organization_id=reg.organization_id,
+            actor=current_user,
+            action="deployment_status_changed",
+            registration=reg,
+            changes={
+                "deployment_id": deployment.deployment_id,
+                "status": {"old": deployment.status, "new": body.status},
+            },
+        )
+        deployment.status = body.status
+        await db.commit()
+        await db.refresh(deployment)
+    return LtiDeploymentRead.model_validate(deployment)
+
+
+@router.delete(
+    "/registrations/{registration_id}/deployments/{deployment_pk}", status_code=204
+)
+async def remove_deployment(
+    registration_id: str,
+    deployment_pk: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Remove a deployment row (by its primary key) from a connection."""
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    deployment = await _load_deployment(db, registration_id, deployment_pk)
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="deployment_removed",
+        registration=reg,
+        changes={"deployment_id": deployment.deployment_id},
+    )
     await db.delete(deployment)
     await db.commit()
+    return Response(status_code=204)
 
 
 # --------------------------------------------------------------------------- #
@@ -523,84 +1167,536 @@ async def remove_deployment(
 )
 async def get_tool_config(
     registration_id: str,
-    base_url: str = Query(
-        ..., description="Public base URL of this deployment, e.g. https://what-a-benger.net"
-    ),
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """The tool-side URLs to paste into the LMS's external-tool form.
 
-    The ``/api/lti/*`` routes themselves are served by the extended edition;
-    this endpoint only derives the canonical URLs from ``base_url``. No
-    deep-linking URL is advertised — the tool rejects deep-linking launches
-    (binding happens via the instructor-launch picker), so publishing one
-    would point LMS admins at a route that does not exist.
+    Built from the connection's tool host; a ``base_url`` query parameter
+    from older clients is ignored. The ``/api/lti/*`` routes themselves are
+    served by the extended edition. No deep-linking URL is advertised — the
+    tool rejects deep-linking launches (binding happens via the
+    instructor-launch picker), so publishing one would point LMS admins at a
+    route that does not exist.
     """
-    await _load_registration(db, registration_id)
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
     try:
-        _require_http_url(base_url)
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="base_url must be an absolute http(s) URL"
-        )
-    base = base_url.rstrip("/")
+        base = tool_base_url(reg.tool_host)
+    except ToolHostUnavailable:
+        raise _tool_host_unavailable(reg.tool_host) from None
     return LtiToolConfigRead(
         login_url=f"{base}/api/lti/login",
         launch_url=f"{base}/api/lti/launch",
         jwks_url=f"{base}/api/lti/jwks",
+        tool_host=reg.tool_host,
+        base_url=base,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Activities, LMS users, history
+# --------------------------------------------------------------------------- #
+@router.get(
+    "/registrations/{registration_id}/resource-links",
+    response_model=List[LtiResourceLinkAdminRead],
+)
+async def list_resource_links(
+    registration_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The LMS activities of a connection with their exam and grade state."""
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    links = (
+        (
+            await db.execute(
+                select(LtiResourceLink)
+                .where(LtiResourceLink.registration_id == reg.id)
+                .order_by(
+                    LtiResourceLink.context_title.asc().nulls_last(),
+                    LtiResourceLink.resource_title.asc().nulls_last(),
+                    LtiResourceLink.created_at.asc(),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not links:
+        return []
+    link_ids = [link.id for link in links]
+    project_ids = sorted({link.project_id for link in links if link.project_id})
+
+    projects: Dict[str, Any] = {}
+    task_counts: Dict[str, int] = {}
+    if project_ids:
+        projects = {
+            row.id: row
+            for row in (
+                await db.execute(
+                    select(Project.id, Project.title, Project.deleted_at).where(
+                        Project.id.in_(project_ids)
+                    )
+                )
+            ).all()
+        }
+        task_counts = dict(
+            (
+                await db.execute(
+                    select(Task.project_id, func.count(Task.id))
+                    .where(Task.project_id.in_(project_ids))
+                    .group_by(Task.project_id)
+                )
+            ).all()
+        )
+
+    participation = {
+        row.resource_link_id: row
+        for row in (
+            await db.execute(
+                select(
+                    LtiResourceLinkUser.resource_link_id,
+                    func.count(LtiResourceLinkUser.id)
+                    .filter(LtiResourceLinkUser.is_instructor == False)  # noqa: E712
+                    .label("learners"),
+                    func.count(LtiResourceLinkUser.id)
+                    .filter(LtiResourceLinkUser.is_instructor == True)  # noqa: E712
+                    .label("instructors"),
+                    func.max(LtiResourceLinkUser.last_launch_at).label("last_launch"),
+                )
+                .where(LtiResourceLinkUser.resource_link_id.in_(link_ids))
+                .group_by(LtiResourceLinkUser.resource_link_id)
+            )
+        ).all()
+    }
+    sync_counts: Dict[str, Dict[str, int]] = {}
+    for link_id, sync_status, count in (
+        await db.execute(
+            select(LtiGradeSync.resource_link_id, LtiGradeSync.status, func.count())
+            .where(LtiGradeSync.resource_link_id.in_(link_ids))
+            .group_by(LtiGradeSync.resource_link_id, LtiGradeSync.status)
+        )
+    ).all():
+        sync_counts.setdefault(link_id, {})[sync_status] = count
+
+    linkers = await _users_by_id(db, (link.linked_by for link in links))
+    reveal = _reveals_names(scope, reg.group_id)
+    result = []
+    for link in links:
+        project = None
+        if link.project_id:
+            row = projects.get(link.project_id)
+            project = LtiResourceLinkProjectRead(
+                id=link.project_id,
+                title=row.title if row else None,
+                task_count=task_counts.get(link.project_id, 0),
+                deleted=row is None or row.deleted_at is not None,
+            )
+        scopes = [str(s) for s in (link.ags_scopes or [])]
+        stats = participation.get(link.id)
+        linker = linkers.get(link.linked_by)
+        result.append(
+            LtiResourceLinkAdminRead(
+                id=link.id,
+                deployment_id=link.deployment_id,
+                resource_link_id=link.resource_link_id,
+                context_id=link.context_id,
+                context_title=link.context_title,
+                resource_title=link.resource_title,
+                project=project,
+                linked_by_display=(
+                    (display_name(linker, reveal) or None) if linker else None
+                ),
+                linked_at=link.linked_at,
+                grades_supported=bool(link.lineitem_url),
+                granted_scopes=scopes,
+                column_management=AGS_LINEITEM_SCOPE in scopes,
+                sync_ai_grades=link.sync_ai_grades,
+                ai_lineitem_status=link.ai_lineitem_status,
+                ai_lineitem_error=link.ai_lineitem_error,
+                participant_count=int(stats.learners) if stats else 0,
+                instructor_count=int(stats.instructors) if stats else 0,
+                last_launch_at=stats.last_launch if stats else None,
+                sync_counts=sync_counts.get(link.id, {}),
+                created_at=link.created_at,
+            )
+        )
+    return result
+
+
+def _like_pattern(text: str) -> str:
+    escaped = text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _claimed_role(claims: Any) -> Optional[str]:
+    role = claims.get("role") if isinstance(claims, dict) else None
+    return role if role in ("instructor", "learner") else None
+
+
+@router.get(
+    "/registrations/{registration_id}/user-links",
+    response_model=LtiUserLinkAdminPage,
+)
+async def list_user_links(
+    registration_id: str,
+    limit: int = Query(50, ge=1, le=USER_LINKS_MAX_LIMIT),
+    offset: int = Query(0, ge=0),
+    q: Optional[str] = Query(None, max_length=200),
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The LMS identities of a connection, most recent launch first.
+
+    Real names and emails only for viewers who may see them (D8); the search
+    only matches them for those viewers, too.
+    """
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    reveal = _reveals_names(scope, reg.group_id)
+
+    conditions = [LtiUserLink.registration_id == reg.id]
+    needle = (q or "").strip()
+    if needle:
+        pattern = _like_pattern(needle)
+        fields = [User.pseudonym, LtiUserLink.sub]
+        if reveal:
+            fields += [User.name, User.email]
+        conditions.append(or_(*(f.ilike(pattern, escape="\\") for f in fields)))
+
+    base = (
+        select(LtiUserLink, User)
+        .join(User, User.id == LtiUserLink.user_id)
+        .where(and_(*conditions))
+    )
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar() or 0
+    rows = (
+        await db.execute(
+            base.order_by(
+                LtiUserLink.last_launch_at.desc().nulls_last(),
+                LtiUserLink.created_at.desc(),
+                LtiUserLink.id,
+            )
+            .limit(limit)
+            .offset(offset)
+        )
+    ).all()
+
+    instructor_by_user: Dict[str, bool] = {}
+    user_ids = [user.id for _link, user in rows]
+    if user_ids:
+        instructor_by_user = dict(
+            (
+                await db.execute(
+                    select(
+                        LtiResourceLinkUser.user_id,
+                        func.bool_or(LtiResourceLinkUser.is_instructor),
+                    )
+                    .where(
+                        LtiResourceLinkUser.user_id.in_(user_ids),
+                        LtiResourceLinkUser.resource_link_id.in_(
+                            _registration_subquery(reg.id)
+                        ),
+                    )
+                    .group_by(LtiResourceLinkUser.user_id)
+                )
+            ).all()
+        )
+
+    items = []
+    for link, user in rows:
+        role = _claimed_role(link.claims)
+        if role is None and user.id in instructor_by_user:
+            role = "instructor" if instructor_by_user[user.id] else "learner"
+        items.append(
+            LtiUserLinkAdminRead(
+                id=link.id,
+                user_id=user.id,
+                sub=link.sub,
+                pseudonym=user.pseudonym,
+                name=user.name if reveal else None,
+                email=user.email if reveal else None,
+                role=role,
+                link_method=link.link_method,
+                provisioned_account=link.link_method == "provisioned",
+                consent_at=link.consent_at,
+                consent_version=link.consent_version,
+                research_consent_at=link.research_consent_at,
+                last_launch_at=link.last_launch_at,
+                unlinked_at=link.unlinked_at,
+                anonymized=user.anonymized_at is not None,
+                created_at=link.created_at,
+            )
+        )
+    return LtiUserLinkAdminPage(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.delete("/registrations/{registration_id}/user-links/{link_id}", status_code=204)
+async def unlink_user(
+    registration_id: str,
+    link_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Detach an LMS identity from its account.
+
+    The account and its memberships stay. The account's grade transfer rows
+    and activity participation on this connection go away. A link the launch
+    provisioned is kept as a tombstone (``unlinked_at``), so the account stays
+    recognizable as an LMS account and can still be anonymized; any other
+    link is deleted. The next launch asks for consent and the account choice
+    again.
+    """
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    link = (
+        await db.execute(
+            select(LtiUserLink).where(
+                LtiUserLink.id == link_id,
+                LtiUserLink.registration_id == reg.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if link is None:
+        raise _not_found("user_link_not_found", "LMS account link")
+    if link.unlinked_at is not None:
+        return Response(status_code=204)
+
+    link_ids = _registration_subquery(reg.id)
+    syncs = await db.execute(
+        delete(LtiGradeSync).where(
+            LtiGradeSync.user_id == link.user_id,
+            LtiGradeSync.resource_link_id.in_(link_ids),
+        )
+    )
+    participations = await db.execute(
+        delete(LtiResourceLinkUser).where(
+            LtiResourceLinkUser.user_id == link.user_id,
+            LtiResourceLinkUser.resource_link_id.in_(link_ids),
+        )
+    )
+    tombstone = link.link_method == "provisioned"
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="user_link_unlinked",
+        registration=reg,
+        changes={
+            "user_link_id": link.id,
+            "user_id": link.user_id,
+            "link_method": link.link_method,
+            "tombstone": tombstone,
+            "grade_syncs_deleted": syncs.rowcount or 0,
+            "participations_deleted": participations.rowcount or 0,
+        },
+    )
+    if tombstone:
+        link.unlinked_at = datetime.now(timezone.utc)
+        # The LMS name/email snapshot is not needed once the link is gone.
+        link.claims = None
+        # A relaunch reuses this row; it must ask for consent again.
+        link.consent_at = None
+        link.consent_version = None
+        link.research_consent_at = None
+    else:
+        await db.delete(link)
+    await db.commit()
+    return Response(status_code=204)
+
+
+@router.get(
+    "/registrations/{registration_id}/events",
+    response_model=List[LtiAdminEventRead],
+)
+async def list_registration_events(
+    registration_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The newest changes to a connection (at most 100)."""
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    events = (
+        (
+            await db.execute(
+                select(LtiAdminEvent)
+                .where(LtiAdminEvent.registration_id == reg.id)
+                .order_by(LtiAdminEvent.created_at.desc(), LtiAdminEvent.id)
+                .limit(EVENTS_LIMIT)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    actors = await _users_by_id(db, (event.actor_user_id for event in events))
+    reveal = _reveals_names(scope, reg.group_id)
+    result = []
+    for event in events:
+        actor = actors.get(event.actor_user_id)
+        result.append(
+            LtiAdminEventRead(
+                id=event.id,
+                organization_id=event.organization_id,
+                registration_id=event.registration_id,
+                registration_name=event.registration_name,
+                actor_user_id=event.actor_user_id,
+                actor_display=(display_name(actor, reveal) or None) if actor else None,
+                actor_kind=event.actor_kind,
+                action=event.action,
+                changes=event.changes,
+                created_at=event.created_at,
+            )
+        )
+    return result
 
 
 # --------------------------------------------------------------------------- #
 # Grade-sync outbox
 # --------------------------------------------------------------------------- #
-@router.get("/grade-syncs", response_model=List[LtiGradeSyncRead])
+def _grade_sync_select():
+    return (
+        select(
+            LtiGradeSync,
+            LtiResourceLink,
+            LtiPlatformRegistration.name,
+            LtiPlatformRegistration.organization_id,
+            LtiPlatformRegistration.group_id,
+            Project.title,
+            User.pseudonym,
+            User.name,
+        )
+        .join(LtiResourceLink, LtiResourceLink.id == LtiGradeSync.resource_link_id)
+        .join(
+            LtiPlatformRegistration,
+            LtiPlatformRegistration.id == LtiResourceLink.registration_id,
+        )
+        .join(User, User.id == LtiGradeSync.user_id)
+        .outerjoin(Project, Project.id == LtiResourceLink.project_id)
+    )
+
+
+def _grade_sync_read(
+    row, scope: Optional[OrgAdminScope], model=LtiGradeSyncAdminRead, **extra
+):
+    sync, link, reg_name, org_id, group_id, project_title, pseudonym, name = row
+    reveal = _reveals_names(scope, group_id)
+    base = LtiGradeSyncRead.model_validate(sync).model_dump()
+    base.update(
+        registration_id=link.registration_id,
+        registration_name=reg_name,
+        organization_id=org_id,
+        context_title=link.context_title,
+        resource_title=link.resource_title,
+        project_id=link.project_id,
+        project_title=project_title,
+        student_pseudonym=pseudonym,
+        student_name=name if reveal else None,
+        **extra,
+    )
+    return model(**base)
+
+
+@router.get("/grade-syncs", response_model=List[LtiGradeSyncAdminRead])
 async def list_grade_syncs(
     project_id: Optional[str] = Query(None),
     organization_id: Optional[str] = Query(None),
+    registration_id: Optional[str] = Query(None),
     status_filter: Optional[str] = Query(None, alias="status"),
-    _superadmin=Depends(require_superadmin),
+    limit: Optional[int] = Query(None, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Grade-passback outbox rows, filterable by project, organization, status."""
-    stmt = select(LtiGradeSync)
-    if project_id or organization_id:
-        # Join the resource link exactly once, even when both filters are set.
-        stmt = stmt.join(
-            LtiResourceLink, LtiResourceLink.id == LtiGradeSync.resource_link_id
-        )
+    """Grade transfer rows with student and activity context, newest first.
+
+    Filterable by project, organization, connection and status. Same scope
+    rules as the connection list.
+    """
+    scope = await _list_scope(db, current_user, organization_id)
+    stmt = _grade_sync_select()
+    if organization_id:
+        stmt = stmt.where(LtiPlatformRegistration.organization_id == organization_id)
+    group_clause = _group_filter(scope, LtiPlatformRegistration.group_id)
+    if group_clause is not None:
+        stmt = stmt.where(group_clause)
     if project_id:
         stmt = stmt.where(LtiResourceLink.project_id == project_id)
-    if organization_id:
-        stmt = stmt.join(
-            LtiPlatformRegistration,
-            LtiPlatformRegistration.id == LtiResourceLink.registration_id,
-        ).where(LtiPlatformRegistration.organization_id == organization_id)
+    if registration_id:
+        stmt = stmt.where(LtiResourceLink.registration_id == registration_id)
     if status_filter:
         stmt = stmt.where(LtiGradeSync.status == status_filter)
-    stmt = stmt.order_by(LtiGradeSync.created_at.desc())
-    rows = (await db.execute(stmt)).scalars().all()
-    return [LtiGradeSyncRead.model_validate(row) for row in rows]
+    stmt = stmt.order_by(LtiGradeSync.created_at.desc(), LtiGradeSync.id).offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    rows = (await db.execute(stmt)).all()
+    return [_grade_sync_read(row, scope) for row in rows]
 
 
-@router.post("/grade-syncs/{grade_sync_id}/retry", response_model=LtiGradeSyncRead)
+@router.post("/grade-syncs/{grade_sync_id}/retry", response_model=LtiGradeSyncRetryRead)
 async def retry_grade_sync(
     grade_sync_id: str,
-    _superadmin=Depends(require_superadmin),
+    current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Reset a (typically failed) outbox row so the sync worker retries it now."""
-    row = (
-        await db.execute(select(LtiGradeSync).where(LtiGradeSync.id == grade_sync_id))
-    ).scalar_one_or_none()
-    if not row:
-        raise HTTPException(status_code=404, detail="Grade sync not found")
+    """Reset a (typically failed) transfer row and queue its push now.
 
+    ``dispatched`` is False when the push could not be queued (community
+    edition or broker trouble); the hourly sweep then sends it.
+    """
+    found = (
+        await db.execute(
+            select(
+                LtiGradeSync,
+                LtiPlatformRegistration.id,
+                LtiPlatformRegistration.name,
+                LtiPlatformRegistration.organization_id,
+                LtiPlatformRegistration.group_id,
+            )
+            .join(LtiResourceLink, LtiResourceLink.id == LtiGradeSync.resource_link_id)
+            .join(
+                LtiPlatformRegistration,
+                LtiPlatformRegistration.id == LtiResourceLink.registration_id,
+            )
+            .where(LtiGradeSync.id == grade_sync_id)
+        )
+    ).first()
+    if found is None:
+        raise _not_found("grade_sync_not_found", "Grade transfer")
+    row, reg_id, reg_name, org_id, group_id = found
+    scope = await _require_scope(db, current_user, org_id, group_id)
+
+    _record_event(
+        db,
+        organization_id=org_id,
+        actor=current_user,
+        action="grade_sync_retried",
+        registration_id=reg_id,
+        registration_name=reg_name,
+        changes={
+            "grade_sync_id": row.id,
+            "kind": row.kind,
+            "previous_status": row.status,
+            "previous_attempts": row.attempts,
+        },
+    )
     row.status = "pending"
     row.attempts = 0
     row.next_retry_at = datetime.now(timezone.utc)
     row.last_error = None
     await db.commit()
-    await db.refresh(row)
-    return LtiGradeSyncRead.model_validate(row)
+
+    dispatched = await run_in_threadpool(extensions.dispatch_lti_grade_sync, row.id)
+
+    refreshed = (
+        await db.execute(
+            _grade_sync_select()
+            .where(LtiGradeSync.id == row.id)
+            .execution_options(populate_existing=True)
+        )
+    ).one()
+    return _grade_sync_read(
+        refreshed,
+        scope,
+        model=LtiGradeSyncRetryRead,
+        dispatched=dispatched,
+    )

@@ -97,13 +97,21 @@ class GradingPayer(BaseModel):
     Indicative — the worker dispatch policy decides authoritatively at
     grading time. Served by the extended billing router (the classification
     logic is proprietary); the shape lives here per the open-core split rule.
+
+    A refused grading (``context='lti_org_unfunded'``, core 2.20) names the
+    organization that would pay in ``payer_org_*``, why it cannot
+    (``block_reason``: ``org_not_paying`` | ``org_key_missing`` |
+    ``connection_removed``) and the providers it holds no key for.
     """
 
-    context: str  # 'org' | 'vertretbar_exam' | 'discovered' | 'none'
+    # 'org' | 'vertretbar_exam' | 'discovered' | 'none' | 'lti_org_unfunded'
+    context: str
     payer_org_id: Optional[str] = None
     payer_org_name: Optional[str] = None
     metered: bool = False  # a metering ledger row would be written
     judge_tier: Optional[str] = None  # 'free' | 'paid'
+    block_reason: Optional[str] = None
+    missing_providers: List[str] = Field(default_factory=list)
 
 
 class InvoiceSummary(BaseModel):

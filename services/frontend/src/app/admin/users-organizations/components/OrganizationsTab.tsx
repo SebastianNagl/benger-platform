@@ -699,9 +699,39 @@ export function OrganizationsTab() {
     return Boolean(entry?.groups?.some((group) => group.is_group_admin))
   }, [organizations, selectedOrganization])
 
-  // LMS/LTI management is superadmin-only and lives in the extended edition
-  // (OrgLtiPanel slot); without the slot the menu item is not offered.
-  const showLtiMenuItem = Boolean(currentUser?.is_superadmin && OrgLtiPanel)
+  // The selected org's active groups the caller administers. Group admins
+  // manage the LMS connections scoped to these groups.
+  const adminGroupIds = useMemo(() => {
+    if (!selectedOrganization) return []
+    const entry = organizations.find(
+      (org) => org.id === selectedOrganization.id,
+    )
+    return (entry?.groups ?? [])
+      .filter((group) => group.is_group_admin && group.is_active !== false)
+      .map((group) => group.id)
+  }, [organizations, selectedOrganization])
+
+  // The caller's own role in the selected org. The LMS panel uses it to cap
+  // the org role a group admin may give LMS teachers.
+  const selectedOrgRole = useMemo(() => {
+    if (!selectedOrganization) return null
+    const role = organizations.find(
+      (org) => org.id === selectedOrganization.id,
+    )?.role
+    return role === 'ORG_ADMIN' ||
+      role === 'CONTRIBUTOR' ||
+      role === 'ANNOTATOR'
+      ? role
+      : null
+  }, [organizations, selectedOrganization])
+
+  // LMS connections live in the extended edition (OrgLtiPanel slot); without
+  // the slot the menu item is not offered. Org admins manage all of the
+  // org's connections, group admins those of their active groups,
+  // superadmins everything. The API enforces the same scope.
+  const showLtiMenuItem = Boolean(
+    OrgLtiPanel && (canManageOrg || adminGroupIds.length > 0),
+  )
 
   // A group admin without org-admin rights may only invite into one of
   // their own groups (and never as ORG_ADMIN).
@@ -940,6 +970,11 @@ export function OrganizationsTab() {
           open={showLtiPanel}
           onOpenChange={setShowLtiPanel}
           hideTrigger
+          isAdmin={canManageOrg}
+          canManageGroups={adminGroupIds.length > 0}
+          isSuperadmin={Boolean(currentUser?.is_superadmin)}
+          adminGroupIds={adminGroupIds}
+          orgRole={selectedOrgRole}
         />
       )}
 

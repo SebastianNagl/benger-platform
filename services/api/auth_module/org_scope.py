@@ -13,8 +13,10 @@ org admins and group admins both operate (LMS connections first):
 
 For everyone but superadmins the organization must exist and be active;
 otherwise the answer is a 404, so a caller cannot probe foreign or deleted
-orgs. Real names of org members are for org admins and superadmins only
-(``sees_real_names``); group admins see pseudonyms.
+orgs. ``sees_real_names`` is the org-wide name rule (org admins and
+superadmins). Group admins see real names only where a feature grants them
+for their groups, e.g. the LMS users of their group's connections
+(``routers/lti_admin.py``, owner decision D8).
 
 Errors use the structured shape ``{"detail": {"code", "message"}}``.
 Async functions serve the async lane; the ``*_sync`` twins run the same
@@ -61,6 +63,7 @@ class OrgAdminScope:
 
     @property
     def sees_real_names(self) -> bool:
+        """Real names of every org member (org admins and superadmins)."""
         return self.is_superadmin or self.is_org_admin
 
     def covers(self, group_id: Optional[str]) -> bool:

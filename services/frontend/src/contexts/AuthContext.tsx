@@ -34,6 +34,45 @@ import React, {
   useState,
 } from 'react'
 
+/** Query params only LMS (LTI) launch redirects carry. */
+const LTI_LANDING_PARAMS = ['lti_u', 'rl', 'lti_ui']
+
+/** The current page as a relative URL: path, query and hash. */
+function currentRelativeUrl(): string {
+  if (typeof window === 'undefined') return '/'
+  const { pathname, search, hash } = window.location
+  return `${pathname}${search}${hash}`
+}
+
+/**
+ * True when a relative URL is an LMS launch landing. Such a page must stay on
+ * the host the launch used: the session was set there and the page reads
+ * `lti_u`/`rl` from its URL, so the last-org subdomain redirect is skipped.
+ */
+function isLtiLanding(url: string | null | undefined): boolean {
+  if (!url) return false
+  const queryStart = url.indexOf('?')
+  if (queryStart < 0) return false
+  const hashStart = url.indexOf('#', queryStart)
+  const query = url.slice(queryStart + 1, hashStart < 0 ? undefined : hashStart)
+  const params = new URLSearchParams(query)
+  return LTI_LANDING_PARAMS.some((key) => params.has(key))
+}
+
+/**
+ * The login page's `?next=` return path, if it is an internal path.
+ * Same rule as `authRedirect.sanitizeNext`: root-relative, not
+ * protocol-relative, not the login page itself. It is appended to an org
+ * host, so it must start with a slash.
+ */
+function loginReturnPath(): string | null {
+  if (typeof window === 'undefined') return null
+  const next = new URLSearchParams(window.location.search).get('next')
+  if (!next || !next.startsWith('/') || next.startsWith('//')) return null
+  if (next === '/login' || next.startsWith('/login?')) return null
+  return next
+}
+
 interface AuthContextType {
   user: User | null
   login: (username: string, password: string) => Promise<void>
@@ -372,12 +411,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             logger.debug('[AuthContext] No access to org:', orgSlug)
             setCurrentOrganizationState(null)
             orgManager.setCurrentOrganization(null)
-            window.location.href = getPrivateUrl()
+            window.location.href = getPrivateUrl(currentRelativeUrl())
           }
         } else {
-          // Private mode — check if returning user has a last org
+          // Private mode — check if returning user has a last org. An LMS
+          // launch landing (on the page itself, or behind the login page)
+          // stays where it is.
           const lastOrgSlug = getLastOrgSlug()
-          if (lastOrgSlug && orgs.length > 0) {
+          const ltiLanding =
+            isLtiLanding(currentRelativeUrl()) ||
+            isLtiLanding(loginReturnPath())
+          if (lastOrgSlug && orgs.length > 0 && !ltiLanding) {
             const lastOrg = orgs.find(
               (o: Organization) => o.slug === lastOrgSlug,
             )
@@ -388,7 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               )
               window.location.href = getOrgUrl(
                 lastOrgSlug,
-                window.location.pathname,
+                currentRelativeUrl(),
               )
               return
             } else {
@@ -577,9 +621,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Fetch organizations BEFORE updating user state to prevent dashboard flash
         await refreshOrganizations(data.user)
 
-        // Check if we need an org subdomain redirect (before rendering authenticated UI)
+        // Check if we need an org subdomain redirect (before rendering authenticated UI).
+        // The login page's ?next= target (query included) is kept; an LMS
+        // launch landing is never moved to another host.
         const { orgSlug: currentOrgSlug } = parseSubdomain()
-        if (!currentOrgSlug) {
+        const nextPath = loginReturnPath()
+        const ltiLanding =
+          isLtiLanding(nextPath) || isLtiLanding(currentRelativeUrl())
+        if (!currentOrgSlug && !ltiLanding) {
           const lastOrgSlug = getLastOrgSlug()
           if (lastOrgSlug) {
             const orgs = orgManager.getOrganizations()
@@ -591,7 +640,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 '[AuthContext] Redirecting returning user to last org after login:',
                 lastOrgSlug,
               )
-              const targetUrl = getOrgUrl(lastOrgSlug, '/dashboard')
+              const targetUrl = getOrgUrl(lastOrgSlug, nextPath || '/dashboard')
               // sessionStorage doesn't survive a cross-subdomain redirect —
               // encode the success flash on the URL so the destination's
               // ToastProvider can pick it up on mount.

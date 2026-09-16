@@ -9,7 +9,8 @@ gzip handling, the 422s for empty/headerless input, and the
 
 DB-free: a capture session records ``add``/``flush``/``expunge_all``/
 ``commit`` calls, matching how the driver only ever uses those four session
-methods on the insert path.
+methods on the insert path (plus one ``execute``: the linked-exam check
+before the commit, answered with "not linked").
 """
 
 import gzip
@@ -53,6 +54,14 @@ class _CaptureSession:
     def commit(self):
         self.commits += 1
         self.calls.append("commit")
+
+    def execute(self, stmt):
+        # The linked-exam check before the commit: "proj-1" is no linked exam.
+        class _Result:
+            def first(self):
+                return None
+
+        return _Result()
 
     # report_service's best-effort post-import update probes the session; any
     # attribute access beyond the four above raises and is swallowed by the

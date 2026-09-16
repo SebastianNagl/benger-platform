@@ -864,8 +864,10 @@ def post_grade_scale_recompute(
 
     ``{"updated": int, "scanned": int}``. Idempotent — running it twice
     changes nothing the second time. Only rows that ALREADY carry a grade
-    are touched; published report snapshots, LTI grades already pushed and
-    anything a solver has seen are untouched by design.
+    are touched; published report snapshots and anything a solver has seen
+    are untouched by design. Every rewritten row gets a new
+    ``task_evaluations.updated_at``, so connected learning platforms receive
+    the new grades through the extension's reconciliation.
     """
     project = _project_for_grade_scale_write(project_id, request, current_user, db)
     try:

@@ -44,6 +44,7 @@ from typing import Any, Dict, Iterator, Optional, Set, Tuple
 
 import ijson
 from ijson.common import ObjectBuilder
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import joinedload
 
 # models must be imported before project_models so the User mapper is registered
@@ -57,6 +58,7 @@ from models import (
     HumanEvaluationResult,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    LtiResourceLink,
     Organization,
     PreferenceRanking,
     ResponseGeneration,
@@ -152,6 +154,44 @@ def _deduplicate_project_title(db, original_title: str) -> str:
         new_title = f"{original_title} ({counter})"
         counter += 1
     return new_title
+
+
+# An exam an LMS activity points at holds exactly one task (owner decision
+# D12): the LMS receives one grade per activity. Imports into such an exam
+# may not add a second one. The API checks this before it accepts an import;
+# the drivers check it again before their commit, with the real task count.
+LINKED_EXAM_MAX_TASKS = 1
+MULTI_TASK_UNSUPPORTED = "multi_task_unsupported"
+MULTI_TASK_MESSAGE = (
+    "This exam is linked to a learning platform activity. Linked exams hold "
+    "exactly one task, so no further tasks can be imported."
+)
+
+
+def linked_exam_stmt(project_id: str):
+    """Selects the id of ``project_id`` when it is an exam an LMS activity
+    points at (sync and async sessions)."""
+    return select(Project.id).where(
+        Project.id == project_id,
+        Project.kind == "exam",
+        exists().where(LtiResourceLink.project_id == project_id),
+    )
+
+
+def task_count_stmt(project_id: str):
+    return select(func.count(Task.id)).where(Task.project_id == project_id)
+
+
+def _enforce_linked_exam_task_limit(db, project_id: str) -> None:
+    """Refuse the import (422) when it leaves a linked exam with more than
+    one task. Runs before the drivers' single commit."""
+    if db.execute(linked_exam_stmt(project_id)).first() is None:
+        return
+    db.flush()
+    if (db.execute(task_count_stmt(project_id)).scalar() or 0) > LINKED_EXAM_MAX_TASKS:
+        raise ImportValidationError(
+            422, f"{MULTI_TASK_MESSAGE} ({MULTI_TASK_UNSUPPORTED})"
+        )
 
 
 class ImportValidationError(Exception):
@@ -1145,6 +1185,8 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         ))
         created_grading_feedback += 1
 
+    _enforce_linked_exam_task_limit(db, project_id)
+
     # Commit everything atomically
     db.commit()
 
@@ -1269,6 +1311,8 @@ def run_tabular_import(
     finally:
         # Detach so the wrapper's GC never closes the caller-owned spool.
         text_stream.detach()
+
+    _enforce_linked_exam_task_limit(db, project_id)
 
     # Commit everything atomically (single end commit, like run_nested_import).
     db.commit()

@@ -113,7 +113,20 @@ whenever one is added, renamed or removed):
   ``benger_extended.workers.get_grading_block_fn``. Like
   ``get_grading_dispatch_policy_fn`` that hook is NOT in ``get_hooks()``:
   the workers never load ``extensions.py``, and the handshake test only
-  scans that file.
+  scans that file. The same holds for the optional worker hook
+  ``benger_extended.workers.get_batch_evaluation_policy_fn``:
+  ``run_evaluation`` asks it for ``(org_id, block[, authorized])`` before any
+  judge run, fails a refused batch run with ``billing_blocked:<reason>``
+  (the block under ``eval_metadata.billing_block``), and every evaluation
+  cell asks it again for the authorization instead of reading a payload.
+  ``GradingPayer`` (``schemas/billing_schemas.py``) gains ``block_reason``
+  and ``missing_providers``. Imports refuse a second task on an exam an LMS
+  activity points at (``multi_task_unsupported``, API and import drivers).
+  Admin API: ``/api/admin/lti`` is scoped to org and group admins, with
+  ``GET /tool-hosts``, ``DELETE /registrations/{id}`` (``accounts=keep``),
+  ``PATCH .../deployments/{pk}``, ``GET .../resource-links``,
+  ``GET|DELETE .../user-links``, ``GET .../events``, grade transfers with
+  context and a retry that dispatches through ``dispatch_lti_grade_sync``.
 """
 
 import os
