@@ -14,7 +14,7 @@ from fastapi import Request
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
-from account_activation import email_is_routable
+from account_activation import email_is_routable, verify_email_by_link
 from schemas.auth_schemas import AccountActivateConfirm, AccountActivationRequest
 
 
@@ -155,6 +155,10 @@ async def activate_account(
         user.email_verification_method = "activation"
         user.email_verified_at = now
         user.pending_activation_email = None
+    else:
+        # Auto path: the link went to the account's own address, so using
+        # it proves the mailbox (an LMS-supplied address starts unverified).
+        verify_email_by_link(user, method="activation", now=now)
 
     user.hashed_password = get_password_hash(confirm.new_password)
     user.password_set = True

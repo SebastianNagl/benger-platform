@@ -934,6 +934,10 @@ def update_user_profile(
         # Reset email verification when email changes
         if hasattr(user, "email_verified"):
             user.email_verified = False
+        # A reset or activation link mailed to the old address must not
+        # verify the new one (both confirm paths verify user.email).
+        user.password_reset_token = None
+        user.password_reset_expires = None
 
     # Update pseudonym privacy preference (Issue #790)
     if use_pseudonym is not None:

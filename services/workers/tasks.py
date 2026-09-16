@@ -737,7 +737,12 @@ from celery.exceptions import SoftTimeLimitExceeded  # noqa: E402
 from worker_celery import app  # noqa: E402,F401
 
 
-def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> None:
+def _mark_immediate_run_failed(
+    db,
+    evaluation_record_id: str,
+    message: str,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+) -> None:
     """Flip a stuck immediate-eval run to ``failed``.
 
     Every error path used to leave the row on ``running``. That is not a cosmetic
@@ -749,6 +754,9 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
 
     Best-effort by construction — it runs while handling another exception, so a
     failure here must never mask the original error.
+
+    ``extra_metadata`` is merged into ``eval_metadata`` (e.g. the
+    ``billing_block`` of a grading the dispatch policy refused).
     """
     try:
         # Imported here, not at module scope: tasks.py keeps model + SQLAlchemy
@@ -766,6 +774,8 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
             stuck.status = "failed"
             meta = dict(stuck.eval_metadata or {})
             meta["error"] = message[:500]
+            if extra_metadata:
+                meta.update(extra_metadata)
             stuck.eval_metadata = meta
             flag_modified(stuck, "eval_metadata")
             db.commit()
@@ -2767,6 +2777,30 @@ def _get_grading_dispatch_policy_fn():
         return None
 
 
+def _unpack_grading_dispatch_policy(result):
+    """``(org_id, configs, org_billing_authorized, billing_block)`` from a
+    dispatch-policy result.
+
+    The tuple grew over time; every length is still accepted:
+      * 2: ``(org_id, configs)`` (oldest packages): not authorized, no block;
+      * 3: adds the policy-asserted consumer-billing authorization (an
+        entitled non-member on an org-pays project);
+      * 4: adds the billing block (CORE 2.20): None, or why this grading must
+        not run (normalized to a dict with at least ``reason``).
+    Anything else raises, and the caller keeps the dispatched values.
+    """
+    if not isinstance(result, (tuple, list)) or len(result) not in (2, 3, 4):
+        raise ValueError(f"unexpected grading dispatch policy result: {result!r}")
+    org_id, configs = result[0], result[1]
+    authorized = bool(result[2]) if len(result) >= 3 else False
+    block = None
+    if len(result) == 4 and result[3]:
+        from immediate_eval_dispatch import normalize_billing_block
+
+        block = normalize_billing_block(result[3])
+    return org_id, configs, authorized, block
+
+
 def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
     """Extension hook: settle the grading's metered-billing ledger row.
 
@@ -2925,7 +2959,7 @@ def run_single_sample_evaluation(
         user_id: User ID for API key resolution
     """
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     db = SessionLocal()
     try:
@@ -3022,6 +3056,7 @@ def run_single_sample_evaluation(
         # silently spending the wrong key.
         _policy_fn = _get_grading_dispatch_policy_fn()
         org_billing_authorized = False
+        billing_block = None
         if _policy_fn is not None:
             try:
                 _policy_res = _policy_fn(
@@ -3033,22 +3068,46 @@ def run_single_sample_evaluation(
                     evaluation_run_id=dispatch_eval_id,
                     eval_metadata=eval_run.eval_metadata or {},
                 )
-                # Newer extended packages return a third element: the
-                # policy-asserted consumer-billing authorization (an entitled
-                # non-member on an org-pays project). Older ones return a
-                # 2-tuple — treat as not authorized.
-                if isinstance(_policy_res, tuple) and len(_policy_res) == 3:
-                    organization_id, eligible_configs, org_billing_authorized = (
-                        _policy_res
-                    )
-                    org_billing_authorized = bool(org_billing_authorized)
-                else:
-                    organization_id, eligible_configs = _policy_res
+                (
+                    organization_id,
+                    eligible_configs,
+                    org_billing_authorized,
+                    billing_block,
+                ) = _unpack_grading_dispatch_policy(_policy_res)
             except Exception as policy_err:  # defensive — see comment above
                 logger.error(
                     f"[SingleSampleEval] grading dispatch policy failed for "
                     f"{dispatch_eval_id}: {policy_err}"
                 )
+
+        if billing_block:
+            # The policy refused this grading (e.g. nobody may pay for it).
+            # Fail the run with the reason instead of grading on some other
+            # key: no judge runs, no jobs. The finalize hook still runs, like
+            # on every other failure, so a claimed slot is released.
+            reason = billing_block.get("reason") or "blocked"
+            logger.warning(
+                "[SingleSampleEval] grading %s blocked by the dispatch policy: %s",
+                dispatch_eval_id,
+                reason,
+            )
+            _mark_immediate_run_failed(
+                db,
+                dispatch_eval_id,
+                f"billing_blocked:{reason}",
+                extra_metadata={
+                    "billing_block": {
+                        **billing_block,
+                        "checked_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                },
+            )
+            _run_grading_finalize_hook(dispatch_eval_id, False)
+            return {
+                "status": "blocked",
+                "evaluation_record_id": evaluation_record_id,
+                "block": billing_block,
+            }
 
         # Every TaskEvaluation row needs a judge_run_id (NOT NULL since
         # migration 043). CRITICAL: the unique constraint uq_task_evaluations_cell
@@ -4612,16 +4671,25 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     etc.). Idempotent — ``ensure_immediate_evaluation`` skips annotations that
     already carry a grade or an in-flight run. ``min_age_minutes`` skips very
     recent submits (via the scan cutoff) so an in-flight client eval isn't raced.
+
+    A grading the billing policy refuses keeps its one blocked run (the check
+    only refreshes it) and is dispatched on the first sweep after the block
+    is lifted; ``blocked`` counts those annotations.
     """
     from datetime import datetime as _dt
     from datetime import timedelta, timezone
 
-    from immediate_eval_dispatch import ensure_immediate_evaluation, scan_ungraded
+    from immediate_eval_dispatch import (
+        OUTCOME_BLOCKED,
+        OUTCOME_DISPATCHED,
+        ensure_immediate_evaluation_outcome,
+        scan_ungraded,
+    )
     from project_models import Project
 
     db = SessionLocal()
     cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
-    scanned_projects = dispatched = 0
+    scanned_projects = dispatched = blocked = 0
     try:
         projects = (
             db.query(Project)
@@ -4639,12 +4707,14 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
             for annotation, task in candidates:
                 try:
                     # cutoff already applied in scan_ungraded → no min-age here.
-                    rid = ensure_immediate_evaluation(
+                    outcome = ensure_immediate_evaluation_outcome(
                         db, project, task, annotation,
                         trigger="sweep_missing_immediate_evals",
                     )
-                    if rid:
+                    if outcome.status == OUTCOME_DISPATCHED:
                         dispatched += 1
+                    elif outcome.status == OUTCOME_BLOCKED:
+                        blocked += 1
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "sweep_missing_immediate_evals: annotation %s failed: %s",
@@ -4652,10 +4722,16 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
                     )
                     db.rollback()
         logger.info(
-            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d",
-            scanned_projects, dispatched,
+            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d "
+            "blocked=%d",
+            scanned_projects, dispatched, blocked,
         )
-        return {"status": "success", "projects_with_gaps": scanned_projects, "dispatched": dispatched}
+        return {
+            "status": "success",
+            "projects_with_gaps": scanned_projects,
+            "dispatched": dispatched,
+            "blocked": blocked,
+        }
     except Exception as exc:
         logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)
         try:

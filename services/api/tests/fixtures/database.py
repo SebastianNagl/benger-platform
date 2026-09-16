@@ -221,6 +221,85 @@ def _create_tables():
                         f"ADD VALUE IF NOT EXISTS '{_label}'"
                     )
                 )
+            # Migrations 105/106 (LMS self-service). Same create_all drift:
+            # the two new tables (lti_resource_link_users, lti_admin_events)
+            # come from create_all, the new columns on existing tables do
+            # not. A column added here brings its CHECK along (a skipped
+            # ADD COLUMN IF NOT EXISTS skips its constraints too).
+            for ddl in (
+                "ALTER TABLE lti_platform_registrations ADD COLUMN IF NOT EXISTS "
+                "tool_host VARCHAR(16) NOT NULL DEFAULT 'student_locked' "
+                "CONSTRAINT ck_lti_platform_registrations_tool_host "
+                "CHECK (tool_host IN ('student_locked', 'main'))",
+                "ALTER TABLE lti_registration_invites ADD COLUMN IF NOT EXISTS "
+                "tool_host VARCHAR(16) NOT NULL DEFAULT 'student_locked' "
+                "CONSTRAINT ck_lti_registration_invites_tool_host "
+                "CHECK (tool_host IN ('student_locked', 'main'))",
+                "ALTER TABLE lti_user_links ADD COLUMN IF NOT EXISTS "
+                "research_consent_at TIMESTAMP WITH TIME ZONE",
+                "ALTER TABLE lti_user_links ADD COLUMN IF NOT EXISTS "
+                "link_method VARCHAR(16) CONSTRAINT ck_lti_user_links_link_method "
+                "CHECK (link_method IN "
+                "('provisioned', 'login_proof', 'email_proof', 'legacy_email'))",
+                "ALTER TABLE lti_user_links ADD COLUMN IF NOT EXISTS "
+                "unlinked_at TIMESTAMP WITH TIME ZONE",
+                "ALTER TABLE lti_resource_links ADD COLUMN IF NOT EXISTS "
+                "ai_lineitem_url TEXT",
+                "ALTER TABLE lti_resource_links ADD COLUMN IF NOT EXISTS "
+                "ai_lineitem_status VARCHAR(16) "
+                "CONSTRAINT ck_lti_resource_links_ai_lineitem_status "
+                "CHECK (ai_lineitem_status IN "
+                "('ready', 'unavailable', 'error', 'deleted'))",
+                "ALTER TABLE lti_resource_links ADD COLUMN IF NOT EXISTS "
+                "ai_lineitem_error TEXT",
+                "ALTER TABLE lti_grade_syncs ADD COLUMN IF NOT EXISTS "
+                "kind VARCHAR(16) NOT NULL DEFAULT 'final' "
+                "CONSTRAINT ck_lti_grade_syncs_kind CHECK (kind IN ('final', 'ai'))",
+                "ALTER TABLE lti_grade_syncs ADD COLUMN IF NOT EXISTS "
+                "last_synced_source VARCHAR(16)",
+                "ALTER TABLE lti_grade_syncs ADD COLUMN IF NOT EXISTS "
+                "last_checked_at TIMESTAMP WITH TIME ZONE",
+                "ALTER TABLE project_organizations ADD COLUMN IF NOT EXISTS "
+                "attached_via VARCHAR(16) NOT NULL DEFAULT 'manual' "
+                "CONSTRAINT ck_project_organizations_attached_via "
+                "CHECK (attached_via IN ('manual', 'lti'))",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "anonymized_at TIMESTAMP WITH TIME ZONE",
+                "CREATE INDEX IF NOT EXISTS ix_users_email_lower "
+                "ON users (lower(email))",
+                "ALTER TABLE task_evaluations ADD COLUMN IF NOT EXISTS "
+                "updated_at TIMESTAMP WITH TIME ZONE",
+            ):
+                conn.execute(text(ddl))
+            # Migration 105 keeps the name uq_lti_grade_sync but adds kind to
+            # it (one row per LMS column): swap an old two-column constraint.
+            conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = 'lti_grade_syncs'::regclass
+                          AND conname = 'uq_lti_grade_sync'
+                          AND cardinality(conkey) = 2
+                      ) THEN
+                        ALTER TABLE lti_grade_syncs
+                          DROP CONSTRAINT uq_lti_grade_sync;
+                      END IF;
+                      IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = 'lti_grade_syncs'::regclass
+                          AND conname = 'uq_lti_grade_sync'
+                      ) THEN
+                        ALTER TABLE lti_grade_syncs
+                          ADD CONSTRAINT uq_lti_grade_sync
+                          UNIQUE (resource_link_id, user_id, kind);
+                      END IF;
+                    END $$;
+                    """
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

@@ -269,3 +269,154 @@ def tasks_with_evaluation_for_user(db, project_id, user_id, task_ids):
             result = hook(db, project_id, user_id, list(task_ids))
             return set(result or ())
     return set()
+
+
+# --------------------------------------------------------------------------- #
+# LMS (LTI) connection hooks. The extended edition implements them with sync
+# SQLAlchemy sessions and never commits; async callers pass a sync session via
+# ``await db.run_sync(lambda s: extensions.<hook>(s, ...))``. A failing hook
+# is logged and answered with the safe value documented per wrapper, never
+# raised into the request.
+# --------------------------------------------------------------------------- #
+def dispatch_lti_grade_sync(sync_id):
+    """Queue the grade push for one ``lti_grade_syncs`` row right away.
+
+    Returns True when the extended edition accepted the dispatch. False in
+    the community edition (no LMS grade transfer) and when the hook fails;
+    the row then waits for the next sweep.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("dispatch_lti_grade_sync")
+            if hook:
+                return bool(hook(sync_id))
+        except Exception:
+            logger.exception("dispatch_lti_grade_sync hook failed for %s", sync_id)
+    return False
+
+
+def privacy_protected_member_ids(db, organization_id, user_ids):
+    """Subset of ``user_ids`` that count as LMS users.
+
+    An LMS user is an account an LMS launch provisioned (even after an admin
+    unlink, since it keeps the LMS clear name), or an existing account with a
+    live link to an LMS identity. ``organization_id`` limits the check to
+    connections owned by that org; None means any connection counts.
+
+    Calling rule for a list of users:
+
+    - mask ``privacy_protected_member_ids(db, None, ids)``;
+    - a viewer with admin rights in org X may unmask
+      ``privacy_protected_member_ids(db, X, ids)``; superadmins unmask all.
+
+    So an LMS user of org B who is also a member of org A stays masked in
+    org A's lists, even for A's admins. Project-scoped views use
+    :func:`project_real_name_viewer` instead of the org admin check.
+
+    Community edition: empty set (there are no LMS accounts). If the hook
+    fails, both calls fail closed: the None call returns every given id
+    (everyone masked) and an org call returns an empty set (nobody
+    unmasked), so a failure never reveals a name.
+    """
+    ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+    if not ids:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("privacy_protected_member_ids")
+            if hook:
+                result = hook(db, organization_id, sorted(ids))
+                return {str(uid) for uid in (result or ())} & ids
+        except Exception:
+            logger.exception("privacy_protected_member_ids hook failed")
+            return ids if organization_id is None else set()
+    return set()
+
+
+def project_real_name_viewer(db, viewer, project_id):
+    """True when ``viewer`` may see real names of the LMS accounts on
+    ``project_id`` (for example staff who grade the linked exam).
+
+    False in the community edition and when the hook fails.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("project_real_name_viewer")
+            if hook:
+                return bool(hook(db, viewer, project_id))
+        except Exception:
+            logger.exception(
+                "project_real_name_viewer hook failed for project %s", project_id
+            )
+    return False
+
+
+def lti_anonymization_policy(db, user_id):
+    """Extra anonymization rules for one account.
+
+    Returns ``{"implicit_org_ids": set[str], "blockers": list[str]}``:
+    ``implicit_org_ids`` are orgs whose ANNOTATOR membership the LMS launch
+    added on its own (it does not count as "member elsewhere");
+    ``blockers`` are reasons that forbid anonymizing the account.
+
+    Community edition: no implicit orgs, no blockers. If the hook fails the
+    answer carries the blocker ``policy_unavailable``, so nothing is
+    anonymized on an unchecked policy.
+    """
+    policy = {"implicit_org_ids": set(), "blockers": []}
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_anonymization_policy")
+            if hook:
+                result = hook(db, user_id) or {}
+                policy["implicit_org_ids"] = {
+                    str(oid) for oid in (result.get("implicit_org_ids") or ())
+                }
+                policy["blockers"] = [
+                    str(code) for code in (result.get("blockers") or ())
+                ]
+        except Exception:
+            logger.exception("lti_anonymization_policy hook failed for %s", user_id)
+            return {"implicit_org_ids": set(), "blockers": ["policy_unavailable"]}
+    return policy
+
+
+def lti_protected_org_ids(db):
+    """Orgs whose LMS connections only superadmins may manage.
+
+    Community edition: empty set. If the hook fails the result is empty too,
+    so use it for filtering and display only; gate access with
+    :func:`is_lti_protected_org`, which fails closed.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return {str(oid) for oid in (hook(db) or ())}
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+    return set()
+
+
+def is_lti_protected_org(db, organization_id):
+    """True when the LMS connections of ``organization_id`` are
+    superadmin-only. False in the community edition; True when the hook
+    fails, so a broken hook never opens those connections to org admins.
+    """
+    if not organization_id:
+        return False
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return str(organization_id) in {str(oid) for oid in (hook(db) or ())}
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+            return True
+    return False

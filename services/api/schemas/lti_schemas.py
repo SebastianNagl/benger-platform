@@ -7,7 +7,7 @@ this module must not encode any launch/AGS behaviour.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
@@ -17,6 +17,18 @@ STUDENT_ORG_ROLE_PATTERN = "^(annotator|none)$"
 REGISTRATION_STATUS_PATTERN = "^(active|disabled)$"
 # Advisory vendor tag; drives admin-UI presets/warnings + diagnostics only.
 LMS_FAMILY_PATTERN = "^(moodle|ilias)$"
+
+# Public host a connection's tool URLs use. Base URLs are resolved from the
+# environment by ``shared/public_hosts.py``; existing rows use the
+# student-locked host.
+ToolHost = Literal["student_locked", "main"]
+DEFAULT_TOOL_HOST: ToolHost = "student_locked"
+# How an LMS identity reached its account (``lti_user_links.link_method``).
+LinkMethod = Literal["provisioned", "login_proof", "email_proof", "legacy_email"]
+# State of the tool-created AI grade column on a resource link.
+AiLineitemStatus = Literal["ready", "unavailable", "error", "deleted"]
+# LMS column a grade-sync row feeds.
+GradeSyncKind = Literal["final", "ai"]
 
 
 def _require_http_url(value: str) -> str:
@@ -119,6 +131,7 @@ class LtiRegistrationRead(BaseModel):
     student_org_role: str
     group_id: Optional[str] = None
     status: str
+    tool_host: ToolHost = DEFAULT_TOOL_HOST
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     deployments: List[LtiDeploymentRead] = Field(default_factory=list)
@@ -152,6 +165,9 @@ class LtiResourceLinkRead(BaseModel):
     sync_ai_grades: bool = True
     linked_by: Optional[str] = None
     linked_at: Optional[datetime] = None
+    ai_lineitem_url: Optional[str] = None
+    ai_lineitem_status: Optional[AiLineitemStatus] = None
+    ai_lineitem_error: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -169,6 +185,9 @@ class LtiUserLinkRead(BaseModel):
     claims: Optional[Dict[str, Any]] = None
     consent_at: Optional[datetime] = None
     consent_version: Optional[str] = None
+    research_consent_at: Optional[datetime] = None
+    link_method: Optional[LinkMethod] = None
+    unlinked_at: Optional[datetime] = None
     last_launch_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
@@ -182,12 +201,15 @@ class LtiGradeSyncRead(BaseModel):
     id: str
     resource_link_id: str
     user_id: str
+    kind: GradeSyncKind = "final"
     status: str
     attempts: int
     next_retry_at: Optional[datetime] = None
     last_synced_at: Optional[datetime] = None
     last_synced_score: Optional[float] = None
     last_synced_hash: Optional[str] = None
+    last_synced_source: Optional[str] = None
+    last_checked_at: Optional[datetime] = None
     source_task_evaluation_id: Optional[str] = None
     last_error: Optional[str] = None
     created_at: Optional[datetime] = None
@@ -228,6 +250,7 @@ class LtiRegistrationInviteCreated(BaseModel):
     id: str
     organization_id: str
     group_id: Optional[str] = None
+    tool_host: ToolHost = DEFAULT_TOOL_HOST
     token: str
     register_url: str
     expires_at: datetime
@@ -243,6 +266,7 @@ class LtiRegistrationInviteRead(BaseModel):
     id: str
     organization_id: str
     group_id: Optional[str] = None
+    tool_host: ToolHost = DEFAULT_TOOL_HOST
     created_at: Optional[datetime] = None
     expires_at: datetime
     used_at: Optional[datetime] = None

@@ -138,6 +138,10 @@ api:
       value: "stripe"
     - name: VERTRETBAR_ORG_ID
       value: "06620390-5817-4bc8-b94f-efa0798d5026"  # prod Vertretbar org (seed post-deploy with this id)
+    # Base URL of the student-only host. The api builds LMS tool URLs for
+    # connections on that host from it (shared/public_hosts.py).
+    - name: VERTRETBAR_FRONTEND_URL
+      value: "https://vertretbar.net"
     - name: VERTRETBAR_FREE_GRADINGS_PER_WEEK
       value: "1"
     - name: VERTRETBAR_PER_GRADING_PRICE_CENTS

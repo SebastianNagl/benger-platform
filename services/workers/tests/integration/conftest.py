@@ -261,6 +261,20 @@ def _schema(_eager_celery):
             "ADD COLUMN IF NOT EXISTS dispatch_epoch INTEGER NOT NULL DEFAULT 0",
         ):
             conn.execute(text(f"ALTER TABLE response_generations {_col_ddl}"))
+        # Migrations 105/106: columns on tables the worker ORM reads (users,
+        # task_evaluations, project_organizations). Same create_all drift —
+        # every User / TaskEvaluation select names the new columns.
+        for _ddl in (
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+            "anonymized_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE task_evaluations ADD COLUMN IF NOT EXISTS "
+            "updated_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE project_organizations ADD COLUMN IF NOT EXISTS "
+            "attached_via VARCHAR(16) NOT NULL DEFAULT 'manual' "
+            "CONSTRAINT ck_project_organizations_attached_via "
+            "CHECK (attached_via IN ('manual', 'lti'))",
+        ):
+            conn.execute(text(_ddl))
     yield
 
 

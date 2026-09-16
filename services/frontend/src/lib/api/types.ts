@@ -37,7 +37,8 @@ export interface User {
   email_verified?: boolean
   email_verified_by_id?: string | null
   email_verified_at?: string | null
-  email_verification_method?: 'self' | 'admin' | 'system' | null
+  email_verification_method?:
+    'self' | 'admin' | 'system' | 'activation' | 'lti_claim' | null
   name: string
   full_name?: string // Full display name
   role?: OrganizationRole // User's current role context
@@ -173,7 +174,8 @@ export interface OrganizationMember {
   user_name?: string
   user_email?: string
   email_verified?: boolean
-  email_verification_method?: 'self' | 'admin' | 'system' | null
+  email_verification_method?:
+    'self' | 'admin' | 'system' | 'activation' | 'lti_claim' | null
   // Group memberships of this member within the organization.
   groups?: Array<{ id: string; name: string; is_group_admin: boolean }>
 }

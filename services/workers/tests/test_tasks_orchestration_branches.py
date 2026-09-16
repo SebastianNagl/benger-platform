@@ -942,19 +942,26 @@ class TestEvaluateLLMJudgeSingleMultidim:
 
 def _patch_dispatch_module(scan_side=None, ensure_side=None):
     """Inject a fake `immediate_eval_dispatch` module so the sweep's local
-    import resolves without the real (DB-heavy) scan/dispatch machinery."""
+    import resolves without the real (DB-heavy) scan/dispatch machinery.
+    ``ensure_immediate_evaluation_outcome`` answers with ``_outcome`` values
+    (the sweep reads ``.status``)."""
     fake = types.ModuleType("immediate_eval_dispatch")
+    fake.OUTCOME_DISPATCHED = "dispatched"
+    fake.OUTCOME_BLOCKED = "blocked"
     fake.scan_ungraded = MagicMock(side_effect=scan_side)
-    fake.ensure_immediate_evaluation = MagicMock(side_effect=ensure_side)
+    fake.ensure_immediate_evaluation_outcome = MagicMock(side_effect=ensure_side)
     return patch.dict(sys.modules, {"immediate_eval_dispatch": fake})
+
+
+def _outcome(run_id, status):
+    return types.SimpleNamespace(run_id=run_id, status=status)
 
 
 class TestSweepMissingImmediateEvals:
     def test_dispatches_per_candidate_and_counts(self):
         """Two immediate-eval projects; one has two ungraded candidates and one
-        is clean → ensure_immediate_evaluation runs once per candidate, the
-        clean project isn't counted as a gap, and the summary dict reports
-        both tallies."""
+        is clean → the ensure call runs once per candidate, the clean project
+        isn't counted as a gap, and the summary dict reports the tallies."""
         db = MagicMock()
         p_gaps, p_clean = MagicMock(name="p1"), MagicMock(name="p2")
         db.query.return_value.filter.return_value.all.return_value = [p_gaps, p_clean]
@@ -966,16 +973,52 @@ class TestSweepMissingImmediateEvals:
 
         with _patch_dispatch_module(scan_side=scan) as _:
             disp = sys.modules["immediate_eval_dispatch"]
-            disp.ensure_immediate_evaluation.side_effect = ["run-1", None]
+            disp.ensure_immediate_evaluation_outcome.side_effect = [
+                _outcome("run-1", "dispatched"),
+                _outcome(None, "no_configs"),
+            ]
             with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
                 result = sweep_missing_immediate_evals()
 
-        assert result == {"status": "success", "projects_with_gaps": 1, "dispatched": 1}
-        assert disp.ensure_immediate_evaluation.call_count == 2
+        assert result == {
+            "status": "success",
+            "projects_with_gaps": 1,
+            "dispatched": 1,
+            "blocked": 0,
+        }
+        assert disp.ensure_immediate_evaluation_outcome.call_count == 2
         # Every dispatch is stamped with the sweep trigger for the audit trail.
-        for call in disp.ensure_immediate_evaluation.call_args_list:
+        for call in disp.ensure_immediate_evaluation_outcome.call_args_list:
             assert call.kwargs["trigger"] == "sweep_missing_immediate_evals"
         db.close.assert_called_once()
+
+    def test_blocked_and_already_handled_annotations_are_not_dispatches(self):
+        """Only real dispatches count as dispatched: a still-blocked grading
+        (its blocked run was merely refreshed) counts as blocked, and a run
+        that turned out graded or in flight counts as neither."""
+        db = MagicMock()
+        project = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [project]
+        anns = [(MagicMock(id=f"a{i}"), MagicMock()) for i in range(4)]
+
+        with _patch_dispatch_module(scan_side=lambda *_a, **_k: (anns, [])):
+            disp = sys.modules["immediate_eval_dispatch"]
+            disp.ensure_immediate_evaluation_outcome.side_effect = [
+                _outcome("run-blocked", "blocked"),
+                _outcome("run-graded", "graded"),
+                _outcome("run-live", "in_flight"),
+                _outcome("run-new", "dispatched"),
+            ]
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+
+        assert result == {
+            "status": "success",
+            "projects_with_gaps": 1,
+            "dispatched": 1,
+            "blocked": 1,
+        }
+        db.rollback.assert_not_called()
 
     def test_failed_candidate_rolls_back_and_continues(self):
         """One candidate's dispatch raising must not abort the sweep: the
@@ -990,11 +1033,19 @@ class TestSweepMissingImmediateEvals:
 
         with _patch_dispatch_module(scan_side=scan) as _:
             disp = sys.modules["immediate_eval_dispatch"]
-            disp.ensure_immediate_evaluation.side_effect = [RuntimeError("boom"), "run-2"]
+            disp.ensure_immediate_evaluation_outcome.side_effect = [
+                RuntimeError("boom"),
+                _outcome("run-2", "dispatched"),
+            ]
             with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
                 result = sweep_missing_immediate_evals()
 
-        assert result == {"status": "success", "projects_with_gaps": 1, "dispatched": 1}
+        assert result == {
+            "status": "success",
+            "projects_with_gaps": 1,
+            "dispatched": 1,
+            "blocked": 0,
+        }
         db.rollback.assert_called_once()
         db.close.assert_called_once()
 

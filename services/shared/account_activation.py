@@ -30,6 +30,28 @@ def email_is_routable(email: Optional[str]) -> bool:
     return bool(email) and not email.rsplit("@", 1)[-1].endswith(_UNROUTABLE_SUFFIX)
 
 
+def verify_email_by_link(user, *, method: str, now=None) -> bool:
+    """Mark ``user.email`` verified because a link mailed to it was used.
+
+    For the activation and password-reset confirm paths. An LMS-supplied
+    address is stored unverified (method ``lti_claim``) and login refuses
+    unverified accounts, so using a link sent to that address is what makes
+    the account usable. Applies only to an unverified, routable address and
+    never while a pending address is parked (the link then went there, not
+    to ``user.email``). Caller commits. Returns True when it changed the row.
+    """
+    if getattr(user, "email_verified", False):
+        return False
+    if getattr(user, "pending_activation_email", None):
+        return False
+    if not email_is_routable(user.email):
+        return False
+    user.email_verified = True
+    user.email_verification_method = method
+    user.email_verified_at = now or datetime.now(timezone.utc)
+    return True
+
+
 def activation_eligibility(
     user, *, target_email: Optional[str] = None, now=None
 ) -> Optional[str]:

@@ -139,12 +139,12 @@ export const GENERATION_GUIDES: HowToGuide[] = [
       de: [
         'Sie sehen nur Modelle von Anbietern, für die ein Schlüssel vorhanden ist. Fehlt ein Anbieter im Modell-Picker, fehlt der Schlüssel.',
         'Stellt die Organisation Schlüssel bereit, ist das Formular für eigene Schlüssel im Profil abgeschaltet. Das ist beabsichtigt.',
-        'Für Klausuren, die Studierende in Vertretbar lösen, wird die KI-Korrektur nicht über deren Schlüssel abgerechnet. Zahlt Ihre Organisation, läuft sie über die Organisation, sonst über das Studierenden-Konto.',
+        'Bei Klausuren, die Studierende in der Lernoberfläche lösen, zahlt Ihre Organisation die KI-Korrektur, wenn sie Schlüssel bereitstellt. Sonst gelten die Konditionen der Lernoberfläche. Wer dort einen eigenen Schlüssel hinterlegt, zahlt selbst. Öffnen Studierende eine Klausur über eine Lernplattform (LMS), zahlt die Organisation dieser Anbindung.',
       ],
       en: [
         'You only see models of providers for which a key exists. If a provider is missing in the model picker, the key is missing.',
         'If the organization provides keys, the personal key form in the profile is disabled. That is intended.',
-        'For exams students solve in Vertretbar, AI grading is not billed to their keys. If your organization pays, it runs on the organization, otherwise on the student account.',
+        'For exams students solve in the student interface, your organization pays for the AI grading if it provides keys. Otherwise the student interface’s own terms apply. Students who store their own key there pay themselves. When students open an exam through a learning platform (LMS), the organization of that connection pays.',
       ],
     },
     pitfalls: {

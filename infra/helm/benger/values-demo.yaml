@@ -42,6 +42,10 @@ api:
     # just base values.yaml) because api/workers env REPLACES base.
     - name: VERTRETBAR_ORG_ID
       value: "f92f24b4-5bc5-499b-a273-ac4829028881"
+    # Base URL of the student-only host. The api builds LMS tool URLs for
+    # connections on that host from it (shared/public_hosts.py).
+    - name: VERTRETBAR_FRONTEND_URL
+      value: "https://demo.vertretbar.net"
     # Host list mirrored from the frontend STUDENT_LOCKED_DOMAINS; the demo
     # apex must be here or a demo.vertretbar.net signup onboards as BenGER.
     - name: VERTRETBAR_HOSTS

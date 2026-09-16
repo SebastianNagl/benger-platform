@@ -17,7 +17,7 @@ callers. Schemas stay endpoint-local (``org_api_keys.py`` precedent).
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
 
@@ -368,16 +368,19 @@ async def delete_organization_group(
 ):
     """Delete a group (org admin / superadmin).
 
-    409 while project attachments, group API keys, or LTI (Moodle/ILIAS)
-    registrations still reference it — detach/delete those first,
-    explicitly. A delete never silently widens visibility (project
-    attachments), promotes keys org-wide, or re-scopes an LMS integration;
-    group memberships cascade away with the group.
+    409 while project attachments, group API keys, LTI (Moodle/ILIAS)
+    registrations or open LTI registration invites still reference it —
+    detach/delete those first, explicitly. A delete never silently widens
+    visibility (project attachments), promotes keys org-wide, or re-scopes an
+    LMS integration. An open invite would otherwise lose its group (the FK
+    sets NULL) and then create an org-wide connection, active right away.
+    Used and expired invites do not block. Group memberships cascade away
+    with the group.
     """
     await _require_org_admin(current_user, organization_id, db)
     group = await _load_group_or_404(db, organization_id, group_id)
 
-    from models import LtiPlatformRegistration
+    from models import LtiPlatformRegistration, LtiRegistrationInvite
 
     attachment_count = (
         await db.execute(
@@ -400,14 +403,24 @@ async def delete_organization_group(
             )
         )
     ).scalar_one()
-    if attachment_count or key_count or lti_count:
+    invite_count = (
+        await db.execute(
+            select(func.count(LtiRegistrationInvite.id)).where(
+                LtiRegistrationInvite.group_id == group_id,
+                LtiRegistrationInvite.used_at.is_(None),
+                LtiRegistrationInvite.expires_at > datetime.now(timezone.utc),
+            )
+        )
+    ).scalar_one()
+    if attachment_count or key_count or lti_count or invite_count:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Group still has {attachment_count} project attachment(s), "
-                f"{key_count} API key(s), and {lti_count} LTI registration(s). "
-                "Reassign the projects, remove the keys, and re-scope the LMS "
-                "registrations first."
+                f"{key_count} API key(s), {lti_count} LTI registration(s), "
+                f"and {invite_count} open LTI invite(s). "
+                "Reassign the projects, remove the keys, re-scope the LMS "
+                "registrations, and revoke the invites first."
             ),
         )
 

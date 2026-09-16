@@ -118,6 +118,15 @@ class AuthorizationService:
         between sync and async. ``attachment_groups`` ({org_id: group_id|None})
         and ``user_groups`` ({group_id: is_group_admin}) carry the group axis
         (see shared/org_groups); omitted, every attachment counts as org-wide.
+
+        Both modes apply the exam carve-out of ``helpers._org_grants_full_tier``
+        (``org_groups.grants_full_tier``): an ANNOTATOR membership confers no
+        project-level permission on an exam-kind project, because for an exam
+        those permissions expose the Musterlösung, the Bewertungsbogen
+        criteria and the evaluation config. Students reach org exams through
+        the narrow participant tier instead (``get_student_read_access``). A
+        group admin of the attachment counts as staff, and the creator keeps
+        the role-based access to their own exam.
         """
         # Superadmins have all permissions
         if user.is_superadmin:
@@ -142,6 +151,16 @@ class AuthorizationService:
             if public_role:
                 return self._check_org_role_permission(public_role, permission)
             return False
+
+        # Private projects belong to their creator alone, whatever context the
+        # client sends (the sync entry point applies the same rule as a
+        # zero-DB fast path; the async lane relies on this branch). Without
+        # it, an org member reached a private org-attached exam in org mode.
+        if getattr(project, 'is_private', False):
+            return user.id == project.created_by
+
+        is_creator = user.id == project.created_by
+        project_kind = getattr(project, "kind", None)
 
         # Context-aware mode
         if org_context is not None:
@@ -171,14 +190,18 @@ class AuthorizationService:
             )
             if not membership:
                 return False
-            from org_groups import attachment_eligible
+            from org_groups import attachment_eligible, grants_full_tier
 
             group_id = (attachment_groups or {}).get(org_context)
             if not attachment_eligible(
                 group_id,
-                is_creator=user.id == project.created_by,
+                is_creator=is_creator,
                 membership_role=membership.role,
                 user_groups=user_groups,
+            ):
+                return False
+            if not is_creator and not grants_full_tier(
+                project_kind, membership.role, group_id, user_groups
             ):
                 return False
             role = (
@@ -189,10 +212,7 @@ class AuthorizationService:
             return self._check_org_role_permission(role, permission)
 
         # Legacy mode (org_context=None): backward compatibility
-        if getattr(project, 'is_private', False):
-            return user.id == project.created_by
-
-        if user.id == project.created_by:
+        if is_creator:
             if permission in [
                 Permission.PROJECT_VIEW,
                 Permission.PROJECT_EDIT,
@@ -201,35 +221,46 @@ class AuthorizationService:
                 return True
 
         if project_org_ids:
-            from org_groups import attachment_eligible
+            from org_groups import attachment_eligible, grants_full_tier
 
-            user_org_ids = [m.organization_id for m in memberships]
             for org_id in project_org_ids:
-                if org_id in user_org_ids:
-                    membership = next(
-                        (m for m in memberships if m.organization_id == org_id),
-                        None,
+                # Only an ACTIVE membership counts (same as context mode and
+                # the helpers deciders): a removed member keeps a soft-deleted
+                # row that must not grant anything.
+                membership = next(
+                    (
+                        m
+                        for m in memberships
+                        if m.organization_id == org_id and m.is_active
+                    ),
+                    None,
+                )
+                if membership:
+                    # Group axis: an ineligible grouped attachment is
+                    # skipped (the next attachment may still grant);
+                    # eligibility via a group the user group-admins
+                    # upgrades that attachment's role to ORG_ADMIN.
+                    group_id = (attachment_groups or {}).get(org_id)
+                    if not attachment_eligible(
+                        group_id,
+                        is_creator=is_creator,
+                        membership_role=membership.role,
+                        user_groups=user_groups,
+                    ):
+                        continue
+                    # Exam carve-out: an ANNOTATOR attachment is skipped too,
+                    # a staff membership through another org may still grant.
+                    if not is_creator and not grants_full_tier(
+                        project_kind, membership.role, group_id, user_groups
+                    ):
+                        continue
+                    role = (
+                        "ORG_ADMIN"
+                        if group_id is not None
+                        and (user_groups or {}).get(group_id, False)
+                        else membership.role
                     )
-                    if membership:
-                        # Group axis: an ineligible grouped attachment is
-                        # skipped (the next attachment may still grant);
-                        # eligibility via a group the user group-admins
-                        # upgrades that attachment's role to ORG_ADMIN.
-                        group_id = (attachment_groups or {}).get(org_id)
-                        if not attachment_eligible(
-                            group_id,
-                            is_creator=user.id == project.created_by,
-                            membership_role=membership.role,
-                            user_groups=user_groups,
-                        ):
-                            continue
-                        role = (
-                            "ORG_ADMIN"
-                            if group_id is not None
-                            and (user_groups or {}).get(group_id, False)
-                            else membership.role
-                        )
-                        return self._check_org_role_permission(role, permission)
+                    return self._check_org_role_permission(role, permission)
 
         return False
 

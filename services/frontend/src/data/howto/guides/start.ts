@@ -5,35 +5,35 @@ export const START_GUIDES: HowToGuide[] = [
     id: 'what-is-benger',
     category: 'start',
     title: {
-      de: 'Was ist BenGER, was ist Vertretbar?',
-      en: 'What is BenGER, what is Vertretbar?',
+      de: 'Was ist BenGER, was ist die Lernoberfläche?',
+      en: 'What is BenGER, what is the student interface?',
     },
     summary: {
-      de: '**BenGER** (what-a-benger.net) ist die Expertenplattform: Projekte anlegen, Daten hochladen, annotieren lassen, Antworten mit KI-Modellen generieren und auswerten. **Vertretbar** (vertretbar.net) ist die Plattform für Studierende: Klausuren im Gutachtenstil üben, in Sekunden eine KI-Korrektur mit Notenpunkten bekommen, mit Karteikarten lernen. Beide sind Oberflächen desselben Systems, mit derselben Datenbank und demselben Konto.',
-      en: '**BenGER** (what-a-benger.net) is the expert platform: create projects, upload data, have them annotated, generate answers with AI models and evaluate. **Vertretbar** (vertretbar.net) is the platform for students: practise exams in the legal expert style, get an AI grading in seconds with grade points, learn with flashcards. Both are interfaces of the same system, with the same database and the same account.',
+      de: '**BenGER** (what-a-benger.net) ist die Expertenplattform: Projekte anlegen, Daten hochladen, annotieren lassen, Antworten mit KI-Modellen generieren und auswerten. Die **Lernoberfläche** ist die Plattform für Studierende: Klausuren im Gutachtenstil üben, in Sekunden eine KI-Korrektur mit Notenpunkten bekommen, mit Karteikarten lernen. Sie hat eine eigene Adresse und ist in BenGER als *Lernbereich* erreichbar. Beide sind Oberflächen desselben Systems, mit derselben Datenbank und demselben Konto.',
+      en: '**BenGER** (what-a-benger.net) is the expert platform: create projects, upload data, have them annotated, generate answers with AI models and evaluate. The **student interface** is the platform for students: practise exams in the legal expert style, get an AI grading in seconds with grade points, learn with flashcards. It has its own address and is reachable in BenGER as *Lernbereich*. Both are interfaces of the same system, with the same database and the same account.',
     },
     steps: {
       de: [
         '**BenGER** für Lehrende, Forschende und Annotierende: Dashboard, Projekte, Daten, Generierung, Evaluation, Berichte, Bestenlisten.',
-        '**Vertretbar** für Studierende: Lernstatistik, Klausuren, Karteikarten, Entdecken, Bestenliste. Studierende brauchen keinen eigenen API-Schlüssel, die KI-Korrektur ist für sie derzeit kostenlos.',
-        'Eine Klausur, die Sie in BenGER als Projekt vom Typ *Klausur* anlegen und freigeben, erscheint bei Studierenden in Vertretbar in der Klausurenliste bzw. unter *Entdecken*. Ihre Abgaben und KI-Korrekturen sehen Sie im BenGER-Projekt.',
-        'Die Vertretbar-Oberfläche ist auch von BenGER aus erreichbar: oben rechts im Kontomenü auf **Studierendenansicht**. Auf what-a-benger.net heißt sie dann *Lernbereich*. Zurück geht es in der Seitenleiste über **Expertenansicht**.',
+        '**Lernoberfläche** für Studierende: Lernstatistik, Klausuren, Karteikarten, Entdecken, Bestenliste. Studierende brauchen keinen eigenen API-Schlüssel. Wer die KI-Korrektur bezahlt, steht in der Anleitung zu API-Schlüsseln.',
+        'Eine Klausur, die Sie in BenGER als Projekt vom Typ *Klausur* anlegen und freigeben, erscheint bei Studierenden in der Lernoberfläche in der Klausurenliste bzw. unter *Entdecken*. Ihre Abgaben und KI-Korrekturen sehen Sie im BenGER-Projekt.',
+        'Die Lernoberfläche ist auch von BenGER aus erreichbar: oben rechts im Kontomenü auf **Studierendenansicht**. Auf what-a-benger.net heißt sie dann *Lernbereich*. Zurück geht es in der Seitenleiste über **Expertenansicht**.',
       ],
       en: [
         '**BenGER** for teachers, researchers and annotators: dashboard, projects, data, generation, evaluation, reports, leaderboards.',
-        '**Vertretbar** for students: learning statistics, exams, flashcards, discover, leaderboard. Students need no API key of their own; AI grading is currently free for them.',
-        'An exam you create in BenGER as a project of type *Exam* and share appears for students in Vertretbar in their exam list or under *Discover*. You see their submissions and AI gradings in the BenGER project.',
-        'The Vertretbar interface is also reachable from BenGER: top right in the account menu via **Studierendenansicht**. On what-a-benger.net it is then called *Lernbereich*. Back via **Expertenansicht** in the sidebar.',
+        '**Student interface** for students: learning statistics, exams, flashcards, discover, leaderboard. Students need no API key of their own. Who pays for the AI grading is explained in the guide on API keys.',
+        'An exam you create in BenGER as a project of type *Exam* and share appears for students in the student interface in their exam list or under *Discover*. You see their submissions and AI gradings in the BenGER project.',
+        'The student interface is also reachable from BenGER: top right in the account menu via **Studierendenansicht**. On what-a-benger.net it is then called *Lernbereich*. Back via **Expertenansicht** in the sidebar.',
       ],
     },
     tips: {
       de: [
-        'Die Anmeldung gilt pro Adresse: Auf vertretbar.net und what-a-benger.net meldet man sich jeweils separat an, mit denselben Zugangsdaten.',
-        'Die Community-Edition von BenGER (Open Source) enthält nur die Expertenplattform. Vertretbar ist Teil der erweiterten Edition.',
+        'Die Anmeldung gilt pro Adresse: Auf der eigenen Adresse der Lernoberfläche und auf what-a-benger.net meldet man sich jeweils separat an, mit denselben Zugangsdaten.',
+        'Die Community-Edition von BenGER (Open Source) enthält nur die Expertenplattform. Die Lernoberfläche ist Teil der erweiterten Edition.',
       ],
       en: [
-        'Login is per address: you sign in separately on vertretbar.net and what-a-benger.net, with the same credentials.',
-        'The open-source community edition of BenGER contains only the expert platform. Vertretbar is part of the extended edition.',
+        'Login is per address: you sign in separately on the student interface’s own address and on what-a-benger.net, with the same credentials.',
+        'The open-source community edition of BenGER contains only the expert platform. The student interface is part of the extended edition.',
       ],
     },
     links: [
@@ -44,20 +44,26 @@ export const START_GUIDES: HowToGuide[] = [
         },
         href: '/how-to#share-with-students',
       },
+      {
+        label: {
+          de: 'API-Schlüssel und wer zahlt',
+          en: 'API keys and who pays',
+        },
+        href: '/how-to#api-keys',
+      },
     ],
     keywords: {
       de: [
-        'Vertretbar',
+        'Lernoberfläche',
         'Lernbereich',
         'Studierendenansicht',
         'Expertenansicht',
         'Unterschied',
         'Ansicht wechseln',
-        'vertretbar.net',
         'what-a-benger.net',
       ],
       en: [
-        'Vertretbar',
+        'student interface',
         'student platform',
         'expert platform',
         'difference',

@@ -520,6 +520,12 @@ class ProjectOrganization(Base):
     # a group of its own org.
     group_id = Column(String, nullable=True, index=True)
     assigned_by = Column(String, ForeignKey("users.id"), nullable=False)
+    # How the attachment came about: 'manual' (project create, visibility
+    # settings, import) or 'lti' (linking the exam to an LMS activity of a
+    # connection of this org). Migration 106.
+    attached_via = Column(
+        String(16), nullable=False, default="manual", server_default="manual"
+    )
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -550,6 +556,10 @@ class ProjectOrganization(Base):
             ["organization_id", "group_id"],
             ["organization_groups.organization_id", "organization_groups.id"],
             name="fk_project_organizations_group_scope",
+        ),
+        sa.CheckConstraint(
+            "attached_via IN ('manual', 'lti')",
+            name="ck_project_organizations_attached_via",
         ),
     )
 

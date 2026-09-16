@@ -109,8 +109,11 @@ class TestExtensionLoader:
         # 2.19 adds the attempted access tier (TIER_ATTEMPTED,
         # user_attempted_project / get_attempted_project_ids, the tier= kwarg
         # of enforce_project_read_window) the extended student reads honour.
+        # 2.20 adds the LMS self-service schema (migrations 105/106),
+        # public_hosts / user_display / auth_module.org_scope, the five LTI
+        # API hooks and the 4-tuple grading dispatch policy with block runs.
         # The full per-version log lives in services/shared/core_version.py.
-        assert CORE_API_VERSION == "2.19"
+        assert CORE_API_VERSION == "2.20"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
@@ -125,3 +128,179 @@ class TestExtensionLoader:
 
         assert tasks_with_evaluation_for_user(None, "p", "u", ["t1"]) == set()
         assert tasks_with_evaluation_for_user(None, "p", "u", []) == set()
+
+
+class _FakeExtended:
+    """Stand-in for a loaded benger_extended package with given hooks."""
+
+    COMPATIBLE_CORE_VERSIONS = ["2.20"]
+
+    def __init__(self, hooks):
+        self._hooks = hooks
+
+    def get_hooks(self):
+        return self._hooks
+
+
+def _boom(*args, **kwargs):
+    raise RuntimeError("hook exploded")
+
+
+class TestLtiHooksWithoutPackage:
+    """Community edition: every LMS hook answers with its safe default."""
+
+    def test_dispatch_lti_grade_sync_returns_false(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.dispatch_lti_grade_sync("sync-1") is False
+
+    def test_privacy_protected_member_ids_is_empty(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.privacy_protected_member_ids(None, "org-1", ["u1"]) == set()
+        assert extensions.privacy_protected_member_ids(None, None, []) == set()
+
+    def test_project_real_name_viewer_is_false(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.project_real_name_viewer(None, object(), "p1") is False
+
+    def test_lti_anonymization_policy_has_no_rules(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.lti_anonymization_policy(None, "u1") == {
+            "implicit_org_ids": set(),
+            "blockers": [],
+        }
+
+    def test_no_protected_orgs(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.lti_protected_org_ids(None) == set()
+        assert extensions.is_lti_protected_org(None, "org-1") is False
+
+    def test_package_without_the_hooks_behaves_like_community(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", _FakeExtended({}))
+        assert extensions.dispatch_lti_grade_sync("sync-1") is False
+        assert extensions.privacy_protected_member_ids(None, "o", ["u1"]) == set()
+        assert extensions.project_real_name_viewer(None, object(), "p1") is False
+        assert extensions.lti_anonymization_policy(None, "u1")["blockers"] == []
+        assert extensions.is_lti_protected_org(None, "org-1") is False
+
+
+class TestLtiHooksWithPackage:
+    def test_hooks_receive_arguments_and_results_are_normalized(self, monkeypatch):
+        import extensions
+
+        calls = {}
+
+        def dispatch(sync_id):
+            calls["dispatch"] = sync_id
+            return 1
+
+        def protected(db, org_id, user_ids):
+            calls["protected"] = (db, org_id, list(user_ids))
+            # A foreign id in the answer must never widen the result.
+            return ["u2", "stranger"]
+
+        def viewer(db, user, project_id):
+            calls["viewer"] = (db, user, project_id)
+            return "yes"
+
+        def policy(db, user_id):
+            calls["policy"] = (db, user_id)
+            return {"implicit_org_ids": ["org-v"], "blockers": ("has_payment_records",)}
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended(
+                {
+                    "dispatch_lti_grade_sync": dispatch,
+                    "privacy_protected_member_ids": protected,
+                    "project_real_name_viewer": viewer,
+                    "lti_anonymization_policy": policy,
+                    "lti_protected_org_ids": lambda db: ["org-v"],
+                }
+            ),
+        )
+        db, user = object(), object()
+
+        assert extensions.dispatch_lti_grade_sync("sync-9") is True
+        assert calls["dispatch"] == "sync-9"
+
+        assert extensions.privacy_protected_member_ids(db, "org-1", ["u2", "u1", "u2"]) == {"u2"}
+        assert calls["protected"] == (db, "org-1", ["u1", "u2"])
+
+        assert extensions.project_real_name_viewer(db, user, "p1") is True
+        assert calls["viewer"] == (db, user, "p1")
+
+        assert extensions.lti_anonymization_policy(db, "u1") == {
+            "implicit_org_ids": {"org-v"},
+            "blockers": ["has_payment_records"],
+        }
+        assert calls["policy"] == (db, "u1")
+
+        assert extensions.lti_protected_org_ids(db) == {"org-v"}
+        assert extensions.is_lti_protected_org(db, "org-v") is True
+        assert extensions.is_lti_protected_org(db, "org-u") is False
+        assert extensions.is_lti_protected_org(db, None) is False
+
+    def test_empty_member_list_skips_the_hook(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"privacy_protected_member_ids": _boom}),
+        )
+        assert extensions.privacy_protected_member_ids(None, "org-1", []) == set()
+
+    def test_failing_hooks_are_logged_and_fail_safe(self, monkeypatch):
+        from unittest.mock import MagicMock
+
+        import extensions
+
+        logger = MagicMock()
+        monkeypatch.setattr(extensions, "logger", logger)
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended(
+                {
+                    "dispatch_lti_grade_sync": _boom,
+                    "privacy_protected_member_ids": _boom,
+                    "project_real_name_viewer": _boom,
+                    "lti_anonymization_policy": _boom,
+                    "lti_protected_org_ids": _boom,
+                }
+            ),
+        )
+        # Nothing is dispatched; the sweep picks the row up later.
+        assert extensions.dispatch_lti_grade_sync("sync-1") is False
+        # Privacy fails closed: every asked-about member stays masked, and
+        # no org admin may unmask anyone.
+        assert extensions.privacy_protected_member_ids(None, None, ["u1", "u2"]) == {
+            "u1",
+            "u2",
+        }
+        assert extensions.privacy_protected_member_ids(None, "o", ["u1", "u2"]) == set()
+        assert extensions.project_real_name_viewer(None, object(), "p1") is False
+        # Anonymization is blocked while the policy cannot be checked.
+        assert extensions.lti_anonymization_policy(None, "u1") == {
+            "implicit_org_ids": set(),
+            "blockers": ["policy_unavailable"],
+        }
+        assert extensions.lti_protected_org_ids(None) == set()
+        # The access gate fails closed.
+        assert extensions.is_lti_protected_org(None, "org-1") is True
+        # Every failure was logged, none was raised.
+        assert logger.exception.call_count == 7

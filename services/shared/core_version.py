@@ -85,11 +85,40 @@ whenever one is added, renamed or removed):
   ``enforce_project_read_window(_async)`` (attempted exempt). The extended
   student list/detail, own-review and Korrektur reads honour it; the timer
   and flashcard writes refuse it.
+- 2.20: LMS connections run by org admins (first cut, refined as the
+  release lands).
+  Schema: migration 105 (``tool_host`` on registrations and invites;
+  ``lti_user_links.research_consent_at`` / ``link_method`` / ``unlinked_at``;
+  ``lti_resource_links.ai_lineitem_*``; ``lti_grade_syncs.kind`` /
+  ``last_synced_source`` / ``last_checked_at`` with ``uq_lti_grade_sync`` on
+  (resource_link_id, user_id, kind); the new ``lti_resource_link_users``
+  and ``lti_admin_events`` tables) and migration 106
+  (``task_evaluations.updated_at``, ``users.anonymized_at``,
+  ``ix_users_email_lower``, the ``lti_claim`` email state of provisioned
+  accounts, ``project_organizations.attached_via``); the activation and
+  password-reset confirm paths verify an unproven routable address
+  (``account_activation.verify_email_by_link``). Modules: ``public_hosts``
+  (tool host key to base URL), ``user_display`` (real name or pseudonym label),
+  ``auth_module.org_scope`` (``OrgAdminScope``, ``require_scope_admin`` and
+  its sync twin). API hooks the extended ``get_hooks()`` registers:
+  ``dispatch_lti_grade_sync``, ``privacy_protected_member_ids``,
+  ``project_real_name_viewer``, ``lti_anonymization_policy``,
+  ``lti_protected_org_ids``. Billing contract: the grading dispatch policy
+  may return a 4-tuple ``(org_id, configs, authorized, block)``; a block
+  marks the immediate run failed via
+  ``_mark_immediate_run_failed(extra_metadata=)`` and runs no judge; the
+  shared ``immediate_eval_dispatch.record_blocked_immediate_run`` /
+  ``latest_blocked_run`` keep one blocked run per annotation, and the
+  submit, endpoint and sweep paths consult the optional worker hook
+  ``benger_extended.workers.get_grading_block_fn``. Like
+  ``get_grading_dispatch_policy_fn`` that hook is NOT in ``get_hooks()``:
+  the workers never load ``extensions.py``, and the handshake test only
+  scans that file.
 """
 
 import os
 
-CORE_API_VERSION = "2.19"
+CORE_API_VERSION = "2.20"
 
 
 def extended_required() -> bool:

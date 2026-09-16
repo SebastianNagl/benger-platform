@@ -7,12 +7,20 @@
  * Run:
  *   LTI_E2E=1 npx playwright test e2e/lti/org-lti-admin.spec.ts --reporter=line
  *
- * Journey (serial): open the org page as superadmin → the Moodle button
- * shows "nicht verbunden" for a fresh org → create a registration through
- * the panel (no org field — it is pinned to the selected org) → badge flips
- * to "aktiv" → disable via the fail-closed toggle (confirm step) → badge
- * "deaktiviert" → re-enable. The panel has no delete (by design), so
- * afterAll removes the E2E rows via psql (cascade covers deployments).
+ * Entry point: the organizations toolbar mounts the slot with `hideTrigger`
+ * and opens it from its "Mehr" menu (`org-more-button` → `org-lti-button`).
+ * The slot's own trigger and status badge (`lti-org-open`,
+ * `lti-org-status`) therefore never render on this page; the connection
+ * state is read from the panel itself (empty state, the per-registration
+ * switch's `aria-checked`) and cross-checked through the admin API.
+ *
+ * Journey (serial): open the org page as superadmin → the panel shows the
+ * empty state for a fresh org → create a registration through the panel (no
+ * org field — it is pinned to the selected org) → its switch is on and the
+ * API reports "active" → disable via the fail-closed toggle (confirm step) →
+ * switch off, API "disabled" → re-enable. The panel has no delete (by
+ * design), so afterAll removes the E2E rows via psql (cascade covers
+ * deployments).
  */
 import { BrowserContext, expect, Page, test } from '@playwright/test'
 
@@ -53,11 +61,32 @@ test.describe('Org LTI panel @extended', () => {
       .click()
   }
 
+  /** Open the panel through the toolbar's "Mehr" menu and wait for its
+   *  registrations to load (the "new" button renders only after loading). */
   const openPanel = async () => {
     await gotoOrgTab()
-    const trigger = page.getByTestId('lti-org-open')
-    await expect(trigger).toBeVisible({ timeout: 20_000 })
-    await trigger.click()
+    const more = page.getByTestId('org-more-button')
+    await expect(more).toBeVisible({ timeout: 20_000 })
+    await more.click()
+    await page.getByTestId('org-lti-button').click()
+    await expect(page.getByTestId('lti-org-close')).toBeVisible()
+    await expect(page.getByTestId('lti-org-new')).toBeVisible({
+      timeout: 20_000,
+    })
+  }
+
+  /** The registration's enable/disable switch (role="switch"). */
+  const registrationSwitch = () =>
+    page.getByTestId(`lti-org-toggle-${registrationId}`)
+
+  /** The registration's status as the admin API reports it. */
+  const apiStatus = async () => {
+    const rows = await (
+      await page.request.get(
+        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
+      )
+    ).json()
+    return rows.find((r: { id: string }) => r.id === registrationId)?.status
   }
 
   test.beforeAll(async ({ browser }) => {
@@ -107,14 +136,13 @@ test.describe('Org LTI panel @extended', () => {
     await context?.close()
   })
 
-  test('shows "nicht verbunden" for an org without registrations', async () => {
-    await gotoOrgTab()
+  test('shows the empty state for an org without registrations', async () => {
+    await openPanel()
 
-    const trigger = page.getByTestId('lti-org-open')
-    await expect(trigger).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByTestId('lti-org-status')).toContainText(
-      'nicht verbunden',
+    await expect(page.getByRole('dialog')).toContainText(
+      /noch mit keiner Lernplattform verbunden|not connected to any learning platform/,
     )
+    await expect(page.locator('[data-testid^="lti-org-reg-"]')).toHaveCount(0)
   })
 
   test('creates a registration pinned to the selected org (no org field)', async () => {
@@ -145,7 +173,7 @@ test.describe('Org LTI panel @extended', () => {
         .filter({ hasText: clientId }),
     ).toBeVisible({ timeout: 20_000 })
 
-    // ...bound to OUR org (API cross-check), and the badge flips to aktiv.
+    // ...bound to OUR org (API cross-check) and active right away.
     const registrations = await (
       await page.request.get(
         `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
@@ -157,44 +185,41 @@ test.describe('Org LTI panel @extended', () => {
     )
     expect(mine, 'registration listed under the panel org').toBeTruthy()
     expect(mine.organization_id).toBe(organizationId)
+    expect(mine.status).toBe('active')
     registrationId = mine.id
 
-    await expect(page.getByTestId('lti-org-status')).toContainText('aktiv')
+    // The card's switch reflects the active connection.
+    await expect(registrationSwitch()).toHaveAttribute('aria-checked', 'true')
   })
 
   test('disable toggle is fail-closed behind a confirm step', async () => {
-    const toggle = page.getByTestId(`lti-org-toggle-${registrationId}`)
+    const toggle = registrationSwitch()
     await toggle.click()
 
     // Nothing changes until the confirm step is answered.
     const confirm = page.getByTestId(`lti-org-confirm-${registrationId}`)
     await expect(confirm).toBeVisible()
     await page.getByTestId(`lti-org-confirm-no-${registrationId}`).click()
-    await expect(page.getByTestId('lti-org-status')).toContainText('aktiv')
+    await expect(confirm).toHaveCount(0)
+    await expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(await apiStatus()).toBe('active')
 
-    // Confirmed disable flips the badge and persists.
+    // Confirmed disable flips the switch and persists.
     await toggle.click()
     await page.getByTestId(`lti-org-confirm-yes-${registrationId}`).click()
-    await expect(page.getByTestId('lti-org-status')).toContainText(
-      'deaktiviert',
-      { timeout: 10_000 },
-    )
-
-    const after = await (
-      await page.request.get(
-        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
-      )
-    ).json()
-    expect(
-      after.find((r: { id: string }) => r.id === registrationId)?.status,
-    ).toBe('disabled')
+    await expect(toggle).toHaveAttribute('aria-checked', 'false', {
+      timeout: 10_000,
+    })
+    expect(await apiStatus()).toBe('disabled')
   })
 
   test('re-enable restores the connection', async () => {
-    await page.getByTestId(`lti-org-toggle-${registrationId}`).click()
+    const toggle = registrationSwitch()
+    await toggle.click()
     await page.getByTestId(`lti-org-confirm-yes-${registrationId}`).click()
-    await expect(page.getByTestId('lti-org-status')).toContainText('aktiv', {
+    await expect(toggle).toHaveAttribute('aria-checked', 'true', {
       timeout: 10_000,
     })
+    expect(await apiStatus()).toBe('active')
   })
 })

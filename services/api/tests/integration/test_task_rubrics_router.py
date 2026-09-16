@@ -562,3 +562,107 @@ class TestActivateArchiveList:
         assert row["id"] == legacy.id
         assert row["structure"] is None and row["grade_scale"] is None
         assert row["total_points"] == 100.0
+
+
+# ---------------------------------------------------------------------------
+# read access on org exams (rubric leak)
+# ---------------------------------------------------------------------------
+
+
+async def _make_org_exam(db, owner, *members):
+    """A NON-private exam attached org-wide; members are (user, role)."""
+    from models import Organization, OrganizationMembership
+    from project_models import ProjectOrganization
+
+    slug = f"tr-org-{uuid.uuid4().hex[:8]}"
+    org = Organization(id=str(uuid.uuid4()), name=slug, display_name=slug, slug=slug)
+    db.add(org)
+    await db.flush()
+    for user, role in ((owner, "CONTRIBUTOR"), *members):
+        db.add(
+            OrganizationMembership(
+                id=str(uuid.uuid4()), user_id=user.id, organization_id=org.id,
+                role=role, is_active=True,
+            )
+        )
+    project = Project(
+        id=str(uuid.uuid4()),
+        title="Org-Übungsklausur",
+        created_by=owner.id,
+        is_private=False,
+        kind="exam",
+        label_config=(
+            '<View><Text name="sachverhalt" value="$sachverhalt"/>'
+            '<TextArea name="loesung" toName="sachverhalt"/></View>'
+        ),
+    )
+    db.add(project)
+    await db.flush()
+    db.add(
+        ProjectOrganization(
+            id=str(uuid.uuid4()), project_id=project.id,
+            organization_id=org.id, assigned_by=owner.id,
+        )
+    )
+    await db.flush()
+    return org, project
+
+
+class TestReadAccessOnOrgExams:
+    @pytest.mark.asyncio
+    async def test_org_annotator_403_creator_and_contributor_200(self, async_test_client, async_test_db):
+        db = async_test_db
+        owner = await _make_user(db)
+        student = await _make_user(db)
+        colleague = await _make_user(db)
+        org, project = await _make_org_exam(
+            db, owner, (student, "ANNOTATOR"), (colleague, "CONTRIBUTOR")
+        )
+        task = await _make_task(db, project)
+        rubric = await _seed_rubric(db, project, task, status="active")
+        await db.commit()
+
+        list_path = f"/api/projects/{project.id}/task-rubrics"
+        get_path = f"{list_path}/{rubric.id}"
+        with_org = {"X-Organization-Context": org.id}
+
+        # The org student gets neither the list nor the single sheet, with
+        # the org context header (the leak) or without it (legacy mode).
+        with _as_user(student):
+            for headers in (with_org, {}):
+                for path in (list_path, get_path):
+                    resp = await async_test_client.get(path, headers=headers)
+                    assert resp.status_code == 403, (path, headers, resp.text[:200])
+                    assert "criteria" not in resp.text
+
+        # Author and org colleague read the sheet in both modes.
+        for reader in (owner, colleague):
+            with _as_user(reader):
+                for headers in (with_org, {}):
+                    listed = await async_test_client.get(list_path, headers=headers)
+                    assert listed.status_code == 200, listed.text
+                    assert [row["id"] for row in listed.json()] == [rubric.id]
+                    assert listed.json()[0]["criteria"]
+                    single = await async_test_client.get(get_path, headers=headers)
+                    assert single.status_code == 200, single.text
+                    assert single.json()["id"] == rubric.id
+
+    @pytest.mark.asyncio
+    async def test_org_annotator_cannot_read_exam_evaluation_config(self, async_test_client, async_test_db):
+        db = async_test_db
+        owner = await _make_user(db)
+        student = await _make_user(db)
+        org, project = await _make_org_exam(db, owner, (student, "ANNOTATOR"))
+        await _make_task(db, project)
+        await db.commit()
+
+        path = f"/api/evaluations/projects/{project.id}/evaluation-config"
+        with _as_user(student):
+            for headers in ({"X-Organization-Context": org.id}, {}):
+                resp = await async_test_client.get(path, headers=headers)
+                assert resp.status_code == 403, (headers, resp.text[:200])
+        with _as_user(owner):
+            resp = await async_test_client.get(
+                path, headers={"X-Organization-Context": org.id}
+            )
+        assert resp.status_code == 200, resp.text

@@ -42,7 +42,8 @@ def _as_user(db_user):
 
 
 def _make_user(db, *, email=None, hashed_password=None, password_set=False,
-               token=None, expires=None, pending=None):
+               token=None, expires=None, pending=None, email_verified=True,
+               verification_method=None):
     suffix = uuid.uuid4().hex[:10]
     u = User(
         id=f"act-{suffix}",
@@ -56,7 +57,8 @@ def _make_user(db, *, email=None, hashed_password=None, password_set=False,
         pending_activation_email=pending,
         is_superadmin=False,
         is_active=True,
-        email_verified=True,
+        email_verified=email_verified,
+        email_verification_method=verification_method,
         created_at=datetime.now(timezone.utc),
     )
     db.add(u)
@@ -292,3 +294,160 @@ class TestResetFlowPasswordSetRegression:
         test_db.refresh(user)
         assert user.password_set is True
         assert user.hashed_password is not None
+
+
+_PASSWORD = "NeuesPasswort1!"
+
+
+def _lms_claim_user(db, **overrides):
+    """A passwordless account whose address came from an LMS and is not
+    proven yet (migration 106 backfill / Phase 3 provisioning shape)."""
+    token = f"tok-{uuid.uuid4().hex}"
+    fields = dict(
+        email=f"lms-{uuid.uuid4().hex[:8]}@uni-x.de",
+        token=token,
+        expires=datetime.now(timezone.utc) + timedelta(days=1),
+        email_verified=False,
+        verification_method="lti_claim",
+    )
+    fields.update(overrides)
+    return _make_user(db, **fields), fields["token"]
+
+
+async def _login(async_client, user):
+    return await async_client.post(
+        "/api/auth/login",
+        json={"username": user.username, "password": _PASSWORD},
+    )
+
+
+class TestLinkUseVerifiesUnprovenEmail:
+    """Login refuses unverified accounts, so an LMS-supplied address must
+    become verified when the link mailed to it is used. Otherwise a student
+    who activates their account can never sign in."""
+
+    async def test_activation_verifies_lms_claim_email_and_login_works(
+        self, async_client, test_db
+    ):
+        user, token = _lms_claim_user(test_db)
+        refused = await async_client.post(
+            "/api/auth/login",
+            json={"username": user.username, "password": "wrong"},
+        )
+        assert refused.status_code == 401
+
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is True
+        assert user.email_verification_method == "activation"
+        assert user.email_verified_at is not None
+        login = await _login(async_client, user)
+        assert login.status_code == 200, login.text
+
+    async def test_reset_password_verifies_lms_claim_email_and_login_works(
+        self, async_client, test_db
+    ):
+        user, token = _lms_claim_user(test_db)
+
+        r = await async_client.post(
+            "/api/auth/reset-password",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is True
+        assert user.email_verification_method == "self"
+        login = await _login(async_client, user)
+        assert login.status_code == 200, login.text
+
+    async def test_reset_does_not_verify_while_a_pending_address_is_parked(
+        self, async_client, test_db
+    ):
+        """With a parked address the link went there, not to user.email."""
+        user, token = _lms_claim_user(test_db, pending="parked@uni-y.de")
+
+        r = await async_client.post(
+            "/api/auth/reset-password",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is False
+        assert user.email_verification_method == "lti_claim"
+        login = await _login(async_client, user)
+        assert login.status_code == 403
+
+    async def test_unroutable_address_is_never_verified(
+        self, async_client, test_db
+    ):
+        user, token = _lms_claim_user(
+            test_db, email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid"
+        )
+
+        r = await async_client.post(
+            "/api/auth/reset-password",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is False
+
+    async def test_already_verified_method_is_kept(self, async_client, test_db):
+        user, token = _lms_claim_user(
+            test_db, email_verified=True, verification_method="admin"
+        )
+
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verification_method == "admin"
+
+
+class TestProfileEmailChangeDropsMailedLinks:
+    async def test_email_change_clears_reset_token(self, test_db):
+        """A reset or activation link sent to the old address must not
+        verify the new one."""
+        from auth_module.user_service import update_user_profile
+
+        user, token = _lms_claim_user(test_db, email_verified=True)
+
+        update_user_profile(
+            test_db, user.id, email=f"new-{uuid.uuid4().hex[:6]}@uni-x.de"
+        )
+
+        test_db.refresh(user)
+        assert user.password_reset_token is None
+        assert user.password_reset_expires is None
+        assert user.email_verified is False

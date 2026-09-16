@@ -275,3 +275,133 @@ class TestFinalizeHook:
             result = _run(db, _configs())
 
         assert result["status"] == "completed"
+
+
+class _AddedRunDB(_HookDispatchDB):
+    """After the pre-created lookups are used up, EvaluationRun queries
+    return the run the task added, so the failure path sees the real row."""
+
+    def query(self, model):
+        if getattr(model, "__name__", "") == "EvaluationRun" and not self._eval_run_first:
+            q = MagicMock()
+            added = [o for o in self.added if type(o).__name__ == "EvaluationRun"]
+            q.filter.return_value.first.return_value = added[-1] if added else None
+            return q
+        return super().query(model)
+
+
+def _blocking_db():
+    return _AddedRunDB(
+        project_row=types.SimpleNamespace(
+            id="p1", label_config_version=1, evaluation_config={}
+        ),
+        eval_run_first=[None],
+        judge_model_row=types.SimpleNamespace(
+            id="gpt-5-mini", recommended_parameters=None
+        ),
+    )
+
+
+class TestPolicyBlock:
+    def test_four_tuple_without_block_proceeds_with_policy_values(self):
+        """A 4-tuple whose block is None grades normally: the policy's org and
+        consumer-billing authorization reach the job."""
+
+        def policy(db, **kwargs):
+            return "org-lms", kwargs["configs"], True, None
+
+        captured = []
+        db = _fresh_db()
+        with patch.dict(sys.modules, _fake_extended(policy_fn=policy)):
+            result = _run(db, _configs(), captured)
+
+        assert result["status"] == "completed"
+        assert len(captured) == 1
+        assert captured[0]["organization_id"] == "org-lms"
+        assert captured[0]["org_billing_authorized"] is True
+
+    def test_three_tuple_still_carries_the_authorization(self):
+        def policy(db, **kwargs):
+            return "org-pays", kwargs["configs"], 1
+
+        captured = []
+        db = _fresh_db()
+        with patch.dict(sys.modules, _fake_extended(policy_fn=policy)):
+            result = _run(db, _configs(), captured)
+
+        assert result["status"] == "completed"
+        assert captured[0]["organization_id"] == "org-pays"
+        assert captured[0]["org_billing_authorized"] is True
+
+    def test_block_marks_run_failed_and_runs_no_judge(self):
+        """A block fails the run with the reason in its metadata, builds no
+        judge run and no job, and settles the grading as unsuccessful."""
+        block = {
+            "code": "lti_org_unfunded",
+            "reason": "org_key_missing",
+            "org_id": "org-lms",
+            "missing_providers": ["openai"],
+        }
+
+        def policy(db, **kwargs):
+            return "org-lms", kwargs["configs"], False, block
+
+        captured, finalized = [], []
+        db = _blocking_db()
+        with patch.dict(
+            sys.modules,
+            _fake_extended(
+                policy_fn=policy,
+                finalize_fn=lambda rid, ok: finalized.append((rid, ok)),
+            ),
+        ):
+            result = _run(db, _configs(), captured)
+
+        assert result == {
+            "status": "blocked",
+            "evaluation_record_id": "eval-hook-1",
+            "block": block,
+        }
+        assert captured == []
+        assert not [o for o in db.added if type(o).__name__ == "EvaluationJudgeRun"]
+        run = next(o for o in db.added if type(o).__name__ == "EvaluationRun")
+        assert run.status == "failed"
+        assert run.eval_metadata["error"] == "billing_blocked:org_key_missing"
+        stamped = run.eval_metadata["billing_block"]
+        assert {k: stamped[k] for k in block} == block
+        assert stamped["checked_at"]
+        # The expected-config list written before the policy ran is kept.
+        assert run.eval_metadata["evaluation_type"] == "immediate"
+        assert finalized == [("eval-hook-1", False)]
+
+    def test_block_given_as_reason_string_is_normalized(self):
+        def policy(db, **kwargs):
+            return None, kwargs["configs"], False, "org_not_paying"
+
+        captured = []
+        db = _blocking_db()
+        with patch.dict(sys.modules, _fake_extended(policy_fn=policy)):
+            result = _run(db, _configs(), captured)
+
+        assert result["status"] == "blocked"
+        assert result["block"] == {"reason": "org_not_paying"}
+        assert captured == []
+        run = next(o for o in db.added if type(o).__name__ == "EvaluationRun")
+        assert run.status == "failed"
+        assert run.eval_metadata["billing_block"]["reason"] == "org_not_paying"
+
+    def test_unexpected_policy_shape_keeps_dispatched_values(self):
+        """A 5-tuple is not a contract shape: it is logged and ignored, like a
+        crashing policy, and the grading runs as dispatched."""
+
+        def policy(db, **kwargs):
+            return "org-x", [], True, {"reason": "x"}, "extra"
+
+        captured = []
+        db = _fresh_db()
+        with patch.dict(sys.modules, _fake_extended(policy_fn=policy)):
+            result = _run(db, _configs(), captured)
+
+        assert result["status"] == "completed"
+        assert captured[0]["organization_id"] is None
+        assert captured[0]["org_billing_authorized"] is False
