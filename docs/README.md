@@ -6,7 +6,7 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 
 ### Getting Started
 - [**Quick Start Guide**](../README.md#-quick-start) - Get BenGER running in 5 minutes
-- [**Installation Guide**](./setup/deployment/DEPLOYMENT_GUIDE.md) - Detailed setup instructions
+- [**Installation Guide**](./setup/deployment/DEPLOYMENT.md) - Detailed setup instructions
 - [**First Steps Tutorial**](./user-guides/README.md) - Your first annotation project
 
 ### User Documentation
@@ -16,18 +16,18 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 - [**Data Import/Export**](./user-guides/data-import-export.md) - Working with data
 - [**Data Formats**](./user-guides/data-formats.md) - Supported file formats
 - [**Native Annotation System**](./user-guides/native-annotation-system.md) - Full annotation features
+- [**LMS Integration (LTI 1.3)**](./lms-integration.md) - Moodle and ILIAS: registration, grade passback, data protection
 
 ### Developer Documentation
 - [**Development Setup**](./development/README.md) - Development environment
 - [**Testing Guide**](./development/TESTING.md) - Complete testing documentation
 - [**Migration Management**](./development/MIGRATION_MANAGEMENT.md) - Database migrations
-- [**API Documentation**](./api-docs/README.md) - API reference
+- [**API Documentation**](../README.md#quick-start) - Interactive OpenAPI schema at `/docs` on the running API; topic docs in [`api-docs/`](./api-docs/)
 
 ### Setup & Configuration
 - [**Authentication Setup**](./setup/authentication.md) - Auth configuration
-- [**Email Configuration**](./setup/email.md) - Email service setup
-- [**GitHub Secrets**](./setup/GITHUB_SECRETS_SETUP.md) - CI/CD secrets
-- [**Deployment Guide**](./setup/deployment/DEPLOYMENT_GUIDE.md) - Production deployment
+- [**Email Configuration**](./setup/environment-variables.md) - Email service settings (see the SendGrid section)
+- [**Deployment Guide**](./setup/deployment/DEPLOYMENT.md) - Production deployment
 
 ### Troubleshooting
 - [**Common Issues**](./TROUBLESHOOTING.md) - Troubleshooting guide
@@ -82,12 +82,12 @@ docs/
 ### By Role
 - **Annotator**: Start with [User Guide](./user-guides/README.md)
 - **Administrator**: See [Admin Guide](./user-guides/admin-guide.md)
-- **Developer**: Check [Development Setup](./development/README.md) and [API Docs](./api-docs/README.md)
-- **DevOps**: Read [Deployment Guide](./DEPLOYMENT_GUIDE.md)
+- **Developer**: Check [Development Setup](./development/README.md) and [API topic docs](./api-docs/)
+- **DevOps**: Read [Deployment Guide](./setup/deployment/DEPLOYMENT.md)
 
 ### By Task
 - **Set up development**: [Development Setup](./development/README.md)
-- **Deploy to production**: [Deployment Guide](./DEPLOYMENT_GUIDE.md)
+- **Deploy to production**: [Deployment Guide](./setup/deployment/DEPLOYMENT.md)
 - **Import data**: [Data Import/Export](./user-guides/data-import-export.md)
 - **Debug issues**: [Troubleshooting](./TROUBLESHOOTING.md)
 

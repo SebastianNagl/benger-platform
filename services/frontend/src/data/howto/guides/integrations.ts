@@ -46,6 +46,20 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         },
         href: '/how-to#lti-teacher',
       },
+      {
+        label: {
+          de: 'Datenschutz bei der Anbindung',
+          en: 'Data protection for the integration',
+        },
+        href: '/how-to#lti-privacy',
+      },
+      {
+        label: {
+          de: 'Technische Referenz für Ihre IT (LTI 1.3)',
+          en: 'Technical reference for your IT (LTI 1.3)',
+        },
+        href: 'https://github.com/SebastianNagl/benger-platform/blob/main/docs/lms-integration.md',
+      },
     ],
     keywords: {
       de: [
@@ -106,6 +120,22 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Exams with a custom rubric (custom judge) cannot return grades yet.',
       ],
     },
+    links: [
+      {
+        label: {
+          de: 'Anbindung einrichten (LTI)',
+          en: 'Setting up the integration (LTI)',
+        },
+        href: '/how-to#lti-setup',
+      },
+      {
+        label: {
+          de: 'Technische Referenz für Ihre IT (LTI 1.3)',
+          en: 'Technical reference for your IT (LTI 1.3)',
+        },
+        href: 'https://github.com/SebastianNagl/benger-platform/blob/main/docs/lms-integration.md',
+      },
+    ],
     keywords: {
       de: [
         'Aktivität verknüpfen',
@@ -116,6 +146,99 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Notenbuch',
       ],
       en: ['link activity', 'grade sync', 'moodle course', 'gradebook'],
+    },
+  },
+  {
+    id: 'lti-privacy',
+    category: 'integrations',
+    title: {
+      de: 'Was muss ich zum Datenschutz der Lernplattform-Anbindung wissen?',
+      en: 'What do I need to know about data protection for the LMS integration?',
+    },
+    summary: {
+      de: 'Die Anbindung ist **datensparsam ausgelegt**: Ein Studierenden-Start benötigt nur die pseudonyme Kennung der Lernplattform, weder Name noch E-Mail. Gehostet wird in **Deutschland**, die Einwilligung wird vor der ersten Verarbeitung in der Anwendung eingeholt, Noten fließen ausschließlich in Ihre eigene Lernplattform, und die KI-Note ist immer durch eine menschliche Korrektur überschreibbar. Wir sind Auftragsverarbeiter und erfüllen die Anforderungen Ihrer Datenschutzstelle. Sagen Sie uns bitte konkret, was Sie brauchen.',
+      en: 'The integration is **built for data minimisation**: a student launch needs only the pseudonymous identifier from the learning platform, neither name nor email. Hosting is in **Germany**, consent is captured in-product before any processing, grades flow only into your own learning platform, and the AI grade is always overridable by a human correction. We act as processor and will meet the requirements your data protection office sets. Please tell us specifically what you need.',
+    },
+    steps: {
+      de: [
+        '**Umfang der Datenübermittlung festlegen**: Standard ist pseudonym (nur die Kennung `sub`). Das ist der kürzeste Prüfweg. Nur wenn Sie Name und E-Mail übermitteln wollen, ändert sich die Verarbeitungsbeschreibung auf beiden Seiten.',
+        '**Anforderungen nennen**: AVV nach Ihrer Vorlage oder unserer, TOM-Anlage, Eintrag für Ihr Verarbeitungsverzeichnis, Zuarbeit für eine DSFA, Unterauftragsverarbeiter, Löschfristen. Die vollständige Abfrageliste steht in der technischen Referenz.',
+        '**Vertrag vor Freischaltung**: Wir legen jede Registrierung deaktiviert an und schalten sie erst frei, wenn Sie es sagen. Eine freigeschaltete Anbindung verarbeitet echte Studierendendaten.',
+        '**Ansprechpartner benennen**: je eine Person für die rechtliche Seite (meist Justiziariat oder Datenschutzkoordination, nicht die einzelne Lehrkraft) und für die Moodle- bzw. ILIAS-Administration.',
+      ],
+      en: [
+        '**Decide the claim scope**: the default is pseudonymous (the `sub` identifier only). That is the shortest review path. Only if you want name and email transmitted does the processing description change on both sides.',
+        '**State your requirements**: a data processing agreement on your template or ours, a TOMs annex, an entry for your record of processing, input for a DPIA, subprocessors, retention periods. The full prompt list is in the technical reference.',
+        '**Contract before activation**: we create every registration disabled and enable it only when you say so. An enabled integration processes real student data.',
+        '**Name the contacts**: one for the legal side (usually the legal office or data protection coordination, not the individual teacher) and one for the Moodle or ILIAS administration.',
+      ],
+    },
+    tips: {
+      de: [
+        'Die KI-Korrektur läuft auf dem **API-Schlüssel Ihrer Organisation**, nie auf einem Schlüssel von uns. Sie entscheiden also selbst, welcher Anbieter Lösungstexte verarbeitet, und können ihn in Ihrem Verarbeitungsverzeichnis benennen.',
+        'Es wird kein Kurs-Teilnehmerverzeichnis gelesen: Die Anbindung nutzt nur zwei notenbezogene Berechtigungen und kein Names and Role Provisioning.',
+        'Konten und Noten werden auf Anfrage über die Organisationsadministration gelöscht. Feste Löschfristen halten wir auf Wunsch im Vertrag fest.',
+      ],
+      en: [
+        'AI grading runs on **your organization API key**, never on one of ours. You decide which provider processes solution text and can name it in your own record of processing.',
+        'No course roster is ever read: the integration uses only two grade-related permissions and no Names and Role Provisioning.',
+        'Accounts and grades are deleted on request through the organization administration. We record fixed retention periods in the contract if you want them.',
+      ],
+    },
+    pitfalls: {
+      de: [
+        'Den **Privacy-Modus nach der Inbetriebnahme nicht mehr ändern**. Die Zuordnung von Lernplattform-Kennung zu Konto wird beim ersten Start festgeschrieben; ein späterer Wechsel trennt alle bestehenden Verknüpfungen.',
+        'Für **Lehrende** muss die Lernplattform Name und E-Mail übermitteln, sonst entsteht ein anonymes Konto ohne Klausuren. Für Studierende ist das nicht nötig.',
+        'Ob eine Datenschutz-Folgenabschätzung nötig ist, entscheidet die Hochschule als Verantwortliche. Wir liefern die Verarbeitungsbeschreibung als Zuarbeit.',
+      ],
+      en: [
+        'Do **not change the privacy mode after go-live**. The mapping from platform identifier to account is fixed on the first launch; changing it later detaches every existing link.',
+        'For **teachers** the learning platform must transmit name and email, otherwise an anonymous account without exams is created. Students do not need this.',
+        'Whether a data protection impact assessment is required is decided by the university as controller. We supply the processing description as input.',
+      ],
+    },
+    links: [
+      {
+        label: {
+          de: 'Vollständige Datenschutz- und Technikreferenz',
+          en: 'Full data protection and technical reference',
+        },
+        href: 'https://github.com/SebastianNagl/benger-platform/blob/main/docs/lms-integration.md',
+      },
+      {
+        label: {
+          de: 'Anbindung einrichten (LTI)',
+          en: 'Setting up the integration (LTI)',
+        },
+        href: '/how-to#lti-setup',
+      },
+    ],
+    keywords: {
+      de: [
+        'Datenschutz',
+        'DSGVO',
+        'AVV',
+        'Auftragsverarbeitung',
+        'TOM',
+        'DSFA',
+        'Verarbeitungsverzeichnis',
+        'pseudonym',
+        'Einwilligung',
+        'Hosting',
+        'Löschung',
+      ],
+      en: [
+        'data protection',
+        'gdpr',
+        'dpa',
+        'processor',
+        'dpia',
+        'record of processing',
+        'pseudonymous',
+        'consent',
+        'hosting',
+        'deletion',
+      ],
     },
   },
 ]

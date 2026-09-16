@@ -7,6 +7,22 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-16',
+    audience: 'both',
+    text: {
+      de: 'Die Anleitungen haben eine neue Anleitung zum Datenschutz der Lernplattform-Anbindung (Moodle, ILIAS) und verweisen auf die ausführliche technische Referenz für Hochschul-IT. Außerdem lässt sich die Themenliste links jetzt scrollen, wenn sie länger als das Fenster ist.',
+      en: 'The guides now include one on data protection for the LMS integration (Moodle, ILIAS) and link out to the detailed technical reference for university IT. The topic list on the left can also be scrolled now when it is longer than the window.',
+    },
+  },
+  {
+    date: '2026-09-16',
+    audience: 'both',
+    text: {
+      de: 'Neue Modelle zur Auswahl: GPT-6 Astra, Claude Fable 5.1, Gemini 3.7 und 3.8 Flash, Grok 4.6 sowie Kimi K3, GLM-5.3, DeepSeek V4.1 Flash, Qwen3.8 Flash und Nemotron 3.5 Lightning. Mistral Large steht nicht mehr zur Verfügung, und die Preise mehrerer Modelle wurden korrigiert.',
+      en: 'New models to choose from: GPT-6 Astra, Claude Fable 5.1, Gemini 3.7 and 3.8 Flash, Grok 4.6, plus Kimi K3, GLM-5.3, DeepSeek V4.1 Flash, Qwen3.8 Flash and Nemotron 3.5 Lightning. Mistral Large is no longer available, and the prices of several models were corrected.',
+    },
+  },
+  {
     date: '2026-09-15',
     audience: 'both',
     text: {
