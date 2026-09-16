@@ -109,10 +109,11 @@ export default function HowToPage() {
           className="hidden lg:block"
           data-testid="howto-toc"
         >
-          {/* Bounded height + own scrollbar: the catalog is taller than the
+          {/* Bounded height + own scroll: the catalog is taller than the
               viewport, and a sticky element never scrolls its own overflow —
-              without this the last categories are unreachable. */}
-          <div className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-5 overflow-y-auto overscroll-contain pr-2 text-sm">
+              without this the last categories are unreachable. The
+              scrollbar itself stays hidden. */}
+          <div className="sticky top-24 max-h-[calc(100vh-7rem)] scrollbar-none space-y-5 overflow-y-auto overscroll-contain text-sm">
             {grouped.map(({ cat, guides: catGuides }) => (
               <div key={cat.id}>
                 <a
