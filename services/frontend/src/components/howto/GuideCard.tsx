@@ -106,16 +106,33 @@ export function GuideCard({ guide }: Props) {
 
       {links.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400"
-            >
-              {pick(link.label, locale)}
-              <ArrowTopRightOnSquareIcon className="h-3 w-3" />
-            </Link>
-          ))}
+          {links.map((link) => {
+            const cls =
+              'inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400'
+            const body = (
+              <>
+                {pick(link.label, locale)}
+                <ArrowTopRightOnSquareIcon className="h-3 w-3" />
+              </>
+            )
+            // Off-site hrefs (e.g. the LTI reference on GitHub) open in a new
+            // tab; internal ones stay client-side routed. Same rule as InlineText.
+            return link.href.startsWith('/') ? (
+              <Link key={link.href} href={link.href} className={cls}>
+                {body}
+              </Link>
+            ) : (
+              <a
+                key={link.href}
+                href={link.href}
+                className={cls}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {body}
+              </a>
+            )
+          })}
         </div>
       )}
     </article>

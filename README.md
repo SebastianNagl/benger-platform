@@ -37,6 +37,7 @@ Key capabilities:
 - **LLM execution** — batch execution across OpenAI, Anthropic, Google, Mistral, Cohere, DeepInfra, Zhipu AI
 - **Evaluation** — 40+ metrics: classification, lexical, semantic, factual, LLM-as-a-judge
 - **Multi-organization** — tenant isolation, role-based access (Admin, Contributor, Annotator), invitation onboarding
+- **LMS integration (LTI 1.3)** — launch from a Moodle or ILIAS course, grades returned to the gradebook via AGS. The data model and admin API are in this repository; the protocol implementation ships in the commercial edition. See the [LMS integration guide](docs/lms-integration.md).
 
 ### Quick Start
 
@@ -107,6 +108,7 @@ Test ports (isolated from dev): PostgreSQL 5433, Redis 6380, API 8002, Frontend 
 
 - [User Guide](docs/user-guides/README.md)
 - [Admin Guide](docs/user-guides/admin-guide.md)
+- [LMS Integration (LTI 1.3 — Moodle, ILIAS)](docs/lms-integration.md)
 - [Developer Authentication](docs/setup/developer-auth.md)
 - [Environment Variables](docs/setup/environment-variables.md)
 - [Deployment Guide](docs/setup/deployment/DEPLOYMENT.md)
