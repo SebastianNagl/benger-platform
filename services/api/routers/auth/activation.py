@@ -1,30 +1,34 @@
 """Auth: account activation for passwordless (LTI-provisioned) accounts.
 
-Request side (authed): enqueue the "Konto aktivieren" mail — automatically
-fired variant lives in the LTI provisioning trigger (benger_extended); this
-endpoint is the in-app fallback for sub-only accounts (synthetic
-``@lti.invalid`` address, nothing to mail at provisioning time) and doubles
-as a resend lever. Confirm side (unauthed): the mailed token sets the first
-password; for the fallback path it also adopts + verifies the entered email
-(receiving the mail is the mailbox-ownership proof).
+Request side (authed): enqueue the "Konto aktivieren" mail. The automatic
+variant is queued by the LMS consent step (benger_extended); this endpoint is
+the in-app fallback for sub-only accounts (synthetic ``@lti.invalid``
+address, nothing to mail at provisioning time) and doubles as a resend lever.
+Confirm side (unauthed): the mailed token sets the first password and
+verifies the address the mail went to: the entered (pending) email on the
+fallback path, the account's own LMS-supplied address otherwise. Receiving
+the mail is the mailbox-ownership proof.
 """
 from datetime import datetime, timezone
 
 from fastapi import Request
+from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
-from account_activation import email_is_routable, verify_email_by_link
+from account_activation import email_is_routable, mask_email, verify_email_by_link
 from schemas.auth_schemas import AccountActivateConfirm, AccountActivationRequest
 
 
-def _masked(email: str) -> str:
-    local, _, domain = email.partition("@")
-    if len(local) <= 2:
-        hint = local[:1] + "…"
-    else:
-        hint = local[:2] + "…"
-    return f"{hint}@{domain}"
+def _email_taken_by_other(db, DBUser, email: str, user_id: str) -> bool:
+    """True when another account already uses ``email``, in any letter case
+    (signup stores addresses lowercased; LMS claims may not be)."""
+    return (
+        db.query(DBUser.id)
+        .filter(func.lower(DBUser.email) == email.lower(), DBUser.id != user_id)
+        .first()
+        is not None
+    )
 
 
 # Rate limiting rides the global middleware ("api" bucket) like every other
@@ -60,12 +64,7 @@ async def request_account_activation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"code": "email_change_not_allowed"},
             )
-        taken = (
-            db.query(DBUser.id)
-            .filter(DBUser.email == target_email, DBUser.id != db_user.id)
-            .first()
-        )
-        if taken is not None:
+        if _email_taken_by_other(db, DBUser, target_email, db_user.id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "email_taken"},
@@ -98,7 +97,7 @@ async def request_account_activation(
 
     return {
         "message": "Activation email queued",
-        "email_hint": _masked(recipient),
+        "email_hint": mask_email(recipient),
     }
 
 
@@ -137,15 +136,7 @@ async def activate_account(
         )
 
     if user.pending_activation_email:
-        taken = (
-            db.query(DBUser.id)
-            .filter(
-                DBUser.email == user.pending_activation_email,
-                DBUser.id != user.id,
-            )
-            .first()
-        )
-        if taken is not None:
+        if _email_taken_by_other(db, DBUser, user.pending_activation_email, user.id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "email_taken"},

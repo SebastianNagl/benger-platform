@@ -127,6 +127,21 @@ whenever one is added, renamed or removed):
   ``PATCH .../deployments/{pk}``, ``GET .../resource-links``,
   ``GET|DELETE .../user-links``, ``GET .../events``, grade transfers with
   context and a retry that dispatches through ``dispatch_lti_grade_sync``.
+  Consent first and proof linking (the extended overlay parks a launch until
+  consent and links an existing account only after proof):
+  ``account_activation`` gains ``EMAIL_METHOD_LMS_CLAIM``,
+  ``UNPROVEN_EMAIL_METHODS``, ``ACCOUNT_LINK_TOKEN_EXPIRY`` (the proof-token
+  TTL), ``email_ownership_proven``, ``mask_email``,
+  ``build_account_link_url``, ``account_link_mail_eligibility``,
+  ``mail_language_for`` and ``clean_display_name``; the platform mail task
+  ``emails.send_account_link_confirmation(user_id, token, host,
+  connection_name, organization_name)`` runs on the EMAILS queue (not an
+  extended task). Public standalone host routes (no login, no app shell):
+  ``/lti/consent`` (slot ``LtiConsentGate``), ``/lti/link-account`` (slot
+  ``LtiIdentityChoice``), ``/lti/link-confirm/[token]`` (slot
+  ``LtiLinkConfirm``, prop ``token``) and ``/lti/error``. The Next
+  ``/api/lti`` proxy passes the ``lti_pending`` cookie (``Path=/api/lti``)
+  through in both directions.
 """
 
 import os

@@ -1,28 +1,35 @@
 'use client'
 
+import { LtiHostFallback } from '@/components/lti/LtiHostFallback'
+import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
+import { Suspense } from 'react'
 
 /**
- * Host route for the LTI account-linking consent step.
+ * Host route for the LMS consent step.
  *
- * Students arriving from a Moodle launch pass through here when their LTI
- * identity is not yet linked to a platform account. The consent flow itself
- * lives in the proprietary extended package; the open-core platform only
- * provides the route and a graceful fallback.
+ * Consent comes first: a launch without current consent parks the verified
+ * launch on the server and sends the browser here (`?rl=<link>&p=<handle>`).
+ * No account or session exists yet, so the route is public and standalone
+ * (see authRedirect.publicRoutes and ConditionalLayout.standalonePages). The
+ * consent form ships in the extended package as the LtiConsentGate slot; it
+ * reads its query parameters itself. The community edition renders a
+ * neutral notice.
  */
 export default function LtiConsentPage() {
   const LtiConsentGate = useSlot('LtiConsentGate')
+  const { t } = useI18n()
 
   if (!LtiConsentGate) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-zinc-500 dark:text-zinc-400">
-          LTI account linking requires the extended edition.
-        </p>
-      </div>
-    )
+    return <LtiHostFallback message={t('ltiHost.fallback.consent')} />
   }
 
-  // eslint-disable-next-line react-hooks/static-components
-  return <LtiConsentGate />
+  // useSearchParams inside the slot needs a Suspense boundary for static
+  // prerendering in the App Router.
+  return (
+    <Suspense fallback={null}>
+      {/* eslint-disable-next-line react-hooks/static-components */}
+      <LtiConsentGate />
+    </Suspense>
+  )
 }

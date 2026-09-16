@@ -67,7 +67,7 @@ def _brand():
     return brand
 
 
-def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", **kwargs):
+def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", brand=None, **kwargs):
     """Drive the task with all of its lazily-imported collaborators stubbed."""
     email_service = MagicMock()
     email_service.build_account_activation_email.return_value = ("Betreff", "<p>hi</p>")
@@ -76,7 +76,7 @@ def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", **kwargs):
          patch("account_activation.activation_eligibility", return_value=eligibility), \
          patch("account_activation.current_or_new_activation_token", return_value=token), \
          patch("account_activation.build_activation_link", return_value=f"https://x/activate/{token}"), \
-         patch("mailer.branding.resolve_email_brand", return_value=_brand()), \
+         patch("mailer.branding.resolve_email_brand", return_value=brand or _brand()), \
          patch("email_service.email_service", email_service), \
          patch("sendgrid_client.SendGridClient", sendgrid_class):
         return send_account_activation_task.run(**kwargs), email_service
@@ -165,6 +165,42 @@ class TestActivationEmailSend:
         assert kwargs["expiry_days"] == 7  # ACTIVATION_TOKEN_EXPIRY
         assert kwargs["brand_name"] == "Vertretbar"
         assert kwargs["frontend_host"] == "vertretbar.net"
+
+
+class TestActivationEmailLanguage:
+    """The mail follows the user's language, German by default, whatever the
+    host brand's default is (plan default "Mail language")."""
+
+    def _brand_with_english_default(self):
+        brand = _brand()
+        brand.name = "BenGER"
+        brand.frontend_url = "https://what-a-benger.net"
+        brand.default_language = "en"
+        return brand
+
+    def test_german_by_default_even_on_an_english_brand(self):
+        cls, _ = _sendgrid({"status": "success", "message_id": "m"})
+        user = _user()
+        user.language_preference = None
+        _, email_service = _run(
+            _fake_db(user),
+            sendgrid_class=cls,
+            brand=self._brand_with_english_default(),
+            user_id="u-1",
+        )
+
+        kwargs = email_service.build_account_activation_email.call_args.kwargs
+        assert kwargs["language"] == "de"
+
+    def test_user_preference_wins(self):
+        cls, _ = _sendgrid({"status": "success", "message_id": "m"})
+        user = _user()
+        user.language_preference = "en"
+
+        _, email_service = _run(_fake_db(user), sendgrid_class=cls, user_id="u-1")
+
+        kwargs = email_service.build_account_activation_email.call_args.kwargs
+        assert kwargs["language"] == "en"
 
 
 class TestActivationEmailFailureClassification:

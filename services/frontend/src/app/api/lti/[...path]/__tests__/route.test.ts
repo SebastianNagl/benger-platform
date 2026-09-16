@@ -264,6 +264,171 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
     })
   })
 
+  describe('parked LMS launch cookie (lti_pending, Path=/api/lti)', () => {
+    // The launch parks the verified launch server-side and sets an httponly
+    // session cookie scoped to /api/lti that carries the park's secret (the
+    // URL only carries the public handle `p`); the consent and identity
+    // calls send it back through this proxy. Both directions are pinned here.
+    const PENDING_COOKIE =
+      'lti_pending=secret-1; Domain=api.internal; HttpOnly; Path=/api/lti; SameSite=lax'
+
+    it('keeps Path=/api/lti on the launch redirect and does not add Path=/', async () => {
+      mockFetch.mockResolvedValueOnce(
+        upstreamResponse(303, {
+          headers: upstreamHeaders(
+            {
+              location:
+                'http://benger.localhost/lti/consent?rl=rl-1&p=handle-1',
+            },
+            [
+              PENDING_COOKIE,
+              // The consent launch also logs out whoever was signed in.
+              'access_token=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+              'refresh_token=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/; SameSite=lax',
+            ],
+          ),
+        }),
+      )
+
+      const response = await POST(
+        ltiRequest('http://benger.localhost/api/lti/launch', {
+          method: 'POST',
+          headers: { host: 'benger.localhost' },
+          body: 'id_token=abc&state=xyz',
+        }),
+      )
+
+      expect(response.status).toBe(303)
+      expect(response.headers.get('location')).toBe(
+        'http://benger.localhost/lti/consent?rl=rl-1&p=handle-1',
+      )
+      const cookies = response.headers.getSetCookie()
+      expect(cookies).toHaveLength(3)
+
+      const pending = cookies.find((c) => c.startsWith('lti_pending='))!
+      expect(pending).toContain('lti_pending=secret-1')
+      expect(pending.match(/Path=/gi)).toHaveLength(1)
+      expect(pending).toContain('Path=/api/lti')
+      expect(pending).toContain('HttpOnly')
+      // Still a session cookie: the proxy adds no lifetime.
+      expect(pending).not.toMatch(/Max-Age|expires/i)
+      expect(pending.match(/SameSite=/gi)).toHaveLength(1)
+      expect(pending).not.toContain('api.internal')
+      expect(pending).toContain('Domain=.benger.localhost')
+
+      // The session cookies are deleted, not dropped: expiry survives.
+      const access = cookies.find((c) => c.startsWith('access_token='))!
+      expect(access).toContain('Max-Age=0')
+      expect(access).toContain('expires=Thu, 01 Jan 1970 00:00:00 GMT')
+      expect(access.match(/Path=/gi)).toHaveLength(1)
+      expect(access).toContain('Path=/')
+      expect(cookies.some((c) => c.startsWith('refresh_token='))).toBe(true)
+    })
+
+    it('forwards the cookie and the handle to GET /api/lti/pending', async () => {
+      const status =
+        '{"stage":"consent","audience":"student","reconsent":false}'
+      mockFetch.mockResolvedValueOnce(
+        upstreamResponse(200, {
+          headers: upstreamHeaders({ 'content-type': 'application/json' }),
+          body: status,
+        }),
+      )
+
+      const response = await GET(
+        ltiRequest('http://benger.localhost/api/lti/pending?h=handle-1', {
+          headers: {
+            host: 'benger.localhost',
+            cookie: 'lti_pending=secret-1; other=1',
+          },
+        }),
+      )
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api:8000/api/lti/pending?h=handle-1',
+        expect.objectContaining({ method: 'GET', redirect: 'manual' }),
+      )
+      const headers = mockFetch.mock.calls[0][1]!.headers as Headers
+      expect(headers.get('cookie')).toBe('lti_pending=secret-1; other=1')
+      expect(response.status).toBe(200)
+      expect(responseBody(response)).toBe(status)
+    })
+
+    it('forwards the consent POST with cookie and JSON body, and passes the session and the cookie deletion back', async () => {
+      mockFetch.mockResolvedValueOnce(
+        upstreamResponse(200, {
+          headers: upstreamHeaders({ 'content-type': 'application/json' }, [
+            'access_token=new; Domain=api.internal; HttpOnly; Path=/; SameSite=lax',
+            'lti_pending=""; Domain=api.internal; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; Path=/api/lti; SameSite=lax',
+          ]),
+          body: '{"redirect":"/student/exams/p1?lti_u=u1"}',
+        }),
+      )
+
+      const payload = '{"h":"handle-1","processing":true,"research":true}'
+      const response = await POST(
+        ltiRequest('http://vertretbar.localhost/api/lti/pending/consent', {
+          method: 'POST',
+          headers: {
+            host: 'vertretbar.localhost',
+            'content-type': 'application/json',
+            cookie: 'lti_pending=secret-1',
+          },
+          body: payload,
+        }),
+      )
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://api:8000/api/lti/pending/consent',
+        expect.objectContaining({ method: 'POST', redirect: 'manual' }),
+      )
+      const init = mockFetch.mock.calls[0][1]!
+      const headers = init.headers as Headers
+      expect(headers.get('cookie')).toBe('lti_pending=secret-1')
+      expect(headers.get('content-type')).toBe('application/json')
+      expect(headers.get('x-forwarded-host')).toBe('vertretbar.localhost')
+      expect(Buffer.from(init.body as ArrayBuffer).toString('utf8')).toBe(
+        payload,
+      )
+
+      expect(response.status).toBe(200)
+      expect(responseBody(response)).toBe(
+        '{"redirect":"/student/exams/p1?lti_u=u1"}',
+      )
+      const cookies = response.headers.getSetCookie()
+      expect(cookies).toHaveLength(2)
+      const cleared = cookies.find((c) => c.startsWith('lti_pending='))!
+      expect(cleared).toContain('Max-Age=0')
+      expect(cleared).toContain('Path=/api/lti')
+      expect(cleared.match(/Path=/gi)).toHaveLength(1)
+      expect(cleared).toContain('Domain=.vertretbar.localhost')
+      const session = cookies.find((c) => c.startsWith('access_token='))!
+      expect(session).toContain('Domain=.vertretbar.localhost')
+      expect(session).toContain('Path=/')
+    })
+
+    it('passes a 4xx error body of the pending endpoints through unchanged', async () => {
+      const detail =
+        '{"detail":{"code":"launch_expired","message":"Start the activity again."}}'
+      mockFetch.mockResolvedValueOnce(
+        upstreamResponse(404, {
+          headers: upstreamHeaders({ 'content-type': 'application/json' }),
+          body: detail,
+        }),
+      )
+
+      const response = await GET(
+        ltiRequest('http://benger.localhost/api/lti/pending?h=gone', {
+          headers: { host: 'benger.localhost' },
+        }),
+      )
+
+      expect(response.status).toBe(404)
+      expect(response.headers.get('content-type')).toBe('application/json')
+      expect(responseBody(response)).toBe(detail)
+    })
+  })
+
   describe('request forwarding', () => {
     it('forwards POST form bodies and headers, sets x-forwarded-host, strips hop-by-hop headers', async () => {
       mockFetch.mockResolvedValueOnce(

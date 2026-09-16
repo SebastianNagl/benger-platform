@@ -30,6 +30,8 @@ def router():
         ("emails.send_invitation", celery_queues.EMAILS),
         ("emails.send_notification_batch", celery_queues.EMAILS),
         ("emails.send_account_activation", celery_queues.EMAILS),
+        # Platform mail task the extended LMS flow queues by name.
+        ("emails.send_account_link_confirmation", celery_queues.EMAILS),
         ("tasks.generate_response", celery_queues.GENERATION),
         ("tasks.run_evaluation", celery_queues.EVALUATION),
         # Moved off `default` so a long export cannot block interactive work.

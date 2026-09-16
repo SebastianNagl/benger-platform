@@ -143,7 +143,9 @@ Object.defineProperty(global, 'Headers', {
       this._headers = new Map()
       if (init) {
         if (init instanceof Headers) {
-          init.forEach((value, key) => this.set(key, value))
+          // append, not set: a copied response keeps every Set-Cookie, like
+          // real (undici) Headers.
+          init.forEach((value, key) => this.append(key, value))
         } else if (Array.isArray(init)) {
           init.forEach(([key, value]) => this.set(key, value))
         } else if (typeof init === 'object') {

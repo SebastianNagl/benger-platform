@@ -90,6 +90,10 @@ TASK_QUEUES: dict[str, str] = {
     "emails.send_bulk_invitations": EMAILS,
     "emails.send_notification_batch": EMAILS,
     "emails.send_account_activation": EMAILS,
+    # Platform task (it is registered in services/workers/tasks.py), so it is
+    # NOT in EXTENDED_TASK_NAMES even though only the extended LTI flow
+    # queues it.
+    "emails.send_account_link_confirmation": EMAILS,
     # --- maintenance: periodic housekeeping, nobody is blocked ---
     "tasks.recompute_aggregates": MAINTENANCE,
     "tasks.sweep_missing_immediate_evals": MAINTENANCE,

@@ -127,13 +127,18 @@ class EmailService:
 
         return env
 
-    def _render_template(self, template_name: str, context: Dict[str, Any]) -> tuple[str, str]:
+    def _render_template(
+        self, template_name: str, context: Dict[str, Any], *, strict: bool = False
+    ) -> tuple[str, str]:
         """
         Render an email template
 
         Args:
             template_name: Name of the template file
             context: Context variables for the template
+            strict: Raise on a render failure instead of returning the
+                generic fallback. For mails whose only purpose is a link:
+                the fallback body carries none, so sending it is useless.
 
         Returns:
             Tuple of (subject, html_body)
@@ -155,6 +160,8 @@ class EmailService:
 
         except Exception as e:
             logger.error(f"Failed to render template {template_name}: {str(e)}")
+            if strict:
+                raise
             # Return fallback content
             return (
                 "BenGER Notification",
@@ -423,11 +430,12 @@ class EmailService:
     ) -> tuple[str, str]:
         """Render the account-activation email -> (subject, html_body).
 
-        First-contact mail for passwordless LTI-provisioned accounts: sets a
-        password via the /activate/<token> page. Template files
+        First-contact mail for passwordless LTI-provisioned accounts, sent
+        after the student agreed in the LMS consent step: sets a password via
+        the /activate/<token> page. Template files
         account_activation(.html|_de.html) next to the invitation templates;
-        ``language`` comes from the resolved email brand (German on
-        vertretbar hosts).
+        the caller picks ``language`` (``account_activation.mail_language_for``:
+        the user's language, German by default).
         """
         template = (
             "account_activation_de.html" if language == "de" else "account_activation.html"
@@ -440,6 +448,49 @@ class EmailService:
                 "frontend_host": frontend_host,
                 "expiry_days": expiry_days,
             },
+            strict=True,
+        )
+
+    def build_account_link_confirmation_email(
+        self,
+        *,
+        confirm_url: str,
+        connection_name: str,
+        organization_name: str,
+        brand_name: str = "BenGER",
+        frontend_host: str = "",
+        language: str = "de",
+        expiry_hours: int = 24,
+    ) -> tuple[str, str]:
+        """Render the account-link confirmation email -> (subject, html_body).
+
+        Sent when someone starting an LMS activity asks to link that LMS
+        sign-in to the existing account at this address (the email proof of
+        owner decision D6). ``confirm_url`` opens /lti/link-confirm/<token>.
+
+        The subject is static: ``connection_name`` and ``organization_name``
+        are free text chosen by an org admin or an LMS, so they appear only in
+        the (autoescaped) body, which also tells the reader to ignore the
+        mail if they did not ask for it. Template files
+        account_link_confirmation(.html|_de.html); German unless ``language``
+        is ``en``.
+        """
+        template = (
+            "account_link_confirmation.html"
+            if language == "en"
+            else "account_link_confirmation_de.html"
+        )
+        return self._render_template(
+            template,
+            {
+                "confirm_url": confirm_url,
+                "connection_name": connection_name,
+                "organization_name": organization_name,
+                "brand_name": brand_name,
+                "frontend_host": frontend_host,
+                "expiry_hours": expiry_hours,
+            },
+            strict=True,
         )
 
     async def send_invitation_email(

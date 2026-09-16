@@ -256,3 +256,17 @@ def test_declared_queues_include_legacy_for_the_drain_window():
 def test_register_task_queue_rejects_undeclared_queues():
     with pytest.raises(ValueError):
         celery_queues.register_task_queue("tasks.whatever", "not-a-queue")
+
+
+def test_account_link_confirmation_is_a_platform_email_task():
+    """The extended LMS flow queues this mail by name, but the task lives in
+    platform tasks.py: it rides the rate-limited emails pool and must not be
+    listed as an extended task (platform CI registers it)."""
+    import tasks  # noqa: F401
+
+    from worker_celery import app
+
+    name = "emails.send_account_link_confirmation"
+    assert name in app.tasks
+    assert celery_queues.route_task(name) == {"queue": celery_queues.EMAILS}
+    assert name not in celery_queues.EXTENDED_TASK_NAMES

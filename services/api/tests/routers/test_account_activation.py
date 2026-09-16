@@ -81,7 +81,7 @@ class TestRequestAccountActivation:
                 headers={"x-forwarded-host": "vertretbar.net"},
             )
         assert r.status_code == 200, r.text
-        assert "…" in r.json()["email_hint"]
+        assert r.json()["email_hint"] == "re…@uni-x.de"
         assert fake_app.send_task.call_count == 1
         name = fake_app.send_task.call_args.args[0]
         kwargs = fake_app.send_task.call_args.kwargs["kwargs"]
@@ -130,6 +130,25 @@ class TestRequestAccountActivation:
             )
         assert r.status_code == 409
         assert r.json()["detail"]["code"] == "email_taken"
+
+    async def test_taken_email_in_other_letter_case_409(
+        self, async_client, test_db
+    ):
+        """Signup stores addresses lowercased; a differently cased entry of
+        the same mailbox must not create a second account for it."""
+        _make_user(test_db, email="casetaken@uni-x.de", hashed_password="x")
+        user = _make_user(test_db, email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid")
+        fake_app = MagicMock()
+        with _as_user(user), patch(
+            "celery_client.get_celery_app", return_value=fake_app
+        ):
+            r = await async_client.post(
+                "/api/auth/request-account-activation",
+                json={"email": "CaseTaken@uni-x.de"},
+            )
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "email_taken"
+        fake_app.send_task.assert_not_called()
 
     async def test_broker_down_still_200(self, async_client, test_db):
         user = _make_user(test_db, email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid")
@@ -221,6 +240,32 @@ class TestActivateAccount:
         assert r.json()["detail"]["code"] == "email_taken"
         test_db.refresh(user)
         assert user.hashed_password is None  # nothing half-applied
+
+    async def test_pending_email_taken_in_other_letter_case_409(
+        self, async_client, test_db
+    ):
+        _make_user(test_db, email="raced-case@uni-x.de", hashed_password="x")
+        token = f"tok-{uuid.uuid4().hex}"
+        user = _make_user(
+            test_db,
+            email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid",
+            token=token,
+            expires=datetime.now(timezone.utc) + timedelta(days=1),
+            pending="Raced-Case@uni-x.de",
+        )
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={
+                "token": token,
+                "new_password": "NeuesPasswort1!",
+                "confirm_password": "NeuesPasswort1!",
+            },
+        )
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "email_taken"
+        test_db.refresh(user)
+        assert user.hashed_password is None
+        assert user.email.endswith("@lti.invalid")
 
     async def test_expired_and_reused_tokens_rejected(
         self, async_client, test_db

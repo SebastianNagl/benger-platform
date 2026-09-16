@@ -9087,33 +9087,122 @@
         "urlDefaults": "Apply default URLs"
       },
       "consent": {
-        "alreadyConsented": "You have already consented to the linking.",
-        "continue": "Continue to the exam",
-        "gdprLabel": "I agree that my account on my university's learning platform (e.g. Moodle or ILIAS) is linked to my account here and that my exam results are transferred to that learning platform for grade transfer.",
-        "intro": "You are opening this exam from your university's learning platform for the first time. Before you can start, we need your consent to data processing.",
+        "continue": "Continue",
+        "emailLabel": "Email address",
+        "expiredBody": "Please open the activity in your learning platform again.",
+        "expiredTitle": "Sign-in expired",
+        "gdprLabel": "I agree that an account with my name and email address from the learning platform is created here and linked to it. In the app I appear under a pseudonym. My teachers and the admins of my organization see my name. My grades are sent to the learning platform.",
+        "gdprLabelInstructor": "I agree that an account with my name and email address from the learning platform is created here and linked to it. In the organization that runs this connection, I get the role it has set for teachers. In the app I appear under a pseudonym. The admins of my organization see my name.",
+        "identityHeading": "Your learning platform sent:",
+        "incomplete": "Please give both consents.",
+        "intro": "You are opening an activity from this learning platform for the first time. Before we create an account, we need your consent.",
         "loadError": "The activity could not be loaded.",
-        "openExam": "Go to exam",
-        "requiredHint": "* Required — without this consent the exam cannot be used from the learning platform.",
+        "mismatchBody": "This page belongs to a different sign-in. Please open the activity in your learning platform again.",
+        "mismatchTitle": "Sign-in does not match",
+        "nameLabel": "Name",
+        "notTransmitted": "not sent",
+        "reconsentIntro": "The terms have changed. Please agree again.",
+        "requiredHint": "Both consents are required to use exams from the learning platform.",
         "submitError": "Your consent could not be saved. Please try again.",
         "submitting": "Saving …",
         "title": "Consent required",
         "unavailableTitle": "Activity unavailable"
       },
+      "identity": {
+        "activation": {
+          "body": "We sent a link to activate your account to {email}. Use it to set a password.",
+          "next": "Then open the activity in your learning platform again and sign in with your account.",
+          "title": "Check your inbox"
+        },
+        "back": "Choose another option",
+        "body": "A {brand} account already exists for {email}. Do you want to link your sign-in through {connection} to it?",
+        "busy": "One moment …",
+        "confirm": {
+          "alreadyLinked": "This sign-in is already linked to an account. Open the activity in your learning platform again.",
+          "body": "This link connects your sign-in from the learning platform to your account. After that, every sign-in through this learning platform opens your account.",
+          "doneContinue": "Continue",
+          "doneOtherDevice": "Is the page still open on another device? Then tap \"I have confirmed the link\" there.",
+          "doneRedirect": "You are being redirected.",
+          "doneReopen": "Open the activity in your learning platform again.",
+          "doneTitle": "Link confirmed",
+          "errorTitle": "Confirmation failed",
+          "ignore": "If you did not request this, close this page.",
+          "notLinkable": "This account cannot be linked to a learning platform. Open the activity in your learning platform again and continue with a separate account.",
+          "proofFailed": "This link is invalid or has expired. Open the activity in your learning platform again and request a new link.",
+          "retry": "Try again",
+          "submit": "Confirm link",
+          "submitting": "Confirming …",
+          "title": "Confirm link"
+        },
+        "confirmed": {
+          "body": "Your account is now linked to the learning platform.",
+          "continue": "Continue",
+          "title": "Link confirmed"
+        },
+        "connectionFallback": "your learning platform",
+        "email": {
+          "body": "We sent a confirmation link to {email}. Open the link to confirm the connection. You can also do this on another device.",
+          "confirmed": "I have confirmed the link",
+          "continueHint": "Then continue here.",
+          "resend": "Send link again",
+          "resendIn": "Send again in {seconds} s",
+          "resent": "We sent the link again.",
+          "title": "Check your inbox"
+        },
+        "emailFallback": "your email address",
+        "errors": {
+          "generic": "That did not work. Please try again.",
+          "invalidCredentials": "Username or password is wrong.",
+          "mailUnavailable": "The email could not be sent right now. Please try again in a moment.",
+          "notAvailable": "This option is no longer available. Please choose another one.",
+          "notConfirmed": "The link is not confirmed yet. First open the link from the email.",
+          "notLinkable": "This account cannot be linked to a learning platform. Continue with a separate account.",
+          "tooManyAttempts": "Too many attempts. Please wait a while and try again."
+        },
+        "loadError": "The sign-in could not be loaded.",
+        "login": {
+          "forgot": "Forgot your password?",
+          "password": "Password",
+          "submit": "Sign in and link",
+          "title": "Sign in with your account",
+          "username": "Username or email"
+        },
+        "neutralBody": "We create a separate account for your sign-in through {connection}.",
+        "neutralContinue": "Continue",
+        "neutralTitle": "Separate account",
+        "optionActivate": "Activate the account first",
+        "optionEmail": "Send a confirmation link by email",
+        "optionLogin": "Sign in with this account",
+        "separateAccount": "Continue with a separate account",
+        "separateNote": "The two accounts cannot be merged later.",
+        "title": "You already have an account",
+        "unavailableTitle": "Sign-in unavailable",
+        "warning": "After that, every sign-in through {connection} opens this account."
+      },
       "error": {
+        "account_not_linkable": "This account cannot be linked to a learning platform.",
         "codeLabel": "Error code",
         "default": "An unknown error occurred while launching from the learning platform.",
+        "deployment_disabled": "The organization has switched off this activity (deployment) in the connection. Please contact your teachers.",
+        "exam_unavailable": "The linked exam no longer exists. Please contact your teachers.",
         "internal": "An internal error occurred. Please try again later.",
         "invalid_request": "The request from the learning platform was incomplete or invalid.",
         "invalid_state": "The sign-in session has expired or is invalid.",
         "invalid_token": "The learning platform's sign-in data could not be verified.",
+        "launch_expired": "The sign-in has expired or was already completed.",
+        "launch_mismatch": "This page belongs to another sign-in or another browser.",
+        "link_proof_failed": "The confirmation link is invalid, expired or already used.",
+        "membership_removed": "Your membership in the organization of this connection was removed. Please contact the organization admin.",
         "nonce_mismatch": "The sign-in security check failed.",
         "nonce_reused": "This sign-in has already been used.",
         "not_linked": "This activity is not linked to an exam yet.",
+        "org_inactive": "The organization of this connection is deactivated. Please contact the operator of this platform.",
         "registration_disabled": "The connection to this learning platform is currently disabled.",
         "registration_not_found": "This learning platform is not registered here. Please contact your university's administration.",
         "retryHint": "Go back to the learning platform and open the activity again.",
-        "state_unavailable": "Your session could not be matched. Please allow cookies for this site or open the activity in a new tab.",
+        "state_unavailable": "The sign-in could not be stored right now. This is not caused by your browser. Please try again in a few minutes.",
         "title": "Launch from the learning platform failed",
+        "tool_not_configured": "The tool is not set up on this platform yet. Please contact the operator of this platform.",
         "unknown_deployment": "This activity (deployment) is not enabled for the connection.",
         "unsupported_message": "This launch type is not supported.",
         "user_inactive": "Your user account is deactivated. Please contact the administration."
@@ -9179,6 +9268,7 @@
         "blockRubricMissing": "This exam has no active grading sheet. Add a grading sheet first.",
         "createExam": "Create new exam",
         "createExamSecondary": "Or create a new exam",
+        "consentRequired": "Please open the activity again in your learning platform and give your consent there.",
         "currentlyLinked": "Currently linked:",
         "defaultTitle": "Learning platform activity",
         "intro": "Choose the exam that should sit behind this activity. Students opening the activity land directly in the chosen exam.",
@@ -9768,6 +9858,13 @@
         "body": "Exam-level grading with the stronger model — closer to a real Staatsexamen correction. 1 premium grading per week free, then €1. Cancel anytime.",
         "cta": "Start exam plan"
       }
+    }
+  },
+  "ltiHost": {
+    "fallback": {
+      "consent": "Learning platform consent is not available in this edition.",
+      "linkAccount": "Linking with learning platforms is not available in this edition.",
+      "linkConfirm": "Confirming a learning platform link is not available in this edition."
     }
   },
   "accountActivation": {

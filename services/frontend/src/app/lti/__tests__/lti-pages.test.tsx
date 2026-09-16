@@ -1,13 +1,14 @@
 /**
  * @jest-environment jsdom
  *
- * Tests for the LTI host routes (link picker, consent gate, launch error).
+ * Tests for the LTI host routes (link picker, launch error).
  *
- * The link and consent hosts are thin slot dispatchers: without the extended
- * package they must render a graceful community fallback and never crash.
- * The error host differs: its fallback is a working feature that translates
- * ?code= into a human-readable message, because launches can fail on a
- * community install too.
+ * The link host is a thin slot dispatcher: without the extended package it
+ * must render a graceful community fallback and never crash. The error host
+ * differs: its fallback is a working feature that translates ?code= into a
+ * human-readable message, because launches can fail on a community install
+ * too. The public consent and account-linking hosts are covered in
+ * lti-public-pages.test.tsx.
  */
 
 import { render, screen } from '@testing-library/react'
@@ -23,7 +24,8 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams.current,
 }))
 
-import LtiConsentPage from '../consent/page'
+import { LTI_LAUNCH_ERROR_CODES } from '@/lib/lti/launchErrors'
+
 import LtiErrorPage from '../error/page'
 import LtiLinkPage from '../link/page'
 
@@ -49,22 +51,6 @@ describe('LTI link host route', () => {
     expect(
       screen.queryByText('LTI content linking requires the extended edition.'),
     ).not.toBeInTheDocument()
-  })
-})
-
-describe('LTI consent host route', () => {
-  it('renders the community fallback when no slot is registered', () => {
-    render(<LtiConsentPage />)
-    expect(mockUseSlot).toHaveBeenCalledWith('LtiConsentGate')
-    expect(
-      screen.getByText('LTI account linking requires the extended edition.'),
-    ).toBeInTheDocument()
-  })
-
-  it('renders the registered LtiConsentGate slot', () => {
-    mockUseSlot.mockReturnValue(() => <div>extended consent gate</div>)
-    render(<LtiConsentPage />)
-    expect(screen.getByText('extended consent gate')).toBeInTheDocument()
   })
 })
 
@@ -99,34 +85,30 @@ describe('LTI error host route', () => {
       render(<LtiErrorPage />)
       expect(
         screen.getByText(
-          'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
+          'This launch link has expired or was already used. Go back to your learning platform and click the activity again.',
         ),
       ).toBeInTheDocument()
       expect(screen.getByText(`Error code: ${code}`)).toBeInTheDocument()
     },
   )
 
-  it.each([
-    'invalid_request',
-    'registration_not_found',
-    'registration_disabled',
-    'state_unavailable',
-    'invalid_state',
-    'invalid_token',
-    'nonce_mismatch',
-    'nonce_reused',
-    'unknown_deployment',
-    'unsupported_message',
-    'not_linked',
-    'user_inactive',
-    'internal',
-  ])('has a dedicated human-readable message for %s', (code) => {
-    mockSearchParams.current = new URLSearchParams(`code=${code}`)
+  it.each([...LTI_LAUNCH_ERROR_CODES])(
+    'has a dedicated human-readable message for %s',
+    (code) => {
+      mockSearchParams.current = new URLSearchParams(`code=${code}`)
+      render(<LtiErrorPage />)
+      expect(screen.getByText('Launch failed')).toBeInTheDocument()
+      // Every documented code maps to its own copy, not the generic fallback.
+      expect(screen.queryByText(DEFAULT_MESSAGE)).not.toBeInTheDocument()
+      expect(screen.getByText(`Error code: ${code}`)).toBeInTheDocument()
+    },
+  )
+
+  it('does not blame cookies for a temporary server problem', () => {
+    mockSearchParams.current = new URLSearchParams('code=state_unavailable')
     render(<LtiErrorPage />)
-    expect(screen.getByText('Launch failed')).toBeInTheDocument()
-    // Every documented code maps to its own copy, not the generic fallback.
-    expect(screen.queryByText(DEFAULT_MESSAGE)).not.toBeInTheDocument()
-    expect(screen.getByText(`Error code: ${code}`)).toBeInTheDocument()
+    expect(screen.getByText(/not caused by your browser/)).toBeInTheDocument()
+    expect(screen.queryByText(/cookie/i)).not.toBeInTheDocument()
   })
 
   it('falls back to generic retry advice for unknown codes', () => {

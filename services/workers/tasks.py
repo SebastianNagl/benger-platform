@@ -1351,6 +1351,7 @@ def send_account_activation_task(
         activation_eligibility,
         build_activation_link,
         current_or_new_activation_token,
+        mail_language_for,
     )
     from email_service import email_service
     from mailer.branding import resolve_email_brand
@@ -1387,6 +1388,8 @@ def send_account_activation_task(
             user, pending_email=target_email, force=force
         )
         recipient = target_email or user.email
+        # The user's language, German by default (not the host brand's).
+        language = mail_language_for(user)
         # Commit before sending: a link that reaches a mailbox must resolve.
         db.commit()
 
@@ -1395,7 +1398,7 @@ def send_account_activation_task(
             activation_url=build_activation_link(brand, token),
             brand_name=brand.name,
             frontend_host=brand.frontend_url.split("://", 1)[-1],
-            language=brand.default_language,
+            language=language,
             expiry_days=ACTIVATION_TOKEN_EXPIRY.days,
         )
 
@@ -1446,6 +1449,130 @@ def send_account_activation_task(
         raise
     finally:
         db.close()
+
+
+@app.task(
+    name="emails.send_account_link_confirmation",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={'max_retries': 3, 'countdown': 60},
+)
+def send_account_link_confirmation_task(
+    self,
+    user_id: str,
+    token: str,
+    host: str = None,
+    connection_name: str = None,
+    organization_name: str = None,
+) -> Dict[str, Any]:
+    """Mail the link that confirms linking an LMS sign-in to an account.
+
+    The extended overlay queues this when someone who started an LMS
+    activity chooses the email proof for the existing account at the LMS
+    address (owner decision D6). It mints and stores ``token`` itself; this
+    task only delivers the link to the account's own address.
+
+    ``host`` is the connection's brand host (never a browser header); it
+    picks sender, link host and brand name. The mail goes out in the user's
+    language, German by default. ``account_link_mail_eligibility`` is checked
+    again here, so an account that became ineligible after the request (for
+    example a superadmin, or an address that is no longer proven) gets no
+    mail. Neither the token nor the full address is logged or returned: the
+    Celery result is logged on success.
+    """
+    from sqlalchemy import select as sa_select
+
+    from account_activation import (
+        ACCOUNT_LINK_TOKEN_EXPIRY,
+        account_link_mail_eligibility,
+        build_account_link_url,
+        clean_display_name,
+        mail_language_for,
+        mask_email,
+    )
+    from email_service import email_service
+    from mailer.branding import resolve_email_brand
+    from models import User as DBUser
+    from sendgrid_client import SendGridClient
+
+    if not token:
+        logger.warning(f"Account link mail for {user_id} skipped: missing token")
+        return {"status": "skipped", "reason": "missing_token"}
+
+    db = SessionLocal()
+    try:
+        user = db.execute(
+            sa_select(DBUser).where(DBUser.id == user_id)
+        ).scalar_one_or_none()
+        skip = account_link_mail_eligibility(user)
+        if skip is not None:
+            logger.info(f"Account link mail for {user_id} skipped: {skip}")
+            return {"status": "skipped", "reason": skip}
+        recipient = user.email
+        language = mail_language_for(user)
+    finally:
+        # Nothing is written: release the connection before the network call.
+        db.close()
+
+    recipient_hint = mask_email(recipient)
+    try:
+        brand = resolve_email_brand(host)
+        subject, html_body = email_service.build_account_link_confirmation_email(
+            confirm_url=build_account_link_url(brand.frontend_url, token),
+            connection_name=clean_display_name(connection_name),
+            organization_name=clean_display_name(organization_name),
+            brand_name=brand.name,
+            frontend_host=brand.frontend_url.split("://", 1)[-1],
+            language=language,
+            expiry_hours=int(ACCOUNT_LINK_TOKEN_EXPIRY.total_seconds() // 3600),
+        )
+
+        result = SendGridClient().send_message(
+            to=[recipient],
+            subject=subject,
+            html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
+            disable_tracking=True,
+        )
+    except Exception as e:
+        logger.error(
+            f"Error sending account link mail for user {user_id}: "
+            f"{type(e).__name__}"
+        )
+        raise
+
+    if result.get("status") == "success":
+        logger.info(f"Account link mail sent to {recipient_hint} (user {user_id})")
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "recipient_hint": recipient_hint,
+            "message_id": result.get("message_id", "unknown"),
+        }
+
+    # Same permanent-vs-retryable split as the activation task: 4xx (except
+    # 429) must not burn three retries on the rate-limited queue.
+    status_code = result.get("status_code")
+    error_msg = result.get("error", "Unknown SendGrid error")
+    if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+        logger.error(
+            f"Permanent SendGrid {status_code} for account link mail to "
+            f"{recipient_hint} (user {user_id}); not retrying: {error_msg}"
+        )
+        return {
+            "status": "failed_permanent",
+            "user_id": user_id,
+            "recipient_hint": recipient_hint,
+            "status_code": status_code,
+            "error": error_msg,
+        }
+
+    logger.error(
+        f"Retryable SendGrid failure for account link mail to {recipient_hint} "
+        f"(user {user_id}, status_code={status_code}): {error_msg}"
+    )
+    raise RuntimeError(f"SendGrid error: {error_msg}")
 
 
 @app.task(name="emails.send_bulk_invitations")
