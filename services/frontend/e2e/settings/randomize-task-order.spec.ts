@@ -554,22 +554,26 @@ test.describe('Randomize Task Order', () => {
     await page.goto(`${BASE_URL}/projects/${testProjectId}/label`)
 
     // Wait for annotation interface to load
-    const taskCounter = page.locator('text=/Task \\d+ of \\d+/i')
+    const taskCounter = page.locator(
+      'text=/(Task|Aufgabe) \\d+ (of|von) \\d+/i',
+    )
     await expect(taskCounter).toBeVisible({ timeout: 20000 })
 
-    // Verify it shows "Task 1 of 6"
+    // Verify it shows "Task 1 of 6" / "Aufgabe 1 von 6"
     const counterText = await taskCounter.textContent()
-    expect(counterText).toMatch(/Task 1 of 6/i)
+    expect(counterText).toMatch(/(Task|Aufgabe) 1 (of|von) 6/i)
     console.log(`Task counter: ${counterText}`)
 
     // Reload and verify position persists
     await page.reload()
 
-    const taskCounterAfterReload = page.locator('text=/Task \\d+ of \\d+/i')
+    const taskCounterAfterReload = page.locator(
+      'text=/(Task|Aufgabe) \\d+ (of|von) \\d+/i',
+    )
     await expect(taskCounterAfterReload).toBeVisible({ timeout: 20000 })
 
     const counterTextAfterReload = await taskCounterAfterReload.textContent()
-    expect(counterTextAfterReload).toMatch(/Task 1 of 6/i)
+    expect(counterTextAfterReload).toMatch(/(Task|Aufgabe) 1 (of|von) 6/i)
     console.log(`After reload: ${counterTextAfterReload}`)
   })
 })
