@@ -1007,7 +1007,13 @@ async def generation_progress_websocket(
     user_id = payload.get("user_id")
     try:
         user = get_user_by_id(db, user_id) if user_id else None
-        if not user or not check_project_accessible(db, user, project_id):
+        # A deactivated (e.g. anonymized) account keeps no live channel,
+        # even while its access token has not expired yet.
+        if (
+            not user
+            or getattr(user, "is_active", True) is False
+            or not check_project_accessible(db, user, project_id)
+        ):
             await websocket.close(code=4403)
             return
     finally:

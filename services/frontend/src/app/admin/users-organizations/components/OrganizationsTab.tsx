@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  LmsMemberBadge,
+  MemberEmail,
+  memberOptionLabel,
+} from '@/components/organization/MemberIdentity'
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgGroups } from '@/components/organization/OrgGroups'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
@@ -1207,9 +1212,17 @@ export function OrganizationsTab() {
                         <div className="ml-3">
                           <p className="font-medium text-zinc-900 dark:text-white">
                             {member.user_name}
+                            <LmsMemberBadge
+                              is_lms_account={member.is_lms_account}
+                              is_pseudonymized={member.is_pseudonymized}
+                              data-testid={`member-lms-badge-${member.user_id}`}
+                            />
                           </p>
                           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                            {member.user_email}
+                            <MemberEmail
+                              email={member.user_email}
+                              hidden={member.is_pseudonymized}
+                            />
                           </p>
                           {member.groups && member.groups.length > 0 && (
                             <div className="mt-1 flex flex-wrap gap-1">
@@ -1493,7 +1506,9 @@ export function OrganizationsTab() {
                             const u = allUsers.find(
                               (u) => u.id === selectedUserId,
                             )
-                            return u ? `${u.name} (${u.email})` : undefined
+                            return u
+                              ? memberOptionLabel(u.name, u.email)
+                              : undefined
                           })()
                         : undefined
                     }
@@ -1517,7 +1532,7 @@ export function OrganizationsTab() {
                         )
                         .map((user) => (
                           <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.email})
+                            {memberOptionLabel(user.name, user.email)}
                           </SelectItem>
                         ))}
                     </SelectContent>

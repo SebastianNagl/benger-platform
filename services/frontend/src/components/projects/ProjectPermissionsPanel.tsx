@@ -36,6 +36,20 @@ interface Organization {
   role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
   // Group scope of an existing attachment (project.organizations entries).
   group_id?: string | null
+  // 'lti': the attachment came from linking the exam to a learning platform
+  // activity. It stays whatever the visibility and cannot be edited here.
+  attached_via?: 'manual' | 'lti' | null
+}
+
+/** A structured API error code (`detail.code`), or null. */
+function errorCode(err: unknown): string | null {
+  const detail = (err as { response?: { data?: { detail?: unknown } } })
+    ?.response?.data?.detail
+  if (detail && typeof detail === 'object' && 'code' in detail) {
+    const code = (detail as { code?: unknown }).code
+    return typeof code === 'string' ? code : null
+  }
+  return null
 }
 
 export type ProjectVisibility = 'private' | 'organization' | 'public'
@@ -97,6 +111,12 @@ export function ProjectPermissionsPanel({
       initialOrganizations.map((o) => [o.id, o.group_id ?? null]),
     ),
   )
+
+  // Orgs attached through a learning platform connection: locked.
+  const lmsOrganizations = initialOrganizations.filter(
+    (org) => org.attached_via === 'lti',
+  )
+  const lmsOrgIds = new Set(lmsOrganizations.map((org) => org.id))
 
   const canEditPermissions = () => {
     if (!user) return false
@@ -182,6 +202,7 @@ export function ProjectPermissionsPanel({
   }, [selectedOrgIds, orgGroupsById])
 
   const toggleOrg = (orgId: string) => {
+    if (lmsOrgIds.has(orgId)) return
     setSelectedOrgIds((prev) =>
       prev.includes(orgId)
         ? prev.filter((id) => id !== orgId)
@@ -248,7 +269,11 @@ export function ProjectPermissionsPanel({
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : 'Failed to save permissions'
+        errorCode(err) === 'lti_attachment_conflict'
+          ? t('project.permissions.lmsConflict')
+          : err instanceof Error
+            ? err.message
+            : 'Failed to save permissions'
       setError(errorMessage)
       addToast(errorMessage, 'error')
     } finally {
@@ -394,6 +419,17 @@ export function ProjectPermissionsPanel({
         </div>
       </div>
 
+      {lmsOrganizations.length > 0 && (
+        <div
+          className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200"
+          data-testid="project-permissions-lms-note"
+        >
+          {t('project.permissions.lmsNote', {
+            organizations: lmsOrganizations.map((org) => org.name).join(', '),
+          })}
+        </div>
+      )}
+
       {visibility === 'organization' && (
         <div data-testid="organization-section">
           <Label>
@@ -416,7 +452,8 @@ export function ProjectPermissionsPanel({
           ) : (
             <div className="mt-3 space-y-2" data-testid="organization-list">
               {availableOrganizations.map((org) => {
-                const isChecked = selectedOrgIds.includes(org.id)
+                const locked = lmsOrgIds.has(org.id)
+                const isChecked = locked || selectedOrgIds.includes(org.id)
                 const groupOptions = isChecked ? groupOptionsFor(org) : []
                 return (
                   <div key={org.id}>
@@ -427,6 +464,7 @@ export function ProjectPermissionsPanel({
                       <input
                         type="checkbox"
                         checked={isChecked}
+                        disabled={locked}
                         onChange={() => toggleOrg(org.id)}
                         className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                         data-testid={`organization-checkbox-${org.id}`}
@@ -438,6 +476,14 @@ export function ProjectPermissionsPanel({
                         {org.slug && (
                           <span className="ml-2 text-xs text-zinc-500 dark:text-zinc-400">
                             ({org.slug})
+                          </span>
+                        )}
+                        {locked && (
+                          <span
+                            className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800 dark:bg-sky-900/50 dark:text-sky-200"
+                            data-testid={`organization-lms-badge-${org.id}`}
+                          >
+                            {t('project.permissions.lmsBadge')}
                           </span>
                         )}
                       </div>
@@ -455,6 +501,7 @@ export function ProjectPermissionsPanel({
                         </label>
                         <select
                           id={`organization-group-${org.id}`}
+                          disabled={locked}
                           value={selectedGroupByOrg[org.id] ?? ''}
                           onChange={(e) =>
                             setSelectedGroupByOrg((prev) => ({

@@ -312,7 +312,7 @@ def privacy_protected_member_ids(db, organization_id, user_ids):
 
     So an LMS user of org B who is also a member of org A stays masked in
     org A's lists, even for A's admins. Project-scoped views use
-    :func:`project_real_name_viewer` instead of the org admin check.
+    :func:`project_real_name_user_ids` instead of the org admin check.
 
     Community edition: empty set (there are no LMS accounts). If the hook
     fails, both calls fail closed: the None call returns every given id
@@ -352,6 +352,39 @@ def project_real_name_viewer(db, viewer, project_id):
                 "project_real_name_viewer hook failed for project %s", project_id
             )
     return False
+
+
+def project_real_name_user_ids(db, viewer, project_id, user_ids):
+    """Subset of ``user_ids`` whose real names ``viewer`` may see on
+    ``project_id``.
+
+    Finer than :func:`project_real_name_viewer`: a person counts only when
+    they hold an identity on a connection that links an activity to the
+    project, the viewer may see that connection's students (staff who may
+    grade the exam in its org, its course teachers) and the person takes
+    part in the exam (a launch of one of its activities on that connection,
+    or, for identities from before the participation table, a submission or
+    assignment on the project). Project-scoped lists use this set to
+    unmask, so an org-wide member list never unmasks the whole university.
+
+    Community edition: empty set. If the hook fails the set is empty too,
+    so nobody is unmasked.
+    """
+    ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+    if not ids or viewer is None or not project_id:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("project_real_name_user_ids")
+            if hook:
+                result = hook(db, viewer, str(project_id), sorted(ids))
+                return {str(uid) for uid in (result or ())} & ids
+        except Exception:
+            logger.exception(
+                "project_real_name_user_ids hook failed for project %s", project_id
+            )
+    return set()
 
 
 def lti_anonymization_policy(db, user_id):
@@ -420,3 +453,26 @@ def is_lti_protected_org(db, organization_id):
             logger.exception("lti_protected_org_ids hook failed")
             return True
     return False
+
+
+def lti_protected_org_subset(db, organization_ids):
+    """The orgs among ``organization_ids`` whose LMS connections are
+    superadmin-only (see :func:`is_lti_protected_org`).
+
+    Fails closed like :func:`is_lti_protected_org`: when the hook fails,
+    every given org counts as protected, so an access decision never opens
+    those connections' exams to the wrong people.
+    """
+    ids = {str(oid) for oid in (organization_ids or ()) if oid}
+    if not ids:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return {str(oid) for oid in (hook(db) or ())} & ids
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+            return ids
+    return set()

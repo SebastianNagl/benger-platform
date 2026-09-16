@@ -183,6 +183,13 @@ class TestLtiHooksWithoutPackage:
         monkeypatch.setattr(extensions, "_extended", None)
         assert extensions.lti_protected_org_ids(None) == set()
         assert extensions.is_lti_protected_org(None, "org-1") is False
+        assert extensions.lti_protected_org_subset(None, ["org-1"]) == set()
+
+    def test_nobody_is_unmasked(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.project_real_name_user_ids(None, object(), "p1", ["u1"]) == set()
 
     def test_package_without_the_hooks_behaves_like_community(self, monkeypatch):
         import extensions
@@ -193,6 +200,8 @@ class TestLtiHooksWithoutPackage:
         assert extensions.project_real_name_viewer(None, object(), "p1") is False
         assert extensions.lti_anonymization_policy(None, "u1")["blockers"] == []
         assert extensions.is_lti_protected_org(None, "org-1") is False
+        assert extensions.lti_protected_org_subset(None, ["org-1"]) == set()
+        assert extensions.project_real_name_user_ids(None, object(), "p1", ["u1"]) == set()
 
 
 class TestLtiHooksWithPackage:
@@ -214,6 +223,10 @@ class TestLtiHooksWithPackage:
             calls["viewer"] = (db, user, project_id)
             return "yes"
 
+        def people(db, user, project_id, user_ids):
+            calls["people"] = (db, user, project_id, list(user_ids))
+            return ["u1", "stranger"]
+
         def policy(db, user_id):
             calls["policy"] = (db, user_id)
             return {"implicit_org_ids": ["org-v"], "blockers": ("has_payment_records",)}
@@ -226,6 +239,7 @@ class TestLtiHooksWithPackage:
                     "dispatch_lti_grade_sync": dispatch,
                     "privacy_protected_member_ids": protected,
                     "project_real_name_viewer": viewer,
+                    "project_real_name_user_ids": people,
                     "lti_anonymization_policy": policy,
                     "lti_protected_org_ids": lambda db: ["org-v"],
                 }
@@ -242,6 +256,17 @@ class TestLtiHooksWithPackage:
         assert extensions.project_real_name_viewer(db, user, "p1") is True
         assert calls["viewer"] == (db, user, "p1")
 
+        assert extensions.project_real_name_user_ids(
+            db, user, "p1", ["u2", "u1", None]
+        ) == {"u1"}
+        assert calls["people"] == (db, user, "p1", ["u1", "u2"])
+        # No viewer, no project or nobody asked about: the hook is skipped.
+        calls.pop("people")
+        assert extensions.project_real_name_user_ids(db, None, "p1", ["u1"]) == set()
+        assert extensions.project_real_name_user_ids(db, user, "", ["u1"]) == set()
+        assert extensions.project_real_name_user_ids(db, user, "p1", []) == set()
+        assert "people" not in calls
+
         assert extensions.lti_anonymization_policy(db, "u1") == {
             "implicit_org_ids": {"org-v"},
             "blockers": ["has_payment_records"],
@@ -252,6 +277,10 @@ class TestLtiHooksWithPackage:
         assert extensions.is_lti_protected_org(db, "org-v") is True
         assert extensions.is_lti_protected_org(db, "org-u") is False
         assert extensions.is_lti_protected_org(db, None) is False
+        assert extensions.lti_protected_org_subset(db, ["org-v", "org-u", None]) == {
+            "org-v"
+        }
+        assert extensions.lti_protected_org_subset(db, []) == set()
 
     def test_empty_member_list_skips_the_hook(self, monkeypatch):
         import extensions
@@ -279,6 +308,7 @@ class TestLtiHooksWithPackage:
                     "dispatch_lti_grade_sync": _boom,
                     "privacy_protected_member_ids": _boom,
                     "project_real_name_viewer": _boom,
+                    "project_real_name_user_ids": _boom,
                     "lti_anonymization_policy": _boom,
                     "lti_protected_org_ids": _boom,
                 }
@@ -294,13 +324,18 @@ class TestLtiHooksWithPackage:
         }
         assert extensions.privacy_protected_member_ids(None, "o", ["u1", "u2"]) == set()
         assert extensions.project_real_name_viewer(None, object(), "p1") is False
+        assert extensions.project_real_name_user_ids(None, object(), "p1", ["u1"]) == set()
         # Anonymization is blocked while the policy cannot be checked.
         assert extensions.lti_anonymization_policy(None, "u1") == {
             "implicit_org_ids": set(),
             "blockers": ["policy_unavailable"],
         }
         assert extensions.lti_protected_org_ids(None) == set()
-        # The access gate fails closed.
+        # The access gates fail closed.
         assert extensions.is_lti_protected_org(None, "org-1") is True
+        assert extensions.lti_protected_org_subset(None, ["org-1", "org-2"]) == {
+            "org-1",
+            "org-2",
+        }
         # Every failure was logged, none was raised.
-        assert logger.exception.call_count == 7
+        assert logger.exception.call_count == 9

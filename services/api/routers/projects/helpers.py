@@ -27,9 +27,13 @@ from org_groups import (
     build_select_group_admin_on_attachments,
     get_attachment_group_map,
     get_attachment_group_map_async,
+    get_lti_attachment_map,
+    get_lti_attachment_map_async,
     get_user_group_context,
     get_user_group_context_async,
     grants_full_tier,
+    lti_staff_role,
+    non_lti_attachment,
 )
 from project_models import (
     Annotation,
@@ -1128,6 +1132,66 @@ def _org_grants_full_tier(
     )
 
 
+def _decide_private_project(
+    user,
+    project,
+    user_with_memberships,
+    lti_attachments,
+    user_groups,
+    protected_org_ids=None,
+) -> bool:
+    """Shared private-project rule of both pure deciders (no DB).
+
+    The creator, plus eligible staff of an org the exam is LMS-linked to
+    (``org_groups.lti_staff_role``), whatever org context the client sent.
+    ``lti_attachments`` omitted (None) keeps the creator-only rule;
+    ``protected_org_ids`` are the linked orgs whose connections stay
+    superadmin-run (only their admins count).
+    """
+    if str(user.id) == str(project.created_by):
+        return True
+    memberships = (
+        user_with_memberships.organization_memberships
+        if user_with_memberships is not None
+        else None
+    )
+    return (
+        lti_staff_role(
+            getattr(project, "kind", None),
+            memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids=protected_org_ids,
+        )
+        is not None
+    )
+
+
+def _lti_protected_org_ids(db: Session, lti_attachments) -> set:
+    """Sync: the linked orgs whose connections stay superadmin-run.
+
+    Fails closed (``extensions.lti_protected_org_subset``): a broken hook
+    counts every linked org as protected.
+    """
+    if not lti_attachments:
+        return set()
+    import extensions
+
+    return extensions.lti_protected_org_subset(db, list(lti_attachments))
+
+
+async def _lti_protected_org_ids_async(db: AsyncSession, lti_attachments) -> set:
+    """Async twin of :func:`_lti_protected_org_ids` (the hooks are sync)."""
+    if not lti_attachments:
+        return set()
+    import extensions
+
+    org_ids = list(lti_attachments)
+    return await db.run_sync(
+        lambda sync_db: extensions.lti_protected_org_subset(sync_db, org_ids)
+    )
+
+
 def _decide_project_accessible_context_mode(
     user,
     project,
@@ -1137,6 +1201,8 @@ def _decide_project_accessible_context_mode(
     *,
     attachment_groups=None,
     user_groups=None,
+    lti_attachments=None,
+    protected_org_ids=None,
 ) -> bool:
     """Org-context-mode decision (pure; no DB). Mirrors the inline logic.
 
@@ -1144,9 +1210,20 @@ def _decide_project_accessible_context_mode(
     ({group_id: is_group_admin}) carry the group axis; omitted (None) they
     fall back to "every attachment is org-wide" — pre-groups behavior, kept
     for legacy callers. Production wrappers always pass both.
+    ``lti_attachments`` ({org_id: group_id|None} of ``attached_via='lti'``
+    rows) opens a private exam to the linked orgs' eligible staff, under any
+    context including ``private``; omitted, private stays creator-only.
+    ``protected_org_ids``: linked orgs where only admins count.
     """
     if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
+        return _decide_private_project(
+            user,
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids,
+        )
 
     if org_context == "private":
         # Creator keeps access to their own org-assigned projects from the
@@ -1185,14 +1262,25 @@ def _decide_project_accessible_legacy_mode(
     *,
     attachment_groups=None,
     user_groups=None,
+    lti_attachments=None,
+    protected_org_ids=None,
 ) -> bool:
     """Legacy-mode (org_context=None) decision (pure; no DB).
 
     Evaluated per attachment (not org-set intersection) so a group-scoped
-    attachment only counts through an eligible membership.
+    attachment only counts through an eligible membership. Private projects
+    follow the same rule as context mode (creator, plus LMS-linked staff
+    when ``lti_attachments`` is given).
     """
     if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
+        return _decide_private_project(
+            user,
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids,
+        )
 
     if not project_org_ids:
         return str(user.id) == str(project.created_by)
@@ -1216,6 +1304,16 @@ def _decide_project_accessible_legacy_mode(
         if _org_grants_full_tier(project, m, group_id, user_groups):
             return True
     return False
+
+
+def _private_exam_needs_lti_map(project, is_creator: bool) -> bool:
+    """Whether the private-project decision needs the LMS attachment map:
+    only someone else's private exam can be opened through one."""
+    return (
+        bool(getattr(project, "is_private", False))
+        and not is_creator
+        and getattr(project, "kind", None) == "exam"
+    )
 
 
 def check_project_accessible(
@@ -1262,18 +1360,26 @@ def check_project_accessible(
     if getattr(project, "is_public", False) is True:
         return True
 
-    # Fast-paths that need no org/group reads: a private project and the
-    # private context resolve purely on creatorship (the deciders below
-    # apply the same rule — this just skips three queries on those paths).
-    if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
-    if org_context == "private":
-        return str(user.id) == str(project.created_by)
+    # Fast-paths that need no org/group reads: the creator of a private
+    # project, a private non-exam, and the private context on a non-private
+    # project resolve purely on creatorship (the deciders below apply the
+    # same rule — this just skips the reads on those paths). A private exam
+    # of someone else falls through: its LMS attachments may grant staff.
+    is_creator = str(user.id) == str(project.created_by)
+    needs_lti = _private_exam_needs_lti_map(project, is_creator)
+    if getattr(project, "is_private", False) and not needs_lti:
+        return is_creator
+    if not getattr(project, "is_private", False) and org_context == "private":
+        return is_creator
 
     # Both modes now delegate to the pure deciders (same as the async lane)
     # so the sync/async semantics — including the group-eligibility axis —
     # cannot drift. The reads stay on the legacy ``db.query`` API for the
     # mock-based unit tests.
+    lti_attachments = get_lti_attachment_map(db, project_id) if needs_lti else None
+    if needs_lti and not lti_attachments:
+        return False
+    protected_org_ids = _lti_protected_org_ids(db, lti_attachments)
     attachment_groups = get_attachment_group_map(db, project_id)
     project_org_ids = list(attachment_groups.keys())
     user_with_memberships = get_user_with_memberships(db, str(user.id))
@@ -1288,6 +1394,8 @@ def check_project_accessible(
             user_with_memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
         )
     return _decide_project_accessible_legacy_mode(
         user,
@@ -1296,6 +1404,8 @@ def check_project_accessible(
         user_with_memberships,
         attachment_groups=attachment_groups,
         user_groups=user_groups,
+        lti_attachments=lti_attachments,
+        protected_org_ids=protected_org_ids,
     )
 
 
@@ -1327,6 +1437,15 @@ async def check_project_accessible_async(
     if getattr(project, "is_public", False) is True:
         return True
 
+    # The LMS attachment map is only an input for someone else's private
+    # exam (lockstep with the sync lane, which skips every read otherwise).
+    is_creator = str(user.id) == str(project.created_by)
+    lti_attachments = None
+    if _private_exam_needs_lti_map(project, is_creator):
+        lti_attachments = await get_lti_attachment_map_async(db, project_id)
+        if not lti_attachments:
+            return False
+    protected_org_ids = await _lti_protected_org_ids_async(db, lti_attachments)
     attachment_groups = await get_attachment_group_map_async(db, project_id)
     project_org_ids = list(attachment_groups.keys())
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
@@ -1341,6 +1460,8 @@ async def check_project_accessible_async(
             user_with_memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
         )
     return _decide_project_accessible_legacy_mode(
         user,
@@ -1349,6 +1470,8 @@ async def check_project_accessible_async(
         user_with_memberships,
         attachment_groups=attachment_groups,
         user_groups=user_groups,
+        lti_attachments=lti_attachments,
+        protected_org_ids=protected_org_ids,
     )
 
 
@@ -2065,21 +2188,53 @@ def get_project_access_tier(
     return None
 
 
+def _build_select_project_attachment_kinds(project_id: str):
+    """Shared SQL builder: the project's attachments as (org id, is manual)."""
+    return select(
+        ProjectOrganization.organization_id,
+        non_lti_attachment(ProjectOrganization),
+    ).where(ProjectOrganization.project_id == project_id)
+
+
+def _share_manager_by_attachments(user, project, rows):
+    """Pure first step of the share-management gates.
+
+    ``rows`` are (org_id, is_manual) pairs. Returns ``(decided, org_ids)``:
+    ``decided`` is True/False when the rows settle it, None when the org
+    admin / group admin checks must run over ``org_ids``. Only a MANUAL org
+    attachment takes share management away from the creator; linking the
+    exam to an LMS activity (``attached_via='lti'``) does not.
+    """
+    org_ids = [str(org_id) for org_id, _ in rows]
+    if not org_ids:
+        return str(user.id) == str(project.created_by), org_ids
+    if str(user.id) == str(project.created_by) and not any(
+        manual for _, manual in rows
+    ):
+        return True, org_ids
+    return None, org_ids
+
+
 async def check_user_can_manage_shares_async(db: AsyncSession, user, project: Project) -> bool:
     """Whether a user may create / update / revoke share links on a project.
 
-    Org projects (≥1 ``ProjectOrganization`` row): only active ORG_ADMIN
-    members of one of those orgs — deliberately NO creator fast-path, so a
-    CONTRIBUTOR who created an org project cannot let outside people in on
-    their own. Personal projects (no org rows): the creator. Superadmins
-    always. Viewing links / the roster / evicting stays on the edit tier.
+    Org projects (≥1 manual ``ProjectOrganization`` row): only active
+    ORG_ADMIN members of one of the project's orgs — deliberately NO creator
+    fast-path, so a CONTRIBUTOR who created an org project cannot let outside
+    people in on their own. Personal projects (no org rows, or only rows
+    created by LMS linking): the creator. The attached orgs' ORG_ADMINs and
+    the attachments' group admins also manage an LMS-linked exam.
+    Superadmins always. Viewing links / the roster / evicting stays on the
+    edit tier.
     """
     if user.is_superadmin:
         return True
-    org_result = await db.execute(_build_select_project_org_ids(project.id))
-    project_org_ids = list(org_result.scalars().all())
-    if not project_org_ids:
-        return str(user.id) == str(project.created_by)
+    rows = (
+        await db.execute(_build_select_project_attachment_kinds(project.id))
+    ).all()
+    decided, project_org_ids = _share_manager_by_attachments(user, project, rows)
+    if decided is not None:
+        return decided
     admin_result = await db.execute(
         _build_select_org_admin_membership(user.id, project_org_ids)
     )
@@ -2097,14 +2252,10 @@ def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
     """Sync twin of :func:`check_user_can_manage_shares_async`."""
     if user.is_superadmin:
         return True
-    project_org_ids = [
-        r.organization_id
-        for r in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project.id)
-        .all()
-    ]
-    if not project_org_ids:
-        return str(user.id) == str(project.created_by)
+    rows = db.execute(_build_select_project_attachment_kinds(project.id)).all()
+    decided, project_org_ids = _share_manager_by_attachments(user, project, rows)
+    if decided is not None:
+        return decided
     if (
         db.execute(_build_select_org_admin_membership(user.id, project_org_ids)).first()
         is not None

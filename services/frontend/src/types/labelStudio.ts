@@ -23,6 +23,9 @@ export interface Project {
     // Group scope of this org attachment: null/absent = visible to the whole
     // org, set = only that group's members (+ org admins + the creator).
     group_id?: string | null
+    // 'lti' when linking the exam to a learning platform activity created
+    // the attachment (it stays whatever the visibility), 'manual' otherwise.
+    attached_via?: 'manual' | 'lti' | null
   }>
 
   // Label Studio fields

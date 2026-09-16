@@ -3,12 +3,15 @@ User management endpoints.
 """
 
 import logging
+import uuid
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from auth_module import (
     User,
@@ -25,7 +28,20 @@ from auth_module.user_service import (
 )
 from auth_module.email_verification import email_verification_service
 from database import get_async_db, get_db
+from models import LtiAdminEvent, LtiPlatformRegistration, LtiUserLink
 from models import User as DBUser
+from schemas.user_anonymization_schemas import (
+    AnonymizeResult,
+    UserAnonymizationPreviewRead,
+)
+from services.user_anonymization import (
+    AnonymizationRefused,
+    AnonymizationUserNotFound,
+    anonymization_check,
+    anonymization_footprint,
+    anonymize_user,
+    revoke_lms_link_tokens,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -110,13 +126,132 @@ async def update_user_status_endpoint(
     current_user: User = Depends(require_superadmin),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Update user active status (admin only)"""
+    """Update user active status (admin only).
+
+    An anonymized account cannot be switched back on (400
+    ``account_anonymized``): it has no name, email or password any more.
+    """
+    if status_data.get("is_active"):
+        anonymized_at = (
+            await db.execute(select(DBUser.anonymized_at).where(DBUser.id == user_id))
+        ).scalar()
+        if anonymized_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="account_anonymized",
+            )
     # Update status
     updated_user = await update_user_status_async(db, user_id, status_data.get("is_active"))
     if not updated_user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     return updated_user
+
+
+@router.get("/{user_id}/anonymization", response_model=UserAnonymizationPreviewRead)
+async def preview_user_anonymization_endpoint(
+    user_id: str,
+    current_user: User = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Whether an account may be anonymized, with what stays and goes
+    (superadmin only). Blocker and warning codes as in
+    ``services/user_anonymization.py``; no organization scope applies."""
+    target = (
+        await db.execute(select(DBUser).where(DBUser.id == user_id))
+    ).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    check = await anonymization_check(db, target, actor_id=current_user.id)
+    footprint = await anonymization_footprint(db, target.id)
+    return UserAnonymizationPreviewRead(
+        user_id=target.id,
+        eligible=check.eligible,
+        blockers=check.blockers,
+        warnings=check.warnings,
+        keeps=footprint["keeps"],
+        removes=footprint["removes"],
+    )
+
+
+@router.post("/{user_id}/anonymize", response_model=AnonymizeResult)
+async def anonymize_user_endpoint(
+    user_id: str,
+    current_user: User = Depends(require_superadmin),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Anonymize an account (superadmin only).
+
+    The support path for accounts an organization cannot anonymize itself
+    (for example after its LMS connection was deleted). Same scrub as the LMS
+    admin action, without organization scope rules; superadmins, the caller
+    and accounts with payment records are refused (409
+    ``anonymization_blocked`` with ``blockers``). Answers and grades stay;
+    nothing is reassigned. Every organization whose LMS connection linked the
+    account gets an audit entry (ids only).
+    """
+    linked = (
+        await db.execute(
+            select(
+                LtiPlatformRegistration.id,
+                LtiPlatformRegistration.name,
+                LtiPlatformRegistration.organization_id,
+            )
+            .join(LtiUserLink, LtiUserLink.registration_id == LtiPlatformRegistration.id)
+            .where(LtiUserLink.user_id == user_id)
+            .distinct()
+        )
+    ).all()
+    try:
+        result = await anonymize_user(
+            db, user_id, actor_id=current_user.id, reason="superadmin"
+        )
+    except AnonymizationUserNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        ) from None
+    except AnonymizationRefused as refused:
+        # Nothing was written; closing the session releases the row lock.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "anonymization_blocked",
+                "message": "This account cannot be anonymized.",
+                "blockers": refused.blockers,
+            },
+        ) from None
+
+    now = datetime.now(timezone.utc)
+    for registration_id, registration_name, organization_id in linked:
+        db.add(
+            LtiAdminEvent(
+                id=str(uuid.uuid4()),
+                organization_id=organization_id,
+                registration_id=registration_id,
+                registration_name=registration_name,
+                actor_user_id=current_user.id,
+                actor_kind="user",
+                action="user_anonymized",
+                changes={
+                    "user_id": result.user_id,
+                    "reason": "superadmin",
+                    "warnings": list(result.warnings),
+                    "removed": dict(result.removed),
+                },
+                created_at=now,
+            )
+        )
+    await db.commit()
+    await run_in_threadpool(revoke_lms_link_tokens, [result.user_id])
+    logger.info("Superadmin %s anonymized user %s", current_user.id, result.user_id)
+    return AnonymizeResult(
+        user_id=result.user_id,
+        anonymized_at=result.anonymized_at,
+        pseudonym=result.pseudonym,
+        warnings=result.warnings,
+        removed=result.removed,
+        kept=result.kept,
+    )
 
 
 @router.patch("/{user_id}/verify-email", response_model=User)

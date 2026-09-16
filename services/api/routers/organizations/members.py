@@ -4,6 +4,35 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_async_db
+from services.member_privacy import (
+    org_name_mask,
+    protected_org_ids,
+    reveal_org_accounts,
+)
+
+
+def _require_login(current_user) -> None:
+    """``get_current_user`` is optional auth and answers None for anonymous
+    and deactivated (e.g. anonymized) accounts: refuse with 401, never 500."""
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+        )
+
+
+class OrganizationMemberListItem(OrganizationMemberResponse):
+    """A member row of the org member list.
+
+    ``is_lms_account``: the account came from, or is linked to, an LMS
+    connection. ``is_pseudonymized``: the viewer may not see the real name
+    (owner decision D8), so ``user_name`` is the pseudonym and
+    ``user_email`` is None.
+    """
+
+    is_lms_account: bool = False
+    is_pseudonymized: bool = False
+
 
 class AddUserToOrganization(BaseModel):
     user_id: str
@@ -25,13 +54,46 @@ class BulkVerifyEmailRequest(BaseModel):
 
 
 
-@router.get("/{organization_id}/members", response_model=List[OrganizationMemberResponse])
+async def _administers_a_group(db: AsyncSession, user_id: str, organization_id: str) -> bool:
+    """Whether the user is group admin of a group of the org."""
+    from models import OrganizationGroup, OrganizationGroupMembership
+
+    row = (
+        await db.execute(
+            select(OrganizationGroupMembership.id)
+            .join(
+                OrganizationGroup,
+                OrganizationGroup.id == OrganizationGroupMembership.group_id,
+            )
+            .where(
+                OrganizationGroupMembership.user_id == user_id,
+                OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                OrganizationGroup.organization_id == organization_id,
+            )
+            .limit(1)
+        )
+    ).first()
+    return row is not None
+
+
+@router.get("/{organization_id}/members", response_model=List[OrganizationMemberListItem])
 async def list_organization_members(
     organization_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """List organization members"""
+    """List organization members.
+
+    LMS accounts are listed by pseudonym, without email, unless the viewer
+    is a superadmin, the account itself, or an org admin here and the
+    account belongs to one of this org's own LMS connections (D8). A group
+    admin sees the names of those accounts among the members of the groups
+    they administer (the same names their group roster shows). The roster of
+    an org whose LMS connections stay superadmin-run is for its org admins
+    and group admins only.
+    """
+    _require_login(current_user)
+    viewer_is_org_admin = False
     # Check access permissions
     if not current_user.is_superadmin:
         membership = (
@@ -48,6 +110,7 @@ async def list_organization_members(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization",
             )
+        viewer_is_org_admin = membership.role == OrganizationRole.ORG_ADMIN
         # ANNOTATOR members (incl. every LTI-provisioned student) must not
         # enumerate the org roster — names and emails of the whole cohort and
         # staff. Member visibility is a CONTRIBUTOR+ concern — or a GROUP
@@ -56,28 +119,19 @@ async def list_organization_members(
         # group (group-scoped invitation, admin toggle) and needs the roster
         # to pick members for it.
         if membership.role == OrganizationRole.ANNOTATOR:
-            from models import OrganizationGroup, OrganizationGroupMembership
-
-            group_admin = (
-                await db.execute(
-                    select(OrganizationGroupMembership.id)
-                    .join(
-                        OrganizationGroup,
-                        OrganizationGroup.id
-                        == OrganizationGroupMembership.group_id,
-                    )
-                    .where(
-                        OrganizationGroupMembership.user_id == current_user.id,
-                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
-                        OrganizationGroup.organization_id == organization_id,
-                    )
-                    .limit(1)
-                )
-            ).first()
-            if group_admin is None:
+            if not await _administers_a_group(db, current_user.id, organization_id):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Member list requires a contributor or admin role",
+                )
+        elif not viewer_is_org_admin and await protected_org_ids(db, [organization_id]):
+            # An org whose LMS connections stay superadmin-run is joined by
+            # every LMS user and every pilot teacher (as a contributor): only
+            # its org admins and group admins read the roster.
+            if not await _administers_a_group(db, current_user.id, organization_id):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Member list of this organization requires an admin role",
                 )
 
     # Get members with user details
@@ -116,15 +170,38 @@ async def list_organization_members(
             MemberGroupInfo(id=gid, name=gname, is_group_admin=bool(is_admin))
         )
 
+    mask = await org_name_mask(
+        db,
+        [user for _, user in members],
+        viewer=current_user,
+        admin_org_ids=[organization_id] if viewer_is_org_admin else [],
+    )
+    if mask.masked_ids and not viewer_is_org_admin:
+        viewer_id = str(current_user.id)
+        admin_group_ids = {
+            gid
+            for uid, gid, _name, is_admin in group_rows
+            if str(uid) == viewer_id and is_admin
+        }
+        if admin_group_ids:
+            mask = await reveal_org_accounts(
+                db,
+                mask,
+                organization_id,
+                {uid for uid, gid, _name, _admin in group_rows if gid in admin_group_ids},
+            )
+
     result = []
     for membership, user in members:
         member_dict = membership.__dict__.copy()
-        member_dict["user_name"] = user.name
-        member_dict["user_email"] = user.email
+        member_dict["user_name"] = mask.label(user)
+        member_dict["user_email"] = mask.email(user)
         member_dict["email_verified"] = user.email_verified
         member_dict["email_verification_method"] = user.email_verification_method
         member_dict["groups"] = groups_by_user.get(membership.user_id, [])
-        result.append(OrganizationMemberResponse(**member_dict))
+        member_dict["is_lms_account"] = mask.is_lms(user.id)
+        member_dict["is_pseudonymized"] = mask.is_masked(user.id)
+        result.append(OrganizationMemberListItem(**member_dict))
 
     return result
 
@@ -137,6 +214,7 @@ async def update_member_role(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Update member role in organization (org admin or superadmin only)"""
+    _require_login(current_user)
     # Check permissions
     # can_manage_organization (org admin of this org OR superadmin) is the sync
     # helper in _common.py; bridge it via db.run_sync onto this async session's
@@ -192,6 +270,7 @@ async def remove_member(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Remove member from organization (org admin or superadmin only)"""
+    _require_login(current_user)
     # Check permissions
     if not await db.run_sync(
         lambda sync_db: can_manage_organization(
@@ -243,6 +322,7 @@ async def add_user_to_organization(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Add user to organization (superadmin or org admin)"""
+    _require_login(current_user)
     # Check permissions
     if not await db.run_sync(
         lambda sync_db: can_manage_organization(
@@ -320,6 +400,7 @@ async def verify_member_email(
     This endpoint allows organization administrators to manually verify the email
     address of members in their organization.
     """
+    _require_login(current_user)
     from datetime import datetime, timezone
 
     # Check permissions
@@ -361,12 +442,18 @@ async def verify_member_email(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
+    # The address stays hidden for LMS accounts of other orgs' connections
+    # (D8); the caller is an admin of this org or a superadmin.
+    email_mask = await org_name_mask(
+        db, [user_to_verify], viewer=current_user, admin_org_ids=[organization_id]
+    )
+    shown_email = email_mask.email(user_to_verify)
 
     # Check if already verified
     if user_to_verify.email_verified:
         return {
             "message": "Email already verified",
-            "email": user_to_verify.email,
+            "email": shown_email,
             "verified_by": user_to_verify.email_verified_by_id,
             "verification_method": user_to_verify.email_verification_method,
         }
@@ -395,7 +482,7 @@ async def verify_member_email(
 
     return {
         "message": "Email verified successfully",
-        "email": user_to_verify.email,
+        "email": shown_email,
         "verified_by": current_user.email,
         "verification_method": "admin",
     }
@@ -413,6 +500,7 @@ async def bulk_verify_member_emails(
     This endpoint allows organization administrators to verify multiple member
     email addresses at once.
     """
+    _require_login(current_user)
     from datetime import datetime, timezone
 
     # Check permissions
@@ -470,13 +558,17 @@ async def bulk_verify_member_emails(
             )
             error_count += 1
             continue
+        email_mask = await org_name_mask(
+            db, [user_to_verify], viewer=current_user, admin_org_ids=[organization_id]
+        )
+        shown_email = email_mask.email(user_to_verify)
 
         # Check if already verified
         if user_to_verify.email_verified:
             results.append(
                 {
                     "user_id": user_id,
-                    "email": user_to_verify.email,
+                    "email": shown_email,
                     "status": "skipped",
                     "message": "Email already verified",
                 }
@@ -497,7 +589,7 @@ async def bulk_verify_member_emails(
         results.append(
             {
                 "user_id": user_id,
-                "email": user_to_verify.email,
+                "email": shown_email,
                 "status": "success",
                 "message": "Email verified successfully",
             }

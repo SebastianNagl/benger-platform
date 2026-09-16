@@ -25,7 +25,12 @@ Scope note (what is and isn't here):
 - The Label-Studio export object and the per-task JSON/CSV export object are
   built in their own generators and were NOT duplicated, so they stay in
   ``export_stream.py``.
+- The ``users`` block hides the real names of LMS users from exporting users
+  who may not see them (``serialize_user_rows``).
 """
+
+from lms_name_masking import NameVisibility
+from user_display import masked_name
 
 
 def _iso(dt):
@@ -283,7 +288,24 @@ def serialize_post_annotation_response_row(r) -> dict:
     }
 
 
-def serialize_user_row(u) -> dict:
+def serialize_user_row(u, *, masked: bool = False) -> dict:
+    """One ``users`` record.
+
+    A masked record belongs to an LMS user whose real name the exporting
+    user may not see (owner decision D8): it keeps the id, shows the
+    pseudonym as ``name`` and leaves out email and username. The importer
+    then maps it like any account it cannot match by email (to the importing
+    user).
+    """
+    if masked:
+        return {
+            "id": u.id,
+            "email": None,
+            "username": None,
+            "name": masked_name(u),
+            "is_active": u.is_active,
+            "is_superadmin": u.is_superadmin,
+        }
     return {
         "id": u.id,
         "email": u.email,
@@ -292,3 +314,16 @@ def serialize_user_row(u) -> dict:
         "is_active": u.is_active,
         "is_superadmin": u.is_superadmin,
     }
+
+
+def serialize_user_rows(db, users, *, project_id, viewer=None, name_visibility=None):
+    """The ``users`` records of a project export, masked for ``viewer``.
+
+    ``viewer`` is the user the export is for (None masks every LMS user);
+    ``name_visibility`` defaults to the hooks of this process
+    (:meth:`lms_name_masking.NameVisibility.load`).
+    """
+    users = [u for u in users if u is not None]
+    policy = name_visibility if name_visibility is not None else NameVisibility.load()
+    masked = policy.masked_user_ids(db, users, project_id=project_id, viewer=viewer)
+    return [serialize_user_row(u, masked=str(u.id) in masked) for u in users]

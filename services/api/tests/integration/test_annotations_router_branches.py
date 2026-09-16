@@ -222,16 +222,62 @@ class TestListByUsername:
         )
         await async_test_db.commit()
 
-        # contributor.username == "contributor@test.com"; the handler resolves
-        # the display string back to a user via username/name/pseudonym.
+        # The contributor has no pseudonym, so the results table shows them
+        # by name; the handler resolves that display string back to them.
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{task.id}/annotations",
-                params={"completed_by_username": contributor.username},
+                params={"completed_by_username": contributor.name},
             )
         assert resp.status_code == 200, resp.text
         ids = {a["id"] for a in resp.json()}
         assert ids == {theirs.id}
+
+    @pytest.mark.asyncio
+    async def test_filter_matches_only_the_display_label(
+        self, async_test_client, async_test_db
+    ):
+        """Only the label the results table shows resolves a user
+        (pseudonym, else name, else login), and only among the task's
+        annotators: a real name or login never leads to a pseudonym user."""
+        admin = await _make_user(async_test_db, is_superadmin=True)
+        hidden = await _make_user(
+            async_test_db,
+            is_superadmin=False,
+            name="Erika Mustermann",
+            username=f"lti-{uuid.uuid4().hex[:8]}",
+            pseudonym=f"Kluge Eule {uuid.uuid4().hex[:6]}",
+            use_pseudonym=True,
+        )
+        nameless = await _make_user(
+            async_test_db, is_superadmin=False, name="", username=f"login-{uuid.uuid4().hex[:8]}"
+        )
+        bystander = await _make_user(
+            async_test_db, is_superadmin=False, name=f"Nobody {uuid.uuid4().hex[:6]}"
+        )
+        project = await _make_project_async(async_test_db, created_by=admin.id)
+        task = await _make_task_async(async_test_db, project)
+        hidden_ann = await _seed_annotation_async(async_test_db, task, project, hidden.id)
+        nameless_ann = await _seed_annotation_async(
+            async_test_db, task, project, nameless.id
+        )
+        await async_test_db.commit()
+
+        async def resolve(value):
+            with _as_user(admin):
+                resp = await async_test_client.get(
+                    f"/api/projects/tasks/{task.id}/annotations",
+                    params={"completed_by_username": value},
+                )
+            assert resp.status_code == 200, resp.text
+            return {a["id"] for a in resp.json()}
+
+        assert await resolve(hidden.pseudonym) == {hidden_ann.id}
+        assert await resolve(hidden.name) == set()
+        assert await resolve(hidden.username) == set()
+        assert await resolve(nameless.username) == {nameless_ann.id}
+        # A user without an annotation on this task never resolves.
+        assert await resolve(bystander.name) == set()
 
     @pytest.mark.asyncio
     async def test_filter_by_username_no_match_returns_empty(

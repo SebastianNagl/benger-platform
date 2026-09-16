@@ -123,7 +123,8 @@ whenever one is added, renamed or removed):
   and ``missing_providers``. Imports refuse a second task on an exam an LMS
   activity points at (``multi_task_unsupported``, API and import drivers).
   Admin API: ``/api/admin/lti`` is scoped to org and group admins, with
-  ``GET /tool-hosts``, ``DELETE /registrations/{id}`` (``accounts=keep``),
+  ``GET /tool-hosts``, ``DELETE /registrations/{id}``
+  (``accounts=keep|anonymize``),
   ``PATCH .../deployments/{pk}``, ``GET .../resource-links``,
   ``GET|DELETE .../user-links``, ``GET .../events``, grade transfers with
   context and a retry that dispatches through ``dispatch_lti_grade_sync``.
@@ -142,6 +143,49 @@ whenever one is added, renamed or removed):
   ``LtiLinkConfirm``, prop ``token``) and ``/lti/error``. The Next
   ``/api/lti`` proxy passes the ``lti_pending`` cookie (``Path=/api/lti``)
   through in both directions.
+  Staff access to linked exams (D13): ``org_groups.lti_staff_role``
+  (``protected_org_ids``: on an org whose connections stay superadmin-run
+  only its admins count), ``get_lti_attachment_map(_async)`` (only
+  ``attached_via='lti'`` rows whose org still has an activity linked to the
+  project) and ``non_lti_attachment``; the three deciders
+  (``check_project_accessible``, ``get_project_access_tier``,
+  ``AuthorizationService``, both lanes) give eligible staff of such an org
+  the full tier on a PRIVATE exam under any org context, the participant
+  tier is unchanged; ``extensions.lti_protected_org_subset`` resolves the
+  protected orgs fail-closed. Share management stays with the creator
+  unless a manual org row exists. The visibility PATCH keeps linking rows,
+  turns a manual row of a linked org into one (with the connection's group),
+  drops linking rows whose org no longer links the exam and answers 409
+  ``lti_attachment_conflict`` to a group-aware re-scope of a linked org;
+  ``ProjectResponse.organizations[]`` carries ``attached_via``. Host route
+  ``/lti/activity`` (slot ``LtiActivityView``, props ``resourceLinkId``,
+  ``expectedUserId``, ``requestedUiMode``) is the teacher view.
+  Names (D8): ``/auth/me``, ``/auth/me/contexts`` and the login user carry
+  ``pseudonym``, ``use_pseudonym`` and ``is_lms_account``; shared modules
+  ``lms_name_masking`` (``NameVisibility``, ``lms_link_exists``,
+  ``is_lms_account(_sync)``) and ``user_display.masked_name`` /
+  ``prefers_pseudonym``; ``services/member_privacy`` masks the org member
+  list, ``/organizations/manage/users``, the group roster, project members,
+  the task listing, task assignments, ``created_by_name`` and the export
+  ``users`` block. New API hook ``project_real_name_user_ids(db, viewer,
+  project_id, user_ids)`` (the people a viewer may see by name on a project;
+  project lists unmask only those). The workers (and exports in the API
+  process, while the extension loader accepted the package) read the
+  optional worker hook ``benger_extended.workers.get_name_visibility_fns``,
+  which returns ``(privacy_protected_member_ids,
+  project_real_name_user_ids)``; like the other worker hooks it is NOT in
+  ``get_hooks()``. Anonymization (D16): ``services/user_anonymization``
+  (``anonymize_user(_sync)``, ``anonymization_check(_sync)``,
+  ``anonymization_footprint(_sync)``, ``revoke_lms_link_tokens``,
+  ``is_reserved_username``; a fresh ``Anonym-<hex>`` pseudonym replaces the
+  old one), the endpoints ``GET /api/admin/lti/registrations/{id}/
+  anonymization``, ``GET .../user-links/{id}/anonymization``,
+  ``POST .../user-links/{id}/anonymize`` and the superadmin
+  ``GET|POST /api/users/{id}/anonymization|anonymize``; reactivating an
+  anonymized account answers 400 ``account_anonymized``; signup refuses the
+  ``lti-`` and ``anon-`` username prefixes. ``get_current_user`` returns
+  None for inactive accounts (the handlers that use it answer 401), and the
+  progress WebSockets refuse inactive accounts.
 """
 
 import os

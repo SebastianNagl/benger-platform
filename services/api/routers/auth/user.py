@@ -148,12 +148,17 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
     """Preference columns surfaced on the user-hydration endpoints
     (/auth/me[/contexts]) that ``require_user``'s lean Pydantic user doesn't
     carry: the Vertretbar plan-choice greeting stamp (the one-time
-    VertretbarPlanModal gates on it) and the exam interface layout preference
-    (the labeling hosts resolve it from the boot fetch, no second request).
+    VertretbarPlanModal gates on it), the exam interface layout preference
+    (the labeling hosts resolve it from the boot fetch, no second request),
+    and the display-name fields: ``pseudonym``, ``use_pseudonym`` and
+    ``is_lms_account`` (the account came from, or is linked to, an LMS
+    connection; the header then shows the pseudonym instead of the login
+    name).
 
-    One single indexed-PK lookup for all of them — not one per field, and no
-    surface creep on the core auth user model.
+    One indexed-PK lookup for the columns plus one indexed lookup on the LMS
+    link table — not one per field.
     """
+    from lms_name_masking import is_lms_account
     from models import User as DBUser
 
     row = (
@@ -161,13 +166,21 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
             select(
                 DBUser.vertretbar_onboarding_completed_at,
                 DBUser.exam_layout_prefs,
+                DBUser.pseudonym,
+                DBUser.use_pseudonym,
             ).where(DBUser.id == str(user_id))
         )
     ).one_or_none()
-    onboarding_ts, exam_layout = (row[0], row[1]) if row else (None, None)
+    onboarding_ts, exam_layout, pseudonym, use_pseudonym = (
+        tuple(row) if row else (None, None, None, None)
+    )
     return {
         "vertretbar_onboarding_completed_at": _iso_or_none(onboarding_ts),
         "exam_layout_prefs": _ensure_dict(exam_layout),
+        "pseudonym": pseudonym,
+        # NULL means the column default (pseudonym on).
+        "use_pseudonym": True if use_pseudonym is None else bool(use_pseudonym),
+        "is_lms_account": await is_lms_account(db, str(user_id)) if row else False,
     }
 
 
@@ -616,6 +629,9 @@ async def complete_profile(
             redirect_url="/dashboard",
         )
 
+    from auth_module.user_service import _reject_reserved_username
+
+    _reject_reserved_username(profile_data.username)
     existing_user = await get_user_by_username_async(db, profile_data.username)
     if existing_user and existing_user.id != db_user.id:
         raise HTTPException(

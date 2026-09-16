@@ -12,6 +12,13 @@ Who may do what:
   admins for their group's connections, superadmins).
 * Connections of **protected organizations**
   (``extensions.lti_protected_org_ids``) stay superadmin-only.
+* Admins anonymize the accounts a connection's launches created (owner
+  decision D16): per LMS link (preview, then ``POST .../anonymize``), or all
+  at once when the connection is deleted with ``accounts=anonymize``. The
+  scope rules always use the connection's organization (and, for group
+  admins, their groups), also for superadmins; the superadmin user admin
+  (``POST /api/users/{id}/anonymize``) is the unscoped path. The rules and
+  the scrub live in ``services/user_anonymization.py``.
 
 Every endpoint checks the scope through ``auth_module.org_scope``. List
 endpoints need ``organization_id`` unless the caller is a superadmin. Every
@@ -37,6 +44,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -87,6 +95,24 @@ from schemas.lti_schemas import (
     LtiToolHostRead,
     LtiUserLinkAdminPage,
     LtiUserLinkAdminRead,
+)
+from schemas.user_anonymization_schemas import (
+    AnonymizationPreviewRead,
+    AnonymizationUserRead,
+    AnonymizeRequest,
+    AnonymizeResult,
+    ConnectionAccountSkipped,
+    ConnectionAnonymizationPreviewRead,
+    ConnectionDeleteReport,
+)
+from services.user_anonymization import (
+    AnonymizationRefused,
+    AnonymizationScope,
+    AnonymizationUserNotFound,
+    anonymization_check,
+    anonymization_footprint,
+    anonymize_user,
+    revoke_lms_link_tokens,
 )
 from user_display import display_name
 
@@ -442,6 +468,131 @@ def _registration_subquery(registration_id: str):
     return select(LtiResourceLink.id).where(
         LtiResourceLink.registration_id == registration_id
     )
+
+
+# --------------------------------------------------------------------------- #
+# Anonymization helpers
+# --------------------------------------------------------------------------- #
+def _anonymization_scope(
+    reg: LtiPlatformRegistration, scope: OrgAdminScope
+) -> AnonymizationScope:
+    """The connection's org, narrowed to the caller's groups for group
+    admins. Superadmins get the org-wide scope: accounts that reach beyond
+    this organization go through the superadmin user admin instead."""
+    if scope.org_wide:
+        return AnonymizationScope(organization_id=reg.organization_id)
+    return AnonymizationScope(
+        organization_id=reg.organization_id,
+        group_ids=frozenset(scope.admin_group_ids),
+    )
+
+
+def _anonymization_blocked(blockers: List[str]) -> HTTPException:
+    return _error(
+        status.HTTP_409_CONFLICT,
+        "anonymization_blocked",
+        "This account cannot be anonymized here.",
+        blockers=list(blockers),
+    )
+
+
+async def _provisioned_connection_accounts(
+    db: AsyncSession, registration_id: str
+) -> List[Tuple[LtiUserLink, User]]:
+    """One (link, user) pair per account the connection's launches created,
+    oldest link first. Tombstones of unlinked identities count too."""
+    rows = (
+        await db.execute(
+            select(LtiUserLink, User)
+            .join(User, User.id == LtiUserLink.user_id)
+            .where(
+                LtiUserLink.registration_id == registration_id,
+                LtiUserLink.link_method == "provisioned",
+            )
+            .order_by(LtiUserLink.created_at, LtiUserLink.id)
+        )
+    ).all()
+    seen = set()
+    pairs = []
+    for link, user in rows:
+        if user.id in seen:
+            continue
+        seen.add(user.id)
+        pairs.append((link, user))
+    return pairs
+
+
+def _account_label(user: User, reveal: bool) -> str:
+    """Real name for viewers who may see it, else the pseudonym (never a
+    fallback to the name for LMS accounts)."""
+    if reveal:
+        return display_name(user, True)
+    return user.pseudonym or f"User {str(user.id)[:8]}"
+
+
+def _skipped_account(
+    link: LtiUserLink, user: User, reveal: bool, blockers: List[str]
+) -> ConnectionAccountSkipped:
+    return ConnectionAccountSkipped(
+        user_link_id=link.id,
+        user_id=user.id,
+        display=_account_label(user, reveal),
+        blockers=list(blockers),
+    )
+
+
+def _anonymized_changes(link_id: Optional[str], result, reason: str) -> Dict[str, Any]:
+    """Audit payload of one anonymization: ids and counts, no personal data."""
+    return {
+        "user_link_id": link_id,
+        "user_id": result.user_id,
+        "reason": reason,
+        "warnings": list(result.warnings),
+        "removed": dict(result.removed),
+    }
+
+
+async def _anonymize_connection_accounts(
+    db: AsyncSession,
+    actor: Any,
+    reg: LtiPlatformRegistration,
+    scope: OrgAdminScope,
+) -> Tuple[List[str], List[ConnectionAccountSkipped]]:
+    """Anonymize every eligible provisioned account of a connection that is
+    about to be deleted. Writes one audit row per account (without the
+    registration id, which the delete removes). Nothing is committed."""
+    anon_scope = _anonymization_scope(reg, scope)
+    reveal = _reveals_names(scope, reg.group_id)
+    anonymized: List[str] = []
+    skipped: List[ConnectionAccountSkipped] = []
+    for link, user in await _provisioned_connection_accounts(db, reg.id):
+        try:
+            result = await anonymize_user(
+                db,
+                user.id,
+                actor_id=actor.id,
+                reason="registration_deleted",
+                scope=anon_scope,
+                via_link_id=link.id,
+            )
+        except AnonymizationRefused as refused:
+            skipped.append(_skipped_account(link, user, reveal, refused.blockers))
+            continue
+        except AnonymizationUserNotFound:
+            continue
+        anonymized.append(result.user_id)
+        _record_event(
+            db,
+            organization_id=reg.organization_id,
+            actor=actor,
+            action="user_anonymized",
+            registration_name=reg.name,
+            changes={
+                "registration_id": reg.id,
+                **_anonymized_changes(link.id, result, "registration_deleted"),
+            },
+        )
+    return anonymized, skipped
 
 
 # --------------------------------------------------------------------------- #
@@ -954,14 +1105,19 @@ async def _cleanup_org_attachments(
     return orphaned, detached, revoked.rowcount or 0
 
 
-@router.delete("/registrations/{registration_id}", status_code=204)
+@router.delete(
+    "/registrations/{registration_id}",
+    status_code=204,
+    responses={200: {"model": ConnectionDeleteReport}},
+)
 async def delete_registration(
     registration_id: str,
-    accounts: Optional[Literal["keep"]] = Query(
+    accounts: Optional[Literal["keep", "anonymize"]] = Query(
         None,
         description=(
             "What happens to accounts the connection created. Required when "
-            "there are any; 'keep' leaves them as standalone accounts."
+            "there are any: 'keep' leaves them as standalone accounts, "
+            "'anonymize' anonymizes every eligible one first."
         ),
     ),
     current_user=Depends(require_user),
@@ -971,11 +1127,17 @@ async def delete_registration(
 
     Two steps on purpose: switch the connection off first. The database drops
     its deployments, activities, identity links and grade transfer rows;
-    accounts survive. Exams no other connection of the org links lose the
-    org attachment linking created, and LMS entitlements nobody can reach
-    through another link any more are revoked.
+    accounts survive unless ``accounts=anonymize``. Exams no other connection
+    of the org links lose the org attachment linking created, and LMS
+    entitlements nobody can reach through another link any more are revoked.
+
+    With ``accounts=anonymize`` every provisioned account the caller may
+    anonymize is anonymized in the same transaction, then the connection is
+    deleted. The answer (200) lists the accounts that were skipped and why;
+    they stay as standalone accounts. ``GET .../anonymization`` previews it.
+    With ``accounts=keep`` the answer is 204.
     """
-    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
     if reg.status != "disabled":
         raise _error(
             status.HTTP_409_CONFLICT,
@@ -1009,7 +1171,30 @@ async def delete_registration(
         )
     ).scalar() or 0
 
+    anonymized: List[str] = []
+    skipped: List[ConnectionAccountSkipped] = []
+    if accounts == "anonymize":
+        anonymized, skipped = await _anonymize_connection_accounts(
+            db, current_user, reg, scope
+        )
+
     unlinked, detached, revoked = await _cleanup_org_attachments(db, reg)
+    changes = {
+        "registration_id": reg.id,
+        "group_id": reg.group_id,
+        "accounts": accounts,
+        "resource_links": resource_links,
+        "user_links": user_links,
+        "provisioned_accounts": provisioned,
+        "unlinked_project_ids": unlinked,
+        "detached_project_ids": detached,
+        "revoked_entitlements": revoked,
+    }
+    if accounts == "anonymize":
+        changes["anonymized_accounts"] = len(anonymized)
+        changes["skipped_accounts"] = [
+            {"user_id": item.user_id, "blockers": item.blockers} for item in skipped
+        ]
     _record_event(
         db,
         organization_id=reg.organization_id,
@@ -1018,21 +1203,64 @@ async def delete_registration(
         # The row goes away; the event keeps the id in its changes and the
         # name as a snapshot.
         registration_name=reg.name,
-        changes={
-            "registration_id": reg.id,
-            "group_id": reg.group_id,
-            "accounts": accounts,
-            "resource_links": resource_links,
-            "user_links": user_links,
-            "provisioned_accounts": provisioned,
-            "unlinked_project_ids": unlinked,
-            "detached_project_ids": detached,
-            "revoked_entitlements": revoked,
-        },
+        changes=changes,
     )
+    reg_id = reg.id
     await db.delete(reg)
     await db.commit()
-    return Response(status_code=204)
+
+    if accounts != "anonymize":
+        return Response(status_code=204)
+    await run_in_threadpool(revoke_lms_link_tokens, anonymized)
+    report = ConnectionDeleteReport(
+        registration_id=reg_id,
+        anonymized_accounts=len(anonymized),
+        anonymized_user_ids=anonymized,
+        skipped=skipped,
+    )
+    return JSONResponse(status_code=200, content=report.model_dump(mode="json"))
+
+
+@router.get(
+    "/registrations/{registration_id}/anonymization",
+    response_model=ConnectionAnonymizationPreviewRead,
+)
+async def preview_connection_anonymization(
+    registration_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """What deleting the connection with ``accounts=anonymize`` would do:
+    how many provisioned accounts it has, how many the caller may anonymize
+    (with their warnings) and which ones would be skipped and why."""
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    anon_scope = _anonymization_scope(reg, scope)
+    reveal = _reveals_names(scope, reg.group_id)
+    pairs = await _provisioned_connection_accounts(db, reg.id)
+    eligible = 0
+    warnings: Dict[str, int] = {}
+    skipped: List[ConnectionAccountSkipped] = []
+    for link, user in pairs:
+        check = await anonymization_check(
+            db,
+            user,
+            actor_id=current_user.id,
+            scope=anon_scope,
+            via_link_id=link.id,
+        )
+        if check.blockers:
+            skipped.append(_skipped_account(link, user, reveal, check.blockers))
+            continue
+        eligible += 1
+        for code in check.warnings:
+            warnings[code] = warnings.get(code, 0) + 1
+    return ConnectionAnonymizationPreviewRead(
+        registration_id=reg.id,
+        provisioned_accounts=len(pairs),
+        eligible_accounts=eligible,
+        warnings=warnings,
+        skipped=skipped,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -1503,6 +1731,129 @@ async def unlink_user(
         await db.delete(link)
     await db.commit()
     return Response(status_code=204)
+
+
+async def _load_user_link_with_user(
+    db: AsyncSession, reg: LtiPlatformRegistration, link_id: str
+) -> Tuple[LtiUserLink, User]:
+    found = (
+        await db.execute(
+            select(LtiUserLink, User)
+            .join(User, User.id == LtiUserLink.user_id)
+            .where(
+                LtiUserLink.id == link_id,
+                LtiUserLink.registration_id == reg.id,
+            )
+            .execution_options(populate_existing=True)
+        )
+    ).first()
+    if found is None:
+        raise _not_found("user_link_not_found", "LMS account link")
+    return found[0], found[1]
+
+
+@router.get(
+    "/registrations/{registration_id}/user-links/{link_id}/anonymization",
+    response_model=AnonymizationPreviewRead,
+)
+async def preview_user_anonymization(
+    registration_id: str,
+    link_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Whether the account behind an LMS link may be anonymized, and what
+    stays and goes. Blockers and warnings are codes (see
+    ``services/user_anonymization.py``); real name and email only for
+    viewers who may see them (D8)."""
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    link, user = await _load_user_link_with_user(db, reg, link_id)
+    check = await anonymization_check(
+        db,
+        user,
+        actor_id=current_user.id,
+        scope=_anonymization_scope(reg, scope),
+        via_link_id=link.id,
+    )
+    footprint = await anonymization_footprint(db, user.id)
+    reveal = _reveals_names(scope, reg.group_id)
+    return AnonymizationPreviewRead(
+        user_link_id=link.id,
+        registration_id=reg.id,
+        user=AnonymizationUserRead(
+            id=user.id,
+            display=_account_label(user, reveal),
+            pseudonym=user.pseudonym,
+            name=user.name if reveal else None,
+            email=user.email if reveal else None,
+        ),
+        eligible=check.eligible,
+        blockers=check.blockers,
+        warnings=check.warnings,
+        keeps=footprint["keeps"],
+        removes=footprint["removes"],
+    )
+
+
+@router.post(
+    "/registrations/{registration_id}/user-links/{link_id}/anonymize",
+    response_model=AnonymizeResult,
+)
+async def anonymize_linked_user(
+    registration_id: str,
+    link_id: str,
+    body: AnonymizeRequest,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Anonymize the account behind an LMS link (owner decision D16).
+
+    ``expected_user_id`` is the account the preview showed; a link that now
+    points elsewhere answers 409 ``link_changed``. Refusals answer 409
+    ``anonymization_blocked`` with the ``blockers``. The account keeps its
+    answers and grades; its LMS links, grade transfer rows and sessions go.
+    The audit row holds ids and counts only.
+    """
+    reg, scope = await _load_registration_scoped(db, current_user, registration_id)
+    link, user = await _load_user_link_with_user(db, reg, link_id)
+    if user.id != body.expected_user_id:
+        raise _error(
+            status.HTTP_409_CONFLICT,
+            "link_changed",
+            "This LMS link now belongs to another account. Reload the list.",
+        )
+    try:
+        result = await anonymize_user(
+            db,
+            user.id,
+            actor_id=current_user.id,
+            reason="lti_admin",
+            scope=_anonymization_scope(reg, scope),
+            via_link_id=link.id,
+        )
+    except AnonymizationRefused as refused:
+        # Nothing was written; closing the session releases the row lock.
+        raise _anonymization_blocked(refused.blockers) from None
+    except AnonymizationUserNotFound:
+        raise _not_found("user_link_not_found", "LMS account link") from None
+    _record_event(
+        db,
+        organization_id=reg.organization_id,
+        actor=current_user,
+        action="user_anonymized",
+        registration=reg,
+        changes=_anonymized_changes(link_id, result, "lti_admin"),
+    )
+    await db.commit()
+    await run_in_threadpool(revoke_lms_link_tokens, [result.user_id])
+    return AnonymizeResult(
+        user_id=result.user_id,
+        anonymized_at=result.anonymized_at,
+        pseudonym=result.pseudonym,
+        warnings=result.warnings,
+        removed=result.removed,
+        kept=result.kept,
+    )
 
 
 @router.get(

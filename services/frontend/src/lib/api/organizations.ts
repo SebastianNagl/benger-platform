@@ -8,6 +8,7 @@ import type {
   BulkInvitationResponse,
   Invitation,
   InvitationCreate,
+  MemberPrivacyFlags,
   Organization,
   OrganizationCreate,
   OrganizationMember,
@@ -698,15 +699,17 @@ export interface OrganizationGroupUpdate {
   is_active?: boolean
 }
 
-/** A member row of one organization group. */
-export interface OrganizationGroupMember {
+/** A member row of one organization group. LMS accounts whose real name
+ *  the viewer may not see carry the pseudonym and no email (owner decision
+ *  D8, `is_pseudonymized`). */
+export interface OrganizationGroupMember extends MemberPrivacyFlags {
   id: string
   group_id: string
   user_id: string
   is_group_admin: boolean
   created_at: string
   user_name: string
-  user_email: string
+  user_email: string | null
   org_role: OrganizationRole
 }
 

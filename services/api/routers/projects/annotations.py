@@ -377,19 +377,40 @@ async def list_task_annotations(
         # `completed_by_username`. Resolve via the same precedence so users
         # whose display name comes from `name` or `pseudonym` (e.g. the
         # imported "Imported User <hash>" cohort) still match.
-        from sqlalchemy import or_, and_
+        # Each field only matches when it IS the user's display label, and
+        # only users who annotated this task are candidates: a real name or
+        # login never resolves a user shown by pseudonym (D8), so the filter
+        # cannot serve as a lookup of who is behind a pseudonym.
+        from sqlalchemy import and_, exists, or_
         from models import User as DBUser
+
+        # ``pseudonym if (use_pseudonym and pseudonym) else (name or username)``
+        shows_alias = and_(
+            DBUser.use_pseudonym.is_(True),
+            DBUser.pseudonym.isnot(None),
+            DBUser.pseudonym != "",
+        )
+        has_name = and_(DBUser.name.isnot(None), DBUser.name != "")
         target_user = (
             await db.execute(
                 select(DBUser).where(
+                    exists().where(
+                        Annotation.task_id == task_id,
+                        Annotation.completed_by == DBUser.id,
+                    ),
                     or_(
+                        and_(shows_alias, DBUser.pseudonym == completed_by_username),
                         and_(
-                            DBUser.use_pseudonym == True,  # noqa: E712
-                            DBUser.pseudonym == completed_by_username,
+                            ~shows_alias,
+                            has_name,
+                            DBUser.name == completed_by_username,
                         ),
-                        DBUser.name == completed_by_username,
-                        DBUser.username == completed_by_username,
-                    )
+                        and_(
+                            ~shows_alias,
+                            ~has_name,
+                            DBUser.username == completed_by_username,
+                        ),
+                    ),
                 )
             )
             # .first(): DBUser.name is non-unique, so a display-name collision

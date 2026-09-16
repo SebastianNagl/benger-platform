@@ -151,7 +151,9 @@ async def test_delete_requires_disabled_and_an_account_choice_then_cleans_up(
         assert r.status_code == 409
         assert detail_code(r) == "accounts_choice_required"
         assert r.json()["detail"]["provisioned_accounts"] == 1
-        r = await client.delete(path, params={"accounts": "anonymize"})
+        # Unknown choices are rejected; "anonymize" is covered in
+        # test_lti_admin_anonymize.py.
+        r = await client.delete(path, params={"accounts": "purge"})
         assert r.status_code == 422
 
         r = await client.delete(path, params={"accounts": "keep"})

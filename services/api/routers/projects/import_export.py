@@ -1196,7 +1196,7 @@ async def bulk_export_full_projects(
                     # TextIOWrapper buffer on top of zip's deflate stream.
                     with zip_file.open(entry_name, 'w') as raw_entry:
                         for chunk in stream_comprehensive_project_data_json(
-                            db, project_id
+                            db, project_id, viewer=current_user
                         ):
                             raw_entry.write(chunk.encode("utf-8"))
 

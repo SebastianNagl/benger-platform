@@ -50,6 +50,8 @@ def db_user_to_user(db_user: DBUser) -> User:
             getattr(db_user, 'vertretbar_onboarding_completed_at', None)
         ),
         exam_layout_prefs=ensure_dict(getattr(db_user, 'exam_layout_prefs', None)),
+        pseudonym=getattr(db_user, 'pseudonym', None),
+        use_pseudonym=getattr(db_user, 'use_pseudonym', True),
     )
 
 
@@ -156,6 +158,16 @@ def verify_token_for_websocket(websocket: WebSocket) -> dict:
         raise WebSocketAuthError(f"Invalid token: {e}")
 
 
+def _lms_account_flag(db: Session, user_id: str) -> bool:
+    """``is_lms_account`` for the token response; False when unknown."""
+    from lms_name_masking import is_lms_account_sync
+
+    try:
+        return is_lms_account_sync(db, user_id) is True
+    except Exception:
+        return False
+
+
 def create_tokens_with_refresh(
     user: User,
     db: Session,
@@ -174,6 +186,10 @@ def create_tokens_with_refresh(
         },
         expires_delta=access_token_expires,
     )
+
+    # The login/refresh user carries the same LMS flag as /auth/me, so the
+    # header does not flip after the first hydration.
+    user = user.model_copy(update={"is_lms_account": _lms_account_flag(db, user.id)})
 
     # Create refresh token if requested
     refresh_token = None

@@ -14,6 +14,13 @@ Full tier on exams additionally requires a staff role — org role != ANNOTATOR
 OR U is a *group admin* of G (invariant: group admin ⇒ admin powers on the
 group's projects, regardless of org role).
 
+Private exams are creator-only, with one exception: an attachment created by
+linking the exam to an LMS activity (``attached_via='lti'``) gives that org's
+eligible staff the full tier (:func:`lti_staff_role`), whatever org context
+the client sends, as long as a connection of that org still links the exam.
+It never gives students anything on a private exam, and on an org whose
+connections stay superadmin-run it gives only that org's admins access.
+
 Everything here exists in exactly one form so the many enforcement sites
 (project list arms, per-project deciders, participant/student arms, admin
 gates, key resolution) cannot drift. Lives in /shared so the api, the
@@ -26,7 +33,7 @@ deactivating a group hides it from pickers and blocks new attachments, but
 never silently changes visibility or key scope of existing rows.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Iterable, Optional
 
 
 def _role_value(role) -> Optional[str]:
@@ -85,9 +92,84 @@ def grants_full_tier(
     return bool(group_id is not None and (user_groups or {}).get(group_id, False))
 
 
+_STAFF_ROLE_RANK = {"CONTRIBUTOR": 1, "ORG_ADMIN": 2}
+
+
+def lti_staff_role(
+    project_kind: Optional[str],
+    memberships,
+    lti_attachments: Optional[Dict[str, Optional[str]]],
+    user_groups: Optional[Dict[str, bool]] = None,
+    org_context: Optional[str] = None,
+    protected_org_ids: Optional[Iterable[str]] = None,
+) -> Optional[str]:
+    """The staff role an LMS attachment grants on a PRIVATE exam, or None.
+
+    Linking an exam to an LMS activity attaches it to the connection's org
+    (``attached_via='lti'``, map from :func:`get_lti_attachment_map`). On a
+    private exam that attachment is the only org path, and it is staff-only:
+    an ACTIVE membership in an attached org whose role is CONTRIBUTOR or
+    ORG_ADMIN, eligible for the attachment's group, gets the role back. A
+    group admin of the attachment's group counts as ``'ORG_ADMIN'`` whatever
+    their org role (an ANNOTATOR included); every other ANNOTATOR gets None,
+    so LMS students never reach the full tier this way. The best role over
+    all memberships wins.
+
+    ``protected_org_ids`` are orgs whose LMS connections stay
+    superadmin-run (``extensions.is_lti_protected_org``, resolved fail-closed
+    by the caller). Every LMS teacher of such a connection is a CONTRIBUTOR
+    there, so only its org admins and the attachment group's admins count;
+    its contributors get nothing from the attachment.
+
+    ``org_context`` is accepted for call-site symmetry with the deciders and
+    deliberately ignored: the apex host always sends ``private`` and a
+    teacher's last-org subdomain may send another org, so the grant cannot
+    depend on it (legacy mode already grants through any membership).
+    Callers handle the creator and superadmins, and apply this only to
+    private projects; non-private exams keep the generic rules, under which
+    their attachments already grant staff.
+    """
+    del org_context  # see docstring
+    if project_kind != "exam" or not lti_attachments:
+        return None
+    protected = {str(org_id) for org_id in (protected_org_ids or ()) if org_id}
+    best: Optional[str] = None
+    for membership in memberships or ():
+        org_id = str(membership.organization_id)
+        if org_id not in lti_attachments or not membership.is_active:
+            continue
+        group_id = lti_attachments[org_id]
+        if not attachment_eligible(
+            group_id, membership_role=membership.role, user_groups=user_groups
+        ):
+            continue
+        if not grants_full_tier(project_kind, membership.role, group_id, user_groups):
+            continue
+        if group_id is not None and (user_groups or {}).get(group_id, False):
+            role = "ORG_ADMIN"
+        else:
+            role = _role_value(membership.role)
+        if role not in _STAFF_ROLE_RANK:
+            continue
+        if org_id in protected and role != "ORG_ADMIN":
+            continue
+        if best is None or _STAFF_ROLE_RANK[role] > _STAFF_ROLE_RANK[best]:
+            best = role
+    return best
+
+
 # ---------------------------------------------------------------------------
 # SQL builders (core expressions — usable from both db.query and select lanes)
 # ---------------------------------------------------------------------------
+
+
+def non_lti_attachment(po):
+    """SQL clause: the attachment row was NOT created by LMS linking.
+
+    ``po`` is the (possibly aliased) ProjectOrganization entity. Used where a
+    manual share and a linking attachment must be told apart (share-link
+    management, the visibility settings)."""
+    return po.attached_via != "lti"
 
 
 def build_select_user_group_ids(user_id: str, admin_only: bool = False):
@@ -231,6 +313,63 @@ async def get_attachment_group_map_async(db, project_id: str) -> Dict[str, Optio
         select(
             ProjectOrganization.organization_id, ProjectOrganization.group_id
         ).where(ProjectOrganization.project_id == str(project_id))
+    )
+    return {str(org): (str(gid) if gid else None) for org, gid in result.all()}
+
+
+def _lti_attachment_filters(project_id: str):
+    """WHERE clauses of the project's LMS-linking attachments.
+
+    Only rows with ``attached_via='lti'`` whose org still owns a connection
+    with an activity linked to the project. A row that outlived its link
+    (a relink before the cleanup existed; migration 106 marked every
+    attachment of a private exam as ``lti``) grants nothing.
+    """
+    from sqlalchemy import exists
+
+    from models import LtiPlatformRegistration, LtiResourceLink
+    from project_models import ProjectOrganization
+
+    still_linked = exists().where(
+        LtiResourceLink.project_id == ProjectOrganization.project_id,
+        LtiResourceLink.registration_id == LtiPlatformRegistration.id,
+        LtiPlatformRegistration.organization_id == ProjectOrganization.organization_id,
+    )
+    return (
+        ProjectOrganization.project_id == str(project_id),
+        ProjectOrganization.attached_via == "lti",
+        still_linked,
+    )
+
+
+def get_lti_attachment_map(db, project_id: str) -> Dict[str, Optional[str]]:
+    """Sync: the project's LMS-linking attachments as {org_id: group_id | None}.
+
+    The input of :func:`lti_staff_role` (see :func:`_lti_attachment_filters`
+    for which rows count).
+    """
+    from project_models import ProjectOrganization
+
+    rows = (
+        db.query(
+            ProjectOrganization.organization_id, ProjectOrganization.group_id
+        )
+        .filter(*_lti_attachment_filters(project_id))
+        .all()
+    )
+    return {str(org): (str(gid) if gid else None) for org, gid in rows}
+
+
+async def get_lti_attachment_map_async(db, project_id: str) -> Dict[str, Optional[str]]:
+    """Async twin of :func:`get_lti_attachment_map`."""
+    from sqlalchemy import select
+
+    from project_models import ProjectOrganization
+
+    result = await db.execute(
+        select(
+            ProjectOrganization.organization_id, ProjectOrganization.group_id
+        ).where(*_lti_attachment_filters(project_id))
     )
     return {str(org): (str(gid) if gid else None) for org, gid in result.all()}
 

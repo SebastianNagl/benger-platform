@@ -24,6 +24,7 @@ from project_models import (
     Task,
     TaskAssignment,
 )
+from services.member_privacy import project_name_mask
 from routers.projects.helpers import (
     check_project_accessible_async,
     get_org_context_from_request,
@@ -436,6 +437,12 @@ async def list_task_assignments(
         ).scalars().all():
             users_by_id[row.id] = row
 
+    # LMS accounts appear by pseudonym, without email, unless the caller may
+    # see that person's real name on this project (D8).
+    name_mask = await project_name_mask(
+        db, users_by_id.values(), viewer=current_user, project_id=project_id
+    )
+
     result = []
     for assignment in assignments:
         user = users_by_id.get(assignment.user_id)
@@ -443,8 +450,8 @@ async def list_task_assignments(
             {
                 "id": assignment.id,
                 "user_id": assignment.user_id,
-                "user_name": user.name if user else None,
-                "user_email": user.email if user else None,
+                "user_name": name_mask.label(user),
+                "user_email": name_mask.email(user),
                 "status": assignment.status,
                 "priority": assignment.priority,
                 "due_date": assignment.due_date,

@@ -342,13 +342,16 @@ class TestListAllUsersOrgFiltering:
         }
 
         # Non-superadmin path since 33dfffd (CONTRIBUTOR+ gating): FIRST an
-        # ``await db.execute`` resolving the caller's org ids from the
-        # membership table (role-filtered), THEN the main user query. Two
+        # ``await db.execute`` resolving the caller's (org id, role) rows from
+        # the membership table (role-filtered), THEN the LMS-account masking
+        # candidates (D8; none here), THEN the main user query. Three
         # results, in call order. ``search`` defaults to None so the ilike
         # branch is skipped.
         db = _async_db(
             [
-                _result(scalars_all=["org-1"]),  # caller's CONTRIBUTOR+ org ids
+                # caller's CONTRIBUTOR+ memberships
+                _result(all_=[("org-1", OrganizationRole.CONTRIBUTOR)]),
+                _result(scalars_all=[]),  # no LMS accounts to mask
                 _result(scalars_all=[u1]),  # visible users
             ]
         )

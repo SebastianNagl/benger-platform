@@ -4,11 +4,29 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_async_db, get_db
+from lms_name_masking import lms_link_exists
+from services.member_privacy import (
+    lms_account_ids,
+    masked_name,
+    masked_org_member_ids,
+    protected_org_ids,
+)
+
+
+def _require_login(current_user) -> None:
+    """``get_current_user`` answers None for anonymous and deactivated
+    accounts: refuse with 401, never 500."""
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
+
 
 class UserResponse(BaseModel):
     id: str
     username: str
-    email: str
+    # None for an LMS account whose real identity the viewer may not see.
+    email: Optional[str] = None
     email_verified: bool = False
     email_verification_method: Optional[str] = None
     name: str
@@ -16,6 +34,11 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: Optional[datetime] = None
+    # The account came from, or is linked to, an LMS connection.
+    is_lms_account: bool = False
+    # The viewer sees the pseudonym instead of the real name (owner decision
+    # D8): ``name`` and ``username`` carry the pseudonym, ``email`` is None.
+    is_pseudonymized: bool = False
 
     class Config:
         from_attributes = True
@@ -46,35 +69,55 @@ async def list_all_users(
 
     Superadmins see all users. Non-superadmins see only users from
     organizations where they hold a CONTRIBUTOR or ORG_ADMIN role —
-    ANNOTATOR memberships (every LTI student) grant no user enumeration.
-    """
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
-        )
+    ANNOTATOR memberships (every LTI student) grant no user enumeration. On
+    an org whose LMS connections stay superadmin-run, only ORG_ADMIN counts.
 
+    LMS accounts appear by pseudonym, without email, unless the viewer is a
+    superadmin, the account itself, or an org admin of an org whose own LMS
+    connection the account belongs to (D8). The search matches such
+    accounts by pseudonym only, so it cannot tie a real name to one.
+    """
+    _require_login(current_user)
+
+    from sqlalchemy import and_ as sa_and
     from sqlalchemy import or_ as sa_or
 
     stmt = select(User).where(User.is_active == True)  # noqa: E712
+    masked_ids: set = set()
 
     if not current_user.is_superadmin:
         # Resolve from the membership table, not the auth-model org dicts:
         # role must gate this, and the dict shape is not guaranteed to carry it.
-        user_org_ids = (
-            (
-                await db.execute(
-                    select(OrganizationMembership.organization_id).where(
-                        OrganizationMembership.user_id == current_user.id,
-                        OrganizationMembership.is_active == True,  # noqa: E712
-                        OrganizationMembership.role.in_(
-                            (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
-                        ),
-                    )
+        org_roles = (
+            await db.execute(
+                select(
+                    OrganizationMembership.organization_id,
+                    OrganizationMembership.role,
+                ).where(
+                    OrganizationMembership.user_id == current_user.id,
+                    OrganizationMembership.is_active == True,  # noqa: E712
+                    OrganizationMembership.role.in_(
+                        (OrganizationRole.ORG_ADMIN, OrganizationRole.CONTRIBUTOR)
+                    ),
                 )
             )
-            .scalars()
-            .all()
+        ).all()
+        # The members of an org whose LMS connections stay superadmin-run
+        # (every LMS user and pilot teacher joins it) are listed to its org
+        # admins only.
+        protected = await protected_org_ids(
+            db,
+            [org_id for org_id, role in org_roles if role != OrganizationRole.ORG_ADMIN],
         )
+        org_roles = [
+            (org_id, role)
+            for org_id, role in org_roles
+            if role == OrganizationRole.ORG_ADMIN or str(org_id) not in protected
+        ]
+        user_org_ids = [org_id for org_id, _ in org_roles]
+        admin_org_ids = [
+            org_id for org_id, role in org_roles if role == OrganizationRole.ORG_ADMIN
+        ]
 
         if not user_org_ids:
             return []
@@ -91,23 +134,67 @@ async def list_all_users(
         )
         stmt = stmt.where(User.id.in_(select(member_user_ids)))
 
+        # Masked before the search and the limit: LMS accounts with the
+        # pseudonym on (the link table narrows the candidates, the hook
+        # decides), minus those this viewer may see.
+        candidate_ids = (
+            (
+                await db.execute(
+                    select(User.id).where(
+                        User.is_active == True,  # noqa: E712
+                        User.id.in_(select(member_user_ids)),
+                        User.id != str(current_user.id),
+                        sa_or(User.use_pseudonym.is_(None), User.use_pseudonym == True),  # noqa: E712
+                        lms_link_exists(User.id),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if candidate_ids:
+            lms_candidates = await lms_account_ids(db, candidate_ids)
+            masked_ids = await masked_org_member_ids(
+                db, lms_candidates, viewer=current_user, admin_org_ids=admin_org_ids
+            )
+
     # `search` defaults to FastAPI's Query(None) sentinel — truthy when this
     # handler is called directly from tests (FastAPI resolves it to None in
     # the request path). isinstance keeps the function safe in both paths.
     if isinstance(search, str) and search:
         escaped = search.replace("%", r"\%").replace("_", r"\_")
         like = f"%{escaped}%"
-        stmt = stmt.where(
-            sa_or(
-                User.username.ilike(like),
-                User.email.ilike(like),
-                User.name.ilike(like),
-            )
+        text_match = sa_or(
+            User.username.ilike(like),
+            User.email.ilike(like),
+            User.name.ilike(like),
         )
+        if masked_ids:
+            ids = sorted(masked_ids)
+            text_match = sa_or(
+                sa_and(User.id.notin_(ids), text_match),
+                sa_and(User.id.in_(ids), User.pseudonym.ilike(like)),
+            )
+        stmt = stmt.where(text_match)
 
     stmt = stmt.order_by(User.created_at.desc()).limit(limit)
     users = (await db.execute(stmt)).scalars().all()
-    return [UserResponse(**user.__dict__) for user in users]
+    lms_ids = await lms_account_ids(db, [user.id for user in users])
+
+    result = []
+    for user in users:
+        row = dict(user.__dict__)
+        row["is_lms_account"] = str(user.id) in lms_ids
+        if str(user.id) in masked_ids:
+            label = masked_name(user)
+            row.update(
+                name=label,
+                username=label,
+                email=None,
+                is_pseudonymized=True,
+            )
+        result.append(UserResponse(**row))
+    return result
 
 
 @router.put("/manage/users/{user_id}/superadmin")
@@ -118,6 +205,7 @@ async def update_user_superadmin_status(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Update user's superadmin status (superadmin only)"""
+    _require_login(current_user)
     # Check permissions
     if not current_user.is_superadmin:
         raise HTTPException(
@@ -175,6 +263,7 @@ async def delete_user(
     ``db.rollback()`` on error. Migrating this handler buys nothing and risks
     the most destructive endpoint in the router, so it stays on ``get_db``.
     """
+    _require_login(current_user)
     # Check permissions
     if not current_user.is_superadmin:
         raise HTTPException(

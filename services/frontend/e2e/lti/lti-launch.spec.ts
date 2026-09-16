@@ -117,6 +117,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await warmAppRoutes(warmPage, APP_BASE, [
       '/login',
       '/lti/link',
+      '/lti/activity',
       '/lti/consent',
       '/lti/link-account',
       '/lti/error',
@@ -184,13 +185,15 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await expect(submit).toBeEnabled()
     await submit.click()
 
-    // Linking navigates into the exam the activity now points at.
-    await teacherPage.waitForURL(new RegExp(`/student/exams/${examId}`), {
+    // Linking opens the activity overview of the linked exam (the teacher
+    // view), bound to this session.
+    await teacherPage.waitForURL(/\/lti\/activity\?rl=[0-9a-f-]+/, {
       timeout: 30_000,
     })
-    await expect(
-      teacherPage.getByRole('heading', { name: examTitle }),
-    ).toBeVisible({ timeout: 20_000 })
+    await expect(teacherPage.getByTestId('lti-activity-exam')).toContainText(
+      examTitle,
+      { timeout: 20_000 },
+    )
   })
 
   test('b. student first launch requires both consents before opening the exam', async ({

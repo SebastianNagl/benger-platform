@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from user_display import display_name, pseudonym_hint
+from user_display import display_name, masked_name, prefers_pseudonym, pseudonym_hint
 
 pytestmark = pytest.mark.unit
 
@@ -91,3 +91,34 @@ class TestPseudonymHint:
         assert pseudonym_hint(_user(pseudonym=None), reveal_real_name=True) is None
         assert pseudonym_hint(None, reveal_real_name=True) is None
         assert pseudonym_hint(pseudonym=" Eule ", reveal_real_name=True) == "Eule"
+
+
+class TestPrefersPseudonym:
+    def test_follows_the_preference(self):
+        assert prefers_pseudonym(_user()) is True
+        assert prefers_pseudonym(_user(use_pseudonym=False)) is False
+
+    def test_unset_means_on(self):
+        assert prefers_pseudonym(_user(use_pseudonym=None)) is True
+        assert prefers_pseudonym(SimpleNamespace()) is True
+        assert prefers_pseudonym(None) is True
+        assert prefers_pseudonym(use_pseudonym=False) is False
+
+
+class TestMaskedName:
+    def test_shows_the_pseudonym(self):
+        assert masked_name(_user()) == "Kluge Eule"
+        # Even when the user turned it off: a masked row never falls back.
+        assert masked_name(_user(use_pseudonym=False)) == "Kluge Eule"
+
+    def test_neutral_label_without_a_pseudonym(self):
+        user = SimpleNamespace(
+            id="0123456789abcdef", name="Erika Mustermann", username="erika", pseudonym=None
+        )
+        assert masked_name(user) == "User 01234567"
+        assert masked_name(user_id="abcdef0123", pseudonym="  ") == "User abcdef01"
+
+    def test_never_empty(self):
+        assert masked_name(None) == "User"
+        assert masked_name(SimpleNamespace(name="Erika")) == "User"
+

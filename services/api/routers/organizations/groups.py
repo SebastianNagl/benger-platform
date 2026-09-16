@@ -38,6 +38,7 @@ from models import (
     OrganizationRole,
 )
 from project_models import ProjectOrganization
+from services.member_privacy import org_name_mask
 
 from ._common import router
 
@@ -94,6 +95,10 @@ class GroupMemberResponse(BaseModel):
     user_name: Optional[str] = None
     user_email: Optional[str] = None
     org_role: Optional[OrganizationRole] = None
+    # The account came from, or is linked to, an LMS connection.
+    is_lms_account: bool = False
+    # The viewer sees the pseudonym, without email (owner decision D8).
+    is_pseudonymized: bool = False
 
     class Config:
         from_attributes = True
@@ -445,7 +450,12 @@ async def list_group_members(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """List a group's members (org admin / group admin / superadmin)."""
+    """List a group's members (org admin / group admin / superadmin).
+
+    Everyone allowed here sees the real names of the LMS accounts of this
+    org's own connections; LMS accounts of other orgs' connections appear by
+    pseudonym, without email (superadmins see all names).
+    """
     await _load_group_or_404(db, organization_id, group_id)
     await _require_can_manage_group(current_user, organization_id, group_id, db)
 
@@ -477,6 +487,13 @@ async def list_group_members(
             )
         ).all()
     }
+    # Every caller passed the org-admin / group-admin gate above.
+    mask = await org_name_mask(
+        db,
+        [m.user for m in rows],
+        viewer=current_user,
+        admin_org_ids=[organization_id],
+    )
     return [
         GroupMemberResponse(
             id=m.id,
@@ -484,9 +501,11 @@ async def list_group_members(
             user_id=m.user_id,
             is_group_admin=m.is_group_admin,
             created_at=m.created_at,
-            user_name=m.user.name if m.user else None,
-            user_email=m.user.email if m.user else None,
+            user_name=mask.label(m.user),
+            user_email=mask.email(m.user),
             org_role=org_roles.get(m.user_id),
+            is_lms_account=mask.is_lms(m.user_id),
+            is_pseudonymized=mask.is_masked(m.user_id),
         )
         for m in rows
     ]

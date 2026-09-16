@@ -7,6 +7,7 @@ from .blinding import (
     visible_top_level_keys,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
+from services.member_privacy import NameMask, project_name_mask
 
 
 @router.get("/{project_id}/tasks")
@@ -368,6 +369,17 @@ async def list_project_tasks(
             ).scalars().all()
             users_by_id = {u.id: u for u in user_rows}
 
+    # LMS accounts appear by pseudonym, without email, unless the caller may
+    # see real names on this project (D8). Blinded callers only get their
+    # own rows below, which are never masked.
+    name_mask = (
+        await project_name_mask(
+            db, users_by_id.values(), viewer=current_user, project_id=project_id
+        )
+        if users_by_id and _bound_fields is None
+        else NameMask()
+    )
+
     def _people(uids: List[str]) -> List[Dict[str, str]]:
         """Resolve a list of user ids to lightweight {id, name} dicts,
         skipping ids whose User row wasn't fetched (e.g. deleted user)."""
@@ -375,7 +387,7 @@ async def list_project_tasks(
         for uid in uids:
             resolved = users_by_id.get(uid)
             if resolved is not None:
-                people.append({"id": uid, "name": resolved.name})
+                people.append({"id": uid, "name": name_mask.label(resolved)})
         return people
 
     # Annotator blinding (extended #56): reduce task.data to the label-config-
@@ -442,8 +454,8 @@ async def list_project_tasks(
                 {
                     "id": assignment.id,
                     "user_id": assignment.user_id,
-                    "user_name": assigned_user.name,
-                    "user_email": assigned_user.email,
+                    "user_name": name_mask.label(assigned_user),
+                    "user_email": name_mask.email(assigned_user),
                     "status": assignment.status,
                     "priority": getattr(assignment, "priority", 0),
                     "due_date": getattr(assignment, "due_date", None),

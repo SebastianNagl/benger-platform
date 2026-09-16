@@ -52,7 +52,7 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
         export_format_is_gzipped,
         select_export_generator,
     )
-    from models import ExportJob, JobStatus
+    from models import ExportJob, JobStatus, User
     from project_models import Project
     from storage.object_storage import object_storage
 
@@ -182,8 +182,16 @@ def export_project_impl(self, job_id: str) -> Dict[str, Any]:
         # non-json format, but create_export_job already guards that at 422. Only
         # the json generator consumes progress_cb; other formats ignore it and the
         # bar stays at 0 until completion flips it to 100.
+        # The requester decides which LMS users' real names the user block of
+        # the comprehensive formats may carry (owner decision D8).
+        requester = db.query(User).filter(User.id == job.requested_by).first()
         generator = select_export_generator(
-            db, project, fmt, task_ids=job.task_ids, progress_cb=_on_progress
+            db,
+            project,
+            fmt,
+            task_ids=job.task_ids,
+            progress_cb=_on_progress,
+            viewer=requester,
         )
 
         for chunk in generator:

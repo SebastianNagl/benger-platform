@@ -13,6 +13,9 @@ so every surface applies the same precedence:
 The second rule is the long-standing default of the platform and the
 extended views: a user who turned the pseudonym off is shown by name.
 
+Lists that hide LMS users' real names (``masked_name``) never fall back to
+the name: they show the pseudonym or a neutral id-based label.
+
 Pure functions (attribute access only), safe for the api and the workers.
 """
 
@@ -58,11 +61,37 @@ def display_name(
     login = _text(_pick(user, "username", username))
     if not reveal_real_name:
         alias = _text(_pick(user, "pseudonym", pseudonym))
-        wants_alias = _pick(user, "use_pseudonym", use_pseudonym, default=True)
-        # NULL in the DB means the column default (pseudonym on).
-        if alias and (wants_alias is None or bool(wants_alias)):
+        if alias and prefers_pseudonym(user, use_pseudonym=use_pseudonym):
             return alias
     return real or login or ""
+
+
+def prefers_pseudonym(user: Any = None, *, use_pseudonym: Any = _UNSET) -> bool:
+    """True when the user shows their pseudonym by default.
+
+    NULL in the DB means the column default (pseudonym on).
+    """
+    wants_alias = _pick(user, "use_pseudonym", use_pseudonym, default=True)
+    return wants_alias is None or bool(wants_alias)
+
+
+def masked_name(
+    user: Any = None,
+    *,
+    user_id: Any = _UNSET,
+    pseudonym: Any = _UNSET,
+) -> str:
+    """Label for a user whose real name the viewer may not see.
+
+    The pseudonym, or a neutral label built from the account id when the
+    account has none, so a masked row never falls back to the real name or
+    the login name.
+    """
+    alias = _text(_pick(user, "pseudonym", pseudonym))
+    if alias:
+        return alias
+    uid = _text(_pick(user, "id", user_id)) or ""
+    return f"User {uid[:8]}" if uid else "User"
 
 
 def pseudonym_hint(

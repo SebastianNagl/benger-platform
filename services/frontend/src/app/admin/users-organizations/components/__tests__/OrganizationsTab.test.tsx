@@ -273,6 +273,12 @@ describe('OrganizationsTab', () => {
           'admin.organizations.errors.noPermissionAdd':
             'You do not have permission to add members',
           'admin.organizations.errors.addUserFailed': 'Failed to add user',
+          'admin.organizations.memberPrivacy.lmsBadge': 'LMS',
+          'admin.organizations.memberPrivacy.lmsBadgeTitle':
+            'Account from a learning platform (LTI)',
+          'admin.organizations.memberPrivacy.pseudonymTitle':
+            'You see the pseudonym.',
+          'admin.organizations.memberPrivacy.emailHidden': 'Email hidden',
         }
         let result = translations[key] || key
         if (vars) {
@@ -468,6 +474,127 @@ describe('OrganizationsTab', () => {
 
       expect(contributorSelect).toBeInTheDocument()
       expect(annotatorSelect).toBeInTheDocument()
+    })
+  })
+
+  describe('LMS accounts in the member list', () => {
+    const lmsMembers = [
+      ...mockMembers,
+      {
+        user_id: 'user-5',
+        user_name: 'Kluge Eule',
+        user_email: null,
+        role: 'ANNOTATOR',
+        organization_id: 'org-1',
+        joined_at: '2024-01-03',
+        is_lms_account: true,
+        is_pseudonymized: true,
+      },
+      {
+        user_id: 'user-6',
+        user_name: 'Erika Mustermann',
+        user_email: 'erika@uni.example',
+        role: 'ANNOTATOR',
+        organization_id: 'org-1',
+        joined_at: '2024-01-04',
+        is_lms_account: true,
+        is_pseudonymized: false,
+      },
+    ]
+
+    it('marks LMS accounts and withholds hidden emails', async () => {
+      mockApiClient.getOrganizationMembers.mockResolvedValue(lmsMembers)
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Kluge Eule')).toBeInTheDocument()
+      })
+
+      const maskedBadge = screen.getByTestId('member-lms-badge-user-5')
+      expect(maskedBadge).toHaveTextContent('LMS')
+      expect(maskedBadge).toHaveAttribute('title', 'You see the pseudonym.')
+      expect(screen.getByText('Email hidden')).toBeInTheDocument()
+      expect(screen.queryByText(/null/)).not.toBeInTheDocument()
+
+      const revealedBadge = screen.getByTestId('member-lms-badge-user-6')
+      expect(revealedBadge).toHaveAttribute(
+        'title',
+        'Account from a learning platform (LTI)',
+      )
+      expect(screen.getByText('erika@uni.example')).toBeInTheDocument()
+
+      // Ordinary members get no badge.
+      expect(
+        screen.queryByTestId('member-lms-badge-user-2'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('searches members without an email', async () => {
+      const user = userEvent.setup()
+      mockApiClient.getOrganizationMembers.mockResolvedValue(lmsMembers)
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Kluge Eule')).toBeInTheDocument()
+      })
+
+      // The member toolbar is the only search toggle on the page.
+      await user.click(screen.getByTitle('common.filters.search'))
+      await user.type(
+        screen.getByPlaceholderText(
+          'admin.organizations.filters.memberSearchPlaceholder',
+        ),
+        'uni.example',
+      )
+
+      await waitFor(() => {
+        expect(screen.queryByText('Kluge Eule')).not.toBeInTheDocument()
+      })
+      expect(screen.getByText('Erika Mustermann')).toBeInTheDocument()
+      expect(screen.queryByText('Member User')).not.toBeInTheDocument()
+    })
+
+    it('labels users without an email in the add-user picker', async () => {
+      const user = userEvent.setup()
+      const { organizationsAPI } = require('@/lib/api/organizations')
+      organizationsAPI.getAllUsers.mockResolvedValue([
+        ...mockAllUsers,
+        {
+          id: 'user-7',
+          name: 'Stilles Wasser',
+          username: 'Stilles Wasser',
+          email: null,
+          is_active: true,
+          is_lms_account: true,
+          is_pseudonymized: true,
+        },
+      ])
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole('button', { name: /Add Existing User/i }),
+        ).toBeInTheDocument()
+      })
+      await user.click(
+        screen.getByRole('button', { name: /Add Existing User/i }),
+      )
+
+      await waitFor(() => {
+        expect(getInputByLabel('Select User')).toBeInTheDocument()
+      })
+      const userSelect = getInputByLabel('Select User')
+      await waitFor(() => {
+        expect(
+          within(userSelect).getByRole('option', { name: 'Stilles Wasser' }),
+        ).toBeInTheDocument()
+      })
+      expect(
+        within(userSelect).getByRole('option', {
+          name: 'New User (newuser@example.com)',
+        }),
+      ).toBeInTheDocument()
+      expect(within(userSelect).queryByText(/null/)).not.toBeInTheDocument()
     })
   })
 

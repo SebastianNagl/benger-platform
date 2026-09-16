@@ -35,7 +35,8 @@ export interface AssignmentMember {
   id?: string
   user_id: string
   name: string
-  email?: string
+  // Null for an LMS account whose real identity the viewer may not see.
+  email?: string | null
   role: string
 }
 

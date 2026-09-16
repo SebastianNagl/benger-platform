@@ -156,6 +156,15 @@ async def list_organizations(
 
         return result
 
+def _require_login(current_user) -> None:
+    """``get_current_user`` answers None for anonymous and deactivated (e.g.
+    anonymized) accounts: refuse with 401, never 500."""
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
+
+
 @router.post("/", response_model=OrganizationResponse)
 async def create_organization(
     organization: OrganizationCreate,
@@ -163,6 +172,7 @@ async def create_organization(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Create a new organization (superadmin or org admin)"""
+    _require_login(current_user)
     # Check permissions. ``can_create_organization`` is a sync-only helper
     # (sync ``db.query`` in ``_common``); bridge it onto a sync Session bound to
     # THIS async session's connection via ``db.run_sync`` so it runs inside the
@@ -385,7 +395,7 @@ async def delete_organization(
     db: AsyncSession = Depends(get_async_db),
 ):
     """Delete organization (superadmin only)"""
-    # Check permissions
+    _require_login(current_user)
     if not current_user.is_superadmin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
