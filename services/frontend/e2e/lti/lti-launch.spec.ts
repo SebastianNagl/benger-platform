@@ -313,8 +313,13 @@ test.describe('LTI Moodle launch flows @extended', () => {
     ).toBeVisible({ timeout: 20_000 })
     await expect(
       studentPage.getByText(
-        'Diese Aktivität ist noch keiner Klausur zugeordnet.',
+        'Diese Aktivität ist noch mit keiner Klausur verknüpft.',
       ),
+    ).toBeVisible()
+    // The page says what to do and who can do it.
+    await expect(studentPage.getByText('So geht es weiter')).toBeVisible()
+    await expect(
+      studentPage.getByText(/Bitte deine Lehrenden, die Aktivität/),
     ).toBeVisible()
     await expect(studentPage.getByText('Fehlercode')).toBeVisible()
     await expect(

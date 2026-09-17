@@ -773,6 +773,46 @@ class TestAcceptInvitation:
         inv = test_db.query(Invitation).filter(Invitation.token == token).first()
         assert inv.accepted is False
 
+    def test_accept_restores_a_removed_membership(
+        self, client, test_db, test_users, test_org
+    ):
+        """A removed member who is invited again gets the old row back with
+        the invited role (the (user, org) pair is unique; a second insert
+        used to fail with a 500)."""
+        invitee = _make_user(test_db, f"removed-{_uid()[:8]}@example.com", "Removed")
+        removed = _membership(
+            test_db, invitee.id, test_org.id, role="ANNOTATOR", is_active=False
+        )
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            token=token,
+            role=OrganizationRole.CONTRIBUTOR,
+        )
+        resp = client.post(
+            f"/api/invitations/accept/{token}",
+            headers=_bearer(invitee),
+        )
+        assert resp.status_code == 200, resp.text
+
+        test_db.expire_all()
+        rows = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == invitee.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .all()
+        )
+        assert [r.id for r in rows] == [removed.id]
+        assert rows[0].is_active is True
+        assert rows[0].role == OrganizationRole.CONTRIBUTOR
+        inv = test_db.query(Invitation).filter(Invitation.token == token).first()
+        assert inv.accepted is True
+
     def test_accept_incomplete_profile_short_circuits(
         self, client, test_db, test_users, test_org
     ):

@@ -8,6 +8,9 @@ import {
   ltiLaunchErrorPath,
 } from '../launchErrors'
 
+import deCommon from '@/locales/de/common.json'
+import enCommon from '@/locales/en/common.json'
+
 describe('LTI launch error registry', () => {
   it('lists every code once, in snake_case', () => {
     expect(new Set(LTI_LAUNCH_ERROR_CODES).size).toBe(
@@ -99,5 +102,49 @@ describe('ltiLaunchErrorPath', () => {
     expect(ltiLaunchErrorPath('consent_incomplete')).toBeNull()
     expect(ltiLaunchErrorPath(null)).toBeNull()
     expect(ltiLaunchErrorPath(undefined)).toBeNull()
+  })
+})
+
+describe('error page copy (lti.error)', () => {
+  const EM_DASH = /\u2014/
+
+  it.each([
+    ['de', deCommon],
+    ['en', enCommon],
+  ] as const)('has %s text for every code and action', (_locale, common) => {
+    const copy = common.lti.error
+    expect(Object.keys(copy.codes).sort()).toEqual(
+      [...LTI_LAUNCH_ERROR_CODES].sort(),
+    )
+    expect(Object.keys(copy.actions).sort()).toEqual(
+      [...LTI_ERROR_ACTION_CATEGORIES].sort(),
+    )
+    const texts = [
+      copy.title,
+      copy.default,
+      copy.codeLabel,
+      copy.refLabel,
+      copy.actionsTitle,
+      copy.studentHint,
+      ...Object.values(copy.codes),
+      ...Object.values(copy.actions),
+    ]
+    for (const text of texts) {
+      expect(typeof text).toBe('string')
+      expect(text.trim().length).toBeGreaterThan(0)
+      expect(text).not.toMatch(EM_DASH)
+      // The platform stays brand-neutral.
+      expect(text).not.toMatch(/vertretbar/i)
+    }
+  })
+
+  it('addresses readers formally in German', () => {
+    const copy = deCommon.lti.error
+    for (const text of [
+      ...Object.values(copy.codes),
+      ...Object.values(copy.actions),
+    ]) {
+      expect(text).not.toMatch(/\b(du|dich|dein|deine|deinen|deiner)\b/i)
+    }
   })
 })

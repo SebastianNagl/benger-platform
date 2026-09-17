@@ -7,7 +7,10 @@
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 
-import { ARCHITECTURE_SECTIONS } from '@/data/architecture'
+import {
+  ARCHITECTURE_DIAGRAM,
+  ARCHITECTURE_SECTIONS,
+} from '@/data/architecture'
 
 import ArchitecturePage from '../page'
 
@@ -84,6 +87,12 @@ describe('ARCHITECTURE_SECTIONS content rules', () => {
       expect(s.bullets.de.length).toBe(s.bullets.en.length)
       expect(s.bullets.de.length).toBeGreaterThan(0)
     }
+  })
+
+  it('stays brand-neutral and names no internal infrastructure', () => {
+    const text = JSON.stringify(ARCHITECTURE_SECTIONS) + ARCHITECTURE_DIAGRAM
+    expect(text).not.toMatch(/vertretbar/i)
+    expect(text).not.toMatch(/benger-staging|namespace/i)
   })
 
   it('does not advertise things that do not exist', () => {

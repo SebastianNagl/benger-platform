@@ -24,6 +24,15 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const HOP_BY_HOP_REQUEST_HEADERS = ['host', 'connection', 'content-length']
 
+/**
+ * Endpoints the learning platform sends the browser to (OIDC login, launch,
+ * Dynamic Registration). A person sits in front of them, so an unreachable
+ * API (for example during a rolling deploy) ends on the error page, never
+ * on raw JSON. The pages' JSON calls keep the JSON 502.
+ */
+const BROWSER_PATHS = new Set(['login', 'launch', 'register/init'])
+const UNREACHABLE_ERROR_PATH = '/lti/error?code=internal'
+
 async function proxyLti(request: NextRequest): Promise<NextResponse> {
   const path = request.nextUrl.pathname.replace(/^\/api\/lti\//, '')
   const search = request.nextUrl.search
@@ -62,6 +71,14 @@ async function proxyLti(request: NextRequest): Promise<NextResponse> {
     backendResponse = await fetch(targetUrl, init)
   } catch (error) {
     logger.error('LTI proxy error:', error)
+    if (BROWSER_PATHS.has(path.replace(/\/+$/, ''))) {
+      // 303 so a POSTed launch lands on a plain GET. A relative Location
+      // keeps the browser on the host it came from.
+      return new NextResponse(null, {
+        status: 303,
+        headers: { Location: UNREACHABLE_ERROR_PATH },
+      })
+    }
     return NextResponse.json(
       { error: 'LTI upstream unreachable' },
       { status: 502 },

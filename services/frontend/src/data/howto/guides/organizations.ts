@@ -65,14 +65,14 @@ export const ORGANIZATION_GUIDES: HowToGuide[] = [
     },
     steps: {
       de: [
-        '**Admin**: Mitglieder und Rollen, Gruppen, API-Schlüssel der Organisation, Einladungen, Projekt-Sichtbarkeit. Umgeht Zuweisungen und Zugriffsfenster.',
-        '**Mitwirkender**: Alles rund um Projekte und Daten (Import, Export, Generierung, Evaluation, Berichte), aber keine Mitgliederverwaltung.',
+        '**Admin**: Mitglieder und Rollen, Gruppen, API-Schlüssel der Organisation, Einladungen, Projekt-Sichtbarkeit und [Lernplattform-Anbindungen](/how-to#lti-manage) (Moodle, ILIAS). Sieht die Klarnamen der Personen aus den eigenen Anbindungen. Umgeht Zuweisungen und Zugriffsfenster. Gruppen-Admins verwalten die Anbindungen ihrer Gruppe.',
+        '**Mitwirkender**: Alles rund um Projekte und Daten (Import, Export, Generierung, Evaluation, Berichte), aber keine Mitgliederverwaltung. Sieht und korrigiert auch private Klausuren anderer, die mit einer Lernplattform der Organisation verknüpft sind. Personen aus einer Lernplattform erscheinen in Listen unter ihrem Pseudonym, außer bei Klausuren, die der Mitwirkende bewerten darf.',
         '**Annotator**: Sieht Projekte der Organisation als Annotierende:r, keine Datenseite, keine Mitgliederliste. Bei Klausuren nur die Teilnehmer-Sicht ohne Musterlösung vor der Abgabe.',
         'Rollen ändern: [Benutzer & Organisationen](/users-organizations) → Tab *Organisationen* → Organisation wählen → Mitgliederliste. Admins können andere Admins nicht ändern.',
       ],
       en: [
-        '**Admin**: members and roles, groups, the organization’s API keys, invitations, project visibility. Bypasses assignments and access windows.',
-        '**Contributor**: everything around projects and data (import, export, generation, evaluation, reports), but no member management.',
+        '**Admin**: members and roles, groups, the organization’s API keys, invitations, project visibility and [learning platform connections](/how-to#lti-manage) (Moodle, ILIAS). Sees the real names of the people on the organization’s own connections. Bypasses assignments and access windows. Group admins manage their group’s connections.',
+        '**Contributor**: everything around projects and data (import, export, generation, evaluation, reports), but no member management. Also sees and grades other people’s private exams that are linked to a learning platform of the organization. People from a learning platform appear in lists under their pseudonym, except on exams the contributor may grade.',
         '**Annotator**: sees organization projects as an annotator, no data page, no member list. On exams only the participant view without the model solution before submission.',
         'Change roles: [Users & organizations](/users-organizations) → tab *Organizations* → pick the organization → member list. Admins cannot change other admins.',
       ],

@@ -497,20 +497,63 @@ describe('LTI proxy route (/api/lti/[...path])', () => {
   })
 
   describe('upstream failure', () => {
-    it('returns 502 JSON when the upstream fetch rejects', async () => {
+    it.each([
+      ['POST', 'http://benger.localhost/api/lti/launch', 'id_token=abc'],
+      ['POST', 'http://benger.localhost/api/lti/login', 'iss=x'],
+      ['GET', 'http://benger.localhost/api/lti/login?iss=x', undefined],
+      [
+        'GET',
+        'http://benger.localhost/api/lti/register/init?openid_configuration=x',
+        undefined,
+      ],
+    ])(
+      'sends the browser to the error page when %s %s cannot reach the API',
+      async (method, url, body) => {
+        mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'))
+        const handler = method === 'POST' ? POST : GET
+
+        const response = await handler(
+          ltiRequest(url, {
+            method,
+            headers: { host: 'benger.localhost' },
+            ...(body !== undefined ? { body } : {}),
+          }),
+        )
+
+        expect(response.status).toBe(303)
+        expect(response.headers.get('location')).toBe(
+          '/lti/error?code=internal',
+        )
+        expect(responseBody(response)).toBe('')
+      },
+    )
+
+    it('returns 502 JSON when a page call cannot reach the API', async () => {
       mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'))
 
       const response = await POST(
-        ltiRequest('http://benger.localhost/api/lti/launch', {
+        ltiRequest('http://benger.localhost/api/lti/pending/consent', {
           method: 'POST',
           headers: { host: 'benger.localhost' },
-          body: 'id_token=abc',
+          body: '{}',
         }),
       )
 
       expect(response.status).toBe(502)
       const data = await response.json()
       expect(data).toEqual({ error: 'LTI upstream unreachable' })
+    })
+
+    it('keeps JSON for the key set and other non-browser endpoints', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNREFUSED'))
+
+      const response = await GET(
+        ltiRequest('http://benger.localhost/api/lti/jwks', {
+          headers: { host: 'benger.localhost' },
+        }),
+      )
+
+      expect(response.status).toBe(502)
     })
   })
 

@@ -1,201 +1,291 @@
-# LMS integration (LTI 1.3) — Moodle and ILIAS
+# LMS integration (LTI 1.3) for Moodle and ILIAS
 
-BenGER connects to a university's learning management system as an **LTI 1.3
-Advantage tool**. Students launch from a course activity straight into an
-exam, and grades flow back into the LMS gradebook automatically.
+BenGER connects to a university's learning management system (LMS) as an
+**LTI 1.3 Advantage tool**. Students open an exam from a course activity, and
+grades go back to the LMS gradebook.
 
-This document is written for the people who have to evaluate and operate that
-integration: LMS administrators, university IT, and data-protection officers.
-It describes what the tool does on the wire, what it stores, and what it asks
-of your LMS. Ready-to-forward German setup sheets for the two supported
-systems are in [Appendix A](#appendix-a-ilias-setup-sheet-german) and
+This document is for the people who evaluate and run the integration: LMS
+administrators, university IT, organization admins in BenGER and data
+protection officers. It describes what the tool does on the wire, what it
+stores and what it needs from your LMS. German setup sheets for the LMS
+administration are in [Appendix A](#appendix-a-ilias-setup-sheet-german) and
 [Appendix B](#appendix-b-moodle-setup-sheet-german).
 
-**For the data protection review in one paragraph:** hosting is in Germany, a
-student launch is pseudonymous by default and needs no name or email, consent
-is captured in-product before any processing, grades go to your own LMS and
-nowhere else, and the AI grade is always overridable by a human. We act as
-processor and will meet the contractual and documentation requirements your
-DPO sets. Tell us what you need and we will produce it, using the prompt list
-in [§8.8](#88-compliance-tell-us-what-you-need).
+**The data protection review in brief.**
+
+- Hosting is in Germany.
+- Nobody gets an account before they consent. Students and teachers consent
+  once per connection.
+- Consent to research use is required. See [§8.4](#84-consent).
+- Accounts carry the name and email address that the LMS sends. The app shows
+  a pseudonym. Real names are visible to the organization's admins, to the
+  course teachers, to the staff who may grade the linked exam and to the
+  platform administrators.
+- The AI grade and the human grade are kept side by side. The human grade is
+  the final grade.
+- AI grading runs only on your organization's own API key. There is no
+  fallback to a key of ours.
+- Organization admins can anonymize the accounts that the LMS created.
+- We act as processor. Tell us what your data protection officer needs, using
+  the list in [§8.8](#88-compliance-tell-us-what-you-need).
 
 ## 1. Edition boundary (read this first)
 
-BenGER follows an open-core model, and the LMS integration is split across the
-two halves:
+BenGER follows an open-core model. The LMS integration is split across the two
+editions.
 
 | Part | Edition | Where |
 |---|---|---|
-| Database schema for all LTI state (5 tables, migrations `079`/`083`/`084`) | Community (Apache-2.0) | this repository |
-| Registration management API (`/api/admin/lti/*`), tool-config echo, grade-sync outbox reads and retry | Community (Apache-2.0) | `services/api/routers/lti_admin.py` |
-| Admin UI for registrations, invites and the failed-sync queue | Community (Apache-2.0) | `services/frontend/src/app/admin/lti/` |
-| **LTI protocol implementation** — OIDC third-party login, `id_token` validation, launch handling, JWKS, AGS grade passback, Dynamic Registration | **Commercial (BenGER Extended)** | not in this repository |
+| Database schema for all LTI state: eight tables, migrations `079`, `083`, `084`, `085`, `089`, `097`, `105` and `106` | Community (Apache-2.0) | `services/api/alembic/versions/` |
+| Connection management API (`/api/admin/lti/*`) for superadmins, org admins and group admins: connections, invites, deployments, tool sheet, activities, LMS accounts with unlink and anonymization, grade transfers with retry, history | Community (Apache-2.0) | `services/api/routers/lti_admin.py` |
+| Account anonymization | Community (Apache-2.0) | `services/api/services/user_anonymization.py` |
+| Hiding LMS users' names in member lists, task lists and exports. The rule who may see a name comes from the commercial edition. | Community (Apache-2.0) | `services/api/services/member_privacy.py`, `services/shared/lms_name_masking.py` |
+| Page routes for consent, account choice, email confirmation, exam picker, activity overview and the error page, plus the list of launch error codes. Most pages show content from the commercial edition. | Community (Apache-2.0) | `services/frontend/src/app/lti/`, `services/frontend/src/lib/lti/launchErrors.ts` |
+| Admin panel for connections, consent page, account choice, exam picker, activity overview | **Commercial (BenGER Extended)** | not in this repository |
+| **LTI protocol and rules**: OIDC login, `id_token` validation, launch, consent and account linking, JWKS, grade transfer (AGS), Dynamic Registration, billing of linked exams | **Commercial (BenGER Extended)** | not in this repository |
 
-The routes an LMS actually talks to (`/api/lti/login`, `/api/lti/launch`,
-`/api/lti/jwks`) are served by the commercial edition. **A deployment built
-from this repository alone exposes the LTI admin surface but cannot accept a
-launch.** The community edition is a complete benchmarking and annotation
-platform; it is not an LTI tool.
+The eight tables are `lti_platform_registrations`, `lti_deployments`,
+`lti_resource_links`, `lti_user_links` and `lti_grade_syncs` (migration 079),
+`lti_registration_invites` (083), and `lti_resource_link_users` and
+`lti_admin_events` (105). The other migrations add columns:
 
-If you are evaluating BenGER for LMS use, this means the code review you can
-do on the open repository covers the data model, the tenant and role model,
-the admin API and the storage of every LTI record, but not the protocol
-handling. For the protocol half, this document is the specification, and a
-source review can be arranged under NDA. Contact details are in
-[§12](#12-support-and-contact).
+| Migration | Adds |
+|---|---|
+| `084` | the organization role for LMS students |
+| `085` | a parked activation address on `users` |
+| `089` | the LMS type of a connection (Moodle, ILIAS) |
+| `097` | the group scope of connections and invites |
+| `105` | the tool address of connections and invites, the research consent, link method and unlink marker of LMS identities, the AI grade column of activities, one grade transfer row per column |
+| `106` | the anonymization marker and the email state of LMS accounts, the change time of gradings, the origin of an exam's organization attachment |
+
+The routes an LMS talks to (`/api/lti/login`, `/api/lti/launch`,
+`/api/lti/jwks`, `/api/lti/register/init`) are served by the commercial
+edition. **A deployment built from this repository alone has the admin API but
+cannot accept a launch.** The community edition is a complete benchmarking and
+annotation platform. It is not an LTI tool.
+
+If you are evaluating BenGER for LMS use, a review of the open repository
+covers the data model, the tenant and role model, the admin API and the
+storage of every LTI record. It does not cover the protocol handling. For that
+half, this document is the specification, and a source review can be arranged
+under NDA. Contact details are in [§12](#12-support-and-contact).
 
 ## 2. What the integration does
 
-1. An instructor places an **External Tool / LTI consumer** activity in a
-   course and, on first launch, picks which BenGER exam it points at.
-2. Students launch the activity. First-time users pass a consent gate, then
-   land directly in the exam. No separate account creation, no password.
-3. When a solution is graded, the grade is pushed back to the LMS gradebook
-   via **Assignment and Grade Services (AGS)**. The AI grade appears right
-   after submission and is overwritten by the human corrected grade and any
-   later revision.
+1. An organization admin connects the LMS in BenGER. The connection is active
+   at once. See [§6](#6-registering-your-lms).
+2. A teacher adds an external tool activity to a course and opens it. On the
+   first launch the teacher consents and then picks the exam behind the
+   activity. Later launches open the activity overview with all submissions
+   and grades.
+3. A student opens the activity. On the first launch the student consents.
+   Only then is an account created. The student then lands in the exam.
+   Returning students go straight to the exam.
+4. After submission, the AI grades the solution on the organization's API key.
+   The grade goes to the LMS through **Assignment and Grade Services (AGS)**.
+5. A teacher can grade the submission as well. The human grade becomes the
+   final grade in the LMS. The AI grade is kept, and Moodle shows it in a
+   second column.
 
-Grades are transmitted as German *Notenpunkte*, 0 to 18, with
-`scoreMaximum: 18`. Your LMS rescales to whatever maximum the activity
-carries, so an activity graded out of 100 shows 12/18 as 66.67.
+Grades are sent as German *Notenpunkte*, 0 to 18, with `scoreMaximum: 18`.
+The LMS rescales the activity column to the activity's maximum grade. An
+activity graded out of 100 shows 12 of 18 points as 66.67.
 
 ## 3. Supported systems
 
-| LMS | Versions | Status |
+| LMS | Version | Status |
 |---|---|---|
-| Moodle | 4.5 and 5.x (verified against the 4.5 and 5.2 sources) | Validated end to end, including Dynamic Registration |
-| ILIAS | 9 and 10, current patch level | Validated end to end against 10.9 |
+| Moodle | 4.5 | Validated end to end on 4.5.12, including Dynamic Registration |
+| Moodle | 5.x | Reviewed against the 5.2 source. Not validated on a live system. |
+| ILIAS | 10 | Validated end to end on 10.9 |
+| ILIAS | 9 | Expected to work. Not validated on a live system. |
 
 ILIAS 8 reached end of life on 2025-12-31 and is not supported. ILIAS 11 is
-expected to change AGS behaviour (LineItem CRUD, key validation) and will be
-re-validated when it ships.
+expected to change AGS behaviour and will be validated when it ships.
 
-Any other LTI 1.3 certified platform is likely to work, because nothing in
-the tool is Moodle- or ILIAS-specific on the wire. It has not been validated
-and is not supported. See [§10](#10-conformance) for what has been tested.
+Other LTI 1.3 certified platforms may work, because nothing in the tool is
+Moodle or ILIAS specific on the wire. They are not validated and not
+supported. See [§10](#10-conformance) for what has been tested.
 
 ### ILIAS limitations to plan around
 
-These are properties of ILIAS 10, not of BenGER:
+These are properties of ILIAS 10, not of BenGER.
 
-- **AGS LineItem and Results endpoints are not implemented** in ILIAS. The
-  tool works exclusively from the `lineitem` URL supplied in the launch
-  claim and never attempts LineItem discovery or creation. This is
-  sufficient, but it means the activity must be configured to carry a grade
-  before the first launch.
-- **The score comment is discarded.** ILIAS stores the numeric score but not
-  the `comment` field of the score POST. Written feedback and the overall
-  assessment are visible only inside BenGER. Set expectations with your
-  teaching staff accordingly.
-- **Grades surface as Lernfortschritt, not as a gradebook column.** ILIAS
-  compares `scoreGiven/scoreMaximum` against the object's *Mastery Score*,
-  which defaults to 80 %. A passing law exam is 4 of 18 points, roughly
-  22 %, so with the default a passed exam is reported as "in progress". Set
-  the Mastery Score to **22**.
-- **No Names and Role Provisioning Service (NRPS)** before ILIAS 12.
-  Accounts are provisioned at launch time only. Moodle is used the same way,
-  so this is not a functional difference between the two.
+- **ILIAS has no AGS line item service.** The tool works only with the
+  `lineitem` URL from the launch. ILIAS therefore gets one value per student,
+  the final grade. There is no "KI-Bewertung" column. The activity must carry
+  a grade. Every launch refreshes the `lineitem` URL, so if the grade is added
+  later, waiting grades go out after the next launch of the activity.
+- **The score comment is discarded.** ILIAS stores the score but not the
+  comment. Written feedback is visible only inside BenGER.
+- **Grades appear as learning progress, not as a gradebook column.** ILIAS
+  compares the score with the object's *Mastery Score*, which defaults to
+  80 %. A passing law exam is 4 of 18 points, about 22 %. With the default, a
+  passed exam shows as "in progress". Set the Mastery Score to **22**.
+- **No Names and Role Provisioning Service (NRPS)** before ILIAS 12. Accounts
+  are created at launch only. Moodle is used the same way.
 
 ## 4. Architecture and data flow
 
 ```
-  Student in LMS course
-        │
-        │  1. clicks the External Tool activity
+  Person in the LMS course
+        │ 1. opens the external tool activity
         ▼
-  LMS  ──POST /api/lti/login──────────────▶  BenGER
-                                              mints state + nonce (server-side,
-                                              single-use, 5 / 10 min TTL)
-        ◀──302 to the LMS authorization endpoint──
-        │
-        │  2. LMS authenticates the user, signs an id_token
+  LMS ──POST /api/lti/login──────────────▶ tool
+                                            stores the login state with its
+                                            nonce on the server (5 min,
+                                            deleted on use)
+        ◀──302 to the LMS authorization endpoint
+        │ 2. the LMS signs an id_token
         ▼
-  LMS  ──POST /api/lti/launch (form_post)─▶  BenGER
-                                              verifies RS256 signature against
-                                              the LMS JWKS, checks iss/aud/exp/
-                                              nonce, consumes the nonce once
-                                              provisions or links the account
-                                              starts a session, redirects to the
-                                              exam (or the consent gate)
-        │
-        │  3. student solves and submits; grading happens in BenGER
+  LMS ──POST /api/lti/launch─────────────▶ tool
+                                            checks the signature (LMS JWKS),
+                                            iss, aud, exp, nonce, deployment
+                                            marks the nonce as used (10 min)
+                                            records the activity (course and
+                                            activity title, no personal data)
+        known LMS identity with current consent?
+          yes ─▶ opens the session, go to 4
+          no  ─▶ holds the checked launch on the server (30 min),
+                 sets a launch cookie, shows the consent page
+        │ 3. the person consents. If one account already has the same
+        │    email address: sign in, confirm by email, or choose a
+        │    separate account.
         ▼
-  BenGER ──POST client_credentials + private_key_jwt──▶ LMS token endpoint
-  BenGER ──POST score to the lineitem URL (AGS)───────▶ LMS gradebook
+                                            creates or links the account,
+                                            adds memberships and exam access,
+                                            sends the activation mail,
+                                            opens the session
+        │ 4. teacher: exam picker or activity overview
+        │    student: the exam
+        ▼
+  submission ─▶ AI grading on the organization's API key
+        │ 5. grade transfer
+        ▼
+  tool ──client_credentials + private_key_jwt──▶ LMS token endpoint
+  tool ──score to the activity line item───────▶ final grade
+  tool ──score to the "KI-Bewertung" item──────▶ AI grade (Moodle with column
+                                                 management)
 ```
 
-Everything is server-to-server over HTTPS. The tool never embeds itself in an
-LMS iframe; see [§9](#9-requirements-on-your-lms).
+Server to server calls use HTTPS. The tool never runs inside an LMS iframe.
+See [§9](#9-requirements-on-your-lms).
 
-## 5. Tool endpoints
-
-Three endpoints, all on the public base URL of the BenGER deployment:
+## 5. Tool endpoints and scopes
 
 | Purpose | URL |
 |---|---|
-| Initiate login (OIDC third-party init) | `https://<benger-host>/api/lti/login` |
-| Launch / redirection URI | `https://<benger-host>/api/lti/launch` |
-| Public keyset (JWKS) | `https://<benger-host>/api/lti/jwks` |
+| Login initiation (OIDC third-party login) | `https://<tool-host>/api/lti/login` |
+| Launch and redirect URI | `https://<tool-host>/api/lti/launch` |
+| Public keyset (JWKS) | `https://<tool-host>/api/lti/jwks` |
+| Dynamic Registration | `https://<tool-host>/api/lti/register/init?token=<token>` (one-time invite link) |
 
-There is **no deep-linking URL**, deliberately. The tool rejects
-`LtiDeepLinkingRequest` launches; content is bound through the instructor
-launch picker instead ([§7](#7-course-setup-instructor)). Do not configure
-deep linking in your LMS.
+`<tool-host>` is the address chosen for the connection (see
+[§6](#6-registering-your-lms)). The tool sheet in the admin panel always shows
+the URLs of the connection's address, never the address of the browser.
 
-A superadmin can read the exact values for a given deployment from
-`GET /api/admin/lti/registrations/{id}/tool-config?base_url=https://<host>`.
+There is **no deep-linking URL**, on purpose. The tool rejects
+`LtiDeepLinkingRequest` launches. The exam is bound through the teacher's
+picker instead ([§7](#7-course-setup-teacher)). Do not configure deep linking
+in your LMS.
 
 ### Scopes requested
 
-The tool requests exactly two AGS scopes when it exchanges a client assertion
-for an access token, and no others:
-
 | Scope | Why |
 |---|---|
-| `https://purl.imsglobal.org/spec/lti-ags/scope/score` | Post a grade to the activity's line item |
-| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly` | Read the line item to confirm it exists and its maximum |
+| `https://purl.imsglobal.org/spec/lti-ags/scope/score` | Send a grade to a line item |
+| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly` | Read line items |
+| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column, "KI-Bewertung", per activity |
 
-Note that `lineitem` (read-write) is **not** requested: the tool never
-creates, modifies or deletes line items. It also does not request
-`result.readonly`, and it does not use the Names and Role Provisioning
-Service, so it never enumerates your course rosters.
+The tool uses `lineitem` only to find or create its own "KI-Bewertung" column.
+It never changes or deletes the activity's own column, and it never deletes a
+line item. Dynamic Registration asks Moodle for all three scopes and ILIAS for
+`score` and `lineitem.readonly` only. When the LMS does not grant `lineitem`,
+the tool sends the final grade only, and the activity overview and the admin
+panel say why.
+
+The tool does not request `result.readonly` and does not use NRPS. It never
+reads course rosters.
 
 Token exchange uses the `client_credentials` grant with `private_key_jwt`
-client authentication, signed RS256. Access tokens are cached in process for
-their stated lifetime, refreshed five minutes before expiry.
+client authentication, signed RS256. Access tokens are cached for their stated
+lifetime and refreshed five minutes before they expire.
 
 ## 6. Registering your LMS
 
-Two paths. Both end with a registration that is **disabled until a BenGER
-superadmin enables it**, so an accidental or premature registration cannot
-process student data.
+Organization admins set up connections themselves. Group admins can do the
+same for their groups. The panel is under **Users & organizations**, select the
+organization, then **More** and **Learning platform (LTI)**. In the German
+interface this is *Benutzer & Organisationen → Organisation → Mehr →
+Lernplattform (LTI)*.
 
-### 6a. Dynamic Registration (recommended)
+**API keys first.** AI grading of linked exams runs only on your
+organization's keys. In the **API keys** dialog, switch on **Organization
+provides API keys** and add a key for the provider of the grading model. The
+default grading models are OpenAI models. The top of the panel shows whether
+AI grading is ready. Group admins can add a key for their group, but only an
+org admin can switch on that option. See [§8.5](#85-where-the-data-lives-and-who-pays).
 
-BenGER mints a one-time, organization-bound invite link of the form
-`https://<benger-host>/api/lti/register/init?token=<token>`. The token is
-single-use, stored only as a SHA-256 hash, and expires after a configurable
-period (14 days by default, 1 to 90 allowed).
+**Tool address.** Every connection has an address that its tool URLs use. A
+deployment can offer two addresses.
 
-- **Moodle**: Site administration → Plugins → External tool → Manage tools →
-  paste the link into the **"Add LTI Advantage"** box. Moodle and BenGER
-  exchange issuer, endpoints, `client_id` and `deployment_id` automatically
-  via IMS Dynamic Registration. The tool appears as *Pending*; click
-  **Activate**.
-- **ILIAS** (10.9 and later): create an LTI consumer object → section
-  *Create Own Settings for Tool with Dynamic Registration (LTI 1.3)* → paste
-  the link → Add. ILIAS fills in all tool URLs correctly, including the JWKS
-  URL key type. Two caveats: **"Advanced Grading Services" is left
-  unchecked** and must be enabled manually or no grade will ever transmit;
-  and the result is an object-bound user provider rather than a global
-  provider, so for a campus-wide rollout the manual route in
-  [Appendix A](#appendix-a-ilias-setup-sheet-german) is preferable.
+| Address | Who works where |
+|---|---|
+| Student host | Everyone works in the student interface, teachers included |
+| BenGER host | Students work in the student interface, teachers in the expert interface |
 
-The registration endpoint is SSRF-guarded and validates the IMS origin.
+The invite link, Dynamic Registration and the tool sheet all use the chosen
+address. Where both are offered, the student host is the default, and
+connections created before the choice existed use it. If you change the
+address later, update the tool URLs in the LMS as well. Until then, launches
+through the old address still work, and the panel's history shows a warning.
+
+**Active at once.** Both ways below create a connection that works
+immediately. It can be switched off in the panel at any time. Because of
+this, the contract with us must be in place before your organization admin
+creates the invite (see [§8.8](#88-compliance-tell-us-what-you-need)).
+
+### 6a. One-link registration (Dynamic Registration)
+
+1. In the panel, under **Connect learning platform**, choose the address and,
+   if you like, a group. Then click **Create invitation link**. The link is
+   shown once. It works once, is stored only as a SHA-256 hash and is valid
+   for 14 days. Unused links can be revoked under **Pending invitations**.
+2. Send the link to the LMS administration.
+3. **Moodle**: Site administration → Plugins → External tool → Manage tools.
+   Paste the link into **Add LTI Advantage**. Moodle and the tool exchange
+   issuer, endpoints, client ID and deployment ID. The tool appears as
+   *Pending*. Click **Activate**.
+4. **ILIAS** (10.9 and later): create an LTI consumer object, open *Create Own
+   Settings for Tool with Dynamic Registration (LTI 1.3)*, paste the link and
+   add it. ILIAS fills in all tool URLs, including the JWKS key type. Two
+   caveats. "Advanced Grading Services" stays unchecked and must be enabled by
+   hand, or no grade is sent. And ILIAS creates a provider bound to that one
+   object, so for a campus-wide rollout the manual way in
+   [Appendix A](#appendix-a-ilias-setup-sheet-german) is better.
+5. The connection now appears in the panel and is active.
+
+Further rules:
+
+- Dynamic Registration asks the LMS to send name and email for every user.
+  Check the tool's privacy settings in Moodle after the registration.
+- The LMS lists the tool under the product name of the chosen address.
+- An invite works only while its creator may still manage its organization or
+  group. An invite for a group that was switched off fails.
+- A group admin's invite always creates a connection for that group.
+- LMS teachers of the new connection get the contributor role in the
+  organization if the invite's creator may grant it. Otherwise they get no
+  organization role.
+- The registration endpoint validates the IMS origin rules and blocks calls
+  into internal networks.
+- If the registration fails, the LMS shows a German error page with the
+  reason. An unexpected failure also shows a reference that matches the
+  server log. Send it to the platform operator.
 
 ### 6b. Manual registration
 
-Supply the LMS site URL. Everything else is derived:
+Click **New connection** in the panel and enter the LMS values. The tool
+fills in the URLs from the issuer.
 
 | Field | Moodle | ILIAS |
 |---|---|---|
@@ -203,316 +293,499 @@ Supply the LMS site URL. Everything else is derived:
 | Authorization endpoint | `{issuer}/mod/lti/auth.php` | `{issuer}/ltiauth.php` |
 | Token endpoint | `{issuer}/mod/lti/token.php` | `{issuer}/ltitoken.php` |
 | Platform JWKS | `{issuer}/mod/lti/certs.php` | `{issuer}/lticerts.php` |
-| `client_id`, `deployment_id` | read from the tool details after saving | Client ID plus the numeric **Provider ID**, which is the deployment id |
+| Client ID, deployment ID | shown in the tool details after saving | the client ID and the numeric **Provider ID**, which is the deployment ID |
 
-ILIAS also publishes `{issuer}/lticonfig.php`, which is useful for verifying
-the above.
+ILIAS also publishes `{issuer}/lticonfig.php`, which helps to check these
+values. **Tool configuration** in the panel shows the URLs to enter in the
+LMS. Deployment IDs can be added later under **Deployments**.
 
-### Per-registration policy
+### Connection settings
 
 | Setting | Default | Effect |
 |---|---|---|
-| `link_existing_users_by_email` | `true` | A launch email attaches to an existing BenGER account only if that account's address is **verified**. Otherwise a pseudonymous account is created. Linking never elevates privileges and is audit-logged. |
-| `instructor_org_role` | `contributor` | Organization role granted to launching instructors. `org_admin` and `none` are also available. |
-| `student_org_role` | `annotator` | Organization role granted to launching students. Set to `none` for a privacy-strict tenant that wants entitlement-only students. |
-| `group_id` | unset | Optionally scopes the registration to one group inside the organization. |
-| `status` | `disabled` on creation | Kill switch. `disabled` blocks every launch for that LMS. |
+| Address (`tool_host`) | student host where offered | See above. |
+| Group (`group_id`) | none | People who launch join this group, and linked exams are visible to the group only. Group admins create group connections only. |
+| Org role for teachers (`instructor_org_role`) | `contributor` | `contributor`, `org_admin` or `none`. On a group connection, `org_admin` becomes contributor plus group admin. A group admin can grant at most `contributor`, and only if they hold that role themselves. A launch never lowers an existing role. |
+| Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` gives access to the linked exam only. |
+| Offer linking to existing accounts (`link_existing_users_by_email`) | on | If exactly one account has the address the LMS sends, the person may link it after signing in or confirming by email. When off, the launch always creates a separate account. |
+| Connection status | active | A switched-off connection blocks every login, launch, LTI page in the app and grade transfer for this LMS. |
+| Deployment status | active | A switched-off deployment rejects launches. The other deployments of the connection keep working. |
 
-**Identity mapping is sticky.** The decision between email linking and
-pseudonymous provisioning is made on the *first* launch for a given
-`(registration, sub)` pair and recorded. Changing your LMS privacy settings
-afterwards has no effect until the stale mapping row is removed. Decide the
-privacy mode before go-live.
+On ILIAS, choose a privacy mode that sends name and email before go-live, and
+do not change it afterwards. The mode decides the `sub` value, so a change
+detaches every account from its LMS identity.
 
-## 7. Course setup (instructor)
+## 7. Course setup (teacher)
 
 1. Add an External Tool (Moodle) or LTI consumer (ILIAS) activity to the
-   course and pick the BenGER tool.
-2. **Make sure the activity carries a grade.** Without a grade there is no
-   AGS line item and no grade can ever be returned. Moodle's default of 100
-   is fine.
-3. Set the launch container to **New window**. This is required; see
-   [§9](#9-requirements-on-your-lms).
-4. The instructor's first launch opens an exam picker. Pick one of their
-   BenGER exams. Only exams using the *Falllösung* grading family are
-   linkable; free-form custom judge rubrics are not yet syncable.
-5. Students launching afterwards see the consent gate once, then the exam.
+   course. **Make sure the activity carries a grade.** Without a grade there
+   is no line item, and no grade can be returned. Moodle's default of 100 is
+   fine.
+2. Set the launch container to **New window**. This is required (see
+   [§9](#9-requirements-on-your-lms)).
+3. Open the activity. On the first launch the teacher consents, as students
+   do. If an account with the same email address exists, the teacher can
+   link it by signing in or by email, or continue with a separate account.
+4. The picker (**Link activity**) lists the teacher's own exams and the exams
+   created by staff of the connection's organization. Staff means
+   contributors and org admins. On a group connection it means the group's
+   contributors, the group's admins and the org admins. Exams of any
+   visibility can be linked. Archived and deleted exams
+   are not listed. The teacher can also create a new exam from the picker.
+5. Falllösung exams and Bewertungsbogen exams with an active sheet can be
+   linked. The picker shows other exams with the reason: no task yet, more
+   than one task, a grading that gives no Notenpunkte, or no active
+   Bewertungsbogen. **Exams with more than one task cannot be linked yet.**
+6. Click **Link**. Human Korrektur is switched on for the exam. The exam is
+   attached to the connection's organization (or group), so its staff can
+   open the exam and grade it.
+7. Later launches by the teacher open the **activity overview**. It lists
+   every student who consented, with real name, submission time, AI grade,
+   human grade, what each LMS column received, and the transfer status and
+   error. From there the teacher opens the Korrektur, opens the exam or sends
+   a grade again. On the BenGER host this is the expert interface.
 
-Re-pointing an activity at a different exam is blocked once grades have
-synced. Create a new activity instead.
+The activity can point to another exam until the first grade reached the LMS.
+After that, create a new activity. A linked exam does not accept a second
+task.
+
+The activity overview is open to the course teachers, the organization's
+admins, group admins of a group connection, and the staff who may grade the
+linked exam. Linking and relinking is for the course teachers and the admins.
+The exam's project page also lists its LMS activities under **Settings →
+Individual sharing**.
 
 ## 8. Identity, data protection and what is stored
 
-### 8.1 The default is pseudonymous
+### 8.1 Accounts and names
 
-BenGER works **fully pseudonymously on the `sub` claim alone**. No name and
-no email claim is required for a student launch. This is the recommended
-configuration for German universities and usually shortens the DPO review.
-Instructors are the exception: without an email claim, an instructor's first
-launch creates a fresh pseudonymous account whose exam picker is empty, so
-they can never bind their own exams. Set name and email sharing to *always*
-for instructors.
+- **Name and email.** After consent, a new account gets the name and email
+  address from the LMS and a pseudonym. Dynamic Registration asks Moodle to
+  send both. On ILIAS, choose a privacy mode that sends both.
+- **Unconfirmed address.** The address counts as unconfirmed until the person
+  activates the account or resets the password.
+- **Placeholders.** If the LMS withholds the address, or another account
+  already uses it, the account gets a placeholder address. A later launch
+  with a free address fills it in. A withheld name is filled in the same way.
+- **Pseudonym.** The app shows the pseudonym. Real names are visible to
+  superadmins, to the admins of the connection's organization, to group
+  admins for their group's connections, to the course teachers and to the
+  staff who may grade the linked exam in that organization. Everyone else,
+  other students included, sees the pseudonym. A person who switches off the
+  pseudonym in their profile is shown by name.
+- **Linking an existing account.** An LMS identity is linked to an existing
+  account only after proof. The person either signs in with that account's
+  password or opens a confirmation link sent to that account's address. The
+  link is valid for 24 hours, works once and also works on another device.
+  Linking is offered only when exactly one account has the address and the
+  connection offers linking. Accounts of platform administrators are never
+  linked. A separate new account is always possible. Accounts are never
+  merged.
+- **Activation mail.** New accounts with a deliverable address get an
+  activation mail after consent. It is in German, and its link is valid for
+  7 days. With it the person sets a password and can also sign in without
+  the LMS.
+- **Removed memberships.** A launch never restores a membership that an admin
+  removed. The person sees `membership_removed`. To restore it, an org admin
+  invites the person again with **Invite Member**, using the email address of
+  their account. Once the person accepts the invitation while signed in, the
+  membership is active again. An account without a password needs one first
+  (**Forgot your password?** on the login page).
 
-ILIAS note: the `sub` value is derived from the provider's **privacy mode**
-(user id, login, SHA-256 or email). Changing the privacy mode after go-live
-changes every `sub` and detaches every existing account link. ILIAS also
-sends suppressed name claims as a literal `"-"` rather than omitting them,
-and a default pseudo-email of the form `<ident>@<installation-uuid>.ilias`
-which is syntactically valid but undeliverable. BenGER normalises both away.
+ILIAS notes: the `sub` value comes from the provider's privacy mode. ILIAS
+sends a withheld name as a literal `"-"` and, depending on the mode, a pseudo
+address like `<ident>@<installation-uuid>.ilias`. The tool treats both as not
+sent. It also ignores addresses on reserved domains such as `.invalid` or
+`.local`.
 
 ### 8.2 Claims consumed
 
 From the `id_token`: `sub`, `iss`, `aud`, `exp`, `iat`, `nonce`, the LTI
 `message_type`, `version`, `deployment_id`, `resource_link`, `context`,
-`roles`, `custom`, and the AGS endpoint claim. Optionally `name` and `email`
-when your LMS is configured to share them.
+`roles`, `name`, `email` and the AGS endpoint claim. `name` and `email` are
+expected. The `custom` claim is not used.
 
-Roles are mapped narrowly: any instructor-shaped role marker grants the
-configured instructor role, everything else is treated as a learner. On
-ILIAS 10, course admin and course tutor both map to instructor, course
-member maps to learner.
+Roles are mapped narrowly. The instructor, content developer and
+administrator role markers make a person a teacher. Everyone else counts as a
+student. On ILIAS 10, course admins and course tutors are teachers, and course
+members are students.
 
 ### 8.3 What is persisted
 
-Five tables, all in the open repository so you can inspect the schema
-directly in `services/api/alembic/versions/079_add_lti_tables.py`:
+**Before consent**, the tool stores only the activity record (course and
+activity title, AGS URLs, no personal data). The checked launch (identity,
+name, email, roles, course) waits in Redis for at most 30 minutes after the
+last step. The browser holds only a random secret in an httponly cookie.
+The OIDC login state lives in Redis for 5 minutes and is deleted on use. The
+launch then keeps the nonce for 10 minutes as a replay marker.
+
+**After consent**, these tables hold LTI data. All of them are in the open
+repository.
 
 | Table | Contents | Personal data |
 |---|---|---|
-| `lti_platform_registrations` | Your LMS issuer, client id, endpoint URLs, policy flags | none |
-| `lti_deployments` | Known deployment ids under a registration | none |
-| `lti_resource_links` | Activity to exam mapping, course id and title, AGS line item URLs and scopes | course titles only |
-| `lti_user_links` | `sub` to BenGER user mapping, the consent timestamp and version, last launch time, and a small claims snapshot | `name`, `email` and `roles` **only if your LMS shares them**; otherwise `sub` alone |
-| `lti_grade_syncs` | Grade passback outbox: status, attempt count, last synced score and hash, last error | links a user to a score |
+| `lti_platform_registrations` | issuer, client ID, endpoint URLs, address, role policy, status | none |
+| `lti_deployments` | deployment IDs and their status | none |
+| `lti_registration_invites` | hash of the invite token, organization, group, address, expiry, creator | the creator's account ID |
+| `lti_resource_links` | activity to exam, course and activity title, AGS URLs and scopes, state of the "KI-Bewertung" column | course titles only |
+| `lti_user_links` | `sub` to account, consent time and version, research consent time, how the account was linked, unlink marker, last launch, a snapshot of name, email and roles | name, email and roles from the LMS |
+| `lti_resource_link_users` | who took part in which activity, as teacher or student, first and last launch. Written only after consent. | account IDs |
+| `lti_grade_syncs` | one row per activity, student and column (final grade or AI grade): status, attempts, last sent score and its source, last error | links an account to a score |
+| `lti_admin_events` | history of connection changes: action, time, changed settings | the acting admin's account ID and affected account IDs, never names or emails |
 
-No raw `id_token` is retained. State and nonce live in Redis with 5 and 10
-minute TTLs respectively and are deleted on use.
+The `users` table holds name, email, pseudonym and the email state. No raw
+`id_token` is kept. An email confirmation token lives in Redis for 24 hours,
+stored under its hash together with a copy of the waiting launch.
 
 ### 8.4 Consent
 
-Every student passes a consent gate on first launch, before any exam content
-is shown, and the outcome is recorded in `lti_user_links` with a version
-stamp. It captures:
+- Consent is asked once per connection and LMS identity, from students and
+  teachers, before any account or membership exists.
+- The consent page shows what the LMS sent. It has two required checkboxes:
+  the processing (an account with name and email from the LMS, the pseudonym
+  in the app, who sees the name, the grade transfer) and research use. The
+  teacher version names the organization role instead of the grade transfer.
+- Consent is asked again only when the consent version changes, or after an
+  admin unlinked the identity.
+- The time and version are stored with the LMS identity. The research consent
+  time is also stored on the account.
 
-- **Required**: processing consent covering the link between the LMS
-  identity and the BenGER account, and transmission of the grade back to the
-  LMS.
-- **Optional**: consent to research use of the data, declinable without
-  losing access.
+**Research use is required.** This consent is required. Without it the tool
+cannot be used from the LMS. Access that depends on consent raises the
+question of Art. 7(4) GDPR. Whether this setup fits your course is for your
+data protection officer to assess.
 
-### 8.5 Where the data lives
+### 8.5 Where the data lives and who pays
 
-- **Hosting is in Germany.** No transfer to a third country is involved in
-  running the integration, so no Art. 44 et seq. transfer mechanism is
-  required for it.
-- **Grade data transits to the university's own LMS and nowhere else.**
-- **You choose the model provider.** LLM grading for an LTI cohort runs on
-  the API key held by *your* organization in BenGER, never on a BenGER-owned
-  key. That means the university decides which provider processes solution
-  text, and can name that provider in its own record of processing. Custom
-  model endpoints, including self-hosted ones, are supported; if you want
-  grading to stay inside your own infrastructure, raise it during onboarding
-  so we can size it with you.
+- **Hosting is in Germany.** Running the integration involves no transfer to a
+  third country.
+- **Grades go to your own LMS and nowhere else.**
+- **The connection's organization pays for AI grading of a linked exam.**
+  This covers the gradings of its LMS students and its own staff, and batch
+  evaluation runs on the exam. A group's key is used before the
+  organization's key.
+- **No key, no grading.** The organization must have **Organization provides
+  API keys** switched on and a key for the provider of the grading model.
+  Otherwise the grading does not run. Students see that their organization
+  has no API key yet. Teachers and admins see what is missing. The submission
+  stays saved and is graded at the next hourly check after the key is in
+  place. There is never a fallback to another key, ours included.
+- **Teacher AI helpers** on a linked exam, for example an AI proposal for a
+  Bewertungsbogen, are billed the same way and refused without a key.
+- **You choose the model provider.** The university decides which provider
+  processes solution text and can name it in its own record of processing.
+  Custom model endpoints, including self-hosted ones, are supported. If you
+  want grading to stay inside your own infrastructure, raise it during
+  onboarding.
+- People who reach a linked exam without the LMS, for example through a
+  share link, keep the normal billing rules.
 
 ### 8.6 Privacy by design and by default (Art. 25 GDPR)
 
-The integration was built privacy-first rather than retrofitted, and the
-individual properties are documented above. Consolidated, so a DPO can
-assess them in one place:
-
 | Property | Effect |
 |---|---|
-| Pseudonymous by default | A student launch needs only the `sub` claim. No name, no email, no matriculation number. See [§8.1](#81-the-default-is-pseudonymous). |
-| Data minimisation on the wire | Two AGS scopes only, both grade-related. No Names and Role Provisioning, so course rosters are never read. See [Scopes requested](#scopes-requested). |
-| Minimal storage | Five tables, [itemised](#83-what-is-persisted). Name, email and roles are stored **only if your LMS chooses to send them**. Raw `id_token`s are never retained; OIDC state and nonce expire in 5 and 10 minutes. |
-| Consent before processing | Captured in-product on first launch, version-stamped, with research use separately optional and declinable. See [§8.4](#84-consent). |
-| Purpose limitation | Grades flow to your LMS only. Nothing is shared with third parties for the operation of the integration. |
-| Tenant isolation | Every registration is bound to one organization; students never enumerate rosters; member listing requires an elevated role. |
-| Human in the loop | The AI grade is always overridable by a human correction. See [§8.7](#87-automated-assessment). |
-| Fail-closed controls | Registrations are created disabled, deployment checks reject unknown deployments, and disabling a registration stops every launch. |
-| Revocable | Deletion on request through the organization administrator. See [§8.9](#89-retention-and-deletion). |
+| Consent first | Nothing about the person is stored before consent. The checked launch waits on the server for at most 30 minutes. See [§8.4](#84-consent). |
+| Names only where needed | The app shows a pseudonym. Real names are for admins, course teachers and grading staff. See [§8.1](#81-accounts-and-names). |
+| Data minimisation on the wire | At most three AGS scopes (two on ILIAS), all about grades. No Names and Role Provisioning, so course rosters are never read. See [Scopes requested](#scopes-requested). |
+| Minimal storage | Eight tables, [itemised](#83-what-is-persisted). No raw `id_token`. The login state expires after 5 minutes, the nonce marker after 10. |
+| Linking only with proof | An existing account is linked only after sign-in or email confirmation. Platform administrator accounts are never linked. |
+| Purpose limitation | Grades go to your LMS only. Nothing is shared with third parties to run the integration. |
+| Tenant isolation | Every connection belongs to one organization, and optionally one group. Only its admins manage it. |
+| Human in the loop | The human grade is the final grade. Nothing is deleted. See [§8.7](#87-automated-assessment). |
+| Fail closed | Unknown or switched-off connections and deployments reject launches. Without the organization's key no AI grading runs, and there is no fallback. |
+| Revocable | Organization admins anonymize LMS accounts. Full deletion on request. See [§8.9](#89-retention-anonymization-and-deletion). |
 
 ### 8.7 Automated assessment
 
-Automated assessment of examinations is the trigger for the questions German
-university DPOs typically raise, so the position is stated plainly:
+- Until a teacher grades a submission, the AI grade is the value in the
+  activity's LMS column.
+- A human grade replaces it there. Moodle keeps the AI grade in the
+  "KI-Bewertung" column. Nothing is deleted.
+- With several human grades, the most recently edited one is final.
+- Human Korrektur is switched on for every linked exam. By default, graders
+  do not see the AI grade until they have submitted their own. The activity
+  overview shows both grades.
 
-- The AI grade is **always human-overridable**. The correction workflow
-  overwrites it and pushes the revised grade.
-- No fully automated individual decision within the meaning of Art. 22 GDPR
-  is made.
-- Per-student consent is captured before any processing.
-
-Whether a data protection impact assessment is required is the university's
-decision as controller. We supply the processing description as input rather
-than arguing the question either way.
+Whether a data protection impact assessment is needed, and how the AI grade
+before human review fits a graded examination under Art. 22 GDPR, is for the
+university as controller to decide. We supply the processing description as
+input.
 
 ### 8.8 Compliance: tell us what you need
 
-We act as processor, the university acts as controller, and **we will meet
+We act as processor, and the university acts as controller. **We will meet
 the documentation and contractual requirements your data protection office
-sets.** That includes signing your own data processing agreement if you have
-a standard one, or supplying ours if you would rather start from a draft.
+sets.** That includes signing your own data processing agreement, or
+supplying ours as a draft.
 
-What we cannot do is guess which of the many possible artefacts your DPO
-actually wants, because it differs by institution and by whether the use is a
-practice exercise or a graded examination. **Please tell us specifically what
-you need.** The list below is a prompt, not a menu we are limited to:
+We cannot guess which documents your DPO wants. It differs by institution and
+by whether the use is a practice exercise or a graded examination. **Please
+tell us specifically what you need.** The list below is a prompt, not a
+limit.
 
 - **Contract**: your AVV/DPA template, or ours as a starting point? Any
   framework agreement it has to sit under?
 - **Technical and organisational measures**: a TOMs annex in your format, or
-  free-form? Any specific controls you must see evidenced?
-- **Record of processing**: do you want a ready-made entry for your VVT, or
-  only the processing description as input to your own drafting?
-- **DPIA**: are you running one? If so, what do you need from us and by when?
-- **Claim scope**: pseudonymous `sub` only, which is the default and the
-  shortest review, or do you want name and email in launches? This changes
-  the processing description on both sides.
-- **Subprocessors**: do you need a subprocessor list, and do you want to
-  name the model provider yourself via your own API key?
-- **Retention**: a fixed deletion period for accounts and grades, or
-  deletion on request?
-- **Hosting evidence**: do you need the hosting location and arrangement
-  documented in the contract?
-- **Security review**: do you want a source review of the protocol half
-  under NDA, a completed security questionnaire, or both?
+  free form? Any controls you must see evidenced?
+- **Record of processing**: a ready-made entry for your VVT, or only the
+  processing description as input?
+- **DPIA**: are you running one? What do you need from us, and by when?
+- **Research consent**: the consent to research use is required (see
+  [§8.4](#84-consent)). Does your DPO accept that for your course?
+- **Name and email**: every launch carries name and email. Does your
+  processing description cover that?
+- **Subprocessors**: do you need a subprocessor list? Do you want to name the
+  model provider yourself through your own API key?
+- **Retention**: a fixed deletion period for accounts and grades, or deletion
+  on request?
+- **Hosting evidence**: should the hosting location be documented in the
+  contract?
+- **Security review**: a source review of the protocol half under NDA, a
+  security questionnaire, or both?
 
-Two practical notes from earlier onboardings. First, get a named contact for
-both the legal side and the LMS administration early; the AVV is normally
-signed by the Justiziariat or the faculty's data protection coordination
-rather than by the individual instructor. Second, the contract should be in
-place before the registration is enabled, because an enabled registration
-processes real student data. We therefore leave every new registration
-disabled until you tell us to switch it on.
+Two practical notes. First, name a contact for the legal side and one for the
+LMS administration early. The AVV is usually signed by the legal office or the
+faculty's data protection coordination, not by the individual teacher.
+Second, **connections are live at once**, and your organization admin creates
+the invite. Sign the contract before the invite is created. Making sure of
+this is the university's task.
 
-Send requirements to the address in [§12](#12-support-and-contact).
+Send your requirements to the address in [§12](#12-support-and-contact).
 
-### 8.9 Retention and deletion
+### 8.9 Retention, anonymization and deletion
 
-Accounts provisioned through a launch, and their grades, are deleted on
-request through the organization administrator. If you want a fixed retention
-period rather than deletion on request, name it and we will record it in the
-contract.
+**Anonymization.** Org admins, and group admins for their group's
+connections, anonymize the accounts that an LMS launch created. In the panel
+this is **LMS accounts**, then **Anonymize**. A preview shows what will be
+removed and kept. It cannot be undone.
+
+- **Removed**: name, email address, password, parked address, reset and
+  verification tokens, research profile answers, personal API keys, the LMS
+  identity links with their name and email snapshot and consent fields, the
+  account's grade transfer rows, open sessions, group memberships, and
+  notifications that name the person.
+- **Changed**: the account is locked, its organization memberships are
+  deactivated, and a new pseudonym replaces the old one.
+- **Kept as anonymous records**: submissions, grades, created exams, the
+  activity participation rows (IDs and times only) and the research consent
+  time.
+- **Refused** for platform administrator accounts, for your own account, for
+  accounts that existed before the link (those can only be unlinked), for
+  accounts with LMS links or active memberships outside your scope, and for
+  accounts with payment records or a running subscription. Group admins
+  cannot anonymize org admins.
+- A later launch by the same person creates a new, empty account.
+
+**Unlinking** detaches the LMS identity from the account. The account, its
+submissions and grades stay. Its grade transfer rows and activity
+participation on this connection are removed. The next launch asks for consent
+and the account choice again. An account the LMS created stays recognizable,
+so it can still be anonymized later.
+
+**Deleting a connection.** Switch the connection off first. Then choose
+whether the accounts it created are kept or anonymized. Deleting removes the
+connection's deployments, activities, LMS identity links, participation rows
+and grade transfer rows. Exams that no other connection of the organization
+links lose the attachment that linking created. LMS access to those exams
+ends, unless another connection still grants it. Submissions and grades
+stay.
+
+**Grades already in the LMS** stay there. Deleting them is up to you.
+
+**Full deletion** of an account is available on request to us. If you want a
+fixed retention period instead, name it and we record it in the contract.
 
 ## 9. Requirements on your LMS
 
-- **Reachability.** Your LMS must be able to reach the BenGER JWKS URL over
-  **port 443**. Moodle's outbound curl security blocks non-80/443 ports by
-  default, and a keyset on an exotic port fails the token exchange with a
-  null-JWKS error. On-premise installations behind an egress proxy may need
-  `curlsecurityblockedhosts` reviewed.
-- **JWKS by URL, never a pasted key.** On ILIAS in particular, choose the
-  *JWK keyset URL* key type. ILIAS validates our client assertion only via
-  the keyset URL, refetching per request. A pasted RSA key will pass the
-  launch and then silently break grade transmission.
-- **New window launches.** Embedded iframe launches are not supported. The
-  session cookie design requires a top-level browsing context.
-- **Clock sync.** Moodle `id_token`s live 60 seconds and ILIAS validates our
+- **Reachability.** Your LMS must reach the tool's JWKS URL on **port 443**.
+  Moodle's outbound curl security blocks other ports by default, and a keyset
+  on another port fails the token exchange with a null-JWKS error. Behind an
+  egress proxy, `curlsecurityblockedhosts` may need a review.
+- **JWKS by URL, never a pasted key.** On ILIAS in particular, choose the *JWK
+  keyset URL* key type. ILIAS checks our client assertion only through the
+  keyset URL. A pasted RSA key passes the launch and then breaks the grade
+  transfer.
+- **New window.** Embedded iframe launches are not supported. The session
+  cookies need a top-level window. Inside an iframe, people land on the login
+  page or see *Sign-in does not match* (`launch_mismatch`).
+- **Name and email.** Moodle: share the launcher's name and email with the
+  tool **Always**, for every role. Dynamic Registration requests this. Check
+  the setting after the registration. ILIAS: identify users by email address
+  and send the full name.
+- **Grade sync with column management.** Moodle: set the tool's IMS LTI
+  Assignment and Grade Services option to grade sync and column management
+  (German Moodle: **Notensynchronisation und Spaltenverwaltung**). Dynamic
+  Registration requests it. With grade sync only, Moodle gets the final grade
+  only. ILIAS: enable "Advanced Grading Services".
+- **Clock sync.** Moodle `id_token`s live 60 seconds, and ILIAS checks our
   client assertions with zero leeway. Keep NTP tight on both sides. AGS also
-  requires strictly increasing score timestamps, so skew between our own
-  workers surfaces as a `409` on score POST.
-- **Exact redirect URI.** The redirection URI must match the registered
-  entry character for character, line by line.
+  needs strictly increasing score timestamps, so clock skew between our
+  workers shows up as a `409` on the score POST.
+- **Exact redirect URI.** The redirect URI must match the registered entry
+  character for character.
 
 ## 10. Conformance
 
-- The tool has been exercised against the **saLTIre** LTI conformance
-  emulator (`saltire.lti.app`), covering launch acceptance, JIT user and
-  resource-link provisioning, and negative cases: `alg:none` tokens, garbage
-  tokens and missing parameters all produce a clean error redirect with no
-  server error.
-- End-to-end validation has been performed against a real Moodle and a real
-  ILIAS 10.9 instance, in each case through the full loop: launch,
-  provisioning, consent, submission, correction, AGS push, grade visible in
-  the LMS.
-- **BenGER is not currently 1EdTech certified.** If formal certification is
-  a procurement requirement, raise it early.
+- The tool was tested against the **saLTIre** LTI conformance emulator
+  (`saltire.lti.app`): launch acceptance, account and activity creation, and
+  negative cases. `alg:none` tokens, broken tokens and missing parameters all
+  lead to a clean error page and no server error.
+- End-to-end validation was done on Moodle 4.5.12 and ILIAS 10.9, each through
+  the full loop: launch, consent, account, submission, correction, grade
+  transfer, grade visible in the LMS.
+- **BenGER is not 1EdTech certified.** If certification is a procurement
+  requirement, raise it early.
 
-Replay protection is verified as part of every validation run: re-posting a
-previously used `id_token` is rejected, because the nonce is consumed
-exactly once per registration inside its TTL using an atomic set-if-absent.
+**Replay protection.** A replayed launch POST gets `invalid_state`, because
+the state is used up on the first launch. A replayed `id_token` sent with a
+fresh login gets `nonce_mismatch`, because every login creates a new nonce.
+As a second guard, the launch marks each nonce as used for 10 minutes (an
+atomic set-if-absent) and rejects a second use with `nonce_reused`.
 
 ## 11. Operating the tool (self-hosted deployments)
 
-Only relevant if you run BenGER yourself rather than using the hosted
-service. The LTI routes require the commercial edition
-([§1](#1-edition-boundary-read-this-first)).
+This section matters only if you run BenGER yourself. The LTI routes need the
+commercial edition ([§1](#1-edition-boundary-read-this-first)).
 
-**Signing key.** The tool signs client assertions with an RSA key, RS256.
+**Signing key.** The tool signs client assertions with an RSA key (RS256).
 Generate a 4096-bit key and supply it through `LTI_TOOL_PRIVATE_KEY` (PEM) or
-`LTI_TOOL_PRIVATE_KEY_FILE`, naming it with `LTI_TOOL_KID`. Without a
-configured key the process generates an ephemeral in-memory keypair and logs
-a warning; that is fine for tests and useless in production, because the
-published JWKS goes stale on every restart.
+`LTI_TOOL_PRIVATE_KEY_FILE`, named by `LTI_TOOL_KID`. Without a configured key
+the process creates a temporary key in memory and logs a warning. That is
+fine for tests and useless in production, because the published JWKS changes
+on every restart. A key that cannot be loaded at all gives
+`tool_not_configured`.
 
 **Rotation.** Install the new key as the active pair and move the old one to
-`LTI_TOOL_PRIVATE_KEY_PREVIOUS` / `LTI_TOOL_KID_PREVIOUS`, then restart. The
-JWKS serves both keys during the window and platforms refetch on a `kid`
-miss. Drop the previous pair after about an hour. Every JWK served carries
-both `kid` and `alg`, which Moodle requires.
+`LTI_TOOL_PRIVATE_KEY_PREVIOUS` and `LTI_TOOL_KID_PREVIOUS`, then restart. The
+JWKS serves both keys during the window, and LMSs fetch it again on an
+unknown `kid`. Drop the previous pair after about an hour. Every JWK carries
+`kid` and `alg`, which Moodle requires.
 
-**Organization API key.** LLM grading for an LTI cohort bills to the
-organization that owns the registration, never to the student. The
-organization must hold a judge provider key, and its `require_private_keys`
-setting must be `false`. With `require_private_keys: true` the resolver falls
-through to the launching user's personal key, which LTI students do not have,
-and grading fails. See [API key resolution](./features/api-key-resolution.md).
+**Tool addresses.** The BenGER host is `FRONTEND_URL`. A second,
+student-only host is optional and comes with the commercial edition. Without
+it, the panel offers the BenGER host only.
 
-**Redis is required.** OIDC state and nonce storage is in Redis and fails
-closed. If Redis is unavailable, launches are rejected rather than accepted
-without CSRF binding.
+**Organization API key.** AI grading of a linked exam is billed to the
+connection's organization. The organization must provide keys
+(`require_private_keys: false`) and hold a key for the provider of the grading
+model. Otherwise the grading is refused with a reason, and no other key is
+used. See [API key resolution](./features/api-key-resolution.md).
 
-**Grade passback is an outbox.** Failed pushes are retried with exponential
-backoff from 60 seconds, doubling, capped at 6 hours, up to 10 attempts. A
-periodic sweep heals the queue after an LMS outage. Administrators can
-inspect the queue and force a retry from the admin UI or via
-`POST /api/admin/lti/grade-syncs/{id}/retry`.
+**Redis is required.** OIDC state and nonce, waiting launches, email
+confirmation tokens and the limits on sign-in attempts and mails live in
+Redis. Without Redis the tool fails closed with `state_unavailable`.
 
-**Kill switches.** Setting a registration to `disabled` blocks everything for
-that LMS. Disabling its deployment row blocks launches too; the deployment
-check fails closed, so an empty active-deployment set rejects every launch.
+**Grade transfer is an outbox.**
 
-### Validation checklist before onboarding a new university
+- A transfer is queued as soon as an AI grade or a human grade is saved.
+- There is one row per activity, student and column.
+- A failed transfer is retried after 60 seconds, then with doubling waits up
+  to 6 hours. After 10 attempts the row is `failed`.
+- An hourly sweep (minute 45) sends due rows and retries `failed` rows every
+  6 hours without limit. It also sends grades that changed in place
+  (Notenschlüssel recomputes, revised human grades) and creates missing rows.
+- A row with nothing to send (no grade yet, grading not possible) becomes
+  `idle` instead of `failed`.
+- The same score, comment and column are never sent twice.
+- A manual retry resets the row and queues the transfer at once. It is
+  available as **Retry** in the admin panel, as **Send again** in the activity
+  overview and as `POST /api/admin/lti/grade-syncs/{id}/retry`. If the queue
+  cannot be reached, the next hourly sweep sends it.
+- A switched-off connection fails its transfers at once, and the activity
+  overview only answers with a notice (`409`) while it is off. After switching
+  it on, use **Send again** or **Retry**. Otherwise the sweep sends the failed
+  rows again about six hours after the failure.
 
-1. `GET https://<benger-host>/api/lti/jwks` returns 200 and every key carries
+**Switching off.** A switched-off connection blocks everything for that LMS.
+A switched-off deployment blocks launches through that deployment. Unknown
+deployments are rejected.
+
+### Validation checklist before onboarding a university
+
+1. `GET https://<tool-host>/api/lti/jwks` returns 200, and every key carries
    `kid` and `alg`.
-2. Instructor launch reaches the picker and an exam can be linked.
-3. Student launch in a clean browser shows the consent gate exactly once;
-   re-launch goes straight to the exam.
-4. Submit an attempt and confirm the grade lands in the LMS gradebook with
-   the correct rescaling.
-5. Revise the grade through the correction workflow and confirm the gradebook
-   entry is overwritten.
-6. Interrupt LMS connectivity briefly and confirm the outbox backs off and
-   then heals.
-7. Replay a launch POST with the same `id_token` and confirm it is rejected.
+2. An org admin creates an invite, the LMS registers, and the connection is
+   active. The tool URLs in the LMS use the chosen address.
+3. A teacher launch shows the consent page once. The picker lists own and
+   colleagues' exams, and a Bewertungsbogen exam can be linked.
+4. A student launch in a clean browser shows the consent page, and no
+   account exists before consent. After consent the account has a pseudonym
+   and the activation mail arrives. A relaunch goes straight to the exam.
+5. After a submission, the final grade lands in the activity column with the
+   right rescaling. On Moodle with column management, the AI grade lands in
+   "KI-Bewertung".
+6. A human grade changes the activity column and leaves "KI-Bewertung"
+   unchanged.
+7. A Notenschlüssel recompute reaches the LMS within the hour.
+8. In an organization without a key, the grading does not run, and the
+   student, teacher and admin see a message.
+9. A short LMS outage makes the outbox back off and then recover.
+10. A replayed launch POST gets `invalid_state`.
+
+### Launch error codes
+
+The error page shows a code, and a reference for unexpected server errors.
+The in-app guide "Launch from Moodle or ILIAS fails" explains each code in
+more detail. The consent page and the account choice show `launch_expired`
+and `launch_mismatch` themselves, without the code, as *Sign-in expired* and
+*Sign-in does not match*. The email confirmation page shows
+`link_proof_failed` as *Confirmation failed*. JSON calls of these pages that
+fail unexpectedly carry the reference in their message.
+
+| Code | Meaning | Who acts |
+|---|---|---|
+| `invalid_request` | The LMS sent an incomplete launch request. | Reopen the activity. If it repeats, the LMS admin checks the tool settings. |
+| `registration_not_found` | No connection matches the LMS (issuer or client ID differ, the connection was deleted, or two active connections cannot be told apart). | Org admin checks the connection, LMS admin the tool settings. |
+| `registration_disabled` | The organization switched the connection off. | Org admin switches it on. |
+| `org_inactive` | The organization that owns the connection is deactivated. | Platform operator. |
+| `unknown_deployment` | The deployment ID is not registered in the connection. On ILIAS it is the Provider ID. | LMS admin gives the ID, org admin adds it. |
+| `deployment_disabled` | The deployment ID is registered but switched off. | Org admin switches it on. |
+| `tool_not_configured` | The tool's signing key cannot be loaded. | Platform operator. |
+| `state_unavailable` | A temporary server problem. The sign-in could not be stored or read. It is not a browser or cookie problem. | Try again in a few minutes. |
+| `invalid_state` | The sign-in was older than 5 minutes or already used (back button, reload, double submit). | Reopen the activity. |
+| `invalid_token` | The LMS sign-in could not be verified (JWKS URL, client ID, new LMS keys, clock). | Reopen. If it repeats, LMS admin and org admin check the settings. |
+| `nonce_mismatch` | The LMS answer does not match the started sign-in. | Reopen the activity. |
+| `nonce_reused` | The same sign-in arrived twice. | Reopen the activity. |
+| `unsupported_message` | The LMS sent a request type the tool does not support, for example Deep Linking. | LMS admin switches Deep Linking off. |
+| `not_linked` | The activity is not linked to an exam yet. | Teacher opens the activity and picks an exam. |
+| `exam_unavailable` | The linked exam was deleted. | Teacher links another exam, or creates a new activity if grades were sent. |
+| `user_inactive` | The account is deactivated or anonymized. | Platform operator. |
+| `membership_removed` | An admin removed the person from the connection's organization. A launch does not restore it. | Org admin invites the person again. Accepting the invitation restores the membership. |
+| `launch_expired` | The consent page or account choice was open longer than 30 minutes, or the launch finished in another tab. | Reopen the activity. |
+| `launch_mismatch` | The page belongs to another launch, or the browser lacks this launch's cookie (another browser, embedded launch). | Reopen and finish in one browser, in a new window. |
+| `link_proof_failed` | The email confirmation link is invalid, older than 24 hours or already used. | Reopen and request a new link. |
+| `account_not_linkable` | This account may not be linked, for example a platform administrator account. | Reopen and continue with a separate account. An existing link is removed by the org admin. |
+| `internal` | An unexpected server error. The page shows a reference. | Try again later. If it repeats, send code and reference to the platform operator. |
 
 ### Troubleshooting
 
 | Symptom | Cause |
 |---|---|
-| Instructor lands in an empty account, picker shows no exams | LMS tool privacy withholds name and email, so a pseudonymous account was provisioned. Set both to *always* **and** clear the stale `lti_user_links` row, because the first-launch mapping is sticky. |
-| Student sees a `not_linked` error | Expected before linking. The instructor has not bound an exam to the activity yet. |
-| Moodle `invalidrequest` at `auth.php` | Redirect URI not registered character for character, or a mangled `lti_message_hint`. |
-| Token call fails with `"kid" invalid` | The LMS cannot match our JWKS: wrong or unreachable keyset URL, a key rotated without the previous pair configured, or API and workers signing with different keys. |
-| Token call fails with a null-JWKS error | LMS outbound curl security is blocking the keyset URL. Serve it on 443. |
-| ILIAS token endpoint returns `ERROR_OPEN_SSL_CONF` | A misleading catch-all for any exception, including an unknown `kid` or a failed JWKS fetch. The real exception is only in the ILIAS log. Check that the JWKS URL is reachable from the ILIAS server and that the correct `kid` is in use. |
-| Grade never appears | The activity was created without a grade, so there is no line item; or the exam's evaluation config is not in the Falllösung family; or, on ILIAS, "Advanced Grading Services" was never enabled. |
-| `409` on score POST | AGS requires strictly increasing timestamps. Clock skew between workers. |
-| ILIAS shows a passed exam as "in progress" | Mastery Score left at the 80 % default. Set it to 22. |
+| Moodle gets only the final grade, no "KI-Bewertung" column | The tool's AGS setting is grade sync only. Set it to grade sync and column management, then open the activity again. A teacher who deleted the column can create it again in the activity overview. ILIAS never gets this column. |
+| Grading does not run, students see that their organization has no API key | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check. |
+| An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again. |
+| A teacher's picker is empty | The teacher and the organization's staff have no exams yet, or all of them are archived. Create an exam from the picker. |
+| Moodle `invalidrequest` at `auth.php` | The redirect URI is not registered character for character, or the `lti_message_hint` was changed. |
+| Token call fails with `"kid" invalid` | The LMS cannot match our JWKS: wrong or unreachable keyset URL, a rotated key without the previous pair, or API and workers signing with different keys. |
+| Token call fails with a null-JWKS error | The LMS's outbound curl security blocks the keyset URL. Serve it on port 443. |
+| ILIAS token endpoint returns `ERROR_OPEN_SSL_CONF` | A misleading catch-all for any error, including an unknown `kid` or a failed JWKS fetch. The real error is only in the ILIAS log. Check that the ILIAS server reaches the JWKS URL and that the right `kid` is used. |
+| A grade never appears | The activity has no grade, so there is no line item. Or the exam cannot give Notenpunkte. Or, on ILIAS, "Advanced Grading Services" is off. The activity overview shows the transfer status and error. |
+| `409` on the score POST | AGS needs increasing timestamps. Clock skew between workers. |
+| ILIAS shows a passed exam as "in progress" | The Mastery Score is still 80 %. Set it to 22. |
 
 ## 12. Support and contact
 
-- Issues with the open platform: <https://github.com/SebastianNagl/benger-platform/issues>
+- Teachers and students contact their organization admin first. Org admins
+  manage connections in the panel.
+- Issues with the open platform:
+  <https://github.com/SebastianNagl/benger-platform/issues>
 - LMS onboarding, the commercial edition, data protection requirements
-  ([§8.8](#88-compliance-tell-us-what-you-need)), and source review under
-  NDA: <sebastian.nagl@tum.de>
+  ([§8.8](#88-compliance-tell-us-what-you-need)) and source review under NDA:
+  <sebastian.nagl@tum.de>
 
-When you write in about data protection, the single most useful thing you can
-send is the list from [§8.8](#88-compliance-tell-us-what-you-need) with your
-answers filled in. It lets us come back with the actual documents instead of
-another round of questions.
+When you write about data protection, the most useful thing to send is the
+list from [§8.8](#88-compliance-tell-us-what-you-need) with your answers. Then
+we can reply with the documents instead of another round of questions.
 
 ---
 
@@ -520,70 +793,96 @@ another round of questions.
 
 *Zum Weiterleiten an die ILIAS-Administration.*
 
-> **BenGER als LTI-1.3-Tool in ILIAS einbinden**
+> **Das Tool als LTI-1.3-Tool in ILIAS einbinden**
 >
 > 1. **Globalen Provider anlegen:** Administration → Erweiterung von ILIAS →
->    LTI → Tab „ILIAS als LTI-Konsument" → „Add Global Provider for all
->    Users".
-> 2. **Felder ausfüllen** (Werte liefert das BenGER-Team):
+>    LTI → Tab „ILIAS als LTI-Konsument“ → „Add Global Provider for all
+>    Users“.
+> 2. **Felder ausfüllen.** Die Werte zeigt Ihr Organisations-Admin im Panel
+>    unter **Tool-Konfiguration**.
 >    - LTI-Version: **LTI 1.3**
->    - Tool-URL: `https://<benger-host>/api/lti/launch`
->    - Initiate-Login-URL: `https://<benger-host>/api/lti/login`
->    - Redirection-URI(s): `https://<benger-host>/api/lti/launch`
->    - Schlüsseltyp: **JWK-Keyset-URL** = `https://<benger-host>/api/lti/jwks`
->      — bitte unbedingt die URL-Variante wählen und **keinen Schlüssel
->      einfügen**, sonst schlägt die Notenübertragung fehl.
->    - „Advanced Grading Services" (Grade Synchronization): **aktivieren**
+>    - Tool-URL: `https://<tool-host>/api/lti/launch`
+>    - Initiate-Login-URL: `https://<tool-host>/api/lti/login`
+>    - Redirection-URI(s): `https://<tool-host>/api/lti/launch`
+>    - Schlüsseltyp: **JWK-Keyset-URL** mit
+>      `https://<tool-host>/api/lti/jwks`. Bitte unbedingt die URL-Variante
+>      wählen und **keinen Schlüssel einfügen**, sonst scheitert die
+>      Notenübertragung.
+>    - „Advanced Grading Services“ (Grade Synchronization): **aktivieren**
 >    - Deep Linking: **aus**
->    - Privacy: Modus frei wählbar, aber **nach Inbetriebnahme nicht mehr
->      ändern** (jeder Moduswechsel trennt alle bestehenden Kontoverknüpfungen).
-> 3. Nach dem Speichern **Client-ID** und **Provider-ID** (numerisch) an das
->    BenGER-Team melden. Die Provider-ID ist unsere Deployment-ID.
-> 4. **Im Kurs:** „Neues Objekt hinzufügen" → LTI-Konsument → Provider wählen
->    → Online schalten. „Optionen für den Start": **Neues Fenster** (Pflicht).
->    Mastery Score: **22** (4 von 18 Punkten entspricht „bestanden").
-> 5. **Voraussetzungen:** ILIAS 9 oder 10 auf aktuellem Patchlevel; die
->    BenGER-JWKS-URL muss vom ILIAS-Server aus über Port 443 erreichbar sein.
+>    - Datenschutz: Identifizierung per **E-Mail-Adresse** und den
+>      **vollständigen Namen** übertragen. Die Konten tragen Name und
+>      E-Mail-Adresse aus ILIAS, in der Anwendung erscheint ein Pseudonym.
+>      Die Einstellung nach der Inbetriebnahme **nicht mehr ändern**. Jeder
+>      Wechsel trennt alle bestehenden Kontoverknüpfungen.
+> 3. Nach dem Speichern **Client-ID** und **Provider-ID** (numerisch) an Ihren
+>    **Organisations-Admin** melden. Die Provider-ID ist die Deployment-ID.
+> 4. **Im Kurs:** „Neues Objekt hinzufügen“ → LTI-Konsument → Provider
+>    wählen → Online schalten. „Optionen für den Start“: **Neues Fenster**
+>    (Pflicht). Mastery Score: **22** (4 von 18 Punkten gelten als
+>    bestanden).
+> 5. **Noten:** ILIAS erhält je Person einen Wert, die Endnote. Das ist die
+>    Korrektur der Lehrenden, sonst die KI-Note. Eine eigene Spalte für die
+>    KI-Note gibt es in ILIAS nicht.
+> 6. **Voraussetzungen:** ILIAS 10 auf aktuellem Patchlevel. Getestet ist
+>    ILIAS 10.9, ILIAS 9 ist nicht live getestet. Die JWKS-URL muss vom
+>    ILIAS-Server aus über Port 443 erreichbar sein.
 
 ## Appendix B: Moodle setup sheet (German)
 
 *Zum Weiterleiten an die Moodle-Administration.*
 
-> **BenGER als LTI-1.3-Tool in Moodle einbinden**
+> **Das Tool als LTI-1.3-Tool in Moodle einbinden**
 >
-> **Variante 1 — Dynamische Registrierung (empfohlen, ein Link):**
+> **Variante 1, ein Link (empfohlen):**
 > Website-Administration → Plugins → Externes Tool → Tools verwalten → den
-> vom BenGER-Team erhaltenen Registrierungslink in das Feld
-> **„LTI Advantage hinzufügen"** einfügen. Moodle und BenGER tauschen alle
-> weiteren Werte automatisch aus. Das Tool erscheint als *Ausstehend*, ein
-> Klick auf **Aktivieren** schließt die Moodle-Seite ab.
+> **Registrierungslink Ihres Organisations-Admins** in das Feld **„LTI
+> Advantage hinzufügen“** einfügen. Moodle und das Tool tauschen alle
+> weiteren Werte aus. Das Tool erscheint als *Ausstehend*. Ein Klick auf
+> **Aktivieren** schließt die Einrichtung ab. Die Anbindung ist sofort
+> aktiv. Die Registrierung fordert Name und E-Mail-Adresse für alle Personen
+> sowie Notensynchronisation und Spaltenverwaltung an. Bitte prüfen Sie
+> danach in der Konfiguration des Tools, dass beides so eingestellt ist.
 >
-> **Variante 2 — manuell:**
+> **Variante 2, manuell:**
 > Website-Administration → Plugins → Externes Tool → Tools verwalten → „Tool
-> manuell konfigurieren":
+> manuell konfigurieren“. Die Werte zeigt Ihr Organisations-Admin im Panel
+> unter **Tool-Konfiguration**.
 >
-> - Tool-URL: `https://<benger-host>/api/lti/launch`
-> - Initiate-Login-URL: `https://<benger-host>/api/lti/login`
-> - Redirection-URI(s): `https://<benger-host>/api/lti/launch`
->   (zeilengenau identisch)
-> - Öffentliches Schlüsselset: `https://<benger-host>/api/lti/jwks`
+> - Tool-URL: `https://<tool-host>/api/lti/launch`
+> - Initiate-Login-URL: `https://<tool-host>/api/lti/login`
+> - Redirection-URI(s): `https://<tool-host>/api/lti/launch`
+>   (zeichengenau identisch)
+> - Öffentliches Schlüsselset: `https://<tool-host>/api/lti/jwks`
 > - LTI-Version: **1.3**
 > - Standard-Startcontainer: **Neues Fenster** (Pflicht, kein iframe)
-> - IMS LTI Assignment and Grade Services: **nur Notensynchronisation**
+> - IMS LTI Assignment and Grade Services:
+>   **Notensynchronisation und Spaltenverwaltung**
 > - Deep Linking: **aus**
-> - Datenschutz: für **Studierende** optional — BenGER arbeitet vollständig
->   pseudonym allein auf Basis der `sub`-Kennung. Für **Lehrende** bitte Name
->   und E-Mail auf *Immer* stellen, sonst kann die Lehrkraft ihre eigenen
->   Klausuren nicht zuordnen.
+> - Datenschutz: Name und E-Mail-Adresse **immer** an das Tool senden, für
+>   alle Personen. Die Konten tragen Name und E-Mail-Adresse aus Moodle, in
+>   der Anwendung erscheint ein Pseudonym.
 >
 > Anschließend die Tool-Details öffnen, **Client-ID** und **Deployment-ID**
-> auslesen und an das BenGER-Team melden.
+> auslesen und an Ihren **Organisations-Admin** melden.
 >
-> **Im Kurs:** Aktivität anlegen → Externes Tool → BenGER-Tool wählen →
-> sicherstellen, dass die Aktivität **eine Bewertung besitzt** (Standard 100
-> genügt). Ohne Bewertung existiert kein Line Item und es kann keine Note
-> zurückgeschrieben werden.
+> **Bestehende Tools:** Beide Einstellungen stehen in der Konfiguration des
+> Tools unter „Tools verwalten“. Steht die Notenübertragung dort nur auf
+> Notensynchronisation, stellen Sie sie auf **Notensynchronisation und
+> Spaltenverwaltung** um. Beim nächsten Start der Aktivität legt das Tool
+> dann die Spalte „KI-Bewertung“ an.
 >
-> **Voraussetzung:** Die BenGER-JWKS-URL muss vom Moodle-Server aus über
-> Port 443 erreichbar sein. Moodles ausgehende curl-Sicherheit blockiert
-> andere Ports standardmäßig.
+> **Im Kurs:** Aktivität anlegen → Externes Tool → Tool wählen → sicherstellen,
+> dass die Aktivität **eine Bewertung besitzt** (Standard 100 genügt). Ohne
+> Bewertung gibt es kein Line Item, und es kann keine Note zurückgeschrieben
+> werden.
+>
+> **Noten:** Die Spalte der Aktivität erhält die Endnote. Das ist die
+> Korrektur der Lehrenden, sonst die KI-Note, umgerechnet auf das Maximum der
+> Aktivität. Die Spalte **KI-Bewertung** erhält immer die KI-Note auf der
+> Skala 0 bis 18. Eine Korrektur löscht nichts.
+>
+> **Voraussetzungen:** Getestet ist Moodle 4.5. Moodle 5 ist anhand des
+> Quellcodes geprüft, aber nicht live getestet. Die JWKS-URL muss vom
+> Moodle-Server aus über Port 443 erreichbar sein. Moodles ausgehende
+> curl-Sicherheit blockiert andere Ports standardmäßig.

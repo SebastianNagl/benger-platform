@@ -139,12 +139,14 @@ export const GENERATION_GUIDES: HowToGuide[] = [
       de: [
         'Sie sehen nur Modelle von Anbietern, für die ein Schlüssel vorhanden ist. Fehlt ein Anbieter im Modell-Picker, fehlt der Schlüssel.',
         'Stellt die Organisation Schlüssel bereit, ist das Formular für eigene Schlüssel im Profil abgeschaltet. Das ist beabsichtigt.',
-        'Bei Klausuren, die Studierende in der Lernoberfläche lösen, zahlt Ihre Organisation die KI-Korrektur, wenn sie Schlüssel bereitstellt. Sonst gelten die Konditionen der Lernoberfläche. Wer dort einen eigenen Schlüssel hinterlegt, zahlt selbst. Öffnen Studierende eine Klausur über eine Lernplattform (LMS), zahlt die Organisation dieser Anbindung.',
+        'Bei Klausuren, die Studierende in der Lernoberfläche lösen, zahlt Ihre Organisation die KI-Korrektur, wenn sie Schlüssel bereitstellt. Sonst gelten die Konditionen der Lernoberfläche. Wer dort einen eigenen Schlüssel hinterlegt, zahlt selbst.',
+        'Ist eine Klausur mit einer Lernplattform (Moodle, ILIAS) verknüpft, zahlt die Organisation dieser Anbindung die KI-Korrektur für Studierende aus der Lernplattform (auch ohne Mitgliedschaft), für ihr eigenes Personal und für Evaluierungsläufe. Dafür muss sie Schlüssel bereitstellen und einen Schlüssel für das Bewertungsmodell haben. Sonst läuft keine KI-Korrektur, und es gibt keinen Rückfall auf einen anderen Schlüssel. Siehe [Lernplattform-Anbindung](/how-to#lti-setup).',
       ],
       en: [
         'You only see models of providers for which a key exists. If a provider is missing in the model picker, the key is missing.',
         'If the organization provides keys, the personal key form in the profile is disabled. That is intended.',
-        'For exams students solve in the student interface, your organization pays for the AI grading if it provides keys. Otherwise the student interface’s own terms apply. Students who store their own key there pay themselves. When students open an exam through a learning platform (LMS), the organization of that connection pays.',
+        'For exams students solve in the student interface, your organization pays for the AI grading if it provides keys. Otherwise the student interface’s own terms apply. Students who store their own key there pay themselves.',
+        'If an exam is linked to a learning platform (Moodle, ILIAS), the organization of that connection pays for AI grading for students from the learning platform (members or not), for its own staff and for evaluation runs. It must provide keys and hold a key for the grading model. Otherwise no AI grading runs, and there is no fallback to another key. See [learning platform integration](/how-to#lti-setup).',
       ],
     },
     pitfalls: {

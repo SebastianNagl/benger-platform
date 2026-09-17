@@ -85,8 +85,10 @@ whenever one is added, renamed or removed):
   ``enforce_project_read_window(_async)`` (attempted exempt). The extended
   student list/detail, own-review and Korrektur reads honour it; the timer
   and flashcard writes refuse it.
-- 2.20: LMS connections run by org admins (first cut, refined as the
-  release lands).
+- 2.20: LMS (LTI) connections run by org admins and group admins, consent
+  before any account, proof-based account linking, co-existing AI and human
+  grades, connection-org billing, staff access to linked exams, LMS name
+  masking and anonymization (one bundled release with the extended overlay).
   Schema: migration 105 (``tool_host`` on registrations and invites;
   ``lti_user_links.research_consent_at`` / ``link_method`` / ``unlinked_at``;
   ``lti_resource_links.ai_lineitem_*``; ``lti_grade_syncs.kind`` /
@@ -157,9 +159,20 @@ whenever one is added, renamed or removed):
   turns a manual row of a linked org into one (with the connection's group),
   drops linking rows whose org no longer links the exam and answers 409
   ``lti_attachment_conflict`` to a group-aware re-scope of a linked org;
-  ``ProjectResponse.organizations[]`` carries ``attached_via``. Host route
-  ``/lti/activity`` (slot ``LtiActivityView``, props ``resourceLinkId``,
-  ``expectedUserId``, ``requestedUiMode``) is the teacher view.
+  ``ProjectResponse.organizations[]`` carries ``attached_via``. The project
+  lists agree with those deciders: ``routers.projects.helpers.
+  get_lti_staff_project_ids(_async)`` returns the LMS-linked private exams a
+  user may open as such staff (the extended student exam list imports the
+  async twin). ``check_user_can_edit_project(_async)`` applies the same
+  private rule itself (only a live LMS link opens someone else's private
+  exam, protected orgs count only their admins), and
+  ``get_soft_deletable_project_ids_async`` is the one delete rule (a private
+  project is its creator's alone) behind ``DELETE /projects/{id}``, bulk
+  delete and the extended student list/detail ``can_delete`` flag.
+  Accepting an organization invitation reactivates a removed membership.
+  Host route ``/lti/activity`` (slot ``LtiActivityView``, props
+  ``resourceLinkId``, ``expectedUserId``, ``requestedUiMode``) is the teacher
+  view.
   Names (D8): ``/auth/me``, ``/auth/me/contexts`` and the login user carry
   ``pseudonym``, ``use_pseudonym`` and ``is_lms_account``; shared modules
   ``lms_name_masking`` (``NameVisibility``, ``lms_link_exists``,
@@ -186,6 +199,19 @@ whenever one is added, renamed or removed):
   ``lti-`` and ``anon-`` username prefixes. ``get_current_user`` returns
   None for inactive accounts (the handlers that use it answer 401), and the
   progress WebSockets refuse inactive accounts.
+  Frontend contract (the extended overlay imports these): ``lib/lti/
+  launchErrors`` (``LTI_LAUNCH_ERROR_CODES``, the action categories,
+  ``isLtiLaunchErrorCode``, ``ltiLaunchErrorPath``; the code list mirrors the
+  extended ``lti/errors.py`` page codes, and a parity test in each repo
+  compares them) with the ``lti.error`` locale namespace that the host
+  route ``/lti/error`` renders, and ``lib/utils/displayName``
+  (``getUserDisplayName``). ``StudentModeRedirect`` honours the one-shot
+  ``lti_ui=student|expert`` parameter next to ``lti_u`` / ``rl``, and
+  ``AuthContext`` skips the last-org subdomain redirect while ``lti_u``,
+  ``rl`` or ``lti_ui`` is in the URL. Worker-side,
+  ``immediate_eval_dispatch`` exports ``BILLING_BLOCK_KEY`` and
+  ``normalize_billing_block``, and ``auth_module.org_scope`` exports
+  ``load_org_admin_scope_sync``.
 """
 
 import os

@@ -7,6 +7,38 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-17',
+    audience: 'both',
+    text: {
+      de: 'Wer aus einer Organisation entfernt wurde, kann wieder eingeladen werden. Mit dem Annehmen der Einladung ist die Mitgliedschaft wieder aktiv. Bisher schlug das Annehmen mit einem Fehler fehl.',
+      en: 'People removed from an organization can be invited again. Accepting the invitation makes the membership active again. Until now, accepting failed with an error.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'benger',
+    text: {
+      de: 'Organisations-Admins richten Moodle- und ILIAS-Anbindungen jetzt selbst ein und verwalten sie unter Benutzer & Organisationen → Mehr → Lernplattform (LTI). Neue Anbindungen sind sofort aktiv, die Adresse des Tools ist pro Anbindung wählbar, und das Panel zeigt Aktivitäten, LMS-Konten, Notenübertragungen und einen Verlauf. Über die Lernplattform angelegte Konten lassen sich anonymisieren. Gruppen-Admins verwalten die Anbindungen ihrer Gruppe.',
+      en: 'Organization admins now set up and manage Moodle and ILIAS connections themselves under Users & organizations → More → Learning platform (LTI). New connections are active at once, the tool address can be chosen per connection, and the panel shows activities, LMS accounts, grade transfers and a history. Accounts created through the learning platform can be anonymized. Group admins manage their group’s connections.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'benger',
+    text: {
+      de: 'Mitwirkende und Admins einer Organisation sehen Klausuren, die mit einer Lernplattform der Organisation verknüpft sind, und können sie korrigieren, auch wenn die Klausur privat ist. Löschen kann eine private Klausur nur, wer sie angelegt hat. Personen aus der Lernplattform erscheinen in Mitgliederlisten, Aufgabenlisten und Exporten unter ihrem Pseudonym. Klarnamen sehen nur Admins und wer die Klausur bewerten darf.',
+      en: 'Contributors and admins of an organization see exams linked to a learning platform of the organization and can grade them, even when the exam is private. Only its creator can delete a private exam. People from the learning platform appear under their pseudonym in member lists, task lists and exports. Only admins and those who may grade the exam see real names.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'both',
+    text: {
+      de: 'Die Anleitungen zur Lernplattform-Anbindung sind überarbeitet. Neu sind Anleitungen zum Verwalten einer Anbindung und zu Noten aus der Lernplattform, und die Hilfe zu Fehlern beim Start aus Moodle oder ILIAS nennt für jeden Fehlercode Ursache, Lösung und Ansprechpartner. Die Datenschutzerklärung beschreibt jetzt auch die Verarbeitung bei der Anbindung.',
+      en: 'The guides on the learning platform integration were revised. New guides cover managing a connection and grades from the learning platform, and the help on failed launches from Moodle or ILIAS gives cause, fix and contact for every error code. The privacy policy now also describes the processing for the integration.',
+    },
+  },
+  {
     date: '2026-09-16',
     audience: 'both',
     text: {

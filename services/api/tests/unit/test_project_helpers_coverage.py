@@ -365,7 +365,12 @@ class TestGetAccessibleProjectIds:
         rows = [Mock(id="proj-1"), Mock(id="proj-2")]
         db.query.return_value.filter.return_value.all.return_value = rows
 
-        result = get_accessible_project_ids(db, user, org_context="private")
+        # No LMS-linked exams of other users (covered with real rows in
+        # tests/integration/test_lti_staff_project_list.py).
+        with patch(
+            "routers.projects.helpers.get_lti_staff_project_ids", return_value=set()
+        ):
+            result = get_accessible_project_ids(db, user, org_context="private")
         assert result == ["proj-1", "proj-2"]
 
     def test_no_context(self):
@@ -375,8 +380,14 @@ class TestGetAccessibleProjectIds:
         rows = [Mock(id="proj-1")]
         db.query.return_value.filter.return_value.all.return_value = rows
 
-        result = get_accessible_project_ids(db, user, org_context=None)
-        assert result == ["proj-1"]
+        with patch(
+            "routers.projects.helpers.get_lti_staff_project_ids",
+            return_value={"lti-exam"},
+        ) as staff_ids:
+            result = get_accessible_project_ids(db, user, org_context=None)
+        # LMS-linked exams the caller opens as org staff follow the own ones.
+        assert result == ["proj-1", "lti-exam"]
+        staff_ids.assert_called_once_with(db, user)
 
     def test_org_context_with_membership(self):
         db = Mock()
@@ -402,7 +413,7 @@ class TestGetAccessibleProjectIds:
         proj_query = MagicMock()
         proj_query.join.return_value = proj_query
         proj_query.filter.return_value = proj_query
-        proj_row = Mock(project_id="proj-1")
+        proj_row = Mock(project_id="proj-1", is_private=False, created_by="user-2")
         proj_query.all.return_value = [proj_row]
 
         db.query.side_effect = [public_query, user_query, proj_query]

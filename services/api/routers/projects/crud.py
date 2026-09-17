@@ -955,30 +955,16 @@ async def update_project(
 
 
 async def _can_soft_delete(db: AsyncSession, current_user, project: Project) -> bool:
-    """Who may (soft-)delete: superadmin; the creator of a PERSONAL project
-    (private, or org-less — mirrors the share-management rule); an active
-    ORG_ADMIN of an org the project is shared with (matches the project
-    page's delete button, which the old hard delete silently 403'd for org
-    admins). A creator who is a mere CONTRIBUTOR of an org project cannot
-    delete it out from under the org."""
-    if current_user.is_superadmin:
-        return True
-    is_creator = str(project.created_by) == str(current_user.id)
-    if project.is_private and is_creator:
-        return True
-    org_ids = (
-        await db.execute(
-            select(ProjectOrganization.organization_id).where(
-                ProjectOrganization.project_id == project.id
-            )
-        )
-    ).scalars().all()
-    if not org_ids:
-        return is_creator
-    from routers.projects.helpers import _build_select_org_admin_membership
+    """Who may (soft-)delete ``project``. The rule lives in
+    :func:`routers.projects.helpers.get_soft_deletable_project_ids_async`
+    (superadmin; the creator of a private or org-less project; an active
+    ORG_ADMIN of an org a non-private project is shared with), so the delete
+    controls of the student exam views can ask the same question in bulk."""
+    from routers.projects.helpers import get_soft_deletable_project_ids_async
 
-    admin = await db.execute(_build_select_org_admin_membership(current_user.id, list(org_ids)))
-    return admin.first() is not None
+    return project.id in await get_soft_deletable_project_ids_async(
+        db, current_user, [project]
+    )
 
 
 async def _notify_deleted(db, project_id, project_title, current_user):

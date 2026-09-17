@@ -492,6 +492,52 @@ describe('ProjectDetailPage — delete flow', () => {
   })
 })
 
+describe('ProjectDetailPage — delete permission of org admins', () => {
+  const orgAdmin = {
+    id: 'user-9',
+    username: 'orgadmin',
+    email: 'orgadmin@example.com',
+    role: 'ORG_ADMIN',
+    is_superadmin: false,
+  }
+
+  function renderAsOrgAdmin(project: Record<string, any>) {
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: orgAdmin,
+      currentOrganization: { id: 'org-1', name: 'TUM' },
+    })
+    setStore({ currentProject: { ...baseProject, ...project } })
+    render(<ProjectDetailPage params={params()} />)
+  }
+
+  it('lets an org admin delete an org project', async () => {
+    renderAsOrgAdmin({ created_by: 'user-2', is_private: false })
+    await screen.findByText('proj-1')
+    const button = screen.getByText('project.deleteProject').closest('button')
+    expect(button).not.toBeDisabled()
+  })
+
+  it('does not offer deleting a colleague’s private linked exam', async () => {
+    // A learning platform link attaches a private exam to the org; the
+    // exam stays its creator's, so the API refuses the delete.
+    renderAsOrgAdmin({ created_by: 'user-2', is_private: true })
+    await screen.findByText('proj-1')
+    const button = screen.getByText('project.deleteProject').closest('button')
+    expect(button).toBeDisabled()
+    fireEvent.click(button as HTMLElement)
+    expect(
+      screen.queryByText('project.deleteConfirmTitle: Legal Benchmark'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('still lets the creator delete an own private project', async () => {
+    renderAsOrgAdmin({ created_by: 'user-9', is_private: true })
+    await screen.findByText('proj-1')
+    const button = screen.getByText('project.deleteProject').closest('button')
+    expect(button).not.toBeDisabled()
+  })
+})
+
 describe('ProjectDetailPage — sidebar quick actions', () => {
   it('Start Labeling routes to the label page', async () => {
     render(<ProjectDetailPage params={params()} />)
