@@ -121,8 +121,8 @@ from user_display import display_name
 router = APIRouter(prefix="/api/admin/lti", tags=["admin", "lti"])
 
 # The read-write AGS line item scope. An LMS that grants it lets the tool
-# manage its own grade columns (Moodle: "Notensynchronisation und
-# Spaltenverwaltung").
+# manage its own grade columns (Moodle: "IMS LTI Assignment and Grade
+# Services" set to "Use this service for grade sync and column management").
 AGS_LINEITEM_SCOPE = "https://purl.imsglobal.org/spec/lti-ags/scope/lineitem"
 EVENTS_LIMIT = 100
 USER_LINKS_MAX_LIMIT = 200

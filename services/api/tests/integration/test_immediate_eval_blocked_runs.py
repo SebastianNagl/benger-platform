@@ -13,6 +13,7 @@ from __future__ import annotations
 import sys
 import types
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -292,6 +293,185 @@ class TestGradingBlockHook:
         assert outcome.status == ied.OUTCOME_DISPATCHED
         runs = {r.id: r for r in _runs(test_db, project.id)}
         assert "billing_block" not in runs[failed.id].eval_metadata
+
+
+def _answer_row(db, project, task, user_id, *, created_ago=None):
+    annotation = Annotation(
+        id=_uid(),
+        task_id=task.id,
+        project_id=project.id,
+        completed_by=user_id,
+        result=[
+            {
+                "from_name": "answer",
+                "to_name": "text",
+                "type": "textarea",
+                "value": {"text": ["an answer"]},
+            }
+        ],
+        was_cancelled=False,
+    )
+    if created_ago is not None:
+        annotation.created_at = datetime.now(timezone.utc) - created_ago
+    db.add(annotation)
+    db.commit()
+    return annotation
+
+
+def _immediate_run(db, project, annotation, *, status, created_ago, block=None):
+    meta = {"annotation_id": annotation.id}
+    if block is not None:
+        meta["billing_block"] = block
+    run = EvaluationRun(
+        id=_uid(),
+        project_id=project.id,
+        model_id="immediate",
+        evaluation_type_ids=["llm_judge_custom"],
+        status=status,
+        created_by=annotation.completed_by,
+        eval_metadata=meta,
+        metrics={},
+    )
+    run.created_at = datetime.now(timezone.utc) - created_ago
+    db.add(run)
+    db.commit()
+    return run
+
+
+class TestScanUngradedMinAge:
+    """The sweep's min-age cutoff skips fresh submits so a running client
+    grading is not raced. A fresh submit whose grading was already refused
+    by the billing policy has nothing to race: it is scanned at once, so
+    its grading runs on the first sweep after the block is lifted."""
+
+    CUTOFF_AGE = timedelta(minutes=15)
+
+    def _scan_ids(self, db, project):
+        cutoff = datetime.now(timezone.utc) - self.CUTOFF_AGE
+        candidates, _partials = ied.scan_ungraded(db, project, cutoff=cutoff)
+        return {annotation.id for annotation, _task in candidates}
+
+    def test_recent_blocked_submit_is_scanned_despite_the_cutoff(
+        self, test_db, graded_setup
+    ):
+        project, _task, annotation = graded_setup
+        assert self._scan_ids(test_db, project) == set()  # a fresh submit
+
+        ied.record_blocked_immediate_run(
+            test_db,
+            project,
+            annotation,
+            configs=[dict(CONFIG)],
+            block={"code": "lti_org_unfunded", "reason": "org_not_paying"},
+        )
+
+        assert self._scan_ids(test_db, project) == {annotation.id}
+
+    def test_other_recent_submits_still_wait_for_the_cutoff(
+        self, test_db, graded_setup, test_users
+    ):
+        project, task, blocked = graded_setup
+        _immediate_run(
+            test_db, project, blocked, status="failed",
+            created_ago=timedelta(minutes=3), block={"reason": "org_not_paying"},
+        )
+        # No run yet: a client grading may still be on its way.
+        untouched = _answer_row(test_db, project, task, test_users[0].id)
+        # Blocked once, then dispatched after the block was lifted, and that
+        # grading failed: the newest run is no block, so the cutoff applies.
+        retried = _answer_row(test_db, project, task, test_users[1].id)
+        _immediate_run(
+            test_db, project, retried, status="failed",
+            created_ago=timedelta(minutes=5),
+            block={"reason": "org_not_paying", "superseded_by": "later"},
+        )
+        _immediate_run(
+            test_db, project, retried, status="failed",
+            created_ago=timedelta(minutes=1),
+        )
+        # An old submit (on a second task) is scanned as before.
+        second_task = Task(
+            id=_uid(), project_id=project.id, inner_id=2, data={"reference": "ref"}
+        )
+        test_db.add(second_task)
+        test_db.commit()
+        old = _answer_row(
+            test_db, project, second_task, test_users[0].id,
+            created_ago=timedelta(hours=2),
+        )
+
+        ids = self._scan_ids(test_db, project)
+
+        assert ids == {blocked.id, old.id}
+        assert untouched.id not in ids and retried.id not in ids
+        # Without a cutoff (the recovery CLI with --min-age 0) all are scanned.
+        candidates, _ = ied.scan_ungraded(test_db, project)
+        assert {a.id for a, _t in candidates} == {
+            blocked.id, untouched.id, retried.id, old.id
+        }
+
+    def test_a_newer_open_block_counts_after_an_older_failure(
+        self, test_db, graded_setup
+    ):
+        project, _task, annotation = graded_setup
+        _immediate_run(
+            test_db, project, annotation, status="failed",
+            created_ago=timedelta(minutes=8),
+        )
+        _immediate_run(
+            test_db, project, annotation, status="failed",
+            created_ago=timedelta(minutes=2), block={"reason": "org_key_missing"},
+        )
+
+        assert self._scan_ids(test_db, project) == {annotation.id}
+
+    def test_graded_blocked_submit_is_no_candidate(self, test_db, graded_setup):
+        """A submit that got its grade is never scanned as ungraded."""
+        from models import EvaluationJudgeRun, TaskEvaluation
+
+        project, task, annotation = graded_setup
+        blocked = _immediate_run(
+            test_db, project, annotation, status="failed",
+            created_ago=timedelta(minutes=2), block={"reason": "org_not_paying"},
+        )
+        judge_run = EvaluationJudgeRun(id=_uid(), evaluation_id=blocked.id)
+        test_db.add(judge_run)
+        test_db.flush()
+        test_db.add(
+            TaskEvaluation(
+                id=_uid(),
+                evaluation_id=blocked.id,
+                judge_run_id=judge_run.id,
+                task_id=task.id,
+                annotation_id=annotation.id,
+                field_name="answer",
+                answer_type="text",
+                ground_truth={},
+                prediction={},
+                metrics={"llm_judge_custom": {"value": 0.8}},
+                passed=True,
+            )
+        )
+        test_db.commit()
+
+        assert self._scan_ids(test_db, project) == set()
+
+    def test_the_sweep_dispatches_a_recent_submit_once_the_block_is_lifted(
+        self, test_db, graded_setup
+    ):
+        """End to end through the dispatch entry point the sweep calls."""
+        project, _task, annotation = graded_setup
+        sent = []
+        blocked = _ensure(test_db, graded_setup, _Hook(block="org_not_paying"), sent)
+        assert blocked.status == ied.OUTCOME_BLOCKED
+        assert self._scan_ids(test_db, project) == {annotation.id}
+
+        lifted = _ensure(test_db, graded_setup, _Hook(block=None), sent)
+
+        assert lifted.status == ied.OUTCOME_DISPATCHED
+        assert sent == [("tasks.run_single_sample_evaluation", lifted.run_id)]
+        # The dispatched run is in flight now: no longer an open block.
+        assert self._scan_ids(test_db, project) == set()
 
 
 class TestNormalizeBillingBlock:

@@ -193,6 +193,39 @@ def _graded_run_id(db, annotation_id, elig_metrics: set) -> Optional[str]:
     return None
 
 
+def _recent_blocked_annotations(db, project_id, recent) -> list:
+    """The ``recent`` annotations whose newest immediate run is an open
+    billing block (the grading was already attempted and refused)."""
+    if not recent:
+        return []
+    wanted = {str(a.id) for a in recent}
+    submitters = {str(a.completed_by) for a in recent if a.completed_by}
+    if not submitters:
+        return []
+    runs = (
+        db.query(EvaluationRun.eval_metadata)
+        .filter(
+            EvaluationRun.project_id == str(project_id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.created_by.in_(submitters),
+        )
+        .order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc())
+        .all()
+    )
+    seen: set = set()
+    blocked: set = set()
+    for (meta,) in runs:
+        if not isinstance(meta, dict):
+            continue
+        aid = str(meta.get("annotation_id") or "")
+        if aid not in wanted or aid in seen:
+            continue
+        seen.add(aid)  # only the newest run of the annotation decides
+        if _open_block(meta) is not None:
+            blocked.add(aid)
+    return [a for a in recent if str(a.id) in blocked]
+
+
 def scan_ungraded(db, project, *, cutoff=None):
     """Find annotations on ``project`` that have no eligible immediate grade.
 
@@ -202,8 +235,11 @@ def scan_ungraded(db, project, *, cutoff=None):
         reported only (re-dispatching risks duplicating the present metric).
 
     ``cutoff`` (a tz-aware datetime) excludes submits newer than it so an
-    in-flight client eval isn't raced. Shared by the recovery CLI and the
-    hourly sweep so both agree on what "ungraded" means.
+    in-flight client eval isn't raced. A newer submit whose latest immediate
+    run is an open billing block is kept: its grading already ran once and
+    was refused, so there is nothing to race, and the sweep dispatches it as
+    soon as the block is lifted. Shared by the recovery CLI and the hourly
+    sweep so both agree on what "ungraded" means.
     """
     cfgs = eligible_configs(project)
     if not cfgs:
@@ -216,8 +252,11 @@ def scan_ungraded(db, project, *, cutoff=None):
         Annotation.result.isnot(None),
     )
     if cutoff is not None:
-        q = q.filter(Annotation.created_at < cutoff)
-    anns = q.all()
+        anns = q.filter(Annotation.created_at < cutoff).all()
+        recent = q.filter(Annotation.created_at >= cutoff).all()
+        anns.extend(_recent_blocked_annotations(db, project.id, recent))
+    else:
+        anns = q.all()
     if not anns:
         return [], []
 

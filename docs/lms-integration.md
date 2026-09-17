@@ -235,7 +235,7 @@ deployment can offer two addresses.
 
 | Address | Who works where |
 |---|---|
-| Student host | Everyone works in the student interface, teachers included |
+| Student host | Everyone works in the student interface, teachers included. Only the Korrektur opens in the expert interface. |
 | BenGER host | Students work in the student interface, teachers in the expert interface |
 
 The invite link, Dynamic Registration and the tool sheet all use the chosen
@@ -348,7 +348,7 @@ values. Deployment IDs can be added later under **Deployments**.
 | Address (`tool_host`) | student host where offered | See above. |
 | Group (`group_id`) | none | People who launch join this group, and linked exams are visible to the group only. Group admins create group connections only. Changing the group later moves the linked exams' visibility and key pool along. A launch does not add someone back whom an admin removed from the group, and does not make a teacher group admin again after an admin took that right away. |
 | Org role for teachers (`instructor_org_role`) | `contributor` | `contributor`, `org_admin` or `none`. On a group connection, `org_admin` becomes contributor plus group admin. A group admin can grant at most `contributor`, and only if they hold that role themselves. A launch never lowers an existing role, but a teacher launch raises an annotator to this role. |
-| Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` adds no membership in your organization. Students reach the linked exam through the launch. On the hosted service, every account a launch creates also joins the operator's student organization (see [§8.1](#81-accounts-and-names)). |
+| Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` adds no membership in your organization. Students reach the linked exam through the launch. On the hosted service, every account a launch creates also joins the operator's shared student organization (see [§8.1](#81-accounts-and-names)). |
 | Offer linking to existing accounts (`link_existing_users_by_email`) | on | If exactly one account has the address the LMS sends, the person may link it after signing in or confirming by email. When off, the launch always creates a separate account. |
 | Connection status | active | A switched-off connection blocks every login, launch, LTI page in the app and grade transfer for this LMS. |
 | Deployment status | active | A switched-off deployment rejects launches. The other deployments of the connection keep working. |
@@ -375,12 +375,14 @@ detaches every account from its LMS identity.
 3. Open the activity. On the first launch the teacher consents, as students
    do. If an account with the same email address exists, the teacher can
    link it by signing in or by email, or continue with a separate account.
-4. The picker (**Link activity**) lists the teacher's own exams and the exams
-   created by staff of the connection's organization. Staff means
-   contributors and org admins. On a group connection it means the group's
-   contributors, the group's admins and the org admins. Exams of any
-   visibility can be linked. Archived and deleted exams
-   are not listed. The teacher can also create a new exam from the picker.
+4. The picker carries the activity's title as its heading. It lists the
+   teacher's own exams and the exams created by staff of the connection's
+   organization. Staff means contributors and org admins. On a group
+   connection it means the group's contributors, the group's admins and the
+   org admins. Exams of any visibility can be linked. Archived and deleted
+   exams are not listed. The teacher can also create a new exam from the
+   picker: **Or create a new exam** below the list, or **Create new exam**
+   when the list is empty.
 5. Falllösung exams and Bewertungsbogen exams with an active sheet can be
    linked. The picker shows other exams with the reason: no task yet, more
    than one task, a grading that gives no Notenpunkte, or no active
@@ -391,8 +393,22 @@ detaches every account from its LMS identity.
 7. Later launches by the teacher open the **activity overview**. It lists
    every student who consented, with real name, submission time, AI grade,
    human grade, what each LMS column received, and the transfer status and
-   error. From there the teacher opens the Korrektur, opens the exam or sends
-   a grade again. On the BenGER host this is the expert interface.
+   error. From there the teacher opens the Korrektur or the exam. A transfer
+   with an error (failed, or waiting after a failed attempt) can be sent
+   again with **Send again**. On the BenGER host the overview is part of the
+   expert interface. **Open grading** always opens the Korrektur in the
+   expert interface, also on the student host.
+8. **Moodle: keep the AI grade out of the course total.** Moodle adds the
+   "KI-Bewertung" column as a normal manual grade item. Unless the teacher
+   changes it, the AI grade counts in the course total next to the final
+   grade in the activity column. The column appears with the first AI grade.
+   Then open the course's **Grades** and choose **Gradebook setup** (German
+   Moodle: *Bewertungen → Setup für Bewertungen*). In the row
+   "KI-Bewertung", tick the box in the **Weights** column (*Gewichtungen*),
+   enter 0 and click **Save changes** (*Änderungen speichern*). This applies
+   to Moodle's default aggregation, *Natural* (German: *Summe*). With another
+   aggregation that uses weights, set the weight of this column to 0 as
+   well. Repeat it if the column is created again.
 
 The activity can point to another exam until the first grade reached the LMS.
 After that, create a new activity. A linked exam does not accept a second
@@ -443,9 +459,13 @@ Individual sharing**.
   7 days. With it the person sets a password and can also sign in without
   the LMS.
 - **Operator membership.** On the hosted service, every account a launch
-  creates also joins the operator's student organization, whatever the
-  connection's student role. It sees that organization's shared exams, and
-  that organization's admins see only its pseudonym.
+  creates, for students and teachers alike, also joins the operator's shared
+  student organization as a plain member, whatever the connection's roles.
+  This has a technical reason: the membership decides how the platform
+  classifies and bills the account's gradings outside linked exams. The
+  account sees that organization's shared exams, and that organization's
+  admins see only its pseudonym. Existing accounts linked by proof do not
+  join.
 - **Removed memberships.** A launch never reactivates an organization
   membership that an admin removed, and never re-adds someone an admin
   removed from the connection's group. The person sees `membership_removed`.
@@ -512,9 +532,13 @@ repository.
 | `lti_grade_syncs` | one row per activity, student and column (final grade or AI grade): status, attempts, last sent score and its source, last error | links an account to a score |
 | `lti_admin_events` | history of connection changes: action, time, changed settings | the acting admin's account ID and affected account IDs, never names or emails |
 
-The `users` table holds name, email, pseudonym and the email state. No raw
-`id_token` is kept. An email confirmation token lives in Redis for 24 hours,
-stored under its hash together with a copy of the waiting launch.
+The `users` table holds name, email, pseudonym and the email state. The
+`organization_memberships` table holds the memberships a launch grants: in
+the connection's organization and group, as the connection's roles say, and
+on the hosted service in the operator's shared student organization (see
+[§8.1](#81-accounts-and-names)). No raw `id_token` is kept. An email
+confirmation token lives in Redis for 24 hours, stored under its hash
+together with a copy of the waiting launch.
 
 ### 8.4 Consent
 
@@ -550,10 +574,12 @@ data protection officer to assess.
   group's key is used before the organization's key.
 - **No key, no grading.** The organization must have **Organization provides
   API keys** switched on and a key for the provider of the grading model.
-  Otherwise the grading does not run. Students see that their organization
-  has no API key yet. Teachers and admins see what is missing. The submission
-  stays saved and is graded at the next hourly check after the key is in
-  place. There is never a fallback to another key, ours included.
+  Otherwise the grading does not run. Students see the reason: their
+  organization does not pay for AI grading yet, or it has no API key for the
+  grading model. Teachers and admins see what is missing. The submission
+  stays saved. Once the key is in place, it is graded at the next hourly
+  check, so within about an hour. There is never a fallback to another key,
+  ours included.
 - **Teacher AI helpers** on a linked exam, for example an AI proposal for a
   Bewertungsbogen, are billed the same way. They are refused without a key,
   and also when the billing check itself fails.
@@ -586,6 +612,10 @@ data protection officer to assess.
   activity's LMS column.
 - A human grade replaces it there. Moodle keeps the AI grade in the
   "KI-Bewertung" column. Nothing is deleted.
+- Moodle treats "KI-Bewertung" as a normal grade item. It counts in the
+  course total until the teacher sets its weight to 0 (see
+  [§7](#7-course-setup-teacher)). Otherwise the AI grade weighs on the course
+  total even after a human grade replaced it in the activity column.
 - With several human grades, the most recently edited one is final.
 - Human Korrektur is switched on for every linked exam. By default, graders
   do not see the AI grade until they have submitted their own. The activity
@@ -715,14 +745,19 @@ fixed retention period instead, name it and we record it in the contract.
   **Always**. A tool registered by link delegates this to the teacher, and
   an activity then has no grade unless the teacher allows it.
 - **Name and email.** Moodle: share the launcher's name and email with the
-  tool **Always**, for every role. Dynamic Registration requests this. Check
-  the setting after the registration. ILIAS: identify users by email address
-  and send the full name.
-- **Grade sync with column management.** Moodle: set the tool's IMS LTI
-  Assignment and Grade Services option to grade sync and column management
-  (German Moodle: **Notensynchronisation und Spaltenverwaltung**). Dynamic
-  Registration requests it. With grade sync only, Moodle gets the final grade
-  only. ILIAS: enable "Advanced Grading Services".
+  tool **Always**, for every role (German Moodle: *Anwendername an Tool
+  übergeben* and *E-Mail des Anwenders an Tool übergeben* → *Immer*).
+  Dynamic Registration requests this. Check the setting after the
+  registration. ILIAS: identify users by email address and send the full
+  name.
+- **Grade sync with column management.** Moodle: set the tool's *IMS LTI
+  Assignment and Grade Services* to **Use this service for grade sync and
+  column management** (German Moodle: *IMS LTI Aufgaben und Bewertung* →
+  **Service für die Synchronisation von Bewertungen und die Verwaltung der
+  Spalten nutzen**). Dynamic Registration requests it. With *Use this
+  service for grade sync only* (*Service nur für Bewertungen nutzen*),
+  Moodle gets the final grade only. ILIAS: enable "Advanced Grading
+  Services".
 - **Clock sync.** Moodle `id_token`s live 60 seconds, and ILIAS checks our
   client assertions with zero leeway. Keep NTP tight on both sides. AGS also
   needs strictly increasing score timestamps, so clock skew between our
@@ -795,19 +830,30 @@ Redis. Without Redis the tool fails closed with `state_unavailable`.
 
 - A transfer is queued as soon as an AI grade or a human grade is saved.
 - There is one row per activity, student and column.
-- A failed transfer becomes due again after 60 seconds, then after doubling
-  waits up to 6 hours. After 10 attempts the row is `failed`.
-- An hourly sweep (minute 45) sends the rows that are due, so a retry goes
-  out at the first sweep after its wait. It retries `failed` rows every 6
-  hours without limit. It also sends grades that changed in place
+- Transfers for one student in one course run one at a time. Moodle keeps
+  one course total per student, and two first grades sent at the same moment
+  can fail. A transfer that finds another one running waits a few seconds
+  and tries again. This does not count as an attempt.
+- A transfer that fails because the LMS is unreachable, times out or
+  answers with a server error (5xx, or 408, 409, 425, 429) is sent again
+  after 10, 30 and 90 seconds.
+- After that, and after any other failure, the row becomes due again after
+  a wait. The wait is 60 seconds after the first attempt and doubles with
+  each attempt, up to 6 hours. After 10 attempts the row is `failed`.
+- The stored error is short plain text: the status code and a short reason.
+  An HTML error page from the LMS is cut off.
+- An hourly sweep (minute 45) sends the rows that are due, so a retry after
+  a wait goes out at the first sweep after that wait. It retries `failed`
+  rows every 6 hours without limit. It also sends grades that changed in place
   (Notenschlüssel recomputes, revised human grades) and creates missing rows.
 - A row with nothing to send (no grade yet, grading not possible) becomes
   `idle` instead of `failed`.
 - The same score, comment and column are never sent twice.
 - A manual retry resets the row and queues the transfer at once. It is
-  available as **Retry** in the admin panel, as **Send again** in the activity
-  overview and as `POST /api/admin/lti/grade-syncs/{id}/retry`. If the queue
-  cannot be reached, the next hourly sweep sends it.
+  available as **Retry** in the admin panel (for failed and pending
+  transfers), as **Send again** in the activity overview (for transfers
+  with an error) and as `POST /api/admin/lti/grade-syncs/{id}/retry`. If the
+  queue cannot be reached, the next hourly sweep sends it.
 - A switched-off connection fails its transfers at once, and the activity
   overview only answers with a notice (`409`) while it is off. After switching
   it on, use **Send again** or **Retry**. Otherwise the sweep sends the failed
@@ -841,8 +887,9 @@ of the LMS that started the registration. Every other path keeps
    right rescaling. On Moodle with column management, the AI grade lands in
    "KI-Bewertung".
 6. A human grade changes the activity column and leaves "KI-Bewertung"
-   unchanged.
-7. A Notenschlüssel recompute reaches the LMS within the hour.
+   unchanged. After the teacher set the weight of "KI-Bewertung" to 0, the
+   Moodle course total counts the activity column only.
+7. A Notenschlüssel recompute reaches the LMS within about an hour.
 8. In an organization without a key, the grading does not run, and the
    student, teacher and admin see a message.
 9. A short LMS outage makes the outbox back off and then recover.
@@ -887,8 +934,9 @@ fail unexpectedly carry the reference in their message.
 
 | Symptom | Cause |
 |---|---|
-| Moodle gets only the final grade, no "KI-Bewertung" column | The tool's AGS setting is grade sync only. Set it to grade sync and column management, then open the activity again. A teacher who deleted the column can create it again in the activity overview. ILIAS never gets this column. |
-| Grading does not run, students see that their organization has no API key | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check. |
+| Moodle gets only the final grade, no "KI-Bewertung" column | The tool's AGS setting is *Use this service for grade sync only*. Set it to **Use this service for grade sync and column management** (see [§9](#9-requirements-on-your-lms)), then open the activity again. A teacher who deleted the column can create it again in the activity overview. ILIAS never gets this column. |
+| Grading does not run, students see that their organization does not pay for AI grading yet or has no API key for the grading model | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check, so within about an hour. |
+| The Moodle course total also counts the AI grade | Moodle treats "KI-Bewertung" as a normal grade item. The teacher sets its weight to 0 in **Gradebook setup** (see [§7](#7-course-setup-teacher)). |
 | An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again, as long as the existing account still has the address the LMS sends. |
 | A teacher's picker is empty | The teacher and the organization's staff have no exams yet, or all of them are archived. Create an exam from the picker. |
 | Teachers do not find the tool in the Moodle activity chooser | The tool's *Tool configuration usage* is still *Show as preconfigured tool*. Set it to **Show in activity chooser and as a preconfigured tool** (see [§6a](#6a-one-link-registration-dynamic-registration)). |
@@ -988,16 +1036,19 @@ we can reply with the documents instead of another round of questions.
 >    Lehrende das Tool nicht in der Aktivitätsauswahl, das Tool startet
 >    eingebettet, und Aktivitäten erhalten nur dann eine Bewertung, wenn
 >    Lehrende das in jeder Aktivität erlauben.
-> 5. Prüfen Sie in denselben Einstellungen auch: Name und E-Mail-Adresse
->    **immer** an das Tool senden, für alle Personen, und die
->    Notenübertragung mit **Notensynchronisation und Spaltenverwaltung**.
+> 5. Prüfen Sie in denselben Einstellungen auch:
+>    - „Anwendername an Tool übergeben“ und „E-Mail des Anwenders an Tool
+>      übergeben“: **„Immer“**, für alle Personen
+>    - „IMS LTI Aufgaben und Bewertung“: **„Service für die Synchronisation
+>      von Bewertungen und die Verwaltung der Spalten nutzen“**
+>
 >    Die Registrierung fordert beides an.
 >
 > **Variante 2, manuell:**
 > Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools
-> verwalten → „Tool manuell konfigurieren“. Die URLs schickt Ihnen Ihr Organisations-Admin. Das
-> Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später unter
-> **Tool-Konfiguration**.
+> verwalten → „Tool manuell konfigurieren“. Die URLs schickt Ihnen Ihr
+> Organisations-Admin. Das Panel zeigt sie beim Anlegen einer **Neuen
+> Anbindung** und später unter **Tool-Konfiguration**.
 >
 > - Tool-URL: `https://<tool-host>/api/lti/launch`
 > - Initiate-Login-URL: `https://<tool-host>/api/lti/login`
@@ -1009,21 +1060,23 @@ we can reply with the documents instead of another round of questions.
 >   vorkonfiguriertes Tool anzeigen**
 > - Standard-Startcontainer: **Neues Fenster** (Pflicht, kein iframe)
 > - Bewertungen aus dem Tool akzeptieren: **Immer**
-> - IMS LTI Assignment and Grade Services:
->   **Notensynchronisation und Spaltenverwaltung**
+> - IMS LTI Aufgaben und Bewertung: **Service für die Synchronisation von
+>   Bewertungen und die Verwaltung der Spalten nutzen**
 > - Deep Linking: **aus**
-> - Datenschutz: Name und E-Mail-Adresse **immer** an das Tool senden, für
->   alle Personen. Die Konten tragen Name und E-Mail-Adresse aus Moodle, in
->   der Anwendung erscheint ein Pseudonym.
+> - Datenschutz: „Anwendername an Tool übergeben“ und „E-Mail des Anwenders
+>   an Tool übergeben“ auf **Immer**, für alle Personen. Die Konten tragen
+>   Name und E-Mail-Adresse aus Moodle, in der Anwendung erscheint ein
+>   Pseudonym.
 >
 > Anschließend die Tool-Details öffnen, **Client-ID** und **Deployment-ID**
 > auslesen und an Ihren **Organisations-Admin** melden.
 >
 > **Bestehende Tools:** Beide Einstellungen stehen in der Konfiguration des
-> Tools unter „Tools verwalten“. Steht die Notenübertragung dort nur auf
-> Notensynchronisation, stellen Sie sie auf **Notensynchronisation und
-> Spaltenverwaltung** um. Öffnen Sie danach die Aktivität einmal. Das Tool
-> legt die Spalte „KI-Bewertung“ dann bei der nächsten Notenübertragung an,
+> Tools unter „Tools verwalten“. Steht „IMS LTI Aufgaben und Bewertung“ dort
+> auf „Service nur für Bewertungen nutzen“, stellen Sie es auf **„Service für
+> die Synchronisation von Bewertungen und die Verwaltung der Spalten
+> nutzen“** um. Öffnen Sie danach die Aktivität einmal. Das Tool legt die
+> Spalte „KI-Bewertung“ dann bei der nächsten Notenübertragung an,
 > spätestens beim stündlichen Abgleich, sobald eine Note vorliegt.
 >
 > **Im Kurs:** Aktivität anlegen → das Tool in der Aktivitätsauswahl wählen
@@ -1038,6 +1091,16 @@ we can reply with the documents instead of another round of questions.
 > Korrektur der Lehrenden, sonst die KI-Note, umgerechnet auf das Maximum der
 > Aktivität. Die Spalte **KI-Bewertung** erhält immer die KI-Note auf der
 > Skala 0 bis 18. Eine Korrektur löscht nichts.
+>
+> **Kursgesamtbewertung:** Moodle legt „KI-Bewertung“ als normalen
+> manuellen Bewertungsaspekt an. Ohne Änderung zählt die KI-Note daher in
+> „Kurs gesamt“ neben der Endnote mit. Die Spalte erscheint mit der ersten
+> KI-Note. Danach nehmen Lehrende sie heraus: im Kurs „Bewertungen“ →
+> „Setup für Bewertungen“ → in der Zeile „KI-Bewertung“ das Kästchen in der
+> Spalte „Gewichtungen“ anhaken, **0** eintragen, „Änderungen speichern“. Das
+> gilt für die Standard-Berechnung „Summe“. Bei einer anderen Berechnung mit
+> Gewichtung setzen Sie die Gewichtung dieser Spalte ebenfalls auf 0. Wird
+> die Spalte neu angelegt, wiederholen Sie den Schritt.
 >
 > **Voraussetzungen:** Getestet ist Moodle 4.5. Moodle 5 ist anhand des
 > Quellcodes geprüft, aber nicht live getestet. Die JWKS-URL muss vom

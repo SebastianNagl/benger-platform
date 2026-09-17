@@ -8795,11 +8795,19 @@
       "billing": {
         "blocked": {
           "title": "AI grading not possible",
-          "noKey": "AI grading not possible: your organization has not added an API key for AI grading yet.",
-          "connectionRemoved": "AI grading not possible: the connection to the learning platform no longer exists.",
-          "cardNoKey": "Your organization has not added an API key for AI grading yet. Your submission is saved and will be graded once the key is in place.",
-          "cardConnectionRemoved": "The connection to the learning platform no longer exists."
+          "notPaying": "AI grading not possible: your organization does not pay for AI grading yet.",
+          "keyMissing": "AI grading not possible: your organization has not added an API key for the grading model yet.",
+          "connectionRemoved": "AI grading not possible: the connection to the learning platform was removed.",
+          "other": "AI grading is not possible right now.",
+          "cardNotPaying": "Your organization does not pay for AI grading yet. Your submission is saved and will be graded once your organization turns AI grading on.",
+          "cardKeyMissing": "Your organization has not added an API key for the grading model yet. Your submission is saved and will be graded once the key is in place.",
+          "cardConnectionRemoved": "The connection to the learning platform was removed. Your submission stays saved.",
+          "cardOther": "AI grading is not possible right now. Your submission is saved."
         }
+      },
+      "examResult": {
+        "sourceHuman": "Human grade",
+        "sourceAi": "AI grade"
       },
       "participants": {
         "anonymized": "Anonymized",
@@ -8831,10 +8839,14 @@
       "orgKey": {
         "title": "AI grading for the learning platform is not available yet",
         "adminNotPaying": "In the “Organization API Keys” dialog, switch on “Organization provides API keys” and add a key for {providers}.",
+        "adminNotPayingSwitch": "In the “Organization API Keys” dialog, switch on “Organization provides API keys”.",
         "adminKeyMissing": "An API key for {providers} is missing. Add it in the “Organization API Keys” dialog.",
+        "adminKeyMissingUnnamed": "An API key for the grading model is missing. Add it in the “Organization API Keys” dialog.",
         "teacherNotPaying": "Your organization does not provide API keys for AI grading yet. Please contact your organization admin.",
         "teacherKeyMissing": "Your organization has not added an API key for {providers} yet. Please contact your organization admin.",
+        "teacherKeyMissingUnnamed": "Your organization has not added an API key for the grading model yet. Please contact your organization admin.",
         "pending": "Submissions from the learning platform are kept and graded once the key is in place.",
+        "pendingNotPaying": "Submissions from the learning platform are kept and graded once the organization provides API keys.",
         "openKeys": "Open API keys"
       },
       "admin": {
@@ -8877,7 +8889,7 @@
           "aiLmsUnsupported": "Final grade only. This learning platform offers no separate column for the AI grade.",
           "aiPending": "The “KI-Bewertung” (AI grade) column is created with the first result.",
           "aiReady": "The final grade and the “KI-Bewertung” (AI grade) column are sent.",
-          "aiScopeMissing": "Final grade only. The learning platform does not let the tool add its own column. In the learning platform, set the tool's grade service to “grade synchronization and column management”.",
+          "aiScopeMissing": "Final grade only. The learning platform does not let the tool add its own column. In the Moodle tool configuration, set “IMS LTI Assignment and Grade Services” to “Use this service for grade sync and column management”.",
           "aiSyncDisabled": "Final grade only. The AI grade is not sent for this activity.",
           "counts": "Transfers: {synced} sent, {pending} pending, {failed} failed",
           "course": "Course: {course}",
@@ -9177,6 +9189,12 @@
         "emailLabel": "Email address",
         "expiredBody": "Please open the activity in your learning platform again.",
         "expiredTitle": "Sign-in expired",
+        "formal": {
+          "intro": "You are opening an activity from this learning platform for the first time. Before we create an account, we need your consent.",
+          "reconsentIntro": "The terms have changed. Please agree again.",
+          "incomplete": "Please give both consents.",
+          "submitError": "Your consent could not be saved. Please try again."
+        },
         "gdprLabel": "I agree that an account with my name and email address from the learning platform is created here and linked to it. In the app I appear under a pseudonym. My name is visible to my teachers, to whoever may grade the exam in my organization, to the admins of my organization and to the platform administration. My grades are sent to the learning platform.",
         "gdprLabelInstructor": "I agree that an account with my name and email address from the learning platform is created here and linked to it. In the organization that runs this connection, I get the role it has set for teachers. In the app I appear under a pseudonym. My name is visible to the admins of my organization, to whoever may grade the linked exams there and to the platform administration.",
         "identityHeading": "Your learning platform sent:",
@@ -9195,6 +9213,29 @@
         "unavailableTitle": "Activity unavailable"
       },
       "identity": {
+        "formal": {
+          "title": "You already have an account",
+          "body": "A {brand} account already exists for {email}. Do you want to link your sign-in through {connection} to it?",
+          "emailFallback": "your email address",
+          "connectionFallback": "your learning platform",
+          "neutralBody": "We create a separate account for your sign-in through {connection}.",
+          "loginTitle": "Sign in with your account",
+          "confirmedBody": "Your account is now linked to the learning platform.",
+          "emailTitle": "Check your inbox",
+          "emailBody": "We sent a confirmation link to {email}. Open the link to confirm the connection. You can also do this on another device.",
+          "activationTitle": "Check your inbox",
+          "activationBody": "We sent a link to activate your account to {email}. Use it to set a password.",
+          "activationNext": "Then open the activity in your learning platform again and sign in with your account.",
+          "errors": {
+            "alreadyLinked": "This sign-in is already linked to an account. Open the activity in your learning platform again.",
+            "mailUnavailable": "The email could not be sent right now. Please try again in a moment.",
+            "notLinkable": "This account cannot be linked to a learning platform. Continue with a separate account.",
+            "tooManyAttempts": "Too many attempts. Please wait a while and try again.",
+            "notAvailable": "This option is no longer available. Please choose another one.",
+            "notConfirmed": "The link is not confirmed yet. First open the link from the email.",
+            "generic": "That did not work. Please try again."
+          }
+        },
         "activation": {
           "body": "We sent a link to activate your account to {email}. Use it to set a password.",
           "next": "Then open the activity in your learning platform again and sign in with your account.",
@@ -9320,6 +9361,7 @@
         "user_inactive": "Your account on this platform is deactivated."
       },
       "invalidCallBody": "This page can only be opened via an activity in your learning platform.",
+      "invalidCallBodyNeutral": "This page can only be opened via an activity in a learning platform.",
       "invalidCallTitle": "Invalid call",
       "rubricAi": {
         "checkFailed": "The billing of the AI helper could not be checked just now. Please try again in a moment.",
@@ -9394,6 +9436,7 @@
         "aiBlockedConnection": "The connection to the learning platform no longer exists",
         "aiBlockedRetry": "Will be retried automatically",
         "aiColumn": "Column “KI-Bewertung”",
+        "aiCourseTotal": "Moodle counts this column in the “Course total”. Set its weight to 0: in the course, “Grades” → “Gradebook setup”, tick the box in the “Weights” column of the “KI-Bewertung” row, enter 0 and click “Save changes”.",
         "aiDeleted": "The column was deleted in the learning platform. It is not created again on its own.",
         "aiError": "The column could not be created last time. The next transfer tries again.",
         "aiErrorWithReason": "The column could not be created last time ({reason}). The next transfer tries again.",
@@ -9410,7 +9453,7 @@
         "aiUnavailableContainer": "Not available: the learning platform sent no column list with the launch. Open the activity again. If that does not help, contact the learning platform's administration.",
         "aiUnavailableDisabled": "Not available: the AI grade is not transferred for this activity.",
         "aiUnavailableLms": "Not available: this learning platform accepts one grade per activity. It gets the final grade.",
-        "aiUnavailableScope": "Not available: the learning platform does not let the tool add a column. The Moodle administration can allow it in the tool configuration with “Notensynchronisation und Spaltenverwaltung” (grade synchronization and column management). Then open the activity again.",
+        "aiUnavailableScope": "Not available: the learning platform does not let the tool add a column. To allow it, the Moodle administration sets “IMS LTI Assignment and Grade Services” to “Use this service for grade sync and column management” in the tool configuration. Then open the activity again.",
         "anonymized": "Anonymized",
         "colActions": "Actions",
         "colAi": "AI grade",
@@ -9453,6 +9496,7 @@
         "privacyNote": "Real names are visible to the teachers of the courses that link this exam, to staff who may grade this exam, to the organization's admins and to the platform administration. Everyone else sees the pseudonym.",
         "pseudonym": "Pseudonym: {name}",
         "registrationDisabled": "The connection to this learning platform is deactivated. Please contact your organization admin.",
+        "relinkBlocked": "The link can no longer change because grades have already been sent to the learning platform. For another exam, create a new activity in the learning platform.",
         "relinkIntro": "As long as no grade has been transferred to the learning platform, the activity can point to another exam. Students then land in the new exam.",
         "relinkSubmit": "Change link",
         "relinkTitle": "Link another exam",
@@ -9467,6 +9511,7 @@
         "sourceHuman": "from the human grading",
         "submitted": "Submitted",
         "summary": "{participants} participants · {submitted} submissions · {aiGraded} with AI grade · {humanGraded} graded by a person · {failed} with transfer errors",
+        "syncErrorUnreadable": "The learning platform answered with an error page.",
         "syncFailed": "Failed",
         "syncIdle": "No grade yet",
         "syncPending": "Being transferred",
@@ -9513,7 +9558,7 @@
         "waitingForInstructor": "This activity has not been linked to an exam yet. Please wait until your instructor has set up the link, then open the activity again from your learning platform."
       },
       "sessionMismatch": {
-        "body": "A different learning platform account has since signed in in this browser. ",
+        "body": "A different learning platform account has since signed in in this browser. This page is locked so that no submission ends up in the wrong account. Please open the activity in the learning platform again to continue with the right account.",
         "title": "Different LTI session active"
       }
     }

@@ -240,11 +240,11 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
     tips: {
       de: [
         'Die Admins Ihrer Organisation verwalten die Anbindung unter [Benutzer & Organisationen](/users-organizations) → Organisation → **Mehr** → **Lernplattform (LTI)**. Dort schalten sie Anbindung und Deployments ein und aus, tragen Deployment-IDs ein und lösen Verknüpfungen von LMS-Konten.',
-        'Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (Übermittlung von Name und E-Mail) sowie Notenübertragung und Spaltenverwaltung ändert nur die Administration der Lernplattform.',
+        'Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (Übermittlung von Name und E-Mail) sowie die Notenübertragung (in Moodle *IMS LTI Aufgaben und Bewertung*) ändert nur die Administration der Lernplattform.',
       ],
       en: [
         'The admins of your organization manage the connection under [Users & organizations](/users-organizations) → organization → **More** → **Learning platform (LTI)**. There they switch the connection and its deployments on and off, add deployment IDs and unlink LMS accounts.',
-        'Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (sending name and email) and grade sync with column management.',
+        'Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (sending name and email) and the grade transfer (in Moodle *IMS LTI Assignment and Grade Services*).',
       ],
     },
     pitfalls: {

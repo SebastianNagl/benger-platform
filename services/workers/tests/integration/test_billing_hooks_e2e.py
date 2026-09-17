@@ -253,3 +253,93 @@ def test_sweep_retries_a_refused_grading_once_the_block_is_lifted(
             .filter(EvaluationRun.project_id == project_id)
             .all()
         )
+
+
+def test_sweep_does_not_hold_back_a_recent_refused_grading(
+    db_conn, cleanup, make_user, make_project, make_task, make_annotation,
+    monkeypatch,
+):
+    """A submit refused at submit time is swept at once after the block is
+    lifted, not only once it is older than the sweep's min age. A fresh
+    submit without such a block still waits (a client grading may run)."""
+    student = make_user()
+    other = make_user()
+    project = make_project(created_by=student.id)
+    project.immediate_evaluation_enabled = True
+    project.evaluation_config = {
+        "evaluation_configs": [
+            {
+                "id": "cfg-judge",
+                "metric": "llm_judge_custom",
+                "display_name": "Judge",
+                "enabled": True,
+                "prediction_fields": ["answer"],
+                "reference_fields": ["task.expected"],
+            }
+        ]
+    }
+    db_conn.commit()
+    task = make_task(project.id, {"expected": "ja"}, created_by=student.id)
+    refused = make_annotation(
+        project.id, task.id, completed_by=student.id, result=_answer("ja")
+    )
+    fresh = make_annotation(
+        project.id, task.id, completed_by=other.id, result=_answer("nein")
+    )
+    project_id = project.id
+    state = {"blocked": True}
+
+    def block_fn(db, *, project, user_id, configs):
+        if project.id == project_id and state["blocked"]:
+            return {"code": "lti_org_unfunded", "reason": "org_not_paying"}
+        return None
+
+    sent = []
+    monkeypatch.setattr(
+        ied, "_dispatch_task", lambda name, kwargs, queue: sent.append(kwargs)
+    )
+    _install_extended(monkeypatch, get_grading_block_fn=block_fn)
+
+    def _our_runs():
+        db_conn.expire_all()
+        return (
+            db_conn.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project_id)
+            .order_by(EvaluationRun.created_at)
+            .all()
+        )
+
+    def _ours():
+        return [k for k in sent if k["project_id"] == project_id]
+
+    try:
+        # The submit hook: no min age, the grading is refused.
+        outcome = ied.ensure_immediate_evaluation_outcome(
+            db_conn, project, task, refused, trigger="annotation_submit"
+        )
+        assert outcome.status == ied.OUTCOME_BLOCKED
+        [blocked_run] = _our_runs()
+
+        # Still blocked: the sweep refreshes the one run and sends nothing;
+        # the fresh submit without a run is left for later.
+        assert tasks.sweep_missing_immediate_evals.run()["blocked"] >= 1
+        assert [r.id for r in _our_runs()] == [blocked_run.id]
+        assert _ours() == []
+
+        state["blocked"] = False
+        result = tasks.sweep_missing_immediate_evals.run()
+
+        assert result["dispatched"] >= 1
+        ours = _ours()
+        assert [k["annotation_id"] for k in ours] == [refused.id]
+        assert fresh.id not in {k["annotation_id"] for k in ours}
+        runs = _our_runs()
+        assert len(runs) == 2
+        assert runs[0].eval_metadata["billing_block"]["superseded_by"] == runs[1].id
+    finally:
+        cleanup.evaluation_run_ids.extend(
+            r.id
+            for r in db_conn.query(EvaluationRun)
+            .filter(EvaluationRun.project_id == project_id)
+            .all()
+        )

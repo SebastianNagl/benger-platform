@@ -9,6 +9,9 @@
  * labels they quote match the labels the app renders.
  */
 
+import { readFileSync } from 'fs'
+import { resolve } from 'path'
+
 import deCommon from '@/locales/de/common.json'
 import enCommon from '@/locales/en/common.json'
 
@@ -37,6 +40,34 @@ const LTI_GUIDE_IDS = [
   'ts-lti-errors',
 ] as const
 
+// Moodle 4.5.12 labels, checked against the German language pack
+// (ltiservice_gradebookservices, grades) and the English strings.
+const MOODLE = {
+  agsField: {
+    de: 'IMS LTI Aufgaben und Bewertung',
+    en: 'IMS LTI Assignment and Grade Services',
+  },
+  agsColumns: {
+    de: 'Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen',
+    en: 'Use this service for grade sync and column management',
+  },
+  gradebookSetup: { de: 'Setup für Bewertungen', en: 'Gradebook setup' },
+  weights: { de: 'Gewichtungen', en: 'Weights' },
+  saveChanges: { de: 'Änderungen speichern', en: 'Save changes' },
+  courseTotal: { de: 'Kurs gesamt', en: 'Course total' },
+} as const
+
+// Labels Moodle does not use. They were quoted in earlier versions.
+const OLD_AGS_LABELS = [
+  /Notensynchronisation und Spaltenverwaltung/,
+  /grade synchronization and column management/,
+]
+
+const PUBLIC_DOC = resolve(
+  __dirname,
+  '../../../../../../docs/lms-integration.md',
+)
+
 const EM_DASH = /\u2014/
 const EN_DASH_AS_DASH = / \u2013 /
 const COMMONS: Record<Locale, unknown> = { de: deCommon, en: enCommon }
@@ -61,6 +92,14 @@ function texts(g: HowToGuide, locale: Locale): string[] {
 
 function body(id: string, locale: Locale): string {
   return texts(guide(id), locale).join('\n')
+}
+
+function stepWith(id: string, locale: Locale, needle: string): string {
+  const found = (guide(id).steps?.[locale] ?? []).find((s) =>
+    s.includes(needle),
+  )
+  if (!found) throw new Error(`${id} ${locale}: no step contains ${needle}`)
+  return found
 }
 
 function label(locale: Locale, key: string): string {
@@ -160,6 +199,30 @@ describe('LTI guides: wording', () => {
     }
   })
 
+  it.each(LTI_GUIDE_IDS)('%s quotes Moodle labels that exist', (id) => {
+    for (const locale of LOCALES) {
+      for (const pattern of OLD_AGS_LABELS) {
+        expect(body(id, locale)).not.toMatch(pattern)
+      }
+    }
+  })
+
+  it.each(LOCALES)(
+    'the %s app texts about the AI column quote the real Moodle labels',
+    (locale) => {
+      for (const key of [
+        'extended.lti.admin.activities.aiScopeMissing',
+        'extended.lti.activity.aiUnavailableScope',
+      ]) {
+        const text = label(locale, key)
+        const [open, close] = locale === 'de' ? ['„', '“'] : ['“', '”']
+        for (const pattern of OLD_AGS_LABELS) expect(text).not.toMatch(pattern)
+        expect(text).toContain(`${open}${MOODLE.agsField[locale]}${close}`)
+        expect(text).toContain(`${open}${MOODLE.agsColumns[locale]}${close}`)
+      }
+    },
+  )
+
   it.each(LTI_GUIDE_IDS)('%s addresses readers formally in German', (id) => {
     for (const text of texts(guide(id), 'de')) {
       expect(text).not.toMatch(/\b(du|dich|dir|dein|deine|deinen|deiner)\b/i)
@@ -256,15 +319,30 @@ describe('LTI guides: statements users rely on', () => {
 
   it('tells teachers what they can link and where they land', () => {
     const keys = [
-      'extended.lti.picker.title',
       'extended.lti.picker.ownBadge',
       'extended.lti.picker.createExam',
+      'extended.lti.picker.createExamSecondary',
       'extended.lti.picker.link',
       'extended.lti.identity.separateAccount',
     ]
     for (const locale of LOCALES) {
       const text = body('lti-teacher', locale)
       for (const key of keys) expect(text).toContain(label(locale, key))
+      // The picker is headed with the activity title. The fallback label is
+      // only a search keyword, never the named heading of a step.
+      const pickerStep = stepWith(
+        'lti-teacher',
+        locale,
+        label(locale, 'extended.lti.picker.ownBadge'),
+      )
+      expect(pickerStep).not.toContain(
+        `**${label(locale, 'extended.lti.picker.title')}**`,
+      )
+      // "Or create a new exam" when exams are listed, "Create new exam" when
+      // the list is empty.
+      expect(pickerStep).toContain(
+        `**${label(locale, 'extended.lti.picker.createExamSecondary')}**`,
+      )
     }
     const de = body('lti-teacher', 'de')
     expect(de).toMatch(/Bewertungsbogen/)
@@ -272,9 +350,49 @@ describe('LTI guides: statements users rely on', () => {
     expect(de).toMatch(/private Klausuren/)
     expect(de).toMatch(/Forschungsnutzung/)
     expect(de).toMatch(/Aktivitätsübersicht/)
+    expect(de).toMatch(/Die Auswahl trägt den Titel Ihrer Aktivität/)
     const en = body('lti-teacher', 'en')
     expect(en).toMatch(/several tasks/)
     expect(en).toMatch(/Private exams/)
+    expect(en).toMatch(/The picker carries your activity’s title/)
+  })
+
+  it('says the grading view opens in the expert interface on both addresses', () => {
+    for (const locale of LOCALES) {
+      const korrektur = label(locale, 'extended.lti.activity.openKorrektur')
+      const student = label(locale, 'extended.lti.admin.toolHostStudent')
+      for (const id of ['lti-teacher', 'lti-grades']) {
+        const step = stepWith(id, locale, `**${korrektur}**`)
+        expect(step).toContain(student)
+        expect(step).toMatch(
+          locale === 'de' ? /Expertenoberfläche/ : /expert interface/,
+        )
+      }
+    }
+    expect(body('lti-setup', 'de')).toMatch(
+      /Nur die Korrektur öffnet sich in der Expertenoberfläche/,
+    )
+    expect(body('lti-setup', 'en')).toMatch(
+      /Only the grading view opens in the expert interface/,
+    )
+  })
+
+  it('tells teachers to take the AI column out of the Moodle course total', () => {
+    for (const locale of LOCALES) {
+      for (const id of ['lti-teacher', 'lti-grades']) {
+        const text = body(id, locale)
+        expect(text).toContain(MOODLE.courseTotal[locale])
+        expect(text).toContain(MOODLE.gradebookSetup[locale])
+        expect(text).toContain(MOODLE.weights[locale])
+        expect(text).toContain(MOODLE.saveChanges[locale])
+        expect(text).toMatch(
+          locale === 'de' ? /0 eintragen|tragen Sie 0 ein/ : /enter 0/,
+        )
+      }
+    }
+    // The setup guide points admins to it as well.
+    expect(body('lti-setup', 'de')).toMatch(/Kursgesamtbewertung/)
+    expect(body('lti-setup', 'en')).toMatch(/course total/)
   })
 
   it('explains the activity overview and both grade columns', () => {
@@ -297,14 +415,74 @@ describe('LTI guides: statements users rely on', () => {
       for (const key of keys) expect(text).toContain(label(locale, key))
       expect(text).toContain('KI-Bewertung')
     }
+    for (const locale of LOCALES) {
+      const text = body('lti-grades', locale)
+      expect(text).toContain(MOODLE.agsField[locale])
+      expect(text).toContain(MOODLE.agsColumns[locale])
+      // "Send again" is offered for failed transfers only.
+      const retry = stepWith(
+        'lti-grades',
+        locale,
+        `**${label(locale, 'extended.lti.activity.retry')}**`,
+      )
+      expect(retry).toMatch(
+        locale === 'de'
+          ? /Hat eine Übertragung einen Fehler/
+          : /If a transfer has an error/,
+      )
+    }
     const de = body('lti-grades', 'de')
-    expect(de).toMatch(/Notensynchronisation und Spaltenverwaltung/)
     expect(de).toMatch(/ILIAS erhält je Person einen Wert/)
     expect(de).toMatch(/Eine Korrektur löscht nichts/)
     expect(de).toMatch(/Notenschlüssel/)
+    expect(de).not.toMatch(/Erneut senden\*\* schickt eine Note/)
     const en = body('lti-grades', 'en')
     expect(en).toMatch(/Moodle gets two columns/)
     expect(en).toMatch(/Grading deletes nothing/)
+  })
+
+  it('says consistently when waiting grades and changes arrive', () => {
+    const de = body('lti-grades', 'de')
+    const en = body('lti-grades', 'en')
+    // Unfunded org: graded at the next hourly check once the key is there.
+    expect(de).toMatch(
+      /bei der nächsten stündlichen Prüfung korrigiert, also spätestens nach etwa einer Stunde/,
+    )
+    expect(en).toMatch(
+      /graded at the next hourly check, so within about an hour/,
+    )
+    // Grade changes after the fact.
+    expect(de).toMatch(/geht der neue Wert spätestens nach etwa einer Stunde/)
+    expect(en).toMatch(/reaches the learning platform within about an hour/)
+    expect(de).not.toMatch(/innerhalb einer Stunde/)
+  })
+
+  it('lti-grades names the block reasons students see and the quick retries', () => {
+    const de = body('lti-grades', 'de')
+    const en = body('lti-grades', 'en')
+    expect(de).toMatch(
+      /Studierende sehen den Grund: Ihre Organisation bezahlt die KI-Korrektur noch nicht, oder ihr fehlt ein API-Schlüssel für das Bewertungsmodell/,
+    )
+    expect(en).toMatch(
+      /Students see the reason: their organization does not pay for AI grading yet, or it has no API key for the grading model/,
+    )
+    expect(de).not.toMatch(/sehen dann, dass ihre Organisation noch keinen/)
+    expect(en).not.toMatch(/has not added an API key yet, and/)
+    // The retry schedule matches the push worker (10/30/90 s, then backoff).
+    expect(de).toMatch(/nach 10, 30 und 90 Sekunden erneut/)
+    expect(en).toMatch(/again after 10, 30 and 90 seconds/)
+    expect(de).not.toMatch(/zuerst nach einer Minute/)
+    expect(en).not.toMatch(/first after one minute/)
+  })
+
+  it('names the Moodle grade service by its real labels in the setup guides', () => {
+    for (const locale of LOCALES) {
+      for (const id of ['lti-setup', 'lti-manage']) {
+        const text = body(id, locale)
+        expect(text).toContain(MOODLE.agsField[locale])
+        expect(text).toContain(MOODLE.agsColumns[locale])
+      }
+    }
   })
 
   it('states consent, research use and names plainly', () => {
@@ -322,6 +500,150 @@ describe('LTI guides: statements users rely on', () => {
     expect(de).not.toMatch(/weder Name noch E-Mail/)
     expect(de).not.toMatch(/Wir legen jede Registrierung deaktiviert an/)
     expect(en).not.toMatch(/neither name nor email/)
+  })
+})
+
+describe('public LMS integration doc', () => {
+  const doc = readFileSync(PUBLIC_DOC, 'utf8')
+  // Line breaks and blockquote markers joined, so wrapped text matches.
+  const flat = (text: string) => text.replace(/\n>?[ \t]*/g, ' ')
+  const flatDoc = flat(doc)
+
+  function section(heading: string): string {
+    const start = doc.indexOf(heading)
+    if (start < 0) throw new Error(`section ${heading} missing`)
+    const next = doc.indexOf('\n#', start + heading.length)
+    return flat(doc.slice(start, next < 0 ? undefined : next))
+  }
+
+  it('uses the real Moodle 4.5 labels for the grade service', () => {
+    for (const pattern of OLD_AGS_LABELS) expect(flatDoc).not.toMatch(pattern)
+    for (const locale of LOCALES) {
+      expect(flatDoc).toContain(MOODLE.agsColumns[locale])
+      expect(flatDoc).toContain(MOODLE.agsField[locale])
+    }
+    const requirements = section('## 9. Requirements on your LMS')
+    expect(requirements).toContain(MOODLE.agsColumns.en)
+    expect(requirements).toContain(MOODLE.agsColumns.de)
+    expect(requirements).toContain('Service nur für Bewertungen nutzen')
+    const appendixB = section('## Appendix B')
+    expect(appendixB).toContain(`„${MOODLE.agsField.de}“`)
+    expect(appendixB).toContain(MOODLE.agsColumns.de)
+    expect(appendixB).toContain('„Service nur für Bewertungen nutzen“')
+    expect(appendixB).toContain('Anwendername an Tool übergeben')
+    expect(appendixB).toContain('E-Mail des Anwenders an Tool übergeben')
+  })
+
+  it('explains the AI column in the course total (§7, §8.7, Appendix B)', () => {
+    const courseSetup = section('## 7. Course setup (teacher)')
+    expect(courseSetup).toContain(
+      '**Moodle: keep the AI grade out of the course total.**',
+    )
+    expect(courseSetup).toMatch(/as a normal manual grade item/)
+    expect(courseSetup).toContain(
+      `**${MOODLE.gradebookSetup.en}** (German Moodle: *Bewertungen → ${MOODLE.gradebookSetup.de}*)`,
+    )
+    expect(courseSetup).toContain(
+      `**${MOODLE.weights.en}** column (*${MOODLE.weights.de}*), enter 0`,
+    )
+    expect(courseSetup).toContain(
+      `**${MOODLE.saveChanges.en}** (*${MOODLE.saveChanges.de}*)`,
+    )
+    const automated = section('### 8.7 Automated assessment')
+    expect(automated).toMatch(
+      /It counts in the course total until the teacher sets its weight to 0/,
+    )
+    const checklist = section('### Validation checklist')
+    expect(checklist).toMatch(
+      /After the teacher set the weight of "KI-Bewertung" to 0, the Moodle course total counts the activity column only/,
+    )
+    const troubleshooting = section('### Troubleshooting')
+    expect(troubleshooting).toMatch(
+      /The Moodle course total also counts the AI grade/,
+    )
+    const appendixB = section('## Appendix B')
+    expect(appendixB).toMatch(/\*\*Kursgesamtbewertung:\*\*/)
+    expect(appendixB).toContain(`„${MOODLE.courseTotal.de}“`)
+    expect(appendixB).toContain(`„${MOODLE.gradebookSetup.de}“`)
+    expect(appendixB).toContain(
+      `„${MOODLE.weights.de}“ anhaken, **0** eintragen`,
+    )
+    expect(appendixB).toContain(`„${MOODLE.saveChanges.de}“`)
+  })
+
+  it('names the picker, the retry and the grading view correctly', () => {
+    const courseSetup = section('## 7. Course setup (teacher)')
+    expect(courseSetup).not.toMatch(/picker \(\*\*Link activity\*\*\)/)
+    expect(courseSetup).toMatch(
+      /The picker carries the activity's title as its heading/,
+    )
+    expect(courseSetup).toContain(
+      '**Or create a new exam** below the list, or **Create new exam** when the list is empty',
+    )
+    expect(courseSetup).toMatch(
+      /A transfer with an error \(failed, or waiting after a failed attempt\) can be sent again with \*\*Send again\*\*/,
+    )
+    expect(courseSetup).toMatch(
+      /\*\*Open grading\*\* always opens the Korrektur in the expert interface, also on the student host/,
+    )
+    expect(flatDoc).toMatch(/Only the Korrektur opens in the expert interface/)
+    expect(flatDoc).toMatch(
+      /\*\*Send again\*\* in the activity overview \(for transfers with an error\)/,
+    )
+    expect(flatDoc).not.toMatch(/sends a grade again/)
+  })
+
+  it('describes the transfer retries and the one-push-per-student rule', () => {
+    const outbox = flatDoc.slice(
+      flatDoc.indexOf('**Grade transfer is an outbox.**'),
+      flatDoc.indexOf('**Switching off.**'),
+    )
+    expect(outbox).toMatch(
+      /Transfers for one student in one course run one at a time/,
+    )
+    expect(outbox).toMatch(/This does not count as an attempt/)
+    expect(outbox).toMatch(/is sent again after 10, 30 and 90 seconds/)
+    expect(outbox).toMatch(
+      /The wait is 60 seconds after the first attempt and doubles with each attempt, up to 6 hours/,
+    )
+    expect(outbox).toMatch(/An HTML error page from the LMS is cut off/)
+    expect(outbox).not.toMatch(/becomes due again after 60 seconds, then/)
+    // Students see the actual block reason.
+    expect(section('### 8.5 Where the data lives')).toMatch(
+      /Students see the reason: their organization does not pay for AI grading yet, or it has no API key for the grading model/,
+    )
+  })
+
+  it('says graded within about an hour once the key is there', () => {
+    expect(section('### 8.5 Where the data lives')).toMatch(
+      /Once the key is in place, it is graded at the next hourly check, so within about an hour/,
+    )
+    expect(section('### Troubleshooting')).toMatch(
+      /Waiting submissions are graded at the next hourly check, so within about an hour/,
+    )
+    expect(section('### Validation checklist')).toMatch(
+      /A Notenschlüssel recompute reaches the LMS within about an hour/,
+    )
+    expect(flatDoc).not.toMatch(/within the hour/)
+  })
+
+  it('names the shared student organization neutrally in the data section', () => {
+    const accounts = section('### 8.1 Accounts and names')
+    expect(accounts).toMatch(/for students and teachers alike/)
+    expect(accounts).toMatch(/operator's shared student organization/)
+    expect(accounts).toMatch(/This has a technical reason/)
+    expect(accounts).toMatch(/Existing accounts linked by proof do not join/)
+    const persisted = section('### 8.3 What is persisted')
+    expect(persisted).toMatch(/`organization_memberships`/)
+    expect(persisted).toMatch(/operator's shared student organization/)
+  })
+
+  it('stays brand-neutral and plain', () => {
+    expect(doc).not.toMatch(/vertretbar/i)
+    expect(doc).not.toMatch(/what-a-benger/i)
+    expect(doc).not.toMatch(EM_DASH)
+    // No internal issue numbers (anchors like #81-accounts are fine).
+    expect(doc).not.toMatch(/(?:^|[\s(])#\d+\b(?!-)/m)
   })
 })
 
