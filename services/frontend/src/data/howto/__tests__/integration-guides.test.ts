@@ -1,6 +1,6 @@
 /**
  * The learning platform (LTI) guides: lti-setup, lti-manage, lti-teacher,
- * lti-grades, lti-privacy and ts-lti-errors.
+ * lti-grades, lti-privacy, ts-lti-errors and ts-lti-grades.
  *
  * These guides describe a feature whose UI ships with the extended edition,
  * so the tests pin what can drift silently: both languages stay parallel,
@@ -22,6 +22,7 @@ import {
   type HowToGuide,
 } from '@/lib/howto/registry'
 import { LTI_LAUNCH_ERROR_CODES } from '@/lib/lti/launchErrors'
+import { buildGuideIndex, rankSearchResults } from '@/lib/search'
 
 import { PLATFORM_HOWTO_GUIDES } from '../guides'
 import { GENERATION_GUIDES } from '../guides/generation'
@@ -38,6 +39,7 @@ const LTI_GUIDE_IDS = [
   'lti-grades',
   'lti-privacy',
   'ts-lti-errors',
+  'ts-lti-grades',
 ] as const
 
 // Moodle 4.5.12 labels, checked against the German language pack
@@ -56,6 +58,44 @@ const MOODLE = {
   saveChanges: { de: 'Änderungen speichern', en: 'Save changes' },
   courseTotal: { de: 'Kurs gesamt', en: 'Course total' },
 } as const
+
+// ILIAS 10.9 labels of the global provider form and the learning progress
+// settings, checked against lang/ilias_de.lang and lang/ilias_en.lang of the
+// release_10 branch (modules lti, trac, common, administration).
+const ILIAS = {
+  identification: {
+    de: 'Identifikation der Person',
+    en: 'User identification',
+  },
+  userId: { de: 'ID des ILIAS-Kontos', en: 'ILIAS user id' },
+  hash: 'Hash@ILIAS-Plattform-ID.ilias',
+  emailMode: { de: 'E-Mail-Adresse', en: 'E-Mail Address' },
+  fullName: { de: 'Vollständiger Name', en: 'Entire name' },
+  grading: {
+    de: 'Erweiterte Benotungsdienste',
+    en: 'Advanced Grading Services',
+  },
+  outcome: {
+    de: 'Provider unterstützt Outcome Service',
+    en: 'Provider supports Outcome Service',
+  },
+  masteryDefault: {
+    de: 'Voreinstellung Mastery Score',
+    en: 'Default Mastery Score',
+  },
+} as const
+
+// Earlier advice that breaks the ILIAS grade transfer (identification by
+// the email address) or quotes labels ILIAS 10.9 does not show.
+const OLD_ILIAS_ADVICE = [
+  /Privacy-Modus/,
+  /privacy mode/i,
+  /Identifizierung per E-Mail-Adresse/,
+  /identification by email address/i,
+  /identify users by email address/i,
+  /sends name and email/i,
+  /Name und E-Mail-Adresse übertragen werden/,
+]
 
 // Labels Moodle does not use. They were quoted in earlier versions.
 const OLD_AGS_LABELS = [
@@ -130,6 +170,7 @@ describe('LTI guides: structure', () => {
       expect(g.category).toBe('integrations')
     }
     expect(guide('ts-lti-errors').category).toBe('troubleshooting')
+    expect(guide('ts-lti-grades').category).toBe('troubleshooting')
   })
 
   it.each(LTI_GUIDE_IDS)('%s has parallel German and English lists', (id) => {
@@ -183,6 +224,11 @@ describe('LTI guides: structure', () => {
     )
     expect(links('lti-privacy')).toEqual(
       expect.arrayContaining(['/how-to#lti-setup', '/how-to#lti-manage']),
+    )
+    expect(links('lti-grades')).toContain('/how-to#ts-lti-grades')
+    expect(links('ts-lti-errors')).toContain('/how-to#ts-lti-grades')
+    expect(links('ts-lti-grades')).toEqual(
+      expect.arrayContaining(['/how-to#lti-grades', '/how-to#lti-manage']),
     )
   })
 })
@@ -284,10 +330,12 @@ describe('LTI guides: statements users rely on', () => {
 
   it('names the panel sections and actions of a connection', () => {
     const keys = [
-      'extended.lti.orgPanel.disable',
-      'extended.lti.orgPanel.enable',
+      'extended.lti.orgPanel.switchOn',
+      'extended.lti.orgPanel.switchOff',
+      'extended.lti.orgPanel.switchedOffBadge',
       'extended.lti.admin.deploymentsTitle',
-      'extended.lti.admin.deploymentDisable',
+      'extended.lti.admin.deploymentSwitchOn',
+      'extended.lti.admin.deploymentSwitchOff',
       'extended.lti.admin.instructorRole',
       'extended.lti.admin.studentRole',
       'extended.lti.admin.linkByEmail',
@@ -305,6 +353,20 @@ describe('LTI guides: statements users rely on', () => {
     for (const locale of LOCALES) {
       const text = body('lti-manage', locale)
       for (const key of keys) expect(text).toContain(label(locale, key))
+    }
+    // The switches show their state. The action names are only screen
+    // reader labels, so no guide quotes them as visible buttons.
+    for (const id of LTI_GUIDE_IDS) {
+      for (const locale of LOCALES) {
+        for (const key of [
+          'extended.lti.orgPanel.disable',
+          'extended.lti.orgPanel.enable',
+          'extended.lti.admin.deploymentDisable',
+          'extended.lti.admin.deploymentEnable',
+        ]) {
+          expect(body(id, locale)).not.toContain(`**${label(locale, key)}**`)
+        }
+      }
     }
     // The group admin cap and the org_admin downgrade on group connections.
     expect(body('lti-manage', 'de')).toMatch(/höchstens Mitwirkender/)
@@ -473,6 +535,27 @@ describe('LTI guides: statements users rely on', () => {
     expect(en).toMatch(/again after 10, 30 and 90 seconds/)
     expect(de).not.toMatch(/zuerst nach einer Minute/)
     expect(en).not.toMatch(/first after one minute/)
+    // A permanent refusal fails at once.
+    expect(de).toMatch(
+      /Lehnt die Lernplattform die Note dagegen endgültig ab \(etwa mit 400, 401, 403 oder 404\), ist die Übertragung sofort fehlgeschlagen/,
+    )
+    expect(en).toMatch(
+      /refuses the grade for good \(for example with 400, 401, 403 or 404\), the transfer fails at once/,
+    )
+    for (const locale of LOCALES) {
+      expect(body('lti-manage', locale)).toMatch(
+        locale === 'de' ? /sofort fehlgeschlagen/ : /fails at once/,
+      )
+    }
+  })
+
+  it('names the AI column with the activity title', () => {
+    expect(body('lti-grades', 'de')).toMatch(
+      /Sie heißt \*KI-Bewertung: Titel der Aktivität\*/,
+    )
+    expect(body('lti-grades', 'en')).toMatch(
+      /It is named \*KI-Bewertung: activity title\*/,
+    )
   })
 
   it('names the Moodle grade service by its real labels in the setup guides', () => {
@@ -501,6 +584,120 @@ describe('LTI guides: statements users rely on', () => {
     expect(de).not.toMatch(/Wir legen jede Registrierung deaktiviert an/)
     expect(en).not.toMatch(/neither name nor email/)
   })
+})
+
+describe('LTI guides: the ILIAS identification rule', () => {
+  it.each(LTI_GUIDE_IDS)(
+    '%s never recommends identifying people by email in ILIAS',
+    (id) => {
+      for (const locale of LOCALES) {
+        for (const pattern of OLD_ILIAS_ADVICE) {
+          expect(body(id, locale)).not.toMatch(pattern)
+        }
+      }
+      // The German texts use the German ILIAS label of the grade service.
+      expect(body(id, 'de')).not.toContain(ILIAS.grading.en)
+    },
+  )
+
+  it.each(['lti-setup', 'lti-privacy'])(
+    '%s recommends a mode without the email address and the full name',
+    (id) => {
+      for (const locale of LOCALES) {
+        const text = body(id, locale)
+        expect(text).toContain(ILIAS.identification[locale])
+        expect(text).toContain(`**${ILIAS.userId[locale]} …**`)
+        expect(text).toContain(`**${ILIAS.hash}**`)
+        expect(text).toContain(`**${ILIAS.fullName[locale]}**`)
+        expect(text).toContain(`*${ILIAS.emailMode[locale]}*`)
+        // Every mention of the email mode warns against it.
+        const emailSentences = text
+          .split(/(?<=\.)\s/)
+          .filter((sentence) =>
+            sentence.includes(`*${ILIAS.emailMode[locale]}*`),
+          )
+        expect(emailSentences.length).toBeGreaterThan(0)
+        for (const sentence of emailSentences) {
+          expect(sentence).toMatch(
+            locale === 'de' ? /nicht|ungeeignet|scheitert/ : /not|fails/,
+          )
+        }
+      }
+      // ILIAS accounts get the name but no email address.
+      expect(body(id, 'de')).toMatch(/keine E-Mail-Adresse/)
+      expect(body(id, 'de')).toMatch(/keine Aktivierungsmail/)
+      expect(body(id, 'de')).toMatch(/keine Verknüpfung mit bestehenden Konten/)
+      expect(body(id, 'en')).toMatch(/no email address/)
+      expect(body(id, 'en')).toMatch(/no activation mail/)
+      expect(body(id, 'en')).toMatch(/no linking to existing accounts/)
+    },
+  )
+
+  it('asks for the provider settings ILIAS needs for grades', () => {
+    for (const locale of LOCALES) {
+      const text = body('lti-setup', locale)
+      expect(text).toContain(ILIAS.grading[locale === 'de' ? 'de' : 'en'])
+      expect(text).toContain(ILIAS.outcome[locale])
+      expect(text).toContain(ILIAS.masteryDefault[locale])
+      expect(text).toContain('**22**')
+    }
+    expect(body('lti-setup', 'de')).toContain(
+      '*Verfügbarkeit* **in neuen und bestehenden Objekten**',
+    )
+    expect(body('lti-setup', 'en')).toContain(
+      '*Availability* to **For Creating Objects**',
+    )
+  })
+
+  it('says that ILIAS accounts carry the name only', () => {
+    expect(guide('lti-privacy').summary.de).toMatch(/aus ILIAS nur den Namen/)
+    expect(guide('lti-privacy').summary.en).toMatch(/from ILIAS only the name/)
+    expect(body('lti-teacher', 'de')).toMatch(
+      /ILIAS übermittelt keine E-Mail-Adresse/,
+    )
+    expect(body('lti-teacher', 'en')).toMatch(/ILIAS sends no email address/)
+  })
+
+  it('ts-lti-grades explains the ILIAS refusal and the fix first', () => {
+    const g = guide('ts-lti-grades')
+    for (const locale of LOCALES) {
+      const first = g.steps![locale][0]
+      expect(first).toContain('User not available')
+      expect(first).toContain('ILIAS kennt die Person nicht')
+      expect(first).toContain(ILIAS.identification[locale])
+      expect(first).toContain(`**${ILIAS.userId[locale]} …**`)
+      expect(first).toContain(`**${ILIAS.hash}**`)
+      expect(first).toContain(
+        `**${label(locale, 'extended.lti.admin.events.iliasEmailModeTitle')}**`,
+      )
+      const text = body('ts-lti-grades', locale)
+      expect(text).toContain(ILIAS.grading[locale])
+      expect(text).toContain(ILIAS.outcome[locale])
+      expect(text).toContain(label(locale, 'extended.lti.activity.retry'))
+      expect(text).toContain(label(locale, 'extended.lti.admin.retry'))
+      expect(text).toContain(label(locale, 'extended.lti.activity.syncFailed'))
+      expect(text).toContain(label(locale, 'extended.lti.orgPanel.switchOff'))
+      expect(text).toMatch(/400, 401, 403 (oder|or) 404/)
+    }
+  })
+
+  it.each(LOCALES)(
+    'ts-lti-grades is the first hit for "User not available" (%s)',
+    (locale) => {
+      const entries = buildGuideIndex({
+        t: (_key: string, fallback?: string) => fallback ?? _key,
+        locale,
+        flags: {},
+        user: {},
+        organizations: [],
+        guides: PLATFORM_HOWTO_GUIDES,
+      } as Parameters<typeof buildGuideIndex>[0])
+      const urls = rankSearchResults(entries, 'User not available').map(
+        (r) => r.url,
+      )
+      expect(urls[0]).toBe('/how-to#ts-lti-grades')
+    },
+  )
 })
 
 describe('public LMS integration doc', () => {
@@ -644,6 +841,145 @@ describe('public LMS integration doc', () => {
     expect(doc).not.toMatch(EM_DASH)
     // No internal issue numbers (anchors like #81-accounts are fine).
     expect(doc).not.toMatch(/(?:^|[\s(])#\d+\b(?!-)/m)
+  })
+
+  it('recommends a non-email ILIAS identification everywhere', () => {
+    for (const pattern of OLD_ILIAS_ADVICE) expect(flatDoc).not.toMatch(pattern)
+    const limits = section('### ILIAS limitations to plan around')
+    for (const locale of LOCALES) {
+      expect(limits).toContain(ILIAS.identification[locale])
+      expect(limits).toContain(ILIAS.fullName[locale])
+      expect(limits).toContain(ILIAS.outcome[locale])
+      expect(limits).toContain(ILIAS.masteryDefault[locale])
+    }
+    expect(limits).toContain(`*${ILIAS.userId.de}`)
+    expect(limits).toContain(ILIAS.hash)
+    expect(limits).toMatch(/Do not choose \*E-Mail-Adresse\*/)
+    expect(limits).toMatch(/404 User not available/)
+    expect(limits).toMatch(/This is an ILIAS issue/)
+    expect(limits).toMatch(
+      /Accounts from ILIAS therefore carry the full name but no email address/,
+    )
+    expect(limits).toMatch(
+      /There is no activation mail and no linking to an existing account/,
+    )
+    const registering = section('### Connection settings')
+    expect(registering).toMatch(/\*\*ILIAS privacy settings\.\*\*/)
+    expect(registering).toMatch(
+      /Do not change the identification after go-live/,
+    )
+    const dynamic = section('### 6a. One-link registration')
+    expect(dynamic).toContain(ILIAS.grading.de)
+    expect(dynamic).toContain(ILIAS.outcome.de)
+    expect(dynamic).toContain(
+      '*Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen (LTI 1.3)*',
+    )
+    const accounts = section('### 8.1 Accounts and names')
+    expect(accounts).toMatch(/An account from ILIAS gets the full name only/)
+    const requirements = section('## 9. Requirements on your LMS')
+    expect(requirements).toMatch(/never by \*E-Mail-Adresse\*/)
+    expect(requirements).toContain(ILIAS.grading.de)
+    const brief = flat(doc.slice(0, doc.indexOf('## 1. Edition boundary')))
+    expect(brief).toMatch(/From ILIAS they carry the name only/)
+    const troubleshooting = section('### Troubleshooting')
+    expect(troubleshooting).toMatch(
+      /ILIAS refuses every grade with `404 User not available`/,
+    )
+    // No quoted English ILIAS labels without the German one.
+    expect(flatDoc).not.toMatch(/"Advanced Grading Services"/)
+  })
+
+  it('gives the ILIAS setup sheet with the real ILIAS 10.9 labels', () => {
+    const sheet = section('## Appendix A')
+    for (const text of [
+      'Administration → ILIAS erweitern → LTI',
+      '„ILIAS als LTI-Konsument“',
+      '„Globalen Provider für alle Benutzer hinzufügen“',
+      '„Verfügbarkeit“: **„in neuen und bestehenden Objekten“**',
+      '„LTI Version“: **„Version 1.3“**',
+      '„Login URL“: `https://<tool-host>/api/lti/launch`',
+      '„Initiate Login URL“: `https://<tool-host>/api/lti/login`',
+      '„Redirection URI“: `https://<tool-host>/api/lti/launch`',
+      '„Typ des öffentlichen Schlüssels“: **„URL (Json Web Token)“**',
+      '„Unterstützung für Deep Linking“: **aus**',
+      `„${ILIAS.grading.de}“: **aktivieren**`,
+      `„${ILIAS.identification.de}“: **„ID des ILIAS-Kontos kombiniert mit einer eindeutigen ILIAS-Plattform-ID, die als E-Mail-Adresse formatiert ist“**`,
+      `„${ILIAS.hash}“`,
+      'Bitte **nicht** „E-Mail-Adresse“ wählen',
+      `„Anmeldename“: **„${ILIAS.fullName.de}“**`,
+      `„${ILIAS.outcome.de}“ **anhaken**`,
+      `„${ILIAS.masteryDefault.de}“ auf **22**`,
+      '„Hinweise“',
+      'Administration → Lernerfolge → Zugriffsstatistiken und Lernfortschritt',
+      '„Tracking aktivieren“ „Lernfortschritt“ anhaken',
+      '„Optionen für den Start“: **„Neues Fenster“**',
+      '„Optionen für den Lernfortschritt“',
+      'keine E-Mail-Adresse',
+      'keine Aktivierungsmail',
+    ]) {
+      expect(sheet).toContain(text)
+    }
+    for (const stale of [
+      'Add Global Provider',
+      'Erweiterung von ILIAS',
+      'Advanced Grading Services',
+      'Identifizierung per',
+      'JWK-Keyset-URL',
+    ]) {
+      expect(sheet).not.toContain(stale)
+    }
+  })
+
+  it('uses the visible switch labels of the panel', () => {
+    const settings = section('### Connection settings')
+    for (const locale of LOCALES) {
+      const pairs: Array<[string, string]> = [
+        ['extended.lti.orgPanel.switchOn', 'extended.lti.orgPanel.switchOn'],
+        ['extended.lti.orgPanel.switchOff', 'extended.lti.orgPanel.switchOff'],
+        [
+          'extended.lti.orgPanel.switchedOffBadge',
+          'extended.lti.orgPanel.switchedOffBadge',
+        ],
+        [
+          'extended.lti.admin.deploymentSwitchOn',
+          'extended.lti.admin.deploymentSwitchOn',
+        ],
+        [
+          'extended.lti.admin.deploymentSwitchOff',
+          'extended.lti.admin.deploymentSwitchOff',
+        ],
+      ]
+      for (const [key] of pairs) {
+        const text = label(locale, key)
+        expect(settings).toContain(
+          locale === 'en' ? `**${text}**` : `*${text}*`,
+        )
+      }
+    }
+  })
+
+  it('states the smaller corrections precisely', () => {
+    expect(section('### 8.1 Accounts and names')).toMatch(
+      /reserved top-level domains such as `\.invalid` or `\.local`/,
+    )
+    const errors = section('### Launch error codes')
+    expect(errors).not.toMatch(/deactivated or anonymized/)
+    expect(errors).toMatch(
+      /An anonymized account never comes back: anonymizing removes its LMS link, so a later launch creates a new account/,
+    )
+    expect(errors).toContain(
+      'The page *Separate account* offers only **Continue**, which creates a separate account',
+    )
+    expect(flatDoc).toMatch(
+      /A score that the LMS refuses for good \(400, 401, 403, 404 or another 4xx status that is not listed above\) makes the row `failed` at once/,
+    )
+    expect(flatDoc).toMatch(/"KI-Bewertung: <activity title>"/)
+    expect(section('## Appendix B')).toContain(
+      '„KI-Bewertung: <Titel der Aktivität>“',
+    )
+    expect(section('### 8.9 Retention')).toMatch(
+      /all stored sign-in sessions \(open and ended ones\)/,
+    )
   })
 })
 

@@ -224,12 +224,82 @@ describe('ts-lti-errors guide', () => {
   })
 
   it('offers a separate account for account_not_linkable', () => {
+    // An account that may not be linked gets the neutral page, whose only
+    // button is "Weiter" / "Continue". The full choice page with "Mit
+    // separatem Konto fortfahren" never appears for it.
+    const labels = {
+      de: [
+        deCommon.extended.lti.identity.neutralTitle,
+        deCommon.extended.lti.identity.neutralContinue,
+        deCommon.extended.lti.admin.accounts.title,
+        deCommon.extended.lti.admin.accounts.unlink,
+      ],
+      en: [
+        enCommon.extended.lti.identity.neutralTitle,
+        enCommon.extended.lti.identity.neutralContinue,
+        enCommon.extended.lti.admin.accounts.title,
+        enCommon.extended.lti.admin.accounts.unlink,
+      ],
+    }
+    for (const locale of LOCALES) {
+      const step = stepFor('account_not_linkable', locale)
+      for (const label of labels[locale]) {
+        expect(step).toContain(`**${label}**`)
+      }
+    }
     expect(stepFor('account_not_linkable', 'de')).toMatch(
-      /Mit separatem Konto fortfahren/,
+      /bietet dann nur \*\*Weiter\*\* an\. Damit entsteht ein separates Konto/,
     )
     expect(stepFor('account_not_linkable', 'en')).toMatch(
-      /Continue with a separate account/,
+      /offers only \*\*Continue\*\*\. This creates a separate account/,
     )
+    expect(stepFor('account_not_linkable', 'de')).not.toContain(
+      deCommon.extended.lti.identity.separateAccount,
+    )
+    expect(stepFor('account_not_linkable', 'en')).not.toContain(
+      enCommon.extended.lti.identity.separateAccount,
+    )
+  })
+
+  it('names the visible switch states for switched-off connections and deployments', () => {
+    const commons = { de: deCommon, en: enCommon } as const
+    for (const locale of LOCALES) {
+      const lti = commons[locale].extended.lti
+      const connection = stepFor('registration_disabled', locale)
+      expect(connection).toContain(`**${lti.orgPanel.switchedOffBadge}**`)
+      expect(connection).toContain(`**${lti.orgPanel.switchOff}**`)
+      expect(connection).not.toContain(`**${lti.orgPanel.enable}**`)
+      const deployment = stepFor('deployment_disabled', locale)
+      expect(deployment).toContain(`**${lti.admin.deploymentSwitchOff}**`)
+      expect(deployment).not.toContain(`**${lti.admin.deploymentEnable}**`)
+    }
+  })
+
+  it('says an anonymized account never comes back through user_inactive', () => {
+    expect(stepFor('user_inactive', 'de')).toMatch(
+      /Ein anonymisiertes Konto kommt nicht zurück/,
+    )
+    expect(stepFor('user_inactive', 'de')).toMatch(
+      /beim nächsten Start nach der Zustimmung ein neues Konto/,
+    )
+    expect(stepFor('user_inactive', 'en')).toMatch(
+      /An anonymized account does not come back/,
+    )
+    expect(stepFor('user_inactive', 'en')).toMatch(
+      /the next launch creates a new account after consent/,
+    )
+  })
+
+  it('names the ILIAS identification among the LMS-side settings', () => {
+    const guide = getGuide()
+    expect(guide.tips?.de.join('\n')).toMatch(/Identifikation der Person/)
+    expect(guide.tips?.de.join('\n')).toMatch(/Erweiterte Benotungsdienste/)
+    expect(guide.tips?.en.join('\n')).toMatch(/User identification/)
+    for (const locale of LOCALES) {
+      expect(guide.tips?.[locale].join('\n')).not.toMatch(
+        /Übermittlung von Name und E-Mail\)|\(sending name and email\)/,
+      )
+    }
   })
 
   it('tells who acts for each kind of problem', () => {

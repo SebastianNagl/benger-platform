@@ -17,9 +17,11 @@ administration are in [Appendix A](#appendix-a-ilias-setup-sheet-german) and
 - Nobody gets an account before they consent. Students and teachers consent
   once per connection.
 - Consent to research use is required. See [§8.4](#84-consent).
-- Accounts carry the name and email address that the LMS sends. The app shows
-  a pseudonym. Real names are visible to the organization's admins, to the
-  course teachers, to the staff who may grade the linked exam and to the
+- Accounts carry the name and email address that the LMS sends. From ILIAS
+  they carry the name only, because ILIAS has to identify people without
+  their email address (see [§3](#ilias-limitations-to-plan-around)). The app
+  shows a pseudonym. Real names are visible to the organization's admins, to
+  the course teachers, to the staff who may grade the linked exam and to the
   platform administrators.
 - The AI grade and the human grade are kept side by side. The human grade is
   the final grade.
@@ -86,7 +88,7 @@ under NDA. Contact details are in [§12](#12-support-and-contact).
    The grade goes to the LMS through **Assignment and Grade Services (AGS)**.
 5. A teacher can grade the submission as well. The human grade becomes the
    final grade in the LMS. The AI grade is kept, and Moodle shows it in a
-   second column.
+   second column, "KI-Bewertung: <activity title>".
 
 Grades are sent as German *Notenpunkte*, 0 to 18, with `scoreMaximum: 18`.
 The LMS rescales the activity column to the activity's maximum grade. An
@@ -112,6 +114,29 @@ supported. See [§10](#10-conformance) for what has been tested.
 
 These are properties of ILIAS 10, not of BenGER.
 
+- **Identify people without their email address.** The provider's privacy
+  setting *Identifikation der Person* (English ILIAS: *User
+  identification*) decides how ILIAS names a person to the tool. Choose a
+  mode without the email address:
+  - recommended: *ID des ILIAS-Kontos kombiniert mit einer eindeutigen
+    ILIAS-Plattform-ID, die als E-Mail-Adresse formatiert ist* (*ILIAS user
+    id combined with a unique ILIAS platform id formatted as an E-Mail
+    address*);
+  - for more pseudonymity: *Hash@ILIAS-Plattform-ID.ilias* (*Hash combined
+    with a unique ILIAS platform id formatted as an E-Mail address*).
+
+  Set *Anmeldename* (*User name*) to *Vollständiger Name* (*Entire name*).
+  Do not choose *E-Mail-Adresse* (*E-Mail Address*). In ILIAS 10.9 the
+  grade service cannot find the person in that mode and refuses every
+  grade with `404 User not available`. This is an ILIAS issue. Choose the
+  mode before go-live and do not change it afterwards (see
+  [§6](#6-registering-your-lms)).
+- **No email address from ILIAS.** In the recommended modes ILIAS sends
+  only a pseudo address that ends in `.ilias`, and the tool ignores it.
+  Accounts from ILIAS therefore carry the full name but no email address.
+  There is no activation mail and no linking to an existing account. A
+  person who wants to sign in without ILIAS adds an address in the app
+  later and sets a password with the mail sent there.
 - **ILIAS has no AGS line item service.** The tool works only with the
   `lineitem` URL from the launch. ILIAS therefore gets one value per student,
   the final grade. There is no "KI-Bewertung" column. The activity must carry
@@ -125,7 +150,19 @@ These are properties of ILIAS 10, not of BenGER.
 - **Grades appear as learning progress, not as a gradebook column.** ILIAS
   compares the score with the object's *Mastery Score*, which defaults to
   80 %. A passing law exam is 4 of 18 points, about 22 %. With the default, a
-  passed exam shows as "in progress". Set the Mastery Score to **22**.
+  passed exam shows as "in progress". Set the Mastery Score to **22**:
+  - The field appears only when the provider has *Provider unterstützt
+    Outcome Service* (*Provider supports Outcome Service*) ticked. Tick it
+    and set *Voreinstellung Mastery Score* (*Default Mastery Score*) to 22
+    before teachers create objects. An object copies the value when it is
+    created.
+  - Objects created earlier keep their value. Change it in the object's
+    settings under *Optionen für den Lernfortschritt* (*Options for Learning
+    Progress*).
+  - The learning progress view needs learning progress switched on for the
+    whole installation: *Administration → Lernerfolge → Zugriffsstatistiken
+    und Lernfortschritt → Einstellungen*, *Lernfortschritt* (English ILIAS:
+    *Achievements → Statistics and Learning Progress*).
 - **No Names and Role Provisioning Service (NRPS)** before ILIAS 12. Accounts
   are created at launch only. Moodle is used the same way.
 
@@ -199,7 +236,7 @@ in your LMS.
 |---|---|
 | `https://purl.imsglobal.org/spec/lti-ags/scope/score` | Send a grade to a line item |
 | `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly` | Read line items |
-| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column, "KI-Bewertung", per activity |
+| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column per activity, "KI-Bewertung: <activity title>" |
 
 The tool uses `lineitem` only to find or create its own "KI-Bewertung" column.
 It never changes or deletes the activity's own column, and it never deletes a
@@ -283,12 +320,21 @@ creates the invite (see [§8.8](#88-compliance-tell-us-what-you-need)).
    chooser, the tool opens embedded, which does not work (see
    [§9](#9-requirements-on-your-lms)), and an activity has no grade unless
    the teacher allows grades in the activity settings.
-5. **ILIAS** (10.9 and later): create an LTI consumer object, open *Create Own
-   Settings for Tool with Dynamic Registration (LTI 1.3)*, paste the link and
-   add it. ILIAS fills in all tool URLs, including the JWKS key type. Two
-   caveats. "Advanced Grading Services" stays unchecked and must be enabled by
-   hand, or no grade is sent. And ILIAS creates a provider bound to that one
-   object, so for a campus-wide rollout the manual way in
+5. **ILIAS** (10.9 and later): create an LTI consumer object, open
+   *Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen (LTI
+   1.3)* (English ILIAS: *Create Own Settings for Tool with Dynamic
+   Registration (LTI 1.3)*), paste the link and add it. ILIAS fills in all
+   tool URLs, including the JWKS key type. Then open the provider settings
+   and change these by hand:
+   - tick *Erweiterte Benotungsdienste* (*Advanced Grading Services*), or no
+     grade is sent;
+   - set the identification and the name as described in
+     [§3](#ilias-limitations-to-plan-around);
+   - tick *Provider unterstützt Outcome Service* and set the Mastery Score
+     to 22.
+
+   ILIAS creates a provider bound to that one object, so for a campus-wide
+   rollout the manual way in
    [Appendix A](#appendix-a-ilias-setup-sheet-german) is better.
 6. The connection now appears in the panel and is active.
 
@@ -296,8 +342,8 @@ Further rules:
 
 - Dynamic Registration asks the LMS to send name and email for every user.
   Check the tool's privacy settings in Moodle after the registration. ILIAS
-  does not apply this request: set its privacy mode by hand (see the end of
-  this section).
+  does not apply this request: set its identification and name by hand (see
+  the end of this section).
 - The LMS lists the tool under the product name of the chosen address, with
   a short description. On a deployment whose address contains `staging.`,
   the name ends with "(Staging)", so a shared test LMS can tell the tools
@@ -326,6 +372,8 @@ saved there. So the order is:
    administration.
 3. The LMS administration saves the tool and reports the client ID and the
    deployment ID. On ILIAS the deployment ID is the numeric **Provider ID**.
+   German ILIAS shows both in the saved provider's settings in the box
+   *Hinweise*, in the lines *Client ID* and *Deployment ID*.
 4. Enter the issuer, the endpoints, the client ID and the deployment ID in
    the form and save. The tool fills in the endpoints from the issuer.
 5. Later, **Tool configuration** on the connection shows the same URLs.
@@ -349,13 +397,24 @@ values. Deployment IDs can be added later under **Deployments**.
 | Group (`group_id`) | none | People who launch join this group, and linked exams are visible to the group only. Group admins create group connections only. Changing the group later moves the linked exams' visibility and key pool along. A launch does not add someone back whom an admin removed from the group, and does not make a teacher group admin again after an admin took that right away. |
 | Org role for teachers (`instructor_org_role`) | `contributor` | `contributor`, `org_admin` or `none`. On a group connection, `org_admin` becomes contributor plus group admin. A group admin can grant at most `contributor`, and only if they hold that role themselves. A launch never lowers an existing role, but a teacher launch raises an annotator to this role. |
 | Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` adds no membership in your organization. Students reach the linked exam through the launch. On the hosted service, every account a launch creates also joins the operator's shared student organization (see [§8.1](#81-accounts-and-names)). |
-| Offer linking to existing accounts (`link_existing_users_by_email`) | on | If exactly one account has the address the LMS sends, the person may link it after signing in or confirming by email. When off, the launch always creates a separate account. |
-| Connection status | active | A switched-off connection blocks every login, launch, LTI page in the app and grade transfer for this LMS. |
-| Deployment status | active | A switched-off deployment rejects launches. The other deployments of the connection keep working. |
+| Offer linking to existing accounts (`link_existing_users_by_email`) | on | If exactly one account has the address the LMS sends, the person may link it after signing in or confirming by email. When off, the launch always creates a separate account. ILIAS sends no address, so there is nothing to link. |
+| Connection status | active | The switch on the connection's card reads **Connection on** (German *Anbindung aktiv*). Switched off, it reads **Connection off** (*Anbindung aus*), and the card shows the badge **Switched off** (*Ausgeschaltet*). A switched-off connection blocks every login, launch, LTI page in the app and grade transfer for this LMS. |
+| Deployment status | active | The switch next to each deployment ID reads **Deployment on** (*Deployment aktiv*) or **Deployment off** (*Deployment aus*). A switched-off deployment rejects launches. The other deployments of the connection keep working. |
 
-On ILIAS, choose a privacy mode that sends name and email before go-live, and
-do not change it afterwards. The mode decides the `sub` value, so a change
-detaches every account from its LMS identity.
+**ILIAS privacy settings.** Set them in the provider before go-live:
+
+- *Identifikation der Person* (*User identification*): a mode without the
+  email address. We recommend *ID des ILIAS-Kontos …* (*ILIAS user id …*).
+  *Hash@ILIAS-Plattform-ID.ilias* gives more pseudonymity.
+- *Anmeldename* (*User name*): *Vollständiger Name* (*Entire name*).
+
+Do not choose *E-Mail-Adresse*. In ILIAS 10.9 every grade transfer fails in
+that mode (see [§3](#ilias-limitations-to-plan-around)). If an ILIAS
+connection launches in that mode, the connection's card in the panel shows a
+warning with the fix. Do not change the identification after go-live. It
+decides the `sub` value, so a change detaches every account from its LMS
+identity. Each person then consents again and gets a new account, and the
+earlier submissions stay with the old one.
 
 ## 7. Course setup (teacher)
 
@@ -399,16 +458,20 @@ detaches every account from its LMS identity.
    expert interface. **Open grading** always opens the Korrektur in the
    expert interface, also on the student host.
 8. **Moodle: keep the AI grade out of the course total.** Moodle adds the
-   "KI-Bewertung" column as a normal manual grade item. Unless the teacher
+   "KI-Bewertung" column as a normal manual grade item. Its name is
+   "KI-Bewertung: <activity title>", so the columns of several linked
+   activities in one course can be told apart. Columns created by earlier
+   versions keep the plain name "KI-Bewertung". Unless the teacher
    changes it, the AI grade counts in the course total next to the final
    grade in the activity column. The column appears with the first AI grade.
    Then open the course's **Grades** and choose **Gradebook setup** (German
-   Moodle: *Bewertungen → Setup für Bewertungen*). In the row
-   "KI-Bewertung", tick the box in the **Weights** column (*Gewichtungen*),
-   enter 0 and click **Save changes** (*Änderungen speichern*). This applies
-   to Moodle's default aggregation, *Natural* (German: *Summe*). With another
-   aggregation that uses weights, set the weight of this column to 0 as
-   well. Repeat it if the column is created again.
+   Moodle: *Bewertungen → Setup für Bewertungen*). In the row of the
+   "KI-Bewertung" column, tick the box in the **Weights** column
+   (*Gewichtungen*), enter 0 and click **Save changes** (*Änderungen
+   speichern*). This applies to Moodle's default aggregation, *Natural*
+   (German: *Summe*). With another aggregation that uses weights, set the
+   weight of this column to 0 as well. Repeat it if the column is created
+   again.
 
 The activity can point to another exam until the first grade reached the LMS.
 After that, create a new activity. A linked exam does not accept a second
@@ -426,12 +489,17 @@ Individual sharing**.
 
 - **Name and email.** After consent, a new account gets the name and email
   address from the LMS and a pseudonym. Dynamic Registration asks Moodle to
-  send both. On ILIAS, choose a privacy mode that sends both.
+  send both. An account from ILIAS gets the full name only. In the
+  identification modes that ILIAS needs (see
+  [§3](#ilias-limitations-to-plan-around)), ILIAS sends no real address.
 - **Unconfirmed address.** The address counts as unconfirmed until the person
   activates the account or resets the password.
 - **Placeholders.** If the LMS withholds the address, or another account
   already uses it, the account gets a placeholder address. A later launch
   with a free address fills it in. A withheld name is filled in the same way.
+  An account with a placeholder address gets no activation mail, and no
+  later launch can offer it for linking. The person can add an address in
+  the app later and set a password with the mail sent there.
 - **Pseudonym.** The app shows the pseudonym. Real names are visible to
   superadmins, to the admins of the connection's organization, to group
   admins for their group's connections, to the course teachers and to the
@@ -491,10 +559,11 @@ Individual sharing**.
     membership. Unlinking an account linked by proof removes that record, so
     that person's next consent adds them to the group again.
 
-ILIAS notes: the `sub` value comes from the provider's privacy mode. ILIAS
-sends a withheld name as a literal `"-"` and, depending on the mode, a pseudo
-address like `<ident>@<installation-uuid>.ilias`. The tool treats both as not
-sent. It also ignores addresses on reserved domains such as `.invalid` or
+ILIAS notes: the `sub` value comes from the provider's identification mode
+(*Identifikation der Person*). ILIAS sends a withheld name as a literal `"-"`
+and, in the recommended modes, a pseudo address like
+`<ident>@<installation-uuid>.ilias`. The tool treats both as not sent. It
+also ignores addresses on reserved top-level domains such as `.invalid` or
 `.local`.
 
 ### 8.2 Claims consumed
@@ -502,7 +571,8 @@ sent. It also ignores addresses on reserved domains such as `.invalid` or
 From the `id_token`: `sub`, `iss`, `aud`, `exp`, `iat`, `nonce`, the LTI
 `message_type`, `version`, `deployment_id`, `resource_link`, `context`,
 `roles`, `name`, `email` and the AGS endpoint claim. `name` and `email` are
-expected. The `custom` claim is not used.
+expected. ILIAS sends no usable `email` in the recommended identification
+modes. The `custom` claim is not used.
 
 Roles are mapped narrowly. The instructor, content developer and
 administrator role markers make a person a teacher. Everyone else counts as a
@@ -647,8 +717,8 @@ limit.
 - **DPIA**: are you running one? What do you need from us, and by when?
 - **Research consent**: the consent to research use is required (see
   [§8.4](#84-consent)). Does your DPO accept that for your course?
-- **Name and email**: every launch carries name and email. Does your
-  processing description cover that?
+- **Name and email**: every Moodle launch carries name and email, every
+  ILIAS launch the name. Does your processing description cover that?
 - **Subprocessors**: do you need a subprocessor list? Do you want to name the
   model provider yourself through your own API key?
 - **Retention**: a fixed deletion period for accounts and grades, or deletion
@@ -677,8 +747,10 @@ removed and kept. It cannot be undone.
 - **Removed**: name, email address, password, parked address, reset and
   verification tokens, research profile answers, personal API keys, the LMS
   identity links with their name and email snapshot and consent fields, the
-  account's grade transfer rows, open sessions, group memberships, and
-  notifications that name the person.
+  account's grade transfer rows, all stored sign-in sessions (open and
+  ended ones), group memberships, and notifications that name the person.
+  The preview names how many LMS links, grade transfers and sessions go and
+  how many memberships end.
 - **Changed**: the account is locked, its organization memberships are
   deactivated, and a new pseudonym replaces the old one.
 - **Kept as anonymous records**: submissions, grades, created exams, the
@@ -728,8 +800,9 @@ fixed retention period instead, name it and we record it in the contract.
   Moodle's outbound curl security blocks other ports by default, and a keyset
   on another port fails the token exchange with a null-JWKS error. Behind an
   egress proxy, `curlsecurityblockedhosts` may need a review.
-- **JWKS by URL, never a pasted key.** On ILIAS in particular, choose the *JWK
-  keyset URL* key type. ILIAS checks our client assertion only through the
+- **JWKS by URL, never a pasted key.** On ILIAS in particular, set *Typ des
+  öffentlichen Schlüssels* (*Public Key Type*) to *URL (Json Web Token)* and
+  enter the keyset URL. ILIAS checks our client assertion only through the
   keyset URL. A pasted RSA key passes the launch and then breaks the grade
   transfer.
 - **New window.** Embedded iframe launches are not supported. The session
@@ -748,16 +821,21 @@ fixed retention period instead, name it and we record it in the contract.
   tool **Always**, for every role (German Moodle: *Anwendername an Tool
   übergeben* and *E-Mail des Anwenders an Tool übergeben* → *Immer*).
   Dynamic Registration requests this. Check the setting after the
-  registration. ILIAS: identify users by email address and send the full
-  name.
+  registration. ILIAS: identify people by the ILIAS user id or by a hash,
+  never by *E-Mail-Adresse*, and send the full name (see
+  [§3](#ilias-limitations-to-plan-around)). ILIAS then sends the name
+  only.
 - **Grade sync with column management.** Moodle: set the tool's *IMS LTI
   Assignment and Grade Services* to **Use this service for grade sync and
   column management** (German Moodle: *IMS LTI Aufgaben und Bewertung* →
   **Service für die Synchronisation von Bewertungen und die Verwaltung der
   Spalten nutzen**). Dynamic Registration requests it. With *Use this
   service for grade sync only* (*Service nur für Bewertungen nutzen*),
-  Moodle gets the final grade only. ILIAS: enable "Advanced Grading
-  Services".
+  Moodle gets the final grade only. ILIAS: tick *Erweiterte
+  Benotungsdienste* (*Advanced Grading Services*) in the provider.
+- **ILIAS learning progress.** Tick *Provider unterstützt Outcome Service*
+  and set the Mastery Score to 22, and switch on learning progress for the
+  installation (see [§3](#ilias-limitations-to-plan-around)).
 - **Clock sync.** Moodle `id_token`s live 60 seconds, and ILIAS checks our
   client assertions with zero leeway. Keep NTP tight on both sides. AGS also
   needs strictly increasing score timestamps, so clock skew between our
@@ -837,9 +915,15 @@ Redis. Without Redis the tool fails closed with `state_unavailable`.
 - A transfer that fails because the LMS is unreachable, times out or
   answers with a server error (5xx, or 408, 409, 425, 429) is sent again
   after 10, 30 and 90 seconds.
-- After that, and after any other failure, the row becomes due again after
-  a wait. The wait is 60 seconds after the first attempt and doubles with
-  each attempt, up to 6 hours. After 10 attempts the row is `failed`.
+- A score that the LMS refuses for good (400, 401, 403, 404 or another 4xx
+  status that is not listed above) makes the row `failed` at once. The
+  activity overview and the admin panel show it right away. Sending the same
+  score again does not help until someone changes the setup. On ILIAS, a
+  `404` is stored with a hint to check the identification mode.
+- After the quick retries, and after other failures such as a refused token
+  request, the row becomes due again after a wait. The wait is 60 seconds
+  after the first attempt and doubles with each attempt, up to 6 hours.
+  After 10 attempts the row is `failed`.
 - The stored error is short plain text: the status code and a short reason.
   An HTML error page from the LMS is cut off.
 - An hourly sweep (minute 45) sends the rows that are due, so a retry after
@@ -881,11 +965,13 @@ of the LMS that started the registration. Every other path keeps
 3. A teacher launch shows the consent page once. The picker lists own and
    colleagues' exams, and a Bewertungsbogen exam can be linked.
 4. A student launch in a clean browser shows the consent page, and no
-   account exists before consent. After consent the account has a pseudonym
-   and the activation mail arrives. A relaunch goes straight to the exam.
+   account exists before consent. After consent the account has a pseudonym.
+   On Moodle the activation mail arrives. On ILIAS the account carries the
+   full name, and no mail is sent. A relaunch goes straight to the exam.
 5. After a submission, the final grade lands in the activity column with the
    right rescaling. On Moodle with column management, the AI grade lands in
-   "KI-Bewertung".
+   "KI-Bewertung: <activity title>". On ILIAS the grade shows as learning
+   progress, and a passed exam counts as completed.
 6. A human grade changes the activity column and leaves "KI-Bewertung"
    unchanged. After the teacher set the weight of "KI-Bewertung" to 0, the
    Moodle course total counts the activity column only.
@@ -922,12 +1008,12 @@ fail unexpectedly carry the reference in their message.
 | `unsupported_message` | The LMS sent a request type the tool does not support, for example Deep Linking. | LMS admin switches Deep Linking off. |
 | `not_linked` | The activity is not linked to an exam yet. | Teacher opens the activity and picks an exam. |
 | `exam_unavailable` | The linked exam was deleted. | Teacher links another exam, or creates a new activity if grades were sent. |
-| `user_inactive` | The account is deactivated or anonymized. | Platform operator. |
+| `user_inactive` | The account is deactivated. An anonymized account never comes back: anonymizing removes its LMS link, so a later launch creates a new account. | Platform operator. |
 | `membership_removed` | An admin removed the person from the connection's organization or group. A launch does not restore it. | Org admin invites the person again; accepting the invitation restores the membership. For an account with a placeholder address a platform administrator uses **Add Existing User**. A group membership is restored by adding the person to the group. |
 | `launch_expired` | The consent page or account choice was open longer than 30 minutes, or the launch finished in another tab. | Reopen the activity. |
 | `launch_mismatch` | The page belongs to another launch, or the browser lacks this launch's cookie (another browser, embedded launch). | Reopen and finish in one browser, in a new window. |
 | `link_proof_failed` | The email confirmation link is invalid, older than 24 hours or already used. | Reopen and request a new link. |
-| `account_not_linkable` | This account may not be linked, for example a platform administrator account. | Reopen and continue with a separate account. An existing link is removed by the org admin. |
+| `account_not_linkable` | This account may not be linked, for example a platform administrator account. | The org admin removes the existing link under **LMS accounts** with **Unlink**. Then reopen the activity. The page *Separate account* offers only **Continue**, which creates a separate account. |
 | `internal` | An unexpected server error. The page shows a reference. | Try again later. If it repeats, send code and reference to the platform operator. |
 
 ### Troubleshooting
@@ -946,9 +1032,11 @@ fail unexpectedly carry the reference in their message.
 | Token call fails with `"kid" invalid` | The LMS cannot match our JWKS: wrong or unreachable keyset URL, a rotated key without the previous pair, or API and workers signing with different keys. |
 | Token call fails with a null-JWKS error | The LMS's outbound curl security blocks the keyset URL. Serve it on port 443. |
 | ILIAS token endpoint returns `ERROR_OPEN_SSL_CONF` | A misleading catch-all for any error, including an unknown `kid` or a failed JWKS fetch. The real error is only in the ILIAS log. Check that the ILIAS server reaches the JWKS URL and that the right `kid` is used. |
-| A grade never appears | The activity has no grade, so there is no line item. Or the exam cannot give Notenpunkte. Or, on ILIAS, "Advanced Grading Services" is off. The activity overview shows the transfer status and error. |
+| A grade never appears | The activity has no grade, so there is no line item. Or the exam cannot give Notenpunkte. Or, on ILIAS, *Erweiterte Benotungsdienste* (*Advanced Grading Services*) is off. The activity overview shows the transfer status and error. |
+| ILIAS refuses every grade with `404 User not available` | The provider identifies people by *E-Mail-Adresse*. ILIAS 10.9 cannot find the person in that mode. Choose *ID des ILIAS-Kontos …* or *Hash@ILIAS-Plattform-ID.ilias* (see [§3](#ilias-limitations-to-plan-around)). The identifier of every person changes with it: each person consents again and gets a new account, and earlier submissions stay with the old one. The panel shows a warning while a connection launches in that mode. |
 | `409` on the score POST | AGS needs increasing timestamps. Clock skew between workers. |
-| ILIAS shows a passed exam as "in progress" | The Mastery Score is still 80 %. Set it to 22. |
+| ILIAS shows a passed exam as "in progress" | The Mastery Score is still 80 %. Set it to 22 in the object's *Optionen für den Lernfortschritt*. If the field is missing, tick *Provider unterstützt Outcome Service* in the provider first. |
+| ILIAS accounts have no email address | Expected. In the recommended identification modes ILIAS sends no real address (see [§3](#ilias-limitations-to-plan-around)). |
 
 ## 12. Support and contact
 
@@ -972,37 +1060,66 @@ we can reply with the documents instead of another round of questions.
 
 > **Das Tool als LTI-1.3-Tool in ILIAS einbinden**
 >
-> 1. **Globalen Provider anlegen:** Administration → Erweiterung von ILIAS →
->    LTI → Tab „ILIAS als LTI-Konsument“ → „Add Global Provider for all
->    Users“.
+> Die Bezeichnungen folgen der deutschen Oberfläche von ILIAS 10.9.
+>
+> 1. **Globalen Provider anlegen:** Administration → ILIAS erweitern → LTI →
+>    Reiter „ILIAS als LTI-Konsument“ → „Globalen Provider für alle Benutzer
+>    hinzufügen“.
 > 2. **Felder ausfüllen.** Die URLs schickt Ihnen Ihr Organisations-Admin.
 >    Das Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später
 >    unter **Tool-Konfiguration**.
->    - LTI-Version: **LTI 1.3**
->    - Tool-URL: `https://<tool-host>/api/lti/launch`
->    - Initiate-Login-URL: `https://<tool-host>/api/lti/login`
->    - Redirection-URI(s): `https://<tool-host>/api/lti/launch`
->    - Schlüsseltyp: **JWK-Keyset-URL** mit
->      `https://<tool-host>/api/lti/jwks`. Bitte unbedingt die URL-Variante
->      wählen und **keinen Schlüssel einfügen**, sonst scheitert die
->      Notenübertragung.
->    - „Advanced Grading Services“ (Grade Synchronization): **aktivieren**
->    - Deep Linking: **aus**
->    - Datenschutz: Identifizierung per **E-Mail-Adresse** und den
->      **vollständigen Namen** übertragen. Die Konten tragen Name und
->      E-Mail-Adresse aus ILIAS, in der Anwendung erscheint ein Pseudonym.
->      Die Einstellung nach der Inbetriebnahme **nicht mehr ändern**. Jeder
->      Wechsel trennt alle bestehenden Kontoverknüpfungen.
-> 3. Nach dem Speichern **Client-ID** und **Provider-ID** (numerisch) an Ihren
->    **Organisations-Admin** melden. Die Provider-ID ist die Deployment-ID.
-> 4. **Im Kurs:** „Neues Objekt hinzufügen“ → LTI-Konsument → Provider
->    wählen → Online schalten. „Optionen für den Start“: **Neues Fenster**
->    (Pflicht). Mastery Score: **22** (4 von 18 Punkten gelten als
->    bestanden).
-> 5. **Noten:** ILIAS erhält je Person einen Wert, die Endnote. Das ist die
->    Korrektur der Lehrenden, sonst die KI-Note. Eine eigene Spalte für die
->    KI-Note gibt es in ILIAS nicht.
-> 6. **Voraussetzungen:** ILIAS 10 auf aktuellem Patchlevel. Getestet ist
+>    - „Verfügbarkeit“: **„in neuen und bestehenden Objekten“**. Die
+>      Voreinstellung „nicht verfügbar“ verhindert neue Objekte.
+>    - „LTI Version“: **„Version 1.3“**
+>    - „Login URL“: `https://<tool-host>/api/lti/launch`
+>    - „Initiate Login URL“: `https://<tool-host>/api/lti/login`
+>    - „Redirection URI“: `https://<tool-host>/api/lti/launch`
+>    - „Typ des öffentlichen Schlüssels“: **„URL (Json Web Token)“**, im
+>      Feld „URL“ `https://<tool-host>/api/lti/jwks`. Bitte unbedingt die
+>      URL-Variante wählen und **keinen RSA-Schlüssel einfügen**, sonst
+>      scheitert die Notenübertragung.
+>    - „Unterstützung für Deep Linking“: **aus**
+>    - „Erweiterte Benotungsdienste“: **aktivieren**
+> 3. **Datenschutzeinstellungen:**
+>    - „Identifikation der Person“: **„ID des ILIAS-Kontos kombiniert mit
+>      einer eindeutigen ILIAS-Plattform-ID, die als E-Mail-Adresse
+>      formatiert ist“** (empfohlen). Mehr Pseudonymität bietet
+>      „Hash@ILIAS-Plattform-ID.ilias“.
+>    - Bitte **nicht** „E-Mail-Adresse“ wählen. In ILIAS 10.9 lehnt ILIAS in
+>      diesem Modus jede Note mit „User not available“ ab. Die Ursache
+>      liegt in ILIAS.
+>    - „Anmeldename“: **„Vollständiger Name“**
+>    - Folge: Die Konten tragen den vollständigen Namen aus ILIAS, aber
+>      keine E-Mail-Adresse. Es gibt deshalb keine Aktivierungsmail und
+>      keine Verknüpfung mit bestehenden Konten. In der Anwendung erscheint
+>      ein Pseudonym.
+>    - Die Identifikation nach der Inbetriebnahme **nicht mehr ändern**.
+>      Jeder Wechsel trennt alle bestehenden Kontoverknüpfungen.
+> 4. **Lernfortschritt:** Unter „Optionen für den Lernfortschritt“
+>    „Provider unterstützt Outcome Service“ **anhaken** und „Voreinstellung
+>    Mastery Score“ auf **22** setzen (4 von 18 Punkten gelten als
+>    bestanden). Erst mit dem Haken erscheint der Mastery Score. Setzen Sie
+>    den Wert, bevor Lehrende Objekte anlegen. Jedes Objekt übernimmt ihn
+>    beim Anlegen.
+> 5. Nach dem Speichern zeigt der Provider unter „Hinweise“ die Zeilen
+>    **„Client ID“** und **„Deployment ID“**. Die Deployment-ID ist die
+>    numerische Provider-ID. Melden Sie beide Werte an Ihren
+>    **Organisations-Admin**.
+> 6. **Lernfortschritt für die Installation einschalten**, falls noch nicht
+>    geschehen: Administration → Lernerfolge → Zugriffsstatistiken und
+>    Lernfortschritt → „Einstellungen“ → bei „Tracking aktivieren“
+>    „Lernfortschritt“ anhaken. Sonst zeigt ILIAS den Lernfortschritt nicht
+>    an.
+> 7. **Im Kurs:** „Neues Objekt hinzufügen“ → „LTI-Konsument“ → Provider
+>    wählen → online schalten. „Optionen für den Start“: **„Neues
+>    Fenster“** (Pflicht). Unter „Optionen für den Lernfortschritt“ prüfen:
+>    „Mastery Score“ **22**. Objekte, die vor Schritt 4 entstanden sind,
+>    passen Sie dort an.
+> 8. **Noten:** ILIAS erhält je Person einen Wert, die Endnote. Das ist die
+>    Korrektur der Lehrenden, sonst die KI-Note. ILIAS zeigt sie als
+>    Lernfortschritt. Eine eigene Spalte für die KI-Note gibt es in ILIAS
+>    nicht, und Kommentare zur Note zeigt ILIAS nicht an.
+> 9. **Voraussetzungen:** ILIAS 10 auf aktuellem Patchlevel. Getestet ist
 >    ILIAS 10.9, ILIAS 9 ist nicht live getestet. Die JWKS-URL muss vom
 >    ILIAS-Server aus über Port 443 erreichbar sein.
 
@@ -1090,15 +1207,17 @@ we can reply with the documents instead of another round of questions.
 > **Noten:** Die Spalte der Aktivität erhält die Endnote. Das ist die
 > Korrektur der Lehrenden, sonst die KI-Note, umgerechnet auf das Maximum der
 > Aktivität. Die Spalte **KI-Bewertung** erhält immer die KI-Note auf der
-> Skala 0 bis 18. Eine Korrektur löscht nichts.
+> Skala 0 bis 18. Sie heißt „KI-Bewertung: <Titel der Aktivität>“. Spalten
+> aus früheren Versionen heißen nur „KI-Bewertung“. Eine Korrektur löscht
+> nichts.
 >
 > **Kursgesamtbewertung:** Moodle legt „KI-Bewertung“ als normalen
 > manuellen Bewertungsaspekt an. Ohne Änderung zählt die KI-Note daher in
 > „Kurs gesamt“ neben der Endnote mit. Die Spalte erscheint mit der ersten
 > KI-Note. Danach nehmen Lehrende sie heraus: im Kurs „Bewertungen“ →
-> „Setup für Bewertungen“ → in der Zeile „KI-Bewertung“ das Kästchen in der
-> Spalte „Gewichtungen“ anhaken, **0** eintragen, „Änderungen speichern“. Das
-> gilt für die Standard-Berechnung „Summe“. Bei einer anderen Berechnung mit
+> „Setup für Bewertungen“ → in der Zeile der Spalte „KI-Bewertung“ das
+> Kästchen in der Spalte „Gewichtungen“ anhaken, **0** eintragen,
+> „Änderungen speichern“. Das gilt für die Standard-Berechnung „Summe“. Bei einer anderen Berechnung mit
 > Gewichtung setzen Sie die Gewichtung dieser Spalte ebenfalls auf 0. Wird
 > die Spalte neu angelegt, wiederholen Sie den Schritt.
 >

@@ -456,11 +456,13 @@ def anonymization_footprint_sync(db: Session, user_id: str) -> Dict[str, Dict[st
                     LtiGradeSync.user_id == user_id
                 ),
             ),
+            # Every refresh token row, revoked and expired ones included:
+            # anonymizing deletes them all, and the preview must match the
+            # count the audit event records afterwards.
             "sessions": _count(
                 db,
                 select(func.count(RefreshToken.id)).where(
-                    RefreshToken.user_id == user_id,
-                    RefreshToken.is_active == True,  # noqa: E712
+                    RefreshToken.user_id == user_id
                 ),
             ),
             "memberships": _count(

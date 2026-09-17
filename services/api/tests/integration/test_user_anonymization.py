@@ -520,6 +520,59 @@ async def test_anonymize_removes_links_syncs_sessions_and_personal_rows(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_preview_counts_every_session_row_that_anonymizing_deletes(
+    async_test_db,
+):
+    """The preview promised 0 sessions for a person who had signed out
+    (revoked tokens), while anonymizing deleted and audited 2 rows. The
+    preview now counts every refresh token row, like the delete does."""
+    db = async_test_db
+    w = await _student_with_everything(db)
+    uid = w.student.id
+    # A signed-out session and an expired one next to the open session.
+    _token, revoked = await create_refresh_token_async(db, uid)
+    revoked.is_active = False
+    _token, expired = await create_refresh_token_async(db, uid)
+    expired.expires_at = _now() - timedelta(days=1)
+    await db.commit()
+
+    preview = await ua.anonymization_footprint(db, uid)
+    assert preview["removes"]["sessions"] == 3
+
+    result = await _anonymize(db, uid)
+
+    assert result.removed["sessions"] == preview["removes"]["sessions"]
+    assert result.removed["lti_user_links"] == preview["removes"]["lti_user_links"]
+    assert result.removed["lti_grade_syncs"] == preview["removes"]["lti_grade_syncs"]
+    assert result.removed["memberships"] == preview["removes"]["memberships"]
+    assert await _fresh(db, RefreshToken, RefreshToken.user_id == uid) == []
+    # Nothing is left to count afterwards.
+    after = await ua.anonymization_footprint(db, uid)
+    assert after["removes"]["sessions"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_preview_counts_signed_out_sessions(async_test_db):
+    """Only revoked tokens left: the preview still names them."""
+    db = async_test_db
+    org = await make_org(db)
+    student = await make_user(db, name="Paula Pause")
+    await add_member(db, student, org, OrganizationRole.ANNOTATOR)
+    await db.commit()
+    for _ in range(2):
+        _token, row = await create_refresh_token_async(db, student.id)
+        row.is_active = False
+    await db.commit()
+
+    preview = await ua.anonymization_footprint(db, student.id)
+
+    assert preview["removes"]["sessions"] == 2
+    assert preview["removes"]["memberships"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_anonymized_account_cannot_sign_in_or_refresh(async_test_db):
     db = async_test_db
     w = await _student_with_everything(db)

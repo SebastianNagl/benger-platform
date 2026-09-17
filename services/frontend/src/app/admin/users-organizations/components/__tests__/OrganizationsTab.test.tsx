@@ -1750,12 +1750,56 @@ describe('OrganizationsTab', () => {
 
       render(<OrganizationsTab />)
 
+      // The role shows by its label, not by the enum name.
       await waitFor(
         () => {
-          expect(screen.getByText(/Your role: ORG_ADMIN/i)).toBeInTheDocument()
+          expect(screen.getByText('Your role: Admin')).toBeInTheDocument()
         },
         { timeout: 3000 },
       )
+      expect(screen.queryByText(/ORG_ADMIN/)).not.toBeInTheDocument()
+    })
+
+    it('shows member roles by their labels to members who cannot change them', async () => {
+      const contributorOrgs = mockOrganizations.map((org) => ({
+        ...org,
+        role: 'CONTRIBUTOR',
+      }))
+      mockUseAuth.mockReturnValue({
+        user: { ...mockUser, is_superadmin: false },
+        organizations: contributorOrgs,
+        refreshOrganizations: mockRefreshOrganizations,
+        apiClient: mockApiClient,
+      })
+      mockApiClient.getOrganizationMembers.mockResolvedValue([
+        {
+          user_id: 'user-7',
+          user_name: 'Olga Orgadmin',
+          user_email: 'olga@example.com',
+          role: 'ORG_ADMIN',
+          organization_id: 'org-1',
+          joined_at: '2024-01-05',
+        },
+        ...mockMembers,
+      ])
+
+      render(<OrganizationsTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Olga Orgadmin')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('member-role-badge-user-7')).toHaveTextContent(
+        /^Admin$/,
+      )
+      expect(screen.getByTestId('member-role-badge-user-2')).toHaveTextContent(
+        /^Contributor$/,
+      )
+      expect(screen.getByTestId('member-role-badge-user-3')).toHaveTextContent(
+        /^Annotator$/,
+      )
+      for (const raw of ['ORG_ADMIN', 'CONTRIBUTOR', 'ANNOTATOR']) {
+        expect(screen.queryByText(raw)).not.toBeInTheDocument()
+      }
     })
 
     it('should persist form fields when modal is cancelled and reopened', async () => {

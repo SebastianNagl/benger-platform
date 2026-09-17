@@ -57,6 +57,13 @@ interface OrganizationWithRole extends Organization {
   user_role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
 }
 
+// Localized labels for the org roles the API sends as enum names.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  ANNOTATOR: 'admin.organizations.roleAnnotator',
+  CONTRIBUTOR: 'admin.organizations.roleContributor',
+  ORG_ADMIN: 'admin.organizations.roleAdmin',
+}
+
 export function OrganizationsTab() {
   const {
     user: currentUser,
@@ -65,6 +72,8 @@ export function OrganizationsTab() {
     apiClient,
   } = useAuth()
   const { t } = useI18n()
+  const roleLabel = (role?: string | null) =>
+    role && ROLE_LABEL_KEYS[role] ? t(ROLE_LABEL_KEYS[role]) : (role ?? '')
   const { addToast } = useToast()
   const showError = useErrorAlert()
   const confirmDelete = useDeleteConfirm()
@@ -1045,7 +1054,7 @@ export function OrganizationsTab() {
                           {selectedOrganization.user_role && (
                             <Badge variant="secondary">
                               {t('admin.organizations.yourRole', {
-                                role: selectedOrganization.user_role,
+                                role: roleLabel(selectedOrganization.user_role),
                               })}
                             </Badge>
                           )}
@@ -1297,7 +1306,12 @@ export function OrganizationsTab() {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Badge variant="secondary">{member.role}</Badge>
+                          <Badge
+                            variant="secondary"
+                            data-testid={`member-role-badge-${member.user_id}`}
+                          >
+                            {roleLabel(member.role)}
+                          </Badge>
                         )}
 
                         {canManageOrg &&
