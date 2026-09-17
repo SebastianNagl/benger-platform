@@ -552,3 +552,95 @@ class TestBulkProjectRealNames:
         assert extensions.projects_real_name_user_ids(None, object(), wanted) == {
             "p1": set()
         }
+
+
+class _RollbackSession:
+    """Records rollbacks; the resend hook runs without a savepoint."""
+
+    def __init__(self, fail_rollback=False):
+        self.rollbacks = 0
+        self.fail_rollback = fail_rollback
+
+    def begin_nested(self):  # pragma: no cover - must not be used
+        raise AssertionError("resend_all_lti_grades must not open a savepoint")
+
+    def rollback(self):
+        self.rollbacks += 1
+        if self.fail_rollback:
+            raise RuntimeError("connection gone")
+
+
+class TestResendAllLtiGrades:
+    """``extensions.resend_all_lti_grades``: None without the hook, the
+    hook's dict otherwise, ``{"status": "failed"}`` when it breaks."""
+
+    def test_community_edition_has_no_resend(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.resend_all_lti_grades(None, "reg-1") is None
+        monkeypatch.setattr(extensions, "_extended", _FakeExtended({}))
+        assert extensions.resend_all_lti_grades(None, "reg-1") is None
+
+    def test_the_hook_answer_is_passed_through(self, monkeypatch):
+        import extensions
+
+        calls = []
+        answer = {"status": "queued", "transfers": 4}
+
+        def hook(db, registration_id):
+            calls.append((db, registration_id))
+            return answer
+
+        monkeypatch.setattr(
+            extensions, "_extended", _FakeExtended({"resend_all_lti_grades": hook})
+        )
+        db = _RollbackSession()
+
+        result = extensions.resend_all_lti_grades(db, 7)
+
+        assert result == answer
+        assert result is not answer
+        assert calls == [(db, "7")]
+        assert db.rollbacks == 0
+
+    def test_a_failing_hook_rolls_back_and_reports_failed(self, monkeypatch):
+        import extensions
+
+        logger = MagicMock()
+        monkeypatch.setattr(extensions, "logger", logger)
+        monkeypatch.setattr(
+            extensions, "_extended", _FakeExtended({"resend_all_lti_grades": _boom})
+        )
+        db = _RollbackSession()
+
+        assert extensions.resend_all_lti_grades(db, "reg-1") == {"status": "failed"}
+        assert db.rollbacks == 1
+        logger.exception.assert_called()
+
+        broken = _RollbackSession(fail_rollback=True)
+        assert extensions.resend_all_lti_grades(broken, "reg-1") == {"status": "failed"}
+        # A session without rollback (a test double) is fine too.
+        assert extensions.resend_all_lti_grades(None, "reg-1") == {"status": "failed"}
+
+    def test_a_wrong_answer_is_failed(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"resend_all_lti_grades": lambda db, rid: ["queued"]}),
+        )
+        assert extensions.resend_all_lti_grades(None, "reg-1") == {"status": "failed"}
+
+    def test_a_broken_hook_table_is_failed(self, monkeypatch):
+        import extensions
+
+        class _Broken:
+            def get_hooks(self):
+                raise RuntimeError("import error")
+
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        monkeypatch.setattr(extensions, "_extended", _Broken())
+        assert extensions.resend_all_lti_grades(None, "reg-1") == {"status": "failed"}

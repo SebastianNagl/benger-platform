@@ -1245,3 +1245,256 @@ def test_unlink_keeps_only_tool_bookkeeping_of_the_claims(claims, kept):
     from routers.lti_admin import _retained_claims
 
     assert _retained_claims(claims) == kept
+
+
+# --------------------------------------------------------------------------- #
+# Resend all grades of a connection
+# --------------------------------------------------------------------------- #
+def _resend_path(reg) -> str:
+    return f"{BASE}/registrations/{reg.id}/grade-syncs/resend-all"
+
+
+_RESEND_ANSWER = {
+    "status": "queued",
+    "activities": 2,
+    "activities_skipped": 1,
+    "activity_skip_reasons": {"not_linked": 1, "bogus": "x"},
+    "participants": 7,
+    "students": 5,
+    "transfers": 6,
+    "skipped": 2,
+    "skip_reasons": {"no_grade": 2},
+    "ignored": "value",
+}
+
+
+def _resend_hook(calls, answer=None):
+    def hook(sync_db, registration_id):
+        calls.append(registration_id)
+        return dict(answer or _RESEND_ANSWER)
+
+    return hook
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_all_needs_the_extended_hook(async_test_client, async_test_db):
+    world = await build_world(async_test_db)
+    reg = await make_registration(async_test_db, world.org)
+    await async_test_db.commit()
+
+    with as_user(world.org_admin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == 501, r.text
+    assert detail_code(r) == "grade_transfer_unavailable"
+    assert await _events(async_test_db, registration_id=reg.id) == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_all_queues_and_records_the_counts(
+    async_test_client, async_test_db, monkeypatch
+):
+    world = await build_world(async_test_db)
+    reg = await make_registration(async_test_db, world.org, name="Org Moodle")
+    await async_test_db.commit()
+    calls = []
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended({"resend_all_lti_grades": _resend_hook(calls)}),
+    )
+
+    with as_user(world.org_admin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == 202, r.text
+    assert r.json() == {
+        "registration_id": reg.id,
+        "status": "queued",
+        "activities": 2,
+        "activities_skipped": 1,
+        "activity_skip_reasons": {"not_linked": 1},
+        "participants": 7,
+        "students": 5,
+        "transfers": 6,
+        "skipped": 2,
+        "skip_reasons": {"no_grade": 2},
+    }
+    assert calls == [reg.id]
+
+    events = await _events(async_test_db, registration_id=reg.id)
+    assert [e.action for e in events] == ["grades_resend_all"]
+    assert events[0].actor_user_id == world.org_admin.id
+    assert events[0].organization_id == world.org.id
+    assert events[0].registration_name == "Org Moodle"
+    assert events[0].changes == {
+        "status": "queued",
+        "activities": 2,
+        "activities_skipped": 1,
+        "participants": 7,
+        "students": 5,
+        "transfers": 6,
+        "skipped": 2,
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_all_follows_the_admin_scope(
+    async_test_client, async_test_db, monkeypatch
+):
+    world = await build_world(async_test_db)
+    org_wide = await make_registration(async_test_db, world.org)
+    chair = await make_registration(async_test_db, world.org, group=world.group_a)
+    other_chair = await make_registration(async_test_db, world.org, group=world.group_b)
+    foreign = await make_registration(async_test_db, world.other_org)
+    await async_test_db.commit()
+    calls = []
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended({"resend_all_lti_grades": _resend_hook(calls)}),
+    )
+    client = async_test_client
+
+    matrix = [
+        (world.superadmin, foreign, 202),
+        (world.org_admin, org_wide, 202),
+        (world.org_admin, chair, 202),
+        (world.org_admin, foreign, 403),
+        (world.foreign_admin, org_wide, 403),
+        (world.group_admin, chair, 202),
+        (world.group_admin, other_chair, 403),
+        (world.group_admin, org_wide, 403),
+        (world.annotator_group_admin, chair, 202),
+        (world.contributor, chair, 403),
+        (world.member, org_wide, 403),
+        (world.stranger, org_wide, 403),
+    ]
+    for user, reg, expected in matrix:
+        with as_user(user):
+            r = await client.post(_resend_path(reg))
+        assert r.status_code == expected, (user.username, reg.name, r.text)
+
+    assert calls == [foreign.id, org_wide.id, chair.id, chair.id, chair.id]
+
+    with as_user(world.org_admin):
+        r = await client.post(f"{BASE}/registrations/{uuid.uuid4()}/grade-syncs/resend-all")
+    assert r.status_code == 404
+    assert detail_code(r) == "registration_not_found"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_all_on_a_protected_org_is_superadmin_only(
+    async_test_client, async_test_db, monkeypatch
+):
+    world = await build_world(async_test_db)
+    reg = await make_registration(async_test_db, world.org)
+    await async_test_db.commit()
+    calls = []
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended(
+            {
+                "resend_all_lti_grades": _resend_hook(calls),
+                "lti_protected_org_ids": lambda _db: {world.org.id},
+            }
+        ),
+    )
+
+    with as_user(world.org_admin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == 403
+    assert detail_code(r) == "connection_protected"
+    assert calls == []
+
+    with as_user(world.superadmin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == 202, r.text
+    assert calls == [reg.id]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "answer, status_code, code",
+    [
+        (
+            {
+                "status": "refused",
+                "code": "registration_disabled",
+                "message": "Die Anbindung ist aus.",
+                "http_status": 409,
+            },
+            409,
+            "registration_disabled",
+        ),
+        (
+            {"status": "refused", "code": "registration_not_found", "http_status": 404},
+            404,
+            "registration_not_found",
+        ),
+        # An unexpected status from the hook never leaks out.
+        ({"status": "refused", "http_status": 500}, 409, "grade_resend_refused"),
+        ({"status": "failed"}, 500, "grade_resend_failed"),
+        ({"status": "weird"}, 500, "grade_resend_failed"),
+    ],
+)
+async def test_resend_all_maps_refusals_and_failures(
+    async_test_client, async_test_db, monkeypatch, answer, status_code, code
+):
+    world = await build_world(async_test_db)
+    reg = await make_registration(async_test_db, world.org, status="disabled")
+    await async_test_db.commit()
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended({"resend_all_lti_grades": _resend_hook([], answer)}),
+    )
+
+    with as_user(world.org_admin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == status_code, r.text
+    assert detail_code(r) == code
+    assert r.json()["detail"]["message"]
+    if code == "registration_disabled":
+        assert r.json()["detail"]["message"] == "Die Anbindung ist aus."
+    assert await _events(async_test_db, registration_id=reg.id) == []
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_resend_all_with_nothing_to_send_is_recorded_too(
+    async_test_client, async_test_db, monkeypatch
+):
+    world = await build_world(async_test_db)
+    reg = await make_registration(async_test_db, world.org)
+    await async_test_db.commit()
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended(
+            {
+                "resend_all_lti_grades": _resend_hook(
+                    [], {"status": "nothing", "activities": 1, "skipped": True}
+                )
+            }
+        ),
+    )
+
+    with as_user(world.org_admin):
+        r = await async_test_client.post(_resend_path(reg))
+    assert r.status_code == 202, r.text
+    body = r.json()
+    assert (body["status"], body["activities"], body["transfers"], body["skipped"]) == (
+        "nothing",
+        1,
+        0,
+        0,
+    )
+    events = await _events(async_test_db, registration_id=reg.id)
+    assert [(e.action, e.changes["status"]) for e in events] == [
+        ("grades_resend_all", "nothing")
+    ]

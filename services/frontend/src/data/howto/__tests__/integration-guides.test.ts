@@ -68,6 +68,8 @@ const ILIAS = {
     en: 'User identification',
   },
   userId: { de: 'ID des ILIAS-Kontos', en: 'ILIAS user id' },
+  // Works technically, but the user id mode is the one supported setting
+  // (owner decision 2026-09-17), so the guides no longer offer it.
   hash: 'Hash@ILIAS-Plattform-ID.ilias',
   emailMode: { de: 'E-Mail-Adresse', en: 'E-Mail Address' },
   fullName: { de: 'Vollständiger Name', en: 'Entire name' },
@@ -601,13 +603,13 @@ describe('LTI guides: the ILIAS identification rule', () => {
   )
 
   it.each(['lti-setup', 'lti-privacy'])(
-    '%s recommends a mode without the email address and the full name',
+    '%s recommends the ILIAS user id mode and the full name',
     (id) => {
       for (const locale of LOCALES) {
         const text = body(id, locale)
         expect(text).toContain(ILIAS.identification[locale])
         expect(text).toContain(`**${ILIAS.userId[locale]} …**`)
-        expect(text).toContain(`**${ILIAS.hash}**`)
+        expect(text).not.toContain(ILIAS.hash)
         expect(text).toContain(`**${ILIAS.fullName[locale]}**`)
         expect(text).toContain(`*${ILIAS.emailMode[locale]}*`)
         // Every mention of the email mode warns against it.
@@ -623,15 +625,45 @@ describe('LTI guides: the ILIAS identification rule', () => {
           )
         }
       }
-      // ILIAS accounts get the name but no email address.
-      expect(body(id, 'de')).toMatch(/keine E-Mail-Adresse/)
-      expect(body(id, 'de')).toMatch(/keine Aktivierungsmail/)
-      expect(body(id, 'de')).toMatch(/keine Verknüpfung mit bestehenden Konten/)
-      expect(body(id, 'en')).toMatch(/no email address/)
-      expect(body(id, 'en')).toMatch(/no activation mail/)
-      expect(body(id, 'en')).toMatch(/no linking to existing accounts/)
+      // ILIAS sends the name but no email address, so the page asks once
+      // for one after consent.
+      const de = body(id, 'de')
+      const en = body(id, 'en')
+      expect(de).toMatch(/keine E-Mail-Adresse/)
+      expect(de).toMatch(/keine automatische Aktivierungsmail/)
+      expect(de).toMatch(/keine Verknüpfung mit bestehenden Konten/)
+      expect(de).toMatch(/fragt die Seite [^.]*einmal nach [^.]*E-Mail-Adresse/)
+      expect(de).not.toMatch(/keine Aktivierungsmail/)
+      expect(en).toMatch(/no email address/)
+      expect(en).toMatch(/no automatic activation mail/)
+      expect(en).toMatch(/no linking to existing accounts/)
+      expect(en).toMatch(/asks [^.]*once for [^.]*email address/)
+      expect(en).not.toMatch(/(?<!automatic )activation mail and no/)
     },
   )
+
+  it.each(['lti-setup', 'lti-privacy'])(
+    '%s says the address step can be skipped and its link activates',
+    (id) => {
+      expect(body(id, 'de')).toMatch(/Der Schritt lässt sich überspringen/)
+      expect(body(id, 'en')).toMatch(/The step can be skipped/)
+    },
+  )
+
+  it('lti-privacy explains the address step in full', () => {
+    const de = guide('lti-privacy').tips!.de.join('\n')
+    const en = guide('lti-privacy').tips!.en.join('\n')
+    expect(de).toMatch(/etwa alle Konten aus ILIAS/)
+    expect(de).toMatch(/erst, wenn die Person den Bestätigungslink öffnet/)
+    expect(de).toMatch(/schon zu einem anderen Konto gehört, wird abgelehnt/)
+    expect(de).toMatch(/hinterlegt die Adresse später in der App/)
+    expect(en).toMatch(/such as every account from ILIAS/)
+    expect(en).toMatch(/only once the person opens the confirmation link/)
+    expect(en).toMatch(/already belongs to another account is refused/)
+    expect(en).toMatch(/adds an address in the app later/)
+    expect(de).not.toMatch(/erhalten diese E-Mail nicht/)
+    expect(en).not.toMatch(/do not get this email/)
+  })
 
   it('asks for the provider settings ILIAS needs for grades', () => {
     for (const locale of LOCALES) {
@@ -656,6 +688,13 @@ describe('LTI guides: the ILIAS identification rule', () => {
       /ILIAS übermittelt keine E-Mail-Adresse/,
     )
     expect(body('lti-teacher', 'en')).toMatch(/ILIAS sends no email address/)
+    // Teachers are asked for their address too, with "Sie".
+    expect(body('lti-teacher', 'de')).toMatch(
+      /Die Seite fragt Sie dann einmal nach Ihrer E-Mail-Adresse/,
+    )
+    expect(body('lti-teacher', 'en')).toMatch(
+      /The page then asks you once for your email address/,
+    )
   })
 
   it('ts-lti-grades explains the ILIAS refusal and the fix first', () => {
@@ -666,7 +705,7 @@ describe('LTI guides: the ILIAS identification rule', () => {
       expect(first).toContain('ILIAS kennt die Person nicht')
       expect(first).toContain(ILIAS.identification[locale])
       expect(first).toContain(`**${ILIAS.userId[locale]} …**`)
-      expect(first).toContain(`**${ILIAS.hash}**`)
+      expect(first).not.toContain(ILIAS.hash)
       expect(first).toContain(
         `**${label(locale, 'extended.lti.admin.events.iliasEmailModeTitle')}**`,
       )
@@ -853,16 +892,20 @@ describe('public LMS integration doc', () => {
       expect(limits).toContain(ILIAS.masteryDefault[locale])
     }
     expect(limits).toContain(`*${ILIAS.userId.de}`)
-    expect(limits).toContain(ILIAS.hash)
+    expect(flatDoc).not.toContain(ILIAS.hash)
     expect(limits).toMatch(/Do not choose \*E-Mail-Adresse\*/)
     expect(limits).toMatch(/404 User not available/)
     expect(limits).toMatch(/This is an ILIAS issue/)
     expect(limits).toMatch(
-      /Accounts from ILIAS therefore carry the full name but no email address/,
+      /Accounts from ILIAS therefore start with the full name but no email address/,
     )
     expect(limits).toMatch(
-      /There is no activation mail and no linking to an existing account/,
+      /no automatic activation mail and no linking to an existing account/,
     )
+    expect(limits).toMatch(
+      /students and teachers are asked once for an email address\. The step can be skipped/,
+    )
+    expect(flatDoc).not.toMatch(/There is no activation mail/)
     const registering = section('### Connection settings')
     expect(registering).toMatch(/\*\*ILIAS privacy settings\.\*\*/)
     expect(registering).toMatch(
@@ -876,6 +919,13 @@ describe('public LMS integration doc', () => {
     )
     const accounts = section('### 8.1 Accounts and names')
     expect(accounts).toMatch(/An account from ILIAS gets the full name only/)
+    expect(accounts).toMatch(/\*\*Asked once for an address\.\*\*/)
+    expect(accounts).toMatch(/That link is the activation mail/)
+    expect(accounts).toMatch(/The person can skip the step/)
+    expect(accounts).toMatch(/already uses is refused with a clear message/)
+    expect(accounts).toMatch(
+      /comes once per connection, and again only\s+when the consent version changes/,
+    )
     const requirements = section('## 9. Requirements on your LMS')
     expect(requirements).toMatch(/never by \*E-Mail-Adresse\*/)
     expect(requirements).toContain(ILIAS.grading.de)
@@ -904,7 +954,6 @@ describe('public LMS integration doc', () => {
       '„Unterstützung für Deep Linking“: **aus**',
       `„${ILIAS.grading.de}“: **aktivieren**`,
       `„${ILIAS.identification.de}“: **„ID des ILIAS-Kontos kombiniert mit einer eindeutigen ILIAS-Plattform-ID, die als E-Mail-Adresse formatiert ist“**`,
-      `„${ILIAS.hash}“`,
       'Bitte **nicht** „E-Mail-Adresse“ wählen',
       `„Anmeldename“: **„${ILIAS.fullName.de}“**`,
       `„${ILIAS.outcome.de}“ **anhaken**`,
@@ -914,12 +963,16 @@ describe('public LMS integration doc', () => {
       '„Tracking aktivieren“ „Lernfortschritt“ anhaken',
       '„Optionen für den Start“: **„Neues Fenster“**',
       '„Optionen für den Lernfortschritt“',
-      'keine E-Mail-Adresse',
-      'keine Aktivierungsmail',
+      'keine echte E-Mail-Adresse',
+      'einmal nach ihrer E-Mail-Adresse gefragt',
+      'Der Schritt lässt sich überspringen',
+      'zugleich die Aktivierungsmail',
     ]) {
       expect(sheet).toContain(text)
     }
     for (const stale of [
+      ILIAS.hash,
+      'keine Aktivierungsmail',
       'Add Global Provider',
       'Erweiterung von ILIAS',
       'Advanced Grading Services',

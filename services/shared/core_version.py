@@ -148,7 +148,15 @@ whenever one is added, renamed or removed):
   history ``GET /api/admin/lti/events`` (``organization_id``,
   ``registration_id``, ``deleted_only``; also invites and deleted
   connections, group admins see their groups' entries), grade transfers with
-  context and a retry that dispatches through ``dispatch_lti_grade_sync``.
+  context and a retry that dispatches through ``dispatch_lti_grade_sync``,
+  and ``POST /registrations/{id}/grade-syncs/resend-all`` (202, "resend all
+  grades" of a connection, a ``grades_resend_all`` event with counts) through
+  the optional API hook ``resend_all_lti_grades(db, registration_id) ->
+  dict`` (``status`` queued, scheduled, nothing or refused with ``code``,
+  ``message`` and ``http_status``; may commit ``db`` when its queue is down;
+  501 ``grade_transfer_unavailable`` without it). Its Celery task
+  ``tasks.lti_resend_all_grades`` is routed to ``interactive`` in
+  ``celery_queues``.
   Moving a connection to another group or org, and deleting one, re-derives
   the org's LMS-linking attachments of its exams
   (``org_groups.sync_lti_attachments(_async)``, ``collapse_linking_groups``,

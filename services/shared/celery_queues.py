@@ -85,6 +85,10 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.auto_submit_expired_timer": INTERACTIVE,  # extended; ETA, see note below
     "tasks.update_report_annotations_async": INTERACTIVE,
     "tasks.lti_push_grade": INTERACTIVE,  # extended
+    # extended; "resend all grades" of an LMS activity or connection. A short
+    # fan-out (marks rows, queues staggered lti_push_grade tasks) next to the
+    # pushes it queues.
+    "tasks.lti_resend_all_grades": INTERACTIVE,
     # --- emails: rate-limited, own pool ---
     "emails.send_invitation": EMAILS,
     "emails.send_bulk_invitations": EMAILS,
@@ -131,6 +135,7 @@ EXTENDED_TASK_NAMES = frozenset(
         "tasks.grade_and_schedule_card",
         "tasks.auto_submit_expired_timer",
         "tasks.lti_push_grade",
+        "tasks.lti_resend_all_grades",
         "tasks.reconcile_grading_usage",
         "tasks.lti_grade_sync_sweep",
         "tasks.generate_bewertungsbogen",

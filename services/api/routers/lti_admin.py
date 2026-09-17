@@ -33,8 +33,10 @@ platform-owned ``lti_*`` tables. It contains NO LTI protocol logic: the OIDC
 login/launch endpoints, Dynamic Registration and the AGS grade-passback
 client live in ``benger_extended`` (which is why the tool URLs point at
 ``/api/lti/*`` routes that only exist in the extended edition). Grade pushes
-are queued through the ``dispatch_lti_grade_sync`` hook. The community
-edition ships this admin surface over an otherwise-dormant schema.
+are queued through the ``dispatch_lti_grade_sync`` hook, "resend all
+grades" of a connection through ``resend_all_lti_grades`` (501 without it).
+The community edition ships this admin surface over an otherwise-dormant
+schema.
 """
 
 import hashlib
@@ -45,6 +47,7 @@ from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -2208,3 +2211,128 @@ async def retry_grade_sync(
         model=LtiGradeSyncRetryRead,
         dispatched=dispatched,
     )
+
+
+# Counts the resend hook reports; the audit row keeps them, never ids of
+# people.
+_RESEND_COUNT_KEYS = (
+    "activities",
+    "activities_skipped",
+    "participants",
+    "students",
+    "transfers",
+    "skipped",
+)
+_RESEND_DONE_STATUSES = ("queued", "scheduled", "nothing")
+_RESEND_REFUSAL_STATUSES = (
+    status.HTTP_404_NOT_FOUND,
+    status.HTTP_409_CONFLICT,
+)
+
+
+def _count_map(raw: Any) -> Dict[str, int]:
+    """A ``{reason: count}`` map from the hook, with plain values only."""
+    if not isinstance(raw, dict):
+        return {}
+    out: Dict[str, int] = {}
+    for key, value in raw.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        out[str(key)[:64]] = int(value)
+    return out
+
+
+def _count_value(raw: Any) -> int:
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return 0
+    return int(raw)
+
+
+class LtiGradeResendAllRead(BaseModel):
+    """Answer of "resend all grades" for one connection."""
+
+    registration_id: str
+    # queued | scheduled (the hourly sweep sends them) | nothing
+    status: str
+    activities: int = 0
+    activities_skipped: int = 0
+    activity_skip_reasons: Dict[str, int] = Field(default_factory=dict)
+    participants: int = 0
+    students: int = 0
+    transfers: int = 0
+    skipped: int = 0
+    skip_reasons: Dict[str, int] = Field(default_factory=dict)
+
+
+@router.post(
+    "/registrations/{registration_id}/grade-syncs/resend-all",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=LtiGradeResendAllRead,
+)
+async def resend_all_grade_syncs(
+    registration_id: str,
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Send every current grade of a connection to the LMS again.
+
+    Same scope as the retry. The extended ``resend_all_lti_grades`` hook
+    checks the connection and queues the transfers of every activity, also
+    unchanged grades. 202 with the counts; ``status`` is ``queued``,
+    ``scheduled`` (the queue was unreachable, the hourly sweep sends them)
+    or ``nothing``. 404/409 with the hook's code when it refuses (for
+    example ``registration_disabled``, ``org_inactive``,
+    ``deployment_disabled``). 501 ``grade_transfer_unavailable`` without
+    the hook (community edition), 500 ``grade_resend_failed`` when the hook
+    fails. Writes a ``grades_resend_all`` event with the counts.
+    """
+    reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
+    reg_id, reg_name = reg.id, reg.name
+    org_id, group_id = reg.organization_id, reg.group_id
+
+    result = await db.run_sync(
+        lambda session: extensions.resend_all_lti_grades(session, reg_id)
+    )
+    if result is None:
+        raise _error(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            "grade_transfer_unavailable",
+            "Sending grades to a learning platform is not part of this edition.",
+        )
+    outcome = result.get("status")
+    if outcome == "refused":
+        http_status = result.get("http_status")
+        if http_status not in _RESEND_REFUSAL_STATUSES:
+            http_status = status.HTTP_409_CONFLICT
+        raise _error(
+            http_status,
+            str(result.get("code") or "grade_resend_refused"),
+            str(result.get("message") or "The grades cannot be sent now."),
+        )
+    if outcome not in _RESEND_DONE_STATUSES:
+        raise _error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "grade_resend_failed",
+            "The grades could not be queued. Please try again later.",
+        )
+
+    counts = {key: _count_value(result.get(key)) for key in _RESEND_COUNT_KEYS}
+    body = LtiGradeResendAllRead(
+        registration_id=reg_id,
+        status=outcome,
+        activity_skip_reasons=_count_map(result.get("activity_skip_reasons")),
+        skip_reasons=_count_map(result.get("skip_reasons")),
+        **counts,
+    )
+    _record_event(
+        db,
+        organization_id=org_id,
+        actor=current_user,
+        action="grades_resend_all",
+        registration_id=reg_id,
+        registration_name=reg_name,
+        group_id=group_id,
+        changes={"status": outcome, **counts},
+    )
+    await db.commit()
+    return body

@@ -6415,7 +6415,7 @@
       "noAnnotations": "No annotations yet",
       "annotationSaved": "Annotation saved successfully",
       "annotationFailed": "Failed to save annotation",
-      "tip": "Tip: Use keyboard shortcuts for faster annotation",
+      "tip": "Tip: Keyboard shortcuts make this faster.",
       "atLeastOne": "Please provide at least one annotation",
       "fieldRequired": "{fieldName} is required",
       "submissionError": "An error occurred during submission",
@@ -8808,7 +8808,13 @@
       },
       "examResult": {
         "sourceHuman": "Human grade",
-        "sourceAi": "AI grade"
+        "sourceAi": "AI grade",
+        "finalLabel": "Grade",
+        "fromHuman": "from the human grading",
+        "fromAi": "from the AI grading",
+        "countsForGrade": "Counts for your grade",
+        "extraOpinion": "Additional assessment, does not count for your grade",
+        "extraShort": "Does not count for your grade"
       },
       "participants": {
         "anonymized": "Anonymized",
@@ -9032,7 +9038,8 @@
             "registration_deleted": "Connection deleted",
             "registration_updated": "Connection changed",
             "user_anonymized": "Account anonymized",
-            "user_link_unlinked": "LMS link removed"
+            "user_link_unlinked": "LMS link removed",
+            "grades_resend_all": "All grades sent again"
           },
           "actorDynamicRegistration": "Learning platform via invitation link",
           "actorDynamicRegistrationBy": "Learning platform via invite link from {actor}",
@@ -9086,13 +9093,19 @@
             "unlinked_project_ids": "Exams no longer linked",
             "user_id": "Account",
             "user_link_id": "LMS link",
-            "user_links": "LMS accounts"
+            "user_links": "LMS accounts",
+            "activities": "Activities with grades",
+            "activities_skipped": "Skipped activities",
+            "participants": "Participants",
+            "students": "Participants with a grade",
+            "transfers": "Transfers",
+            "skipped": "Skipped participants"
           },
           "fields": "Fields: {fields}",
           "hostMismatch": "On {date}, the learning platform called the tool through the other address. The launch worked. Please check the tool URLs in the learning platform.",
           "hostMismatchWithHost": "On {date}, the learning platform called the tool through {host}, not through the chosen address. The launch worked. Please check the tool URLs in the learning platform.",
           "iliasEmailMode": "On {date}, ILIAS sent the email address as identifier (mode “E-Mail Address”). In ILIAS 10.9 every grade transfer fails in this mode with “User not available”.",
-          "iliasEmailModeFix": "How to fix it: in the ILIAS provider, under “User identification”, choose a mode without the email address, best “ILIAS user id …”. For the user name, choose “Entire name”.",
+          "iliasEmailModeFix": "How to fix it: in the ILIAS provider, under “User identification”, choose “ILIAS user id …”. For the user name, choose “Entire name”.",
           "iliasEmailModeRelink": "After that, the identifier of every person changes. Existing links no longer match. On the next launch, each person consents again and gets a new account. Earlier submissions stay with the old account.",
           "iliasEmailModeTitle": "Grade transfer to ILIAS fails",
           "loadError": "The history could not be loaded.",
@@ -9107,8 +9120,8 @@
         "iliasWarningEmailMode": "Do not choose “E-Mail Address”. In ILIAS 10.9 every grade transfer fails in this mode with “User not available”.",
         "iliasWarningJwks": "Under “Public Key Type”, choose “URL (Json Web Token)” and enter the JWKS URL. Do not paste an RSA key. ILIAS checks the tool's signatures only through the URL. Otherwise grade transfer fails.",
         "iliasWarningMastery": "Turn on “Provider supports Outcome Service”. Only then can you set the mastery score. ILIAS shows grades as learning progress relative to this value. Recommendation: about 22 (4 of 18 points count as passed), not the default 80. An object takes over the value when it is created. Check it in existing objects under “Options for Learning Progress”.",
-        "iliasWarningNoEmail": "In these modes ILIAS sends no real email address. The accounts then carry the full name but no deliverable address. There is no activation email and no linking to existing accounts.",
-        "iliasWarningPrivacy": "Under “User identification”, choose a mode without the email address. We recommend “ILIAS user id …”. “Hash combined with …” gives more pseudonymity. For the user name, choose “Entire name”. Do not change the identification after the first launch. Otherwise all linked accounts lose their mapping.",
+        "iliasWarningNoEmail": "In this mode ILIAS sends no real email address. The accounts carry the full name. Right after consent, people are asked once for their email address. The link in the confirmation email activates the account. There is no linking to existing accounts at the first launch.",
+        "iliasWarningPrivacy": "Under “User identification”, choose “ILIAS user id …”. For the user name, choose “Entire name”. Do not change the identification after the first launch. Otherwise all linked accounts lose their mapping.",
         "iliasWarningProvider": "Create a global provider in ILIAS. Under “Availability”, choose “For Creating Objects”. Turn on “Advanced Grading Services”. Otherwise no grades arrive.",
         "iliasWarningsTitle": "ILIAS notes",
         "instructorRole": "Org role for teachers",
@@ -9193,7 +9206,29 @@
           "title": "Grade transfers",
           "unknownStudent": "Unknown person"
         },
-        "urlDefaults": "Apply default URLs"
+        "urlDefaults": "Apply default URLs",
+        "resendAllTitle": "Send all grades again",
+        "resendAllIntro": "Sends every current grade of all activities of a connection again, including unchanged ones. Use it after an outage of the learning platform, after changed column settings or after a new grading key.",
+        "resendAllButton": "Send all grades of “{name}” again",
+        "resendAllRunning": "Sending the grades of “{name}” …",
+        "resendAllOff": "“{name}” is switched off. Grades go out again only after it is switched on.",
+        "resendAllConfirmTitle": "Send all grades of “{name}” again?",
+        "resendAllBody": "All current grades of all activities of this connection are sent to the learning platform again, including unchanged ones. The values sent replace the ones transferred last.",
+        "resendAllMoodleNote": "Moodle leaves grades unchanged that were overridden or locked in its gradebook. In the column “KI-Bewertung”, the value sent also replaces a change made by hand.",
+        "resendAllConfirm": "Send grades",
+        "resendAllQueued": "{name}: the grades of {students} participants in {activities} activities are being sent again.",
+        "resendAllScheduled": "{name}: the grades of {students} participants in {activities} activities go to the learning platform again with the next hourly run.",
+        "resendAllNothing": "{name}: there are no grades to send.",
+        "resendAllSkipped": "{count} participants skipped (no grade, no consent or anonymized).",
+        "resendAllActivitiesSkipped": "{count} activities skipped (no exam, several tasks, no grade column or a switched-off deployment ID).",
+        "resendAllError": "The grades could not be sent again.",
+        "resendAllErrors": {
+          "grade_transfer_unavailable": "This installation does not send grades to learning platforms.",
+          "registration_disabled": "The connection is switched off. Switch it on first.",
+          "org_inactive": "The organization of this connection is deactivated.",
+          "deployment_disabled": "All deployment IDs of this connection are switched off. Switch one on first.",
+          "grade_resend_failed": "The grades could not be scheduled. Please try again later."
+        }
       },
       "consent": {
         "continue": "Continue",
@@ -9222,6 +9257,31 @@
         "submitting": "Saving …",
         "title": "Consent required",
         "unavailableTitle": "Activity unavailable"
+      },
+      "emailPrompt": {
+        "continue": "Continue",
+        "emailLabel": "Email address",
+        "failed": "The link could not be sent. Try again or skip this step.",
+        "formal": {
+          "failed": "The link could not be sent. Try again or skip this step.",
+          "intro": "With your email address you can also sign in without the learning platform and receive notifications by email.",
+          "invalid": "Please enter a valid email address.",
+          "sentBody": "We sent a link to {email}. Use it to confirm the address and set a password.",
+          "skipHint": "You can do this later in your profile.",
+          "taken": "This address already belongs to an account. Use another address or skip this step."
+        },
+        "intro": "With your email address you can also sign in without the learning platform and get notifications about your grades.",
+        "invalid": "Please enter a valid email address.",
+        "placeholder": "name@university.edu",
+        "send": "Send confirmation link",
+        "sending": "Sending …",
+        "sentBody": "We sent a link to {email}. Use it to confirm the address and set a password.",
+        "sentTitle": "Link sent",
+        "skip": "Skip",
+        "skipHint": "You can do this later in your profile.",
+        "taken": "This address already belongs to an account. Use another address or skip this step.",
+        "title": "Add your email address",
+        "validity": "The link is valid for 7 days."
       },
       "identity": {
         "formal": {
@@ -9526,13 +9586,28 @@
         "submitted": "Submitted",
         "summary": "{participants} participants · {submitted} submissions · {aiGraded} with AI grade · {humanGraded} graded by a person · {failed} with transfer errors",
         "syncErrorUnreadable": "The learning platform answered with an error page.",
+        "differs": "Differs from the learning platform",
+        "differsHint": "The learning platform still shows a different value than the current grade. \"Send again\" transfers the current grade.",
         "syncFailed": "Failed",
         "syncIdle": "No grade yet",
         "syncPending": "Being transferred",
         "syncSkipped": "Skipped",
         "syncSynced": "Transferred",
         "tableTitle": "Submissions and grades",
-        "unlinked": "This activity is not linked to an exam yet."
+        "unlinked": "This activity is not linked to an exam yet.",
+        "resendAll": "Send all grades again",
+        "resendAllRunning": "Sending …",
+        "resendAllHint": "Sends every current grade again, for example after an outage of the learning platform, after changed column settings or after a new grading key.",
+        "resendAllTitle": "Send all grades again?",
+        "resendAllBody": "All current grades of this activity are sent to the learning platform again, including unchanged ones. The values sent replace the ones transferred last.",
+        "resendAllMoodleNote": "Moodle leaves grades unchanged that were overridden or locked in its gradebook. In the column “KI-Bewertung”, the value sent also replaces a change made by hand.",
+        "resendAllConfirm": "Send grades",
+        "resendAllQueued": "The grades of {students} participants are being sent again.",
+        "resendAllScheduled": "The grades of {students} participants go to the learning platform again with the next hourly run.",
+        "resendAllNothing": "There are no grades to send.",
+        "resendAllSkippedNoGrade": "{count} without a grade skipped.",
+        "resendAllSkippedOther": "{count} without consent or with an anonymized account skipped.",
+        "resendAllDeploymentOff": "The deployment ID of this activity is switched off or no longer registered in the connection. Please contact your organization admin."
       },
       "picker": {
         "blockEmpty": "This exam has no task yet.",
@@ -10024,9 +10099,9 @@
       "you": "You"
     },
     "ltiAccess": {
-      "alreadyActivated": "Your account is already activated — you can sign in directly.",
+      "alreadyActivated": "Your account is already activated. You can sign in directly.",
       "changeAddress": "Change address / resend",
-      "description": "So far you have been using Vertretbar through your university's learning platform (e.g. Moodle or ILIAS). Add your email address to also get a direct login with a password — your exams and results are kept.",
+      "description": "So far you have used your account only through your university's learning platform (e.g. Moodle or ILIAS). Add your email address to also get a direct login with a password. Your exams and results are kept.",
       "emailPlaceholder": "your@university-mail.com",
       "emailTaken": "This email address is already in use. Please use a different address.",
       "genericError": "That didn't work. Please try again later.",

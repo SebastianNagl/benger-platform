@@ -6415,7 +6415,7 @@
       "skipShortcut": "(Strg+ESC)",
       "submitShortcut": "(Strg+Enter)",
       "confirmDone": "Ich bestätige, dass ich die Annotationsanweisungen gelesen habe und bereit bin, abzuschicken",
-      "tip": "Tipp: Verwenden Sie Tastenkombinationen für schnellere Annotation",
+      "tip": "Tipp: Mit Tastenkombinationen geht es schneller.",
       "atLeastOne": "Bitte geben Sie mindestens eine Annotation an",
       "fieldRequired": "{fieldName} ist erforderlich",
       "submissionError": "Beim Absenden ist ein Fehler aufgetreten",
@@ -8816,7 +8816,13 @@
       },
       "examResult": {
         "sourceHuman": "Korrektur",
-        "sourceAi": "KI-Bewertung"
+        "sourceAi": "KI-Bewertung",
+        "finalLabel": "Note",
+        "fromHuman": "aus der Korrektur",
+        "fromAi": "aus der KI-Bewertung",
+        "countsForGrade": "Zählt für deine Note",
+        "extraOpinion": "Zusätzliche Einschätzung, zählt nicht für deine Note",
+        "extraShort": "Zählt nicht für deine Note"
       },
       "participants": {
         "anonymized": "Anonymisiert",
@@ -9040,7 +9046,8 @@
             "registration_deleted": "Anbindung gelöscht",
             "registration_updated": "Anbindung geändert",
             "user_anonymized": "Konto anonymisiert",
-            "user_link_unlinked": "LMS-Verknüpfung gelöst"
+            "user_link_unlinked": "LMS-Verknüpfung gelöst",
+            "grades_resend_all": "Alle Noten erneut gesendet"
           },
           "actorDynamicRegistration": "Lernplattform über Einladungslink",
           "actorDynamicRegistrationBy": "Lernplattform über Einladungslink von {actor}",
@@ -9094,13 +9101,19 @@
             "unlinked_project_ids": "Nicht mehr verknüpfte Klausuren",
             "user_id": "Konto",
             "user_link_id": "LMS-Verknüpfung",
-            "user_links": "LMS-Konten"
+            "user_links": "LMS-Konten",
+            "activities": "Aktivitäten mit Noten",
+            "activities_skipped": "Übersprungene Aktivitäten",
+            "participants": "Teilnehmende",
+            "students": "Teilnehmende mit Note",
+            "transfers": "Übertragungen",
+            "skipped": "Übersprungene Teilnehmende"
           },
           "fields": "Felder: {fields}",
           "hostMismatch": "Die Lernplattform hat das Tool am {date} über die andere Adresse aufgerufen. Der Start hat funktioniert. Bitte prüfen Sie die Tool-URLs in der Lernplattform.",
           "hostMismatchWithHost": "Die Lernplattform hat das Tool am {date} über {host} aufgerufen, nicht über die gewählte Adresse. Der Start hat funktioniert. Bitte prüfen Sie die Tool-URLs in der Lernplattform.",
           "iliasEmailMode": "Am {date} hat ILIAS die E-Mail-Adresse als Kennung gesendet (Modus „E-Mail-Adresse“). In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“.",
-          "iliasEmailModeFix": "So beheben Sie das: Wählen Sie im ILIAS-Provider unter „Identifikation der Person“ einen Modus ohne E-Mail-Adresse, am besten „ID des ILIAS-Kontos …“. Wählen Sie beim Namen „Vollständiger Name“.",
+          "iliasEmailModeFix": "So beheben Sie das: Wählen Sie im ILIAS-Provider unter „Identifikation der Person“ den Modus „ID des ILIAS-Kontos …“. Wählen Sie beim Namen „Vollständiger Name“.",
           "iliasEmailModeRelink": "Danach ändert sich die Kennung jeder Person. Bestehende Verknüpfungen passen nicht mehr. Beim nächsten Start stimmt jede Person erneut zu und erhält ein neues Konto. Bisherige Abgaben bleiben beim alten Konto.",
           "iliasEmailModeTitle": "Notenübertragung nach ILIAS scheitert",
           "loadError": "Der Verlauf konnte nicht geladen werden.",
@@ -9115,8 +9128,8 @@
         "iliasWarningEmailMode": "Wählen Sie nicht „E-Mail-Adresse“. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“.",
         "iliasWarningJwks": "Wählen Sie bei „Typ des öffentlichen Schlüssels“ die Option „URL (Json Web Token)“ und tragen Sie die JWKS-URL ein. Fügen Sie keinen RSA-Schlüssel ein. ILIAS prüft die Signaturen des Tools nur über die URL. Sonst schlägt die Notenübertragung fehl.",
         "iliasWarningMastery": "Aktivieren Sie „Provider unterstützt Outcome Service“. Erst dann können Sie den Mastery Score setzen. ILIAS zeigt Noten als Lernfortschritt relativ zu diesem Wert. Empfehlung: etwa 22 (4 von 18 Punkten gelten als bestanden), nicht der Standardwert 80. Ein Objekt übernimmt den Wert beim Anlegen. Prüfen Sie ihn in bestehenden Objekten unter „Optionen für den Lernfortschritt“.",
-        "iliasWarningNoEmail": "In diesen Modi sendet ILIAS keine echte E-Mail-Adresse. Die Konten tragen dann den vollen Namen, aber keine zustellbare Adresse. Es gibt keine Aktivierungsmail und keine Verknüpfung mit bestehenden Konten.",
-        "iliasWarningPrivacy": "Wählen Sie bei „Identifikation der Person“ einen Modus ohne E-Mail-Adresse. Empfohlen ist „ID des ILIAS-Kontos …“. Mehr Pseudonymität bietet „Hash@ILIAS-Plattform-ID.ilias“. Wählen Sie beim Namen „Vollständiger Name“. Ändern Sie die Identifikation nach dem ersten Start nicht mehr. Sonst verlieren alle verknüpften Konten ihre Zuordnung.",
+        "iliasWarningNoEmail": "In diesem Modus sendet ILIAS keine echte E-Mail-Adresse. Die Konten tragen den vollen Namen. Direkt nach der Einwilligung werden die Personen einmal nach ihrer E-Mail-Adresse gefragt. Der Link in der Bestätigungsmail aktiviert das Konto. Eine Verknüpfung mit bestehenden Konten beim ersten Start gibt es nicht.",
+        "iliasWarningPrivacy": "Wählen Sie bei „Identifikation der Person“ den Modus „ID des ILIAS-Kontos …“. Wählen Sie beim Namen „Vollständiger Name“. Ändern Sie die Identifikation nach dem ersten Start nicht mehr. Sonst verlieren alle verknüpften Konten ihre Zuordnung.",
         "iliasWarningProvider": "Legen Sie in ILIAS einen globalen Provider an. Wählen Sie bei „Verfügbarkeit“ die Option „in neuen und bestehenden Objekten“. Schalten Sie „Erweiterte Benotungsdienste“ ein. Sonst kommen keine Noten an.",
         "iliasWarningsTitle": "ILIAS-Hinweise",
         "instructorRole": "Org-Rolle für Lehrende",
@@ -9201,7 +9214,29 @@
           "title": "Notenübertragungen",
           "unknownStudent": "Unbekannte Person"
         },
-        "urlDefaults": "Standard-URLs übernehmen"
+        "urlDefaults": "Standard-URLs übernehmen",
+        "resendAllTitle": "Alle Noten erneut senden",
+        "resendAllIntro": "Sendet jede aktuelle Note aller Aktivitäten einer Anbindung erneut, auch unveränderte. Nutzen Sie das nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel.",
+        "resendAllButton": "Alle Noten von „{name}“ erneut senden",
+        "resendAllRunning": "Noten von „{name}“ werden gesendet …",
+        "resendAllOff": "„{name}“ ist ausgeschaltet. Noten gehen erst nach dem Einschalten wieder hinaus.",
+        "resendAllConfirmTitle": "Alle Noten von „{name}“ erneut senden?",
+        "resendAllBody": "Alle aktuellen Noten aller Aktivitäten dieser Anbindung werden erneut an die Lernplattform gesendet, auch unveränderte. Die gesendeten Werte ersetzen die zuletzt übertragenen.",
+        "resendAllMoodleNote": "Moodle lässt Noten unverändert, die in der Bewertungsübersicht überschrieben oder gesperrt wurden. In der Spalte „KI-Bewertung“ ersetzt der gesendete Wert auch eine Änderung von Hand.",
+        "resendAllConfirm": "Noten senden",
+        "resendAllQueued": "{name}: Die Noten von {students} Teilnehmenden in {activities} Aktivitäten werden erneut gesendet.",
+        "resendAllScheduled": "{name}: Die Noten von {students} Teilnehmenden in {activities} Aktivitäten gehen mit der nächsten stündlichen Runde erneut an die Lernplattform.",
+        "resendAllNothing": "{name}: Es gibt keine Noten zum Senden.",
+        "resendAllSkipped": "{count} Teilnehmende übersprungen (ohne Note, ohne Zustimmung oder anonymisiert).",
+        "resendAllActivitiesSkipped": "{count} Aktivitäten übersprungen (ohne Klausur, mit mehreren Aufgaben, ohne Bewertungsspalte oder mit abgeschalteter Deployment-ID).",
+        "resendAllError": "Die Noten konnten nicht erneut gesendet werden.",
+        "resendAllErrors": {
+          "grade_transfer_unavailable": "Diese Installation überträgt keine Noten an Lernplattformen.",
+          "registration_disabled": "Die Anbindung ist ausgeschaltet. Schalten Sie sie zuerst ein.",
+          "org_inactive": "Die Organisation dieser Anbindung ist deaktiviert.",
+          "deployment_disabled": "Alle Deployment-IDs dieser Anbindung sind abgeschaltet. Schalten Sie zuerst eine ein.",
+          "grade_resend_failed": "Die Noten konnten nicht eingeplant werden. Bitte versuchen Sie es später erneut."
+        }
       },
       "consent": {
         "continue": "Weiter",
@@ -9230,6 +9265,31 @@
         "submitting": "Wird gespeichert …",
         "title": "Zustimmung erforderlich",
         "unavailableTitle": "Aktivität nicht verfügbar"
+      },
+      "emailPrompt": {
+        "continue": "Weiter",
+        "emailLabel": "E-Mail-Adresse",
+        "failed": "Der Link konnte nicht gesendet werden. Versuch es noch einmal oder überspring diesen Schritt.",
+        "formal": {
+          "failed": "Der Link konnte nicht gesendet werden. Versuchen Sie es noch einmal oder überspringen Sie diesen Schritt.",
+          "intro": "Mit Ihrer E-Mail-Adresse können Sie sich auch ohne Lernplattform anmelden und erhalten Benachrichtigungen per E-Mail.",
+          "invalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+          "sentBody": "Wir haben Ihnen einen Link an {email} geschickt. Damit bestätigen Sie die Adresse und legen ein Passwort fest.",
+          "skipHint": "Sie können das später im Profil nachholen.",
+          "taken": "Diese Adresse gehört schon zu einem Konto. Nehmen Sie eine andere Adresse oder überspringen Sie diesen Schritt."
+        },
+        "intro": "Mit deiner E-Mail-Adresse kannst du dich auch ohne Lernplattform anmelden und bekommst Benachrichtigungen über deine Noten.",
+        "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
+        "placeholder": "name@uni.de",
+        "send": "Bestätigungslink senden",
+        "sending": "Wird gesendet …",
+        "sentBody": "Wir haben dir einen Link an {email} geschickt. Damit bestätigst du die Adresse und legst ein Passwort fest.",
+        "sentTitle": "Link verschickt",
+        "skip": "Überspringen",
+        "skipHint": "Du kannst das später im Profil nachholen.",
+        "taken": "Diese Adresse gehört schon zu einem Konto. Nimm eine andere Adresse oder überspring diesen Schritt.",
+        "title": "E-Mail-Adresse hinterlegen",
+        "validity": "Der Link gilt 7 Tage."
       },
       "identity": {
         "formal": {
@@ -9534,13 +9594,28 @@
         "submitted": "Abgegeben",
         "summary": "{participants} Teilnehmende · {submitted} Abgaben · {aiGraded} mit KI-Note · {humanGraded} korrigiert · {failed} mit Übertragungsfehler",
         "syncErrorUnreadable": "Die Lernplattform hat mit einer Fehlerseite geantwortet.",
+        "differs": "Weicht von der Lernplattform ab",
+        "differsHint": "Die Lernplattform zeigt noch einen anderen Wert als die aktuelle Note. Mit „Erneut senden“ übertragen Sie die aktuelle Note.",
         "syncFailed": "Fehlgeschlagen",
         "syncIdle": "Noch keine Note",
         "syncPending": "Wird übertragen",
         "syncSkipped": "Übersprungen",
         "syncSynced": "Übertragen",
         "tableTitle": "Abgaben und Noten",
-        "unlinked": "Diese Aktivität ist noch mit keiner Klausur verknüpft."
+        "unlinked": "Diese Aktivität ist noch mit keiner Klausur verknüpft.",
+        "resendAll": "Alle Noten erneut senden",
+        "resendAllRunning": "Wird gesendet …",
+        "resendAllHint": "Sendet jede aktuelle Note erneut, zum Beispiel nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel.",
+        "resendAllTitle": "Alle Noten erneut senden?",
+        "resendAllBody": "Alle aktuellen Noten dieser Aktivität werden erneut an die Lernplattform gesendet, auch unveränderte. Die gesendeten Werte ersetzen die zuletzt übertragenen.",
+        "resendAllMoodleNote": "Moodle lässt Noten unverändert, die in der Bewertungsübersicht überschrieben oder gesperrt wurden. In der Spalte „KI-Bewertung“ ersetzt der gesendete Wert auch eine Änderung von Hand.",
+        "resendAllConfirm": "Noten senden",
+        "resendAllQueued": "Die Noten von {students} Teilnehmenden werden erneut gesendet.",
+        "resendAllScheduled": "Die Noten von {students} Teilnehmenden gehen mit der nächsten stündlichen Runde erneut an die Lernplattform.",
+        "resendAllNothing": "Es gibt keine Noten zum Senden.",
+        "resendAllSkippedNoGrade": "{count} ohne Note übersprungen.",
+        "resendAllSkippedOther": "{count} ohne Zustimmung oder mit anonymisiertem Konto übersprungen.",
+        "resendAllDeploymentOff": "Die Deployment-ID dieser Aktivität ist in der Anbindung abgeschaltet oder nicht mehr eingetragen. Bitte wenden Sie sich an Ihren Organisations-Admin."
       },
       "picker": {
         "blockEmpty": "Diese Klausur hat noch keine Aufgabe.",
@@ -10032,9 +10107,9 @@
       "you": "Du"
     },
     "ltiAccess": {
-      "alreadyActivated": "Dein Konto ist bereits aktiviert — du kannst dich direkt anmelden.",
+      "alreadyActivated": "Dein Konto ist bereits aktiviert. Du kannst dich direkt anmelden.",
       "changeAddress": "Adresse ändern / erneut senden",
-      "description": "Du nutzt Vertretbar bisher über die Lernplattform deiner Universität (z. B. Moodle oder ILIAS). Hinterlege deine E-Mail-Adresse, um zusätzlich einen direkten Login mit Passwort zu erhalten — deine Klausuren und Ergebnisse bleiben erhalten.",
+      "description": "Du nutzt dein Konto bisher nur über die Lernplattform deiner Universität (z. B. Moodle oder ILIAS). Hinterlege deine E-Mail-Adresse, um zusätzlich einen direkten Login mit Passwort zu erhalten. Deine Klausuren und Ergebnisse bleiben erhalten.",
       "emailPlaceholder": "deine@uni-mail.de",
       "emailTaken": "Diese E-Mail-Adresse wird bereits verwendet. Bitte nutze eine andere Adresse.",
       "genericError": "Das hat nicht geklappt. Bitte versuche es später erneut.",

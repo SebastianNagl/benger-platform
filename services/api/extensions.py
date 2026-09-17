@@ -313,6 +313,63 @@ def dispatch_lti_grade_sync(sync_id):
     return False
 
 
+#: ``status`` of :func:`resend_all_lti_grades` when the hook failed.
+RESEND_ALL_FAILED = "failed"
+
+
+def resend_all_lti_grades(db, registration_id):
+    """Queue "resend all grades" for one LMS connection.
+
+    The extended hook checks the connection, counts what goes out and
+    queues the transfers of every current grade of every activity, also
+    unchanged ones. It returns a dict with ``status``:
+
+    - ``queued``: the transfers are queued;
+    - ``scheduled``: the queue was unreachable, so the hook marked the rows
+      in ``db`` and committed them; the hourly sweep sends them;
+    - ``nothing``: no grade to send;
+    - ``refused``: with ``code``, ``message`` and ``http_status`` (unknown
+      or switched-off connection, inactive organization, no switched-on
+      deployment).
+
+    The other keys are counts (``activities``, ``students``,
+    ``transfers``, ``skipped``, ...). Call it before staging the caller's
+    own changes: the hook may commit ``db``.
+
+    Returns None in the community edition (no hook). A failing hook is
+    logged, the session is rolled back, and the answer is
+    ``{"status": "failed"}``. Not run in a savepoint, because the hook may
+    commit.
+    """
+    if not (_extended and hasattr(_extended, "get_hooks")):
+        return None
+    try:
+        hooks = _extended.get_hooks()
+        hook = hooks.get("resend_all_lti_grades")
+    except Exception:
+        logger.exception("resend_all_lti_grades hook lookup failed")
+        return {"status": RESEND_ALL_FAILED}
+    if hook is None:
+        return None
+    try:
+        result = hook(db, str(registration_id))
+    except Exception:
+        logger.exception("resend_all_lti_grades hook failed for %s", registration_id)
+        rollback = getattr(db, "rollback", None)
+        if rollback is not None:
+            try:
+                rollback()
+            except Exception:
+                logger.exception("rollback after resend_all_lti_grades failed")
+        return {"status": RESEND_ALL_FAILED}
+    if not isinstance(result, dict):
+        logger.error(
+            "resend_all_lti_grades hook returned %r for %s", type(result), registration_id
+        )
+        return {"status": RESEND_ALL_FAILED}
+    return dict(result)
+
+
 def privacy_protected_member_ids(db, organization_id, user_ids, *, group_ids=None):
     """Subset of ``user_ids`` that count as LMS users.
 

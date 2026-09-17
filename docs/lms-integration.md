@@ -18,9 +18,10 @@ administration are in [Appendix A](#appendix-a-ilias-setup-sheet-german) and
   once per connection.
 - Consent to research use is required. See [§8.4](#84-consent).
 - Accounts carry the name and email address that the LMS sends. From ILIAS
-  they carry the name only, because ILIAS has to identify people without
-  their email address (see [§3](#ilias-limitations-to-plan-around)). The app
-  shows a pseudonym. Real names are visible to the organization's admins, to
+  they carry the name only, because ILIAS has to identify people by their
+  ILIAS user id (see [§3](#ilias-limitations-to-plan-around)). Such
+  accounts are asked once, right after consent, for an email address. The
+  step can be skipped. The app shows a pseudonym. Real names are visible to the organization's admins, to
   the course teachers, to the staff who may grade the linked exam and to the
   platform administrators.
 - The AI grade and the human grade are kept side by side. The human grade is
@@ -40,7 +41,7 @@ editions.
 | Part | Edition | Where |
 |---|---|---|
 | Database schema for all LTI state: eight tables, migrations `079`, `083`, `084`, `085`, `089`, `097`, `105` and `106` | Community (Apache-2.0) | `services/api/alembic/versions/` |
-| Connection management API (`/api/admin/lti/*`) for superadmins, org admins and group admins: connections, invites, deployments, tool sheet, activities, LMS accounts with unlink and anonymization, grade transfers with retry, history | Community (Apache-2.0) | `services/api/routers/lti_admin.py` |
+| Connection management API (`/api/admin/lti/*`) for superadmins, org admins and group admins: connections, invites, deployments, tool sheet, activities, LMS accounts with unlink and anonymization, grade transfers with retry and "send all grades again" (the sending needs the extended edition), history | Community (Apache-2.0) | `services/api/routers/lti_admin.py` |
 | Account anonymization | Community (Apache-2.0) | `services/api/services/user_anonymization.py` |
 | Hiding LMS users' names in member lists, task lists and exports. The rule who may see a name comes from the commercial edition. | Community (Apache-2.0) | `services/api/services/member_privacy.py`, `services/shared/lms_name_masking.py` |
 | Page routes for consent, account choice, email confirmation, exam picker, activity overview and the error page, plus the list of launch error codes. Most pages show content from the commercial edition. | Community (Apache-2.0) | `services/frontend/src/app/lti/`, `services/frontend/src/lib/lti/launchErrors.ts` |
@@ -114,16 +115,13 @@ supported. See [§10](#10-conformance) for what has been tested.
 
 These are properties of ILIAS 10, not of BenGER.
 
-- **Identify people without their email address.** The provider's privacy
+- **Identify people by their ILIAS user id.** The provider's privacy
   setting *Identifikation der Person* (English ILIAS: *User
-  identification*) decides how ILIAS names a person to the tool. Choose a
-  mode without the email address:
-  - recommended: *ID des ILIAS-Kontos kombiniert mit einer eindeutigen
-    ILIAS-Plattform-ID, die als E-Mail-Adresse formatiert ist* (*ILIAS user
-    id combined with a unique ILIAS platform id formatted as an E-Mail
-    address*);
-  - for more pseudonymity: *Hash@ILIAS-Plattform-ID.ilias* (*Hash combined
-    with a unique ILIAS platform id formatted as an E-Mail address*).
+  identification*) decides how ILIAS names a person to the tool. Choose
+  *ID des ILIAS-Kontos kombiniert mit einer eindeutigen
+  ILIAS-Plattform-ID, die als E-Mail-Adresse formatiert ist* (*ILIAS user
+  id combined with a unique ILIAS platform id formatted as an E-Mail
+  address*). This is the supported setting for every ILIAS connection.
 
   Set *Anmeldename* (*User name*) to *Vollständiger Name* (*Entire name*).
   Do not choose *E-Mail-Adresse* (*E-Mail Address*). In ILIAS 10.9 the
@@ -131,12 +129,13 @@ These are properties of ILIAS 10, not of BenGER.
   grade with `404 User not available`. This is an ILIAS issue. Choose the
   mode before go-live and do not change it afterwards (see
   [§6](#6-registering-your-lms)).
-- **No email address from ILIAS.** In the recommended modes ILIAS sends
-  only a pseudo address that ends in `.ilias`, and the tool ignores it.
-  Accounts from ILIAS therefore carry the full name but no email address.
-  There is no activation mail and no linking to an existing account. A
-  person who wants to sign in without ILIAS adds an address in the app
-  later and sets a password with the mail sent there.
+- **No email address from ILIAS.** In this mode ILIAS sends only a pseudo
+  address that ends in `.ilias`, and the tool ignores it. Accounts from
+  ILIAS therefore start with the full name but no email address, so there
+  is no automatic activation mail and no linking to an existing account.
+  Right after consent, students and teachers are asked once for an email
+  address. The step can be skipped. The confirmation link sent to that
+  address is the activation mail (see [§8.1](#81-accounts-and-names)).
 - **ILIAS has no AGS line item service.** The tool works only with the
   `lineitem` URL from the launch. ILIAS therefore gets one value per student,
   the final grade. There is no "KI-Bewertung" column. The activity must carry
@@ -144,7 +143,8 @@ These are properties of ILIAS 10, not of BenGER.
   later, open the activity once. Waiting grades then go out at the next
   hourly sweep. Transfers already marked `failed` are retried about six hours
   after their last attempt; **Send again** in the activity overview or
-  **Retry** in the admin panel sends them at once.
+  **Retry** in the admin panel sends them at once. **Send all grades again**
+  sends every grade of an activity or a connection at once.
 - **The score comment is discarded.** ILIAS stores the score but not the
   comment. Written feedback is visible only inside BenGER.
 - **Grades appear as learning progress, not as a gradebook column.** ILIAS
@@ -197,6 +197,8 @@ These are properties of ILIAS 10, not of BenGER.
                                             adds memberships and exam access,
                                             sends the activation mail,
                                             opens the session
+        │ 3a. no address that can receive mail (ILIAS, or an LMS that
+        │     withholds it): the page asks once for one (skippable)
         │ 4. teacher: exam picker or activity overview
         │    student: the exam
         ▼
@@ -403,9 +405,8 @@ values. Deployment IDs can be added later under **Deployments**.
 
 **ILIAS privacy settings.** Set them in the provider before go-live:
 
-- *Identifikation der Person* (*User identification*): a mode without the
-  email address. We recommend *ID des ILIAS-Kontos …* (*ILIAS user id …*).
-  *Hash@ILIAS-Plattform-ID.ilias* gives more pseudonymity.
+- *Identifikation der Person* (*User identification*): *ID des
+  ILIAS-Kontos …* (*ILIAS user id …*).
 - *Anmeldename* (*User name*): *Vollständiger Name* (*Entire name*).
 
 Do not choose *E-Mail-Adresse*. In ILIAS 10.9 every grade transfer fails in
@@ -414,7 +415,9 @@ connection launches in that mode, the connection's card in the panel shows a
 warning with the fix. Do not change the identification after go-live. It
 decides the `sub` value, so a change detaches every account from its LMS
 identity. Each person then consents again and gets a new account, and the
-earlier submissions stay with the old one.
+earlier submissions stay with the old one. The old account keeps its email
+address, so that address counts as taken when the new account is asked for
+one, until the old account is anonymized.
 
 ## 7. Course setup (teacher)
 
@@ -490,16 +493,28 @@ Individual sharing**.
 - **Name and email.** After consent, a new account gets the name and email
   address from the LMS and a pseudonym. Dynamic Registration asks Moodle to
   send both. An account from ILIAS gets the full name only. In the
-  identification modes that ILIAS needs (see
+  identification mode that ILIAS needs (see
   [§3](#ilias-limitations-to-plan-around)), ILIAS sends no real address.
 - **Unconfirmed address.** The address counts as unconfirmed until the person
   activates the account or resets the password.
 - **Placeholders.** If the LMS withholds the address, or another account
   already uses it, the account gets a placeholder address. A later launch
   with a free address fills it in. A withheld name is filled in the same way.
-  An account with a placeholder address gets no activation mail, and no
-  later launch can offer it for linking. The person can add an address in
-  the app later and set a password with the mail sent there.
+  An account with a placeholder address gets no automatic activation mail,
+  and no later launch can offer it for linking.
+- **Asked once for an address.** A new or re-consenting account without a
+  password and without an address that can receive mail is asked right
+  after consent for an email address, before the page moves on. This covers
+  every ILIAS account and Moodle accounts whose address is withheld.
+  Students and teachers see it alike. The person can skip the step. An
+  entered address is kept aside and adopted only when the person opens the
+  confirmation link sent to it. That link is the activation mail: it
+  confirms the address and sets the first password. An address that another
+  account already uses is refused with a clear message. The step appears
+  only on the consent page, so it comes once per connection, and again only
+  when the consent version changes or after an unlink. Later the person can
+  add an address in the app (*Zugang ohne Lernplattform einrichten*, in the
+  student navigation and in the profile).
 - **Pseudonym.** The app shows the pseudonym. Real names are visible to
   superadmins, to the admins of the connection's organization, to group
   admins for their group's connections, to the course teachers and to the
@@ -507,10 +522,12 @@ Individual sharing**.
   are the teachers of any course on the connection that links the exam.
   Grading staff are the organization's contributors and admins in the
   connection's scope, so by default also the connection's LMS teachers
-  (see the teacher role in [§6](#6-registering-your-lms)). Everyone else,
-  other students included, sees the pseudonym. A person who switches off the
-  pseudonym in their profile is shown by name. An account the LMS created
-  stays pseudonymous after an unlink and after its connection is deleted.
+  (see the teacher role in [§6](#6-registering-your-lms)). In an
+  organization whose connections only superadmins run, its contributors see
+  the names that its admins see. Everyone else, other students included,
+  sees the pseudonym. A person who switches off the pseudonym in their
+  profile is shown by name. An account the LMS created stays pseudonymous
+  after an unlink and after its connection is deleted.
 - **Linking an existing account.** An LMS identity is linked to an existing
   account only after proof. The person either signs in with that account's
   password or opens a confirmation link sent to that account's address. The
@@ -523,17 +540,17 @@ Individual sharing**.
   linked. A separate new account is always possible. Accounts are never
   merged.
 - **Activation mail.** New accounts with a deliverable address get an
-  activation mail after consent. It is in German, and its link is valid for
-  7 days. With it the person sets a password and can also sign in without
-  the LMS.
+  activation mail after consent. Accounts without one get it for the
+  address they enter. It is in German, and its link is valid for 7 days.
+  With it the person sets a password and can also sign in without the LMS.
 - **Operator membership.** On the hosted service, every account a launch
   creates, for students and teachers alike, also joins the operator's shared
   student organization as a plain member, whatever the connection's roles.
   This has a technical reason: the membership decides how the platform
   classifies and bills the account's gradings outside linked exams. The
   account sees that organization's shared exams, and that organization's
-  admins see only its pseudonym. Existing accounts linked by proof do not
-  join.
+  admins and contributors see only its pseudonym. Existing accounts linked
+  by proof do not join.
 - **Removed memberships.** A launch never reactivates an organization
   membership that an admin removed, and never re-adds someone an admin
   removed from the connection's group. The person sees `membership_removed`.
@@ -561,8 +578,8 @@ Individual sharing**.
 
 ILIAS notes: the `sub` value comes from the provider's identification mode
 (*Identifikation der Person*). ILIAS sends a withheld name as a literal `"-"`
-and, in the recommended modes, a pseudo address like
-`<ident>@<installation-uuid>.ilias`. The tool treats both as not sent. It
+and, in the user id mode, a pseudo address like
+`<user id>@<installation id>.ilias`. The tool treats both as not sent. It
 also ignores addresses on reserved top-level domains such as `.invalid` or
 `.local`.
 
@@ -571,8 +588,7 @@ also ignores addresses on reserved top-level domains such as `.invalid` or
 From the `id_token`: `sub`, `iss`, `aud`, `exp`, `iat`, `nonce`, the LTI
 `message_type`, `version`, `deployment_id`, `resource_link`, `context`,
 `roles`, `name`, `email` and the AGS endpoint claim. `name` and `email` are
-expected. ILIAS sends no usable `email` in the recommended identification
-modes. The `custom` claim is not used.
+expected. ILIAS sends no usable `email` in the user id mode. The `custom` claim is not used.
 
 Roles are mapped narrowly. The instructor, content developer and
 administrator role markers make a person a teacher. Everyone else counts as a
@@ -821,10 +837,10 @@ fixed retention period instead, name it and we record it in the contract.
   tool **Always**, for every role (German Moodle: *Anwendername an Tool
   übergeben* and *E-Mail des Anwenders an Tool übergeben* → *Immer*).
   Dynamic Registration requests this. Check the setting after the
-  registration. ILIAS: identify people by the ILIAS user id or by a hash,
-  never by *E-Mail-Adresse*, and send the full name (see
+  registration. ILIAS: identify people by the ILIAS user id, never by
+  *E-Mail-Adresse*, and send the full name (see
   [§3](#ilias-limitations-to-plan-around)). ILIAS then sends the name
-  only.
+  only, and each person is asked once for an address after consent.
 - **Grade sync with column management.** Moodle: set the tool's *IMS LTI
   Assignment and Grade Services* to **Use this service for grade sync and
   column management** (German Moodle: *IMS LTI Aufgaben und Bewertung* →
@@ -925,23 +941,56 @@ Redis. Without Redis the tool fails closed with `state_unavailable`.
   after the first attempt and doubles with each attempt, up to 6 hours.
   After 10 attempts the row is `failed`.
 - The stored error is short plain text: the status code and a short reason.
-  An HTML error page from the LMS is cut off.
+  An HTML error page from the LMS is cut off. An error that was only such a
+  page shows as "Die Lernplattform hat mit einer Fehlerseite geantwortet"
+  with its HTTP status, so it still counts as an error.
 - An hourly sweep (minute 45) sends the rows that are due, so a retry after
   a wait goes out at the first sweep after that wait. It retries `failed`
   rows every 6 hours without limit. It also sends grades that changed in place
   (Notenschlüssel recomputes, revised human grades) and creates missing rows.
+  In addition, it compares sent grades with the grade the exam picks now,
+  and sends the ones that differ. This covers a pick that changed without a new
+  grading, for example a Bewertungsbogen judge added after the transfer. It
+  compares at most 1000 transfers per run, a different share every hour.
+  The activity overview data flags such transfers (`differs`).
 - A row with nothing to send (no grade yet, grading not possible) becomes
   `idle` instead of `failed`.
-- The same score, comment and column are never sent twice.
-- A manual retry resets the row and queues the transfer at once. It is
+- The same score, comment and column are never sent twice, except on a
+  manual retry or **Send all grades again**.
+- A manual retry resets the row and queues the transfer at once. It always
+  sends, also when score and comment did not change. It is
   available as **Retry** in the admin panel (for failed and pending
   transfers), as **Send again** in the activity overview (for transfers
   with an error) and as `POST /api/admin/lti/grade-syncs/{id}/retry`. If the
   queue cannot be reached, the next hourly sweep sends it.
+- **Send all grades again** sends every current grade once more, also
+  unchanged ones: per activity in the activity overview, and per connection
+  in the **Grade transfers** section of the admin panel
+  (`POST /api/admin/lti/registrations/{id}/grade-syncs/resend-all`, same
+  scope rules as the retry, recorded in the history with counts). Both ask
+  for a confirmation first. Use it after an LMS outage, after changing the
+  column settings in the LMS and after a Notenschlüssel change. It covers
+  every learner with consent and a grade, in the activity column and, where
+  it is in use, the KI-Bewertung column. Learners without a grade or
+  consent and anonymized accounts are skipped and counted. The request only
+  checks and counts; a background task marks the transfers and sends them
+  in small batches (two every two seconds, at most one hour in total), so
+  a big course does not flood the LMS. A marked transfer stays due, so the
+  hourly sweep sends it if its push gets lost. If the queue cannot be
+  reached, the transfers are marked right away and the sweep sends them.
+  A switched-off connection, deployment or organization is refused with
+  `409`. Two clicks before the first round has run send each grade once; a
+  click after that round sends the grades again. In the community edition
+  the endpoint answers `501`.
+- **Values changed by hand in the LMS.** Moodle does not change a grade
+  that was overridden or locked in its gradebook; a new score only updates
+  the raw value behind it. The KI-Bewertung column is a manual grade item
+  in Moodle, so a value typed into it is replaced by the next transfer.
+  ILIAS stores the last value sent.
 - A switched-off connection fails its transfers at once, and the activity
   overview only answers with a notice (`409`) while it is off. After switching
-  it on, use **Send again** or **Retry**. Otherwise the sweep sends the failed
-  rows again about six hours after the failure.
+  it on, use **Send again**, **Retry** or **Send all grades again**. Otherwise
+  the sweep sends the failed rows again about six hours after the failure.
 
 **Switching off.** A switched-off connection blocks everything for that LMS.
 A switched-off deployment blocks launches through that deployment. Unknown
@@ -967,7 +1016,9 @@ of the LMS that started the registration. Every other path keeps
 4. A student launch in a clean browser shows the consent page, and no
    account exists before consent. After consent the account has a pseudonym.
    On Moodle the activation mail arrives. On ILIAS the account carries the
-   full name, and no mail is sent. A relaunch goes straight to the exam.
+   full name, and the page asks once for an address. A link sent to it
+   arrives and activates the account. Skipping opens the exam as well. A
+   relaunch goes straight to the exam.
 5. After a submission, the final grade lands in the activity column with the
    right rescaling. On Moodle with column management, the AI grade lands in
    "KI-Bewertung: <activity title>". On ILIAS the grade shows as learning
@@ -1033,10 +1084,10 @@ fail unexpectedly carry the reference in their message.
 | Token call fails with a null-JWKS error | The LMS's outbound curl security blocks the keyset URL. Serve it on port 443. |
 | ILIAS token endpoint returns `ERROR_OPEN_SSL_CONF` | A misleading catch-all for any error, including an unknown `kid` or a failed JWKS fetch. The real error is only in the ILIAS log. Check that the ILIAS server reaches the JWKS URL and that the right `kid` is used. |
 | A grade never appears | The activity has no grade, so there is no line item. Or the exam cannot give Notenpunkte. Or, on ILIAS, *Erweiterte Benotungsdienste* (*Advanced Grading Services*) is off. The activity overview shows the transfer status and error. |
-| ILIAS refuses every grade with `404 User not available` | The provider identifies people by *E-Mail-Adresse*. ILIAS 10.9 cannot find the person in that mode. Choose *ID des ILIAS-Kontos …* or *Hash@ILIAS-Plattform-ID.ilias* (see [§3](#ilias-limitations-to-plan-around)). The identifier of every person changes with it: each person consents again and gets a new account, and earlier submissions stay with the old one. The panel shows a warning while a connection launches in that mode. |
+| ILIAS refuses every grade with `404 User not available` | The provider identifies people by *E-Mail-Adresse*. ILIAS 10.9 cannot find the person in that mode. Choose *ID des ILIAS-Kontos …* (see [§3](#ilias-limitations-to-plan-around)). The identifier of every person changes with it: each person consents again and gets a new account, and earlier submissions stay with the old one. The panel shows a warning while a connection launches in that mode. |
 | `409` on the score POST | AGS needs increasing timestamps. Clock skew between workers. |
 | ILIAS shows a passed exam as "in progress" | The Mastery Score is still 80 %. Set it to 22 in the object's *Optionen für den Lernfortschritt*. If the field is missing, tick *Provider unterstützt Outcome Service* in the provider first. |
-| ILIAS accounts have no email address | Expected. In the recommended identification modes ILIAS sends no real address (see [§3](#ilias-limitations-to-plan-around)). |
+| ILIAS accounts have no email address | Expected until the person enters one. In the user id mode ILIAS sends no real address (see [§3](#ilias-limitations-to-plan-around)). The consent page asks once for an address. A person who skipped it uses *Zugang ohne Lernplattform einrichten* in the app. |
 
 ## 12. Support and contact
 
@@ -1083,16 +1134,18 @@ we can reply with the documents instead of another round of questions.
 > 3. **Datenschutzeinstellungen:**
 >    - „Identifikation der Person“: **„ID des ILIAS-Kontos kombiniert mit
 >      einer eindeutigen ILIAS-Plattform-ID, die als E-Mail-Adresse
->      formatiert ist“** (empfohlen). Mehr Pseudonymität bietet
->      „Hash@ILIAS-Plattform-ID.ilias“.
+>      formatiert ist“**.
 >    - Bitte **nicht** „E-Mail-Adresse“ wählen. In ILIAS 10.9 lehnt ILIAS in
 >      diesem Modus jede Note mit „User not available“ ab. Die Ursache
 >      liegt in ILIAS.
 >    - „Anmeldename“: **„Vollständiger Name“**
->    - Folge: Die Konten tragen den vollständigen Namen aus ILIAS, aber
->      keine E-Mail-Adresse. Es gibt deshalb keine Aktivierungsmail und
->      keine Verknüpfung mit bestehenden Konten. In der Anwendung erscheint
->      ein Pseudonym.
+>    - Folge: ILIAS übermittelt den vollständigen Namen, aber keine echte
+>      E-Mail-Adresse. Direkt nach der Zustimmung werden Studierende und
+>      Lehrende deshalb einmal nach ihrer E-Mail-Adresse gefragt. Der
+>      Schritt lässt sich überspringen. Der Bestätigungslink an diese
+>      Adresse ist zugleich die Aktivierungsmail. Eine Verknüpfung mit
+>      bestehenden Konten gibt es nicht. In der Anwendung erscheint ein
+>      Pseudonym.
 >    - Die Identifikation nach der Inbetriebnahme **nicht mehr ändern**.
 >      Jeder Wechsel trennt alle bestehenden Kontoverknüpfungen.
 > 4. **Lernfortschritt:** Unter „Optionen für den Lernfortschritt“

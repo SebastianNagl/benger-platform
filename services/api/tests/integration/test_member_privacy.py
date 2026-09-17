@@ -7,7 +7,8 @@ Who may see the real name:
 - org member list and ``/organizations/manage/users``: superadmins, the
   account itself, and admins of an org whose own connection the account
   belongs to (so a platform-wide org's admins only unmask the students of
-  that org's own connections);
+  that org's own connections); in an org whose LMS connections only
+  superadmins run, its contributors as well;
 - group roster: org admins for the accounts of that org's own connections,
   group admins for the accounts of the org's connections scoped to a group
   they administer (group membership reveals nothing);
@@ -356,85 +357,200 @@ async def test_org_admin_sees_names_of_own_connection_only(
     _assert_masked(rows[w["foreign"].id], w["foreign"])
 
 
-@pytest.mark.asyncio
-async def test_protected_org_roster_is_for_its_admins_only(
-    async_test_client, async_test_db, monkeypatch
-):
-    """A platform-wide org every LMS user and pilot teacher joins: its
-    plain contributors get no roster and no user enumeration; its org
-    admins and superadmins keep both, and its group admins keep the roster
-    (to manage their groups)."""
+def _protect(monkeypatch, hook):
+    """Fake extended hooks with ``hook`` as ``lti_protected_org_ids``."""
     import extensions
 
-    w = await _world(async_test_db)
     monkeypatch.setattr(
         extensions,
         "_extended",
         _FakeExtended(
             {
                 "privacy_protected_member_ids": _protected,
-                "lti_protected_org_ids": lambda db: {w["uni"].id},
+                "lti_protected_org_ids": hook,
             }
         ),
     )
-    url = f"/api/organizations/{w['uni'].id}/members"
-    for viewer in (w["contrib"], w["teacher"]):
-        with _as_user(viewer):
-            response = await async_test_client.get(url)
-        assert response.status_code == 403, response.text
-    gadmin_rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
-    _assert_masked(gadmin_rows[w["foreign"].id], w["foreign"])
-    # A contributor who administers a group keeps it too.
-    await _group(async_test_db, w["uni"], "Kurs B", (w["contrib"], True))
-    assert w["plain"].id in await _org_members(async_test_client, w["uni"], w["contrib"])
 
-    rows = await _org_members(async_test_client, w["uni"], w["admin"])
-    _assert_revealed(rows[w["student"].id], w["student"], lms=True)
-    assert w["plain"].id in await _org_members(
-        async_test_client, w["uni"], w["superadmin"]
-    )
 
-    # /manage/users: uni's members are not listed to its contributors; a
-    # contributor seat in another org still lists that org.
-    other = await _org(async_test_db, (w["contrib"], OrganizationRole.CONTRIBUTOR))
-    colleague = await _person(async_test_db, "Kollege Anderswo")
-    await _join(async_test_db, other, colleague, OrganizationRole.ANNOTATOR)
-    await async_test_db.commit()
-    listed = await _manage_users(async_test_client, w["contrib"])
-    assert w["plain"].id not in listed
-    assert w["student"].id not in listed
-    assert colleague.id in listed
-    assert w["plain"].id in await _manage_users(async_test_client, w["admin"])
+def _masked_ids(rows) -> set:
+    return {uid for uid, row in rows.items() if row["is_pseudonymized"]}
 
 
 @pytest.mark.asyncio
-async def test_protected_org_lookup_failure_closes_the_roster(
+async def test_protected_org_contributors_see_the_names_its_admins_see(
     async_test_client, async_test_db, monkeypatch
 ):
-    import extensions
+    """An org whose LMS connections only superadmins run: the platform
+    operator appoints its contributors, so they read its roster and see the
+    names its admins see (member list, group roster, /manage/users). The
+    students of other orgs' connections stay masked for both."""
+    w = await _world(async_test_db)
+    _protect(monkeypatch, lambda db: {w["uni"].id})
+
+    admin_rows = await _org_members(async_test_client, w["uni"], w["admin"])
+    for viewer in (w["contrib"], w["teacher"]):
+        rows = await _org_members(async_test_client, w["uni"], viewer)
+        assert set(rows) == set(admin_rows)
+        for key in ("student", "gstudent", "ostudent"):
+            _assert_revealed(rows[w[key].id], w[key], lms=True)
+        _assert_revealed(rows[w["teacher"].id], w["teacher"], lms=True)
+        _assert_masked(rows[w["foreign"].id], w["foreign"])
+        _assert_revealed(rows[w["plain"].id], w["plain"], lms=False)
+        assert _masked_ids(rows) == _masked_ids(admin_rows) == {w["foreign"].id}
+
+    # A contributor who administers a group: their roster shows the names
+    # the org admin's roster shows.
+    from models import OrganizationGroupMembership
+
+    async_test_db.add(
+        OrganizationGroupMembership(
+            id=str(uuid.uuid4()),
+            group_id=w["group"].id,
+            user_id=w["contrib"].id,
+            is_group_admin=True,
+        )
+    )
+    await async_test_db.commit()
+    roster = await _roster(async_test_client, w, w["contrib"])
+    admin_roster = await _roster(async_test_client, w, w["admin"])
+    assert _masked_ids(roster) == _masked_ids(admin_roster) == {w["foreign"].id}
+    _assert_revealed(roster[w["student"].id], w["student"], lms=True)
+    _assert_revealed(roster[w["ostudent"].id], w["ostudent"], lms=True)
+
+    # /manage/users: the protected seat unmasks uni's own connections only.
+    # A contributor seat in an ordinary org keeps that org's students masked.
+    other = await _org(async_test_db, (w["contrib"], OrganizationRole.CONTRIBUTOR))
+    other_student = await _person(async_test_db, "Andere Uni", pseudonym="Kalter Stein")
+    await _join(async_test_db, other, other_student, OrganizationRole.ANNOTATOR)
+    await _link(async_test_db, await _registration(async_test_db, other), other_student)
+    await async_test_db.commit()
+    listed = await _manage_users(async_test_client, w["contrib"])
+    _assert_revealed(
+        listed[w["student"].id], w["student"], lms=True, name_key="name", email_key="email"
+    )
+    _assert_revealed(
+        listed[w["plain"].id], w["plain"], lms=False, name_key="name", email_key="email"
+    )
+    _assert_masked(listed[w["foreign"].id], w["foreign"], name_key="name", email_key="email")
+    _assert_masked(listed[other_student.id], other_student, name_key="name", email_key="email")
+    found = await _manage_users(async_test_client, w["contrib"], "Mustermann")
+    assert found[w["student"].id]["name"] == "Erika Mustermann"
+    assert other_student.id not in await _manage_users(
+        async_test_client, w["contrib"], "Andere Uni"
+    )
+
+    # The same org unprotected: its contributors see pseudonyms again.
+    _protect(monkeypatch, lambda db: set())
+    rows = await _org_members(async_test_client, w["uni"], w["contrib"])
+    _assert_masked(rows[w["student"].id], w["student"])
+    listed = await _manage_users(async_test_client, w["contrib"])
+    _assert_masked(listed[w["student"].id], w["student"], name_key="name", email_key="email")
+
+
+@pytest.mark.asyncio
+async def test_protected_org_annotators_still_get_no_roster(
+    async_test_client, async_test_db, monkeypatch
+):
+    """The annotator gate is unchanged on a protected org: plain members
+    (every LMS student) get no roster and no user enumeration. An annotator
+    who administers a group keeps the group-scoped view."""
+    w = await _world(async_test_db)
+    _protect(monkeypatch, lambda db: {w["uni"].id})
+    url = f"/api/organizations/{w['uni'].id}/members"
+    for viewer in (w["plain"], w["student"]):
+        with _as_user(viewer):
+            response = await async_test_client.get(url)
+        assert response.status_code == 403, response.text
+        assert response.json()["detail"] == (
+            "Member list requires a contributor or admin role"
+        )
+        assert await _manage_users(async_test_client, viewer) == {}
+
+    rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
+    _assert_revealed(rows[w["gstudent"].id], w["gstudent"], lms=True)
+    for key in ("student", "ostudent", "foreign", "teacher"):
+        _assert_masked(rows[w[key].id], w[key])
+
+
+@pytest.mark.asyncio
+async def test_protected_org_contributor_access_is_unchanged(
+    async_test_client, async_test_db, monkeypatch
+):
+    """Names only: a protected org's contributor still gets no staff access
+    to another author's private exam linked through that org, while its org
+    admin does."""
+    from tests.integration.test_lti_attachment_access import (
+        _attach as _lti_attach,
+    )
+    from tests.integration.test_lti_attachment_access import _exam
+
+    w = await _world(async_test_db)
+    exam = await _exam(async_test_db, w["admin"])
+    await _lti_attach(async_test_db, exam, w["uni"], by=w["admin"])
+    await async_test_db.commit()
+    _protect(monkeypatch, lambda db: {w["uni"].id})
+
+    headers = {"X-Organization-Context": "private"}
+    for path in ("", "/members"):
+        url = f"/api/projects/{exam.id}{path}"
+        with _as_user(w["contrib"]):
+            refused = await async_test_client.get(url, headers=headers)
+        assert refused.status_code == 403, (path, refused.text)
+        with _as_user(w["admin"]):
+            allowed = await async_test_client.get(url, headers=headers)
+        assert allowed.status_code == 200, (path, allowed.text)
+
+    # Without the protection the same contributor is staff of the link.
+    _protect(monkeypatch, lambda db: set())
+    with _as_user(w["contrib"]):
+        response = await async_test_client.get(f"/api/projects/{exam.id}", headers=headers)
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.asyncio
+async def test_protected_org_lookup_failure_keeps_names_masked(
+    async_test_client, async_test_db, monkeypatch
+):
+    """A broken protected-org lookup never reveals a name: contributors
+    read the roster as in any org, by pseudonym."""
 
     def _boom(db):
         raise RuntimeError("hook down")
 
     w = await _world(async_test_db)
-    monkeypatch.setattr(
-        extensions,
-        "_extended",
-        _FakeExtended(
-            {
-                "privacy_protected_member_ids": _protected,
-                "lti_protected_org_ids": _boom,
-            }
-        ),
-    )
-    with _as_user(w["contrib"]):
-        response = await async_test_client.get(
-            f"/api/organizations/{w['uni'].id}/members"
-        )
-    assert response.status_code == 403
-    assert await _manage_users(async_test_client, w["contrib"]) == {}
+    _protect(monkeypatch, _boom)
+    rows = await _org_members(async_test_client, w["uni"], w["contrib"])
+    for key in ("student", "gstudent", "ostudent", "teacher", "foreign"):
+        _assert_masked(rows[w[key].id], w[key])
+    listed = await _manage_users(async_test_client, w["contrib"])
+    _assert_masked(listed[w["student"].id], w["student"], name_key="name", email_key="email")
+    assert w["plain"].id in listed
     # Org admins are not affected by the lookup.
-    assert w["plain"].id in await _org_members(async_test_client, w["uni"], w["admin"])
+    rows = await _org_members(async_test_client, w["uni"], w["admin"])
+    _assert_revealed(rows[w["student"].id], w["student"], lms=True)
+
+
+@pytest.mark.asyncio
+async def test_name_admin_org_ids_counts_protected_contributor_seats(
+    async_test_db, monkeypatch
+):
+    import extensions
+    from services.member_privacy import name_admin_org_ids
+
+    _protect(monkeypatch, lambda db: {"vtr", "chair"})
+    roles = [
+        ("uni", OrganizationRole.ORG_ADMIN),
+        ("vtr", OrganizationRole.CONTRIBUTOR),
+        ("plain", "CONTRIBUTOR"),
+        ("chair", OrganizationRole.ANNOTATOR),
+        (None, "ORG_ADMIN"),
+    ]
+    assert await name_admin_org_ids(async_test_db, roles) == ["uni", "vtr"]
+    assert await name_admin_org_ids(async_test_db, []) == []
+    # Community edition: no protected orgs, only the admin seats count.
+    monkeypatch.setattr(extensions, "_extended", None)
+    assert await name_admin_org_ids(async_test_db, roles) == ["uni"]
 
 
 @pytest.mark.asyncio

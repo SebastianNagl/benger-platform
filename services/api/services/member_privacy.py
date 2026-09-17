@@ -13,10 +13,10 @@ shown by pseudonym by default. This module applies the extension hooks
   scoped to the groups they administer
   (``privacy_protected_member_ids(db, org_id, ids, group_ids=...)``, see
   :func:`reveal_group_accounts`), not of whoever is a member of their
-  group: group membership is something a group admin can change. The
-  roster of an org whose LMS connections stay superadmin-run
-  (``protected_org_ids``; every LMS user and every pilot teacher joins it)
-  is for its org admins only.
+  group: group membership is something a group admin can change. In an org
+  whose LMS connections only superadmins run, the contributors see the
+  names its admins see (:func:`name_admin_org_ids`): the platform operator
+  appoints them. This covers names only; their access stays as it is.
 - **Project lists** (project members, task listing and assignments):
   masked unless ``project_real_name_user_ids`` names the person for this
   viewer. That set holds only people who take part in the exam through a
@@ -46,11 +46,12 @@ __all__ = [
     "NameMask",
     "lms_account_ids",
     "masked_org_member_ids",
+    "name_admin_org_ids",
     "org_name_mask",
     "project_name_mask",
     "project_name_masks",
-    "protected_org_ids",
     "reveal_group_accounts",
+    "staff_name_org_ids",
     "masked_name",
 ]
 
@@ -158,17 +159,43 @@ async def masked_org_member_ids(
     return candidates - revealed
 
 
-async def protected_org_ids(db, organization_ids: Iterable[Any]) -> set:
-    """The orgs among ``organization_ids`` whose LMS connections stay
-    superadmin-run (a platform-wide org every LMS user joins). Their
-    rosters are for their admins only. Fails closed
-    (``extensions.lti_protected_org_subset``)."""
+async def staff_name_org_ids(db, organization_ids: Iterable[Any]) -> set:
+    """The orgs among ``organization_ids`` whose contributors see LMS names
+    in org lists like its org admins do.
+
+    These are the orgs whose LMS connections only superadmins run. The
+    platform operator appoints their contributors, so the names of the
+    org's own connections need no masking for them. Names only: access
+    decisions keep the fail-closed ``extensions.lti_protected_org_subset``.
+    This lookup fails the other way (``extensions.lti_protected_org_ids``
+    answers an empty set), so a broken hook never reveals a name.
+    """
     ids = _clean(organization_ids)
     if not ids:
         return set()
-    return await db.run_sync(
-        lambda sync_db: extensions.lti_protected_org_subset(sync_db, ids)
-    )
+    found = await db.run_sync(extensions.lti_protected_org_ids)
+    return {str(oid) for oid in (found or ())} & set(ids)
+
+
+async def name_admin_org_ids(db, org_roles: Iterable[Any]) -> list:
+    """The orgs of ``org_roles`` (``(org_id, role)`` pairs of the viewer's
+    active memberships) in which the viewer unmasks the LMS users of the
+    org's own connections: every ORG_ADMIN seat, and the CONTRIBUTOR seats
+    in the orgs :func:`staff_name_org_ids` names."""
+    admin: set = set()
+    contributor: set = set()
+    for org_id, role in org_roles or ():
+        if not org_id:
+            continue
+        name = str(getattr(role, "value", role) or "").upper()
+        if name == "ORG_ADMIN":
+            admin.add(str(org_id))
+        elif name == "CONTRIBUTOR":
+            contributor.add(str(org_id))
+    contributor -= admin
+    if contributor:
+        admin |= await staff_name_org_ids(db, contributor)
+    return sorted(admin)
 
 
 async def reveal_group_accounts(

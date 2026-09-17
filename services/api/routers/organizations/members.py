@@ -5,8 +5,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_async_db
 from services.member_privacy import (
+    name_admin_org_ids,
     org_name_mask,
-    protected_org_ids,
     reveal_group_accounts,
 )
 
@@ -86,15 +86,15 @@ async def list_organization_members(
 
     LMS accounts are listed by pseudonym, without email, unless the viewer
     is a superadmin, the account itself, or an org admin here and the
-    account belongs to one of this org's own LMS connections (D8). A group
-    admin sees the names of the accounts of this org's connections scoped to
-    the groups they administer (the same names their group roster shows);
-    group membership alone reveals nothing. The roster of
-    an org whose LMS connections stay superadmin-run is for its org admins
-    and group admins only.
+    account belongs to one of this org's own LMS connections (D8). In an org
+    whose LMS connections only superadmins run, its contributors see those
+    names too (the platform operator appoints them). A group admin sees the
+    names of the accounts of this org's connections scoped to the groups
+    they administer (the same names their group roster shows); group
+    membership alone reveals nothing.
     """
     _require_login(current_user)
-    viewer_is_org_admin = False
+    name_admin_ids: list = []
     # Check access permissions
     if not current_user.is_superadmin:
         membership = (
@@ -111,7 +111,6 @@ async def list_organization_members(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this organization",
             )
-        viewer_is_org_admin = membership.role == OrganizationRole.ORG_ADMIN
         # ANNOTATOR members (incl. every LTI-provisioned student) must not
         # enumerate the org roster — names and emails of the whole cohort and
         # staff. Member visibility is a CONTRIBUTOR+ concern — or a GROUP
@@ -125,15 +124,9 @@ async def list_organization_members(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Member list requires a contributor or admin role",
                 )
-        elif not viewer_is_org_admin and await protected_org_ids(db, [organization_id]):
-            # An org whose LMS connections stay superadmin-run is joined by
-            # every LMS user and every pilot teacher (as a contributor): only
-            # its org admins and group admins read the roster.
-            if not await _administers_a_group(db, current_user.id, organization_id):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Member list of this organization requires an admin role",
-                )
+        name_admin_ids = await name_admin_org_ids(
+            db, [(organization_id, membership.role)]
+        )
 
     # Get members with user details
     members = (
@@ -175,9 +168,9 @@ async def list_organization_members(
         db,
         [user for _, user in members],
         viewer=current_user,
-        admin_org_ids=[organization_id] if viewer_is_org_admin else [],
+        admin_org_ids=name_admin_ids,
     )
-    if mask.masked_ids and not viewer_is_org_admin:
+    if mask.masked_ids and not name_admin_ids:
         viewer_id = str(current_user.id)
         admin_group_ids = {
             gid

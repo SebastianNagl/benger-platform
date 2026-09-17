@@ -14,7 +14,9 @@
  *   a. instructor launch → consent (when this teacher has no current
  *      consent on the connection) → LtiLinkPicker → link a fresh exam → exam
  *   b. student first launch → public consent page (no session yet; both
- *      the processing and the research consent are required) → exam
+ *      the processing and the research consent are required) → one-time
+ *      address prompt (the test account's address cannot receive mail),
+ *      skipped → exam
  *   c. returning student launch → straight into the exam (no consent)
  *   d. two-tabs guard: ?lti_u mismatch hard-blocks the exam page
  *   e. /lti/error?code=not_linked renders the German explanation
@@ -75,6 +77,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await page.getByTestId('lti-gdpr-consent').check()
     await page.getByTestId('research-consent-checkbox').check()
     await continueButton.click()
+    await skipEmailPromptIfShown(page)
     await page.waitForURL((url) => !url.pathname.startsWith('/lti/consent'), {
       timeout: 30_000,
     })
@@ -86,6 +89,28 @@ test.describe('LTI Moodle launch flows @extended', () => {
         (url) => !url.pathname.startsWith('/lti/link-account'),
         { timeout: 30_000 },
       )
+    }
+  }
+
+  /**
+   * The harness's Moodle accounts carry `@e2e.example.invalid` addresses,
+   * which the launch drops. Such an account is asked once for an address
+   * right after consent, before the page moves on. The suite skips it (no
+   * mailbox in the dev harness).
+   */
+  async function skipEmailPromptIfShown(page: Page): Promise<void> {
+    const prompt = page.getByTestId('lti-email-prompt')
+    const promptVisible = () => prompt.isVisible().catch(() => false)
+    await expect
+      .poll(
+        async () =>
+          !new URL(page.url()).pathname.startsWith('/lti/consent') ||
+          (await promptVisible()),
+        { timeout: 30_000 },
+      )
+      .toBe(true)
+    if (await promptVisible()) {
+      await page.getByTestId('lti-email-prompt-skip').click()
     }
   }
 
@@ -241,6 +266,14 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await research.check()
     await expect(continueButton).toBeEnabled()
     await continueButton.click()
+
+    // The account has no address that can receive mail: the page asks once
+    // for one before it opens the exam. Skipping leads to the same exam.
+    await expect(studentPage.getByTestId('lti-email-prompt')).toBeVisible({
+      timeout: 30_000,
+    })
+    await expect(studentPage).toHaveURL(/\/lti\/consent\?/)
+    await studentPage.getByTestId('lti-email-prompt-skip').click()
 
     await studentPage.waitForURL(
       new RegExp(`/student/exams/${examId}\\?.*lti_u=`),

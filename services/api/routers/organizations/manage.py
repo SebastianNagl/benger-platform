@@ -9,7 +9,7 @@ from services.member_privacy import (
     lms_account_ids,
     masked_name,
     masked_org_member_ids,
-    protected_org_ids,
+    name_admin_org_ids,
 )
 
 
@@ -69,13 +69,14 @@ async def list_all_users(
 
     Superadmins see all users. Non-superadmins see only users from
     organizations where they hold a CONTRIBUTOR or ORG_ADMIN role —
-    ANNOTATOR memberships (every LTI student) grant no user enumeration. On
-    an org whose LMS connections stay superadmin-run, only ORG_ADMIN counts.
+    ANNOTATOR memberships (every LTI student) grant no user enumeration.
 
     LMS accounts appear by pseudonym, without email, unless the viewer is a
     superadmin, the account itself, or an org admin of an org whose own LMS
-    connection the account belongs to (D8). The search matches such
-    accounts by pseudonym only, so it cannot tie a real name to one.
+    connection the account belongs to (D8). A contributor counts as such an
+    admin in an org whose LMS connections only superadmins run. The search
+    matches such accounts by pseudonym only, so it cannot tie a real name
+    to one.
     """
     _require_login(current_user)
 
@@ -105,22 +106,11 @@ async def list_all_users(
                 )
             )
         ).all()
-        # The members of an org whose LMS connections stay superadmin-run
-        # (every LMS user and pilot teacher joins it) are listed to its org
-        # admins only.
-        protected = await protected_org_ids(
-            db,
-            [org_id for org_id, role in org_roles if role != OrganizationRole.ORG_ADMIN],
-        )
-        org_roles = [
-            (org_id, role)
-            for org_id, role in org_roles
-            if role == OrganizationRole.ORG_ADMIN or str(org_id) not in protected
-        ]
         user_org_ids = [org_id for org_id, _ in org_roles]
-        admin_org_ids = [
-            org_id for org_id, role in org_roles if role == OrganizationRole.ORG_ADMIN
-        ]
+        # The orgs whose own LMS users this viewer sees by name: org admin
+        # seats, and contributor seats in an org whose LMS connections only
+        # superadmins run (the platform operator appoints those contributors).
+        admin_org_ids = await name_admin_org_ids(db, org_roles)
 
         if not user_org_ids:
             return []
