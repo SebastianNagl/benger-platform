@@ -10,7 +10,7 @@ cleanup_expired_tokens.
 
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from fastapi import HTTPException
@@ -436,7 +436,6 @@ class TestSendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=True)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.send_verification_email(db, user, language="de")
         assert result is True
@@ -453,7 +452,6 @@ class TestSendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=False)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.send_verification_email(db, user)
         assert result is False
@@ -475,6 +473,30 @@ class TestSendVerificationEmail:
         result = await svc.send_verification_email(db, user)
         assert result is False
         db.rollback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_success_with_real_email_service_shape(self):
+        """A delivered mail must report success with the real EmailService attributes.
+
+        The success branch used to read `email_service.config`, which EmailService
+        never had. Every sent verification mail was then logged as an error.
+        """
+        from mailer.email_service import EmailService
+
+        svc = self._make_service()
+        svc.email_service = create_autospec(EmailService, instance=True)
+        svc.email_service.send_verification_email = AsyncMock(return_value=True)
+        db = MagicMock()
+        user = Mock(
+            id="user-1",
+            email="test@test.com",
+            name="Test",
+            email_verification_sent_at=None,
+        )
+
+        result = await svc.send_verification_email(db, user)
+        assert result is True
+        db.rollback.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -619,7 +641,6 @@ class TestResendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=True)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.resend_verification_email(db, user, "http://localhost", language="de")
         assert result is True

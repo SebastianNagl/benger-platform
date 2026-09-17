@@ -566,9 +566,6 @@ class EmailVerificationService:
                     success=True,
                     metadata={
                         "send_duration_seconds": send_duration,
-                        "email_service_provider": getattr(
-                            self.email_service.config, "provider", "unknown"
-                        ),
                         "verification_link_created": True,
                     },
                 )
@@ -582,9 +579,6 @@ class EmailVerificationService:
                     error="Email service returned failure",
                     metadata={
                         "send_duration_seconds": send_duration,
-                        "email_service_provider": getattr(
-                            self.email_service.config, "provider", "unknown"
-                        ),
                     },
                 )
                 logger.error(f"Failed to send verification email to {user.email}")
