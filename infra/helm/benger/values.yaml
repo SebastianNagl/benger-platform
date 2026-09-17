@@ -428,11 +428,15 @@ workerPools:
     concurrency: 2
     prefetchMultiplier: 4
     maxTasksPerChild: 200
-    maxMemoryPerChildKb: 800000
+    # Forks keep their peak RSS after a task. Main process ~200 MB + two forks
+    # must stay under the limit, so recycle a fork once it passes ~390 MB. At
+    # 800000 the threshold sat above what the 1Gi pod could ever reach and the
+    # pod was OOM-killed instead (2026-09-17, recompute_aggregates).
+    maxMemoryPerChildKb: 400000
     resources:
       limits:
         cpu: 500m
-        memory: 1Gi
+        memory: 1536Mi
       requests:
         cpu: 50m
         memory: 256Mi
