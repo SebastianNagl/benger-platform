@@ -17,6 +17,11 @@ const useNewConfig = process.env.FEATURE_FLAG_NEW_CONFIG !== 'false'
 // Extended edition support
 const isExtended = process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended'
 
+// The only path another site may frame (IMS LTI Dynamic Registration). The
+// ingress (infra/helm/benger/templates/ingress.yaml) exempts the same path
+// from its frameDeny header.
+const FRAMEABLE_PATH = '/api/lti/register/init'
+
 const nextConfig = {
   // Core Next.js settings
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
@@ -123,22 +128,35 @@ const nextConfig = {
     const headers = []
 
     if (isProduction) {
+      const baseHeaders = [
+        {
+          key: 'X-Content-Type-Options',
+          value: 'nosniff',
+        },
+        {
+          key: 'X-XSS-Protection',
+          value: '1; mode=block',
+        },
+      ]
       headers.push({
-        source: '/:path*',
+        // Every path except the LTI Dynamic Registration page. The negative
+        // lookahead is path-to-regexp syntax that Next documents for
+        // headers(); see src/__tests__/nextConfigHeaders.test.ts.
+        source: `/:path((?!${FRAMEABLE_PATH.slice(1)}$).*)`,
         headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
+          ...baseHeaders,
           {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
-          {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
-          },
         ],
+      })
+      headers.push({
+        // An LMS (Moodle "Add LTI Advantage") loads this page in an iframe.
+        // No X-Frame-Options here: the API answer carries a
+        // Content-Security-Policy frame-ancestors limited to the LMS origin.
+        source: FRAMEABLE_PATH,
+        headers: baseHeaders,
       })
     }
 

@@ -256,18 +256,41 @@ creates the invite (see [§8.8](#88-compliance-tell-us-what-you-need)).
    shown once. It works once, is stored only as a SHA-256 hash and is valid
    for 14 days. Unused links can be revoked under **Pending invitations**.
 2. Send the link to the LMS administration.
-3. **Moodle**: Site administration → Plugins → External tool → Manage tools.
-   Paste the link into **Add LTI Advantage**. Moodle and the tool exchange
-   issuer, endpoints, client ID and deployment ID. The tool appears as
-   *Pending*. Click **Activate**.
-4. **ILIAS** (10.9 and later): create an LTI consumer object, open *Create Own
+3. **Moodle**: Site administration → Plugins → Activity modules → External
+   tool → Manage tools (German Moodle: *Website-Administration → Plugins →
+   Aktivitäten → Externes Tool → Tools verwalten*). Paste the link into
+   **Add LTI Advantage**.
+   - If a tool with the same domain exists already, Moodle asks whether to
+     update it. Choose **Register as a new external tool** (*Als neues
+     externes Tool registrieren*). Choose **Update** only if you replace an
+     earlier connection on purpose.
+   - Moodle shows the tool's result page inside its own page and closes it
+     when the registration is done.
+   - Moodle and the tool exchange issuer, endpoints, client ID and deployment
+     ID. The tool appears as *Pending* (*Wartend*). Click **Activate**
+     (*aktivieren*).
+4. **Moodle, tool settings.** Open the tool's settings with the edit icon on
+   its card and change three values. Moodle 4.5 gives every tool registered
+   by link the same values, and the tool cannot change them.
+
+   | Setting (German Moodle) | Value after the registration | Set it to |
+   |---|---|---|
+   | Tool configuration usage (*Verwendung der Toolkonfiguration*) | Show as preconfigured tool when adding an external tool | **Show in activity chooser and as a preconfigured tool** (*In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen*) |
+   | Default launch container (*Standard-Startcontainer*) | Embed, without blocks (*Eingebettet ohne Blöcke*) | **New window** (*Neues Fenster*) |
+   | Accept grades from the tool (*Bewertungen aus dem Tool akzeptieren*) | As specified in Deep Linking definition or Delegate to teacher | **Always** (*Immer*) |
+
+   Without these changes, teachers do not find the tool in the activity
+   chooser, the tool opens embedded, which does not work (see
+   [§9](#9-requirements-on-your-lms)), and an activity has no grade unless
+   the teacher allows grades in the activity settings.
+5. **ILIAS** (10.9 and later): create an LTI consumer object, open *Create Own
    Settings for Tool with Dynamic Registration (LTI 1.3)*, paste the link and
    add it. ILIAS fills in all tool URLs, including the JWKS key type. Two
    caveats. "Advanced Grading Services" stays unchecked and must be enabled by
    hand, or no grade is sent. And ILIAS creates a provider bound to that one
    object, so for a campus-wide rollout the manual way in
    [Appendix A](#appendix-a-ilias-setup-sheet-german) is better.
-5. The connection now appears in the panel and is active.
+6. The connection now appears in the panel and is active.
 
 Further rules:
 
@@ -275,7 +298,10 @@ Further rules:
   Check the tool's privacy settings in Moodle after the registration. ILIAS
   does not apply this request: set its privacy mode by hand (see the end of
   this section).
-- The LMS lists the tool under the product name of the chosen address.
+- The LMS lists the tool under the product name of the chosen address, with
+  a short description. On a deployment whose address contains `staging.`,
+  the name ends with "(Staging)", so a shared test LMS can tell the tools
+  apart.
 - An invite works only while its creator may still manage its organization or
   group. An invite for a group that was switched off fails.
 - A group admin's invite always creates a connection for that group.
@@ -334,11 +360,18 @@ detaches every account from its LMS identity.
 ## 7. Course setup (teacher)
 
 1. Add an External Tool (Moodle) or LTI consumer (ILIAS) activity to the
-   course. **Make sure the activity carries a grade.** Without a grade there
-   is no line item, and no grade can be returned. Moodle's default of 100 is
-   fine.
-2. Set the launch container to **New window**. This is required (see
-   [§9](#9-requirements-on-your-lms)).
+   course. In Moodle, pick the tool by its name in the activity chooser.
+   **Make sure the activity carries a grade.** Without a grade there is no
+   line item, and no grade can be returned. Moodle's default of 100 is fine.
+   If the Moodle tool still delegates grades to the teacher, the grade
+   settings stay hidden until you tick **Allow <tool name> to add grades in
+   the gradebook** (German: *<Toolname> erlauben, Bewertungen
+   hinzuzufügen*). Without the tick the activity has no grade.
+2. The tool must open in a **new window** (see
+   [§9](#9-requirements-on-your-lms)). In Moodle 4.5 teachers cannot choose
+   this per activity. The activity uses the tool's default launch container,
+   which the Moodle administration sets (see [§6a](#6a-one-link-registration-dynamic-registration)).
+   In ILIAS, set the object's launch option to **New window**.
 3. Open the activity. On the first launch the teacher consents, as students
    do. If an account with the same email address exists, the teacher can
    link it by signing in or by email, or continue with a separate account.
@@ -671,7 +704,16 @@ fixed retention period instead, name it and we record it in the contract.
   transfer.
 - **New window.** Embedded iframe launches are not supported. The session
   cookies need a top-level window. Inside an iframe, people land on the login
-  page or see *Sign-in does not match* (`launch_mismatch`).
+  page or see *Sign-in does not match* (`launch_mismatch`). Moodle: set the
+  tool's *Default launch container* to **New window**. Moodle 4.5 sets
+  *Embed, without blocks* for every tool registered by link, and teachers
+  cannot change it per activity.
+- **Tool visible to teachers.** Moodle: set *Tool configuration usage* to
+  **Show in activity chooser and as a preconfigured tool**. A tool
+  registered by link is only a preconfigured tool at first.
+- **Grades accepted.** Moodle: set *Accept grades from the tool* to
+  **Always**. A tool registered by link delegates this to the teacher, and
+  an activity then has no grade unless the teacher allows it.
 - **Name and email.** Moodle: share the launcher's name and email with the
   tool **Always**, for every role. Dynamic Registration requests this. Check
   the setting after the registration. ILIAS: identify users by email address
@@ -775,12 +817,21 @@ Redis. Without Redis the tool fails closed with `state_unavailable`.
 A switched-off deployment blocks launches through that deployment. Unknown
 deployments are rejected.
 
+**Framing of the registration page.** Moodle shows
+`/api/lti/register/init` inside an iframe of its admin page. A reverse proxy
+in front of the tool must not add `X-Frame-Options` on this path. The tool
+answers it with `Content-Security-Policy: frame-ancestors` set to the origin
+of the LMS that started the registration. Every other path keeps
+`X-Frame-Options: DENY`.
+
 ### Validation checklist before onboarding a university
 
 1. `GET https://<tool-host>/api/lti/jwks` returns 200, and every key carries
    `kid` and `alg`.
 2. An org admin creates an invite, the LMS registers, and the connection is
-   active. The tool URLs in the LMS use the chosen address.
+   active. The result page shows inside the LMS. The tool URLs in the LMS
+   use the chosen address. On Moodle, the three tool settings from
+   [§6a](#6a-one-link-registration-dynamic-registration) are changed.
 3. A teacher launch shows the consent page once. The picker lists own and
    colleagues' exams, and a Bewertungsbogen exam can be linked.
 4. A student launch in a clean browser shows the consent page, and no
@@ -840,6 +891,9 @@ fail unexpectedly carry the reference in their message.
 | Grading does not run, students see that their organization has no API key | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check. |
 | An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again, as long as the existing account still has the address the LMS sends. |
 | A teacher's picker is empty | The teacher and the organization's staff have no exams yet, or all of them are archived. Create an exam from the picker. |
+| Teachers do not find the tool in the Moodle activity chooser | The tool's *Tool configuration usage* is still *Show as preconfigured tool*. Set it to **Show in activity chooser and as a preconfigured tool** (see [§6a](#6a-one-link-registration-dynamic-registration)). |
+| A Moodle activity has no grade settings | The tool's *Accept grades from the tool* delegates to the teacher, and the teacher did not tick *Allow ... to add grades in the gradebook*. Set the tool to **Always**, or tick the box in the activity. |
+| The Moodle registration window stays empty or shows a browser error | A proxy in front of the tool sends `X-Frame-Options` on `/api/lti/register/init` (see [§11](#11-operating-the-tool-self-hosted-deployments)). The connection may exist anyway. Check the panel before you try again. |
 | Moodle `invalidrequest` at `auth.php` | The redirect URI is not registered character for character, or the `lti_message_hint` was changed. |
 | Token call fails with `"kid" invalid` | The LMS cannot match our JWKS: wrong or unreachable keyset URL, a rotated key without the previous pair, or API and workers signing with different keys. |
 | Token call fails with a null-JWKS error | The LMS's outbound curl security blocks the keyset URL. Serve it on port 443. |
@@ -911,18 +965,37 @@ we can reply with the documents instead of another round of questions.
 > **Das Tool als LTI-1.3-Tool in Moodle einbinden**
 >
 > **Variante 1, ein Link (empfohlen):**
-> Website-Administration → Plugins → Externes Tool → Tools verwalten → den
-> **Registrierungslink Ihres Organisations-Admins** in das Feld **„LTI
-> Advantage hinzufügen“** einfügen. Moodle und das Tool tauschen alle
-> weiteren Werte aus. Das Tool erscheint als *Ausstehend*. Ein Klick auf
-> **Aktivieren** schließt die Einrichtung ab. Die Anbindung ist sofort
-> aktiv. Die Registrierung fordert Name und E-Mail-Adresse für alle Personen
-> sowie Notensynchronisation und Spaltenverwaltung an. Bitte prüfen Sie
-> danach in der Konfiguration des Tools, dass beides so eingestellt ist.
+>
+> 1. Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools
+>    verwalten → den **Registrierungslink Ihres Organisations-Admins** in das
+>    Feld **„LTI Advantage hinzufügen“** einfügen.
+> 2. Fragt Moodle, ob ein vorhandenes Tool aktualisiert werden soll, wählen
+>    Sie **„Als neues externes Tool registrieren“**. „Aktualisierung“ nur
+>    dann, wenn Sie eine frühere Anbindung bewusst ersetzen.
+> 3. Moodle und das Tool tauschen alle weiteren Werte aus. Das Tool erscheint
+>    als *Wartend*. Ein Klick auf **aktivieren** schaltet es frei. Die
+>    Anbindung ist sofort aktiv.
+> 4. Öffnen Sie die Einstellungen des Tools (Symbol „Bearbeiten“ auf der
+>    Tool-Karte) und setzen Sie:
+>    - „Verwendung der Toolkonfiguration“: **„In Aktivitätsauswahl und als
+>      vorkonfiguriertes Tool anzeigen“**
+>    - „Standard-Startcontainer“: **„Neues Fenster“**
+>    - „Bewertungen aus dem Tool akzeptieren“: **„Immer“**
+>
+>    Moodle legt jedes per Link registrierte Tool mit „Als vorkonfiguriertes
+>    Tool anzeigen …“, „Eingebettet ohne Blöcke“ und „… an Dozierende
+>    delegieren“ an. Das Tool kann das nicht ändern. Ohne die Änderung finden
+>    Lehrende das Tool nicht in der Aktivitätsauswahl, das Tool startet
+>    eingebettet, und Aktivitäten erhalten nur dann eine Bewertung, wenn
+>    Lehrende das in jeder Aktivität erlauben.
+> 5. Prüfen Sie in denselben Einstellungen auch: Name und E-Mail-Adresse
+>    **immer** an das Tool senden, für alle Personen, und die
+>    Notenübertragung mit **Notensynchronisation und Spaltenverwaltung**.
+>    Die Registrierung fordert beides an.
 >
 > **Variante 2, manuell:**
-> Website-Administration → Plugins → Externes Tool → Tools verwalten → „Tool
-> manuell konfigurieren“. Die URLs schickt Ihnen Ihr Organisations-Admin. Das
+> Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools
+> verwalten → „Tool manuell konfigurieren“. Die URLs schickt Ihnen Ihr Organisations-Admin. Das
 > Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später unter
 > **Tool-Konfiguration**.
 >
@@ -932,7 +1005,10 @@ we can reply with the documents instead of another round of questions.
 >   (zeichengenau identisch)
 > - Öffentliches Schlüsselset: `https://<tool-host>/api/lti/jwks`
 > - LTI-Version: **1.3**
+> - Verwendung der Toolkonfiguration: **In Aktivitätsauswahl und als
+>   vorkonfiguriertes Tool anzeigen**
 > - Standard-Startcontainer: **Neues Fenster** (Pflicht, kein iframe)
+> - Bewertungen aus dem Tool akzeptieren: **Immer**
 > - IMS LTI Assignment and Grade Services:
 >   **Notensynchronisation und Spaltenverwaltung**
 > - Deep Linking: **aus**
@@ -950,10 +1026,13 @@ we can reply with the documents instead of another round of questions.
 > legt die Spalte „KI-Bewertung“ dann bei der nächsten Notenübertragung an,
 > spätestens beim stündlichen Abgleich, sobald eine Note vorliegt.
 >
-> **Im Kurs:** Aktivität anlegen → Externes Tool → Tool wählen → sicherstellen,
-> dass die Aktivität **eine Bewertung besitzt** (Standard 100 genügt). Ohne
-> Bewertung gibt es kein Line Item, und es kann keine Note zurückgeschrieben
-> werden.
+> **Im Kurs:** Aktivität anlegen → das Tool in der Aktivitätsauswahl wählen
+> → sicherstellen, dass die Aktivität **eine Bewertung besitzt** (Standard
+> 100 genügt). Ohne Bewertung gibt es kein Line Item, und es kann keine Note
+> zurückgeschrieben werden. Steht das Tool noch auf „… an Dozierende
+> delegieren“, erscheint die Bewertung erst nach dem Haken bei **„<Toolname>
+> erlauben, Bewertungen hinzuzufügen“**. Den Startcontainer wählen Lehrende
+> in Moodle 4.5 nicht selbst. Er kommt aus den Einstellungen des Tools.
 >
 > **Noten:** Die Spalte der Aktivität erhält die Endnote. Das ist die
 > Korrektur der Lehrenden, sonst die KI-Note, umgerechnet auf das Maximum der

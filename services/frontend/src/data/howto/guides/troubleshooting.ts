@@ -240,22 +240,22 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
     tips: {
       de: [
         'Die Admins Ihrer Organisation verwalten die Anbindung unter [Benutzer & Organisationen](/users-organizations) → Organisation → **Mehr** → **Lernplattform (LTI)**. Dort schalten sie Anbindung und Deployments ein und aus, tragen Deployment-IDs ein und lösen Verknüpfungen von LMS-Konten.',
-        'Tool-Einstellungen, Deployment-ID, Datenschutz (Übermittlung von Name und E-Mail) sowie Notenübertragung und Spaltenverwaltung ändert nur die Administration der Lernplattform.',
+        'Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (Übermittlung von Name und E-Mail) sowie Notenübertragung und Spaltenverwaltung ändert nur die Administration der Lernplattform.',
       ],
       en: [
         'The admins of your organization manage the connection under [Users & organizations](/users-organizations) → organization → **More** → **Learning platform (LTI)**. There they switch the connection and its deployments on and off, add deployment IDs and unlink LMS accounts.',
-        'Only the learning platform administration changes the tool settings, the deployment ID, privacy (sending name and email) and grade sync with column management.',
+        'Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (sending name and email) and grade sync with column management.',
       ],
     },
     pitfalls: {
       de: [
-        'Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Stellen Sie das Tool in der Lernplattform auf **Neues Fenster**.',
+        'Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Stellen Sie das Tool in der Lernplattform auf **Neues Fenster**. Moodle stellt nach einer Registrierung per Link „eingebettet“ ein. Dort ändert die Moodle-Administration den *Standard-Startcontainer* des Tools. Lehrende können das in Moodle 4.5 nicht je Aktivität ändern.',
         '`state_unavailable` hat nichts mit Cookies oder dem Browser zu tun. Ein anderer Browser hilft nicht, ein neuer Versuch nach einigen Minuten schon.',
         '*Zurück*, Neuladen oder ein Lesezeichen auf eine Seite des Starts führen zu `invalid_state`. Starten Sie immer aus der Lernplattform.',
         '`unknown_deployment` und `deployment_disabled` sind nicht dasselbe. Im ersten Fall fehlt die ID in der Anbindung, im zweiten ist sie eingetragen und abgeschaltet.',
       ],
       en: [
-        'If the tool starts embedded in the course (iframe), people land on the login page instead of the exam, or see **Sign-in does not match** (`launch_mismatch`). The browser does not pass the sign-in cookies into the embedded frame. Set the tool to **New window** in the learning platform.',
+        'If the tool starts embedded in the course (iframe), people land on the login page instead of the exam, or see **Sign-in does not match** (`launch_mismatch`). The browser does not pass the sign-in cookies into the embedded frame. Set the tool to **New window** in the learning platform. After a registration by link, Moodle presets embedded. There the Moodle administration changes the tool’s *Default launch container*. Teachers cannot change it per activity in Moodle 4.5.',
         '`state_unavailable` has nothing to do with cookies or the browser. Another browser does not help, a new attempt after a few minutes does.',
         'Going back, reloading or a bookmark on a launch page leads to `invalid_state`. Always start from the learning platform.',
         '`unknown_deployment` and `deployment_disabled` are not the same. In the first case the ID is missing from the connection, in the second it is registered and switched off.',
@@ -291,6 +291,8 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
         'Deployment-ID',
         'Provider-ID',
         'iframe',
+        'eingebettet',
+        'Standard-Startcontainer',
         'Anmeldeseite',
         'Anmeldung abgelaufen',
         'Anmeldung passt nicht',
@@ -309,6 +311,8 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
         'deployment id',
         'provider id',
         'iframe',
+        'embedded',
+        'default launch container',
         'login page',
         'sign-in expired',
         'sign-in does not match',

@@ -60,3 +60,42 @@ imagePullSecrets:
 {{- end }}
 {{- end }}
 {{- end -}}
+
+{{/*
+Traefik headers middleware spec shared by security-headers and
+security-headers-frameable. Call with (dict "root" $ "frameDeny" true|false).
+The two middlewares differ only in frameDeny.
+*/}}
+{{- define "benger.securityHeadersSpec" -}}
+{{- $root := .root -}}
+headers:
+  stsSeconds: {{ $root.Values.middleware.securityHeaders.stsSeconds | default 300 }}
+  stsIncludeSubdomains: {{ $root.Values.middleware.securityHeaders.stsIncludeSubdomains | default false }}
+  stsPreload: {{ $root.Values.middleware.securityHeaders.stsPreload | default false }}
+  contentTypeNosniff: true
+  {{- if .frameDeny }}
+  frameDeny: true
+  {{- end }}
+  browserXssFilter: true
+  referrerPolicy: "strict-origin-when-cross-origin"
+  customResponseHeaders:
+    Server: ""
+    X-Powered-By: ""
+    {{- if $root.Values.middleware.noindex }}
+    # Keep search engines out of non-production hosts (demo/staging). The
+    # header applies to every router that carries a security-headers
+    # middleware: api, frontend, the vertretbar apex and the LTI
+    # registration page.
+    X-Robots-Tag: "noindex, nofollow"
+    {{- end }}
+{{- end -}}
+
+{{/*
+Router priority of the LTI Dynamic Registration Ingresses. It must beat the
+frontend catch-all on the same host (values: 100 prod, 150 staging and demo)
+and the vertretbar-lti Ingress (110). Only exact hosts are routed, never a
+wildcard, so the value cannot capture another namespace's host.
+*/}}
+{{- define "benger.ltiRegisterPriority" -}}
+190
+{{- end -}}

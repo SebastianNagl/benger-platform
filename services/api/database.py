@@ -633,17 +633,54 @@ def _upsert_llm_model(db: Session, model_data: Dict[str, any]) -> str:
     return "inserted"
 
 
+#: Postgres advisory lock key of the LLM model seed (0xBE9E71, next to the
+#: alembic runner's 0xBE9E70 in main.py). Arbitrary but stable.
+LLM_SEED_LOCK_ID = 0xBE9E71
+#: Statement timeout of the seed transaction (waiting for the lock included).
+LLM_SEED_LOCK_TIMEOUT_MS = 120_000
+
+
+def _lock_llm_seed(db: Session) -> None:
+    """Serialize the seed across processes for the current transaction.
+
+    Every uvicorn worker (and every replica) runs the seed at startup when
+    llm_models.yaml changed. Without a lock two of them both see a model as
+    missing, both INSERT it, and the second one dies on ``llm_models_pkey``
+    (psycopg2 UniqueViolation). ``pg_advisory_xact_lock`` makes the second
+    one wait until the first commits; READ COMMITTED then shows it the rows,
+    so it only updates or skips. The lock ends with the transaction (the
+    seed's commit), so nothing leaks on errors either. The engine's 15 s
+    statement timeout would cancel a waiter behind a slow first seed, so the
+    seed transaction gets a longer one. Other databases (sqlite in some
+    tests) have no advisory locks and run unlocked.
+    """
+    from sqlalchemy import text
+
+    bind = db.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+    db.execute(text(f"SET LOCAL statement_timeout = {LLM_SEED_LOCK_TIMEOUT_MS}"))
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": LLM_SEED_LOCK_ID})
+
+
 def initialize_llm_models(db: Session) -> int:
     """Upsert the LLM model catalog from seeds/llm_models.yaml.
 
     Returns the number of inserted + updated rows so callers can log a
     one-line summary. Models present in the DB but absent from the YAML
     are flipped to is_active=False (kept for historical evaluation rows).
+
+    Safe to run from several processes at once: the whole upsert holds a
+    transaction-scoped advisory lock (see :func:`_lock_llm_seed`).
     """
     from models import LLMModel as DBLLMModel
     from seeds.llm_models_loader import load_catalog
 
     catalog = load_catalog()
+
+    # Before the first read: the existence checks below must see the rows a
+    # concurrent seed committed while this one waited.
+    _lock_llm_seed(db)
 
     counts = {"inserted": 0, "updated": 0, "unchanged": 0}
     for model in catalog.models:

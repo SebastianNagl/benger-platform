@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-17',
     audience: 'both',
     text: {
+      de: 'Die Registrierung einer Lernplattform per Link zeigt ihr Ergebnis jetzt direkt in Moodle an. Die Anleitungen nennen außerdem die drei Tool-Einstellungen, die die Moodle-Administration danach ändert. Das Tool erscheint dann in der Aktivitätsauswahl, startet in einem neuen Fenster und darf Bewertungen eintragen.',
+      en: 'Registering a learning platform by link now shows its result right inside Moodle. The guides also name the three tool settings the Moodle administration changes afterwards. The tool then appears in the activity chooser, opens in a new window and may enter grades.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'both',
+    text: {
       de: 'Projekte mit Aufgabenzuweisungen lassen sich wieder importieren. Bisher brach ein solcher Import mit einem Fehler ab.',
       en: 'Projects with task assignments can be imported again. Until now, such an import stopped with an error.',
     },
