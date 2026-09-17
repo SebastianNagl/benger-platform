@@ -3632,36 +3632,22 @@ def run_single_sample_evaluation(
         # Prediction/reference resolution needs no DB, so it happens here too.
         # `prediction_fields` carries a literal field name, a
         # `human:<field>` / `model:<field>` prefix, or the bulk selectors
-        # `__all_human__` / `__all_model__`. `annotation_results` is keyed by
-        # raw `from_name`, so we strip prefixes and expand `__all_human__`.
-        def _resolve_human_field(pf: str):
-            if pf == "__all_human__":
-                if not annotation_results:
-                    return None
-                return "\n\n".join(
-                    f"{k}: {v}" for k, v in annotation_results.items() if v
-                )
-            key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
-            return annotation_results.get(key)
+        # `__all_human__` / `__all_model__`. The shared resolver is the same
+        # one the dispatcher uses to decide whether there is anything to
+        # grade, so the two cannot disagree. Model-side selectors never
+        # resolve: single-sample immediate eval has no model generations.
+        from immediate_eval_dispatch import resolve_human_prediction
 
         jobs: List[Dict[str, Any]] = []
+        skipped_configs: List[Dict[str, Any]] = []
         for idx, eval_cfg in enumerate(eligible_configs):
             metric_type = eval_cfg.get("metric", "")
             pred_fields = eval_cfg.get("prediction_fields", [])
             ref_fields = eval_cfg.get("reference_fields", [])
             metric_params = eval_cfg.get("metric_parameters") or {}
 
-            prediction_value = None
+            prediction_value = resolve_human_prediction(eval_cfg, annotation_results)
             reference_value = None
-            for pf in pred_fields:
-                if pf.startswith("model:") or pf == "__all_model__":
-                    # Single-sample immediate eval has no model generations to
-                    # evaluate against — only human annotations. Skip.
-                    continue
-                value = _resolve_human_field(pf)
-                if value:
-                    prediction_value = value
-                    break
 
             for rf in ref_fields:
                 if rf.startswith("task."):
@@ -3674,6 +3660,12 @@ def run_single_sample_evaluation(
 
             if prediction_value is None:
                 logger.warning(f"[SingleSampleEval] Skipping {metric_type} - no prediction value")
+                skipped_configs.append({
+                    "id": eval_cfg.get("id", metric_type),
+                    "metric": metric_type,
+                    "prediction_fields": list(pred_fields or []),
+                    "reason": "no_prediction_value",
+                })
                 continue
 
             # Each config gets its OWN judge_run (distinct run_index) so the
@@ -3744,6 +3736,28 @@ def run_single_sample_evaluation(
             eval_run.status = "completed"
             eval_run.completed_at = _dt_now.now()
 
+            if not jobs:
+                # Nothing to grade: no config found an answer (empty
+                # submission, missing field, or model-only configs). Say so
+                # on the run instead of finishing silently. It stays
+                # `completed`, so the results modal lists the methods as
+                # skipped rather than as a failed grading.
+                eval_run.samples_evaluated = 0
+                eval_run.eval_metadata = {
+                    **(eval_run.eval_metadata or {}),
+                    "nothing_to_grade": {
+                        "reason": "no_prediction_value",
+                        "skipped_configs": skipped_configs,
+                    },
+                }
+                logger.warning(
+                    "[SingleSampleEval] run %s annotation %s: nothing to grade, "
+                    "all %d config(s) skipped",
+                    dispatch_eval_id,
+                    annotation_id,
+                    len(skipped_configs),
+                )
+
             # Aggregate TaskEvaluation scores into EvaluationRun.metrics
             # so the comparison table on /evaluations can display them.
             # Re-query in this session — the rows were written by the worker
@@ -3813,7 +3827,10 @@ def run_single_sample_evaluation(
 
             db.commit()
 
-        grading_succeeded = not any(
+        # A run that graded nothing is not a successful grading: the finalize
+        # hook voids a metered ledger row (no charge, a claimed free slot is
+        # released) and no "grade received" notice goes out.
+        grading_succeeded = bool(jobs) and not any(
             isinstance(r, dict) and r.get("status") == "error" for r in results
         )
         _run_grading_finalize_hook(dispatch_eval_id, grading_succeeded)
@@ -5088,6 +5105,12 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     A grading the billing policy refuses keeps its one blocked run (the check
     only refreshes it) and is dispatched on the first sweep after the block
     is lifted; ``blocked`` counts those annotations.
+
+    ``scan_ungraded`` leaves out annotations with nothing to grade (empty
+    answer, no graded field), so they are never dispatched. An annotation
+    whose earlier sweep runs all ended without a grade (a judge outage) is
+    retried up to ``SWEEP_MAX_ATTEMPTS`` times; ``capped`` counts the ones
+    past that. A manual retrigger is not affected by the cap.
     """
     from datetime import datetime as _dt
     from datetime import timedelta, timezone
@@ -5095,14 +5118,17 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     from immediate_eval_dispatch import (
         OUTCOME_BLOCKED,
         OUTCOME_DISPATCHED,
+        SWEEP_MAX_ATTEMPTS,
+        SWEEP_TRIGGER,
         ensure_immediate_evaluation_outcome,
         scan_ungraded,
+        sweep_attempt_counts,
     )
     from project_models import Project
 
     db = SessionLocal()
     cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
-    scanned_projects = dispatched = blocked = 0
+    scanned_projects = dispatched = blocked = capped = 0
     try:
         projects = (
             db.query(Project)
@@ -5117,12 +5143,16 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
             if not candidates:
                 continue
             scanned_projects += 1
+            attempts = sweep_attempt_counts(db, project.id)
             for annotation, task in candidates:
+                if attempts.get(str(annotation.id), 0) >= SWEEP_MAX_ATTEMPTS:
+                    capped += 1
+                    continue
                 try:
                     # cutoff already applied in scan_ungraded → no min-age here.
                     outcome = ensure_immediate_evaluation_outcome(
                         db, project, task, annotation,
-                        trigger="sweep_missing_immediate_evals",
+                        trigger=SWEEP_TRIGGER,
                     )
                     if outcome.status == OUTCOME_DISPATCHED:
                         dispatched += 1
@@ -5136,14 +5166,15 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
                     db.rollback()
         logger.info(
             "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d "
-            "blocked=%d",
-            scanned_projects, dispatched, blocked,
+            "blocked=%d capped=%d",
+            scanned_projects, dispatched, blocked, capped,
         )
         return {
             "status": "success",
             "projects_with_gaps": scanned_projects,
             "dispatched": dispatched,
             "blocked": blocked,
+            "capped": capped,
         }
     except Exception as exc:
         logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)
