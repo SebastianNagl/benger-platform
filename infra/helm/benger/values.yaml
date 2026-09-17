@@ -397,7 +397,12 @@ workerPools:
     # 1 so a burst spreads across both replicas instead of one pod reserving it.
     prefetchMultiplier: 1
     maxTasksPerChild: 200
-    maxMemoryPerChildKb: 800000  # ~780 MB
+    # ~390 MB. The old 800000 could never fire: two forks at 780 MB plus the
+    # ~200 MB main process are far past the 1536Mi limit, so the kernel would
+    # OOM-kill the pod first. Forks sit at ~180-225 MB after hours of grading
+    # (2026-09-17), so this only recycles a fork that really grew. See the
+    # memory budget note on `aux` below.
+    maxMemoryPerChildKb: 400000
     resources:
       limits:
         cpu: 1000m
@@ -406,7 +411,7 @@ workerPools:
         cpu: 100m
         memory: 512Mi
 
-  # Rate-limited mail + short periodic housekeeping.
+  # Rate-limited mail only.
   #
   # Separate from `fast` because a rate-limited task takes the limit_task branch
   # in celery/worker/strategy.py WITHOUT a qos.increment_eventually() — it holds
@@ -420,22 +425,49 @@ workerPools:
   # adding replicas here.
   #
   # prefetchMultiplier stays at Celery's default 4: rate-limited tasks WANT
-  # headroom to sit in, otherwise emails would head-of-line-block maintenance.
+  # headroom to sit in.
+  #
+  # Memory budget. Forks keep their peak RSS after a task, and
+  # --max-memory-per-child compares that peak (ru_maxrss) after each task. The
+  # pod must fit: main process (~200 MB) + every fork at the recycle threshold
+  # + the growth of a running task + two overlapping probe imports (~180 MB
+  # each, `celery inspect ping` re-imports tasks.py). Keep the threshold well
+  # below (limit - main - probes) / concurrency.
   aux:
     enabled: true
-    queues: [emails, maintenance]
+    queues: [emails]
     replicaCount: 1
     concurrency: 2
     prefetchMultiplier: 4
     maxTasksPerChild: 200
-    # Forks keep their peak RSS after a task. Main process ~200 MB + two forks
-    # must stay under the limit, so recycle a fork once it passes ~390 MB. At
-    # 800000 the threshold sat above what the 1Gi pod could ever reach and the
-    # pod was OOM-killed instead (2026-09-17, recompute_aggregates).
-    maxMemoryPerChildKb: 400000
+    maxMemoryPerChildKb: 350000  # ~340 MB; 200 + 2*(340+50) + 360 = ~1340 MB
     resources:
       limits:
         cpu: 500m
+        memory: 1536Mi
+      requests:
+        cpu: 50m
+        memory: 256Mi
+
+  # Periodic housekeeping (recompute_aggregates, the immediate-eval sweep, the
+  # LTI and billing sweeps). Its own pool since 2026-09-17: the hourly
+  # recompute_aggregates run OOM-killed the shared emails+maintenance pod
+  # (1Gi, recycle threshold 800 MB that the pod could never reach), which also
+  # took invitation mail down with it. A maintenance OOM can no longer stop
+  # mail. Concurrency 1 keeps the budget small; the beat tasks are short apart
+  # from recompute_aggregates (~5 min), and nothing here has a user waiting.
+  # Budget: 200 + (400 + 150) + 360 = ~1110 MB against 1536Mi.
+  maintenance:
+    enabled: true
+    queues: [maintenance]
+    replicaCount: 1
+    concurrency: 1
+    prefetchMultiplier: 1
+    maxTasksPerChild: 50
+    maxMemoryPerChildKb: 400000  # ~390 MB
+    resources:
+      limits:
+        cpu: 1000m
         memory: 1536Mi
       requests:
         cpu: 50m

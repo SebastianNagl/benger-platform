@@ -54,7 +54,8 @@ INTERACTIVE = "interactive"
 # token. A 200-address bulk invite at 30/m would otherwise pin the interactive
 # pool for ~7 minutes.
 EMAILS = "emails"
-# Also `aux`: short periodic housekeeping + beat sweeps. Notably
+# Served by the `maintenance` pool (split from `aux` on 2026-09-17 so a
+# housekeeping OOM cannot take mail down): periodic housekeeping + beat sweeps. Notably
 # sweep_missing_immediate_evals, which is the recovery path for immediate
 # evaluation -- behind a generation run it would never get to run at all.
 MAINTENANCE = "maintenance"
