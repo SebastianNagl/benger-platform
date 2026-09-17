@@ -34,9 +34,10 @@ Key capabilities:
 
 - **Task creation** — legal experts define tasks and reference solutions directly in the platform
 - **Collaborative annotation** — free-text QA, multiple choice, span annotation, with inter-annotator agreement
-- **LLM execution** — batch execution across OpenAI, Anthropic, Google, Mistral, Cohere, DeepInfra, Zhipu AI
+- **LLM execution** — batch execution across OpenAI, Anthropic, Google, Mistral, Cohere, DeepInfra and xAI, plus your own OpenAI-compatible endpoints; the model catalog lives in `services/shared/seeds/llm_models.yaml`
 - **Evaluation** — 40+ metrics: classification, lexical, semantic, factual, LLM-as-a-judge
-- **Multi-organization** — tenant isolation, role-based access (Admin, Contributor, Annotator), invitation onboarding
+- **Multi-organization** — tenant isolation, role-based access (Admin, Contributor, Annotator), groups, invitation onboarding
+- **Import, export and reports** — project import/export through S3-compatible object storage (MinIO), per-project reports, in-app how-to guides
 - **LMS integration (LTI 1.3)** — launch from a Moodle or ILIAS course, grades returned to the gradebook via AGS. The data model and admin API are in this repository; the protocol implementation ships in the commercial edition. See the [LMS integration guide](docs/lms-integration.md).
 
 ### Quick Start
@@ -67,7 +68,7 @@ On modern macOS, Linux, and Windows, `*.localhost` resolves to 127.0.0.1 automat
 ```
 BenGER/
 ├── services/
-│   ├── frontend/           # Next.js 15 web application
+│   ├── frontend/           # Next.js 16 web application
 │   ├── api/                # FastAPI backend service
 │   ├── workers/            # Celery background workers (40+ evaluation metrics)
 │   └── shared/             # Shared models, seeds, and AI services
@@ -75,17 +76,19 @@ BenGER/
 ├── scripts/                # Automation, deployment, maintenance
 ├── docs/                   # User and developer documentation
 └── publications/
-    └── Benchmark_EMNLP/        # The BenGER benchmark paper + dataset preparation
-        ├── manuscript.qmd  # Quarto source for the paper
-        ├── data/           # Processed + interim data (raw lives on HF + Zenodo)
-        └── scripts/        # Data preparation, IP clearance, anonymization
+    ├── Benchmark_EMNLP/    # The BenGER benchmark paper + dataset preparation
+    │   ├── manuscript.qmd  # Quarto source for the paper
+    │   ├── data/           # Processed + interim data (raw lives on HF + Zenodo)
+    │   └── scripts/        # Data preparation, IP clearance, anonymization
+    ├── Plattform_ICAIL/    # The ICAIL system-demonstration paper
+    └── Transformation/     # Follow-up study on task transformation
 ```
 
 ## Technology Stack
 
-- **Frontend**: Next.js 15 (App Router, Turbopack), TypeScript, Tailwind, Headless UI, Zustand, TanStack Query, Recharts/Plotly
-- **Backend**: FastAPI (Python 3.11+), PostgreSQL 15 with SQLAlchemy, Redis + Celery, JWT auth, Alembic migrations
-- **ML/Evaluation**: PyTorch, Transformers, Sentence-Transformers, BERTScore, SacreBLEU, ROUGE, METEOR, MoverScore, LLM-as-a-judge (Claude, GPT-4)
+- **Frontend**: Next.js 16 (App Router, Turbopack) on React 19 and Node 24, TypeScript 6, Tailwind 4, Headless UI, Zustand, TanStack Query, Recharts/Plotly
+- **Backend**: FastAPI (Python 3.13+), PostgreSQL 15+ (18 in production) with SQLAlchemy, Redis + Celery, MinIO object storage, JWT auth, Alembic migrations
+- **ML/Evaluation**: PyTorch, Transformers, Sentence-Transformers, BERTScore, SacreBLEU, ROUGE, METEOR, MoverScore, LLM-as-a-judge with any catalog model (GPT-5 and Claude families by default)
 - **Infra**: Docker Compose, Kubernetes (k3s) + Helm, Traefik v3
 
 ## Development & Testing
