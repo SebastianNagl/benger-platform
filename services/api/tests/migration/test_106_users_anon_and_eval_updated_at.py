@@ -83,6 +83,19 @@ def _assert_full_shape(conn):
     )
     anonymized = _columns(conn, "users")["anonymized_at"]
     assert anonymized["nullable"] is True
+    users = _columns(conn, "users")
+    assert users["lms_provisioned_at"]["nullable"] is True
+    assert users["lms_origin_org_id"]["nullable"] is True
+    (origin_fk,) = [
+        fk
+        for fk in inspect(conn).get_foreign_keys("users")
+        if fk["constrained_columns"] == ["lms_origin_org_id"]
+    ]
+    assert origin_fk["referred_table"] == "organizations"
+    assert origin_fk["options"].get("ondelete") == "SET NULL"
+    assert "ix_users_lms_origin_org_id" in {
+        ix["name"] for ix in inspect(conn).get_indexes("users")
+    }
     updated = _columns(conn, "task_evaluations")["updated_at"]
     assert updated["nullable"] is True
     assert updated["default"] is None
@@ -118,7 +131,9 @@ class _Accounts:
         db.flush()
         self.verified_at = datetime(2026, 7, 1, tzinfo=timezone.utc)
 
-    def add(self, key, *, method="system", password=None, link_method=NO_LINK):
+    def add(
+        self, key, *, method="system", password=None, link_method=NO_LINK, verified=True
+    ):
         from models import LtiUserLink, User
 
         uid = _uid(key)
@@ -129,9 +144,9 @@ class _Accounts:
                 email=f"{uid}@example.com",
                 name=key,
                 hashed_password=password,
-                email_verified=True,
+                email_verified=verified,
                 email_verification_method=method,
-                email_verified_at=self.verified_at,
+                email_verified_at=self.verified_at if verified else None,
             )
         )
         self.db.flush()
@@ -182,6 +197,8 @@ class TestMigration106Shape:
         with _op_context(conn):
             mig.downgrade()
         assert "anonymized_at" not in _columns(conn, "users")
+        assert "lms_provisioned_at" not in _columns(conn, "users")
+        assert "lms_origin_org_id" not in _columns(conn, "users")
         assert "updated_at" not in _columns(conn, "task_evaluations")
         assert _email_index(conn) is None
         assert "attached_via" not in _columns(conn, "project_organizations")
@@ -230,8 +247,14 @@ class TestMigration106EmailBackfill:
             _load_migration().upgrade()
 
         verified = (True, "system", accounts.verified_at)
-        # The LMS address was never proven: unverified until activation.
-        assert _email_state(conn, passwordless) == (False, "lti_claim", None)
+        # The LMS address was never proven: the method says so. The verified
+        # flag stays, so an old pod that activates the account during the
+        # rollout (or after a rollback) still lets it log in.
+        assert _email_state(conn, passwordless) == (
+            True,
+            "lti_claim",
+            accounts.verified_at,
+        )
         # The account holder set a password through the activation mail.
         assert _email_state(conn, activated) == (True, "activation", accounts.verified_at)
         for untouched in (proof_linked, legacy, unknown, seed_user):
@@ -245,13 +268,21 @@ class TestMigration106EmailBackfill:
         # Running it again changes nothing.
         with _op_context(conn):
             _load_migration().upgrade()
-        assert _email_state(conn, passwordless) == (False, "lti_claim", None)
+        assert _email_state(conn, passwordless) == (
+            True,
+            "lti_claim",
+            accounts.verified_at,
+        )
         assert _email_state(conn, activated) == (True, "activation", accounts.verified_at)
 
     def test_downgrade_makes_lms_claims_verified_again(self, test_db: Session):
         accounts = _Accounts(test_db)
         passwordless = accounts.add("passwordless", link_method="provisioned")
         activated = accounts.add("activated", password="hash", link_method="provisioned")
+        # An account the new code created: unverified LMS claim.
+        fresh = accounts.add(
+            "fresh", method="lti_claim", link_method="provisioned", verified=False
+        )
         conn = test_db.get_bind()
         with _op_context(conn):
             _load_migration().upgrade()
@@ -259,10 +290,108 @@ class TestMigration106EmailBackfill:
         with _op_context(conn):
             _load_migration().downgrade()
 
-        verified, method, verified_at = _email_state(conn, passwordless)
+        assert _email_state(conn, passwordless) == (True, "system", accounts.verified_at)
+        assert _email_state(conn, activated) == (True, "activation", accounts.verified_at)
+        verified, method, verified_at = _email_state(conn, fresh)
         assert (verified, method) == (True, "system")
         assert verified_at is not None
-        assert _email_state(conn, activated) == (True, "activation", accounts.verified_at)
+
+
+def _origin(conn, user_id):
+    return tuple(
+        conn.execute(
+            text(
+                "SELECT lms_provisioned_at, lms_origin_org_id FROM users WHERE id = :u"
+            ),
+            {"u": user_id},
+        ).one()
+    )
+
+
+class TestMigration106LmsOriginBackfill:
+    def test_provisioned_accounts_get_the_earliest_link(self, test_db: Session):
+        from models import LtiPlatformRegistration, LtiUserLink, Organization
+
+        accounts = _Accounts(test_db)
+        later_org = Organization(
+            id=_uid("org"), name="Later", display_name="Later", slug=_uid("l")
+        )
+        test_db.add(later_org)
+        test_db.flush()
+        later_reg = LtiPlatformRegistration(
+            id=_uid("reg"),
+            organization_id=later_org.id,
+            name="ILIAS",
+            issuer=f"https://{_uid('lms')}.example.com",
+            client_id=_uid("client"),
+            auth_login_url="https://lms.example.com/auth",
+            auth_token_url="https://lms.example.com/token",
+            jwks_uri="https://lms.example.com/jwks",
+        )
+        test_db.add(later_reg)
+        test_db.flush()
+        provisioned = accounts.add("provisioned", link_method="provisioned")
+        first_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+        test_db.query(LtiUserLink).filter(LtiUserLink.user_id == provisioned).update(
+            {"created_at": first_at}
+        )
+        test_db.add(
+            LtiUserLink(
+                id=_uid("ul"),
+                registration_id=later_reg.id,
+                sub=_uid("sub"),
+                user_id=provisioned,
+                link_method="provisioned",
+                created_at=first_at + timedelta(days=30),
+            )
+        )
+        proof_linked = accounts.add("proof", link_method="login_proof")
+        unknown = accounts.add("unknown", link_method=None)
+        already = accounts.add("already", link_method="provisioned")
+        kept_at = datetime(2026, 9, 1, tzinfo=timezone.utc)
+        test_db.execute(
+            text(
+                "UPDATE users SET lms_provisioned_at = :at, lms_origin_org_id = NULL "
+                "WHERE id = :u"
+            ),
+            {"at": kept_at, "u": already},
+        )
+        test_db.flush()
+        conn = test_db.get_bind()
+
+        with _op_context(conn):
+            _load_migration().upgrade()
+            _load_migration().upgrade()
+
+        assert _origin(conn, provisioned) == (first_at, accounts.reg.organization_id)
+        assert _origin(conn, proof_linked) == (None, None)
+        assert _origin(conn, unknown) == (None, None)
+        # Marked rows are left alone.
+        assert _origin(conn, already) == (kept_at, None)
+
+    def test_origin_org_is_cleared_with_its_org(self, test_db: Session):
+        from models import Organization
+
+        accounts = _Accounts(test_db)
+        doomed = Organization(
+            id=_uid("org"), name="Gone", display_name="Gone", slug=_uid("g")
+        )
+        test_db.add(doomed)
+        test_db.flush()
+        uid = accounts.add("kept")
+        conn = test_db.get_bind()
+        conn.execute(
+            text(
+                "UPDATE users SET lms_provisioned_at = now(), "
+                "lms_origin_org_id = :o WHERE id = :u"
+            ),
+            {"o": doomed.id, "u": uid},
+        )
+        conn.execute(text("DELETE FROM organizations WHERE id = :o"), {"o": doomed.id})
+
+        provisioned_at, origin = _origin(conn, uid)
+        assert provisioned_at is not None
+        assert origin is None
 
 
 class TestTaskEvaluationUpdatedAt:

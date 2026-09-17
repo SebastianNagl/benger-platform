@@ -19,7 +19,12 @@ from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
-from services.member_privacy import lms_account_ids, project_name_mask
+from services.member_privacy import (
+    lms_account_ids,
+    project_name_mask,
+    project_name_masks,
+)
+from user_display import prefers_pseudonym
 from models import (
     LtiPlatformRegistration,
     LtiResourceLink,
@@ -31,7 +36,11 @@ from models import (
     User,
 )
 from notification_service import notify_project_created, notify_project_deleted
-from org_groups import get_lti_attachment_map_async, non_lti_attachment
+from org_groups import (
+    collapse_linking_groups,
+    get_lti_attachment_map_async,
+    non_lti_attachment,
+)
 from project_models import Project, ProjectMember, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
@@ -363,16 +372,18 @@ async def list_projects(
 
         # Creators that are LMS accounts are shown by pseudonym unless the
         # viewer may see their real name on that project (D8).
+        # One hook call for the whole page (no per-row lookups).
         lms_creator_ids = await lms_account_ids(
             db, {p.created_by for p in projects if p.creator is not None}
+        )
+        creator_masks = await _creator_masks(
+            db, projects, current_user, lms_creator_ids
         )
 
         enriched_projects = []
         for project in projects:
             response = ProjectResponse.from_orm(project)
-            response.created_by_name = await _creator_label(
-                db, project, current_user, lms_creator_ids
-            )
+            response.created_by_name = _masked_creator_name(project, creator_masks)
             via = participant_map.get(str(project.id))
             outside_full = accessible_set is not None and project.id not in accessible_set
             # The org-annotator archive carve-out of check_project_accessible:
@@ -700,6 +711,17 @@ def _strip_participant_fields(response: ProjectResponse) -> None:
         response.korrektur_config = None
 
 
+def _creator_shown_as_is(creator, viewer) -> bool:
+    """The creator's name needs no masking check for ``viewer``: the viewer
+    is the creator or a superadmin, or the creator turned the pseudonym off.
+    Mirrors the candidate rule of ``member_privacy``."""
+    if getattr(viewer, "is_superadmin", False) is True:
+        return True
+    if str(creator.id) == str(getattr(viewer, "id", "") or ""):
+        return True
+    return not prefers_pseudonym(creator)
+
+
 async def _creator_label(db, project, viewer, lms_creator_ids=None):
     """``created_by_name`` for ``viewer``: the creator's name, or their
     pseudonym when the creator is an LMS account whose real name the viewer
@@ -710,10 +732,41 @@ async def _creator_label(db, project, viewer, lms_creator_ids=None):
         return None
     if lms_creator_ids is not None and str(creator.id) not in lms_creator_ids:
         return creator.name
+    if _creator_shown_as_is(creator, viewer):
+        return creator.name
     mask = await project_name_mask(
-        db, [creator], viewer=viewer, project_id=str(project.id)
+        db,
+        [creator],
+        viewer=viewer,
+        project_id=str(project.id),
+        lms_ids=lms_creator_ids,
     )
     return mask.label(creator)
+
+
+async def _creator_masks(db, projects, viewer, lms_creator_ids) -> dict:
+    """Name masks of the creators of ``projects`` that may need one, keyed
+    by project id, from a single hook call."""
+    targets = {
+        str(p.id): [p.creator]
+        for p in projects
+        if p.creator is not None
+        and str(p.creator.id) in lms_creator_ids
+        and not _creator_shown_as_is(p.creator, viewer)
+    }
+    if not targets:
+        return {}
+    return await project_name_masks(
+        db, targets, viewer=viewer, lms_ids=lms_creator_ids
+    )
+
+
+def _masked_creator_name(project, creator_masks: dict):
+    creator = project.creator
+    if creator is None:
+        return None
+    mask = creator_masks.get(str(project.id))
+    return mask.label(creator) if mask is not None else creator.name
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
@@ -939,7 +992,7 @@ async def update_project(
 
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
-    response.created_by_name = project.creator.name if project.creator else None
+    response.created_by_name = await _creator_label(db, project, current_user)
 
     # Calculate statistics including generation_models_count
     await calculate_project_stats_async(db, project.id, response, project=project)
@@ -957,9 +1010,10 @@ async def update_project(
 async def _can_soft_delete(db: AsyncSession, current_user, project: Project) -> bool:
     """Who may (soft-)delete ``project``. The rule lives in
     :func:`routers.projects.helpers.get_soft_deletable_project_ids_async`
-    (superadmin; the creator of a private or org-less project; an active
-    ORG_ADMIN of an org a non-private project is shared with), so the delete
-    controls of the student exam views can ask the same question in bulk."""
+    (superadmin; the creator of a private project or of one without manual
+    org rows; an active ORG_ADMIN of an org a non-private project is shared
+    with by hand, never through an LMS link), so the delete controls of the
+    student exam views can ask the same question in bulk."""
     from routers.projects.helpers import get_soft_deletable_project_ids_async
 
     return project.id in await get_soft_deletable_project_ids_async(
@@ -1094,10 +1148,11 @@ async def _lms_linked_org_groups(db: AsyncSession, project_id: str) -> dict:
     """``{org_id: group_id | None}`` of the orgs with an LMS connection that
     has an activity pointing at the project.
 
-    The group is the one a linking attachment of that org carries (the rule
-    of the extended ``link_resource``): None when any of the org's linking
-    connections is org-wide, else the connection's group (the first one
-    when several groups of the org link the same exam).
+    The group is the one a linking attachment of that org carries
+    (``org_groups.collapse_linking_groups``, the same rule
+    ``sync_lti_attachments`` applies when a connection moves): None when any
+    of the org's linking connections is org-wide, else the first of their
+    groups.
     """
     rows = await db.execute(
         select(LtiPlatformRegistration.organization_id, LtiPlatformRegistration.group_id)
@@ -1108,13 +1163,7 @@ async def _lms_linked_org_groups(db: AsyncSession, project_id: str) -> dict:
         .where(LtiResourceLink.project_id == project_id)
         .distinct()
     )
-    groups: dict = {}
-    for org_id, group_id in rows.all():
-        groups.setdefault(str(org_id), set()).add(str(group_id) if group_id else None)
-    return {
-        org_id: None if None in found else sorted(found)[0]
-        for org_id, found in groups.items()
-    }
+    return collapse_linking_groups(rows.all())
 
 
 async def _release_manual_attachments(
@@ -1355,7 +1404,7 @@ async def update_project_visibility(
     project = result.scalars().unique().one_or_none()
 
     response = ProjectResponse.from_orm(project)
-    response.created_by_name = project.creator.name if project.creator else None
+    response.created_by_name = await _creator_label(db, project, current_user)
     await calculate_project_stats_async(db, project.id, response, project=project)
     await calculate_generation_stats_async(db, project, response)
 

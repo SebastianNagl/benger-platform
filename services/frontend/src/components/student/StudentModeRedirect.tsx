@@ -10,6 +10,7 @@ import {
 import { useSlot } from '@/lib/extensions/slots'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { useUIStore } from '@/stores'
+import { authRedirect } from '@/utils/authRedirect'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
@@ -22,14 +23,21 @@ const LTI_LANDING_PARAMS = ['lti_u', 'rl']
  * The UI mode an LMS launch asks for on this page load, or null.
  *
  * Only honoured together with an LMS landing param (`lti_u` or `rl`), so a
- * stray `?lti_ui=` on any other link does nothing.
+ * stray `?lti_ui=` on any other link does nothing. Never on the pages a
+ * launch passes before it has a session (consent, account linking, error):
+ * whoever is signed in on this browser there is not the launch's user, and
+ * the consent step computes `lti_ui` again for its own redirect. When the
+ * landing names its user (`lti_u`), only that user's mode changes.
  */
-function readLtiUiMode(): UiMode | null {
+function readLtiUiMode(pathname: string, userId: string | null): UiMode | null {
   if (typeof window === 'undefined') return null
+  if (authRedirect.isPublicRoute(pathname)) return null
   const params = new URLSearchParams(window.location.search)
   const mode = params.get(LTI_UI_PARAM)
   if (mode !== 'student' && mode !== 'expert') return null
   if (!LTI_LANDING_PARAMS.some((key) => params.has(key))) return null
+  const launchUser = params.get('lti_u')
+  if (launchUser !== null && launchUser !== userId) return null
   return mode
 }
 
@@ -66,7 +74,9 @@ function stripLtiUiParam(): void {
  * lands in the expert shell. Student-locked hosts honour only `student`:
  * everyone there uses the student UI. The param is removed from the address
  * bar once handled; while the extended package (the student shell) is still
- * loading it stays, so the choice is not lost.
+ * loading it stays, so the choice is not lost. Pre-session pages (public
+ * routes such as `/lti/consent`) and a landing for another user (`lti_u`)
+ * leave the stored mode alone.
  *
  * It keys exclusively on the resolved UI mode — there is intentionally NO
  * profile-completion gate. Renders nothing.
@@ -82,6 +92,7 @@ export function StudentModeRedirect() {
   // Only presence matters here — a logged-out visitor has no view mode to
   // honour and must not be bounced off the public landing page.
   const isAuthenticated = !!user
+  const userId = user?.id != null ? String(user.id) : null
 
   useEffect(() => {
     if (!isHydrated || isLoading) return
@@ -89,7 +100,7 @@ export function StudentModeRedirect() {
     if (!pathname) return
 
     let effectiveMode = resolvedUiMode
-    const ltiMode = readLtiUiMode()
+    const ltiMode = readLtiUiMode(pathname, userId)
     if (ltiMode) {
       if (isExtendedEdition() && !studentShellReady) {
         // The extended package is still loading: decide once the student
@@ -124,6 +135,7 @@ export function StudentModeRedirect() {
     isHydrated,
     isLoading,
     isAuthenticated,
+    userId,
     resolvedUiMode,
     studentShellReady,
     pathname,

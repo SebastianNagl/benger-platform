@@ -43,6 +43,11 @@ class PasswordResetService:
         # Store token in user record (you may want to create a separate table for this)
         user.password_reset_token = token
         user.password_reset_expires = expiry
+        # The reset link goes to user.email and replaces any activation link
+        # mailed to a parked address. Leaving that address parked would make
+        # the reset skip the email verification (the link seemingly went
+        # elsewhere) and lock the account out of login.
+        user.pending_activation_email = None
         db.commit()
 
         return token

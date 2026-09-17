@@ -103,14 +103,14 @@ describe('StudentModeRedirect', () => {
     it('keeps an LMS student on the exam despite a stale expert toggle', async () => {
       signIn('student')
       useUIStore.setState({ uiMode: 'expert' })
-      visit('/student/exams/p1?lti_u=abc&lti_ui=student')
+      visit('/student/exams/p1?lti_u=u1&lti_ui=student')
       render(<StudentModeRedirect />)
 
       await waitFor(() => expect(useUIStore.getState().uiMode).toBe('student'))
       expect(mockReplace).not.toHaveBeenCalled()
       // Only lti_ui is dropped from the address bar.
       expect(window.location.pathname).toBe('/student/exams/p1')
-      expect(window.location.search).toBe('?lti_u=abc')
+      expect(window.location.search).toBe('?lti_u=u1')
     })
 
     it('puts an LMS teacher into the expert shell on the LTI page', async () => {
@@ -126,7 +126,7 @@ describe('StudentModeRedirect', () => {
 
     it('decides the bounce with the requested mode on the first run', async () => {
       signIn('student')
-      visit('/dashboard?lti_u=abc&lti_ui=expert')
+      visit('/dashboard?lti_u=u1&lti_ui=expert')
       render(<StudentModeRedirect />)
 
       await waitFor(() => expect(useUIStore.getState().uiMode).toBe('expert'))
@@ -157,7 +157,7 @@ describe('StudentModeRedirect', () => {
 
     it('ignores unknown modes', async () => {
       signIn('expert')
-      visit('/student/exams/p1?lti_u=abc&lti_ui=admin')
+      visit('/student/exams/p1?lti_u=u1&lti_ui=admin')
       render(<StudentModeRedirect />)
 
       await waitFor(() =>
@@ -169,10 +169,10 @@ describe('StudentModeRedirect', () => {
     it('ignores expert on student-locked hosts', async () => {
       mockLockedHost = true
       signIn(null)
-      visit('/student/exams/p1?lti_u=abc&lti_ui=expert')
+      visit('/student/exams/p1?lti_u=u1&lti_ui=expert')
       render(<StudentModeRedirect />)
 
-      await waitFor(() => expect(window.location.search).toBe('?lti_u=abc'))
+      await waitFor(() => expect(window.location.search).toBe('?lti_u=u1'))
       expect(useUIStore.getState().uiMode).toBeNull()
       expect(mockReplace).not.toHaveBeenCalled()
     })
@@ -180,21 +180,67 @@ describe('StudentModeRedirect', () => {
     it('keeps an LMS student with a saved expert choice in the student UI on a student-locked host', async () => {
       mockLockedHost = true
       signIn('expert')
-      visit('/student/exams/p1?lti_u=abc&lti_ui=student')
+      visit('/student/exams/p1?lti_u=u1&lti_ui=student')
       render(<StudentModeRedirect />)
 
       await waitFor(() => expect(useUIStore.getState().uiMode).toBe('student'))
       expect(mockReplace).not.toHaveBeenCalled()
-      expect(window.location.search).toBe('?lti_u=abc')
+      expect(window.location.search).toBe('?lti_u=u1')
+    })
+
+    it('leaves the signed-in account alone on the consent page', async () => {
+      // An org admin testing a student launch in their own browser: consent
+      // runs before any session of the launch exists.
+      signIn('expert')
+      useUIStore.setState({ uiMode: 'expert' })
+      visit('/lti/consent?rl=rl-1&p=h&lti_ui=student')
+      render(<StudentModeRedirect />)
+
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      expect(useUIStore.getState().uiMode).toBe('expert')
+      expect(mockReplace).not.toHaveBeenCalled()
+      expect(window.location.search).toBe('?rl=rl-1&p=h&lti_ui=student')
+    })
+
+    it('ignores other pre-session pages too', async () => {
+      signIn('expert')
+      useUIStore.setState({ uiMode: 'expert' })
+      for (const url of [
+        '/lti/link-account?rl=rl-1&lti_ui=student',
+        '/lti/link-confirm/tok?rl=rl-1&lti_ui=student',
+        '/lti/error?code=x&rl=rl-1&lti_ui=student',
+      ]) {
+        visit(url)
+        const { unmount } = render(<StudentModeRedirect />)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        expect(useUIStore.getState().uiMode).toBe('expert')
+        unmount()
+      }
+      expect(mockReplace).not.toHaveBeenCalled()
+    })
+
+    it('ignores a landing meant for another user', async () => {
+      signIn('expert')
+      useUIStore.setState({ uiMode: 'expert' })
+      visit('/student/exams/p1?lti_u=other&lti_ui=student')
+      render(<StudentModeRedirect />)
+
+      // The stored mode stays; the page follows it (LtiSessionGuard blocks
+      // the foreign landing itself).
+      await waitFor(() =>
+        expect(mockReplace).toHaveBeenCalledWith('/dashboard'),
+      )
+      expect(useUIStore.getState().uiMode).toBe('expert')
+      expect(window.location.search).toBe('?lti_u=other&lti_ui=student')
     })
 
     it('does nothing in the community edition', async () => {
       process.env[EDITION_KEY] = 'community'
       signIn(null)
-      visit('/dashboard?lti_u=abc&lti_ui=student')
+      visit('/dashboard?lti_u=u1&lti_ui=student')
       render(<StudentModeRedirect />)
 
-      await waitFor(() => expect(window.location.search).toBe('?lti_u=abc'))
+      await waitFor(() => expect(window.location.search).toBe('?lti_u=u1'))
       expect(useUIStore.getState().uiMode).toBeNull()
       expect(mockReplace).not.toHaveBeenCalled()
     })

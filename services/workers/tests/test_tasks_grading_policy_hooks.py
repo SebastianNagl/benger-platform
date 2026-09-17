@@ -405,3 +405,136 @@ class TestPolicyBlock:
         assert result["status"] == "completed"
         assert captured[0]["organization_id"] is None
         assert captured[0]["org_billing_authorized"] is False
+
+
+class _AbortingDB(_HookDispatchDB):
+    """A session with the transaction semantics a failed query leaves behind:
+    once ``aborted``, every statement fails until ``rollback()``, and the
+    rollback discards whatever was only flushed, not committed."""
+
+    def __init__(self, *, committed_run=None):
+        super().__init__(
+            project_row=types.SimpleNamespace(
+                id="p1", label_config_version=7, evaluation_config={}
+            ),
+            eval_run_first=[],
+            judge_model_row=types.SimpleNamespace(
+                id="gpt-5-mini", recommended_parameters=None
+            ),
+        )
+        self.aborted = False
+        self.committed = [committed_run] if committed_run is not None else []
+        self.pending = []
+        self.rollbacks = 0
+
+    def _check(self):
+        if self.aborted:
+            raise RuntimeError("InFailedSqlTransaction: transaction is aborted")
+
+    def query(self, model):
+        self._check()
+        if getattr(model, "__name__", "") == "EvaluationRun":
+            runs = [
+                o
+                for o in self.committed + self.pending
+                if type(o).__name__ == "EvaluationRun"
+            ]
+            q = MagicMock()
+            q.filter.return_value.first.return_value = runs[-1] if runs else None
+            return q
+        return super().query(model)
+
+    def add(self, obj):
+        self._check()
+        super().add(obj)
+        self.pending.append(obj)
+
+    def flush(self):
+        self._check()
+
+    def commit(self):
+        self._check()
+        self.committed.extend(self.pending)
+        self.pending = []
+
+    def rollback(self):
+        self.rollbacks += 1
+        self.aborted = False
+        for obj in self.pending:
+            self.added.remove(obj)
+        self.pending = []
+
+
+def _failed_check_policy(db, **kwargs):
+    db.aborted = True  # one of the policy's queries failed
+    return "org-lms", kwargs["configs"], False, {"reason": "billing_check_failed"}
+
+
+class TestBlockAfterFailedPolicyQuery:
+    """A DB error inside the policy still yields a fail-closed block. The
+    run must end ``failed``; before the fix it stayed ``running`` (the write
+    hit the aborted transaction), so no retry path ever graded it again."""
+
+    def test_pre_created_run_is_marked_failed(self):
+        from models import EvaluationRun
+
+        run = EvaluationRun(
+            id="eval-hook-1",
+            project_id="p1",
+            model_id="immediate",
+            evaluation_type_ids=["llm_judge_custom"],
+            status="running",
+            created_by="u1",
+            eval_metadata={"evaluation_type": "immediate", "configs": [{"id": "x"}]},
+            metrics={},
+        )
+        db = _AbortingDB(committed_run=run)
+        captured, finalized = [], []
+        with patch.dict(
+            sys.modules,
+            _fake_extended(
+                policy_fn=_failed_check_policy,
+                finalize_fn=lambda rid, ok: finalized.append((rid, ok)),
+            ),
+        ):
+            result = _run(db, _configs(), captured)
+
+        assert result["status"] == "blocked"
+        assert db.rollbacks >= 1
+        assert run.status == "failed"
+        assert run.eval_metadata["error"] == "billing_blocked:billing_check_failed"
+        assert run.eval_metadata["billing_block"]["reason"] == "billing_check_failed"
+        assert run.eval_metadata["label_config_version"] == 7
+        assert captured == []
+        assert finalized == [("eval-hook-1", False)]
+
+    def test_run_only_flushed_by_the_task_is_written_again_failed(self):
+        db = _AbortingDB()
+        finalized = []
+        with patch.dict(
+            sys.modules,
+            _fake_extended(
+                policy_fn=_failed_check_policy,
+                finalize_fn=lambda rid, ok: finalized.append((rid, ok)),
+            ),
+        ):
+            result = _run(db, _configs(), [])
+
+        assert result["status"] == "blocked"
+        runs = [o for o in db.added if type(o).__name__ == "EvaluationRun"]
+        assert len(runs) == 1
+        run = runs[0]
+        assert run in db.committed
+        assert run.id == "eval-hook-1"
+        assert run.status == "failed"
+        assert run.model_id == "immediate"
+        assert run.project_id == "p1"
+        assert run.created_by == "u1"
+        meta = run.eval_metadata
+        assert meta["error"] == "billing_blocked:billing_check_failed"
+        assert meta["billing_block"]["reason"] == "billing_check_failed"
+        assert meta["evaluation_type"] == "immediate"
+        assert meta["expected_config_count"] == 1
+        assert meta["label_config_version"] == 7
+        assert not [o for o in db.added if type(o).__name__ == "EvaluationJudgeRun"]
+        assert finalized == [("eval-hook-1", False)]

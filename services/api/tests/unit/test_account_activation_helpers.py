@@ -23,6 +23,7 @@ from account_activation import (
     issue_activation_token,
     mail_language_for,
     mask_email,
+    verify_email_by_link,
 )
 
 NOW = datetime(2026, 7, 24, 12, 0, 0, tzinfo=timezone.utc)
@@ -136,6 +137,37 @@ class TestTokenMintAndReuse:
         )
         assert token != "old"
         assert u.pending_activation_email == "typo-fixed@uni-x.de"
+
+
+    def test_issue_without_target_drops_a_parked_address(self):
+        """The pending address always belongs to the current token."""
+        u = _user(email="erika@uni-x.de", pending_activation_email="parked@uni-y.de")
+        issue_activation_token(u, now=NOW)
+        assert u.pending_activation_email is None
+
+    def test_token_of_a_parked_address_is_not_reused(self):
+        """That token was mailed to the parked address, not to user.email."""
+        u = _user(
+            email="erika@uni-x.de",
+            password_reset_token="mailed-to-parked",
+            password_reset_expires=NOW + timedelta(days=5),
+            pending_activation_email="parked@uni-y.de",
+        )
+        token = current_or_new_activation_token(u, now=NOW)
+        assert token != "mailed-to-parked"
+        assert u.password_reset_token == token
+        assert u.pending_activation_email is None
+
+    def test_token_with_a_day_or_less_left_is_not_reused(self):
+        """A 24 h password-reset token never travels in a 7-day mail."""
+        for left in (timedelta(hours=24), timedelta(hours=2)):
+            u = _user(
+                password_reset_token="reset-token",
+                password_reset_expires=NOW + left,
+            )
+            token = current_or_new_activation_token(u, now=NOW)
+            assert token != "reset-token"
+            assert u.password_reset_expires == NOW + ACTIVATION_TOKEN_EXPIRY
 
 
 class TestLinkBuilder:
@@ -284,3 +316,61 @@ class TestAccountLinkMailEligibility:
     def test_superadmin_is_refused_even_with_a_proven_address(self):
         user = self._eligible(is_superadmin=True, email_verification_method="self")
         assert account_link_mail_eligibility(user) == "not_linkable"
+
+
+class TestVerifyEmailByLink:
+    """Using an activation or reset link proves the address it went to."""
+
+    def _lms(self, **overrides):
+        values = dict(
+            email_verified=False,
+            email_verification_method=EMAIL_METHOD_LMS_CLAIM,
+            email_verified_at=None,
+        )
+        values.update(overrides)
+        return _user(**values)
+
+    def test_unverified_lms_address_is_verified(self):
+        user = self._lms()
+        assert verify_email_by_link(user, method="activation", now=NOW) is True
+        assert (user.email_verified, user.email_verification_method) == (
+            True,
+            "activation",
+        )
+        assert user.email_verified_at == NOW
+
+    def test_verified_lms_claim_is_restamped(self):
+        """Migration 106 keeps the verified flag of older LMS accounts and
+        only marks the method; the link still has to prove the address."""
+        old = NOW - timedelta(days=90)
+        user = self._lms(email_verified=True, email_verified_at=old)
+        assert verify_email_by_link(user, method="self", now=NOW) is True
+        assert (user.email_verified, user.email_verification_method) == (True, "self")
+        assert user.email_verified_at == NOW
+
+    def test_method_match_ignores_case_and_spaces(self):
+        user = self._lms(email_verified=True, email_verification_method=" LTI_Claim ")
+        assert verify_email_by_link(user, method="activation", now=NOW) is True
+        assert user.email_verification_method == "activation"
+
+    def test_proven_addresses_are_left_alone(self):
+        old = NOW - timedelta(days=90)
+        for method in ("self", "activation", "admin", "system", None):
+            user = self._lms(
+                email_verified=True,
+                email_verification_method=method,
+                email_verified_at=old,
+            )
+            assert verify_email_by_link(user, method="activation", now=NOW) is False
+            assert user.email_verification_method == method
+            assert user.email_verified_at == old
+
+    def test_parked_pending_address_blocks(self):
+        user = self._lms(email_verified=True, pending_activation_email="new@uni-x.de")
+        assert verify_email_by_link(user, method="activation", now=NOW) is False
+        assert user.email_verification_method == EMAIL_METHOD_LMS_CLAIM
+
+    def test_unroutable_address_is_not_verified(self):
+        user = self._lms(email="lti-x@lti.invalid")
+        assert verify_email_by_link(user, method="activation", now=NOW) is False
+        assert user.email_verified is False

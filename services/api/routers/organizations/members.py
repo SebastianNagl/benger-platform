@@ -7,7 +7,7 @@ from database import get_async_db
 from services.member_privacy import (
     org_name_mask,
     protected_org_ids,
-    reveal_org_accounts,
+    reveal_group_accounts,
 )
 
 
@@ -87,8 +87,9 @@ async def list_organization_members(
     LMS accounts are listed by pseudonym, without email, unless the viewer
     is a superadmin, the account itself, or an org admin here and the
     account belongs to one of this org's own LMS connections (D8). A group
-    admin sees the names of those accounts among the members of the groups
-    they administer (the same names their group roster shows). The roster of
+    admin sees the names of the accounts of this org's connections scoped to
+    the groups they administer (the same names their group roster shows);
+    group membership alone reveals nothing. The roster of
     an org whose LMS connections stay superadmin-run is for its org admins
     and group admins only.
     """
@@ -184,11 +185,11 @@ async def list_organization_members(
             if str(uid) == viewer_id and is_admin
         }
         if admin_group_ids:
-            mask = await reveal_org_accounts(
-                db,
-                mask,
-                organization_id,
-                {uid for uid, gid, _name, _admin in group_rows if gid in admin_group_ids},
+            # The LMS users of the connections scoped to those groups, on
+            # every row: who is in a group is up to the group admin, so it
+            # decides nothing.
+            mask = await reveal_group_accounts(
+                db, mask, organization_id, admin_group_ids, mask.masked_ids
             )
 
     result = []
@@ -519,6 +520,21 @@ async def bulk_verify_member_emails(
     skip_count = 0
     error_count = 0
 
+    # One lookup for every requested user, and one mask over them (the
+    # address stays hidden for LMS accounts of other orgs' connections, D8).
+    requested_ids = sorted({str(uid) for uid in request.user_ids})
+    users_by_id = {}
+    for start in range(0, len(requested_ids), 5000):
+        chunk = requested_ids[start : start + 5000]
+        rows = await db.execute(select(User).where(User.id.in_(chunk)))
+        users_by_id.update({str(u.id): u for u in rows.scalars().all()})
+    email_mask = await org_name_mask(
+        db,
+        list(users_by_id.values()),
+        viewer=current_user,
+        admin_org_ids=[organization_id],
+    )
+
     for user_id in request.user_ids:
         # Check if user is a member of this organization
         # Skip this check for superadmins as they can verify any user
@@ -545,9 +561,7 @@ async def bulk_verify_member_emails(
                 continue
 
         # Get the user to verify
-        user_to_verify = (
-            await db.execute(select(User).where(User.id == user_id))
-        ).scalar_one_or_none()
+        user_to_verify = users_by_id.get(str(user_id))
         if not user_to_verify:
             results.append(
                 {
@@ -558,9 +572,6 @@ async def bulk_verify_member_emails(
             )
             error_count += 1
             continue
-        email_mask = await org_name_mask(
-            db, [user_to_verify], viewer=current_user, admin_org_ids=[organization_id]
-        )
         shown_email = email_mask.email(user_to_verify)
 
         # Check if already verified

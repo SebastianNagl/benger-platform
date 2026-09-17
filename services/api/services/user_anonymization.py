@@ -81,7 +81,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, FrozenSet, Iterable, List, Optional
 
-from sqlalchemy import and_, delete, exists, func, or_, select, update
+from sqlalchemy import and_, case, delete, exists, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -107,7 +107,15 @@ from models import (
     UserNotificationPreference,
     UserProfileHistory,
 )
-from project_models import Annotation, Project, ProjectShareLink
+from project_models import (
+    Annotation,
+    Project,
+    ProjectMember,
+    ProjectOrganization,
+    ProjectShareLink,
+    Task,
+    TaskAssignment,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -478,21 +486,130 @@ async def anonymization_footprint(
 # --------------------------------------------------------------------------- #
 # Anonymize
 # --------------------------------------------------------------------------- #
+#: Accounts per set-based pass (bounded ``IN`` lists and lock sets).
+BATCH_SIZE = 200
+
+
+def _free_names(db: Session, count: int, make, taken_stmt) -> List[str]:
+    """``count`` fresh random values from ``make()`` that ``taken_stmt``
+    (a callable returning a SELECT of the taken ones) does not report."""
+    found: List[str] = []
+    for _attempt in range(_HANDLE_ATTEMPTS):
+        wanted = count - len(found)
+        if wanted <= 0:
+            break
+        proposals = {make() for _ in range(wanted)} - set(found)
+        taken = set(db.execute(taken_stmt(sorted(proposals))).scalars().all())
+        found.extend(sorted(proposals - taken))
+    if len(found) < count:
+        raise RuntimeError("no free anonymized handle")
+    return found[:count]
+
+
+def _free_handles(db: Session, count: int) -> List[str]:
+    """``count`` random ``anon-<hex>`` handles no username or email uses."""
+
+    def taken(handles):
+        emails = [f"{h}@{ANONYMIZED_EMAIL_DOMAIN}" for h in handles]
+        return select(User.username).where(User.username.in_(handles)).union(
+            select(
+                func.split_part(func.lower(User.email), "@", 1)
+            ).where(func.lower(User.email).in_(emails))
+        )
+
+    return _free_names(
+        db,
+        count,
+        lambda: f"{ANONYMIZED_USERNAME_PREFIX}{secrets.token_hex(8)}",
+        taken,
+    )
+
+
+def _free_pseudonyms(db: Session, count: int) -> List[str]:
+    """``count`` random ``Anonym-<hex>`` pseudonyms no account uses."""
+    return _free_names(
+        db,
+        count,
+        lambda: f"{ANONYMIZED_PSEUDONYM_PREFIX}{secrets.token_hex(6)}",
+        lambda names: select(User.pseudonym).where(User.pseudonym.in_(names)),
+    )
+
+
 def _free_handle(db: Session) -> str:
     """A random ``anon-<hex>`` handle no username or email uses yet."""
-    for _attempt in range(_HANDLE_ATTEMPTS):
-        handle = f"{ANONYMIZED_USERNAME_PREFIX}{secrets.token_hex(8)}"
-        email = f"{handle}@{ANONYMIZED_EMAIL_DOMAIN}"
-        taken = db.execute(
-            select(
-                exists().where(
-                    or_(User.username == handle, func.lower(User.email) == email)
-                )
-            )
-        ).scalar()
-        if not taken:
-            return handle
-    raise RuntimeError("no free anonymized handle")
+    return _free_handles(db, 1)[0]
+
+
+def _free_pseudonym(db: Session) -> str:
+    """A random ``Anonym-<hex>`` pseudonym no account uses yet."""
+    return _free_pseudonyms(db, 1)[0]
+
+
+def _counts(rows) -> Dict[str, int]:
+    counts: Dict[str, int] = {}
+    for value in rows:
+        key = str(value)
+        counts[key] = counts.get(key, 0) + 1
+    return counts
+
+
+def _delete_by_user(db: Session, model, column, user_ids: List[str], *conditions):
+    """Delete the rows of ``user_ids``; the number per user."""
+    rows = db.execute(
+        delete(model)
+        .where(column.in_(user_ids), *conditions)
+        .returning(column)
+        .execution_options(synchronize_session=False)
+    ).scalars()
+    return _counts(rows)
+
+
+def _update_by_user(
+    db: Session, model, column, user_ids: List[str], values: Dict[str, Any], *conditions
+):
+    """Update the rows of ``user_ids``; the number per user."""
+    rows = db.execute(
+        update(model)
+        .where(column.in_(user_ids), *conditions)
+        .values(**values)
+        .returning(column)
+        .execution_options(synchronize_session=False)
+    ).scalars()
+    return _counts(rows)
+
+
+def _footprints_kept(db: Session, user_ids: List[str]) -> Dict[str, Dict[str, int]]:
+    """``anonymization_footprint_sync(...)["keeps"]`` for many accounts."""
+    annotations = dict(
+        db.execute(
+            select(Annotation.completed_by, func.count(Annotation.id))
+            .where(Annotation.completed_by.in_(user_ids))
+            .group_by(Annotation.completed_by)
+        ).all()
+    )
+    evaluations = dict(
+        db.execute(
+            select(Annotation.completed_by, func.count(TaskEvaluation.id))
+            .join(Annotation, Annotation.id == TaskEvaluation.annotation_id)
+            .where(Annotation.completed_by.in_(user_ids))
+            .group_by(Annotation.completed_by)
+        ).all()
+    )
+    projects = dict(
+        db.execute(
+            select(Project.created_by, func.count(Project.id))
+            .where(Project.created_by.in_(user_ids), Project.deleted_at.is_(None))
+            .group_by(Project.created_by)
+        ).all()
+    )
+    return {
+        uid: {
+            "annotations": int(annotations.get(uid, 0)),
+            "task_evaluations": int(evaluations.get(uid, 0)),
+            "projects_created": int(projects.get(uid, 0)),
+        }
+        for uid in user_ids
+    }
 
 
 def _rowcount(result) -> int:
@@ -521,75 +638,451 @@ def _update(db: Session, model, values: Dict[str, Any], *conditions) -> int:
 
 
 #: Notification payload keys that name the person who acted (by account id).
+#: Their ``*_by_username`` companions carry the same person's name and are
+#: covered by the id.
 _ACTOR_ID_KEYS = (
     "deleted_by_user_id",
     "archived_by_user_id",
     "updated_by_user_id",
     "imported_by_user_id",
+    "assigned_by_user_id",
+    "removed_by_user_id",
+    "inviter_user_id",
+    "new_member_user_id",
 )
-#: Payload keys that carry a person's name or address as text (the actor of
-#: an assignment, invitation, deletion, ...; the new member of a join).
-_PERSON_TEXT_KEYS = (
+#: Payload keys that carry a person's address as text. Addresses are unique,
+#: so they match platform-wide.
+_ADDRESS_TEXT_KEYS = ("new_member_email", "invitee_email")
+#: Payload keys that carry a person's name as text (the actor of an
+#: assignment or invitation, the creator of a project, the new member of a
+#: join; the assignment keys hold the address when the actor had no name).
+#: Names are not unique, so a name only matches inside the organizations and
+#: projects the person belonged to (:func:`_in_person_scope`).
+_NAME_TEXT_KEYS = (
     "assigned_by",
     "removed_by",
     "inviter_name",
     "creator_name",
     "new_member_name",
-    "new_member_email",
-    "invitee_email",
-    "deleted_by_username",
-    "archived_by_username",
-    "updated_by_username",
-    "imported_by_username",
 )
 #: Names too generic to identify anyone; never matched as text.
 _GENERIC_NAMES = frozenset({"", "lti student", "user", "unknown", "anonymisiert"})
 
 
-def _foreign_notification_filter(
-    user_id: str, old_email: Optional[str], old_name: Optional[str] = None
-):
-    """Other users' notifications that name the person: the
-    ``project_created`` notices of their projects, notices whose payload
-    names them as the acting account, and notices that carry their name or
-    address as text (the message text of such a notice usually repeats
-    it, so the whole row goes)."""
-    created_projects = select(Project.id).where(Project.created_by == user_id)
+def _text(value: Any) -> Optional[str]:
+    """``lower(trim(data->>key))`` in Python (``trim`` strips spaces only)."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value.strip(" ").lower()
+    if isinstance(value, (dict, list)):
+        return None
+    return str(value).strip(" ").lower()
+
+
+@dataclass
+class _Person:
+    user_id: str
+    address: str
+    name: Optional[str]
+    org_ids: set = field(default_factory=set)
+    project_ids: set = field(default_factory=set)
+    created_project_ids: set = field(default_factory=set)
+
+
+def _notification_candidates(db: Session, people: List[_Person]):
+    """Other users' notifications that may name one of ``people``: a superset
+    in one scan; :func:`_names_person` decides per row."""
+    ids = [p.user_id for p in people]
+    texts = sorted(
+        {p.address for p in people if p.address}
+        | {p.name for p in people if p.name}
+    )
     clauses = [
         and_(
             Notification.type == NotificationType.PROJECT_CREATED,
-            Notification.data["project_id"].as_string().in_(created_projects),
+            Notification.data["project_id"]
+            .as_string()
+            .in_(select(Project.id).where(Project.created_by.in_(ids))),
         )
     ]
     for key in _ACTOR_ID_KEYS:
-        clauses.append(Notification.data[key].as_string() == str(user_id))
-    texts = set()
-    address = (old_email or "").strip().lower()
-    if address:
-        texts.add(address)
-    name = (old_name or "").strip().lower()
-    if name not in _GENERIC_NAMES:
-        texts.add(name)
+        clauses.append(Notification.data[key].as_string().in_(ids))
     if texts:
-        for key in _PERSON_TEXT_KEYS:
+        for key in _ADDRESS_TEXT_KEYS + _NAME_TEXT_KEYS:
             clauses.append(
-                func.lower(func.trim(Notification.data[key].as_string())).in_(
-                    sorted(texts)
-                )
+                func.lower(func.trim(Notification.data[key].as_string())).in_(texts)
             )
-    return and_(Notification.user_id != user_id, or_(*clauses))
+    return db.execute(
+        select(
+            Notification.id,
+            Notification.type,
+            Notification.data,
+            Notification.organization_id,
+        ).where(Notification.user_id.notin_(ids), or_(*clauses))
+    ).all()
 
 
-def _free_pseudonym(db: Session) -> str:
-    """A random ``Anonym-<hex>`` pseudonym no account uses yet."""
-    for _attempt in range(_HANDLE_ATTEMPTS):
-        pseudonym = f"{ANONYMIZED_PSEUDONYM_PREFIX}{secrets.token_hex(6)}"
-        taken = db.execute(
-            select(exists().where(User.pseudonym == pseudonym))
-        ).scalar()
-        if not taken:
-            return pseudonym
-    raise RuntimeError("no free anonymized pseudonym")
+def _load_person_scopes(db: Session, people: List[_Person], rows) -> None:
+    """Fill each person's org and project sets, as far as ``rows`` (the
+    candidate notifications) need them."""
+    by_id = {p.user_id: p for p in people}
+    ids = sorted(by_id)
+    for uid, project_id in db.execute(
+        select(Project.created_by, Project.id).where(Project.created_by.in_(ids))
+    ).all():
+        by_id[str(uid)].created_project_ids.add(str(project_id))
+    if not any(p.name for p in people):
+        return
+    for uid, org_id in db.execute(
+        select(OrganizationMembership.user_id, OrganizationMembership.organization_id)
+        .where(OrganizationMembership.user_id.in_(ids))
+    ).all():
+        by_id[str(uid)].org_ids.add(str(org_id))
+    project_ids = sorted(
+        {
+            str(data.get("project_id"))
+            for _id, _type, data, _org in rows
+            if isinstance(data, dict) and data.get("project_id")
+        }
+    )
+    if not project_ids:
+        return
+    for p in people:
+        p.project_ids |= p.created_project_ids & set(project_ids)
+    for stmt in (
+        select(ProjectMember.user_id, ProjectMember.project_id).where(
+            ProjectMember.user_id.in_(ids), ProjectMember.project_id.in_(project_ids)
+        ),
+        select(TaskAssignment.user_id, Task.project_id)
+        .join(Task, Task.id == TaskAssignment.task_id)
+        .where(TaskAssignment.user_id.in_(ids), Task.project_id.in_(project_ids)),
+        select(Annotation.completed_by, Annotation.project_id).where(
+            Annotation.completed_by.in_(ids), Annotation.project_id.in_(project_ids)
+        ),
+    ):
+        for uid, project_id in db.execute(stmt.distinct()).all():
+            by_id[str(uid)].project_ids.add(str(project_id))
+    attached: Dict[str, set] = {}
+    for project_id, org_id in db.execute(
+        select(ProjectOrganization.project_id, ProjectOrganization.organization_id)
+        .where(ProjectOrganization.project_id.in_(project_ids))
+    ).all():
+        attached.setdefault(str(org_id), set()).add(str(project_id))
+    for p in people:
+        for org_id in p.org_ids:
+            p.project_ids |= attached.get(org_id, set())
+
+
+def _names_person(person: _Person, ntype, data, organization_id) -> bool:
+    """True when the notification names ``person`` (see
+    :func:`_notification_candidates`)."""
+    if not isinstance(data, dict):
+        return False
+    project_id = data.get("project_id")
+    project_id = str(project_id) if project_id else None
+    if (
+        ntype == NotificationType.PROJECT_CREATED
+        and project_id in person.created_project_ids
+    ):
+        return True
+    for key in _ACTOR_ID_KEYS:
+        value = data.get(key)
+        if value is not None and str(value) == person.user_id:
+            return True
+    if person.address:
+        for key in _ADDRESS_TEXT_KEYS + _NAME_TEXT_KEYS:
+            if _text(data.get(key)) == person.address:
+                return True
+    if not person.name:
+        return False
+    if not any(_text(data.get(key)) == person.name for key in _NAME_TEXT_KEYS):
+        return False
+    return _in_person_scope(person, project_id, organization_id)
+
+
+def _in_person_scope(person: _Person, project_id, organization_id) -> bool:
+    """The notification belongs to an org the person was a member of, or to
+    a project they created, joined, worked on or that is attached to one of
+    their orgs."""
+    if organization_id is not None and str(organization_id) in person.org_ids:
+        return True
+    return project_id is not None and project_id in person.project_ids
+
+
+def _delete_foreign_notifications(db: Session, people: List[_Person]) -> Dict[str, int]:
+    """Delete other users' notifications that name one of ``people``. The
+    number per person; a notice naming several of them counts for the first
+    (in id order)."""
+    rows = _notification_candidates(db, people)
+    if not rows:
+        return {}
+    _load_person_scopes(db, people, rows)
+    ordered = sorted(people, key=lambda p: p.user_id)
+    doomed: List[str] = []
+    counts: Dict[str, int] = {}
+    for notification_id, ntype, data, organization_id in rows:
+        for person in ordered:
+            if _names_person(person, ntype, data, organization_id):
+                doomed.append(notification_id)
+                counts[person.user_id] = counts.get(person.user_id, 0) + 1
+                break
+    for start in range(0, len(doomed), 1000):
+        _delete(db, Notification, Notification.id.in_(doomed[start : start + 1000]))
+    return counts
+
+
+def _person(user: User) -> _Person:
+    name = (user.name or "").strip().lower()
+    return _Person(
+        user_id=str(user.id),
+        address=(user.email or "").strip().lower(),
+        name=None if name in _GENERIC_NAMES else name,
+    )
+
+
+@dataclass
+class AnonymizationOutcome:
+    """One candidate of :func:`anonymize_users_sync`: anonymized
+    (``result``), refused (``blockers``) or unknown (``not_found``)."""
+
+    user_id: str
+    via_link_id: Optional[str] = None
+    result: Optional[AnonymizationResult] = None
+    blockers: List[str] = field(default_factory=list)
+    not_found: bool = False
+
+
+def _anonymize_batch(
+    db: Session,
+    outcomes: List[AnonymizationOutcome],
+    *,
+    actor_id: Optional[str],
+    reason: str,
+    scope: Optional[AnonymizationScope],
+) -> None:
+    """One pass over distinct accounts (see :func:`anonymize_users_sync`)."""
+    ids = sorted({o.user_id for o in outcomes})
+    users = {
+        str(u.id): u
+        for u in db.execute(
+            select(User)
+            .where(User.id.in_(ids))
+            .order_by(User.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalars()
+    }
+    eligible = []
+    for outcome in outcomes:
+        user = users.get(outcome.user_id)
+        if user is None:
+            outcome.not_found = True
+            continue
+        check = anonymization_check_sync(
+            db,
+            user,
+            actor_id=actor_id,
+            scope=scope,
+            via_link_id=outcome.via_link_id,
+        )
+        if check.blockers:
+            outcome.blockers = list(check.blockers)
+            continue
+        eligible.append((outcome, user, check))
+    if not eligible:
+        return
+
+    uids = [str(user.id) for _o, user, _c in eligible]
+    kept = _footprints_kept(db, uids)
+    now = datetime.now(timezone.utc)
+    people = [_person(user) for _o, user, _c in eligible]
+    handles = _free_handles(db, len(eligible))
+    pseudonyms = _free_pseudonyms(db, len(eligible))
+    new_email = {
+        uid: f"{handle}@{ANONYMIZED_EMAIL_DOMAIN}" for uid, handle in zip(uids, handles)
+    }
+
+    steps: List[tuple] = [
+        ("sessions", lambda: _delete_by_user(db, RefreshToken, RefreshToken.user_id, uids)),
+        ("lti_user_links", lambda: _delete_by_user(db, LtiUserLink, LtiUserLink.user_id, uids)),
+        ("lti_grade_syncs", lambda: _delete_by_user(db, LtiGradeSync, LtiGradeSync.user_id, uids)),
+        (
+            "profile_history",
+            lambda: _delete_by_user(db, UserProfileHistory, UserProfileHistory.user_id, uids),
+        ),
+        ("foreign_notifications", lambda: _delete_foreign_notifications(db, people)),
+        ("notifications", lambda: _delete_by_user(db, Notification, Notification.user_id, uids)),
+        (
+            "notification_preferences",
+            lambda: _delete_by_user(
+                db, UserNotificationPreference, UserNotificationPreference.user_id, uids
+            ),
+        ),
+        (
+            "column_preferences",
+            lambda: _delete_by_user(
+                db, UserColumnPreferences, UserColumnPreferences.user_id, uids
+            ),
+        ),
+        (
+            "custom_model_credentials",
+            lambda: _delete_by_user(
+                db, CustomModelCredential, CustomModelCredential.user_id, uids
+            ),
+        ),
+        (
+            "group_memberships",
+            lambda: _delete_by_user(
+                db, OrganizationGroupMembership, OrganizationGroupMembership.user_id, uids
+            ),
+        ),
+        (
+            "memberships",
+            lambda: _update_by_user(
+                db,
+                OrganizationMembership,
+                OrganizationMembership.user_id,
+                uids,
+                {"is_active": False},
+                OrganizationMembership.is_active == True,  # noqa: E712
+            ),
+        ),
+        (
+            "share_links",
+            lambda: _update_by_user(
+                db,
+                ProjectShareLink,
+                ProjectShareLink.created_by,
+                uids,
+                {"revoked_at": now},
+                ProjectShareLink.revoked_at.is_(None),
+            ),
+        ),
+    ]
+    removed: Dict[str, Dict[str, int]] = {uid: {} for uid in uids}
+    for key, run in steps:
+        counts = run()
+        for uid in uids:
+            removed[uid][key] = int(counts.get(uid, 0))
+
+    _update(
+        db, Invitation, {"pending_user_id": None}, Invitation.pending_user_id.in_(uids)
+    )
+    by_address = {p.address: p.user_id for p in people if p.address}
+    invitations: Dict[str, int] = {}
+    if by_address:
+        addresses = sorted(by_address)
+        same_address = func.lower(Invitation.email).in_(addresses)
+        _update(
+            db,
+            Invitation,
+            {"expires_at": now},
+            same_address,
+            Invitation.accepted == False,  # noqa: E712
+            Invitation.expires_at > now,
+        )
+        placeholder = case(
+            {address: new_email[uid] for address, uid in by_address.items()},
+            value=func.lower(Invitation.email),
+        )
+        rows = db.execute(
+            update(Invitation)
+            .where(same_address)
+            .values(email=placeholder)
+            .returning(Invitation.email)
+            .execution_options(synchronize_session=False)
+        ).scalars()
+        owner_of = {email: uid for uid, email in new_email.items()}
+        for email in rows:
+            uid = owner_of.get(email)
+            if uid is not None:
+                invitations[uid] = invitations.get(uid, 0) + 1
+    for uid in uids:
+        removed[uid]["invitations"] = invitations.get(uid, 0)
+
+    for (outcome, user, check), handle, pseudonym in zip(eligible, handles, pseudonyms):
+        uid = str(user.id)
+        user.username = handle
+        user.email = new_email[uid]
+        user.name = ANONYMIZED_NAME
+        user.pseudonym = pseudonym
+        user.use_pseudonym = True
+        user.is_active = False
+        user.anonymized_at = now
+        user.password_set = False
+        user.email_verified = False
+        user.mandatory_profile_completed = False
+        user.timezone = "UTC"
+        for name in _CLEARED_FIELDS + PROFILE_FIELDS:
+            setattr(user, name, None)
+        outcome.result = AnonymizationResult(
+            user_id=uid,
+            anonymized_at=now,
+            pseudonym=pseudonym,
+            warnings=list(check.warnings),
+            removed=removed[uid],
+            kept=kept[uid],
+        )
+    db.flush()
+    for uid in uids:
+        logger.info(
+            "Anonymized user %s (actor %s, reason %s)", uid, actor_id or "-", reason
+        )
+
+
+def anonymize_users_sync(
+    db: Session,
+    candidates: Iterable[tuple],
+    *,
+    actor_id: Optional[str],
+    reason: str,
+    scope: Optional[AnonymizationScope] = None,
+) -> List[AnonymizationOutcome]:
+    """Anonymize many accounts in the current transaction (flushes, never
+    commits). ``candidates`` are ``(user_id, via_link_id)`` pairs; the
+    outcomes come back in the same order.
+
+    Set-based: the accounts are locked together (``FOR UPDATE`` in id order,
+    so concurrent callers cannot deadlock), each is checked like in
+    :func:`anonymize_user_sync`, and the eligible ones are scrubbed with one
+    statement per table and one scan of the notifications, in passes of
+    :data:`BATCH_SIZE`. An account named twice is handled in a later pass
+    and then refused like a second single call would be.
+    """
+    outcomes = [
+        AnonymizationOutcome(user_id=str(uid), via_link_id=link)
+        for uid, link in candidates
+    ]
+    pending = list(range(len(outcomes)))
+    while pending:
+        seen: set = set()
+        this_pass: List[int] = []
+        later: List[int] = []
+        for index in pending:
+            uid = outcomes[index].user_id
+            (later if uid in seen else this_pass).append(index)
+            seen.add(uid)
+        for start in range(0, len(this_pass), BATCH_SIZE):
+            _anonymize_batch(
+                db,
+                [outcomes[i] for i in this_pass[start : start + BATCH_SIZE]],
+                actor_id=actor_id,
+                reason=reason,
+                scope=scope,
+            )
+        pending = later
+    return outcomes
+
+
+async def anonymize_users(
+    db: AsyncSession, candidates: Iterable[tuple], **kwargs: Any
+) -> List[AnonymizationOutcome]:
+    """Async twin of :func:`anonymize_users_sync` (same keyword arguments)."""
+    pairs = list(candidates)
+    return await db.run_sync(
+        lambda session: anonymize_users_sync(session, pairs, **kwargs)
+    )
 
 
 def anonymize_user_sync(
@@ -607,111 +1100,21 @@ def anonymize_user_sync(
     Locks the user row, runs :func:`anonymization_check_sync` with the same
     arguments and raises :class:`AnonymizationRefused` on any blocker, or
     :class:`AnonymizationUserNotFound`. ``reason`` is logged only (e.g.
-    ``lti_admin``, ``registration_deleted``, ``superadmin``).
+    ``lti_admin``, ``registration_deleted``, ``superadmin``). The same code
+    as :func:`anonymize_users_sync`, for one account.
     """
-    user = db.execute(
-        select(User)
-        .where(User.id == user_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    ).scalar_one_or_none()
-    if user is None:
+    (outcome,) = anonymize_users_sync(
+        db,
+        [(user_id, via_link_id)],
+        actor_id=actor_id,
+        reason=reason,
+        scope=scope,
+    )
+    if outcome.not_found:
         raise AnonymizationUserNotFound(user_id)
-
-    check = anonymization_check_sync(
-        db, user, actor_id=actor_id, scope=scope, via_link_id=via_link_id
-    )
-    if check.blockers:
-        raise AnonymizationRefused(check.blockers)
-
-    kept = anonymization_footprint_sync(db, user.id)["keeps"]
-    now = datetime.now(timezone.utc)
-    old_email = user.email
-    old_name = user.name
-    handle = _free_handle(db)
-    pseudonym = _free_pseudonym(db)
-    new_email = f"{handle}@{ANONYMIZED_EMAIL_DOMAIN}"
-    uid = user.id
-
-    removed: Dict[str, int] = {}
-    removed["sessions"] = _delete(db, RefreshToken, RefreshToken.user_id == uid)
-    removed["lti_user_links"] = _delete(db, LtiUserLink, LtiUserLink.user_id == uid)
-    removed["lti_grade_syncs"] = _delete(db, LtiGradeSync, LtiGradeSync.user_id == uid)
-    removed["profile_history"] = _delete(
-        db, UserProfileHistory, UserProfileHistory.user_id == uid
-    )
-    removed["foreign_notifications"] = _delete(
-        db, Notification, _foreign_notification_filter(uid, old_email, old_name)
-    )
-    removed["notifications"] = _delete(db, Notification, Notification.user_id == uid)
-    removed["notification_preferences"] = _delete(
-        db, UserNotificationPreference, UserNotificationPreference.user_id == uid
-    )
-    removed["column_preferences"] = _delete(
-        db, UserColumnPreferences, UserColumnPreferences.user_id == uid
-    )
-    removed["custom_model_credentials"] = _delete(
-        db, CustomModelCredential, CustomModelCredential.user_id == uid
-    )
-    removed["group_memberships"] = _delete(
-        db, OrganizationGroupMembership, OrganizationGroupMembership.user_id == uid
-    )
-    removed["memberships"] = _update(
-        db,
-        OrganizationMembership,
-        {"is_active": False},
-        OrganizationMembership.user_id == uid,
-        OrganizationMembership.is_active == True,  # noqa: E712
-    )
-    removed["share_links"] = _update(
-        db,
-        ProjectShareLink,
-        {"revoked_at": now},
-        ProjectShareLink.created_by == uid,
-        ProjectShareLink.revoked_at.is_(None),
-    )
-    _update(db, Invitation, {"pending_user_id": None}, Invitation.pending_user_id == uid)
-    invitations = 0
-    address = (old_email or "").strip().lower()
-    if address:
-        same_address = func.lower(Invitation.email) == address
-        _update(
-            db,
-            Invitation,
-            {"expires_at": now},
-            same_address,
-            Invitation.accepted == False,  # noqa: E712
-            Invitation.expires_at > now,
-        )
-        invitations = _update(db, Invitation, {"email": new_email}, same_address)
-    removed["invitations"] = invitations
-
-    user.username = handle
-    user.email = new_email
-    user.name = ANONYMIZED_NAME
-    user.pseudonym = pseudonym
-    user.use_pseudonym = True
-    user.is_active = False
-    user.anonymized_at = now
-    user.password_set = False
-    user.email_verified = False
-    user.mandatory_profile_completed = False
-    user.timezone = "UTC"
-    for name in _CLEARED_FIELDS + PROFILE_FIELDS:
-        setattr(user, name, None)
-    db.flush()
-
-    logger.info(
-        "Anonymized user %s (actor %s, reason %s)", uid, actor_id or "-", reason
-    )
-    return AnonymizationResult(
-        user_id=uid,
-        anonymized_at=now,
-        pseudonym=user.pseudonym,
-        warnings=list(check.warnings),
-        removed=removed,
-        kept=kept,
-    )
+    if outcome.blockers:
+        raise AnonymizationRefused(outcome.blockers)
+    return outcome.result
 
 
 async def anonymize_user(

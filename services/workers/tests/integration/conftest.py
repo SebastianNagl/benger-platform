@@ -267,6 +267,11 @@ def _schema(_eager_celery):
         for _ddl in (
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
             "anonymized_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+            "lms_provisioned_at TIMESTAMP WITH TIME ZONE",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+            "lms_origin_org_id VARCHAR REFERENCES organizations(id) "
+            "ON DELETE SET NULL",
             "ALTER TABLE task_evaluations ADD COLUMN IF NOT EXISTS "
             "updated_at TIMESTAMP WITH TIME ZONE",
             "ALTER TABLE project_organizations ADD COLUMN IF NOT EXISTS "

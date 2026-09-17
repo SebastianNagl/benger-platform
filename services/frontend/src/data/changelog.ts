@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-17',
     audience: 'both',
     text: {
+      de: 'Projekte mit Aufgabenzuweisungen lassen sich wieder importieren. Bisher brach ein solcher Import mit einem Fehler ab.',
+      en: 'Projects with task assignments can be imported again. Until now, such an import stopped with an error.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'both',
+    text: {
       de: 'Wer aus einer Organisation entfernt wurde, kann wieder eingeladen werden. Mit dem Annehmen der Einladung ist die Mitgliedschaft wieder aktiv. Bisher schlug das Annehmen mit einem Fehler fehl.',
       en: 'People removed from an organization can be invited again. Accepting the invitation makes the membership active again. Until now, accepting failed with an error.',
     },
@@ -26,8 +34,8 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-17',
     audience: 'benger',
     text: {
-      de: 'Mitwirkende und Admins einer Organisation sehen Klausuren, die mit einer Lernplattform der Organisation verknüpft sind, und können sie korrigieren, auch wenn die Klausur privat ist. Löschen kann eine private Klausur nur, wer sie angelegt hat. Personen aus der Lernplattform erscheinen in Mitgliederlisten, Aufgabenlisten und Exporten unter ihrem Pseudonym. Klarnamen sehen nur Admins und wer die Klausur bewerten darf.',
-      en: 'Contributors and admins of an organization see exams linked to a learning platform of the organization and can grade them, even when the exam is private. Only its creator can delete a private exam. People from the learning platform appear under their pseudonym in member lists, task lists and exports. Only admins and those who may grade the exam see real names.',
+      de: 'Mitwirkende und Admins einer Organisation sehen Klausuren, die mit einer Lernplattform der Organisation verknüpft sind, und können sie korrigieren, auch wenn die Klausur privat ist. Die Verknüpfung gibt niemandem das Recht, die Klausur zu löschen. Personen aus der Lernplattform erscheinen in Mitgliederlisten, Aufgabenlisten und Exporten unter ihrem Pseudonym. Klarnamen sehen nur Admins, die Lehrenden der verknüpften Kurse und wer die Klausur bewerten darf.',
+      en: 'Contributors and admins of an organization see exams linked to a learning platform of the organization and can grade them, even when the exam is private. The link gives nobody the right to delete the exam. People from the learning platform appear under their pseudonym in member lists, task lists and exports. Only admins, the teachers of the linked courses and those who may grade the exam see real names.',
     },
   },
   {

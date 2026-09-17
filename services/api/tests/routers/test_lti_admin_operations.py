@@ -29,6 +29,8 @@ from tests.fixtures.lti_admin_world import (
     LINEITEM_SCOPE,
     SCORE_SCOPE,
     FakeExtended,
+    add_group_member,
+    add_member,
     as_user,
     build_world,
     detail_code,
@@ -68,12 +70,13 @@ async def _events(db, **filters):
     return (await db.execute(stmt)).scalars().all()
 
 
-def _attach(db, project, org, *, via, by):
+def _attach(db, project, org, *, via, by, group=None):
     db.add(
         ProjectOrganization(
             id=str(uuid.uuid4()),
             project_id=project.id,
             organization_id=org.id,
+            group_id=group.id if group is not None else None,
             assigned_by=by.id,
             attached_via=via,
         )
@@ -254,6 +257,281 @@ async def test_delete_requires_disabled_and_an_account_choice_then_cleans_up(
     assert deleted.changes["revoked_entitlements"] == 2
 
 
+def _protected_with_origin(sync_db, organization_id, user_ids, group_ids=None):
+    """The documented ``privacy_protected_member_ids`` contract: links
+    (provisioned, or not unlinked) plus the ``users.lms_provisioned_at``
+    marker; an org call counts the marker only for that origin org and only
+    once no provisioned link is left; group calls ignore the marker."""
+    from sqlalchemy import exists, or_
+
+    ids = [str(uid) for uid in user_ids]
+    query = sync_db.query(LtiUserLink.user_id).filter(
+        LtiUserLink.user_id.in_(ids),
+        or_(
+            LtiUserLink.link_method == "provisioned",
+            LtiUserLink.unlinked_at.is_(None),
+        ),
+    )
+    if organization_id is not None:
+        query = query.join(
+            LtiPlatformRegistration,
+            LtiPlatformRegistration.id == LtiUserLink.registration_id,
+        ).filter(LtiPlatformRegistration.organization_id == str(organization_id))
+        if group_ids is not None:
+            query = query.filter(LtiPlatformRegistration.group_id.in_(list(group_ids)))
+    found = {row[0] for row in query.distinct().all()}
+    if group_ids is not None:
+        return found
+    marked = sync_db.query(User.id).filter(
+        User.id.in_(ids), User.lms_provisioned_at.isnot(None)
+    )
+    if organization_id is not None:
+        marked = marked.filter(
+            User.lms_origin_org_id == str(organization_id),
+            ~exists().where(
+                LtiUserLink.user_id == User.id,
+                LtiUserLink.link_method == "provisioned",
+            ),
+        )
+    return found | {row[0] for row in marked.all()}
+
+
+def _member_rows(response):
+    assert response.status_code == 200, response.text
+    return {row["user_id"]: row for row in response.json()}
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_kept_accounts_stay_masked_after_the_connection_is_deleted(
+    async_test_client, async_test_db, monkeypatch
+):
+    """D8 after ``accounts=keep``: the cascade removes the identity links,
+    the LMS origin on the user row keeps the pseudonym. Contributors and
+    fellow students still see the pseudonym without an email; the org's
+    admins still see the name. A proof-linked account is a plain account
+    again."""
+    from lms_name_masking import (
+        is_lms_account,
+        is_lms_provisioned_account,
+        lms_user_ids_from_links,
+    )
+    from models import OrganizationRole
+    from tests.integration.test_group_visibility import _as_user
+
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended(
+            {
+                "privacy_protected_member_ids": _protected_with_origin,
+                "project_real_name_user_ids": lambda *args: set(),
+            }
+        ),
+    )
+    db = async_test_db
+    world = await build_world(db)
+    reg = await make_registration(db, world.org, name="Moodle to delete")
+    kept = await make_user(db, name="Klara Klarname")
+    proven = await make_user(db, name="Eigenes Konto")
+    for user in (kept, proven):
+        await add_member(db, user, world.org, OrganizationRole.ANNOTATOR)
+    await make_user_link(db, reg, kept)
+    await make_user_link(db, reg, proven, link_method="login_proof")
+    # An account created by an older pod: no marker yet.
+    assert kept.lms_provisioned_at is None
+    shared = await make_project(db, world.org_admin, title="org exam")
+    shared.is_private = False
+    _attach(db, shared, world.org, via="manual", by=world.org_admin)
+    await db.commit()
+    members_path = f"/api/organizations/{world.org.id}/members"
+    client = async_test_client
+
+    with _as_user(world.contributor):
+        before = _member_rows(await client.get(members_path))
+    assert before[kept.id]["is_pseudonymized"] is True
+    assert before[kept.id]["user_email"] is None
+
+    path = f"{BASE}/registrations/{reg.id}"
+    with as_user(world.org_admin):
+        assert (await client.put(path, json={"status": "disabled"})).status_code == 200
+        r = await client.delete(path, params={"accounts": "keep"})
+        assert r.status_code == 204, r.text
+    assert await _rows(db, LtiUserLink, LtiUserLink.registration_id == reg.id) == []
+
+    (row,) = await _rows(db, User, User.id == kept.id)
+    assert row.lms_provisioned_at is not None
+    assert row.lms_origin_org_id == world.org.id
+    (plain,) = await _rows(db, User, User.id == proven.id)
+    assert plain.lms_provisioned_at is None
+
+    # Contributors: still the pseudonym, no email, not searchable by name.
+    with _as_user(world.contributor):
+        after = _member_rows(await client.get(members_path))
+        search = await client.get(
+            "/api/organizations/manage/users", params={"search": "Klara"}
+        )
+        project_members = await client.get(f"/api/projects/{shared.id}/members")
+    assert after[kept.id]["is_pseudonymized"] is True
+    assert after[kept.id]["is_lms_account"] is True
+    assert after[kept.id]["user_email"] is None
+    assert after[kept.id]["user_name"] != "Klara Klarname"
+    assert after[proven.id]["is_lms_account"] is False
+    assert after[proven.id]["user_name"] == "Eigenes Konto"
+    assert search.status_code == 200, search.text
+    assert kept.id not in {item["id"] for item in search.json()}
+    assert project_members.status_code == 200, project_members.text
+    listed = {m["user_id"]: m for m in project_members.json()}
+    assert listed[kept.id]["is_pseudonymized"] is True
+    assert listed[kept.id]["email"] is None
+    assert listed[kept.id]["name"] != "Klara Klarname"
+
+    # The org's admins keep seeing the name.
+    with _as_user(world.org_admin):
+        admin_view = _member_rows(await client.get(members_path))
+    assert admin_view[kept.id]["is_pseudonymized"] is False
+    assert admin_view[kept.id]["user_name"] == "Klara Klarname"
+
+    # Another org's admin, where the kept account is also a member: masked.
+    await add_member(db, kept, world.other_org, OrganizationRole.ANNOTATOR)
+    await db.commit()
+    with _as_user(world.foreign_admin):
+        foreign = _member_rows(
+            await client.get(f"/api/organizations/{world.other_org.id}/members")
+        )
+    assert foreign[kept.id]["is_pseudonymized"] is True
+
+    # The platform's own link-table reading and the header flag agree.
+    assert await is_lms_account(db, kept.id) is True
+    assert await is_lms_provisioned_account(db, kept.id) is True
+    assert await is_lms_account(db, proven.id) is False
+    assert await is_lms_provisioned_account(db, proven.id) is False
+    ids = await db.run_sync(
+        lambda sync_db: lms_user_ids_from_links(sync_db, [kept.id, proven.id])
+    )
+    assert ids == {kept.id}
+
+
+async def _attachment(db, project, org):
+    rows = await _rows(
+        db,
+        ProjectOrganization,
+        ProjectOrganization.project_id == project.id,
+        ProjectOrganization.organization_id == org.id,
+    )
+    return (rows[0].attached_via, rows[0].group_id) if rows else None
+
+
+async def _opens(db, user, project):
+    from types import SimpleNamespace
+
+    from routers.projects.helpers import check_project_accessible_async
+
+    return await check_project_accessible_async(
+        db, SimpleNamespace(id=user.id, is_superadmin=False), project.id
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_moving_a_connection_moves_its_attachments(
+    async_test_client, async_test_db
+):
+    """A group or org move takes the attachments linking created along:
+    staff access and the key pool follow the connection."""
+    from models import OrganizationRole
+    from org_groups import resolve_project_group_for_org_async
+
+    db = async_test_db
+    world = await build_world(db)
+    author = world.stranger
+    reg = await make_registration(db, world.org, group=world.group_a)
+    exam = await make_project(db, author, title="linked in A")
+    shared = await make_project(db, author, title="shared by hand")
+    _attach(db, exam, world.org, via="lti", by=author, group=world.group_a)
+    _attach(db, shared, world.org, via="manual", by=author)
+    await make_resource_link(db, reg, project=exam)
+    await make_resource_link(db, reg, project=shared)
+    b_contributor = await make_user(db)
+    await add_member(db, b_contributor, world.org, OrganizationRole.CONTRIBUTOR)
+    await add_group_member(db, b_contributor, world.group_b, admin=False)
+    b_admin = await make_user(db)
+    await add_member(db, b_admin, world.org, OrganizationRole.ANNOTATOR)
+    await add_group_member(db, b_admin, world.group_b, admin=True)
+    new_staff = await make_user(db)
+    await add_member(db, new_staff, world.other_org, OrganizationRole.CONTRIBUTOR)
+    await db.commit()
+    path = f"{BASE}/registrations/{reg.id}"
+
+    assert await _opens(db, world.contributor, exam) is True
+    assert await _opens(db, b_contributor, exam) is False
+
+    with as_user(world.org_admin):
+        r = await async_test_client.put(path, json={"group_id": world.group_b.id})
+    assert r.status_code == 200, r.text
+    assert await _attachment(db, exam, world.org) == ("lti", world.group_b.id)
+    assert await _attachment(db, shared, world.org) == ("manual", None)
+    assert await _opens(db, world.contributor, exam) is False
+    assert await _opens(db, b_contributor, exam) is True
+    assert await _opens(db, b_admin, exam) is True
+    assert (
+        await resolve_project_group_for_org_async(db, exam.id, world.org.id)
+        == world.group_b.id
+    )
+    event = (await _events(db, organization_id=world.org.id))[-1]
+    assert event.action == "registration_updated"
+    assert event.changes["resynced_project_ids"] == [exam.id]
+
+    with as_user(world.org_admin):
+        r = await async_test_client.put(path, json={"group_id": None})
+    assert r.status_code == 200, r.text
+    assert await _attachment(db, exam, world.org) == ("lti", None)
+    assert await _opens(db, world.contributor, exam) is True
+
+    # An org move (superadmins only): the new org gets the rows, the old
+    # org's linking rows go, its manual share stays.
+    with as_user(world.superadmin):
+        r = await async_test_client.put(
+            path, json={"organization_id": world.other_org.id}
+        )
+    assert r.status_code == 200, r.text
+    assert await _attachment(db, exam, world.org) is None
+    assert await _attachment(db, shared, world.org) == ("manual", None)
+    assert await _attachment(db, exam, world.other_org) == ("lti", None)
+    assert await _attachment(db, shared, world.other_org) == ("lti", None)
+    assert await _opens(db, new_staff, exam) is True
+    assert await _opens(db, world.contributor, exam) is False
+    moved = (await _events(db, organization_id=world.other_org.id))[-1]
+    assert moved.changes["resynced_project_ids"] == sorted([exam.id, shared.id])
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_deleting_one_of_two_connections_keeps_the_survivors_group(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    world = await build_world(db)
+    author = world.stranger
+    first, second = sorted((world.group_a, world.group_b), key=lambda g: g.id)
+    doomed = await make_registration(db, world.org, group=first, status="disabled")
+    survivor = await make_registration(db, world.org, group=second)
+    exam = await make_project(db, author)
+    _attach(db, exam, world.org, via="lti", by=author, group=first)
+    await make_resource_link(db, doomed, project=exam)
+    await make_resource_link(db, survivor, project=exam)
+    await db.commit()
+
+    with as_user(world.org_admin):
+        r = await async_test_client.delete(
+            f"{BASE}/registrations/{doomed.id}", params={"accounts": "keep"}
+        )
+    assert r.status_code == 204, r.text
+    assert await _attachment(db, exam, world.org) == ("lti", second.id)
+    deleted = (await _events(db, organization_id=world.org.id))[-1]
+    assert deleted.changes["detached_project_ids"] == []
+
+
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_group_admin_deletes_a_disabled_group_connection(
@@ -304,6 +582,7 @@ async def test_resource_links_list(async_test_client, async_test_db):
         context_title="A-Kurs",
         resource_title="Klausur 1",
         lineitem_url="https://lms.example/lineitems/1/lineitem",
+        lineitems_url="https://lms.example/lineitems",
         ags_scopes=[LINEITEM_SCOPE, SCORE_SCOPE],
         linked_by=world.contributor.id,
         linked_at=now,
@@ -315,7 +594,8 @@ async def test_resource_links_list(async_test_client, async_test_db):
         reg,
         context_title="B-Kurs",
         resource_title="Offen",
-        ags_scopes=[SCORE_SCOPE],
+        # The spec's space-separated form.
+        ags_scopes=f"{SCORE_SCOPE} {LINEITEM_SCOPE}",
     )
     await make_resource_link(db, reg, project=gone, context_title="C-Kurs")
     learners = [await make_user(db), await make_user(db)]
@@ -343,6 +623,7 @@ async def test_resource_links_list(async_test_client, async_test_db):
     }
     assert first["resource_title"] == "Klausur 1"
     assert first["grades_supported"] is True
+    assert first["lineitems_available"] is True
     assert first["column_management"] is True
     assert first["granted_scopes"] == [LINEITEM_SCOPE, SCORE_SCOPE]
     assert first["ai_lineitem_status"] == "unavailable"
@@ -356,7 +637,10 @@ async def test_resource_links_list(async_test_client, async_test_db):
 
     assert unbound["project"] is None
     assert unbound["grades_supported"] is False
-    assert unbound["column_management"] is False
+    assert unbound["lineitems_available"] is False
+    assert unbound["granted_scopes"] == [SCORE_SCOPE, LINEITEM_SCOPE]
+    assert unbound["column_management"] is True
+    assert deleted["granted_scopes"] == []
     assert unbound["participant_count"] == 0
     assert unbound["sync_counts"] == {}
     assert unbound["linked_by_display"] is None
@@ -520,6 +804,9 @@ async def test_unlink_keeps_the_account_and_clears_this_connection(
     provisioned = await make_user(db)
     proven = await make_user(db)
     prov_link = await make_user_link(db, reg, provisioned)
+    # The tool's record of the group grant (see extended provisioning).
+    grant = {"group_id": world.group_a.id, "admin": True}
+    prov_link.claims = {**prov_link.claims, "group_grant": grant}
     proof_link = await make_user_link(db, reg, proven, link_method="login_proof")
     foreign_link = await make_user_link(db, other, provisioned)
     await make_grade_sync(db, link, provisioned)
@@ -540,8 +827,10 @@ async def test_unlink_keeps_the_account_and_clears_this_connection(
         r = await client.delete(f"{base}/user-links/{prov_link.id}")
         assert r.status_code == 204, r.text
 
-        # Provisioned: kept as a tombstone without the claims snapshot and
-        # without the consent, so a relaunch asks for it again.
+        # Provisioned: kept as a tombstone without the LMS name/email
+        # snapshot and without the consent, so a relaunch asks for it again.
+        # The group grant record stays, so a relaunch cannot undo a group
+        # removal or demotion.
         row = (
             await db.execute(
                 select(LtiUserLink)
@@ -550,7 +839,7 @@ async def test_unlink_keeps_the_account_and_clears_this_connection(
             )
         ).scalar_one()
         assert row.unlinked_at is not None
-        assert row.claims is None
+        assert row.claims == {"group_grant": grant}
         assert (row.consent_at, row.consent_version, row.research_consent_at) == (
             None,
             None,
@@ -662,6 +951,127 @@ async def test_events_are_scoped_and_newest_first(async_test_client, async_test_
     assert len(events) == 100
     assert events[0]["changes"] == {"n": 104}
     assert events[0]["actor_display"] is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_history_keeps_invites_and_deleted_connections(
+    async_test_client, async_test_db
+):
+    """The org feed lists what the per-connection history cannot: invites,
+    and the deletion of a connection with the accounts anonymized with it.
+    Group admins read their groups' entries only."""
+    from models import OrganizationRole
+
+    db = async_test_db
+    world = await build_world(db)
+    chair = await make_registration(
+        db, world.org, group=world.group_a, status="disabled", name="Chair Moodle"
+    )
+    other_chair = await make_registration(
+        db, world.org, group=world.group_b, status="disabled", name="B Moodle"
+    )
+    student = await make_user(db, name="Anna Klarname")
+    await add_member(db, student, world.org, OrganizationRole.ANNOTATOR)
+    await make_user_link(db, chair, student)
+    # A row an extended writer adds: registration id, no group.
+    db.add(
+        LtiAdminEvent(
+            id=str(uuid.uuid4()),
+            organization_id=world.org.id,
+            registration_id=chair.id,
+            registration_name=chair.name,
+            actor_kind="dynamic_registration",
+            action="registration_created",
+            changes={},
+        )
+    )
+    await db.commit()
+    client = async_test_client
+    feed = f"{BASE}/events"
+
+    with as_user(world.org_admin):
+        r = await client.post(
+            f"{BASE}/registrations/invites",
+            json={"organization_id": world.org.id, "group_id": world.group_a.id},
+        )
+        assert r.status_code == 201, r.text
+        chair_invite = r.json()["id"]
+        r = await client.post(
+            f"{BASE}/registrations/invites", json={"organization_id": world.org.id}
+        )
+        assert r.status_code == 201, r.text
+        r = await client.delete(f"{BASE}/registrations/invites/{chair_invite}")
+        assert r.status_code == 204, r.text
+        r = await client.delete(
+            f"{BASE}/registrations/{chair.id}", params={"accounts": "anonymize"}
+        )
+        assert r.status_code == 200, r.text
+        r = await client.delete(
+            f"{BASE}/registrations/{other_chair.id}", params={"accounts": "keep"}
+        )
+        assert r.status_code == 204, r.text
+
+        r = await client.get(feed, params={"organization_id": world.org.id})
+        assert r.status_code == 200, r.text
+        rows = r.json()
+        by_chair = await client.get(
+            feed,
+            params={"organization_id": world.org.id, "registration_id": chair.id},
+        )
+        deleted = await client.get(
+            feed, params={"organization_id": world.org.id, "deleted_only": True}
+        )
+    actions = [row["action"] for row in rows]
+    assert actions[:5] == [
+        "registration_deleted",
+        "registration_deleted",
+        "user_anonymized",
+        "invite_revoked",
+        "invite_created",
+    ]
+    assert "registration_created" in actions
+    anonymized = next(row for row in rows if row["action"] == "user_anonymized")
+    assert anonymized["group_id"] == world.group_a.id
+    assert anonymized["changes"]["user_id"] == student.id
+    assert anonymized["actor_display"] == world.org_admin.name
+    created = next(row for row in rows if row["action"] == "registration_created")
+    assert created["group_id"] == world.group_a.id
+    assert "Anna" not in str(rows)
+    assert {row["action"] for row in by_chair.json()} >= {
+        "registration_deleted",
+        "user_anonymized",
+    }
+    assert all(
+        (row["changes"] or {}).get("registration_id") in (chair.id, None)
+        for row in by_chair.json()
+    )
+    assert deleted.json() and all(
+        row["registration_id"] is None for row in deleted.json()
+    )
+
+    # A group admin of A: the chair's entries and the chair invite only.
+    with as_user(world.group_admin):
+        r = await client.get(feed, params={"organization_id": world.org.id})
+    assert r.status_code == 200, r.text
+    groups = {row["group_id"] for row in r.json()}
+    assert groups == {world.group_a.id}
+    assert {row["action"] for row in r.json()} >= {
+        "registration_deleted",
+        "user_anonymized",
+        "invite_created",
+        "invite_revoked",
+    }
+
+    with as_user(world.foreign_admin):
+        r = await client.get(feed, params={"organization_id": world.org.id})
+        assert r.status_code == 403
+        r = await client.get(feed)
+        assert r.status_code == 422
+    with as_user(world.superadmin):
+        r = await client.get(feed, params={"registration_id": chair.id})
+        assert r.status_code == 200
+        assert {row["organization_id"] for row in r.json()} == {world.org.id}
 
 
 # --------------------------------------------------------------------------- #
@@ -817,3 +1227,21 @@ async def test_retry_dispatches_through_the_hook(
         assert r.status_code == 200
         assert r.json()["dispatched"] is False
         assert r.json()["status"] == "pending"
+
+
+@pytest.mark.parametrize(
+    "claims, kept",
+    [
+        (None, None),
+        ("not a dict", None),
+        ({"name": "Erika", "email": "e@uni.example", "roles": []}, None),
+        (
+            {"name": "Erika", "group_grant": {"group_id": "g", "admin": False}},
+            {"group_grant": {"group_id": "g", "admin": False}},
+        ),
+    ],
+)
+def test_unlink_keeps_only_tool_bookkeeping_of_the_claims(claims, kept):
+    from routers.lti_admin import _retained_claims
+
+    assert _retained_claims(claims) == kept

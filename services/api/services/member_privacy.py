@@ -8,11 +8,15 @@ shown by pseudonym by default. This module applies the extension hooks
 - **Org lists** (org member list, ``/organizations/manage/users``, group
   roster): a masked user shows the real name and email only to superadmins
   and to the admins of an org whose own connections the user belongs to
-  (``privacy_protected_member_ids(db, org_id, ids)``). Which orgs count as
-  "admin" is the caller's decision (org admins for the member list, org and
-  group admins for a group roster). The roster of an org whose LMS
-  connections stay superadmin-run (``protected_org_ids``; every LMS user and
-  every pilot teacher joins it) is for its org admins only.
+  (``privacy_protected_member_ids(db, org_id, ids)``). A group admin who is
+  not an org admin sees the real names of the LMS users of connections
+  scoped to the groups they administer
+  (``privacy_protected_member_ids(db, org_id, ids, group_ids=...)``, see
+  :func:`reveal_group_accounts`), not of whoever is a member of their
+  group: group membership is something a group admin can change. The
+  roster of an org whose LMS connections stay superadmin-run
+  (``protected_org_ids``; every LMS user and every pilot teacher joins it)
+  is for its org admins only.
 - **Project lists** (project members, task listing and assignments):
   masked unless ``project_real_name_user_ids`` names the person for this
   viewer. That set holds only people who take part in the exam through a
@@ -26,6 +30,8 @@ default and are not the viewer. Masked rows keep their ids and show
 :func:`user_display.masked_name`; emails are left out.
 
 The hooks are sync and read only; they run through ``AsyncSession.run_sync``.
+Id lists go to the hooks in chunks of :data:`_HOOK_CHUNK`, so a large org
+never exceeds the database driver's bind-parameter limit.
 """
 
 from __future__ import annotations
@@ -42,10 +48,15 @@ __all__ = [
     "masked_org_member_ids",
     "org_name_mask",
     "project_name_mask",
+    "project_name_masks",
     "protected_org_ids",
-    "reveal_org_accounts",
+    "reveal_group_accounts",
     "masked_name",
 ]
+
+# Ids per hook call. asyncpg refuses more than 32767 bind parameters, and the
+# hooks bind one per id (``IN (...)``).
+_HOOK_CHUNK = 5000
 
 
 @dataclass(frozen=True)
@@ -88,23 +99,39 @@ def _viewer_id(viewer: Any) -> str:
     return str(getattr(viewer, "id", "") or "") if viewer is not None else ""
 
 
+def _chunks(ids: list) -> list:
+    return [ids[i : i + _HOOK_CHUNK] for i in range(0, len(ids), _HOOK_CHUNK)]
+
+
+def _protected_ids_sync(sync_db, organization_id, ids: list, **kwargs) -> set:
+    """``privacy_protected_member_ids`` over ``ids`` in chunks. Each chunk
+    fails closed on its own (the wrapper's safe value)."""
+    found: set = set()
+    for chunk in _chunks(ids):
+        found |= extensions.privacy_protected_member_ids(
+            sync_db, organization_id, chunk, **kwargs
+        )
+    return found
+
+
 async def lms_account_ids(db, user_ids: Iterable[Any]) -> set:
     """The LMS users among ``user_ids``."""
     ids = _clean(user_ids)
     if not ids:
         return set()
-    return await db.run_sync(
-        lambda sync_db: extensions.privacy_protected_member_ids(sync_db, None, ids)
-    )
+    return await db.run_sync(lambda sync_db: _protected_ids_sync(sync_db, None, ids))
 
 
-async def _org_lms_account_ids(db, organization_id: str, user_ids: Iterable[Any]) -> set:
+async def _org_lms_account_ids(
+    db, organization_id: str, user_ids: Iterable[Any], group_ids=None
+) -> set:
     ids = _clean(user_ids)
     if not ids or not organization_id:
         return set()
+    kwargs = {} if group_ids is None else {"group_ids": sorted(group_ids)}
     return await db.run_sync(
-        lambda sync_db: extensions.privacy_protected_member_ids(
-            sync_db, str(organization_id), ids
+        lambda sync_db: _protected_ids_sync(
+            sync_db, str(organization_id), ids, **kwargs
         )
     )
 
@@ -144,16 +171,27 @@ async def protected_org_ids(db, organization_ids: Iterable[Any]) -> set:
     )
 
 
-async def reveal_org_accounts(
-    db, mask: NameMask, organization_id: str, user_ids: Iterable[Any]
+async def reveal_group_accounts(
+    db,
+    mask: NameMask,
+    organization_id: str,
+    admin_group_ids: Iterable[Any],
+    user_ids: Iterable[Any],
 ) -> NameMask:
-    """``mask`` with the LMS accounts of ``organization_id``'s own
-    connections among ``user_ids`` unmasked (a group admin's view of their
-    groups' members in the org list)."""
+    """``mask`` with the LMS users among ``user_ids`` unmasked that belong
+    to ``organization_id``'s connections scoped to one of
+    ``admin_group_ids`` (a group admin's view, D1/D8).
+
+    Org-wide connections and connections of other groups do not count, and
+    neither does membership in the group. No groups: nothing is unmasked.
+    """
     candidates = set(_clean(user_ids)) & set(mask.masked_ids)
-    if not candidates or not organization_id:
+    groups = set(_clean(admin_group_ids))
+    if not candidates or not organization_id or not groups:
         return mask
-    revealed = await _org_lms_account_ids(db, organization_id, candidates)
+    revealed = await _org_lms_account_ids(
+        db, organization_id, candidates, group_ids=groups
+    )
     if not revealed:
         return mask
     return NameMask(mask.lms_ids, frozenset(set(mask.masked_ids) - revealed))
@@ -185,17 +223,86 @@ async def org_name_mask(
     return NameMask(frozenset(lms), frozenset(masked))
 
 
-async def project_name_mask(db, users: Iterable[Any], *, viewer, project_id: str) -> NameMask:
-    """Mask for a project-scoped list of ORM users (see module docstring)."""
+async def project_name_mask(
+    db,
+    users: Iterable[Any],
+    *,
+    viewer,
+    project_id: str,
+    lms_ids: Optional[Iterable[Any]] = None,
+) -> NameMask:
+    """Mask for a project-scoped list of ORM users (see module docstring).
+
+    ``lms_ids``: the caller's answer of :func:`lms_account_ids` for (at
+    least) these users, so it is not asked again.
+    """
     users_by_id = _by_id(users)
-    lms = await lms_account_ids(db, users_by_id)
+    if lms_ids is None:
+        lms = await lms_account_ids(db, users_by_id)
+    else:
+        lms = {str(uid) for uid in lms_ids} & set(users_by_id)
     candidates = _candidates(users_by_id, lms, viewer)
     if not candidates or _is_superadmin(viewer):
         return NameMask(frozenset(lms), frozenset())
     ids = sorted(candidates)
-    revealed = await db.run_sync(
-        lambda sync_db: extensions.project_real_name_user_ids(
-            sync_db, viewer, project_id, ids
-        )
-    )
+
+    def _revealed(sync_db) -> set:
+        found: set = set()
+        for chunk in _chunks(ids):
+            found |= extensions.project_real_name_user_ids(
+                sync_db, viewer, project_id, chunk
+            )
+        return found
+
+    revealed = await db.run_sync(_revealed)
     return NameMask(frozenset(lms), frozenset(candidates - set(revealed)))
+
+
+async def project_name_masks(
+    db,
+    users_by_project: dict,
+    *,
+    viewer,
+    lms_ids: Optional[Iterable[Any]] = None,
+) -> dict:
+    """:func:`project_name_mask` for many projects with one hook call.
+
+    ``users_by_project`` maps project ids to their ORM users (for example
+    each project's creator). Returns a :class:`NameMask` per project id.
+    ``lms_ids`` as in :func:`project_name_mask`; without it one lookup
+    covers every user of every project.
+    """
+    by_project = {
+        str(pid): _by_id(users) for pid, users in (users_by_project or {}).items() if pid
+    }
+    if lms_ids is None:
+        every = set()
+        for users_by_id in by_project.values():
+            every |= set(users_by_id)
+        lms_all = await lms_account_ids(db, every)
+    else:
+        lms_all = {str(uid) for uid in lms_ids}
+    lms_by_project = {
+        pid: lms_all & set(users_by_id) for pid, users_by_id in by_project.items()
+    }
+    candidates = {
+        pid: _candidates(users_by_id, lms_by_project[pid], viewer)
+        for pid, users_by_id in by_project.items()
+    }
+    wanted = {pid: sorted(ids) for pid, ids in candidates.items() if ids}
+    revealed: dict = {}
+    if wanted and not _is_superadmin(viewer):
+        revealed = await db.run_sync(
+            lambda sync_db: extensions.projects_real_name_user_ids(
+                sync_db, viewer, wanted
+            )
+        )
+    masks = {}
+    for pid in by_project:
+        lms = frozenset(lms_by_project[pid])
+        if _is_superadmin(viewer):
+            masks[pid] = NameMask(lms, frozenset())
+            continue
+        shown = set(revealed.get(pid) or ())
+        masks[pid] = NameMask(lms, frozenset(candidates[pid] - shown))
+    return masks

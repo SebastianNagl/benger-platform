@@ -8,11 +8,17 @@ name. Who may see it is extended logic behind two hooks
 module holds the platform side that runs in the API and in the workers:
 
 - :func:`lms_user_ids_from_links` / :func:`is_lms_account` read the platform
-  link table with the definition the hook contract documents: an LMS user
-  has a link that a launch provisioned (it keeps the LMS clear name, even
-  after an admin unlink) or any link that is not unlinked. The API uses it
-  for the ``is_lms_account`` flag of ``/auth/me``; exports use it when the
-  extended hooks are not available.
+  tables with the definition the hook contract documents: an LMS user is an
+  account a launch created (``users.lms_provisioned_at``, or a
+  ``provisioned`` link; it keeps the LMS clear name, even after an admin
+  unlink or once its connection is deleted) or an account with any link
+  that is not unlinked. Exports use it when the extended hooks are not
+  available; ``/organizations/manage/users`` narrows its candidates with
+  :func:`lms_link_exists`.
+- :func:`is_lms_provisioned_account` answers the narrower question the
+  header asks (``is_lms_account`` of ``/auth/me`` and the login response):
+  did a launch create the account? An existing account linked by proof
+  keeps its own name and login, so its header stays as it was.
 - :class:`NameVisibility` applies the rule to one project-scoped list of
   users (the export ``users`` block). The API member lists and task listings
   use the API extension loader instead (``services/member_privacy.py``); the
@@ -51,38 +57,82 @@ def _lms_link_filters(user_id_clause):
     )
 
 
+def _marked_user_exists(user_id_column):
+    """EXISTS clause: a launch created the account in ``user_id_column``
+    (``users.lms_provisioned_at``). An alias, so the clause never
+    correlates with a ``users`` table of the outer query."""
+    from sqlalchemy import exists
+    from sqlalchemy.orm import aliased
+
+    from models import User
+
+    marked = aliased(User)
+    return exists().where(
+        marked.id == user_id_column, marked.lms_provisioned_at.isnot(None)
+    )
+
+
 def lms_link_exists(user_id_column):
-    """SQL EXISTS clause: the user in ``user_id_column`` is an LMS user."""
+    """SQL clause: the user in ``user_id_column`` is an LMS user (a
+    qualifying link, or the account came from a launch)."""
     from sqlalchemy import exists
 
     from models import LtiUserLink
 
-    return exists().where(*_lms_link_filters(LtiUserLink.user_id == user_id_column))
+    return or_(
+        exists().where(*_lms_link_filters(LtiUserLink.user_id == user_id_column)),
+        _marked_user_exists(user_id_column),
+    )
 
 
 def _build_select_lms_user_ids(user_ids: Iterable[str]):
-    from models import LtiUserLink
+    from sqlalchemy import union
+
+    from models import LtiUserLink, User
 
     ids = sorted({str(uid) for uid in user_ids})
-    return (
-        select(LtiUserLink.user_id)
-        .where(*_lms_link_filters(LtiUserLink.user_id.in_(ids)))
-        .distinct()
+    return union(
+        select(LtiUserLink.user_id).where(
+            *_lms_link_filters(LtiUserLink.user_id.in_(ids))
+        ),
+        select(User.id).where(User.id.in_(ids), User.lms_provisioned_at.isnot(None)),
     )
 
 
 def _build_select_is_lms_account(user_id: str):
+    return select(lms_link_exists(str(user_id)))
+
+
+def _build_select_is_lms_provisioned_account(user_id: str):
     from sqlalchemy import exists
 
     from models import LtiUserLink
 
+    uid = str(user_id)
     return select(
-        exists().where(*_lms_link_filters(LtiUserLink.user_id == str(user_id)))
+        or_(
+            exists().where(
+                LtiUserLink.user_id == uid, LtiUserLink.link_method == "provisioned"
+            ),
+            _marked_user_exists(uid),
+        )
     )
 
 
 def _clean_ids(user_ids: Optional[Iterable[Any]]) -> set:
     return {str(uid) for uid in (user_ids or ()) if uid}
+
+
+def _in_savepoint(db, fn, *args):
+    """Run ``fn(db, *args)`` inside ``db.begin_nested()`` when the session has
+    savepoints, so a failed query leaves the caller's transaction usable (the
+    fallback then really runs instead of failing on the aborted
+    transaction)."""
+    begin_nested = getattr(db, "begin_nested", None)
+    if begin_nested is None:
+        return fn(db, *args)
+    with begin_nested():
+        return fn(db, *args)
 
 
 def lms_user_ids_from_links(db, user_ids: Optional[Iterable[Any]]) -> set:
@@ -109,6 +159,23 @@ async def is_lms_account(db, user_id: Optional[str]) -> bool:
     return result.scalar() is True
 
 
+def is_lms_provisioned_account_sync(db, user_id: Optional[str]) -> bool:
+    """True when an LMS launch created ``user_id`` (sync session). Unlinks
+    and deleted connections do not change the answer; linking an existing
+    account by proof does not make it one."""
+    if not user_id:
+        return False
+    return db.execute(_build_select_is_lms_provisioned_account(user_id)).scalar() is True
+
+
+async def is_lms_provisioned_account(db, user_id: Optional[str]) -> bool:
+    """Async twin of :func:`is_lms_provisioned_account_sync`."""
+    if not user_id:
+        return False
+    result = await db.execute(_build_select_is_lms_provisioned_account(user_id))
+    return result.scalar() is True
+
+
 class NameVisibility:
     """The two name-visibility hooks, bound for one process.
 
@@ -118,7 +185,8 @@ class NameVisibility:
     answers which of the given people the viewer may see by name on the
     project. Without the first, the link table decides who is an LMS user;
     without the second, only superadmins see real names. A failing hook
-    never reveals a name.
+    never reveals a name. Hooks and the link lookup run in a savepoint, so a
+    failed query does not break the caller's (export) transaction.
     """
 
     def __init__(
@@ -168,12 +236,12 @@ class NameVisibility:
             return set()
         if self._lms_user_ids is not None:
             try:
-                result = self._lms_user_ids(db, None, sorted(ids))
+                result = _in_savepoint(db, self._lms_user_ids, None, sorted(ids))
                 return {str(uid) for uid in (result or ())} & ids
             except Exception:
                 logger.exception("privacy_protected_member_ids hook failed")
         try:
-            return lms_user_ids_from_links(db, ids)
+            return _in_savepoint(db, lms_user_ids_from_links, ids)
         except Exception:
             logger.exception("LMS link lookup failed; masking every candidate")
             return ids
@@ -191,7 +259,9 @@ class NameVisibility:
         if self._real_name_user_ids is None or not project_id:
             return set()
         try:
-            result = self._real_name_user_ids(db, viewer, str(project_id), sorted(ids))
+            result = _in_savepoint(
+                db, self._real_name_user_ids, viewer, str(project_id), sorted(ids)
+            )
             return {str(uid) for uid in (result or ())} & ids
         except Exception:
             logger.exception(

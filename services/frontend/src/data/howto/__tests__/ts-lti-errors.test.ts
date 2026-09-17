@@ -171,6 +171,18 @@ describe('ts-lti-errors guide', () => {
     expect(stepFor('membership_removed', 'de')).toMatch(
       /Einladung angemeldet an, ist die Mitgliedschaft wieder aktiv/,
     )
+    // Accounts with a placeholder address get neither mail: the operator
+    // adds them back, and group memberships are restored in the group.
+    expect(stepFor('membership_removed', 'de')).toContain(
+      `**${deCommon.admin.organizations.addExistingUser}**`,
+    )
+    expect(stepFor('membership_removed', 'en')).toContain(
+      `**${enCommon.admin.organizations.addExistingUser}**`,
+    )
+    expect(stepFor('membership_removed', 'de')).toMatch(/der Gruppe hinzufügen/)
+    expect(stepFor('membership_removed', 'en')).toMatch(
+      /adding the person to the group/,
+    )
     expect(stepFor('membership_removed', 'en')).toMatch(
       /accepts it while signed in, the membership is active again/,
     )

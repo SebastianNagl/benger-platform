@@ -1287,8 +1287,12 @@ def notify_organization_invitation_sent(
     organization_name: str,
     invitee_email: str,
     inviter_name: str,
+    inviter_user_id: Optional[str] = None,
 ):
-    """Notify organization admins about invitation sent"""
+    """Notify organization admins about invitation sent.
+
+    ``inviter_user_id`` is stored with the name, so anonymizing the inviter
+    finds the notice by id."""
     recipients = NotificationService.get_notification_recipients(
         db,
         NotificationType.ORGANIZATION_INVITATION_SENT,
@@ -1309,6 +1313,7 @@ def notify_organization_invitation_sent(
             "organization_name": organization_name,
             "invitee_email": invitee_email,
             "inviter_name": inviter_name,
+            **({"inviter_user_id": inviter_user_id} if inviter_user_id else {}),
         },
         organization_id=organization_id,
     )
@@ -1320,8 +1325,12 @@ def notify_organization_invitation_accepted(
     organization_name: str,
     new_member_name: str,
     new_member_email: str,
+    new_member_user_id: Optional[str] = None,
 ):
-    """Notify organization admins about invitation acceptance"""
+    """Notify organization admins about invitation acceptance.
+
+    ``new_member_user_id`` is stored with the name, so anonymizing the new
+    member finds the notice by id."""
     recipients = NotificationService.get_notification_recipients(
         db,
         NotificationType.ORGANIZATION_INVITATION_ACCEPTED,
@@ -1342,6 +1351,7 @@ def notify_organization_invitation_accepted(
             "organization_name": organization_name,
             "new_member_name": new_member_name,
             "new_member_email": new_member_email,
+            **({"new_member_user_id": new_member_user_id} if new_member_user_id else {}),
         },
         organization_id=organization_id,
     )

@@ -11,6 +11,7 @@ behaviour runs against Postgres in
 ``tests/integration/test_billing_hooks_e2e.py``.
 """
 
+import contextlib
 import os
 import sys
 import types
@@ -52,12 +53,24 @@ class _DB:
     def __init__(self):
         self.commits = 0
         self.rollbacks = 0
+        self.savepoints = []
 
     def commit(self):
         self.commits += 1
 
     def rollback(self):
         self.rollbacks += 1
+
+    @contextlib.contextmanager
+    def begin_nested(self):
+        record = {"outcome": None}
+        self.savepoints.append(record)
+        try:
+            yield
+        except BaseException:
+            record["outcome"] = "rolled_back"
+            raise
+        record["outcome"] = "released"
 
 
 def _policy(db, **kwargs):
@@ -183,6 +196,51 @@ class TestApplyBatchBilling:
         assert meta["billing_block"]["checked_at"]
         assert flagged == ["eval_metadata"]
         assert db.commits == 1
+        # The policy may have aborted the transaction: roll back before the
+        # failure is written (the caller committed 'running' already).
+        assert db.rollbacks == 1
+
+    def test_block_after_a_failed_query_is_still_recorded(self, extended, monkeypatch):
+        """A failed query inside the policy aborts the transaction; the
+        fail-closed block must still be written, not lost on the commit."""
+        import sqlalchemy.orm.attributes as orm_attributes
+
+        monkeypatch.setattr(orm_attributes, "flag_modified", lambda obj, key: None)
+
+        class _AbortedDB(_DB):
+            aborted = False
+
+            def commit(self):
+                if self.aborted:
+                    raise RuntimeError("current transaction is aborted")
+                super().commit()
+
+            def rollback(self):
+                self.aborted = False
+                super().rollback()
+
+        db = _AbortedDB()
+
+        def policy(d, **kwargs):
+            d.aborted = True  # the policy's own query failed
+            return "org-lms", {"reason": "billing_check_failed"}
+
+        extended(policy)
+        evaluation = self._evaluation({"triggered_by": "u1"})
+        org, got, authorized = tasks_module._apply_batch_billing(
+            db,
+            evaluation=evaluation,
+            project=types.SimpleNamespace(id="p1"),
+            organization_id="org-dispatched",
+            configs=[],
+        )
+        assert got == {"reason": "billing_check_failed"}
+        assert evaluation.status == "failed"
+        assert evaluation.error_message == "billing_blocked:billing_check_failed"
+        assert evaluation.eval_metadata["billing_block"]["reason"] == (
+            "billing_check_failed"
+        )
+        assert db.commits == 1
 
     def test_allowed_run_is_untouched(self, extended):
         extended(lambda d, **k: ("org-lms", None, True))
@@ -263,6 +321,7 @@ class TestCellAuthorization:
         extended(policy)
         db = _ProjectDB(self.PROJECT)
         assert self._check(db) is True
+        assert db.savepoints == [{"outcome": "released"}]
         assert seen["project"] is self.PROJECT
         assert seen["organization_id"] == "org-lms"
         assert seen["user_id"] == "u1"
@@ -280,6 +339,26 @@ class TestCellAuthorization:
     def test_anything_but_a_matching_grant_is_false(self, extended, result):
         extended(lambda db, **k: result)
         assert self._check(_ProjectDB(self.PROJECT)) is False
+
+    def test_policy_runs_in_a_savepoint_and_a_failed_release_is_false(
+        self, extended
+    ):
+        """A failed query inside the policy must not poison the cell's
+        session: the policy runs in a savepoint, and a RELEASE that fails
+        (aborted savepoint) means "not authorized"."""
+
+        class _ReleaseFails(_ProjectDB):
+            @contextlib.contextmanager
+            def begin_nested(self):
+                self.savepoints.append({"outcome": "rolled_back"})
+                yield
+                raise RuntimeError("RELEASE SAVEPOINT: transaction is aborted")
+
+        extended(lambda db, **k: ("org-lms", None, True))
+        db = _ReleaseFails(self.PROJECT)
+        assert self._check(db) is False
+        assert db.savepoints == [{"outcome": "rolled_back"}]
+        assert db.rollbacks == 0
 
     def test_no_lookup_without_the_hook_or_the_inputs(self, extended):
         extended(missing=True)

@@ -2,6 +2,7 @@
 
 import importlib
 import sys
+from unittest.mock import MagicMock
 
 
 class TestExtensionLoader:
@@ -293,8 +294,6 @@ class TestLtiHooksWithPackage:
         assert extensions.privacy_protected_member_ids(None, "org-1", []) == set()
 
     def test_failing_hooks_are_logged_and_fail_safe(self, monkeypatch):
-        from unittest.mock import MagicMock
-
         import extensions
 
         logger = MagicMock()
@@ -339,3 +338,217 @@ class TestLtiHooksWithPackage:
         }
         # Every failure was logged, none was raised.
         assert logger.exception.call_count == 9
+
+
+class _SavepointSession:
+    """Records ``begin_nested()`` use and how each savepoint ended."""
+
+    def __init__(self):
+        self.savepoints = []
+
+    def begin_nested(self):
+        session = self
+
+        class _Savepoint:
+            def __enter__(self):
+                session.savepoints.append("open")
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                session.savepoints[-1] = "rolled_back" if exc_type else "released"
+                return False
+
+        return _Savepoint()
+
+
+class TestLtiHooksRunInASavepoint:
+    """A hook that queries through ``db`` must not poison the caller's
+    transaction when its query fails: it runs in a savepoint, and the safe
+    value is the answer."""
+
+    def _install(self, monkeypatch, hooks):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", _FakeExtended(hooks))
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        return extensions
+
+    def test_query_hooks_use_a_savepoint(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            {
+                "privacy_protected_member_ids": lambda db, org, ids, **kw: ids,
+                "project_real_name_viewer": lambda db, v, p: True,
+                "project_real_name_user_ids": lambda db, v, p, ids: ids,
+                "lti_anonymization_policy": lambda db, uid: {"blockers": []},
+            },
+        )
+        db = _SavepointSession()
+        assert extensions.privacy_protected_member_ids(db, None, ["u1"]) == {"u1"}
+        assert extensions.project_real_name_viewer(db, object(), "p1") is True
+        assert extensions.project_real_name_user_ids(db, object(), "p1", ["u1"]) == {
+            "u1"
+        }
+        assert extensions.lti_anonymization_policy(db, "u1")["blockers"] == []
+        assert db.savepoints == ["released"] * 4
+
+    def test_failing_query_hooks_roll_back_their_savepoint(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            {
+                "privacy_protected_member_ids": _boom,
+                "project_real_name_viewer": _boom,
+                "project_real_name_user_ids": _boom,
+                "lti_anonymization_policy": _boom,
+            },
+        )
+        db = _SavepointSession()
+        assert extensions.privacy_protected_member_ids(db, None, ["u1"]) == {"u1"}
+        assert extensions.privacy_protected_member_ids(db, "o", ["u1"]) == set()
+        assert extensions.project_real_name_viewer(db, object(), "p1") is False
+        assert extensions.project_real_name_user_ids(db, object(), "p1", ["u1"]) == set()
+        assert extensions.lti_anonymization_policy(db, "u1")["blockers"] == [
+            "policy_unavailable"
+        ]
+        assert db.savepoints == ["rolled_back"] * 5
+
+
+class TestGroupScopedLmsUsers:
+    """``group_ids`` limits the reveal to the connections of those groups."""
+
+    def test_group_ids_reach_the_hook(self, monkeypatch):
+        import extensions
+
+        calls = []
+
+        def protected(db, org_id, user_ids, group_ids=None):
+            calls.append((org_id, list(user_ids), group_ids))
+            return ["u1"]
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"privacy_protected_member_ids": protected}),
+        )
+        got = extensions.privacy_protected_member_ids(
+            None, "org-1", ["u1", "u2"], group_ids={"g2", "g1", None}
+        )
+        assert got == {"u1"}
+        assert calls == [("org-1", ["u1", "u2"], ["g1", "g2"])]
+
+    def test_empty_groups_or_no_org_reveal_nobody_without_asking(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"privacy_protected_member_ids": _boom}),
+        )
+        assert (
+            extensions.privacy_protected_member_ids(None, "org-1", ["u1"], group_ids=[])
+            == set()
+        )
+        assert (
+            extensions.privacy_protected_member_ids(None, None, ["u1"], group_ids=["g"])
+            == set()
+        )
+
+    def test_hook_without_the_keyword_fails_closed(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended(
+                {"privacy_protected_member_ids": lambda db, org, ids: list(ids)}
+            ),
+        )
+        assert (
+            extensions.privacy_protected_member_ids(None, "org-1", ["u1"], group_ids=["g"])
+            == set()
+        )
+        # The org-wide call still works with the old signature.
+        assert extensions.privacy_protected_member_ids(None, "org-1", ["u1"]) == {"u1"}
+
+    def test_community_edition_reveals_nobody(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert (
+            extensions.privacy_protected_member_ids(None, "org-1", ["u1"], group_ids=["g"])
+            == set()
+        )
+
+
+class TestBulkProjectRealNames:
+    def test_bulk_hook_is_called_once(self, monkeypatch):
+        import extensions
+
+        calls = []
+
+        def bulk(db, viewer, wanted):
+            calls.append(wanted)
+            return {"p1": ["u1", "stranger"], "p2": None, "other": ["x"]}
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended(
+                {"projects_real_name_user_ids": bulk, "project_real_name_user_ids": _boom}
+            ),
+        )
+        got = extensions.projects_real_name_user_ids(
+            None, object(), {"p1": ["u1", "u2"], "p2": ["u3"], "p3": [], None: ["u9"]}
+        )
+        assert got == {"p1": {"u1"}, "p2": set(), "p3": set()}
+        assert calls == [{"p1": ["u1", "u2"], "p2": ["u3"]}]
+
+    def test_without_the_bulk_hook_each_project_is_asked(self, monkeypatch):
+        import extensions
+
+        calls = []
+
+        def single(db, viewer, project_id, ids):
+            calls.append((project_id, list(ids)))
+            return ids if project_id == "p1" else []
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"project_real_name_user_ids": single}),
+        )
+        got = extensions.projects_real_name_user_ids(
+            None, object(), {"p1": ["u1"], "p2": ["u2"]}
+        )
+        assert got == {"p1": {"u1"}, "p2": set()}
+        assert sorted(calls) == [("p1", ["u1"]), ("p2", ["u2"])]
+
+    def test_failures_and_community_reveal_nobody(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"projects_real_name_user_ids": _boom}),
+        )
+        wanted = {"p1": ["u1"]}
+        assert extensions.projects_real_name_user_ids(None, object(), wanted) == {
+            "p1": set()
+        }
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"projects_real_name_user_ids": lambda *a: ["not", "a", "dict"]}),
+        )
+        assert extensions.projects_real_name_user_ids(None, object(), wanted) == {
+            "p1": set()
+        }
+        assert extensions.projects_real_name_user_ids(None, None, wanted) == {
+            "p1": set()
+        }
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.projects_real_name_user_ids(None, object(), wanted) == {
+            "p1": set()
+        }

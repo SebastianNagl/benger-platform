@@ -49,8 +49,9 @@ export interface User {
   // Pseudonymization fields (Issue #790, GDPR-compliant)
   pseudonym?: string // Unique pseudonym for privacy protection
   use_pseudonym?: boolean // Privacy preference: true = show pseudonym, false = show real name
-  // The account came from, or is linked to, an LMS (LTI) connection.
-  // Set on the signed-in user (/auth/me, login) and on /manage/users rows.
+  // Signed-in user (/auth/me, login): an LMS (LTI) launch created the
+  // account. /manage/users rows: the account came from, or is linked to,
+  // an LMS connection.
   is_lms_account?: boolean
   // /manage/users rows only: the viewer may not see the real name, so
   // name/username carry the pseudonym and email is null.

@@ -96,16 +96,32 @@ whenever one is added, renamed or removed):
   (resource_link_id, user_id, kind); the new ``lti_resource_link_users``
   and ``lti_admin_events`` tables) and migration 106
   (``task_evaluations.updated_at``, ``users.anonymized_at``,
-  ``ix_users_email_lower``, the ``lti_claim`` email state of provisioned
-  accounts, ``project_organizations.attached_via``); the activation and
-  password-reset confirm paths verify an unproven routable address
-  (``account_activation.verify_email_by_link``). Modules: ``public_hosts``
+  ``ix_users_email_lower``, the ``lti_claim`` email method of provisioned
+  accounts (the verified flag is left alone so older pods keep working),
+  ``users.lms_provisioned_at`` / ``users.lms_origin_org_id`` (the LMS
+  origin of an account a launch created; the extended provisioning sets
+  both, deleting a connection stamps them, migration 106 backfills them),
+  ``project_organizations.attached_via``); the activation and
+  password-reset confirm paths verify an unproven routable address,
+  including a verified one still marked ``lti_claim``
+  (``account_activation.verify_email_by_link``). ``lti_admin_events`` has a
+  ``group_id`` (SET NULL; a row with a registration and no group gets the
+  registration's group on insert). Modules: ``public_hosts``
   (tool host key to base URL), ``user_display`` (real name or pseudonym label),
   ``auth_module.org_scope`` (``OrgAdminScope``, ``require_scope_admin`` and
   its sync twin). API hooks the extended ``get_hooks()`` registers:
-  ``dispatch_lti_grade_sync``, ``privacy_protected_member_ids``,
+  ``dispatch_lti_grade_sync``, ``privacy_protected_member_ids`` (an LMS
+  user has a provisioned link, a link that is not unlinked, or the LMS
+  origin marker; an org call counts marked accounts of that origin org once
+  no provisioned link is left; with the keyword ``group_ids``: only the
+  org's connections scoped to those groups, markers do not count; a hook
+  without it reveals nobody to group admins),
   ``project_real_name_viewer``, ``lti_anonymization_policy``,
-  ``lti_protected_org_ids``. Billing contract: the grading dispatch policy
+  ``lti_protected_org_ids`` and ``projects_real_name_user_ids(db, viewer,
+  {project_id: user_ids}) -> {project_id: set}`` (the bulk form the project
+  list uses; the wrapper loops the single hook when it is missing). Hooks
+  that query run inside a savepoint, so a failed query leaves the caller's
+  transaction usable. Billing contract: the grading dispatch policy
   may return a 4-tuple ``(org_id, configs, authorized, block)``; a block
   marks the immediate run failed via
   ``_mark_immediate_run_failed(extra_metadata=)`` and runs no judge; the
@@ -128,8 +144,18 @@ whenever one is added, renamed or removed):
   ``GET /tool-hosts``, ``DELETE /registrations/{id}``
   (``accounts=keep|anonymize``),
   ``PATCH .../deployments/{pk}``, ``GET .../resource-links``,
-  ``GET|DELETE .../user-links``, ``GET .../events``, grade transfers with
+  ``GET|DELETE .../user-links``, ``GET .../events``, the organization
+  history ``GET /api/admin/lti/events`` (``organization_id``,
+  ``registration_id``, ``deleted_only``; also invites and deleted
+  connections, group admins see their groups' entries), grade transfers with
   context and a retry that dispatches through ``dispatch_lti_grade_sync``.
+  Moving a connection to another group or org, and deleting one, re-derives
+  the org's LMS-linking attachments of its exams
+  (``org_groups.sync_lti_attachments(_async)``, ``collapse_linking_groups``,
+  ``plan_lti_attachment_sync``, ``lti_sync_changed``); the update event
+  lists them under ``resynced_project_ids``. Deleting a connection with
+  ``accounts=anonymize`` runs set-based
+  (``user_anonymization.anonymize_users(_sync)``, ``AnonymizationOutcome``).
   Consent first and proof linking (the extended overlay parks a launch until
   consent and links an existing account only after proof):
   ``account_activation`` gains ``EMAIL_METHOD_LMS_CLAIM``,
@@ -153,8 +179,20 @@ whenever one is added, renamed or removed):
   (``check_project_accessible``, ``get_project_access_tier``,
   ``AuthorizationService``, both lanes) give eligible staff of such an org
   the full tier on a PRIVATE exam under any org context, the participant
-  tier is unchanged; ``extensions.lti_protected_org_subset`` resolves the
-  protected orgs fail-closed. Share management stays with the creator
+  tier is unchanged; under the ``private`` context (the LMS landing pages)
+  the same rule opens someone else's NON-private exam to staff of an org
+  that links it (``org_groups.linked_attachment_map``,
+  ``get_linking_org_ids(_async)``: that org's row of any ``attached_via``);
+  ``extensions.lti_protected_org_subset`` resolves the protected orgs
+  fail-closed. On someone else's NON-private exam the same
+  deciders, the edit and effective-role checks and the org project list drop
+  the ``attached_via='lti'`` rows (stale ones included) of protected orgs
+  for everyone but those orgs' admins and the row group's admins
+  (``org_groups.drop_protected_lti_attachments``,
+  ``get_lti_row_org_ids(_async)``). ``get_effective_project_role(_async)``
+  applies the private rule too (someone else's private project: only the
+  staff role of a live, unprotected LMS link, else the participant
+  fallback). Share management stays with the creator
   unless a manual org row exists. The visibility PATCH keeps linking rows,
   turns a manual row of a linked org into one (with the connection's group),
   drops linking rows whose org no longer links the exam and answers 409
@@ -167,20 +205,27 @@ whenever one is added, renamed or removed):
   private rule itself (only a live LMS link opens someone else's private
   exam, protected orgs count only their admins), and
   ``get_soft_deletable_project_ids_async`` is the one delete rule (a private
-  project is its creator's alone) behind ``DELETE /projects/{id}``, bulk
+  project is its creator's alone; only manual org rows count, an LMS link
+  never hands deletion to anyone) behind ``DELETE /projects/{id}``, bulk
   delete and the extended student list/detail ``can_delete`` flag.
-  Accepting an organization invitation reactivates a removed membership.
+  Accepting an organization invitation, also through email verification,
+  reactivates a removed membership.
   Host route ``/lti/activity`` (slot ``LtiActivityView``, props
   ``resourceLinkId``, ``expectedUserId``, ``requestedUiMode``) is the teacher
   view.
   Names (D8): ``/auth/me``, ``/auth/me/contexts`` and the login user carry
-  ``pseudonym``, ``use_pseudonym`` and ``is_lms_account``; shared modules
-  ``lms_name_masking`` (``NameVisibility``, ``lms_link_exists``,
-  ``is_lms_account(_sync)``) and ``user_display.masked_name`` /
+  ``pseudonym``, ``use_pseudonym`` and ``is_lms_account`` (there: a launch
+  created the account; a proof-linked account keeps its header); shared
+  modules ``lms_name_masking`` (``NameVisibility``, ``lms_link_exists``,
+  ``is_lms_account(_sync)``, ``is_lms_provisioned_account(_sync)``) and
+  ``user_display.masked_name`` /
   ``prefers_pseudonym``; ``services/member_privacy`` masks the org member
   list, ``/organizations/manage/users``, the group roster, project members,
-  the task listing, task assignments, ``created_by_name`` and the export
-  ``users`` block. New API hook ``project_real_name_user_ids(db, viewer,
+  the task listing, task assignments, ``created_by_name`` (list, detail,
+  edit and visibility responses; ``project_name_masks`` for a whole page)
+  and the export ``users`` block (a masked record carries ``"masked": true``
+  and is imported by id when the account exists). Group admins see real
+  names through ``reveal_group_accounts`` (their groups' connections). New API hook ``project_real_name_user_ids(db, viewer,
   project_id, user_ids)`` (the people a viewer may see by name on a project;
   project lists unmask only those). The workers (and exports in the API
   process, while the extension loader accepted the package) read the

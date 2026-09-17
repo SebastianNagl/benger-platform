@@ -309,6 +309,9 @@ class LtiResourceLinkAdminRead(BaseModel):
     linked_at: Optional[datetime] = None
     # The launch carried a grade column (AGS line item) for this activity.
     grades_supported: bool = False
+    # The launch carried the activity's line item container, which the tool
+    # needs to find or create its own AI grade column.
+    lineitems_available: bool = False
     # Scopes the LMS granted; ``column_management`` is True when they include
     # the read-write line item scope (the tool may create its own column).
     granted_scopes: List[str] = Field(default_factory=list)
@@ -362,12 +365,14 @@ class LtiUserLinkAdminPage(BaseModel):
 
 
 class LtiAdminEventRead(BaseModel):
-    """One entry of a connection's change history."""
+    """One entry of a connection's or an organization's LMS history."""
 
     id: str
     organization_id: str
     registration_id: Optional[str] = None
     registration_name: Optional[str] = None
+    # Group scope of the entry (None = org-wide).
+    group_id: Optional[str] = None
     actor_user_id: Optional[str] = None
     actor_display: Optional[str] = None
     actor_kind: str

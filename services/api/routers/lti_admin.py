@@ -68,7 +68,8 @@ from models import (
     OrganizationRole,
     User,
 )
-from project_models import MarketplaceEntitlement, Project, ProjectOrganization, Task
+from org_groups import lti_sync_changed, sync_lti_attachments_async
+from project_models import MarketplaceEntitlement, Project, Task
 from public_hosts import (
     ToolHostUnavailable,
     available_tool_hosts,
@@ -112,6 +113,7 @@ from services.user_anonymization import (
     anonymization_check,
     anonymization_footprint,
     anonymize_user,
+    anonymize_users,
     revoke_lms_link_tokens,
 )
 from user_display import display_name
@@ -364,18 +366,25 @@ def _record_event(
     registration: Optional[LtiPlatformRegistration] = None,
     registration_id: Optional[str] = None,
     registration_name: Optional[str] = None,
+    group_id: Optional[str] = None,
     changes: Optional[Dict[str, Any]] = None,
 ) -> None:
-    """Stage one audit row. The caller commits it with the change itself."""
+    """Stage one audit row. The caller commits it with the change itself.
+
+    ``group_id`` is the group scope the entry belongs to (the registration's
+    when one is given); group admins read the org feed through it.
+    """
     if registration is not None:
         registration_id = registration_id or registration.id
         registration_name = registration_name or registration.name
+        group_id = group_id or registration.group_id
     db.add(
         LtiAdminEvent(
             id=str(uuid.uuid4()),
             organization_id=organization_id,
             registration_id=registration_id,
             registration_name=registration_name,
+            group_id=group_id,
             actor_user_id=getattr(actor, "id", None),
             actor_kind="user",
             action=action,
@@ -565,21 +574,23 @@ async def _anonymize_connection_accounts(
     reveal = _reveals_names(scope, reg.group_id)
     anonymized: List[str] = []
     skipped: List[ConnectionAccountSkipped] = []
-    for link, user in await _provisioned_connection_accounts(db, reg.id):
-        try:
-            result = await anonymize_user(
-                db,
-                user.id,
-                actor_id=actor.id,
-                reason="registration_deleted",
-                scope=anon_scope,
-                via_link_id=link.id,
-            )
-        except AnonymizationRefused as refused:
-            skipped.append(_skipped_account(link, user, reveal, refused.blockers))
+    pairs = await _provisioned_connection_accounts(db, reg.id)
+    # One set-based run for all accounts (locks, scrubs and the notification
+    # scan once), so a large connection fits in one request.
+    outcomes = await anonymize_users(
+        db,
+        [(user.id, link.id) for link, user in pairs],
+        actor_id=actor.id,
+        reason="registration_deleted",
+        scope=anon_scope,
+    )
+    for (link, user), outcome in zip(pairs, outcomes):
+        if outcome.not_found:
             continue
-        except AnonymizationUserNotFound:
+        if outcome.result is None:
+            skipped.append(_skipped_account(link, user, reveal, outcome.blockers))
             continue
+        result = outcome.result
         anonymized.append(result.user_id)
         _record_event(
             db,
@@ -587,6 +598,7 @@ async def _anonymize_connection_accounts(
             actor=actor,
             action="user_anonymized",
             registration_name=reg.name,
+            group_id=reg.group_id,
             changes={
                 "registration_id": reg.id,
                 **_anonymized_changes(link.id, result, "registration_deleted"),
@@ -802,6 +814,7 @@ async def create_registration_invite(
         organization_id=invite.organization_id,
         actor=current_user,
         action="invite_created",
+        group_id=invite.group_id,
         changes={
             "invite_id": invite.id,
             "group_id": invite.group_id,
@@ -878,6 +891,7 @@ async def revoke_registration_invite(
         organization_id=invite.organization_id,
         actor=current_user,
         action="invite_revoked",
+        group_id=invite.group_id,
         changes={"invite_id": invite.id, "group_id": invite.group_id},
     )
     await db.delete(invite)
@@ -994,8 +1008,33 @@ async def update_registration(
 
     old_values = {field: getattr(reg, field) for field in _AUDITED_FIELDS}
     changes = _diff(old_values, {k: v for k, v in data.items() if k in _AUDITED_FIELDS})
+    old_org = reg.organization_id
+    moved = (new_org, new_group) != (reg.organization_id, reg.group_id)
+    linked_ids: List[str] = []
+    if moved:
+        linked_ids = await _linked_project_ids(db, reg.id)
     for field_name, value in data.items():
         setattr(reg, field_name, value)
+    if linked_ids:
+        # The attachments linking created follow the connection: the new
+        # (org, group) gets them, the old org keeps them only where another
+        # of its connections still links the exam.
+        await db.flush()
+        resynced = set(
+            lti_sync_changed(
+                await sync_lti_attachments_async(
+                    db, new_org, linked_ids, assigned_by=current_user.id
+                )
+            )
+        )
+        if old_org != new_org:
+            resynced |= set(
+                lti_sync_changed(
+                    await sync_lti_attachments_async(db, old_org, linked_ids)
+                )
+            )
+        if resynced:
+            changes["resynced_project_ids"] = sorted(resynced)
     if changes:
         _record_event(
             db,
@@ -1010,6 +1049,22 @@ async def update_registration(
     return _registration_read(await _load_registration(db, registration_id))
 
 
+async def _linked_project_ids(db: AsyncSession, registration_id: str) -> List[str]:
+    """The projects the connection's activities point at."""
+    return sorted(
+        (
+            await db.execute(
+                select(LtiResourceLink.project_id)
+                .where(
+                    LtiResourceLink.registration_id == registration_id,
+                    LtiResourceLink.project_id.isnot(None),
+                )
+                .distinct()
+            )
+        ).scalars()
+    )
+
+
 async def _cleanup_org_attachments(
     db: AsyncSession, reg: LtiPlatformRegistration
 ) -> Tuple[List[str], List[str], int]:
@@ -1019,21 +1074,13 @@ async def _cleanup_org_attachments(
     org still links: drop the org attachment linking created
     (``attached_via='lti'``; a manual share stays) and revoke the LMS
     entitlements of users who no longer reach the exam through any other live
-    link. Returns the exams no longer linked from the org, the exams whose
-    attachment was dropped, and the number of revoked entitlements.
+    link. An exam another connection of the org still links keeps its
+    attachment with the group the remaining connections give it
+    (``org_groups.sync_lti_attachments``). Returns the exams no longer linked
+    from the org, the exams whose attachment was dropped, and the number of
+    revoked entitlements.
     """
-    linked = set(
-        (
-            await db.execute(
-                select(LtiResourceLink.project_id)
-                .where(
-                    LtiResourceLink.registration_id == reg.id,
-                    LtiResourceLink.project_id.isnot(None),
-                )
-                .distinct()
-            )
-        ).scalars()
-    )
+    linked = set(await _linked_project_ids(db, reg.id))
     if not linked:
         return [], [], 0
     still_linked = set(
@@ -1053,22 +1100,13 @@ async def _cleanup_org_attachments(
             )
         ).scalars()
     )
+    plan = await sync_lti_attachments_async(
+        db, reg.organization_id, linked, exclude_registration_id=reg.id
+    )
     orphaned = sorted(linked - still_linked)
     if not orphaned:
         return [], [], 0
-
-    detached = (
-        await db.execute(
-            delete(ProjectOrganization)
-            .where(
-                ProjectOrganization.organization_id == reg.organization_id,
-                ProjectOrganization.project_id.in_(orphaned),
-                ProjectOrganization.attached_via == "lti",
-            )
-            .returning(ProjectOrganization.project_id)
-        )
-    ).scalars()
-    detached = sorted(detached)
+    detached = sorted(plan["delete"])
 
     # An entitlement stays when its user still has a live identity link on
     # another connection (of any org) that links the same exam.
@@ -1105,6 +1143,30 @@ async def _cleanup_org_attachments(
     return orphaned, detached, revoked.rowcount or 0
 
 
+async def _keep_lms_origin(db: AsyncSession, reg: LtiPlatformRegistration) -> None:
+    """Stamp the LMS origin on every account the connection created.
+
+    Deleting the connection cascades its identity links away, including the
+    tombstones that keep an account recognizable as an LMS account. The
+    marker on the user row takes over, so kept accounts stay masked (D8) and
+    the connection org's admins can still see their names. Launches set it
+    when they create an account; this covers accounts an older pod created.
+    """
+    creators = select(LtiUserLink.user_id).where(
+        LtiUserLink.registration_id == reg.id,
+        LtiUserLink.link_method == "provisioned",
+    )
+    await db.execute(
+        update(User)
+        .where(User.id.in_(creators))
+        .values(
+            lms_provisioned_at=func.coalesce(User.lms_provisioned_at, func.now()),
+            lms_origin_org_id=reg.organization_id,
+        )
+        .execution_options(synchronize_session=False)
+    )
+
+
 @router.delete(
     "/registrations/{registration_id}",
     status_code=204,
@@ -1126,8 +1188,10 @@ async def delete_registration(
     """Delete a disabled connection.
 
     Two steps on purpose: switch the connection off first. The database drops
-    its deployments, activities, identity links and grade transfer rows;
-    accounts survive unless ``accounts=anonymize``. Exams no other connection
+    its deployments, activities, identity links, participation and grade
+    transfer rows; accounts survive unless ``accounts=anonymize``. Kept
+    accounts stay LMS accounts (``users.lms_provisioned_at``), so they stay
+    masked. Exams no other connection
     of the org links lose the org attachment linking created, and LMS
     entitlements nobody can reach through another link any more are revoked.
 
@@ -1200,11 +1264,13 @@ async def delete_registration(
         organization_id=reg.organization_id,
         actor=current_user,
         action="registration_deleted",
-        # The row goes away; the event keeps the id in its changes and the
-        # name as a snapshot.
+        # The row goes away; the event keeps the id in its changes, the name
+        # as a snapshot and the group scope for the org feed.
         registration_name=reg.name,
+        group_id=reg.group_id,
         changes=changes,
     )
+    await _keep_lms_origin(db, reg)
     reg_id = reg.id
     await db.delete(reg)
     await db.commit()
@@ -1520,7 +1586,7 @@ async def list_resource_links(
                 task_count=task_counts.get(link.project_id, 0),
                 deleted=row is None or row.deleted_at is not None,
             )
-        scopes = [str(s) for s in (link.ags_scopes or [])]
+        scopes = _granted_scopes(link.ags_scopes)
         stats = participation.get(link.id)
         linker = linkers.get(link.linked_by)
         result.append(
@@ -1537,6 +1603,7 @@ async def list_resource_links(
                 ),
                 linked_at=link.linked_at,
                 grades_supported=bool(link.lineitem_url),
+                lineitems_available=bool(link.lineitems_url),
                 granted_scopes=scopes,
                 column_management=AGS_LINEITEM_SCOPE in scopes,
                 sync_ai_grades=link.sync_ai_grades,
@@ -1550,6 +1617,17 @@ async def list_resource_links(
             )
         )
     return result
+
+
+def _granted_scopes(raw: Any) -> List[str]:
+    """The AGS scopes a launch granted, as a list. Launches store the claim
+    as the LMS sent it: a JSON list, or (per the spec's space-separated form)
+    one string."""
+    if isinstance(raw, str):
+        raw = raw.split()
+    if not isinstance(raw, (list, tuple, set)):
+        return []
+    return [str(scope) for scope in raw if scope]
 
 
 def _like_pattern(text: str) -> str:
@@ -1673,8 +1751,8 @@ async def unlink_user(
     and activity participation on this connection go away. A link the launch
     provisioned is kept as a tombstone (``unlinked_at``), so the account stays
     recognizable as an LMS account and can still be anonymized; any other
-    link is deleted. The next launch asks for consent and the account choice
-    again.
+    link is deleted. The next launch asks for consent again; see the LMS
+    docs for when it offers the account again.
     """
     reg, _scope = await _load_registration_scoped(db, current_user, registration_id)
     link = (
@@ -1722,7 +1800,10 @@ async def unlink_user(
     if tombstone:
         link.unlinked_at = datetime.now(timezone.utc)
         # The LMS name/email snapshot is not needed once the link is gone.
-        link.claims = None
+        # The tool's record of the group it added the account to stays (no
+        # personal data): a relaunch reuses this row, and the record keeps a
+        # group removal or group admin demotion from being undone.
+        link.claims = _retained_claims(link.claims)
         # A relaunch reuses this row; it must ask for consent again.
         link.consent_at = None
         link.consent_version = None
@@ -1731,6 +1812,17 @@ async def unlink_user(
         await db.delete(link)
     await db.commit()
     return Response(status_code=204)
+
+
+#: ``lti_user_links.claims`` keys an unlink keeps (tool bookkeeping only).
+_RETAINED_CLAIM_KEYS = ("group_grant",)
+
+
+def _retained_claims(claims: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(claims, dict):
+        return None
+    kept = {key: claims[key] for key in _RETAINED_CLAIM_KEYS if key in claims}
+    return kept or None
 
 
 async def _load_user_link_with_user(
@@ -1856,6 +1948,85 @@ async def anonymize_linked_user(
     )
 
 
+def _event_read(event: LtiAdminEvent, actor, reveal: bool) -> LtiAdminEventRead:
+    return LtiAdminEventRead(
+        id=event.id,
+        organization_id=event.organization_id,
+        registration_id=event.registration_id,
+        registration_name=event.registration_name,
+        group_id=event.group_id,
+        actor_user_id=event.actor_user_id,
+        actor_display=(display_name(actor, reveal) or None) if actor else None,
+        actor_kind=event.actor_kind,
+        action=event.action,
+        changes=event.changes,
+        created_at=event.created_at,
+    )
+
+
+@router.get("/events", response_model=List[LtiAdminEventRead])
+async def list_organization_events(
+    organization_id: Optional[str] = Query(None),
+    registration_id: Optional[str] = Query(
+        None,
+        description=(
+            "Only entries about this connection, also after it was deleted "
+            "(the delete and anonymize entries keep its id)."
+        ),
+    ),
+    deleted_only: bool = Query(
+        False, description="Only entries whose connection no longer exists."
+    ),
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The newest LMS connection history of an organization (at most 100).
+
+    Unlike the per-connection history, this includes invites and the
+    entries of deleted connections (the deletion itself and the accounts
+    anonymized with it). Group admins see the entries of their groups;
+    org-wide entries are for org admins. Non-superadmins must name the
+    organization.
+    """
+    scope = await _list_scope(db, current_user, organization_id)
+    stmt = select(LtiAdminEvent)
+    if organization_id is not None:
+        stmt = stmt.where(LtiAdminEvent.organization_id == organization_id)
+    group_clause = _group_filter(scope, LtiAdminEvent.group_id)
+    if group_clause is not None:
+        stmt = stmt.where(group_clause)
+    if registration_id is not None:
+        stmt = stmt.where(
+            or_(
+                LtiAdminEvent.registration_id == registration_id,
+                LtiAdminEvent.changes["registration_id"].as_string()
+                == registration_id,
+            )
+        )
+    if deleted_only:
+        stmt = stmt.where(LtiAdminEvent.registration_id.is_(None))
+    events = (
+        (
+            await db.execute(
+                stmt.order_by(LtiAdminEvent.created_at.desc(), LtiAdminEvent.id).limit(
+                    EVENTS_LIMIT
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    actors = await _users_by_id(db, (event.actor_user_id for event in events))
+    return [
+        _event_read(
+            event,
+            actors.get(event.actor_user_id),
+            _reveals_names(scope, event.group_id),
+        )
+        for event in events
+    ]
+
+
 @router.get(
     "/registrations/{registration_id}/events",
     response_model=List[LtiAdminEventRead],
@@ -1881,24 +2052,10 @@ async def list_registration_events(
     )
     actors = await _users_by_id(db, (event.actor_user_id for event in events))
     reveal = _reveals_names(scope, reg.group_id)
-    result = []
-    for event in events:
-        actor = actors.get(event.actor_user_id)
-        result.append(
-            LtiAdminEventRead(
-                id=event.id,
-                organization_id=event.organization_id,
-                registration_id=event.registration_id,
-                registration_name=event.registration_name,
-                actor_user_id=event.actor_user_id,
-                actor_display=(display_name(actor, reveal) or None) if actor else None,
-                actor_kind=event.actor_kind,
-                action=event.action,
-                changes=event.changes,
-                created_at=event.created_at,
-            )
-        )
-    return result
+    return [
+        _event_read(event, actors.get(event.actor_user_id), reveal)
+        for event in events
+    ]
 
 
 # --------------------------------------------------------------------------- #

@@ -31,7 +31,7 @@ class User(BaseModel):
     vertretbar_onboarding_completed_at: Optional[str] = None  # ISO-8601, matches /auth/me wire format
     exam_layout_prefs: Optional[dict] = None
     # Display-name fields, also on /auth/me: the header shows the pseudonym
-    # of accounts that came from (or are linked to) an LMS connection.
+    # of accounts an LMS launch created.
     pseudonym: Optional[str] = None
     use_pseudonym: bool = True
     is_lms_account: bool = False

@@ -151,14 +151,14 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
     VertretbarPlanModal gates on it), the exam interface layout preference
     (the labeling hosts resolve it from the boot fetch, no second request),
     and the display-name fields: ``pseudonym``, ``use_pseudonym`` and
-    ``is_lms_account`` (the account came from, or is linked to, an LMS
-    connection; the header then shows the pseudonym instead of the login
-    name).
+    ``is_lms_account`` (an LMS launch created the account, so its login name
+    is generated; the header then shows the pseudonym instead. An existing
+    account linked to an LMS identity by proof keeps its own header).
 
     One indexed-PK lookup for the columns plus one indexed lookup on the LMS
     link table — not one per field.
     """
-    from lms_name_masking import is_lms_account
+    from lms_name_masking import is_lms_provisioned_account
     from models import User as DBUser
 
     row = (
@@ -180,7 +180,9 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
         "pseudonym": pseudonym,
         # NULL means the column default (pseudonym on).
         "use_pseudonym": True if use_pseudonym is None else bool(use_pseudonym),
-        "is_lms_account": await is_lms_account(db, str(user_id)) if row else False,
+        "is_lms_account": (
+            await is_lms_provisioned_account(db, str(user_id)) if row else False
+        ),
     }
 
 

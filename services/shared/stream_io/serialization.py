@@ -293,9 +293,11 @@ def serialize_user_row(u, *, masked: bool = False) -> dict:
 
     A masked record belongs to an LMS user whose real name the exporting
     user may not see (owner decision D8): it keeps the id, shows the
-    pseudonym as ``name`` and leaves out email and username. The importer
-    then maps it like any account it cannot match by email (to the importing
-    user).
+    pseudonym as ``name``, leaves out email and username and carries
+    ``"masked": true``. The importer maps such a record by id when that
+    account exists on the importing deployment (a copy on the same
+    deployment keeps who wrote what), else to the importing user. The id
+    reveals nothing new: the same file carries it in every ``completed_by``.
     """
     if masked:
         return {
@@ -305,6 +307,7 @@ def serialize_user_row(u, *, masked: bool = False) -> dict:
             "name": masked_name(u),
             "is_active": u.is_active,
             "is_superadmin": u.is_superadmin,
+            "masked": True,
         }
     return {
         "id": u.id,

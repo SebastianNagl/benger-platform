@@ -196,6 +196,7 @@ async def anonymize_user_endpoint(
                 LtiPlatformRegistration.id,
                 LtiPlatformRegistration.name,
                 LtiPlatformRegistration.organization_id,
+                LtiPlatformRegistration.group_id,
             )
             .join(LtiUserLink, LtiUserLink.registration_id == LtiPlatformRegistration.id)
             .where(LtiUserLink.user_id == user_id)
@@ -222,13 +223,14 @@ async def anonymize_user_endpoint(
         ) from None
 
     now = datetime.now(timezone.utc)
-    for registration_id, registration_name, organization_id in linked:
+    for registration_id, registration_name, organization_id, group_id in linked:
         db.add(
             LtiAdminEvent(
                 id=str(uuid.uuid4()),
                 organization_id=organization_id,
                 registration_id=registration_id,
                 registration_name=registration_name,
+                group_id=group_id,
                 actor_user_id=current_user.id,
                 actor_kind="user",
                 action="user_anonymized",

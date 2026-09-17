@@ -24,7 +24,8 @@ administration are in [Appendix A](#appendix-a-ilias-setup-sheet-german) and
 - The AI grade and the human grade are kept side by side. The human grade is
   the final grade.
 - AI grading runs only on your organization's own API key. There is no
-  fallback to a key of ours.
+  fallback to a key of ours. It sends the solution text, without name or
+  email, to that key's model provider (OpenAI with the default models).
 - Organization admins can anonymize the accounts that the LMS created.
 - We act as processor. Tell us what your data protection officer needs, using
   the list in [§8.8](#88-compliance-tell-us-what-you-need).
@@ -114,8 +115,11 @@ These are properties of ILIAS 10, not of BenGER.
 - **ILIAS has no AGS line item service.** The tool works only with the
   `lineitem` URL from the launch. ILIAS therefore gets one value per student,
   the final grade. There is no "KI-Bewertung" column. The activity must carry
-  a grade. Every launch refreshes the `lineitem` URL, so if the grade is added
-  later, waiting grades go out after the next launch of the activity.
+  a grade. Every launch refreshes the `lineitem` URL. If the grade is added
+  later, open the activity once. Waiting grades then go out at the next
+  hourly sweep. Transfers already marked `failed` are retried about six hours
+  after their last attempt; **Send again** in the activity overview or
+  **Retry** in the admin panel sends them at once.
 - **The score comment is discarded.** ILIAS stores the score but not the
   comment. Written feedback is visible only inside BenGER.
 - **Grades appear as learning progress, not as a gradebook column.** ILIAS
@@ -149,8 +153,8 @@ These are properties of ILIAS 10, not of BenGER.
           no  ─▶ holds the checked launch on the server (30 min),
                  sets a launch cookie, shows the consent page
         │ 3. the person consents. If one account already has the same
-        │    email address: sign in, confirm by email, or choose a
-        │    separate account.
+        │    email address: sign in, confirm by email, activate that
+        │    account first, or choose a separate account.
         ▼
                                             creates or links the account,
                                             adds memberships and exam access,
@@ -268,7 +272,9 @@ creates the invite (see [§8.8](#88-compliance-tell-us-what-you-need)).
 Further rules:
 
 - Dynamic Registration asks the LMS to send name and email for every user.
-  Check the tool's privacy settings in Moodle after the registration.
+  Check the tool's privacy settings in Moodle after the registration. ILIAS
+  does not apply this request: set its privacy mode by hand (see the end of
+  this section).
 - The LMS lists the tool under the product name of the chosen address.
 - An invite works only while its creator may still manage its organization or
   group. An invite for a group that was switched off fails.
@@ -284,8 +290,19 @@ Further rules:
 
 ### 6b. Manual registration
 
-Click **New connection** in the panel and enter the LMS values. The tool
-fills in the URLs from the issuer.
+The LMS issues the client ID only after the tool, including its URLs, is
+saved there. So the order is:
+
+1. In the panel, click **New connection** and choose the address. The form
+   shows the three tool URLs (login, launch and JWKS) before anything is
+   saved.
+2. Send these URLs, or the setup sheet in the appendix, to the LMS
+   administration.
+3. The LMS administration saves the tool and reports the client ID and the
+   deployment ID. On ILIAS the deployment ID is the numeric **Provider ID**.
+4. Enter the issuer, the endpoints, the client ID and the deployment ID in
+   the form and save. The tool fills in the endpoints from the issuer.
+5. Later, **Tool configuration** on the connection shows the same URLs.
 
 | Field | Moodle | ILIAS |
 |---|---|---|
@@ -296,17 +313,16 @@ fills in the URLs from the issuer.
 | Client ID, deployment ID | shown in the tool details after saving | the client ID and the numeric **Provider ID**, which is the deployment ID |
 
 ILIAS also publishes `{issuer}/lticonfig.php`, which helps to check these
-values. **Tool configuration** in the panel shows the URLs to enter in the
-LMS. Deployment IDs can be added later under **Deployments**.
+values. Deployment IDs can be added later under **Deployments**.
 
 ### Connection settings
 
 | Setting | Default | Effect |
 |---|---|---|
 | Address (`tool_host`) | student host where offered | See above. |
-| Group (`group_id`) | none | People who launch join this group, and linked exams are visible to the group only. Group admins create group connections only. |
-| Org role for teachers (`instructor_org_role`) | `contributor` | `contributor`, `org_admin` or `none`. On a group connection, `org_admin` becomes contributor plus group admin. A group admin can grant at most `contributor`, and only if they hold that role themselves. A launch never lowers an existing role. |
-| Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` gives access to the linked exam only. |
+| Group (`group_id`) | none | People who launch join this group, and linked exams are visible to the group only. Group admins create group connections only. Changing the group later moves the linked exams' visibility and key pool along. A launch does not add someone back whom an admin removed from the group, and does not make a teacher group admin again after an admin took that right away. |
+| Org role for teachers (`instructor_org_role`) | `contributor` | `contributor`, `org_admin` or `none`. On a group connection, `org_admin` becomes contributor plus group admin. A group admin can grant at most `contributor`, and only if they hold that role themselves. A launch never lowers an existing role, but a teacher launch raises an annotator to this role. |
+| Org role for students (`student_org_role`) | `annotator` | `annotator` makes students members of the organization, so they also see its shared exams. `none` adds no membership in your organization. Students reach the linked exam through the launch. On the hosted service, every account a launch creates also joins the operator's student organization (see [§8.1](#81-accounts-and-names)). |
 | Offer linking to existing accounts (`link_existing_users_by_email`) | on | If exactly one account has the address the LMS sends, the person may link it after signing in or confirming by email. When off, the launch always creates a separate account. |
 | Connection status | active | A switched-off connection blocks every login, launch, LTI page in the app and grade transfer for this LMS. |
 | Deployment status | active | A switched-off deployment rejects launches. The other deployments of the connection keep working. |
@@ -370,13 +386,21 @@ Individual sharing**.
 - **Pseudonym.** The app shows the pseudonym. Real names are visible to
   superadmins, to the admins of the connection's organization, to group
   admins for their group's connections, to the course teachers and to the
-  staff who may grade the linked exam in that organization. Everyone else,
+  staff who may grade the linked exam in that organization. Course teachers
+  are the teachers of any course on the connection that links the exam.
+  Grading staff are the organization's contributors and admins in the
+  connection's scope, so by default also the connection's LMS teachers
+  (see the teacher role in [§6](#6-registering-your-lms)). Everyone else,
   other students included, sees the pseudonym. A person who switches off the
-  pseudonym in their profile is shown by name.
+  pseudonym in their profile is shown by name. An account the LMS created
+  stays pseudonymous after an unlink and after its connection is deleted.
 - **Linking an existing account.** An LMS identity is linked to an existing
   account only after proof. The person either signs in with that account's
   password or opens a confirmation link sent to that account's address. The
   link is valid for 24 hours, works once and also works on another device.
+  If an LMS created that account and it has no password yet, neither is
+  possible. The person is then offered the activation mail for that account
+  instead. They set a password with it, open the activity again and sign in.
   Linking is offered only when exactly one account has the address and the
   connection offers linking. Accounts of platform administrators are never
   linked. A separate new account is always possible. Accounts are never
@@ -385,12 +409,34 @@ Individual sharing**.
   activation mail after consent. It is in German, and its link is valid for
   7 days. With it the person sets a password and can also sign in without
   the LMS.
-- **Removed memberships.** A launch never restores a membership that an admin
-  removed. The person sees `membership_removed`. To restore it, an org admin
-  invites the person again with **Invite Member**, using the email address of
-  their account. Once the person accepts the invitation while signed in, the
-  membership is active again. An account without a password needs one first
-  (**Forgot your password?** on the login page).
+- **Operator membership.** On the hosted service, every account a launch
+  creates also joins the operator's student organization, whatever the
+  connection's student role. It sees that organization's shared exams, and
+  that organization's admins see only its pseudonym.
+- **Removed memberships.** A launch never reactivates an organization
+  membership that an admin removed, and never re-adds someone an admin
+  removed from the connection's group. The person sees `membership_removed`.
+  A launch also leaves a group admin right alone once an admin took it away.
+  - To restore an organization membership, an org admin invites the person
+    again with **Invite Member**, using the email address of their account.
+    Once the person accepts the invitation while signed in, the membership
+    is active again. An account without a password needs one first
+    (**Forgot your password?** on the login page).
+  - This needs a deliverable address on the account. An account with a
+    placeholder address can receive neither the invitation nor a password
+    reset mail, and it cannot sign in without the LMS. A platform
+    administrator restores its membership with **Add Existing User**. If the
+    person set up access without the LMS before the removal, the account has
+    a real address and the invitation works.
+  - To restore a group membership, a group admin or org admin adds the
+    person to the group again.
+  - Roles work differently: a teacher launch raises an annotator back to
+    the connection's teacher role. To keep someone out, remove their
+    organization membership, or unlink or anonymize their LMS account. To
+    limit teachers, change **Org role for teachers**.
+  - Unlinking an account the LMS created keeps the record of its group
+    membership. Unlinking an account linked by proof removes that record, so
+    that person's next consent adds them to the group again.
 
 ILIAS notes: the `sub` value comes from the provider's privacy mode. ILIAS
 sends a withheld name as a literal `"-"` and, depending on the mode, a pseudo
@@ -457,13 +503,18 @@ data protection officer to assess.
 
 ### 8.5 Where the data lives and who pays
 
-- **Hosting is in Germany.** Running the integration involves no transfer to a
-  third country.
+- **Hosting is in Germany.** AI grading sends the solution text, without
+  name or email, to the model provider of your organization's key. With the
+  default grading models this is OpenAI. Whether that is a transfer to a
+  third country depends on the provider's contract and where it processes
+  data, so include the provider in your transfer assessment.
 - **Grades go to your own LMS and nowhere else.**
 - **The connection's organization pays for AI grading of a linked exam.**
-  This covers the gradings of its LMS students and its own staff, and batch
-  evaluation runs on the exam. A group's key is used before the
-  organization's key.
+  This covers the gradings of its LMS students and its own staff, including
+  batch evaluation runs they start on the exam. A batch run a platform
+  administrator starts is billed to the first connection's organization.
+  Other people who start a batch run keep the normal billing rules. A
+  group's key is used before the organization's key.
 - **No key, no grading.** The organization must have **Organization provides
   API keys** switched on and a key for the provider of the grading model.
   Otherwise the grading does not run. Students see that their organization
@@ -471,7 +522,8 @@ data protection officer to assess.
   stays saved and is graded at the next hourly check after the key is in
   place. There is never a fallback to another key, ours included.
 - **Teacher AI helpers** on a linked exam, for example an AI proposal for a
-  Bewertungsbogen, are billed the same way and refused without a key.
+  Bewertungsbogen, are billed the same way. They are refused without a key,
+  and also when the billing check itself fails.
 - **You choose the model provider.** The university decides which provider
   processes solution text and can name it in its own record of processing.
   Custom model endpoints, including self-hosted ones, are supported. If you
@@ -577,18 +629,30 @@ removed and kept. It cannot be undone.
 - A later launch by the same person creates a new, empty account.
 
 **Unlinking** detaches the LMS identity from the account. The account, its
-submissions and grades stay. Its grade transfer rows and activity
-participation on this connection are removed. The next launch asks for consent
-and the account choice again. An account the LMS created stays recognizable,
-so it can still be anonymized later.
+submissions and grades stay. Its grade transfer rows, including their
+history, and its activity participation on this connection are removed, so
+the person shows up in the activity overview again only after the next
+launch. The next launch asks for consent again. It offers the account for
+linking only if the connection offers linking and the account still has the
+address the LMS sends. Otherwise, for example with a placeholder address,
+the launch creates a new, separate account. The earlier submissions and
+grades stay with the old account and no longer go to the LMS. An account the
+LMS created stays recognizable and pseudonymous, so it can still be
+anonymized later.
 
 **Deleting a connection.** Switch the connection off first. Then choose
 whether the accounts it created are kept or anonymized. Deleting removes the
 connection's deployments, activities, LMS identity links, participation rows
-and grade transfer rows. Exams that no other connection of the organization
+and all grade transfer rows. Kept accounts, and accounts that could not be
+anonymized, stay pseudonymous. Their names are then visible only to the
+admins of the connection's organization and to platform administrators. Org
+admins can no longer anonymize them through the connection; the platform
+operator does that on request. Exams that no other connection of the organization
 links lose the attachment that linking created. LMS access to those exams
 ends, unless another connection still grants it. Submissions and grades
-stay.
+stay. The organization's history (`GET /api/admin/lti/events`) keeps the
+deletion, the accounts anonymized with it and the invites; group admins see
+the entries of their groups.
 
 **Grades already in the LMS** stay there. Deleting them is up to you.
 
@@ -665,6 +729,16 @@ unknown `kid`. Drop the previous pair after about an hour. Every JWK carries
 student-only host is optional and comes with the commercial edition. Without
 it, the panel offers the BenGER host only.
 
+Connections created before the address choice use the student host. On a
+deployment without one, their tool sheet and their older unused invites
+answer `tool_host_unavailable`, and teachers land in the student interface
+(launches still work). Move such a connection to the BenGER host under
+**Edit** in the panel, which then offers the BenGER address, or with
+`PUT /api/admin/lti/registrations/{id}` and the body
+`{"tool_host": "main"}` (organization admins may call it for their own
+connections). Then create new invites. Check that the tool URLs in the LMS
+use the BenGER host.
+
 **Organization API key.** AI grading of a linked exam is billed to the
 connection's organization. The organization must provide keys
 (`require_private_keys: false`) and hold a key for the provider of the grading
@@ -679,10 +753,11 @@ Redis. Without Redis the tool fails closed with `state_unavailable`.
 
 - A transfer is queued as soon as an AI grade or a human grade is saved.
 - There is one row per activity, student and column.
-- A failed transfer is retried after 60 seconds, then with doubling waits up
-  to 6 hours. After 10 attempts the row is `failed`.
-- An hourly sweep (minute 45) sends due rows and retries `failed` rows every
-  6 hours without limit. It also sends grades that changed in place
+- A failed transfer becomes due again after 60 seconds, then after doubling
+  waits up to 6 hours. After 10 attempts the row is `failed`.
+- An hourly sweep (minute 45) sends the rows that are due, so a retry goes
+  out at the first sweep after its wait. It retries `failed` rows every 6
+  hours without limit. It also sends grades that changed in place
   (Notenschlüssel recomputes, revised human grades) and creates missing rows.
 - A row with nothing to send (no grade yet, grading not possible) becomes
   `idle` instead of `failed`.
@@ -750,7 +825,7 @@ fail unexpectedly carry the reference in their message.
 | `not_linked` | The activity is not linked to an exam yet. | Teacher opens the activity and picks an exam. |
 | `exam_unavailable` | The linked exam was deleted. | Teacher links another exam, or creates a new activity if grades were sent. |
 | `user_inactive` | The account is deactivated or anonymized. | Platform operator. |
-| `membership_removed` | An admin removed the person from the connection's organization. A launch does not restore it. | Org admin invites the person again. Accepting the invitation restores the membership. |
+| `membership_removed` | An admin removed the person from the connection's organization or group. A launch does not restore it. | Org admin invites the person again; accepting the invitation restores the membership. For an account with a placeholder address a platform administrator uses **Add Existing User**. A group membership is restored by adding the person to the group. |
 | `launch_expired` | The consent page or account choice was open longer than 30 minutes, or the launch finished in another tab. | Reopen the activity. |
 | `launch_mismatch` | The page belongs to another launch, or the browser lacks this launch's cookie (another browser, embedded launch). | Reopen and finish in one browser, in a new window. |
 | `link_proof_failed` | The email confirmation link is invalid, older than 24 hours or already used. | Reopen and request a new link. |
@@ -763,7 +838,7 @@ fail unexpectedly carry the reference in their message.
 |---|---|
 | Moodle gets only the final grade, no "KI-Bewertung" column | The tool's AGS setting is grade sync only. Set it to grade sync and column management, then open the activity again. A teacher who deleted the column can create it again in the activity overview. ILIAS never gets this column. |
 | Grading does not run, students see that their organization has no API key | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check. |
-| An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again. |
+| An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again, as long as the existing account still has the address the LMS sends. |
 | A teacher's picker is empty | The teacher and the organization's staff have no exams yet, or all of them are archived. Create an exam from the picker. |
 | Moodle `invalidrequest` at `auth.php` | The redirect URI is not registered character for character, or the `lti_message_hint` was changed. |
 | Token call fails with `"kid" invalid` | The LMS cannot match our JWKS: wrong or unreachable keyset URL, a rotated key without the previous pair, or API and workers signing with different keys. |
@@ -798,7 +873,8 @@ we can reply with the documents instead of another round of questions.
 > 1. **Globalen Provider anlegen:** Administration → Erweiterung von ILIAS →
 >    LTI → Tab „ILIAS als LTI-Konsument“ → „Add Global Provider for all
 >    Users“.
-> 2. **Felder ausfüllen.** Die Werte zeigt Ihr Organisations-Admin im Panel
+> 2. **Felder ausfüllen.** Die URLs schickt Ihnen Ihr Organisations-Admin.
+>    Das Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später
 >    unter **Tool-Konfiguration**.
 >    - LTI-Version: **LTI 1.3**
 >    - Tool-URL: `https://<tool-host>/api/lti/launch`
@@ -846,8 +922,9 @@ we can reply with the documents instead of another round of questions.
 >
 > **Variante 2, manuell:**
 > Website-Administration → Plugins → Externes Tool → Tools verwalten → „Tool
-> manuell konfigurieren“. Die Werte zeigt Ihr Organisations-Admin im Panel
-> unter **Tool-Konfiguration**.
+> manuell konfigurieren“. Die URLs schickt Ihnen Ihr Organisations-Admin. Das
+> Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später unter
+> **Tool-Konfiguration**.
 >
 > - Tool-URL: `https://<tool-host>/api/lti/launch`
 > - Initiate-Login-URL: `https://<tool-host>/api/lti/login`
@@ -869,8 +946,9 @@ we can reply with the documents instead of another round of questions.
 > **Bestehende Tools:** Beide Einstellungen stehen in der Konfiguration des
 > Tools unter „Tools verwalten“. Steht die Notenübertragung dort nur auf
 > Notensynchronisation, stellen Sie sie auf **Notensynchronisation und
-> Spaltenverwaltung** um. Beim nächsten Start der Aktivität legt das Tool
-> dann die Spalte „KI-Bewertung“ an.
+> Spaltenverwaltung** um. Öffnen Sie danach die Aktivität einmal. Das Tool
+> legt die Spalte „KI-Bewertung“ dann bei der nächsten Notenübertragung an,
+> spätestens beim stündlichen Abgleich, sobald eine Note vorliegt.
 >
 > **Im Kurs:** Aktivität anlegen → Externes Tool → Tool wählen → sicherstellen,
 > dass die Aktivität **eine Bewertung besitzt** (Standard 100 genügt). Ohne

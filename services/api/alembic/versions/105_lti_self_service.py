@@ -47,6 +47,9 @@ carries the forward-compatible schema.
   row on their next launch.
 - New ``lti_admin_events``: audit trail of connection changes. ``changes``
   holds ``{field: {old, new}}`` diffs, never personal data or secrets.
+  ``group_id`` (SET NULL) is the group scope of the connection or invite an
+  entry is about, so group admins can read their groups' history after a
+  connection is deleted.
 
 ``project_organizations.attached_via`` belongs to the same feature but is
 added at the end of 106 (see there for the lock ordering).
@@ -426,6 +429,12 @@ def _upgrade_admin_events() -> None:
             ),
             sa.Column("registration_name", sa.String(length=200), nullable=True),
             sa.Column(
+                "group_id",
+                sa.String(),
+                sa.ForeignKey("organization_groups.id", ondelete="SET NULL"),
+                nullable=True,
+            ),
+            sa.Column(
                 "actor_user_id",
                 sa.String(),
                 sa.ForeignKey("users.id", ondelete="SET NULL"),
@@ -446,7 +455,22 @@ def _upgrade_admin_events() -> None:
                 nullable=False,
             ),
         )
-    for column in ("organization_id", "registration_id"):
+    if not _column_exists(_EVENTS, "group_id"):
+        # A table created by an earlier run of this revision.
+        op.add_column(
+            _EVENTS,
+            sa.Column(
+                "group_id",
+                sa.String(),
+                sa.ForeignKey(
+                    "organization_groups.id",
+                    ondelete="SET NULL",
+                    name="lti_admin_events_group_id_fkey",
+                ),
+                nullable=True,
+            ),
+        )
+    for column in ("organization_id", "registration_id", "group_id"):
         name = f"ix_lti_admin_events_{column}"
         if not _index_exists(_EVENTS, name):
             op.create_index(name, _EVENTS, [column])

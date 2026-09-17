@@ -371,6 +371,7 @@ async def assign_tasks(
                     "project_title": project.title,
                     "task_ids": [a.task_id for a in user_tasks],
                     "assigned_by": current_user.name or current_user.email,
+                    "assigned_by_user_id": current_user.id,
                     "priority": priority,
                     "due_date": due_date.isoformat() if due_date else None,
                 },
@@ -534,6 +535,7 @@ async def remove_task_assignment(
             "project_title": project.title,
             "task_id": task_id,
             "removed_by": current_user.name or current_user.email,
+            "removed_by_user_id": current_user.id,
         },
         organization_id=(
             db.query(ProjectOrganization.organization_id)

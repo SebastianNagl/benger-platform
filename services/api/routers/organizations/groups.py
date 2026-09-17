@@ -38,7 +38,7 @@ from models import (
     OrganizationRole,
 )
 from project_models import ProjectOrganization
-from services.member_privacy import org_name_mask
+from services.member_privacy import org_name_mask, reveal_group_accounts
 
 from ._common import router
 
@@ -452,8 +452,10 @@ async def list_group_members(
 ):
     """List a group's members (org admin / group admin / superadmin).
 
-    Everyone allowed here sees the real names of the LMS accounts of this
-    org's own connections; LMS accounts of other orgs' connections appear by
+    Org admins see the real names of the LMS accounts of this org's own
+    connections. A group admin sees those of the org's connections scoped
+    to a group they administer (not of every member of their group: they
+    may add any org member to it). Everyone else on the list appears by
     pseudonym, without email (superadmins see all names).
     """
     await _load_group_or_404(db, organization_id, group_id)
@@ -488,12 +490,43 @@ async def list_group_members(
         ).all()
     }
     # Every caller passed the org-admin / group-admin gate above.
+    viewer_membership = (
+        None
+        if current_user.is_superadmin
+        else await _get_membership(db, current_user.id, organization_id)
+    )
+    viewer_is_org_admin = current_user.is_superadmin or (
+        viewer_membership is not None
+        and viewer_membership.role == OrganizationRole.ORG_ADMIN
+    )
     mask = await org_name_mask(
         db,
         [m.user for m in rows],
         viewer=current_user,
-        admin_org_ids=[organization_id],
+        admin_org_ids=[organization_id] if viewer_is_org_admin else [],
     )
+    if mask.masked_ids and not viewer_is_org_admin:
+        admin_group_ids = (
+            (
+                await db.execute(
+                    select(OrganizationGroupMembership.group_id)
+                    .join(
+                        OrganizationGroup,
+                        OrganizationGroup.id == OrganizationGroupMembership.group_id,
+                    )
+                    .where(
+                        OrganizationGroupMembership.user_id == current_user.id,
+                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                        OrganizationGroup.organization_id == organization_id,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        mask = await reveal_group_accounts(
+            db, mask, organization_id, admin_group_ids, mask.masked_ids
+        )
     return [
         GroupMemberResponse(
             id=m.id,

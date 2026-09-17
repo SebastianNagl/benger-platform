@@ -803,13 +803,59 @@ async def test_only_the_creator_deletes_a_linked_private_exam(
     with _as_user(w.org_admin):
         r = await async_test_client.delete(f"/api/projects/{w.exam_manual.id}")
         assert r.status_code == 403, r.text
-    # A non-private linked exam keeps the org admin rule.
+    # A manual org row still hands deletion to that org's admins.
     with _as_user(w.org_admin):
-        r = await async_test_client.delete(f"/api/projects/{w.exam_open.id}")
+        r = await async_test_client.delete(f"/api/projects/{w.org_project.id}")
         assert r.status_code == 200, r.text
     with _as_user(w.creator):
         r = await async_test_client.delete(f"/api/projects/{w.exam_wide.id}")
         assert r.status_code == 200, r.text
+
+
+async def test_lms_link_never_hands_deletion_to_the_linking_org(
+    async_test_client, async_test_db
+):
+    """At any visibility, a row an LMS link created neither lets the linking
+    org's admins delete another author's exam nor takes deletion away from
+    the creator."""
+    db = async_test_db
+    w = await _world(db)
+    shared_elsewhere = await _project(db, w.creator, private=False)
+    await _attach(db, shared_elsewhere, w.foreign, via="manual")
+    await _attach(db, shared_elsewhere, w.uni)
+    public_linked = await _project(db, w.creator, private=False, public=True)
+    await _attach(db, public_linked, w.uni)
+    # A contributor's own public exam, linked by their org.
+    own_public = await _project(db, w.contributor, private=False, public=True)
+    await _attach(db, own_public, w.uni)
+    both = await _project(db, w.creator, private=False)
+    await _attach(db, both, w.foreign)
+    await _attach(db, both, w.uni, via="manual")
+    await db.commit()
+
+    with _as_user(w.org_admin):
+        for project in (w.exam_open, shared_elsewhere, public_linked):
+            r = await async_test_client.delete(f"/api/projects/{project.id}")
+            assert r.status_code == 403, (project.id, r.text)
+        r = await async_test_client.post(
+            "/api/projects/bulk-delete",
+            json={"project_ids": [w.exam_open.id, public_linked.id]},
+        )
+        assert r.status_code == 200 and r.json()["deleted"] == 0, r.text
+        # An own manual row of the admin's org still counts.
+        r = await async_test_client.delete(f"/api/projects/{both.id}")
+        assert r.status_code == 200, r.text
+    # The foreign org shared it by hand: its admin may delete it.
+    with _as_user(w.foreign_admin):
+        r = await async_test_client.delete(f"/api/projects/{shared_elsewhere.id}")
+        assert r.status_code == 200, r.text
+    with _as_user(w.contributor):
+        r = await async_test_client.delete(f"/api/projects/{own_public.id}")
+        assert r.status_code == 200, r.text
+    with _as_user(w.creator):
+        for project in (w.exam_open, public_linked):
+            r = await async_test_client.delete(f"/api/projects/{project.id}")
+            assert r.status_code == 200, (project.id, r.text)
 
 
 async def test_edit_check_on_non_private_projects_is_unchanged(async_test_db):

@@ -276,8 +276,25 @@ def tasks_with_evaluation_for_user(db, project_id, user_id, task_ids):
 # SQLAlchemy sessions and never commits; async callers pass a sync session via
 # ``await db.run_sync(lambda s: extensions.<hook>(s, ...))``. A failing hook
 # is logged and answered with the safe value documented per wrapper, never
-# raised into the request.
+# raised into the request. Hooks that query through ``db`` run inside a
+# savepoint (:func:`_run_hook_in_savepoint`): a failed query rolls back to it,
+# so the caller's transaction stays usable and the safe value really is the
+# answer instead of a later ``InFailedSqlTransaction``.
 # --------------------------------------------------------------------------- #
+def _run_hook_in_savepoint(db, hook, *args, **kwargs):
+    """Call ``hook(db, *args, **kwargs)`` inside ``db.begin_nested()``.
+
+    Sessions without savepoints (``None``, test doubles) call the hook
+    directly. Exceptions propagate after the rollback to the savepoint; the
+    wrappers turn them into their safe values.
+    """
+    begin_nested = getattr(db, "begin_nested", None)
+    if begin_nested is None:
+        return hook(db, *args, **kwargs)
+    with begin_nested():
+        return hook(db, *args, **kwargs)
+
+
 def dispatch_lti_grade_sync(sync_id):
     """Queue the grade push for one ``lti_grade_syncs`` row right away.
 
@@ -296,39 +313,60 @@ def dispatch_lti_grade_sync(sync_id):
     return False
 
 
-def privacy_protected_member_ids(db, organization_id, user_ids):
+def privacy_protected_member_ids(db, organization_id, user_ids, *, group_ids=None):
     """Subset of ``user_ids`` that count as LMS users.
 
     An LMS user is an account an LMS launch provisioned (even after an admin
-    unlink, since it keeps the LMS clear name), or an existing account with a
-    live link to an LMS identity. ``organization_id`` limits the check to
-    connections owned by that org; None means any connection counts.
+    unlink or once its connection is deleted, since it keeps the LMS clear
+    name: ``users.lms_provisioned_at``), or an existing account with a live
+    link to an LMS identity. ``organization_id`` limits the check to
+    connections owned by that org, plus accounts a deleted connection of that
+    org created (``users.lms_origin_org_id``); None means any connection
+    counts. ``group_ids`` (keyword, only with an org) further limits it to
+    that org's connections scoped to one of these groups; org-wide
+    connections, connections of other groups and deleted connections do not
+    count.
 
     Calling rule for a list of users:
 
     - mask ``privacy_protected_member_ids(db, None, ids)``;
     - a viewer with admin rights in org X may unmask
-      ``privacy_protected_member_ids(db, X, ids)``; superadmins unmask all.
+      ``privacy_protected_member_ids(db, X, ids)``; superadmins unmask all;
+    - a group admin (without org admin rights) of groups G in org X may
+      unmask ``privacy_protected_member_ids(db, X, ids, group_ids=G)``: the
+      LMS users of their groups' connections, whoever is in the group.
 
     So an LMS user of org B who is also a member of org A stays masked in
     org A's lists, even for A's admins. Project-scoped views use
     :func:`project_real_name_user_ids` instead of the org admin check.
 
     Community edition: empty set (there are no LMS accounts). If the hook
-    fails, both calls fail closed: the None call returns every given id
+    fails, every call fails closed: the None call returns every given id
     (everyone masked) and an org call returns an empty set (nobody
-    unmasked), so a failure never reveals a name.
+    unmasked), so a failure never reveals a name. A group call also returns
+    an empty set when the hook does not accept ``group_ids``, when
+    ``group_ids`` is empty or when no org is given.
     """
     ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
     if not ids:
         return set()
+    kwargs = {}
+    if group_ids is not None:
+        groups = sorted({str(gid) for gid in group_ids if gid})
+        if not groups or organization_id is None:
+            return set()
+        kwargs["group_ids"] = groups
     if _extended and hasattr(_extended, "get_hooks"):
         try:
             hooks = _extended.get_hooks()
             hook = hooks.get("privacy_protected_member_ids")
             if hook:
-                result = hook(db, organization_id, sorted(ids))
+                result = _run_hook_in_savepoint(
+                    db, hook, organization_id, sorted(ids), **kwargs
+                )
                 return {str(uid) for uid in (result or ())} & ids
+            if kwargs:
+                return set()
         except Exception:
             logger.exception("privacy_protected_member_ids hook failed")
             return ids if organization_id is None else set()
@@ -346,7 +384,7 @@ def project_real_name_viewer(db, viewer, project_id):
             hooks = _extended.get_hooks()
             hook = hooks.get("project_real_name_viewer")
             if hook:
-                return bool(hook(db, viewer, project_id))
+                return bool(_run_hook_in_savepoint(db, hook, viewer, project_id))
         except Exception:
             logger.exception(
                 "project_real_name_viewer hook failed for project %s", project_id
@@ -378,13 +416,64 @@ def project_real_name_user_ids(db, viewer, project_id, user_ids):
             hooks = _extended.get_hooks()
             hook = hooks.get("project_real_name_user_ids")
             if hook:
-                result = hook(db, viewer, str(project_id), sorted(ids))
+                result = _run_hook_in_savepoint(
+                    db, hook, viewer, str(project_id), sorted(ids)
+                )
                 return {str(uid) for uid in (result or ())} & ids
         except Exception:
             logger.exception(
                 "project_real_name_user_ids hook failed for project %s", project_id
             )
     return set()
+
+
+def projects_real_name_user_ids(db, viewer, user_ids_by_project):
+    """Bulk form of :func:`project_real_name_user_ids`.
+
+    ``user_ids_by_project`` maps project ids to the user ids to check there;
+    the result maps every given project id to the subset whose real names
+    ``viewer`` may see on it. Lists call this once per page instead of once
+    per row.
+
+    Uses the extended bulk hook when it is registered, else calls the
+    per-project hook for each project. Community edition: empty sets. If
+    the bulk hook fails, every project gets an empty set (nobody unmasked).
+    """
+    wanted = {}
+    for project_id, user_ids in (user_ids_by_project or {}).items():
+        if not project_id:
+            continue
+        ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+        wanted[str(project_id)] = ids
+    empty = {pid: set() for pid in wanted}
+    pending = {pid: ids for pid, ids in wanted.items() if ids}
+    if not pending or viewer is None:
+        return empty
+    if not (_extended and hasattr(_extended, "get_hooks")):
+        return empty
+    try:
+        hooks = _extended.get_hooks()
+        hook = hooks.get("projects_real_name_user_ids")
+    except Exception:
+        logger.exception("projects_real_name_user_ids hook lookup failed")
+        return empty
+    if hook is None:
+        result = dict(empty)
+        for pid, ids in pending.items():
+            result[pid] = project_real_name_user_ids(db, viewer, pid, ids)
+        return result
+    try:
+        raw = _run_hook_in_savepoint(
+            db, hook, viewer, {pid: sorted(ids) for pid, ids in pending.items()}
+        )
+    except Exception:
+        logger.exception("projects_real_name_user_ids hook failed")
+        return empty
+    result = dict(empty)
+    for pid, ids in pending.items():
+        got = (raw or {}).get(pid) if isinstance(raw, dict) else None
+        result[pid] = {str(uid) for uid in (got or ())} & ids
+    return result
 
 
 def lti_anonymization_policy(db, user_id):
@@ -405,7 +494,7 @@ def lti_anonymization_policy(db, user_id):
             hooks = _extended.get_hooks()
             hook = hooks.get("lti_anonymization_policy")
             if hook:
-                result = hook(db, user_id) or {}
+                result = _run_hook_in_savepoint(db, hook, user_id) or {}
                 policy["implicit_org_ids"] = {
                     str(oid) for oid in (result.get("implicit_org_ids") or ())
                 }

@@ -793,6 +793,78 @@ def _mark_immediate_run_failed(
         )
 
 
+def _fail_blocked_immediate_run(
+    db,
+    evaluation_record_id: str,
+    message: str,
+    *,
+    extra_metadata: Dict[str, Any],
+    new_run_fields: Dict[str, Any],
+) -> None:
+    """Record an immediate run the grading dispatch policy refused as failed.
+
+    The policy runs on the task session without a savepoint. When one of its
+    queries fails, it still answers with a fail-closed block
+    (``billing_check_failed``), but the transaction is aborted. So roll back
+    first: the dispatchers commit the run as ``running`` before they queue
+    the task, and :func:`_mark_immediate_run_failed` re-reads it. Without the
+    rollback that write failed silently and the run stayed ``running``
+    forever, which every retry path treats as in flight.
+
+    The rollback also drops a run row this task only flushed (no dispatcher
+    pre-created it). That row is written again, already failed, so the
+    refusal stays visible.
+    """
+    try:
+        db.rollback()
+    except Exception as rollback_err:  # pragma: no cover - defensive
+        logger.warning(
+            "Rollback before marking blocked run %s failed: %s",
+            evaluation_record_id,
+            rollback_err,
+        )
+    try:
+        from models import EvaluationRun
+
+        exists = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.id == evaluation_record_id)
+            .first()
+            is not None
+        )
+        if not exists:
+            meta = dict(new_run_fields.get("eval_metadata") or {})
+            meta.update(extra_metadata)
+            meta["error"] = message[:500]
+            db.add(
+                EvaluationRun(
+                    id=evaluation_record_id,
+                    project_id=new_run_fields["project_id"],
+                    model_id="immediate",
+                    evaluation_type_ids=new_run_fields.get("evaluation_type_ids")
+                    or [],
+                    status="failed",
+                    created_by=new_run_fields.get("created_by") or "system",
+                    eval_metadata=meta,
+                    metrics={},
+                )
+            )
+            db.commit()
+            return
+    except Exception as exc:
+        logger.warning(
+            "Could not record blocked immediate run %s: %s", evaluation_record_id, exc
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return
+    _mark_immediate_run_failed(
+        db, evaluation_record_id, message, extra_metadata=extra_metadata
+    )
+
+
 # ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
 #
 # Per-cell evaluation and per-row generation commits broadcast on a
@@ -1344,6 +1416,7 @@ def send_account_activation_task(
     fallback path) parks in ``pending_activation_email`` and is adopted only
     when the link is clicked.
     """
+    from sqlalchemy import func as sa_func
     from sqlalchemy import select as sa_select
 
     from account_activation import (
@@ -1358,6 +1431,9 @@ def send_account_activation_task(
     from models import User as DBUser
     from sendgrid_client import SendGridClient
 
+    # Addresses are stored lowercased (as signup and LMS provisioning do), so
+    # reset and login, which match exactly, find the account again.
+    target_email = target_email.strip().lower() if target_email else target_email
     db = SessionLocal()
     try:
         user = db.execute(
@@ -1375,7 +1451,8 @@ def send_account_activation_task(
         if target_email:
             taken = db.execute(
                 sa_select(DBUser.id).where(
-                    DBUser.email == target_email, DBUser.id != user.id
+                    sa_func.lower(DBUser.email) == target_email,
+                    DBUser.id != user.id,
                 )
             ).first()
             if taken is not None:
@@ -3036,14 +3113,26 @@ def _batch_cell_billing_authorized(
         return False
     if project is None:
         return False
-    org_id, block, authorized = _apply_batch_evaluation_policy(
-        db,
-        project=project,
-        user_id=user_id,
-        organization_id=organization_id,
-        configs=configs,
-        evaluation_id=f"cell of project {project_id}",
-    )
+    # Savepoint: a failed query inside the policy (answered with a
+    # fail-closed block) must not leave the cell's session aborted. A failed
+    # RELEASE rolls back to the savepoint and raises; either way the answer
+    # is "not authorized", which is the fail-closed one. (The orchestrator
+    # must not do this: a lost block there would bill the dispatched org.)
+    try:
+        with db.begin_nested():
+            org_id, block, authorized = _apply_batch_evaluation_policy(
+                db,
+                project=project,
+                user_id=user_id,
+                organization_id=organization_id,
+                configs=configs,
+                evaluation_id=f"cell of project {project_id}",
+            )
+    except Exception as policy_err:
+        logger.warning(
+            f"Sub-task: billing check for project {project_id} failed: {policy_err}"
+        )
+        return False
     return bool(authorized and block is None and org_id == organization_id)
 
 
@@ -3077,6 +3166,16 @@ def _apply_batch_billing(db, *, evaluation, project, organization_id, configs):
     logger.warning(
         f"[evaluation {evaluation.id}] refused by the billing policy: {reason}"
     )
+    # The policy may have left the transaction aborted (a failed query
+    # answers ``billing_check_failed``). The caller committed ``running``
+    # before the policy ran, so nothing is lost; ``evaluation`` reloads.
+    try:
+        db.rollback()
+    except Exception as rollback_err:  # pragma: no cover - defensive
+        logger.warning(
+            f"[evaluation {evaluation.id}] rollback before the block failed: "
+            f"{rollback_err}"
+        )
     now = datetime.now(timezone.utc)
     meta = dict(evaluation.eval_metadata or {})
     meta["billing_block"] = {**block, "checked_at": now.isoformat()}
@@ -3380,15 +3479,28 @@ def run_single_sample_evaluation(
                 dispatch_eval_id,
                 reason,
             )
-            _mark_immediate_run_failed(
+            _fail_blocked_immediate_run(
                 db,
                 dispatch_eval_id,
                 f"billing_blocked:{reason}",
                 extra_metadata={
+                    **run_provenance,
                     "billing_block": {
                         **billing_block,
                         "checked_at": datetime.now(timezone.utc).isoformat(),
-                    }
+                    },
+                },
+                new_run_fields={
+                    "project_id": project_id,
+                    "evaluation_type_ids": [
+                        c.get("metric", "") for c in eligible_configs
+                    ],
+                    "created_by": user_id or "system",
+                    "eval_metadata": {
+                        "evaluation_type": "immediate",
+                        "expected_config_count": len(eligible_configs),
+                        "configs": configs_meta,
+                    },
                 },
             )
             _run_grading_finalize_hook(dispatch_eval_id, False)
@@ -4654,7 +4766,7 @@ def finalize_evaluation_run(
 
     db = SessionLocal()
     try:
-        from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+        from models import EvaluationRun
 
         evaluation = db.query(EvaluationRun).filter(EvaluationRun.id == evaluation_id).first()
         if not evaluation:

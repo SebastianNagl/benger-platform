@@ -271,6 +271,7 @@ async def _student_with_everything(db):
         Notification(
             id=_uid(),
             user_id=teacher.id,
+            organization_id=org.id,
             type=NotificationType.ORGANIZATION_INVITATION_SENT,
             title="Einladung",
             message="Erika Musterfrau sent an invitation",
@@ -851,3 +852,268 @@ def test_signup_refuses_reserved_usernames(client, test_db, username):
     assert response.status_code == 400, response.text
     assert "reserved" in response.json()["detail"]
     assert test_db.query(User).filter(User.email == f"reserved-{tag}@example.com").first() is None
+
+
+
+# --------------------------------------------------------------------------- #
+# Name matches stay inside the person's organizations and projects
+# --------------------------------------------------------------------------- #
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_same_named_people_elsewhere_keep_their_notices(async_test_db):
+    """Names are not unique: a notice naming another "Erika Musterfrau" in
+    an org and project the anonymized student never belonged to stays. The
+    student's own org and projects are still cleaned, and ids and addresses
+    still match everywhere."""
+    db = async_test_db
+    w = await _student_with_everything(db)
+    other_org = await make_org(db)
+    namesake = await make_user(db, name="Erika Musterfrau")
+    await add_member(db, namesake, other_org, OrganizationRole.CONTRIBUTOR)
+    recipient = await make_user(db, name="Empfänger Anderswo")
+    other_project = await make_project(db, namesake)
+    elsewhere = [
+        Notification(
+            id=_uid(),
+            user_id=recipient.id,
+            type=NotificationType.TASK_ASSIGNED,
+            title="Neue Aufgabe",
+            message="Sie haben eine neue Aufgabe",
+            data={"project_id": other_project.id, "assigned_by": "Erika Musterfrau"},
+        ),
+        Notification(
+            id=_uid(),
+            user_id=recipient.id,
+            organization_id=other_org.id,
+            type=NotificationType.ORGANIZATION_INVITATION_SENT,
+            title="Einladung",
+            message="Erika Musterfrau sent an invitation",
+            data={"inviter_name": "erika musterfrau", "invitee_email": "y@example.org"},
+        ),
+        Notification(
+            id=_uid(),
+            user_id=recipient.id,
+            organization_id=other_org.id,
+            type=NotificationType.MEMBER_JOINED,
+            title="New member",
+            message="Erika joined",
+            data={"new_member_name": "Erika Musterfrau"},
+        ),
+    ]
+    # Found anywhere: the student's id and address.
+    by_id_or_address = [
+        Notification(
+            id=_uid(),
+            user_id=recipient.id,
+            organization_id=other_org.id,
+            type=NotificationType.TASK_ASSIGNED,
+            title="Neue Aufgabe",
+            message="x",
+            data={"assigned_by": "E. M.", "assigned_by_user_id": w.student.id},
+        ),
+        Notification(
+            id=_uid(),
+            user_id=recipient.id,
+            organization_id=other_org.id,
+            type=NotificationType.ORGANIZATION_INVITATION_SENT,
+            title="Einladung",
+            message="x",
+            data={"inviter_name": "Jemand", "invitee_email": w.old_email.upper()},
+        ),
+    ]
+    # In the student's org, by name: gone.
+    in_scope = Notification(
+        id=_uid(),
+        user_id=recipient.id,
+        organization_id=w.org.id,
+        type=NotificationType.MEMBER_JOINED,
+        title="New member",
+        message="Erika joined",
+        data={"new_member_name": " Erika Musterfrau "},
+    )
+    db.add_all(elsewhere + by_id_or_address + [in_scope])
+    await db.commit()
+
+    result = await _anonymize(db, w.student.id)
+
+    remaining = {
+        n.id for n in await _fresh(db, Notification, Notification.user_id == recipient.id)
+    }
+    for notice in elsewhere:
+        assert notice.id in remaining, notice.data
+    for notice in by_id_or_address + [in_scope]:
+        assert notice.id not in remaining, notice.data
+    # The five notices of the base world plus the three above.
+    assert result.removed["foreign_notifications"] == 8
+
+
+# --------------------------------------------------------------------------- #
+# Many accounts at once
+# --------------------------------------------------------------------------- #
+async def _plain_students(db, count, *, org, reg, teacher):
+    students = []
+    for index in range(count):
+        student = await make_user(db, name=f"Student Nummer {index}")
+        await add_member(db, student, org, OrganizationRole.ANNOTATOR)
+        link = await make_user_link(db, reg, student)
+        db.add(
+            Notification(
+                id=_uid(),
+                user_id=teacher.id,
+                organization_id=org.id,
+                type=NotificationType.MEMBER_JOINED,
+                title="New member",
+                message="joined",
+                data={"new_member_name": student.name},
+            )
+        )
+        db.add(
+            Invitation(
+                id=_uid(),
+                organization_id=org.id,
+                email=student.email.upper(),
+                role=OrganizationRole.ANNOTATOR,
+                token=uuid.uuid4().hex,
+                invited_by=teacher.id,
+                expires_at=_now() + timedelta(days=3),
+            )
+        )
+        await create_refresh_token_async(db, student.id)
+        students.append((student, link))
+    await db.commit()
+    return students
+
+
+class _StatementLog:
+    def __init__(self):
+        self.statements = []
+
+    def __call__(self, conn, cursor, statement, parameters, context, executemany):
+        self.statements.append(" ".join(statement.split()).lower())
+
+    def count(self, prefix, table):
+        return sum(
+            1
+            for stmt in self.statements
+            if stmt.startswith(prefix) and f" {table} " in f"{stmt} "
+        )
+
+    def writes(self):
+        """Writes other than the ORM flush of the user rows (the ORM may
+        send one UPDATE per account there)."""
+        return [
+            stmt
+            for stmt in self.statements
+            if stmt.startswith(("delete", "update", "insert"))
+            and not stmt.startswith("update users ")
+        ]
+
+
+async def _batch_run(db, count):
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    org = await make_org(db)
+    reg = await make_registration(db, org)
+    teacher = await make_user(db, name="Tanja Teacher")
+    students = await _plain_students(db, count, org=org, reg=reg, teacher=teacher)
+    admin = await make_user(db, name="Org Admin")
+    blocked = await make_user(db, superadmin=True, name="Blocked Superadmin")
+    blocked_link = await make_user_link(db, reg, blocked)
+    await db.commit()
+
+    log = _StatementLog()
+    event.listen(Engine, "before_cursor_execute", log)
+    try:
+        outcomes = await ua.anonymize_users(
+            db,
+            [(s.id, link.id) for s, link in students]
+            + [(blocked.id, blocked_link.id), ("no-such-user", None)],
+            actor_id=admin.id,
+            reason="registration_deleted",
+            scope=ua.AnonymizationScope(organization_id=org.id),
+        )
+        await db.commit()
+    finally:
+        event.remove(Engine, "before_cursor_execute", log)
+    return students, teacher, outcomes, log
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_batch_anonymizes_with_a_fixed_number_of_writes(async_test_db):
+    """Deleting a connection anonymizes its accounts set-based: one scan of
+    the notifications and one statement per table, however many accounts."""
+    db = async_test_db
+    small = await _batch_run(db, 2)
+    large = await _batch_run(db, 9)
+
+    for students, teacher, outcomes, log in (small, large):
+        assert [o.user_id for o in outcomes[:-2]] == [s.id for s, _ in students]
+        assert outcomes[-1].user_id == "no-such-user"
+        assert outcomes[-2].result is None
+        assert outcomes[-2].blockers == [ua.BLOCKER_SUPERADMIN]
+        assert outcomes[-1].not_found is True
+        for (student, _link), outcome in zip(students, outcomes):
+            assert outcome.result is not None, outcome
+            assert outcome.result.removed["foreign_notifications"] == 1
+            assert outcome.result.removed["sessions"] == 1
+            assert outcome.result.removed["lti_user_links"] == 1
+            assert outcome.result.removed["memberships"] == 1
+            assert outcome.result.removed["invitations"] == 1
+            user = await _reload_user(db, student.id)
+            assert user.anonymized_at is not None and user.name == ua.ANONYMIZED_NAME
+            invites = await _fresh(db, Invitation, Invitation.email == user.email)
+            assert len(invites) == 1
+        remaining = await _fresh(db, Notification, Notification.user_id == teacher.id)
+        assert remaining == []
+        assert log.count("select", "notifications") == 1
+        assert log.count("delete from", "notifications") == 2  # others', own
+
+    # The same writes for 2 and for 9 accounts.
+    assert len(small[3].writes()) == len(large[3].writes())
+    pseudonyms = {o.result.pseudonym for o in large[2] if o.result}
+    assert len(pseudonyms) == 9
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_batch_and_single_scrub_the_same(async_test_db):
+    db = async_test_db
+    single = await _student_with_everything(db)
+    batch = await _student_with_everything(db)
+
+    one = await _anonymize(db, single.student.id)
+    (outcome,) = await ua.anonymize_users(
+        db, [(batch.student.id, None)], actor_id=None, reason="test"
+    )
+    await db.commit()
+
+    assert outcome.result.removed == one.removed
+    assert outcome.result.kept == one.kept
+    assert outcome.result.warnings == one.warnings
+    a = await _reload_user(db, single.student.id)
+    b = await _reload_user(db, batch.student.id)
+    for field in ("name", "is_active", "use_pseudonym", "password_set", "timezone"):
+        assert getattr(a, field) == getattr(b, field), field
+    for field in ua._CLEARED_FIELDS + ua.PROFILE_FIELDS:
+        assert getattr(b, field) is None, field
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_batch_refuses_a_repeated_account(async_test_db):
+    db = async_test_db
+    w = await _student_with_everything(db)
+
+    first, second = await ua.anonymize_users(
+        db,
+        [(w.student.id, w.user_link.id), (w.student.id, w.user_link.id)],
+        actor_id=None,
+        reason="test",
+    )
+    await db.commit()
+
+    assert first.result is not None
+    assert second.result is None
+    assert ua.BLOCKER_ALREADY_ANONYMIZED in second.blockers

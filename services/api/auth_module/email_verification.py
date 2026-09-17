@@ -5,7 +5,6 @@ Handles token generation, validation, and email sending with comprehensive monit
 
 import json
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -105,40 +104,56 @@ class EmailVerificationService:
             .all()
         )
 
+        changed = False
         for invitation, organization in pending_invitations:
             try:
-                # Check if user is already a member of this organization
+                # Removed (inactive) memberships count too: (user, org) is
+                # unique, so a removed member comes back by reactivating that
+                # row (as the accept endpoint does), never by a second insert.
                 existing_membership = (
                     db.query(OrganizationMembership)
                     .filter(
                         OrganizationMembership.user_id == user_id,
                         OrganizationMembership.organization_id == invitation.organization_id,
-                        OrganizationMembership.is_active == True,  # noqa: E712
                     )
                     .first()
                 )
+                now = datetime.now(timezone.utc)
 
-                if existing_membership:
+                if existing_membership is not None and existing_membership.is_active:
                     # User is already a member, just mark invitation as accepted
                     invitation.accepted = True
-                    invitation.accepted_at = datetime.now(timezone.utc)
+                    invitation.accepted_at = now
+                    changed = True
                     continue
 
-                # Create organization membership
-                membership = OrganizationMembership(
-                    id=str(uuid4()),
-                    user_id=user_id,
-                    organization_id=invitation.organization_id,
-                    role=invitation.role,
-                    is_active=True,
-                )
+                if existing_membership is not None:
+                    # Restore the removed membership with the invited role.
+                    existing_membership.is_active = True
+                    existing_membership.role = invitation.role
+                    existing_membership.updated_at = now
+                else:
+                    db.add(
+                        OrganizationMembership(
+                            id=str(uuid4()),
+                            user_id=user_id,
+                            organization_id=invitation.organization_id,
+                            role=invitation.role,
+                            is_active=True,
+                        )
+                    )
 
                 # Mark invitation as accepted
-                invitation.is_accepted = True
-                invitation.accepted_at = datetime.now(timezone.utc)
+                invitation.accepted = True
+                invitation.accepted_at = now
                 invitation.pending_user_id = user_id  # Ensure link is maintained
 
-                db.add(membership)
+                # A group-scoped invitation also joins the group, as on the
+                # other two consumption paths.
+                from org_groups import ensure_invitation_group_membership
+
+                ensure_invitation_group_membership(db, invitation, user_id)
+                changed = True
 
                 # Log successful invitation acceptance
                 self._log_email_event(
@@ -151,6 +166,7 @@ class EmailVerificationService:
                         "organization_name": organization.name,
                         "role": invitation.role.value,
                         "invitation_id": invitation.id,
+                        "reactivated": existing_membership is not None,
                     },
                 )
 
@@ -169,7 +185,7 @@ class EmailVerificationService:
                 continue
 
         # Commit all changes
-        if messages:
+        if changed:
             db.commit()
             logger.info(f"Auto-accepted {len(messages)} invitations for user {user_id}")
 

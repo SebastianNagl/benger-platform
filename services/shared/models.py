@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import BigInteger, Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import event as sa_event
 from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -303,6 +304,18 @@ class User(Base):
     # credentials are scrubbed and the account is deactivated, while answers
     # and grades stay as anonymous records. NULL = a normal account.
     anonymized_at = Column(DateTime(timezone=True), nullable=True)
+    # LMS origin (migration 106): set when an LMS launch created the account.
+    # It outlives the identity link (a deleted connection cascades its links
+    # away), so the account keeps counting as an LMS account and stays
+    # masked (D8). ``lms_origin_org_id`` is the org whose connection created
+    # it; its admins may still see the real name once the link is gone.
+    lms_provisioned_at = Column(DateTime(timezone=True), nullable=True)
+    lms_origin_org_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -1069,11 +1082,17 @@ class LtiUserLink(Base):
     ``email_proof`` (linked to an existing account after proof) or
     ``legacy_email`` (linked by the former automatic email match); NULL is
     treated as "not provisioned". ``claims`` caches a minimized ``{name,
-    email, roles}`` snapshot from the last launch (data minimization: never
-    the full id_token); the consent fields record the GDPR consent (and the
-    research-use consent) given for this connection. ``unlinked_at`` is the
-    tombstone of an admin unlink. CASCADE on ``user_id``: right-to-erasure
-    removes the link.
+    email, roles, role}`` snapshot from the last launch (data minimization:
+    never the full id_token) plus the tool's own ``group_grant`` record
+    (``{group_id, admin}``: the group a launch added the account to, and
+    whether it made the account group admin there), which lets a group
+    removal or demotion stick. The consent fields record the GDPR consent
+    (and the research-use consent) given for this connection.
+    ``unlinked_at`` is the tombstone of an admin unlink; the tombstone keeps
+    only ``group_grant`` of the claims. CASCADE on ``user_id``:
+    right-to-erasure removes the link. CASCADE on ``registration_id``:
+    deleting a connection removes its links, so ``users.lms_provisioned_at``
+    is what keeps a kept account recognizable as an LMS account.
     """
 
     __tablename__ = "lti_user_links"
@@ -1088,7 +1107,8 @@ class LtiUserLink(Base):
     user_id = Column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Minimized {name, email, roles} cache from the last launch.
+    # Minimized {name, email, roles, role} cache from the last launch, plus
+    # the tool's group_grant record (kept on unlink).
     claims = Column(JSON, nullable=True)
     consent_at = Column(DateTime(timezone=True), nullable=True)
     consent_version = Column(String(32), nullable=True)
@@ -1306,8 +1326,12 @@ class LtiAdminEvent(Base):
     Registration completion. ``changes`` holds ``{field: {old, new}}`` diffs
     and ids only, never personal data or secrets. ``registration_name`` is a
     snapshot, so the entry stays readable after the registration is deleted
-    (``registration_id`` is then NULL). ``actor_kind`` is ``user`` or
-    ``dynamic_registration``.
+    (``registration_id`` is then NULL; the org feed
+    ``GET /api/admin/lti/events`` still lists it). ``group_id`` is the group
+    scope of the connection or invite the entry is about (NULL = org-wide);
+    a row written with a registration and without a group gets the
+    registration's group on insert. ``actor_kind`` is ``user``,
+    ``dynamic_registration`` or ``lti_launch``.
     """
 
     __tablename__ = "lti_admin_events"
@@ -1326,6 +1350,12 @@ class LtiAdminEvent(Base):
         index=True,
     )
     registration_name = Column(String(200), nullable=True)
+    group_id = Column(
+        String,
+        ForeignKey("organization_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     actor_user_id = Column(
         String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -1339,6 +1369,20 @@ class LtiAdminEvent(Base):
             f"<LtiAdminEvent(id={self.id}, organization_id={self.organization_id}, "
             f"action={self.action})>"
         )
+
+
+@sa_event.listens_for(LtiAdminEvent, "before_insert")
+def _stamp_lti_admin_event_group(mapper, connection, target):
+    """A row about a registration carries that registration's group scope
+    unless the writer set one (every writer, including the extended ones,
+    then scopes the org feed correctly)."""
+    if target.group_id is not None or not target.registration_id:
+        return
+    target.group_id = connection.execute(
+        sa.select(LtiPlatformRegistration.group_id).where(
+            LtiPlatformRegistration.id == target.registration_id
+        )
+    ).scalar()
 
 
 class Invitation(Base):

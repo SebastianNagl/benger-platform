@@ -468,11 +468,12 @@ async def test_archived_linked_exam_stays_open_to_staff_only(async_test_db):
 async def test_non_private_linked_exam_keeps_the_generic_rules(async_test_db):
     db = async_test_db
     w = await _world(db)
-    # Staff: full in legacy mode and in the org's context (today's rules);
-    # the private context stays creator-only on a non-private project.
-    for ctx in (None, w.uni.id):
+    # Staff: full in legacy mode and in the org's context (today's rules),
+    # and under the private context the LMS landing pages send (the linked
+    # org's staff, D13/D14). A foreign org context still gives nothing.
+    for ctx in (None, w.uni.id, "private"):
         await _assert_full(db, w.contributor, w.exam_open, True, (ctx,))
-    await _assert_full(db, w.contributor, w.exam_open, False, ("private", w.foreign.id))
+    await _assert_full(db, w.contributor, w.exam_open, False, (w.foreign.id,))
     # Org students keep the participant tier on the org-visible exam (D13).
     for ctx in _contexts(w):
         assert await get_project_access_tier_async(
@@ -831,3 +832,408 @@ async def test_creator_keeps_share_links_on_a_linked_exam(
             f"{url}/shares", json={"password": "abcdefgh"}, headers=PRIVATE_CONTEXT
         )
     assert created.status_code == 201, created.text
+
+
+# --------------------------------------------------------------------------- #
+# The protected-org rule on non-private exams
+# --------------------------------------------------------------------------- #
+from routers.projects.helpers import (  # noqa: E402
+    check_project_write_access,
+    check_project_write_access_async,
+    check_user_can_edit_project,
+    check_user_can_edit_project_async,
+    get_accessible_project_ids_async,
+    get_effective_project_role,
+    get_effective_project_role_async,
+)
+from routers.projects.tasks.blinding import (  # noqa: E402
+    annotator_bound_fields_or_none_async,
+)
+
+
+async def _roles(db, user, project):
+    """Effective role, edit check and write check on both lanes."""
+    principal = _principal(user)
+    role = await get_effective_project_role_async(db, principal, project)
+    assert role == await db.run_sync(
+        lambda s: get_effective_project_role(s, principal, project)
+    ), (user.id, project.title)
+    edit = await check_user_can_edit_project_async(db, principal, project.id)
+    assert edit is await db.run_sync(
+        lambda s: check_user_can_edit_project(s, principal, project.id)
+    )
+    write = await check_project_write_access_async(db, principal, project.id)
+    assert write is await db.run_sync(
+        lambda s: check_project_write_access(s, principal, project.id)
+    )
+    return role, edit, write
+
+
+async def _listed(db, user, org):
+    ids = await get_accessible_project_ids_async(db, _principal(user), org_context=org.id)
+    return set(ids or ())
+
+
+async def _open_exams(db, w):
+    """Non-private exams of the creator linked to uni: org-wide, in group G,
+    and one the creator shared with uni by hand."""
+    from sqlalchemy import select
+
+    group_g = (
+        await db.execute(
+            select(OrganizationGroupMembership.group_id).where(
+                OrganizationGroupMembership.user_id == w.annotator_group_admin.id
+            )
+        )
+    ).scalar_one()
+    open_grouped = await _exam(db, w.creator, private=False)
+    await _attach(db, open_grouped, w.uni, by=w.creator, group=SimpleNamespace(id=group_g))
+    open_manual = await _exam(db, w.creator, private=False)
+    await _attach(db, open_manual, w.uni, via="manual", by=w.creator)
+    await db.commit()
+    return open_grouped, open_manual
+
+
+async def test_protected_org_counts_only_admins_on_non_private_exams(
+    async_test_db, monkeypatch
+):
+    db = async_test_db
+    w = await _world(db)
+    open_grouped, open_manual = await _open_exams(db, w)
+    _protect(monkeypatch, lambda _db: {w.uni.id})
+    contexts = (None, w.uni.id)
+
+    for user in (w.contributor, w.contributor_in_group):
+        await _assert_full(db, user, w.exam_open, False, contexts)
+        # Org members keep the participant tier on an org-visible exam
+        # (D13): a blinded ANNOTATOR, never staff.
+        role, edit, write = await _roles(db, user, w.exam_open)
+        assert (role, edit, write) == ("ANNOTATOR", False, False), user.id
+        assert await annotator_bound_fields_or_none_async(
+            db, _principal(user), w.exam_open
+        ) is not None
+        assert w.exam_open.id not in await _listed(db, user, w.uni)
+        assert await AuthorizationService().check_project_access_async(
+            _principal(user), w.exam_open, Permission.TASK_VIEW, db, org_context=w.uni.id
+        ) is False
+    await _assert_full(db, w.contributor_in_group, open_grouped, False, contexts)
+    assert (await _roles(db, w.contributor_in_group, open_grouped))[1] is False
+    assert open_grouped.id not in await _listed(db, w.contributor_in_group, w.uni)
+
+    # Its org admins and the attachment group's admins keep everything.
+    await _assert_full(db, w.org_admin, w.exam_open, True, contexts)
+    assert await _roles(db, w.org_admin, w.exam_open) == ("ORG_ADMIN", True, True)
+    assert w.exam_open.id in await _listed(db, w.org_admin, w.uni)
+    await _assert_full(db, w.annotator_group_admin, open_grouped, True, contexts)
+    assert await _roles(db, w.annotator_group_admin, open_grouped) == (
+        "ORG_ADMIN",
+        True,
+        True,
+    )
+    assert open_grouped.id in await _listed(db, w.annotator_group_admin, w.uni)
+
+    # A share the author made by hand keeps the generic rules.
+    await _assert_full(db, w.contributor, open_manual, True, contexts)
+    assert await _roles(db, w.contributor, open_manual) == ("CONTRIBUTOR", True, True)
+    assert open_manual.id in await _listed(db, w.contributor, w.uni)
+
+    # Org students keep the participant tier on the org-visible exam (D13).
+    assert await get_project_access_tier_async(
+        db, _principal(w.annotator), w.exam_open.id, org_context=w.uni.id
+    ) == PARTICIPANT
+    # The creator keeps the exam.
+    assert await _roles(db, w.creator, w.exam_open) == ("ORG_ADMIN", True, True)
+
+
+async def test_protected_rule_on_non_private_exams_fails_closed(
+    async_test_db, monkeypatch
+):
+    db = async_test_db
+    w = await _world(db)
+
+    def _boom(_db):
+        raise RuntimeError("hook down")
+
+    _protect(monkeypatch, _boom)
+    await _assert_full(db, w.contributor, w.exam_open, False, (None, w.uni.id))
+    assert (await _roles(db, w.contributor, w.exam_open))[1] is False
+    await _assert_full(db, w.org_admin, w.exam_open, True, (None, w.uni.id))
+
+
+async def test_unprotected_org_keeps_the_generic_rules_on_open_exams(async_test_db):
+    db = async_test_db
+    w = await _world(db)
+    assert await _roles(db, w.contributor, w.exam_open) == ("CONTRIBUTOR", True, True)
+    assert w.exam_open.id in await _listed(db, w.contributor, w.uni)
+
+
+async def test_visibility_patch_keeps_the_protected_rule(
+    async_test_client, async_test_db, monkeypatch
+):
+    """A linked private exam switched to org-visible keeps its LMS row; the
+    protected org's contributors still get nothing from it."""
+    db = async_test_db
+    w = await _world(db)
+    url = f"/api/projects/{w.exam_wide.id}/visibility"
+    with _as_user(w.creator):
+        response = await async_test_client.patch(
+            url,
+            json={"is_private": False, "organization_ids": [w.foreign.id]},
+            headers=PRIVATE_CONTEXT,
+        )
+    assert response.status_code == 200, response.text
+    from sqlalchemy import select
+
+    rows = (
+        await db.execute(
+            select(ProjectOrganization.organization_id, ProjectOrganization.attached_via)
+            .where(ProjectOrganization.project_id == w.exam_wide.id)
+            .execution_options(populate_existing=True)
+        )
+    ).all()
+    assert (w.uni.id, "lti") in {(str(o), v) for o, v in rows}
+    exam = (
+        await db.execute(
+            select(Project)
+            .where(Project.id == w.exam_wide.id)
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    assert exam.is_private is False
+
+    _protect(monkeypatch, lambda _db: {w.uni.id})
+    await _assert_full(db, w.contributor, exam, False, (None, w.uni.id))
+    assert (await _roles(db, w.contributor, exam))[1] is False
+    await _assert_full(db, w.org_admin, exam, True, (None, w.uni.id))
+
+
+# --------------------------------------------------------------------------- #
+# The effective role follows the private rule
+# --------------------------------------------------------------------------- #
+async def test_effective_role_on_private_exams_needs_a_live_unprotected_link(
+    async_test_db, monkeypatch
+):
+    """Stale, manual and protected rows give no role on someone else's
+    private exam, so imports, blinding and the other role-only gates refuse
+    what the access check refuses."""
+    db = async_test_db
+    w = await _world(db)
+    stale = await _exam(db, w.creator)
+    await _attach(db, stale, w.uni, by=w.creator, linked=False)
+    await db.commit()
+
+    for project in (stale, w.exam_manual):
+        assert await _roles(db, w.contributor, project) == (None, False, False)
+        assert await _roles(db, w.org_admin, project) == (None, False, False)
+        fields = await annotator_bound_fields_or_none_async(
+            db, _principal(w.contributor), project
+        )
+        assert fields is not None  # blinded
+
+    # A live link: staff roles as the access check grants them.
+    assert await _roles(db, w.contributor, w.exam_wide) == ("CONTRIBUTOR", True, True)
+    assert await _roles(db, w.org_admin, w.exam_wide) == ("ORG_ADMIN", True, True)
+    assert await _roles(db, w.annotator, w.exam_wide) == (None, False, False)
+
+    _protect(monkeypatch, lambda _db: {w.uni.id})
+    assert await _roles(db, w.contributor, w.exam_wide) == (None, False, False)
+    assert await _roles(db, w.org_admin, w.exam_wide) == ("ORG_ADMIN", True, True)
+    assert await _roles(db, w.annotator_group_admin, w.exam_grouped) == (
+        "ORG_ADMIN",
+        True,
+        True,
+    )
+    assert await annotator_bound_fields_or_none_async(
+        db, _principal(w.contributor), w.exam_wide
+    ) is not None
+
+    def _boom(_db):
+        raise RuntimeError("hook down")
+
+    _protect(monkeypatch, _boom)
+    assert await _roles(db, w.contributor, w.exam_wide) == (None, False, False)
+
+
+async def test_protected_contributor_with_an_lms_grant_is_a_blinded_participant(
+    async_test_client, async_test_db, monkeypatch
+):
+    """A pilot teacher who also launched as a learner holds an LMS
+    entitlement: that is the participant tier (ANNOTATOR), never the
+    unblinded staff view, and no import rights."""
+    from sqlalchemy import select
+
+    db = async_test_db
+    w = await _world(db)
+    stale = await _exam(db, w.creator)
+    await _attach(db, stale, w.uni, by=w.creator, linked=False)
+    for project in (w.exam_wide, stale):
+        db.add(
+            MarketplaceEntitlement(
+                id=str(uuid.uuid4()),
+                user_id=w.contributor.id,
+                project_id=project.id,
+                source="lti",
+            )
+        )
+    await db.commit()
+    _protect(monkeypatch, lambda _db: {w.uni.id})
+
+    for project in (w.exam_wide, stale):
+        assert await _roles(db, w.contributor, project) == ("ANNOTATOR", False, False)
+        task_id = (
+            await db.execute(select(Task.id).where(Task.project_id == project.id))
+        ).scalar_one()
+        with _as_user(w.contributor):
+            task = await async_test_client.get(
+                f"/api/projects/tasks/{task_id}", headers=PRIVATE_CONTEXT
+            )
+            upload = await async_test_client.post(
+                f"/api/projects/{project.id}/imports/upload-url",
+                headers=PRIVATE_CONTEXT,
+            )
+            job = await async_test_client.post(
+                f"/api/projects/{project.id}/imports",
+                json={"object_key": f"imports/x/{project.id}/a.json"},
+                headers=PRIVATE_CONTEXT,
+            )
+        assert task.status_code == 200, task.text
+        assert "musterloesung" not in task.json()["data"]
+        assert upload.status_code == 403, upload.text
+        assert job.status_code == 403, job.text
+
+    # The org admin keeps the full view on the live link.
+    task_id = (
+        await db.execute(select(Task.id).where(Task.project_id == w.exam_wide.id))
+    ).scalar_one()
+    with _as_user(w.org_admin):
+        task = await async_test_client.get(
+            f"/api/projects/tasks/{task_id}", headers=PRIVATE_CONTEXT
+        )
+    assert task.status_code == 200, task.text
+    assert task.json()["data"]["musterloesung"] == "GEHEIM"
+
+
+# --------------------------------------------------------------------------- #
+# Someone else's NON-private exam under the private context (teacher view)
+# --------------------------------------------------------------------------- #
+async def _open_exam_linked_through(db, w, *, via, group=None):
+    """An org-visible exam of the creator, attached to the university with a
+    row of kind ``via`` and linked through a university connection."""
+    exam = await _exam(db, w.creator, private=False)
+    await _attach(db, exam, w.uni, via=via, group=group, by=w.creator, linked=True)
+    await db.commit()
+    return exam
+
+
+@pytest.mark.parametrize("via", ["manual", "lti"])
+async def test_linked_org_staff_reach_an_open_exam_from_the_private_context(
+    async_test_db, via
+):
+    """Linking keeps a row the author made by hand, so a manual row of the
+    linking org counts as well as a linking row."""
+    db = async_test_db
+    w = await _world(db)
+    exam = await _open_exam_linked_through(db, w, via=via)
+    private = ("private",)
+    for user in (w.org_admin, w.contributor):
+        await _assert_full(db, user, exam, True, private)
+    # Students keep the participant tier only; foreign staff (also plain
+    # students of the university) and inactive members get nothing more.
+    for user in (w.annotator, w.foreign_contributor, w.inactive_contributor, w.stranger):
+        await _assert_full(db, user, exam, False, private)
+    assert await get_project_access_tier_async(
+        db, _principal(w.annotator), exam.id, org_context="private"
+    ) == PARTICIPANT
+
+
+async def test_private_context_follows_the_attachment_group(async_test_db):
+    db = async_test_db
+    w = await _world(db)
+    group = await _group(db, w.uni, (w.contributor_in_group, False))
+    exam = await _open_exam_linked_through(db, w, via="manual", group=group)
+    private = ("private",)
+    await _assert_full(db, w.contributor_in_group, exam, True, private)
+    await _assert_full(db, w.org_admin, exam, True, private)
+    await _assert_full(db, w.contributor, exam, False, private)
+
+
+async def test_unlinked_open_exam_stays_creator_only_in_the_private_context(
+    async_test_db,
+):
+    db = async_test_db
+    w = await _world(db)
+    # Shared with the university by hand, but the only LMS link belongs to
+    # the foreign org: the university's staff are not linking staff.
+    exam = await _exam(db, w.creator, private=False)
+    await _attach(db, exam, w.uni, via="manual", by=w.creator)
+    await _activity(db, exam, w.foreign)
+    await db.commit()
+    private = ("private",)
+    for user in (w.org_admin, w.contributor):
+        await _assert_full(db, user, exam, False, private)
+    await _assert_full(db, w.creator, exam, True, private)
+    # The foreign org has no attachment row: nothing to grant there either.
+    await _assert_full(db, w.foreign_admin, exam, False, private)
+    # Not an exam: the private context stays creator-only.
+    benchmark = await _exam(db, w.creator, private=False, kind="benchmark")
+    await _attach(db, benchmark, w.uni, via="manual", by=w.creator, linked=True)
+    await db.commit()
+    await _assert_full(db, w.org_admin, benchmark, False, private)
+
+
+async def test_private_context_permissions_follow_the_staff_role(async_test_db):
+    db = async_test_db
+    w = await _world(db)
+    exam = await _open_exam_linked_through(db, w, via="manual")
+    svc = AuthorizationService()
+
+    async def allowed(user, permission):
+        principal = _principal(user)
+        got_async = await svc.check_project_access_async(
+            principal, exam, permission, db, org_context="private"
+        )
+        got_sync = await db.run_sync(
+            lambda s: svc.check_project_access(
+                principal, exam, permission, s, org_context="private"
+            )
+        )
+        assert got_async is got_sync, (user.id, permission)
+        return got_async
+
+    assert await allowed(w.contributor, Permission.TASK_EDIT) is True
+    assert await allowed(w.contributor, Permission.PROJECT_DELETE) is False
+    assert await allowed(w.org_admin, Permission.PROJECT_DELETE) is True
+    assert await allowed(w.annotator, Permission.TASK_VIEW) is False
+    assert await allowed(w.foreign_contributor, Permission.TASK_VIEW) is False
+
+
+async def test_teacher_view_calls_work_with_the_private_header(
+    async_test_client, async_test_db
+):
+    """What the Korrektur page and the exam page load, sent the way the LMS
+    landing page sends it (``X-Organization-Context: private``)."""
+    from tests.integration.test_group_visibility import _as_user
+
+    db = async_test_db
+    w = await _world(db)
+    exam = await _open_exam_linked_through(db, w, via="manual")
+    headers = {"X-Organization-Context": "private"}
+    client = async_test_client
+
+    with _as_user(w.contributor):
+        project = await client.get(f"/api/projects/{exam.id}", headers=headers)
+        config = await client.get(
+            f"/api/evaluations/projects/{exam.id}/evaluation-config", headers=headers
+        )
+    assert project.status_code == 200, project.text
+    assert project.json()["access_tier"] == FULL
+    assert config.status_code == 200, config.text
+
+    with _as_user(w.annotator):
+        project = await client.get(f"/api/projects/{exam.id}", headers=headers)
+        config = await client.get(
+            f"/api/evaluations/projects/{exam.id}/evaluation-config", headers=headers
+        )
+    assert project.status_code == 200, project.text
+    assert project.json()["access_tier"] == PARTICIPANT
+    assert config.status_code == 403, config.text

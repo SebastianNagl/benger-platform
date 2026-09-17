@@ -79,8 +79,11 @@ async def list_all_users(
     """
     _require_login(current_user)
 
+    from sqlalchemy import String, any_, bindparam
     from sqlalchemy import and_ as sa_and
+    from sqlalchemy import not_ as sa_not
     from sqlalchemy import or_ as sa_or
+    from sqlalchemy.dialects.postgresql import ARRAY
 
     stmt = select(User).where(User.is_active == True)  # noqa: E712
     masked_ids: set = set()
@@ -170,10 +173,15 @@ async def list_all_users(
             User.name.ilike(like),
         )
         if masked_ids:
-            ids = sorted(masked_ids)
+            # One array parameter, whatever the number of masked accounts
+            # (``IN (...)`` binds one parameter per id, and the driver
+            # refuses more than 32767).
+            is_masked = User.id == any_(
+                bindparam("masked_ids", sorted(masked_ids), type_=ARRAY(String))
+            )
             text_match = sa_or(
-                sa_and(User.id.notin_(ids), text_match),
-                sa_and(User.id.in_(ids), User.pseudonym.ilike(like)),
+                sa_and(sa_not(is_masked), text_match),
+                sa_and(is_masked, User.pseudonym.ilike(like)),
             )
         stmt = stmt.where(text_match)
 

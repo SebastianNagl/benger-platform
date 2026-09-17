@@ -300,6 +300,7 @@ async def create_invitation(
             organization_name=organization.name,
             invitee_email=invitation_data.email,
             inviter_name=current_user.name,
+            inviter_user_id=current_user.id,
         )
     except Exception as e:
         # Don't fail the invitation creation if notification fails
@@ -476,6 +477,7 @@ async def create_bulk_invitations(
                     organization_name=organization.name,
                     invitee_email=inv.email,
                     inviter_name=current_user.name,
+                    inviter_user_id=current_user.id,
                 )
             except Exception as e:
                 logger.error(f"Failed to send bulk invitation notification: {e}")
@@ -761,6 +763,7 @@ async def accept_invitation(
             organization_name=(organization.name if organization else "Unknown Organization"),
             new_member_name=current_user.name,
             new_member_email=current_user.email,
+            new_member_user_id=current_user.id,
         )
     except Exception as e:
         # Don't fail the invitation acceptance if notification fails

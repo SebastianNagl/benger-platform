@@ -20,6 +20,9 @@ eligible staff the full tier (:func:`lti_staff_role`), whatever org context
 the client sends, as long as a connection of that org still links the exam.
 It never gives students anything on a private exam, and on an org whose
 connections stay superadmin-run it gives only that org's admins access.
+That last rule holds at every visibility: on a non-private exam, an LMS
+attachment of such an org counts only for its admins and the attachment
+group's admins (:func:`drop_protected_lti_attachments`).
 
 Everything here exists in exactly one form so the many enforcement sites
 (project list arms, per-project deciders, participant/student arms, admin
@@ -125,9 +128,14 @@ def lti_staff_role(
     deliberately ignored: the apex host always sends ``private`` and a
     teacher's last-org subdomain may send another org, so the grant cannot
     depend on it (legacy mode already grants through any membership).
-    Callers handle the creator and superadmins, and apply this only to
-    private projects; non-private exams keep the generic rules, under which
-    their attachments already grant staff.
+    Callers handle the creator and superadmins. On private projects the
+    input is :func:`get_lti_attachment_map`. Non-private exams keep the
+    generic rules under an org context or none, except that an LMS
+    attachment of a protected org is first dropped for everyone but its
+    admins (:func:`drop_protected_lti_attachments`). Under the ``private``
+    context (the LMS landing pages on the apex host), someone else's
+    non-private exam uses this rule over :func:`linked_attachment_map`, so
+    the same staff reach it from the teacher view.
     """
     del org_context  # see docstring
     if project_kind != "exam" or not lti_attachments:
@@ -156,6 +164,44 @@ def lti_staff_role(
         if best is None or _STAFF_ROLE_RANK[role] > _STAFF_ROLE_RANK[best]:
             best = role
     return best
+
+
+def drop_protected_lti_attachments(
+    attachment_groups: Dict[str, Optional[str]],
+    protected_lti_org_ids: Iterable[str],
+    memberships,
+    user_groups: Optional[Dict[str, bool]] = None,
+) -> Dict[str, Optional[str]]:
+    """``attachment_groups`` without the LMS attachments of protected orgs
+    that do not count for this user (pure).
+
+    For someone else's NON-private exam. ``protected_lti_org_ids`` are the
+    orgs among the project's ``attached_via='lti'`` rows (stale ones
+    included) whose connections stay superadmin-run. Such a row counts only
+    for an active ORG_ADMIN of that org and for an active member who
+    group-admins the row's group; everyone else is treated as if the org
+    were not attached, the same rule :func:`lti_staff_role` applies to
+    private exams. Every pilot teacher is a CONTRIBUTOR of that org, so
+    without this the generic rules made them editors of each other's
+    linked exams.
+    """
+    protected = {str(org_id) for org_id in (protected_lti_org_ids or ()) if org_id}
+    if not protected or not attachment_groups:
+        return dict(attachment_groups or {})
+    kept: Dict[str, Optional[str]] = {}
+    for org_id, group_id in attachment_groups.items():
+        if str(org_id) not in protected:
+            kept[org_id] = group_id
+            continue
+        for membership in memberships or ():
+            if str(membership.organization_id) != str(org_id) or not membership.is_active:
+                continue
+            if _role_value(membership.role) == "ORG_ADMIN" or (
+                group_id is not None and (user_groups or {}).get(group_id, False)
+            ):
+                kept[org_id] = group_id
+                break
+    return kept
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +418,300 @@ async def get_lti_attachment_map_async(db, project_id: str) -> Dict[str, Optiona
         ).where(*_lti_attachment_filters(project_id))
     )
     return {str(org): (str(gid) if gid else None) for org, gid in result.all()}
+
+
+def _build_select_lti_row_org_ids(project_id: str):
+    from sqlalchemy import select
+
+    from project_models import ProjectOrganization
+
+    return select(ProjectOrganization.organization_id).where(
+        ProjectOrganization.project_id == str(project_id),
+        ProjectOrganization.attached_via == "lti",
+    )
+
+
+def get_lti_row_org_ids(db, project_id: str) -> set:
+    """Sync: the orgs of every ``attached_via='lti'`` row of the project,
+    whether or not a connection still links it (the input of
+    :func:`drop_protected_lti_attachments`, like the Korrektur grader rule)."""
+    rows = db.execute(_build_select_lti_row_org_ids(project_id)).scalars().all()
+    return {str(org_id) for org_id in rows}
+
+
+async def get_lti_row_org_ids_async(db, project_id: str) -> set:
+    """Async twin of :func:`get_lti_row_org_ids`."""
+    result = await db.execute(_build_select_lti_row_org_ids(project_id))
+    return {str(org_id) for org_id in result.scalars().all()}
+
+
+def _build_select_linking_org_ids(project_id: str):
+    from sqlalchemy import select
+
+    from models import LtiPlatformRegistration, LtiResourceLink
+
+    return (
+        select(LtiPlatformRegistration.organization_id)
+        .join(
+            LtiResourceLink,
+            LtiResourceLink.registration_id == LtiPlatformRegistration.id,
+        )
+        .where(LtiResourceLink.project_id == str(project_id))
+        .distinct()
+    )
+
+
+def linked_attachment_map(
+    attachment_groups: Optional[Dict[str, Optional[str]]], linking_org_ids
+) -> Dict[str, Optional[str]]:
+    """Pure: the attachments (``{org_id: group_id}``, any ``attached_via``)
+    of orgs that own a connection with an activity linked to the project.
+
+    The input of :func:`lti_staff_role` for someone else's NON-private exam
+    under the ``private`` org context (the context the LMS landing pages
+    send): linking keeps an org row the author made by hand, so the
+    ``lti`` rows alone would miss the typical org-visible exam. Pass the
+    attachments after :func:`drop_protected_lti_attachments`.
+    """
+    linking = {str(org_id) for org_id in (linking_org_ids or ()) if org_id}
+    return {
+        str(org_id): group_id
+        for org_id, group_id in (attachment_groups or {}).items()
+        if str(org_id) in linking
+    }
+
+
+def get_linking_org_ids(db, project_id: str) -> set:
+    """Sync: the orgs owning a connection (any status) with an activity
+    linked to the project."""
+    rows = db.execute(_build_select_linking_org_ids(project_id)).scalars().all()
+    return {str(org_id) for org_id in rows if org_id}
+
+
+async def get_linking_org_ids_async(db, project_id: str) -> set:
+    """Async twin of :func:`get_linking_org_ids`."""
+    result = await db.execute(_build_select_linking_org_ids(project_id))
+    return {str(org_id) for org_id in result.scalars().all() if org_id}
+
+
+# ---------------------------------------------------------------------------
+# LMS-linking attachments follow the org's connections
+# ---------------------------------------------------------------------------
+
+
+def collapse_linking_groups(rows) -> Dict[str, Optional[str]]:
+    """``{key: group_id | None}`` from ``(key, group_id)`` rows of the
+    connections that link something (pure).
+
+    The group a linking attachment carries: None when any of those
+    connections is org-wide, else the first of their groups in sorted order.
+    """
+    found: Dict[str, set] = {}
+    for key, group_id in rows:
+        found.setdefault(str(key), set()).add(str(group_id) if group_id else None)
+    return {
+        key: None if None in groups else sorted(groups)[0]
+        for key, groups in found.items()
+    }
+
+
+def _build_select_org_linking_groups(
+    organization_id: str, project_ids, exclude_registration_id=None
+):
+    """(project, connection group) of the org's connections whose
+    activities point at ``project_ids``."""
+    from sqlalchemy import select
+
+    from models import LtiPlatformRegistration, LtiResourceLink
+
+    stmt = (
+        select(LtiResourceLink.project_id, LtiPlatformRegistration.group_id)
+        .join(
+            LtiPlatformRegistration,
+            LtiPlatformRegistration.id == LtiResourceLink.registration_id,
+        )
+        .where(
+            LtiPlatformRegistration.organization_id == str(organization_id),
+            LtiResourceLink.project_id.in_(sorted(project_ids)),
+        )
+        .distinct()
+    )
+    if exclude_registration_id is not None:
+        stmt = stmt.where(LtiPlatformRegistration.id != str(exclude_registration_id))
+    return stmt
+
+
+def _build_select_org_attachment_rows(organization_id: str, project_ids):
+    from sqlalchemy import select
+
+    from project_models import ProjectOrganization
+
+    return select(
+        ProjectOrganization.project_id,
+        ProjectOrganization.attached_via,
+        ProjectOrganization.group_id,
+    ).where(
+        ProjectOrganization.organization_id == str(organization_id),
+        ProjectOrganization.project_id.in_(sorted(project_ids)),
+    )
+
+
+def plan_lti_attachment_sync(project_ids, wanted, existing) -> Dict[str, Dict]:
+    """What :func:`sync_lti_attachments` changes (pure).
+
+    ``wanted``: ``{project: group | None}`` for the projects the org still
+    links. ``existing``: ``{project: (attached_via, group)}`` of the org's
+    rows. Returns ``{"update": {project: group}, "insert": {project: group},
+    "delete": [project]}``. A manual row is never touched (linking never
+    narrows a manual share).
+    """
+    plan: Dict[str, Dict] = {"update": {}, "insert": {}, "delete": []}
+    for project_id in sorted({str(p) for p in project_ids}):
+        row = existing.get(project_id)
+        if project_id in wanted:
+            group_id = wanted[project_id]
+            if row is None:
+                plan["insert"][project_id] = group_id
+            elif row[0] == "lti" and row[1] != group_id:
+                plan["update"][project_id] = group_id
+        elif row is not None and row[0] == "lti":
+            plan["delete"].append(project_id)
+    return plan
+
+
+def _lti_sync_statements(organization_id, plan, assigned_by):
+    """The writes of a sync plan, as core statements."""
+    import uuid
+
+    from sqlalchemy import delete, insert, update
+
+    from project_models import ProjectOrganization
+
+    table = ProjectOrganization.__table__
+    org_id = str(organization_id)
+    statements = []
+    for project_id, group_id in plan["update"].items():
+        statements.append(
+            update(table)
+            .where(
+                table.c.organization_id == org_id,
+                table.c.project_id == project_id,
+                table.c.attached_via == "lti",
+            )
+            .values(group_id=group_id)
+        )
+    if plan["delete"]:
+        statements.append(
+            delete(table).where(
+                table.c.organization_id == org_id,
+                table.c.project_id.in_(plan["delete"]),
+                table.c.attached_via == "lti",
+            )
+        )
+    if plan["insert"] and assigned_by:
+        statements.append(
+            insert(table).values(
+                [
+                    {
+                        "id": str(uuid.uuid4()),
+                        "project_id": project_id,
+                        "organization_id": org_id,
+                        "group_id": group_id,
+                        "assigned_by": str(assigned_by),
+                        "attached_via": "lti",
+                    }
+                    for project_id, group_id in plan["insert"].items()
+                ]
+            )
+        )
+    return statements
+
+
+def sync_lti_attachments(
+    db,
+    organization_id: str,
+    project_ids,
+    *,
+    assigned_by: Optional[str] = None,
+    exclude_registration_id: Optional[str] = None,
+) -> Dict[str, Dict]:
+    """Make the org's LMS-linking attachments of ``project_ids`` match its
+    connections (sync, flushes nothing, never commits).
+
+    For each project: if a connection of the org (other than
+    ``exclude_registration_id``) still links it, the org's ``lti`` row gets
+    the group :func:`collapse_linking_groups` derives, or is created when the
+    org has no row (only with ``assigned_by``); otherwise the org's ``lti``
+    row is deleted. Manual rows stay. Returns the executed plan (see
+    :func:`plan_lti_attachment_sync`). Run it after a connection moves to
+    another group or org, or before one is deleted.
+    """
+    ids = {str(p) for p in (project_ids or ()) if p}
+    empty = {"update": {}, "insert": {}, "delete": []}
+    if not ids or not organization_id:
+        return empty
+    wanted = collapse_linking_groups(
+        db.execute(
+            _build_select_org_linking_groups(
+                organization_id, ids, exclude_registration_id
+            )
+        ).all()
+    )
+    existing = {
+        str(project_id): (via, str(group_id) if group_id else None)
+        for project_id, via, group_id in db.execute(
+            _build_select_org_attachment_rows(organization_id, ids)
+        ).all()
+    }
+    plan = plan_lti_attachment_sync(ids, wanted, existing)
+    if not assigned_by:
+        plan["insert"] = {}
+    for statement in _lti_sync_statements(organization_id, plan, assigned_by):
+        db.execute(statement)
+    return plan
+
+
+async def sync_lti_attachments_async(
+    db,
+    organization_id: str,
+    project_ids,
+    *,
+    assigned_by: Optional[str] = None,
+    exclude_registration_id: Optional[str] = None,
+) -> Dict[str, Dict]:
+    """Async twin of :func:`sync_lti_attachments`."""
+    ids = {str(p) for p in (project_ids or ()) if p}
+    empty = {"update": {}, "insert": {}, "delete": []}
+    if not ids or not organization_id:
+        return empty
+    wanted = collapse_linking_groups(
+        (
+            await db.execute(
+                _build_select_org_linking_groups(
+                    organization_id, ids, exclude_registration_id
+                )
+            )
+        ).all()
+    )
+    existing = {
+        str(project_id): (via, str(group_id) if group_id else None)
+        for project_id, via, group_id in (
+            await db.execute(_build_select_org_attachment_rows(organization_id, ids))
+        ).all()
+    }
+    plan = plan_lti_attachment_sync(ids, wanted, existing)
+    if not assigned_by:
+        plan["insert"] = {}
+    for statement in _lti_sync_statements(organization_id, plan, assigned_by):
+        await db.execute(statement)
+    return plan
+
+
+def lti_sync_changed(plan) -> list:
+    """The project ids a sync plan touched, sorted."""
+    return sorted(
+        set(plan.get("update") or ()) | set(plan.get("insert") or ()) | set(plan.get("delete") or ())
+    )
 
 
 def resolve_project_group_for_org(db, project_id, org_id) -> Optional[str]:

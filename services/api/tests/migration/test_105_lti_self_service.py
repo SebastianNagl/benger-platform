@@ -128,9 +128,12 @@ def _assert_full_shape(conn):
     assert event_fks["organization_id"]["options"].get("ondelete") == "CASCADE"
     assert event_fks["registration_id"]["options"].get("ondelete") == "SET NULL"
     assert event_fks["actor_user_id"]["options"].get("ondelete") == "SET NULL"
+    assert event_fks["group_id"]["referred_table"] == "organization_groups"
+    assert event_fks["group_id"]["options"].get("ondelete") == "SET NULL"
     assert {
         "ix_lti_admin_events_organization_id",
         "ix_lti_admin_events_registration_id",
+        "ix_lti_admin_events_group_id",
     } <= {ix["name"] for ix in link_users.get_indexes("lti_admin_events")}
 
     defaults = {

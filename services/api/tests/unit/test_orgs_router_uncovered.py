@@ -682,22 +682,20 @@ class TestBulkVerifySuccess:
 
         # user1: already verified (skip)
         user1 = Mock()
+        user1.id = "user-1"
         user1.email = "u1@test.com"
         user1.email_verified = True
 
         # user2: unverified (success)
         user2 = Mock()
+        user2.id = "user-2"
         user2.email = "u2@test.com"
         user2.email_verified = False
 
-        # Superadmin path: per-user the member check is skipped, so one
-        # user-lookup execute per id: user1 (skip), user2 (success), None
-        # (error). Then a single commit.
-        db = _async_db([
-            _result(scalar_one_or_none=user1),
-            _result(scalar_one_or_none=user2),
-            _result(scalar_one_or_none=None),
-        ])
+        # Superadmin path: the member check is skipped, and one batched
+        # lookup loads every requested user (user-3 is missing -> error).
+        # Then a single commit.
+        db = _async_db([_result(scalars_all=[user1, user2])])
 
         result = await bulk_verify_member_emails(
             organization_id="org-1",
@@ -721,12 +719,10 @@ class TestBulkVerifySuccess:
 
         user = Mock(is_superadmin=False, id="org-admin-1", email="oadmin@test.com")
 
-        admin_membership = Mock()
-
-        # Non-superadmin path: admin-role check, then per-user member check
-        # (None -> error). One user id -> 2 executes, then commit.
+        # Non-superadmin path: the batched user lookup, then the per-user
+        # member check (None -> error), then commit.
         db = _async_db([
-            _result(scalar_one_or_none=admin_membership),
+            _result(scalars_all=[]),
             _result(scalar_one_or_none=None),
         ])
 
@@ -747,11 +743,13 @@ class TestBulkVerifySuccess:
         admin = Mock(is_superadmin=True, id="admin-1", email="admin@test.com")
 
         user1 = Mock()
+        user1.id = "user-1"
         user1.email = "u1@test.com"
         user1.email_verified = False
 
-        # Superadmin path: single user lookup (unverified -> success), commit.
-        db = _async_db([_result(scalar_one_or_none=user1)])
+        # Superadmin path: one batched user lookup (unverified -> success),
+        # commit.
+        db = _async_db([_result(scalars_all=[user1])])
 
         result = await bulk_verify_member_emails(
             organization_id="org-1",

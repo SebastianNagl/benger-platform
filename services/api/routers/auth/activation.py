@@ -54,7 +54,9 @@ async def request_account_activation(
             detail={"code": "already_activated"},
         )
 
-    target_email = body.email
+    # Stored lowercased like signup and LMS addresses: password reset,
+    # verification resend and login match the address exactly.
+    target_email = body.email.strip().lower() if body.email else None
     if target_email:
         # Entering an address is only for accounts that have none to mail —
         # routable-email accounts must not use this as an email-change lever
@@ -141,7 +143,7 @@ async def activate_account(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={"code": "email_taken"},
             )
-        user.email = user.pending_activation_email
+        user.email = user.pending_activation_email.strip().lower()
         user.email_verified = True
         user.email_verification_method = "activation"
         user.email_verified_at = now

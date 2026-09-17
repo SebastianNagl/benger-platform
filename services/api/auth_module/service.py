@@ -159,11 +159,12 @@ def verify_token_for_websocket(websocket: WebSocket) -> dict:
 
 
 def _lms_account_flag(db: Session, user_id: str) -> bool:
-    """``is_lms_account`` for the token response; False when unknown."""
-    from lms_name_masking import is_lms_account_sync
+    """``is_lms_account`` for the token response (an LMS launch created the
+    account); False when unknown."""
+    from lms_name_masking import is_lms_provisioned_account_sync
 
     try:
-        return is_lms_account_sync(db, user_id) is True
+        return is_lms_provisioned_account_sync(db, user_id) is True
     except Exception:
         return False
 

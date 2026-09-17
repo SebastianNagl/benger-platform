@@ -267,8 +267,20 @@ def _create_tables():
                 "anonymized_at TIMESTAMP WITH TIME ZONE",
                 "CREATE INDEX IF NOT EXISTS ix_users_email_lower "
                 "ON users (lower(email))",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "lms_provisioned_at TIMESTAMP WITH TIME ZONE",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "lms_origin_org_id VARCHAR CONSTRAINT fk_users_lms_origin_org_id "
+                "REFERENCES organizations(id) ON DELETE SET NULL",
+                "CREATE INDEX IF NOT EXISTS ix_users_lms_origin_org_id "
+                "ON users (lms_origin_org_id)",
                 "ALTER TABLE task_evaluations ADD COLUMN IF NOT EXISTS "
                 "updated_at TIMESTAMP WITH TIME ZONE",
+                "ALTER TABLE lti_admin_events ADD COLUMN IF NOT EXISTS "
+                "group_id VARCHAR REFERENCES organization_groups(id) "
+                "ON DELETE SET NULL",
+                "CREATE INDEX IF NOT EXISTS ix_lti_admin_events_group_id "
+                "ON lti_admin_events (group_id)",
             ):
                 conn.execute(text(ddl))
             # Migration 105 keeps the name uq_lti_grade_sync but adds kind to

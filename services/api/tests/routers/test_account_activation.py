@@ -90,6 +90,23 @@ class TestRequestAccountActivation:
         assert kwargs["force"] is True
         assert kwargs["host"] == "vertretbar.net"
 
+    async def test_entered_email_is_sent_lowercased(self, async_client, test_db):
+        """Reset, resend and login match addresses exactly, so the fallback
+        stores what it adopts in lower case (like signup and the LMS)."""
+        user = _make_user(test_db, email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid")
+        fake_app = MagicMock()
+        with _as_user(user), patch(
+            "celery_client.get_celery_app", return_value=fake_app
+        ):
+            r = await async_client.post(
+                "/api/auth/request-account-activation",
+                json={"email": "Max.Mustermann@Uni-X.de"},
+            )
+        assert r.status_code == 200, r.text
+        kwargs = fake_app.send_task.call_args.kwargs["kwargs"]
+        assert kwargs["target_email"] == "max.mustermann@uni-x.de"
+        assert r.json()["email_hint"] == "ma…@uni-x.de"
+
     async def test_password_holder_409(self, async_client, test_db):
         user = _make_user(test_db, hashed_password="hash")
         with _as_user(user):
@@ -215,6 +232,47 @@ class TestActivateAccount:
         assert user.email_verification_method == "activation"
         assert user.pending_activation_email is None
         assert user.password_set is True
+
+    async def test_adopted_pending_email_is_lowercased_and_reset_finds_it(
+        self, async_client, test_db
+    ):
+        token = f"tok-{uuid.uuid4().hex}"
+        pending = f"Mixed.{uuid.uuid4().hex[:6]}@Uni-X.de"
+        user = _make_user(
+            test_db,
+            email=f"lti-{uuid.uuid4().hex[:8]}@lti.invalid",
+            token=token,
+            expires=datetime.now(timezone.utc) + timedelta(days=1),
+            pending=pending,
+        )
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={
+                "token": token,
+                "new_password": "NeuesPasswort1!",
+                "confirm_password": "NeuesPasswort1!",
+            },
+        )
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email == pending.lower()
+
+        # "Passwort vergessen" with the lowercase address finds the account.
+        from unittest.mock import AsyncMock
+
+        send = AsyncMock(return_value=True)
+        with patch(
+            "app.auth_module.password_reset.password_reset_service."
+            "send_password_reset_email",
+            send,
+        ):
+            reset = await async_client.post(
+                "/api/auth/request-password-reset",
+                json={"email": pending.lower()},
+            )
+        assert reset.status_code == 200, reset.text
+        assert send.await_count == 1
+        assert send.await_args.kwargs["user"].id == user.id
 
     async def test_pending_email_taken_at_click_time_409(
         self, async_client, test_db
@@ -422,7 +480,8 @@ class TestLinkUseVerifiesUnprovenEmail:
     async def test_reset_does_not_verify_while_a_pending_address_is_parked(
         self, async_client, test_db
     ):
-        """With a parked address the link went there, not to user.email."""
+        """An activation token mailed to the parked address and redeemed at
+        /reset-password: the link went there, not to user.email."""
         user, token = _lms_claim_user(test_db, pending="parked@uni-y.de")
 
         r = await async_client.post(
@@ -440,6 +499,43 @@ class TestLinkUseVerifiesUnprovenEmail:
         assert user.email_verification_method == "lti_claim"
         login = await _login(async_client, user)
         assert login.status_code == 403
+
+    async def test_requesting_a_reset_drops_the_parked_address(
+        self, async_client, test_db
+    ):
+        """The reset mail goes to user.email and replaces the activation link
+        of a parked address, so using it verifies user.email and login
+        works (no lockout)."""
+        from unittest.mock import AsyncMock
+
+        user, old_token = _lms_claim_user(test_db, pending="parked@uni-y.de")
+        send = AsyncMock(return_value=True)
+        with patch("email_service.EmailService.send_password_reset_email", send):
+            requested = await async_client.post(
+                "/api/auth/request-password-reset", json={"email": user.email}
+            )
+        assert requested.status_code == 200, requested.text
+        assert send.await_count == 1
+        assert send.await_args.kwargs["to_email"] == user.email
+        token = send.await_args.kwargs["reset_link"].rsplit("/", 1)[-1]
+        assert token != old_token
+        test_db.refresh(user)
+        assert user.pending_activation_email is None
+
+        r = await async_client.post(
+            "/api/auth/reset-password",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is True
+        assert user.email_verification_method == "self"
+        login = await _login(async_client, user)
+        assert login.status_code == 200, login.text
 
     async def test_unroutable_address_is_never_verified(
         self, async_client, test_db
@@ -460,6 +556,35 @@ class TestLinkUseVerifiesUnprovenEmail:
         assert r.status_code == 200, r.text
         test_db.refresh(user)
         assert user.email_verified is False
+
+    async def test_backfilled_verified_lms_claim_is_restamped(
+        self, async_client, test_db
+    ):
+        """Migration 106 keeps the verified flag of older LMS accounts and
+        only sets method ``lti_claim``. Activation still proves the address
+        and replaces the method."""
+        old = datetime(2026, 7, 1, tzinfo=timezone.utc)
+        user, token = _lms_claim_user(test_db, email_verified=True)
+        user.email_verified_at = old
+        test_db.flush()
+
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={
+                "token": token,
+                "new_password": _PASSWORD,
+                "confirm_password": _PASSWORD,
+            },
+        )
+
+        assert r.status_code == 200, r.text
+        test_db.refresh(user)
+        assert user.email_verified is True
+        assert user.email_verification_method == "activation"
+        assert user.email_verified_at is not None
+        assert user.email_verified_at != old
+        login = await _login(async_client, user)
+        assert login.status_code == 200, login.text
 
     async def test_already_verified_method_is_kept(self, async_client, test_db):
         user, token = _lms_claim_user(

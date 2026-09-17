@@ -122,6 +122,37 @@ class TestActivationEmailGuards:
         db.commit.assert_not_called()
 
 
+class TestActivationEmailLetterCase:
+    def test_target_email_is_lowercased_and_the_taken_check_ignores_case(self):
+        """Addresses are stored lowercased; login and reset match exactly,
+        so a mixed-case entry would lock the student out later. The taken
+        probe compares lower(email)."""
+        cls, client = _sendgrid({"status": "success", "message_id": "m"})
+        db = _fake_db(_user(email="lti-x@lti.invalid"))
+        with patch("account_activation.current_or_new_activation_token") as mint:
+            mint.return_value = "tok"
+            email_service = MagicMock()
+            email_service.build_account_activation_email.return_value = ("S", "<p/>")
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+                 patch("account_activation.activation_eligibility", return_value=None), \
+                 patch("account_activation.build_activation_link", return_value="https://x/a/tok"), \
+                 patch("mailer.branding.resolve_email_brand", return_value=_brand()), \
+                 patch("email_service.email_service", email_service), \
+                 patch("sendgrid_client.SendGridClient", cls):
+                result = send_account_activation_task.run(
+                    user_id="u-1", target_email="  Max.Mustermann@Uni-X.de "
+                )
+
+        assert result["recipient"] == "max.mustermann@uni-x.de"
+        assert mint.call_args.kwargs["pending_email"] == "max.mustermann@uni-x.de"
+        probe = str(
+            db.execute.call_args_list[1].args[0].compile(
+                compile_kwargs={"literal_binds": True}
+            )
+        )
+        assert "lower(users.email) = 'max.mustermann@uni-x.de'" in probe
+
+
 class TestActivationEmailSend:
     def test_success_commits_the_token_before_sending(self):
         """A link that reaches a mailbox must resolve, so the token commit has

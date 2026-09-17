@@ -482,6 +482,15 @@ async def list_project_tasks(
     }
 
 
+def _next_task_order(project, current_user) -> tuple:
+    """ORDER BY of the next-task pick: per-user shuffled, or sequential by
+    creation. Tasks created in one transaction share ``created_at``, so the
+    task number and the id break ties (the pick was arbitrary before)."""
+    if project.randomize_task_order:
+        return (func.hashtext(func.concat(Task.id, current_user.id)), Task.id)
+    return (Task.created_at, Task.inner_id, Task.id)
+
+
 @router.get("/{project_id}/next")
 async def get_next_task(
     project_id: str,
@@ -598,10 +607,7 @@ async def get_next_task(
             # Phase 2: Auto-assign a new task on demand
 
             # Determine ordering: randomized per-user or sequential
-            if project.randomize_task_order:
-                order_clause = func.hashtext(func.concat(Task.id, current_user.id))
-            else:
-                order_clause = Task.created_at
+            order_clauses = _next_task_order(project, current_user)
 
             # Build skip exclusion queries (same pattern as open mode)
             skip_queue = getattr(project, 'skip_queue', 'requeue_for_others')
@@ -681,7 +687,7 @@ async def get_next_task(
             candidate_task = (
                 await db.execute(
                     candidate_query
-                    .order_by(order_clause)
+                    .order_by(*order_clauses)
                     .with_for_update(skip_locked=True)
                 )
             ).scalars().first()
@@ -707,10 +713,7 @@ async def get_next_task(
         # Note: Annotation and sqlalchemy functions already imported at module level
 
         # Determine ordering: randomized per-user or sequential
-        if project.randomize_task_order:
-            order_clause = func.hashtext(func.concat(Task.id, current_user.id))
-        else:
-            order_clause = Task.created_at
+        order_clauses = _next_task_order(project, current_user)
 
         # First, check if user has any tasks with drafts (incomplete annotations)
         # A draft has: draft field populated, result field empty
@@ -728,7 +731,7 @@ async def get_next_task(
                         func.length(func.cast(Annotation.result, String)) <= 2,  # Empty "[]" or null
                     ),
                 )
-                .order_by(order_clause)
+                .order_by(*order_clauses)
             )
         ).scalars().first()
 
@@ -773,7 +776,7 @@ async def get_next_task(
                 unannotated_query = unannotated_query.where(Task.id.notin_(any_skips_query))
 
             next_task = (
-                await db.execute(unannotated_query.order_by(order_clause))
+                await db.execute(unannotated_query.order_by(*order_clauses))
             ).scalars().first()
 
     if not next_task:

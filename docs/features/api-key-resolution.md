@@ -110,14 +110,18 @@ project's sole linked org, both validated), and extension routers.
 - **Exams linked to an LMS** (the LTI integration, commercial edition) follow
   one rule: every AI grading of such an exam is billed to the organization of
   the LMS connection. That covers the connection's LMS users, the
-  organization's staff and batch runs. The key follows the exam's
+  organization's staff, and batch runs started by either of them (or by a
+  superadmin, billed to the first connection). Other batch starters keep the
+  rules above. The key follows the exam's
   attachment, so a group connection spends its group's key before the
   organization's. When that organization does not provide keys or has no key
   for the judge's provider, the policy returns a block (`org_not_paying`,
   `org_key_missing`, `connection_removed`, or `billing_check_failed` when the
   check itself failed) and the grading does not run. It is
   never rerouted to another organization, a personal key or a deployment key.
-  Teacher AI helpers on a linked exam use the same rule. Users who reach a
+  Teacher AI helpers on a linked exam use the same rule. A failed billing
+  check refuses them on a linked exam (409 `billing_check_failed`, or 503
+  when not even the link can be checked) instead of falling back. Users who reach a
   linked exam without the LMS (share links, catalog) keep the rules above.
   See [LMS integration](../lms-integration.md#85-where-the-data-lives-and-who-pays).
 - **BYOM / custom models** resolve differently

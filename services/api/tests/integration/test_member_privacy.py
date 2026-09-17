@@ -8,8 +8,9 @@ Who may see the real name:
   account itself, and admins of an org whose own connection the account
   belongs to (so a platform-wide org's admins only unmask the students of
   that org's own connections);
-- group roster: everyone allowed to read it (org and group admins) for the
-  accounts of that org's own connections;
+- group roster: org admins for the accounts of that org's own connections,
+  group admins for the accounts of the org's connections scoped to a group
+  they administer (group membership reveals nothing);
 - project views (project members, task listing annotators and assignments,
   the export ``users`` block): the people ``project_real_name_user_ids``
   names for the viewer.
@@ -60,8 +61,9 @@ class _FakeExtended:
         return self._hooks
 
 
-def _protected(db, organization_id, user_ids):
-    """The documented LMS-user definition, read from the link table."""
+def _protected(db, organization_id, user_ids, group_ids=None):
+    """The documented LMS-user definition, read from the link table
+    (``group_ids``: only connections scoped to those groups)."""
     query = db.query(LtiUserLink.user_id).filter(
         LtiUserLink.user_id.in_(list(user_ids)),
         or_(
@@ -74,6 +76,10 @@ def _protected(db, organization_id, user_ids):
             LtiPlatformRegistration,
             LtiPlatformRegistration.id == LtiUserLink.registration_id,
         ).filter(LtiPlatformRegistration.organization_id == str(organization_id))
+        if group_ids is not None:
+            query = query.filter(
+                LtiPlatformRegistration.group_id.in_(list(group_ids))
+            )
     return {row[0] for row in query.distinct().all()}
 
 
@@ -154,11 +160,12 @@ async def _person(db, name, **kwargs) -> User:
     return user
 
 
-def _new_registration(org) -> LtiPlatformRegistration:
+def _new_registration(org, group=None) -> LtiPlatformRegistration:
     tag = _hex()
     return LtiPlatformRegistration(
         id=str(uuid.uuid4()),
         organization_id=org.id,
+        group_id=group.id if group is not None else None,
         name=f"Moodle {tag}",
         issuer=f"https://lms-{tag}.example",
         client_id=f"client-{tag}",
@@ -179,8 +186,8 @@ def _new_link(registration, user, *, method="provisioned", unlinked=False):
     )
 
 
-async def _registration(db, org) -> LtiPlatformRegistration:
-    registration = _new_registration(org)
+async def _registration(db, org, group=None) -> LtiPlatformRegistration:
+    registration = _new_registration(org, group)
     db.add(registration)
     await db.flush()
     return registration
@@ -212,8 +219,12 @@ async def _world(db):
     - ``optout``: LMS account of uni that turned the pseudonym off;
     - ``teacher``: LMS account of uni with the contributor role;
     - ``plain``: an ordinary (non-LMS) member with a pseudonym;
-    - ``gadmin``: an annotator who administers group ``g`` (student and
-      foreign are members).
+    - ``gadmin``: an annotator who administers group ``g`` (student,
+      foreign and ``ostudent`` are members);
+    - ``gstudent``: LMS account of uni's connection scoped to ``g`` (not a
+      member of ``g``);
+    - ``ostudent``: LMS account of uni's connection scoped to group ``g2``
+      (a member of ``g``).
     """
     superadmin = await _person(db, "Super Admin", superadmin=True)
     admin = await _person(db, "Org Admin")
@@ -224,6 +235,8 @@ async def _world(db):
     foreign = await _person(db, "Fremde Studentin", pseudonym="Stilles Wasser")
     optout = await _person(db, "Otto Offen", use_pseudonym=False)
     teacher = await _person(db, "Lehrende Person", pseudonym="Weiser Fuchs")
+    gstudent = await _person(db, "Gruppen Studentin", pseudonym="Flinker Otter")
+    ostudent = await _person(db, "Andere Gruppe", pseudonym="Ruhiger See")
 
     uni = await _org(
         db,
@@ -235,6 +248,8 @@ async def _world(db):
         (foreign, OrganizationRole.ANNOTATOR),
         (optout, OrganizationRole.ANNOTATOR),
         (teacher, OrganizationRole.CONTRIBUTOR),
+        (gstudent, OrganizationRole.ANNOTATOR),
+        (ostudent, OrganizationRole.ANNOTATOR),
     )
     other = await _org(db, (foreign, OrganizationRole.ANNOTATOR))
 
@@ -244,7 +259,20 @@ async def _world(db):
         await _link(db, reg_uni, user)
     await _link(db, reg_other, foreign)
 
-    group = await _group(db, uni, "Kurs A", (gadmin, True), (student, False), (foreign, False))
+    group = await _group(
+        db,
+        uni,
+        "Kurs A",
+        (gadmin, True),
+        (student, False),
+        (foreign, False),
+        (ostudent, False),
+    )
+    group_b = await _group(db, uni, "Kurs C")
+    reg_group = await _registration(db, uni, group)
+    reg_group_b = await _registration(db, uni, group_b)
+    await _link(db, reg_group, gstudent)
+    await _link(db, reg_group_b, ostudent)
     await db.commit()
     return {
         "superadmin": superadmin,
@@ -256,11 +284,14 @@ async def _world(db):
         "foreign": foreign,
         "optout": optout,
         "teacher": teacher,
+        "gstudent": gstudent,
+        "ostudent": ostudent,
         "uni": uni,
         "other": other,
         "reg_uni": reg_uni,
         "reg_other": reg_other,
         "group": group,
+        "group_b": group_b,
     }
 
 
@@ -426,27 +457,122 @@ async def test_lms_teacher_sees_own_row_but_not_students(
     _assert_masked(rows[w["student"].id], w["student"])
 
 
+async def _roster(client, w, viewer, group_key="group"):
+    with _as_user(viewer):
+        response = await client.get(
+            f"/api/organizations/{w['uni'].id}/groups/{w[group_key].id}/members"
+        )
+    assert response.status_code == 200, response.text
+    return _rows_by_user(response.json())
+
+
 @pytest.mark.asyncio
-async def test_group_admin_sees_their_groups_lms_users_by_name(
+async def test_group_admin_sees_their_groups_connection_users_by_name(
     async_test_client, async_test_db, viewers
 ):
+    """D1/D8: a group admin sees the LMS users of the connections scoped to
+    their group, not whoever is a member of the group."""
     w = await _world(async_test_db)
 
-    # Org list: names only for this org's LMS accounts in the admin's group.
     rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
-    _assert_revealed(rows[w["student"].id], w["student"], lms=True)
+    _assert_revealed(rows[w["gstudent"].id], w["gstudent"], lms=True)
+    # Org-wide connection, another group's connection, another org: masked,
+    # although student, ostudent and foreign are members of the group.
+    _assert_masked(rows[w["student"].id], w["student"])
+    _assert_masked(rows[w["ostudent"].id], w["ostudent"])
     _assert_masked(rows[w["foreign"].id], w["foreign"])
     _assert_masked(rows[w["teacher"].id], w["teacher"])
 
-    with _as_user(w["gadmin"]):
-        response = await async_test_client.get(
-            f"/api/organizations/{w['uni'].id}/groups/{w['group'].id}/members"
-        )
-    assert response.status_code == 200, response.text
-    roster = _rows_by_user(response.json())
-    _assert_revealed(roster[w["student"].id], w["student"], lms=True)
+    roster = await _roster(async_test_client, w, w["gadmin"])
+    _assert_masked(roster[w["student"].id], w["student"])
+    _assert_masked(roster[w["ostudent"].id], w["ostudent"])
     _assert_masked(roster[w["foreign"].id], w["foreign"])
     _assert_revealed(roster[w["gadmin"].id], w["gadmin"], lms=False)
+
+    # The org admin sees every student of the org's own connections.
+    admin_roster = await _roster(async_test_client, w, w["admin"])
+    _assert_revealed(admin_roster[w["student"].id], w["student"], lms=True)
+    _assert_revealed(admin_roster[w["ostudent"].id], w["ostudent"], lms=True)
+    _assert_masked(admin_roster[w["foreign"].id], w["foreign"])
+
+
+@pytest.mark.asyncio
+async def test_adding_a_member_to_the_group_reveals_nothing(
+    async_test_client, async_test_db, viewers
+):
+    """A group admin may add any org member to their group. That must not
+    unmask a student of an org-wide or foreign-group connection."""
+    w = await _world(async_test_db)
+    newbie = await _person(async_test_db, "Neue Studentin", pseudonym="Leiser Wind")
+    await _join(async_test_db, w["uni"], newbie, OrganizationRole.ANNOTATOR)
+    await _link(async_test_db, w["reg_uni"], newbie)
+    await async_test_db.commit()
+
+    rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
+    _assert_masked(rows[newbie.id], newbie)
+
+    group_url = f"/api/organizations/{w['uni'].id}/groups/{w['group'].id}/members"
+    with _as_user(w["gadmin"]):
+        for user in (newbie, w["gstudent"]):
+            added = await async_test_client.post(group_url, json={"user_id": user.id})
+            assert added.status_code == 201, added.text
+
+    roster = await _roster(async_test_client, w, w["gadmin"])
+    _assert_masked(roster[newbie.id], newbie)
+    _assert_masked(roster[w["student"].id], w["student"])
+    _assert_revealed(roster[w["gstudent"].id], w["gstudent"], lms=True)
+    rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
+    _assert_masked(rows[newbie.id], newbie)
+    _assert_revealed(rows[w["gstudent"].id], w["gstudent"], lms=True)
+
+
+@pytest.mark.asyncio
+async def test_admin_of_a_group_without_connections_sees_no_lms_names(
+    async_test_client, async_test_db, viewers
+):
+    w = await _world(async_test_db)
+    lead = await _person(async_test_db, "Kurs B Leitung")
+    await _join(async_test_db, w["uni"], lead, OrganizationRole.CONTRIBUTOR)
+    from models import OrganizationGroupMembership
+
+    async_test_db.add(
+        OrganizationGroupMembership(
+            id=str(uuid.uuid4()),
+            group_id=w["group_b"].id,
+            user_id=lead.id,
+            is_group_admin=True,
+        )
+    )
+    await async_test_db.commit()
+
+    rows = await _org_members(async_test_client, w["uni"], lead)
+    # Kurs B has a connection: its student is shown by name, nobody else.
+    _assert_revealed(rows[w["ostudent"].id], w["ostudent"], lms=True)
+    for key in ("student", "gstudent", "foreign", "teacher"):
+        _assert_masked(rows[w[key].id], w[key])
+
+
+@pytest.mark.asyncio
+async def test_group_reveal_fails_closed_with_an_old_hook(
+    async_test_client, async_test_db, monkeypatch
+):
+    """An LMS-user hook that does not know ``group_ids`` reveals nobody to
+    group admins; org admins keep their view."""
+    import extensions
+
+    def old_signature(db, organization_id, user_ids):
+        return _protected(db, organization_id, user_ids)
+
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        _FakeExtended({"privacy_protected_member_ids": old_signature}),
+    )
+    w = await _world(async_test_db)
+    rows = await _org_members(async_test_client, w["uni"], w["gadmin"])
+    _assert_masked(rows[w["gstudent"].id], w["gstudent"])
+    rows = await _org_members(async_test_client, w["uni"], w["admin"])
+    _assert_revealed(rows[w["gstudent"].id], w["gstudent"], lms=True)
 
 
 @pytest.mark.asyncio
@@ -638,6 +764,77 @@ async def test_manage_users_superadmin_sees_everyone(
     w = await _world(async_test_db)
     rows = await _manage_users(async_test_client, w["superadmin"], "Fremde")
     _assert_revealed(rows[w["foreign"].id], w["foreign"], lms=True, name_key="name", email_key="email")
+
+
+@pytest.mark.asyncio
+async def test_hook_calls_are_chunked_with_the_same_answer(
+    async_test_client, async_test_db, viewers, monkeypatch
+):
+    """Id lists reach the hooks in chunks (bind-parameter limit); the lists
+    and the search answer exactly as with one call."""
+    from services import member_privacy
+
+    w = await _world(async_test_db)
+    before_members = await _org_members(async_test_client, w["uni"], w["admin"])
+    before_search = await _manage_users(async_test_client, w["contrib"], "Kluge")
+
+    import extensions
+
+    sizes = []
+
+    def counting(db, organization_id, user_ids, **kwargs):
+        sizes.append(len(user_ids))
+        return _protected(db, organization_id, user_ids, **kwargs)
+
+    monkeypatch.setattr(member_privacy, "_HOOK_CHUNK", 2)
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        _FakeExtended(
+            {
+                "privacy_protected_member_ids": counting,
+                "project_real_name_user_ids": viewers,
+            }
+        ),
+    )
+    assert await _org_members(async_test_client, w["uni"], w["admin"]) == before_members
+    assert sizes and max(sizes) <= 2
+    after_search = await _manage_users(async_test_client, w["contrib"], "Kluge")
+    assert after_search == before_search
+    assert after_search[w["student"].id]["is_pseudonymized"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_failing_chunk_still_masks(async_test_client, async_test_db, monkeypatch):
+    """One failing chunk of the "who is an LMS user" call masks that chunk's
+    accounts; one failing chunk of an admin reveal reveals nobody in it."""
+    from services import member_privacy
+
+    import extensions
+
+    w = await _world(async_test_db)
+    calls = {"none": 0}
+
+    def flaky(db, organization_id, user_ids, **kwargs):
+        if organization_id is None:
+            calls["none"] += 1
+            if calls["none"] == 1:
+                raise RuntimeError("chunk failed")
+        elif w["student"].id in user_ids:
+            raise RuntimeError("reveal chunk failed")
+        return _protected(db, organization_id, user_ids, **kwargs)
+
+    monkeypatch.setattr(member_privacy, "_HOOK_CHUNK", 1)
+    monkeypatch.setattr(
+        extensions, "_extended", _FakeExtended({"privacy_protected_member_ids": flaky})
+    )
+    rows = await _org_members(async_test_client, w["uni"], w["admin"])
+    # The student's own reveal chunk failed: masked for the org admin too.
+    _assert_masked(rows[w["student"].id], w["student"])
+    # Other accounts of the org's connections are still revealed.
+    _assert_revealed(rows[w["gstudent"].id], w["gstudent"], lms=True)
+    masked = [row for row in rows.values() if row["is_pseudonymized"]]
+    assert all(row["user_email"] is None for row in masked)
 
 
 # --------------------------------------------------------------------------- #
@@ -857,6 +1054,128 @@ async def test_lms_creator_name_follows_the_viewer(
 
 
 @pytest.mark.asyncio
+async def test_edit_and_visibility_responses_mask_the_creator(
+    async_test_client, async_test_db, viewers
+):
+    """``PATCH /projects/{id}`` and the visibility PATCH answer with the same
+    creator label as ``GET``: an editor who may not see the LMS teacher's
+    real name does not get it from a no-op edit."""
+    db = async_test_db
+    w = await _world(db)
+    teacher = w["teacher"]
+    project = await _project(db, teacher)
+    await _attach(db, project, w["uni"], teacher)
+    await db.commit()
+
+    with _as_user(w["contrib"]):
+        edited = await async_test_client.patch(f"/api/projects/{project.id}", json={})
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["created_by_name"] == teacher.pseudonym
+
+    viewers.allowed.add(w["contrib"].id)
+    with _as_user(w["contrib"]):
+        edited = await async_test_client.patch(f"/api/projects/{project.id}", json={})
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["created_by_name"] == teacher.name
+    viewers.allowed.discard(w["contrib"].id)
+
+    # Handing an own project to the LMS teacher: the response shows the new
+    # owner as the caller may see them.
+    own = await _project(db, w["contrib"], private=True)
+    await db.commit()
+    with _as_user(w["contrib"]):
+        moved = await async_test_client.patch(
+            f"/api/projects/{own.id}/visibility",
+            json={"is_private": True, "owner_user_id": teacher.id},
+        )
+    assert moved.status_code == 200, moved.text
+    assert moved.json()["created_by_name"] == teacher.pseudonym
+
+
+@pytest.mark.asyncio
+async def test_project_list_asks_the_name_hook_once_per_page(
+    async_test_client, async_test_db, viewers, monkeypatch
+):
+    """The project list masks LMS creators with one bulk hook call, however
+    many rows the page has; rows that need no check never reach it."""
+    import extensions
+
+    db = async_test_db
+    w = await _world(db)
+    teacher = w["teacher"]
+    projects = []
+    for _ in range(4):
+        project = await _project(db, teacher)
+        await _attach(db, project, w["uni"], teacher)
+        projects.append(project)
+    await db.commit()
+
+    bulk_calls = []
+    lms_calls = []
+
+    def bulk(sync_db, viewer, wanted):
+        bulk_calls.append({pid: list(ids) for pid, ids in wanted.items()})
+        return {
+            pid: set(ids) if str(viewer.id) in viewers.allowed else set()
+            for pid, ids in wanted.items()
+        }
+
+    def protected(sync_db, organization_id, user_ids, **kwargs):
+        lms_calls.append(organization_id)
+        return _protected(sync_db, organization_id, user_ids, **kwargs)
+
+    single_calls = []
+
+    def single(*args):
+        single_calls.append(args)
+        return set()
+
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        _FakeExtended(
+            {
+                "privacy_protected_member_ids": protected,
+                "project_real_name_user_ids": single,
+                "projects_real_name_user_ids": bulk,
+            }
+        ),
+    )
+
+    async def names(viewer):
+        bulk_calls.clear()
+        lms_calls.clear()
+        with _as_user(viewer):
+            listing = await async_test_client.get(
+                "/api/projects/",
+                params={"page_size": 500},
+                headers={"X-Organization-Context": w["uni"].id},
+            )
+        assert listing.status_code == 200, listing.text
+        return {item["id"]: item["created_by_name"] for item in listing.json()["items"]}
+
+    got = await names(w["contrib"])
+    for project in projects:
+        assert got[project.id] == teacher.pseudonym
+    assert single_calls == []
+    assert len(bulk_calls) == 1
+    assert {p.id for p in projects} <= set(bulk_calls[0])
+    assert lms_calls == [None]
+
+    viewers.allowed.add(w["contrib"].id)
+    got = await names(w["contrib"])
+    assert {got[p.id] for p in projects} == {teacher.name}
+    assert len(bulk_calls) == 1
+
+    # The creator and superadmins never reach the bulk hook.
+    for viewer in (teacher, w["superadmin"]):
+        got = await names(viewer)
+        assert {got[p.id] for p in projects} == {teacher.name}
+        assert bulk_calls == []
+        assert lms_calls == [None]
+
+
+@pytest.mark.asyncio
 async def test_project_annotators_never_fall_back_to_a_real_name(
     async_test_client, async_test_db, viewers
 ):
@@ -920,19 +1239,73 @@ async def test_me_carries_pseudonym_and_lms_flag(async_test_client, async_test_d
 
 @pytest.mark.asyncio
 async def test_me_lms_flag_follows_the_link_definition(async_test_client, async_test_db):
+    """The header flag means "an LMS launch created the account": a
+    provisioned link (also unlinked) or the LMS origin marker (the
+    connection was deleted). An existing account linked by proof keeps its
+    own header, live link or not, although lists mask it (D8)."""
+    from lms_name_masking import is_lms_account
+
     db = async_test_db
     w = await _world(db)
+    live_provisioned = await _person(db, "LMS Konto")
     unlinked_provisioned = await _person(db, "Ehemals LMS")
+    marker_only = await _person(db, "Verbindung geloescht")
+    marker_only.lms_provisioned_at = datetime.now(timezone.utc)
     unlinked_proof = await _person(db, "Eigenes Konto", pseudonym="Anders")
+    live_login_proof = await _person(db, "Login-Nachweis", pseudonym="Anders")
+    live_email_proof = await _person(db, "Mail-Nachweis", pseudonym="Anders")
+    await _link(db, w["reg_uni"], live_provisioned)
     await _link(db, w["reg_uni"], unlinked_provisioned, unlinked=True)
     await _link(db, w["reg_uni"], unlinked_proof, method="login_proof", unlinked=True)
+    await _link(db, w["reg_uni"], live_login_proof, method="login_proof")
+    await _link(db, w["reg_uni"], live_email_proof, method="email_proof")
     await db.commit()
 
-    for user, expected in ((unlinked_provisioned, True), (unlinked_proof, False)):
+    cases = (
+        (live_provisioned, True, True),
+        (unlinked_provisioned, True, True),
+        (marker_only, True, True),
+        (unlinked_proof, False, False),
+        (live_login_proof, False, True),
+        (live_email_proof, False, True),
+    )
+    for user, header, masked_in_lists in cases:
         with _as_user(user):
             response = await async_test_client.get("/api/auth/me")
         assert response.status_code == 200, response.text
-        assert response.json()["is_lms_account"] is expected
+        assert response.json()["is_lms_account"] is header, user.name
+        assert await is_lms_account(db, user.id) is masked_in_lists, user.name
+
+
+def test_link_table_reading_counts_the_lms_origin(test_db):
+    """The community fallback (exports, ``/manage/users`` prefilter) counts
+    an account whose connection is gone by its LMS origin marker."""
+    from sqlalchemy import select as sa_select
+
+    from lms_name_masking import (
+        is_lms_account_sync,
+        is_lms_provisioned_account_sync,
+        lms_link_exists,
+        lms_user_ids_from_links,
+    )
+
+    marked = _new_person("Geloeschte Anbindung")
+    marked.lms_provisioned_at = datetime.now(timezone.utc)
+    plain = _new_person("Ohne LMS")
+    test_db.add_all([marked, plain])
+    test_db.flush()
+    ids = [marked.id, plain.id]
+
+    assert lms_user_ids_from_links(test_db, ids) == {marked.id}
+    assert is_lms_account_sync(test_db, marked.id) is True
+    assert is_lms_account_sync(test_db, plain.id) is False
+    assert is_lms_provisioned_account_sync(test_db, marked.id) is True
+    assert is_lms_provisioned_account_sync(test_db, plain.id) is False
+    # Used on the outer ``users`` table: no accidental correlation.
+    found = test_db.execute(
+        sa_select(User.id).where(User.id.in_(ids), lms_link_exists(User.id))
+    ).scalars().all()
+    assert set(found) == {marked.id}
 
 
 def test_login_user_carries_display_name_fields(client, test_db, test_users):
@@ -956,6 +1329,15 @@ def test_login_user_carries_display_name_fields(client, test_db, test_users):
     test_db.flush()
     row = test_db.query(DBUser).filter(DBUser.id == "annotator-test-id").one()
     row.pseudonym = f"Heller Stern {_hex()}"
+    # Linked by proof: the account keeps its own header.
+    proof = _new_link(registration, row, method="login_proof")
+    test_db.add(proof)
+    test_db.commit()
+    response = client.post("/api/auth/login", json=creds)
+    assert response.status_code == 200, response.text
+    assert response.json()["user"]["is_lms_account"] is False
+
+    test_db.delete(proof)
     test_db.add(_new_link(registration, row))
     test_db.commit()
 
@@ -1166,3 +1548,160 @@ def test_name_visibility_loads_the_extended_worker_hook(monkeypatch):
     # A package without the worker hook falls back to the link table.
     del workers.get_name_visibility_fns
     assert NameVisibility.load()._lms_user_ids is None
+
+
+# --------------------------------------------------------------------------- #
+# Masked exports imported again
+# --------------------------------------------------------------------------- #
+def _second_student_world(w):
+    """export_world plus a second LMS student on the same task and a
+    task-level assignment for each student; the teacher (the exporter and
+    importer) is an org member so the import has an org to own the copy."""
+    db = w["db"]
+    project = w["project"]
+    task_id = db.query(Task.id).filter(Task.project_id == project.id).scalar()
+    second = _new_person("Max Muster", pseudonym="Stiller Bach")
+    db.add(second)
+    db.flush()
+    link_row = db.query(LtiUserLink).filter(LtiUserLink.user_id == w["student"].id).one()
+    registration = db.get(LtiPlatformRegistration, link_row.registration_id)
+    db.add(_new_link(registration, second))
+    db.add(
+        Annotation(
+            id=str(uuid.uuid4()),
+            task_id=task_id,
+            project_id=project.id,
+            completed_by=second.id,
+            result=[{"value": "Zweite Antwort"}],
+        )
+    )
+    for user in (w["student"], second):
+        db.add(
+            TaskAssignment(
+                id=str(uuid.uuid4()),
+                task_id=task_id,
+                user_id=user.id,
+                assigned_by=w["teacher"].id,
+                status="assigned",
+            )
+        )
+    db.add(
+        OrganizationMembership(
+            id=str(uuid.uuid4()),
+            user_id=w["teacher"].id,
+            organization_id=registration.organization_id,
+            role=OrganizationRole.CONTRIBUTOR,
+            is_active=True,
+        )
+    )
+    db.commit()
+    return second
+
+
+def _export_body(fmt, db, project_id, viewer):
+    from export_stream import stream_comprehensive_project_data_json, stream_export_ndjson
+
+    stream = {
+        "ndjson": stream_export_ndjson,
+        "comprehensive": stream_comprehensive_project_data_json,
+    }[fmt]
+    return "".join(stream(db, project_id, viewer=viewer))
+
+
+def _import(db, body, importer):
+    import io
+
+    from import_stream import run_full_project_import
+
+    spool = io.BytesIO(body.encode("utf-8"))
+    return run_full_project_import(db, spool, importer.id)
+
+
+def _imported_project(db, source_id, importer):
+    return (
+        db.query(Project)
+        .filter(Project.created_by == importer.id, Project.id != source_id)
+        .order_by(Project.created_at.desc())
+        .first()
+    )
+
+
+@pytest.mark.parametrize("fmt", ["ndjson", "comprehensive"])
+def test_masked_export_reimport_keeps_each_students_work(export_world, fmt):
+    """A copy on the same deployment keeps who wrote what, although the
+    exporter saw the students only by pseudonym (no email in the file)."""
+    w = export_world
+    db, source = w["db"], w["project"]
+    second = _second_student_world(w)
+    body = _export_body(fmt, db, source.id, w["teacher"])
+    assert w["student"].email not in body
+    assert second.email not in body
+    assert w["student"].username not in body
+
+    _import(db, body, w["teacher"])
+
+    copy = _imported_project(db, source.id, w["teacher"])
+    assert copy is not None
+    authors = {
+        a.completed_by for a in db.query(Annotation).filter(Annotation.project_id == copy.id)
+    }
+    assert authors == {w["student"].id, second.id}
+    assignees = {
+        a.user_id
+        for a in db.query(TaskAssignment)
+        .join(Task, Task.id == TaskAssignment.task_id)
+        .filter(Task.project_id == copy.id)
+    }
+    assert assignees == {w["student"].id, second.id}
+
+
+@pytest.mark.parametrize("fmt", ["ndjson", "comprehensive"])
+def test_masked_export_from_elsewhere_falls_back_without_failing(export_world, fmt):
+    """Accounts the importing deployment does not know map to the importer.
+    Two of them on one task collapse onto one user: the import keeps the
+    first answer and one assignment instead of failing on the unique
+    indexes."""
+    w = export_world
+    db, source = w["db"], w["project"]
+    second = _second_student_world(w)
+    body = _export_body(fmt, db, source.id, w["teacher"])
+    for user in (w["student"], second):
+        body = body.replace(user.id, f"elsewhere-{user.id[:8]}")
+
+    _import(db, body, w["teacher"])
+
+    copy = _imported_project(db, source.id, w["teacher"])
+    assert copy is not None
+    annotations = db.query(Annotation).filter(Annotation.project_id == copy.id).all()
+    assert [a.completed_by for a in annotations] == [w["teacher"].id]
+    assignments = (
+        db.query(TaskAssignment)
+        .join(Task, Task.id == TaskAssignment.task_id)
+        .filter(Task.project_id == copy.id)
+        .all()
+    )
+    assert [a.user_id for a in assignments] == [w["teacher"].id]
+
+
+def test_masked_record_is_flagged_and_crafted_flags_need_a_known_id(export_world):
+    """Only a record marked ``masked`` is matched by id, and only to an
+    existing account."""
+    from import_stream import _FullImportContext, _insert_user
+
+    w = export_world
+    db = w["db"]
+    ctx = _FullImportContext(db, w["teacher"].id)
+    _insert_user(ctx, {"id": w["student"].id, "email": None, "masked": True})
+    _insert_user(ctx, {"id": w["superadmin"].id, "email": None})
+    _insert_user(ctx, {"id": "nobody-here", "email": None, "masked": True})
+
+    users = ctx.id_mappings["users"]
+    assert users[w["student"].id] == w["student"].id
+    assert ctx.matched_user_ids == {w["student"].id: w["student"].id}
+    # Unflagged or unknown: the importer.
+    assert users[w["superadmin"].id] == w["teacher"].id
+    assert users["nobody-here"] == w["teacher"].id
+
+    records = _ndjson_users(db, w["project"].id, w["teacher"])
+    assert records[w["student"].id]["masked"] is True
+    assert "masked" not in records[w["teacher"].id]

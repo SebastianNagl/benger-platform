@@ -1,4 +1,4 @@
-"""task_evaluations.updated_at, users.anonymized_at, LMS email state, attachment origin
+"""task_evaluations.updated_at, users.anonymized_at, LMS email state and origin, attachment origin
 
 - ``task_evaluations.updated_at``: nullable, no backfill. The model stamps it
   on every ORM update, so in-place grade changes (human revisions,
@@ -8,16 +8,30 @@
   and the reactivation guard tell such accounts apart.
 - ``ix_users_email_lower``: case-insensitive email lookups (account-link
   proof, collision checks on LMS launches).
+- ``users.lms_provisioned_at`` / ``users.lms_origin_org_id``: the account
+  came from an LMS launch, and from which org's connection. The identity
+  link is not enough: deleting a connection cascades its links away, and the
+  kept accounts would lose their pseudonym masking (D8). Backfilled from the
+  earliest ``provisioned`` link of each account. ``lms_origin_org_id`` is
+  ``ON DELETE SET NULL`` (orgs are soft-deleted anyway).
 - LMS email state backfill, restricted to accounts an LMS launch created
   (``lti_user_links.link_method = 'provisioned'``, migration 105) that still
-  carry the old ``email_verification_method = 'system'``:
+  carry the old ``email_verification_method = 'system'``. Only the method
+  changes:
   - with a password (the account was activated): method ``activation``;
-  - without one: ``email_verified = false``, method ``lti_claim``,
-    ``email_verified_at`` cleared. The address came from the LMS and was
-    never proven; activation and password reset verify it.
-  This ships together with the activation and reset changes that set
-  ``email_verified`` (``account_activation.verify_email_by_link``), or
-  activated accounts could not log in.
+  - without one: method ``lti_claim``. The address came from the LMS and was
+    never proven. ``email_ownership_proven`` treats the method as unproven,
+    and activation and password reset re-stamp it
+    (``account_activation.verify_email_by_link``).
+  ``email_verified`` and ``email_verified_at`` stay as they are. The older
+  code activates an account without verifying its address, and login
+  refuses unverified accounts. Clearing the flag would lock out every
+  account activated by an old pod during the rolling update or after a
+  ``helm rollback`` (which leaves this migration applied). A passwordless
+  account cannot log in anyway, so the flag protects nothing here.
+  Accounts the new code creates start unverified; after a rollback run the
+  downgrade UPDATE below (not the schema downgrade) so old pods can
+  activate them.
   The downgrade turns ``lti_claim`` accounts back into verified ``system``
   accounts, which is what the older code expects.
 - ``project_organizations.attached_via`` (``manual`` | ``lti``; part of the
@@ -65,6 +79,8 @@ branch_labels = None
 depends_on = None
 
 _EMAIL_INDEX = "ix_users_email_lower"
+_ORIGIN_ORG_INDEX = "ix_users_lms_origin_org_id"
+_ORIGIN_ORG_FK = "fk_users_lms_origin_org_id"
 _ATTACHMENTS = "project_organizations"
 _ATTACHED_VIA_CHECK = "ck_project_organizations_attached_via"
 
@@ -106,6 +122,27 @@ def _upgrade_users() -> None:
         )
     if not _index_exists("users", _EMAIL_INDEX):
         op.create_index(_EMAIL_INDEX, "users", [sa.text("lower(email)")])
+    if not _column_exists("users", "lms_provisioned_at"):
+        op.add_column(
+            "users",
+            sa.Column("lms_provisioned_at", sa.DateTime(timezone=True), nullable=True),
+        )
+    if not _column_exists("users", "lms_origin_org_id"):
+        op.add_column(
+            "users",
+            sa.Column(
+                "lms_origin_org_id",
+                sa.String(),
+                sa.ForeignKey(
+                    "organizations.id",
+                    name=_ORIGIN_ORG_FK,
+                    ondelete="SET NULL",
+                ),
+                nullable=True,
+            ),
+        )
+    if not _index_exists("users", _ORIGIN_ORG_INDEX):
+        op.create_index(_ORIGIN_ORG_INDEX, "users", ["lms_origin_org_id"])
     # Idempotent by construction: only 'system' rows are touched, and every
     # touched row leaves that state.
     if _column_exists("lti_user_links", "link_method"):
@@ -115,21 +152,31 @@ def _upgrade_users() -> None:
             SET email_verification_method = CASE
                     WHEN COALESCE(u.hashed_password, '') <> '' THEN 'activation'
                     ELSE 'lti_claim'
-                END,
-                email_verified = CASE
-                    WHEN COALESCE(u.hashed_password, '') <> '' THEN u.email_verified
-                    ELSE false
-                END,
-                email_verified_at = CASE
-                    WHEN COALESCE(u.hashed_password, '') <> ''
-                    THEN u.email_verified_at
-                    ELSE NULL
                 END
             WHERE u.email_verification_method = 'system'
               AND EXISTS (
                 SELECT 1 FROM lti_user_links AS l
                 WHERE l.user_id = u.id AND l.link_method = 'provisioned'
               )
+            """
+        )
+        # Idempotent: only unmarked accounts are touched.
+        op.execute(
+            """
+            UPDATE users AS u
+            SET lms_provisioned_at = origin.created_at,
+                lms_origin_org_id = origin.organization_id
+            FROM (
+                SELECT DISTINCT ON (l.user_id)
+                    l.user_id, l.created_at, r.organization_id
+                FROM lti_user_links AS l
+                JOIN lti_platform_registrations AS r
+                  ON r.id = l.registration_id
+                WHERE l.link_method = 'provisioned'
+                ORDER BY l.user_id, l.created_at, l.id
+            ) AS origin
+            WHERE u.id = origin.user_id
+              AND u.lms_provisioned_at IS NULL
             """
         )
 
@@ -206,6 +253,12 @@ def downgrade() -> None:
     )
     if _index_exists("users", _EMAIL_INDEX):
         op.drop_index(_EMAIL_INDEX, table_name="users")
+    if _index_exists("users", _ORIGIN_ORG_INDEX):
+        op.drop_index(_ORIGIN_ORG_INDEX, table_name="users")
+    # Dropping the column drops its foreign key too.
+    for column in ("lms_origin_org_id", "lms_provisioned_at"):
+        if _column_exists("users", column):
+            op.drop_column("users", column)
     if _column_exists("users", "anonymized_at"):
         op.drop_column("users", "anonymized_at")
     if _column_exists("task_evaluations", "updated_at"):
