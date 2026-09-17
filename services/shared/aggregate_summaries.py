@@ -8,8 +8,9 @@ This module owns the SQL behind two summary tables introduced in migration
 
 The recompute_* functions are called by the Celery task
 `recompute_aggregates` (hourly beat — tightened from 12h on 2026-05-20).
-They scan task_evaluations once per refresh cycle in the worker (12 GiB
-pod) and UPSERT into the summary tables. The read_* helpers turn API
+They run on the aux worker (small memory limit, shared with the email
+queue), aggregate task_evaluations inside Postgres and UPSERT into the
+summary tables. The read_* helpers turn API
 requests into single indexed lookups so the API pod never has to
 materialise the heavy data into Python.
 
@@ -31,7 +32,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -136,6 +136,118 @@ def _confidence_interval(values: List[float]) -> Tuple[Optional[float], Optional
         return mean, mean
     half = float(sem * stats.t.ppf(0.975, len(arr) - 1))
     return mean - half, mean + half
+
+
+def _confidence_interval_from_stats(
+    mean: float, sd: Optional[float], n: int
+) -> Tuple[Optional[float], Optional[float]]:
+    """95% t-CI of the mean from summary statistics.
+
+    Same result and edge cases as `_confidence_interval`, but takes the
+    sample mean, the sample standard deviation (ddof=1) and the sample size
+    instead of the raw values. The leaderboard aggregation computes those
+    three in Postgres so the worker never holds the raw values in memory.
+
+    n < 2 or scipy missing gives (None, None). A zero or non-finite
+    standard error gives (mean, mean). Callers pass `sd=0.0` when every
+    value in the bucket is identical, so float noise in the database's
+    variance formula cannot turn a constant bucket into a tiny interval.
+    """
+    if n < 2:
+        return None, None
+    try:
+        import numpy as np
+        from scipy import stats
+    except ImportError:
+        return None, None
+    sem = float("nan") if sd is None else sd / np.sqrt(n)
+    if sem == 0 or not np.isfinite(sem):
+        return mean, mean
+    half = float(sem * stats.t.ppf(0.975, n - 1))
+    return mean - half, mean + half
+
+
+# --------------------------------------------------------------------------- #
+# SQL twin of `_coerce_metric_value`                                           #
+# --------------------------------------------------------------------------- #
+#
+# The leaderboard aggregation runs in Postgres (see
+# `_aggregate_leaderboard_rows`), so the metric coercion has to exist as a SQL
+# expression too. It mirrors `_coerce_metric_value`:
+#
+#   * jsonb number  -> the value
+#   * jsonb boolean -> NULL
+#   * jsonb string  -> the parsed float when Python's float() would accept a
+#                      finite decimal ("1.5", " 1e3 ", "1_000", ".5", "5.")
+#   * jsonb object  -> first non-NULL coercion of 'value', 'total_score',
+#                      'score' (recursive)
+#   * null / array  -> NULL
+#
+# Deliberate differences, all on data that never occurs in practice:
+#
+#   * Recursion into objects stops after `_SQL_COERCE_MAX_DEPTH` (2) levels,
+#     so {"value": {"value": 0.4}} still works. Python recursion is unbounded. Prod data (checked 2026-09-17, 456k
+#     metric values) nests at most one level ({"value": 0.8, ...}).
+#   * "nan" / "inf" / "infinity" strings, and numbers with |x| >= 1e100, are
+#     picked like Python picks them (so a later dict key is NOT tried) but
+#     then dropped from the bucket. In Python a NaN or inf poisoned the whole
+#     bucket mean (and NaN is not valid JSON for the API response). The 1e100
+#     cap also keeps Postgres' float8 sum / variance accumulators from
+#     raising an overflow ERROR, which would abort the whole recompute.
+#   * Numbers with |x| < 1e-320 become 0.0 (float8 input rejects underflow).
+#   * Only ASCII digits and whitespace count. Python also accepts other
+#     Unicode digits and spaces.
+_SQL_COERCE_MAX_DEPTH = 2
+_SQL_COERCE_DICT_KEYS: Tuple[str, ...] = ("value", "total_score", "score")
+# Finite decimals as Python float() reads them, underscores between digits.
+_SQL_FLOAT_RE = (
+    r"^\s*[+-]?([0-9](_?[0-9])*(\.([0-9](_?[0-9])*)?)?|\.[0-9](_?[0-9])*)"
+    r"([eE][+-]?[0-9](_?[0-9])*)?\s*$"
+)
+# Non-finite spellings Python float() accepts (matched case-insensitively).
+_SQL_NONFINITE_RE = r"^\s*[+-]?(nan|inf|infinity)\s*$"
+
+
+def _sql_numeric_to_float8(num_sql: str) -> str:
+    """float8 from a numeric expression; out-of-range maps to 'Infinity'
+    (dropped later), underflow maps to 0."""
+    return (
+        f"CASE WHEN abs({num_sql}) >= 1e100 THEN 'Infinity'::float8"
+        f" WHEN abs({num_sql}) < 1e-320 THEN 0::float8"
+        f" ELSE ({num_sql})::float8 END"
+    )
+
+
+def _sql_coerce_metric_value(jsonb_sql: str, depth: int = _SQL_COERCE_MAX_DEPTH) -> str:
+    """SQL expression coercing a jsonb value to float8 (see block comment).
+
+    Returns NULL for "no value". Returns 'NaN' / 'Infinity' for values that
+    Python would pick but that must not reach the aggregates. The caller
+    filters those with `abs(v) < 'Infinity'`.
+    """
+    text_sql = f"({jsonb_sql} #>> '{{}}')"
+    cleaned_sql = f"regexp_replace({text_sql}, '[\\s_]', '', 'g')::numeric"
+    object_branch = ""
+    if depth > 0:
+        children = ", ".join(
+            _sql_coerce_metric_value(f"({jsonb_sql} -> '{key}')", depth - 1)
+            for key in _SQL_COERCE_DICT_KEYS
+        )
+        object_branch = f" WHEN 'object' THEN COALESCE({children})"
+    return (
+        f"CASE jsonb_typeof({jsonb_sql})"
+        f" WHEN 'number' THEN {_sql_numeric_to_float8(f'({jsonb_sql})::numeric')}"
+        f" WHEN 'string' THEN CASE"
+        f" WHEN {text_sql} ~ '{_SQL_FLOAT_RE}' THEN {_sql_numeric_to_float8(cleaned_sql)}"
+        f" WHEN {text_sql} ~* '{_SQL_NONFINITE_RE}' THEN 'NaN'::float8"
+        f" END"
+        f"{object_branch}"
+        f" END"
+    )
+
+
+# Built once; the leaderboard query embeds it (see _aggregate_leaderboard_rows).
+_LEADERBOARD_VALUE_SQL = _sql_coerce_metric_value("src.metric_val")
 
 
 # --------------------------------------------------------------------------- #
@@ -389,10 +501,17 @@ def _aggregate_leaderboard_rows(
 ) -> List[Dict[str, Any]]:
     """Build the per-(model, metric) rows for one (scope, period).
 
-    Streams (model_id, metric_key, metric_val_json) triples from
-    task_evaluations and buckets them in Python, then computes the
-    requested aggregate per bucket. 60k input rows → ~3 MB Python memory;
-    runs once per cycle in the worker.
+    Postgres coerces every metric value (`_sql_coerce_metric_value`) and
+    returns ONE row per (model_id, metric_key) with count, sum, sample
+    standard deviation, min and max. Python only applies the noise filter
+    and turns those numbers into the score and the t-CI. Memory stays
+    O(models x metrics) no matter how many task_evaluations exist.
+
+    Until 2026-09-17 this streamed every raw (model, metric, jsonb) triple
+    into Python and kept every float in lists. At 390k task_evaluations and
+    ~900 MB of metrics JSON that OOM-killed the 1 GiB aux worker.
+
+    Used by the hourly recompute and by both live leaderboard paths.
 
     Args:
       aggregation: `'average'` (mean + 95% CI) or `'sum'` (total, no CI).
@@ -423,53 +542,82 @@ def _aggregate_leaderboard_rows(
     # (0–1 normalised score). The frontend leaderboard defaults to the
     # grade_points metric — without this lift the column is always n/a even
     # though the per-row value exists.
-    raw_sql = text(
-        """
+    #
+    # The outer query coerces each value once (`OFFSET 0` keeps the planner
+    # from inlining the large coercion CASE into every aggregate argument)
+    # and aggregates per bucket. `abs(v) < 'Infinity'` drops NULL (no value)
+    # as well as the NaN / Infinity markers the coercion uses for values
+    # that must not reach the sums.
+    agg_sql = text(
+        f"""
         SELECT
-            g.model_id,
-            kv.key   AS metric_key,
-            kv.value AS metric_val
-        FROM task_evaluations te
-        JOIN generations g ON g.id = te.generation_id
-        JOIN evaluation_runs er ON er.id = te.evaluation_id
-        CROSS JOIN LATERAL jsonb_each(te.metrics::jsonb) AS kv
-        WHERE te.evaluation_id = ANY(:run_ids)
-          AND te.generation_id IS NOT NULL
-          AND te.metrics IS NOT NULL
-          AND jsonb_typeof(te.metrics::jsonb) = 'object'
-          AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
+            model_id,
+            metric_key,
+            COUNT(*)       AS n,
+            SUM(v)         AS total,
+            STDDEV_SAMP(v) AS sd,
+            MIN(v)         AS min_v,
+            MAX(v)         AS max_v
+        FROM (
+            SELECT
+                src.model_id,
+                src.metric_key,
+                {_LEADERBOARD_VALUE_SQL} AS v
+            FROM (
+            SELECT
+                g.model_id,
+                kv.key   AS metric_key,
+                kv.value AS metric_val
+            FROM task_evaluations te
+            JOIN generations g ON g.id = te.generation_id
+            JOIN evaluation_runs er ON er.id = te.evaluation_id
+            CROSS JOIN LATERAL jsonb_each(te.metrics::jsonb) AS kv
+            WHERE te.evaluation_id = ANY(:run_ids)
+              AND te.generation_id IS NOT NULL
+              AND te.metrics IS NOT NULL
+              AND jsonb_typeof(te.metrics::jsonb) = 'object'
+              AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
 
-        UNION ALL
+            UNION ALL
 
-        SELECT
-            g.model_id,
-            'llm_judge_falloesung_grade_points' AS metric_key,
-            te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points' AS metric_val
-        FROM task_evaluations te
-        JOIN generations g ON g.id = te.generation_id
-        JOIN evaluation_runs er ON er.id = te.evaluation_id
-        WHERE te.evaluation_id = ANY(:run_ids)
-          AND te.generation_id IS NOT NULL
-          AND te.metrics IS NOT NULL
-          AND jsonb_typeof(te.metrics::jsonb) = 'object'
-          AND te.metrics::jsonb ? 'llm_judge_falloesung'
-          AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
-          AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
-          AND (CAST(:eval_types AS text[]) IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
+            SELECT
+                g.model_id,
+                'llm_judge_falloesung_grade_points' AS metric_key,
+                te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points' AS metric_val
+            FROM task_evaluations te
+            JOIN generations g ON g.id = te.generation_id
+            JOIN evaluation_runs er ON er.id = te.evaluation_id
+            WHERE te.evaluation_id = ANY(:run_ids)
+              AND te.generation_id IS NOT NULL
+              AND te.metrics IS NOT NULL
+              AND jsonb_typeof(te.metrics::jsonb) = 'object'
+              AND te.metrics::jsonb ? 'llm_judge_falloesung'
+              AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
+              AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
+              AND (CAST(:eval_types AS text[]) IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
+            ) AS src
+            OFFSET 0
+        ) AS coerced
+        WHERE abs(v) < 'Infinity'::float8
+        GROUP BY model_id, metric_key
+        ORDER BY model_id, metric_key
         """
     ).bindparams(run_ids=run_ids, eval_types=eval_types_bind)
 
-    # (model_id, metric_key) -> list[float]
-    buckets: Dict[Tuple[str, str], List[float]] = defaultdict(list)
-    for model_id, metric_key, metric_val in db.execute(
-        raw_sql.execution_options(stream_results=True)
-    ).yield_per(5000):
+    # (model_id, metric_key) -> (count, sum, sample sd)
+    buckets: Dict[Tuple[str, str], Tuple[int, float, Optional[float]]] = {}
+    for model_id, metric_key, n, total, sd, min_v, max_v in db.execute(agg_sql).all():
         if not model_id or not _metric_key_is_real(metric_key):
             continue
-        coerced = _coerce_metric_value(metric_val)
-        if coerced is None:
-            continue
-        buckets[(model_id, metric_key)].append(coerced)
+        # A constant bucket has zero spread by definition. Postgres'
+        # variance formula can leave float noise there, so pin it.
+        if min_v == max_v:
+            sd = 0.0
+        buckets[(model_id, metric_key)] = (
+            int(n),
+            float(total),
+            None if sd is None else float(sd),
+        )
 
     # Per-model rollups for evaluation_count / generation_count / last_at.
     rollup_sql = text(
@@ -504,17 +652,18 @@ def _aggregate_leaderboard_rows(
     # metrics into one arithmetic mean, displayed as percentages — see
     # PR #116 for the rationale) and has been removed. The frontend metric
     # picker no longer offers 'average' as a sort option.
-    for (model_id, metric_key), values in buckets.items():
+    for (model_id, metric_key), (n, total, sd) in buckets.items():
         meta = per_model_meta.get(model_id, {})
         if aggregation == "sum":
             # Sum mode: total of per-row values across the bucket. CI doesn't
             # apply to a count/total, so set both bounds to None and let the
             # frontend hide the CI for this row.
-            score = round(sum(values), 4) if values else None
+            score = round(total, 4)
             ci_lower, ci_upper = None, None
         else:
-            score = round(sum(values) / len(values), 4) if values else None
-            ci_lower, ci_upper = _confidence_interval(values)
+            mean = total / n
+            score = round(mean, 4)
+            ci_lower, ci_upper = _confidence_interval_from_stats(mean, sd, n)
         rows.append(
             {
                 "model_id": model_id,
@@ -998,9 +1147,9 @@ def live_aggregate_leaderboard(
 
     Returns the same per-(model, metric) row shape the worker writes. The
     API uses this when project_ids/evaluation_types don't match any
-    precomputed scope. It still streams task_evaluations via yield_per — no
-    `.all()` materialisation — so it's safe in the API hot path for the
-    rare uncached query.
+    precomputed scope. The aggregation runs in Postgres and only the
+    per-(model, metric) summary rows come back, so API memory stays small
+    for the rare uncached query.
 
     `project_ids=None` means "all projects" (no visibility filter applied
     here; callers must apply visibility themselves before calling).
@@ -1070,16 +1219,13 @@ async def live_aggregate_leaderboard_async(
 ) -> List[Dict[str, Any]]:
     """Async twin of `live_aggregate_leaderboard`.
 
-    The cheap `run_ids` lookup runs as a clean async select. The heavy part —
-    `_aggregate_leaderboard_rows` — streams task_evaluations via `yield_per`
-    over a raw `text()` cursor, which is tightly coupled to the SYNC streaming
-    cursor API (asyncpg has no drop-in `yield_per` equivalent here, and
-    rewriting the streaming loop to async risks correctness/memory regressions
-    on the 60k-row scan). Per the migration playbook's sanctioned escape hatch
-    for genuinely sync-coupled heavy paths, we delegate that part to the
-    existing sync function inside `run_in_threadpool` with a short-lived
-    `SessionLocal()`. This keeps the API event loop unblocked while the heavy
-    scan runs on a worker thread.
+    The cheap `run_ids` lookup runs as a clean async select. The heavy part,
+    `_aggregate_leaderboard_rows`, is a sync function (it is shared with the
+    worker recompute). Per the migration playbook's sanctioned escape hatch
+    for sync-coupled heavy paths, it runs inside `run_in_threadpool` with a
+    short-lived `SessionLocal()`. The aggregation itself happens in Postgres,
+    but the scan can still take seconds, so the API event loop must not
+    block on it.
 
     NOTE: the threadpool opens its OWN sync connection, so it reads
     last-committed data — it does NOT participate in the caller's async

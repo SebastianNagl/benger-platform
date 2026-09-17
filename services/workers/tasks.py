@@ -4999,10 +4999,12 @@ def recompute_aggregates(self):
     ad-hoc. Coalesces concurrent runs with a Redis lock so a burst of triggers
     collapses to a single execution.
 
-    The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
-    this is the Celery entry point. Total wall time on prod-scale data
-    (333 evaluation_runs / 60k task_evaluations) should be well under a
-    minute in the worker pod.
+    The heavy SQL lives in `services/shared/aggregate_summaries.py`; this is
+    the Celery entry point. The leaderboard part aggregates in Postgres and
+    only pulls per-(model, metric) summary rows, so worker memory does not
+    grow with the task_evaluations table. Before 2026-09-17 it pulled every
+    metric value into Python: at 390k task_evaluations a run took ~460 s and
+    got the 1 GiB aux worker OOM-killed.
     """
     # aggregate_summaries lives in /shared (moved 2026-05-20 — see module
     # docstring). Worker has /shared on sys.path via the early bootstrap
