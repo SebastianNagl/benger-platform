@@ -10,6 +10,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+import tasks  # noqa: E402
 from tasks import send_bulk_invitations_task, send_invitation_email_task  # noqa: E402
 
 
@@ -123,7 +124,7 @@ class TestInvitationEmailTask:
         because autoretry_for=(Exception,) swept up the RuntimeError
         raised for every non-success status. Now 4xx (except 429) is
         treated as permanent — return failed_permanent and let the task
-        complete so the rate-limited (30/m) emails queue keeps moving."""
+        complete so the rate-limited emails queue keeps moving."""
         mock_client = MagicMock()
         mock_client.send_message.return_value = {
             "status": "error",
@@ -261,7 +262,7 @@ class TestBulkInvitationEmailTask:
         assert mock_apply.call_count == 3
 
         for i, call_args in enumerate(mock_apply.call_args_list):
-            expected_delay = i * 2
+            expected_delay = i * tasks.INVITATION_FANOUT_SPACING_SECONDS
             assert call_args[1]['countdown'] == expected_delay
 
     def test_send_bulk_invitations_partial_failure(self):
@@ -286,7 +287,11 @@ class TestBulkInvitationEmailTask:
         ]
 
         def apply_async_side_effect(*args, **kwargs):
-            if kwargs.get('countdown', 0) == 2:
+            # Fail the second address. Keyed on the recipient, not on the
+            # fan-out spacing, which is a tuning value.
+            if args and "fail@example.com" in args[0]:
+                raise Exception("Queue full")
+            if kwargs.get("args") and "fail@example.com" in kwargs["args"]:
                 raise Exception("Queue full")
             return MagicMock()
 
@@ -344,7 +349,7 @@ class TestEmailTaskIntegration:
             assert celery_queues.queue_for(name) == 'emails'
 
         assert 'emails.send_invitation' in app.conf.task_annotations
-        assert app.conf.task_annotations['emails.send_invitation']['rate_limit'] == '30/m'
+        assert app.conf.task_annotations['emails.send_invitation']['rate_limit'] == '120/m'
 
         assert 'emails.send_bulk_invitations' in app.conf.task_annotations
         assert app.conf.task_annotations['emails.send_bulk_invitations']['rate_limit'] == '5/m'

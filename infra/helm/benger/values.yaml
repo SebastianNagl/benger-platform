@@ -418,7 +418,8 @@ workerPools:
   # its prefetch slot while waiting for a token. A 200-address bulk invite at
   # 30/m would otherwise pin the interactive pool for ~7 minutes.
   #
-  # ONE replica on purpose: the rate-limit token bucket is per worker process, so
+  # ONE replica on purpose: the rate-limit token bucket lives on the worker
+  # instance and is shared by its forks, so replicas multiply the rate, so
   # the old 2-replica shared pool made the effective invitation rate 60/m —
   # double the configured 30/m. If 30/m is too slow for a course launch, raise
   # the rate_limit in celery_queues.task_annotations() deliberately rather than

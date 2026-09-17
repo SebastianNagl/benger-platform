@@ -1288,12 +1288,26 @@ def generate_llm_responses(
 
 # Email tasks for invitation system
 
+# Seconds between the queued mails of one bulk invite, see
+# send_bulk_invitations_task.
+INVITATION_FANOUT_SPACING_SECONDS = 0.5
+
+# Mail tasks ack LATE (the message stays on the queue until the task returns)
+# and are requeued when their worker dies. The default early ack drops an
+# in-flight mail silently: the 2026-09-17 OOM kill of the mail pod could have
+# swallowed an invitation with no retry and no error anywhere. Redelivery can
+# send one mail twice, which is harmless here (the invitation link is the same
+# token) and far better than an invitation that never arrives. The heavy
+# evaluation tasks already run this way.
+_MAIL_DELIVERY_GUARANTEES = {"acks_late": True, "reject_on_worker_lost": True}
+
 
 @app.task(
     name="emails.send_invitation",
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_invitation_email_task(
     self,
@@ -1398,6 +1412,7 @@ def send_invitation_email_task(
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_account_activation_task(
     self,
@@ -1533,6 +1548,7 @@ def send_account_activation_task(
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_account_link_confirmation_task(
     self,
@@ -1652,7 +1668,7 @@ def send_account_link_confirmation_task(
     raise RuntimeError(f"SendGrid error: {error_msg}")
 
 
-@app.task(name="emails.send_bulk_invitations")
+@app.task(name="emails.send_bulk_invitations", **_MAIL_DELIVERY_GUARANTEES)
 def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
     """
     Send multiple invitation emails with rate limiting
@@ -1682,7 +1698,13 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
                     invitation.get('role'),
                 ],
                 kwargs={'host': invitation.get('host')},
-                countdown=idx * 2,  # 2 second delay between emails
+                # Spread the batch so a course launch does not arrive as one
+                # spike. 0.5 s matches the 120/m rate limit in
+                # celery_queues.task_annotations, so neither brake idles the
+                # other: 300 invitations go out in ~2.5 min. It was 2 s, which
+                # pinned a 300-address launch to 10 min no matter what the rate
+                # limit allowed.
+                countdown=idx * INVITATION_FANOUT_SPACING_SECONDS,
             )
             sent += 1
             results.append(
@@ -1737,6 +1759,7 @@ def _resolve_notification_brand_host(db, user, notification_type, data) -> Optio
     name="emails.send_notification_batch",
     autoretry_for=(OperationalError, DBAPIError),
     retry_kwargs={"max_retries": 3, "countdown": 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any]:
     """Send a batch of in-app-notification emails.
