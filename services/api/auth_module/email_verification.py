@@ -6,15 +6,14 @@ Handles token generation, validation, and email sending with comprehensive monit
 import json
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import jwt
-from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
-
 from email_service import EmailService
+from fastapi import HTTPException, status
 from localization import LanguageDetector
 from models import User
+from sqlalchemy.orm import Session
 
 from .config import ALGORITHM as JWT_ALGORITHM
 from .config import SECRET_KEY as JWT_SECRET
@@ -49,7 +48,7 @@ class EmailVerificationService:
         self.email_service = EmailService()
 
     def detect_user_language(
-        self, user: User, request_headers: Optional[Dict[str, str]] = None
+        self, user: User, request_headers: dict[str, str] | None = None
     ) -> str:
         """
         Detect user's preferred language for email localization
@@ -74,7 +73,7 @@ class EmailVerificationService:
         # 3. Default to English
         return "en"
 
-    def _auto_accept_invitations(self, db: Session, user_id: str, user_email: str) -> List[str]:
+    def _auto_accept_invitations(self, db: Session, user_id: str, user_email: str) -> list[str]:
         """
         Automatically accept any pending invitations for the user
 
@@ -98,7 +97,7 @@ class EmailVerificationService:
             .join(Organization, Invitation.organization_id == Organization.id)
             .filter(
                 ((Invitation.email == user_email) | (Invitation.pending_user_id == user_id)),
-                Invitation.accepted == False,  # noqa: E712
+                Invitation.accepted == False,
                 Invitation.expires_at > datetime.now(timezone.utc),
             )
             .all()
@@ -177,7 +176,7 @@ class EmailVerificationService:
                     f"Auto-accepted invitation for user {user_id} to join {organization.name}"
                 )
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - best-effort, logged
                 logger.error(
                     f"Failed to auto-accept invitation {invitation.id} for user {user_id}: {e}"
                 )
@@ -197,8 +196,8 @@ class EmailVerificationService:
         user_id: str,
         email: str,
         success: bool = True,
-        error: str = None,
-        metadata: Dict[str, Any] = None,
+        error: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """
         Log email verification events for monitoring and analytics
@@ -293,7 +292,7 @@ class EmailVerificationService:
             )
             raise
 
-    def validate_verification_token(self, token: str) -> Optional[Tuple[str, str]]:
+    def validate_verification_token(self, token: str) -> tuple[str, str] | None:
         """
         Validate a verification token and extract user information
 
@@ -367,7 +366,7 @@ class EmailVerificationService:
                 user_id=user_id or "unknown",
                 email=email or "unknown",
                 success=False,
-                error=f"Invalid token: {str(e)}",
+                error=f"Invalid token: {e!s}",
             )
             return None
 
@@ -375,7 +374,7 @@ class EmailVerificationService:
         self,
         db: Session,
         user_id: str,
-        verified_by_id: Optional[str] = None,
+        verified_by_id: str | None = None,
         method: str = "self",
     ) -> bool:
         """
@@ -437,7 +436,7 @@ class EmailVerificationService:
             logger.info(f"Email verified for user {user_id}")
             return True
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - best-effort, logged
             logger.error(f"Error marking email as verified: {e}")
             self._log_email_event(
                 event_type="email_verification_failed",
@@ -471,9 +470,9 @@ class EmailVerificationService:
         self,
         db: Session,
         user: User,
-        base_url: str = None,
-        language: str = None,
-        host: str = None,
+        base_url: str | None = None,
+        language: str | None = None,
+        host: str | None = None,
     ) -> bool:
         """
         Send verification email to user with comprehensive monitoring
@@ -587,7 +586,7 @@ class EmailVerificationService:
 
         except HTTPException:
             raise
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - best-effort, logged
             send_duration = (datetime.now(timezone.utc) - email_send_start_time).total_seconds()
             self._log_email_event(
                 event_type="email_send_error",
@@ -604,7 +603,7 @@ class EmailVerificationService:
             db.rollback()
             return False
 
-    def verify_email_with_token(self, db: Session, token: str) -> Tuple[bool, str]:
+    def verify_email_with_token(self, db: Session, token: str) -> tuple[bool, str]:
         """
         Verify email using the provided token with comprehensive monitoring
 
@@ -697,7 +696,7 @@ class EmailVerificationService:
             invitation_messages = []
             try:
                 invitation_messages = self._auto_accept_invitations(db, user_id, email)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - best-effort, logged
                 logger.error(f"Error auto-accepting invitations for user {user_id}: {e}")
                 # Don't fail verification if invitation acceptance fails
 
@@ -769,7 +768,7 @@ class EmailVerificationService:
         # Send verification email (includes rate limit check)
         return await self.send_verification_email(db, user, base_url, language)
 
-    def get_verification_statistics(self, db: Session, days: int = 7) -> Dict[str, Any]:
+    def get_verification_statistics(self, db: Session, days: int = 7) -> dict[str, Any]:
         """
         Get email verification statistics for monitoring dashboard
 
@@ -783,19 +782,19 @@ class EmailVerificationService:
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
         # Count unverified users
-        unverified_count = db.query(User).filter(User.email_verified == False).count()  # noqa: E712
+        unverified_count = db.query(User).filter(User.email_verified == False).count()
 
         # Count recently created unverified users
         recent_unverified = (
             db.query(User)
-            .filter(User.email_verified == False, User.created_at >= cutoff_date)  # noqa: E712
+            .filter(User.email_verified == False, User.created_at >= cutoff_date)
             .count()
         )
 
         # Count users with pending verification emails
         pending_verification = (
             db.query(User)
-            .filter(User.email_verification_token.isnot(None), User.email_verified == False)  # noqa: E712
+            .filter(User.email_verification_token.isnot(None), User.email_verified == False)
             .count()
         )
 
@@ -805,7 +804,7 @@ class EmailVerificationService:
             db.query(User)
             .filter(
                 User.email_verification_sent_at <= expired_cutoff,
-                User.email_verified == False,  # noqa: E712
+                User.email_verified == False,
                 User.email_verification_token.isnot(None),
             )
             .count()
@@ -860,7 +859,7 @@ class EmailVerificationService:
                 .filter(
                     User.email_verification_sent_at <= expiration_cutoff,
                     User.email_verification_token.isnot(None),
-                    User.email_verified == False,  # noqa: E712
+                    User.email_verified == False,
                 )
                 .all()
             )
@@ -890,7 +889,7 @@ class EmailVerificationService:
             logger.info(f"Cleaned up {cleanup_count} expired verification tokens")
             return cleanup_count
 
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - best-effort, logged
             self._log_email_event(
                 event_type="token_cleanup_failed",
                 user_id="system",
