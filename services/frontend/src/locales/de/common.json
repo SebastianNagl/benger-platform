@@ -3942,6 +3942,28 @@
     }
   },
   "admin": {
+    "invitationDelivery": {
+      "status": {
+        "sent": "Versendet",
+        "failed": "Fehlgeschlagen",
+        "queued": "In Warteschlange",
+        "unknown": "Unbekannt"
+      },
+      "hint": {
+        "sent": "Die Einladungs-E-Mail wurde vom Mailanbieter angenommen.",
+        "failed": "Der letzte Versandversuch ist fehlgeschlagen. Erneut senden.",
+        "queued": "Der Versand wurde beauftragt, aber noch nicht bestätigt.",
+        "unknown": "Für diese Einladung liegt kein Versandprotokoll vor."
+      },
+      "sentAt": "Versendet am",
+      "lastAttemptAt": "Letzter Versuch",
+      "attempts": "Versuche",
+      "lastError": "Letzter Fehler",
+      "resend": "Erneut senden",
+      "resending": "Wird gesendet…",
+      "resendSuccess": "Einladungs-E-Mail erneut beauftragt",
+      "resendFailed": "Einladung konnte nicht erneut gesendet werden"
+    },
     "globalUsers": "Globale Benutzer",
     "usersOrganizations": "Benutzer & Organisationen",
     "usersOrganizationsDescription": "Verwalten Sie Benutzer, Organisationen und deren Berechtigungen in einer einheitlichen Oberfläche",

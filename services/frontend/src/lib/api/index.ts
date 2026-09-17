@@ -391,6 +391,7 @@ export class ApiClient {
     this.acceptInvitation = safeBind(this.invitationsClient, 'accept')
     this.createInvitation = safeBind(this.invitationsClient, 'create')
     this.cancelInvitation = safeBind(this.invitationsClient, 'cancel')
+    this.resendInvitation = safeBind(this.invitationsClient, 'resend')
     this.convertTaskPredictions = safeBind(
       this.evaluationsClient,
       'convertTaskPredictions',
@@ -652,6 +653,7 @@ export class ApiClient {
   createInvitation: any
   listInvitations: any
   cancelInvitation: any
+  resendInvitation: any
 
   convertTaskPredictions: any
 

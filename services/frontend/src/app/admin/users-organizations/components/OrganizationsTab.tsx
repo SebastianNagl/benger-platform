@@ -1,5 +1,6 @@
 'use client'
 
+import { InvitationDeliveryBadge } from '@/components/admin/InvitationDeliveryBadge'
 import {
   LmsMemberBadge,
   MemberEmail,
@@ -100,6 +101,8 @@ export function OrganizationsTab() {
     useState<OrganizationWithRole | null>(null)
   const [members, setMembers] = useState<OrganizationMember[]>([])
   const [invitations, setInvitations] = useState<InvitationDetails[]>([])
+  // Invitation ids with a resend in flight, so the button can't double-fire.
+  const [resendingInvitations, setResendingInvitations] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingMembers, setLoadingMembers] = useState(false)
 
@@ -610,6 +613,30 @@ export function OrganizationsTab() {
         t('admin.organizations.errors.cancelInvitationFailed'),
         t('admin.organizations.errors.errorTitle'),
       )
+    }
+  }
+
+  // Re-queues the invitation mail. Reuses the existing token, so a link the
+  // recipient already has keeps working. The server refuses a second resend
+  // within a minute and returns 429.
+  const handleResendInvitation = async (invitationId: string) => {
+    if (!selectedOrganization) return
+
+    setResendingInvitations((ids) => [...ids, invitationId])
+    try {
+      await apiClient.resendInvitation(invitationId)
+      await loadOrganizationData()
+      addToast(t('admin.invitationDelivery.resendSuccess'), 'success')
+    } catch (error) {
+      console.error('Failed to resend invitation:', error)
+      showError(
+        error instanceof Error
+          ? error.message
+          : t('admin.invitationDelivery.resendFailed'),
+        t('admin.organizations.errors.errorTitle'),
+      )
+    } finally {
+      setResendingInvitations((ids) => ids.filter((id) => id !== invitationId))
     }
   }
 
@@ -1364,15 +1391,31 @@ export function OrganizationsTab() {
                             role: invitation.role,
                           })}
                         </p>
+                        <div className="mt-1">
+                          <InvitationDeliveryBadge invitation={invitation} />
+                        </div>
                       </div>
                     </div>
                     {canManageOrg && (
-                      <button
-                        onClick={() => handleCancelInvitation(invitation.id)}
-                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => handleResendInvitation(invitation.id)}
+                          disabled={resendingInvitations.includes(
+                            invitation.id,
+                          )}
+                          className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          {resendingInvitations.includes(invitation.id)
+                            ? t('admin.invitationDelivery.resending')
+                            : t('admin.invitationDelivery.resend')}
+                        </button>
+                        <button
+                          onClick={() => handleCancelInvitation(invitation.id)}
+                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}

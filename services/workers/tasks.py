@@ -1302,6 +1302,85 @@ INVITATION_FANOUT_SPACING_SECONDS = 0.5
 _MAIL_DELIVERY_GUARANTEES = {"acks_late": True, "reject_on_worker_lost": True}
 
 
+# Keeps a pathological provider message from bloating the row. The prefix is
+# what an admin needs; the tail never carries the useful part.
+INVITATION_ERROR_MAX_CHARS = 500
+
+
+def _record_invitation_email(
+    invitation_id: str,
+    *,
+    attempt: bool = False,
+    sent: bool = False,
+    error: Optional[str] = None,
+) -> None:
+    """Write the invitation-mail delivery state onto the invitation row.
+
+    The mail worker used to leave no durable trace of a send: the log line
+    scrolled away and the Celery result expired after a day, so an OOM-killed
+    worker looked exactly like a delivered invitation. This stamps the
+    outcome on ``invitations`` so the admin UI can show it and the resend
+    endpoint has something to gate on.
+
+    Never raises. Bookkeeping is strictly secondary to the mail: an exception
+    here would be caught by the task's ``autoretry_for=(Exception,)`` and
+    resend a message SendGrid already accepted.
+
+    Args:
+        invitation_id: row to stamp.
+        attempt: this call starts a send attempt (bumps the counter and the
+            last-attempt clock).
+        sent: SendGrid accepted the message (stamps ``email_sent_at`` and
+            clears the last error).
+        error: failure reason to store. Ignored when ``sent`` is true.
+    """
+    if not HAS_DATABASE or not invitation_id:
+        return
+
+    from datetime import datetime, timezone
+
+    db = None
+    try:
+        from models import Invitation
+
+        db = SessionLocal()
+        invitation = (
+            db.query(Invitation).filter(Invitation.id == invitation_id).first()
+        )
+        if invitation is None:
+            # Cancelled mid-flight, or a synthetic id from a probe send.
+            logger.warning(
+                f"Invitation {invitation_id} not found; skipping mail bookkeeping"
+            )
+            return
+
+        now = datetime.now(timezone.utc)
+        if attempt:
+            invitation.email_attempts = (invitation.email_attempts or 0) + 1
+            invitation.email_last_attempt_at = now
+        if sent:
+            invitation.email_sent_at = now
+            invitation.email_last_error = None
+        elif error is not None:
+            invitation.email_last_error = error[:INVITATION_ERROR_MAX_CHARS]
+        db.commit()
+    except Exception as e:
+        logger.error(
+            f"Failed to record invitation mail state for {invitation_id}: {e}"
+        )
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
+
+
 @app.task(
     name="emails.send_invitation",
     bind=True,
@@ -1335,6 +1414,10 @@ def send_invitation_email_task(
     """
     logger.info(f"Sending invitation email to {to_email} for {organization_name}")
 
+    # Stamp the attempt before the send. A worker killed mid-send then still
+    # leaves a visible "attempted, never confirmed" state behind.
+    _record_invitation_email(invitation_id, attempt=True)
+
     try:
         from email_service import email_service
         from sendgrid_client import SendGridClient
@@ -1366,6 +1449,7 @@ def send_invitation_email_task(
 
         if result.get("status") == "success":
             logger.info(f"Invitation email sent successfully to {to_email}")
+            _record_invitation_email(invitation_id, sent=True)
             return {
                 "status": "success",
                 "invitation_id": invitation_id,
@@ -1386,6 +1470,9 @@ def send_invitation_email_task(
             logger.error(
                 f"Permanent SendGrid {status_code} for {to_email}; not retrying: {error_msg}"
             )
+            _record_invitation_email(
+                invitation_id, error=f"SendGrid {status_code}: {error_msg}"
+            )
             return {
                 "status": "failed_permanent",
                 "invitation_id": invitation_id,
@@ -1397,13 +1484,19 @@ def send_invitation_email_task(
         logger.error(
             f"Retryable SendGrid failure for {to_email} (status_code={status_code}): {error_msg}"
         )
+        _record_invitation_email(
+            invitation_id, error=f"SendGrid {status_code}: {error_msg} (retrying)"
+        )
         raise RuntimeError(f"SendGrid error: {error_msg}")
 
     except RuntimeError:
-        # Already classified as retryable above — let autoretry_for see it.
+        # Already classified as retryable above — the error is recorded there.
         raise
     except Exception as e:
         logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
+        _record_invitation_email(
+            invitation_id, error=f"{type(e).__name__}: {e} (retrying)"
+        )
         raise
 
 

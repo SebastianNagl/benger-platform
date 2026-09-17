@@ -1281,3 +1281,384 @@ class TestEmailVerificationAutoAccept:
         assert rows[0].role == OrganizationRole.CONTRIBUTOR
         stored = test_db.query(Invitation).filter(Invitation.id == inv.id).one()
         assert stored.accepted is True
+
+
+# ---------------------------------------------------------------------------
+# Invitation-mail delivery state + resend (migration 107)
+#
+# Before this, the invitations table held no record of whether its mail went
+# out: the only traces were a worker log line and a Celery result that expires
+# after a day, and the admin UI reported "invite sent" as soon as the task was
+# queued. Repairing a lost mail meant cancelling and re-creating the
+# invitation, which mints a new token and kills any link already in flight.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestInvitationEmailStateInList:
+    """list_organization_invitations exposes the delivery state read-only."""
+
+    @pytest.mark.asyncio
+    async def test_queue_time_is_stamped_on_create(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """A successful enqueue is not a delivery, but it IS an attempt. The
+        row has to say so, otherwise a broker outage leaves no trace."""
+        email = f"stamp-{_uid()[:8]}@example.com"
+        with _as_user(test_users[0]), patch("routers.invitations.celery_app"):
+            resp = client.post(
+                f"/api/invitations/organizations/{test_org.id}/invitations",
+                json={"email": email, "role": "ANNOTATOR"},
+            )
+        assert resp.status_code == 200
+
+        stored = (
+            test_db.query(Invitation).filter(Invitation.email == email).one()
+        )
+        assert stored.email_last_attempt_at is not None
+        assert stored.email_sent_at is None
+        assert stored.email_last_error is None
+        assert stored.email_attempts == 0
+
+    @pytest.mark.asyncio
+    async def test_queue_failure_is_recorded_and_does_not_fail_the_create(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """The invitation still gets created, but it must not look delivered."""
+        email = f"queuefail-{_uid()[:8]}@example.com"
+        broker = patch("routers.invitations.celery_app")
+        with _as_user(test_users[0]), broker as mock_celery:
+            mock_celery.send_task.side_effect = RuntimeError("broker down")
+            resp = client.post(
+                f"/api/invitations/organizations/{test_org.id}/invitations",
+                json={"email": email, "role": "ANNOTATOR"},
+            )
+        assert resp.status_code == 200
+
+        stored = (
+            test_db.query(Invitation).filter(Invitation.email == email).one()
+        )
+        assert stored.email_sent_at is None
+        assert "broker down" in stored.email_last_error
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "sent_at_days_ago,last_attempt,last_error,expected",
+        [
+            (1, True, None, "sent"),
+            (None, True, "SendGrid 400: bad address", "failed"),
+            (None, True, None, "queued"),
+            (None, False, None, "unknown"),
+        ],
+    )
+    async def test_email_status_is_derived_per_row(
+        self,
+        async_test_client,
+        async_test_db,
+        sent_at_days_ago,
+        last_attempt,
+        last_error,
+        expected,
+    ):
+        """unknown and failed stay distinct: pre-migration rows carry no
+        timestamps and must not be reported as failures."""
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"state-admin-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, admin.id, email=f"state-{_uid()[:8]}@example.com"
+        )
+        now = datetime.now(timezone.utc)
+        if sent_at_days_ago is not None:
+            inv.email_sent_at = now - timedelta(days=sent_at_days_ago)
+        if last_attempt:
+            inv.email_last_attempt_at = now - timedelta(minutes=5)
+        inv.email_last_error = last_error
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.get(
+                f"/api/invitations/organizations/{org.id}/invitations"
+            )
+        assert resp.status_code == 200
+        row = next(r for r in resp.json() if r["id"] == inv.id)
+        assert row["email_status"] == expected
+        assert "email_attempts" in row
+        assert "email_last_attempt_at" in row
+
+    @pytest.mark.asyncio
+    async def test_public_by_token_endpoint_does_not_leak_the_error(
+        self, async_test_client, async_test_db
+    ):
+        """Whoever holds a link must not learn our provider's failure text."""
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"leak-admin-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        token = _uid()
+        inv = await _aseed_invitation(
+            async_test_db, org.id, admin.id, token=token, email="leak@example.com"
+        )
+        inv.email_last_error = "SendGrid 401: api key revoked"
+        await async_test_db.commit()
+
+        resp = await async_test_client.get(f"/api/invitations/token/{token}")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert "email_last_error" not in body
+        assert "email_status" not in body
+
+
+@pytest.mark.integration
+class TestResendInvitation:
+    """POST /api/invitations/{id}/resend — async lane, same gate as cancel."""
+
+    @pytest.mark.asyncio
+    async def test_not_found_404(self, async_test_client, async_test_db):
+        admin = await _aseed_user(
+            async_test_db, f"resend-404-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin):
+            resp = await async_test_client.post(f"/api/invitations/{_uid()}/resend")
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_org_admin_resends_and_keeps_the_token(
+        self, async_test_client, async_test_db
+    ):
+        """Reusing the token is the point: a link the recipient already has
+        must keep working, unlike the cancel-and-recreate workaround."""
+        org = await _aseed_org(async_test_db)
+        org_admin = await _aseed_user(
+            async_test_db, f"resend-oa-{_uid()[:8]}@example.com"
+        )
+        await _aseed_membership(
+            async_test_db, org_admin.id, org.id, role=OrganizationRole.ORG_ADMIN
+        )
+        inviter = await _aseed_user(
+            async_test_db, f"resend-inv-{_uid()[:8]}@example.com"
+        )
+        token = _uid()
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, token=token, email="resend@example.com"
+        )
+        inv.email_last_error = "SendGrid 503: upstream down"
+        await async_test_db.commit()
+
+        with _as_user(org_admin), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["invitation_id"] == inv.id
+        assert body["email"] == "resend@example.com"
+        assert body["email_status"] == "queued"
+        # Never hand the admin the token.
+        assert "token" not in body
+
+        celery.send_task.assert_called_once()
+        args = celery.send_task.call_args
+        assert args[0][0] == "emails.send_invitation"
+        assert token in args.kwargs["args"][4]
+
+        await async_test_db.refresh(inv)
+        assert inv.token == token
+        assert inv.email_last_attempt_at is not None
+        # A successful re-queue clears the stale failure.
+        assert inv.email_last_error is None
+
+    @pytest.mark.asyncio
+    async def test_resend_keeps_the_original_inviter_name(
+        self, async_test_client, async_test_db
+    ):
+        """The recipient already saw one name; a resend is not a new invite."""
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(
+            async_test_db, f"resend-orig-{_uid()[:8]}@example.com", name="Original Inviter"
+        )
+        actor = await _aseed_user(
+            async_test_db, f"resend-actor-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="keepname@example.com"
+        )
+        await async_test_db.commit()
+
+        with _as_user(actor), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+
+        assert resp.status_code == 200
+        assert celery.send_task.call_args.kwargs["args"][2] == "Original Inviter"
+
+    @pytest.mark.asyncio
+    async def test_inviter_may_resend_own_invitation(
+        self, async_test_client, async_test_db
+    ):
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(
+            async_test_db, f"resend-own-{_uid()[:8]}@example.com"
+        )
+        await _aseed_membership(
+            async_test_db, inviter.id, org.id, role=OrganizationRole.CONTRIBUTOR
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="own@example.com"
+        )
+        await async_test_db.commit()
+
+        with _as_user(inviter), patch("routers.invitations.celery_app"):
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_non_admin_non_inviter_403(self, async_test_client, async_test_db):
+        """The gate must not reach further than cancel's: resending mails a
+        third party on the organization's behalf."""
+        org = await _aseed_org(async_test_db)
+        inviter = await _aseed_user(
+            async_test_db, f"resend-real-{_uid()[:8]}@example.com"
+        )
+        actor = await _aseed_user(
+            async_test_db, f"resend-nobody-{_uid()[:8]}@example.com"
+        )
+        await _aseed_membership(
+            async_test_db, actor.id, org.id, role=OrganizationRole.ANNOTATOR
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, inviter.id, email="protected@example.com"
+        )
+        await async_test_db.commit()
+
+        with _as_user(actor), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 403
+        assert "resend invitations" in resp.json()["detail"]
+        celery.send_task.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_accepted_invitation_400(self, async_test_client, async_test_db):
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"resend-acc-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db,
+            org.id,
+            admin.id,
+            email="accepted@example.com",
+            accepted=True,
+            accepted_at=datetime.now(timezone.utc),
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 400
+        assert "already been accepted" in resp.json()["detail"]
+        celery.send_task.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_expired_invitation_400(self, async_test_client, async_test_db):
+        """An expired invitation's link is dead, so mailing it again is worse
+        than useless. Cancel and create a fresh one instead."""
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"resend-exp-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db,
+            org.id,
+            admin.id,
+            email="expired@example.com",
+            expires_in_days=-1,
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 400
+        assert "expired" in resp.json()["detail"]
+        celery.send_task.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_guard_refuses_a_second_resend_within_the_window(
+        self, async_test_client, async_test_db
+    ):
+        from routers.invitations import RESEND_MIN_INTERVAL_SECONDS
+
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"resend-guard-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, admin.id, email="guard@example.com"
+        )
+        inv.email_last_attempt_at = datetime.now(timezone.utc) - timedelta(seconds=5)
+        await async_test_db.commit()
+
+        with _as_user(admin), patch("routers.invitations.celery_app") as celery:
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 429
+        assert "wait" in resp.json()["detail"]
+        celery.send_task.assert_not_called()
+
+        # Past the window the same call goes through.
+        inv.email_last_attempt_at = datetime.now(timezone.utc) - timedelta(
+            seconds=RESEND_MIN_INTERVAL_SECONDS + 5
+        )
+        await async_test_db.commit()
+        with _as_user(admin), patch("routers.invitations.celery_app"):
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_guard_holds_when_the_worker_never_ran(
+        self, async_test_client, async_test_db
+    ):
+        """The OOM case: nothing ever bumped email_attempts, so the guard has
+        to lean on the queue-time stamp instead of the worker's."""
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"resend-oom-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, admin.id, email="oom@example.com"
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin), patch("routers.invitations.celery_app"):
+            first = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert first.status_code == 200
+
+        with _as_user(admin), patch("routers.invitations.celery_app"):
+            second = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+        assert second.status_code == 429
+
+        await async_test_db.refresh(inv)
+        # The worker is the only writer of the attempt counter.
+        assert inv.email_attempts == 0
+
+    @pytest.mark.asyncio
+    async def test_queue_failure_is_reported_not_raised(
+        self, async_test_client, async_test_db
+    ):
+        org = await _aseed_org(async_test_db)
+        admin = await _aseed_user(
+            async_test_db, f"resend-broker-{_uid()[:8]}@example.com", is_superadmin=True
+        )
+        inv = await _aseed_invitation(
+            async_test_db, org.id, admin.id, email="brokerdown@example.com"
+        )
+        await async_test_db.commit()
+
+        with _as_user(admin), patch("routers.invitations.celery_app") as celery:
+            celery.send_task.side_effect = RuntimeError("broker down")
+            resp = await async_test_client.post(f"/api/invitations/{inv.id}/resend")
+
+        assert resp.status_code == 200
+        assert resp.json()["email_status"] == "failed"
+        await async_test_db.refresh(inv)
+        assert "broker down" in inv.email_last_error

@@ -353,3 +353,232 @@ class TestEmailTaskIntegration:
 
         assert 'emails.send_bulk_invitations' in app.conf.task_annotations
         assert app.conf.task_annotations['emails.send_bulk_invitations']['rate_limit'] == '5/m'
+
+
+# ---------------------------------------------------------------------------
+# Delivery bookkeeping on the invitation row
+#
+# The mail worker used to leave no durable trace of a send: the log line
+# scrolled away and the Celery result expired after a day. An OOM-killed
+# worker was indistinguishable from a delivered invitation, and the admin UI
+# said "invite sent" as soon as the task was queued. The task now stamps the
+# outcome onto `invitations`.
+# ---------------------------------------------------------------------------
+
+
+class _FakeInvitation:
+    """Stand-in for the ORM row, with the four bookkeeping columns."""
+
+    def __init__(self, invitation_id="inv-book"):
+        self.id = invitation_id
+        self.email_sent_at = None
+        self.email_last_attempt_at = None
+        self.email_attempts = 0
+        self.email_last_error = None
+
+
+def _fake_invitation_db(invitation):
+    """A MagicMock session whose query(...).filter(...).first() yields the row."""
+    db = MagicMock()
+    db.query.return_value.filter.return_value.first.return_value = invitation
+    return db
+
+
+def _run_with_bookkeeping(sendgrid_result, invitation, *, invitation_id=None):
+    """Drive the task with the mail provider stubbed and the DB faked."""
+    import tasks as tasks_module
+
+    mock_client = MagicMock()
+    mock_client.send_message.return_value = sendgrid_result
+    mock_class = MagicMock(return_value=mock_client)
+    db = _fake_invitation_db(invitation)
+
+    with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+         patch.object(tasks_module, "HAS_DATABASE", True), \
+         patch('sendgrid_client.SendGridClient', mock_class):
+        try:
+            result = send_invitation_email_task(
+                invitation_id or invitation.id,
+                "book@example.com",
+                "Jane Admin",
+                "Book Org",
+                "http://localhost:3000/accept-invitation/booktok",
+                "ANNOTATOR",
+            )
+        except RuntimeError as e:
+            return None, db, e
+    return result, db, None
+
+
+class TestInvitationEmailBookkeeping:
+    """The delivery state the admin UI and the resend guard read."""
+
+    def test_success_stamps_sent_and_counts_the_attempt(self):
+        inv = _FakeInvitation()
+
+        result, db, raised = _run_with_bookkeeping(
+            {"status": "success", "message_id": "m-1"}, inv
+        )
+
+        assert raised is None
+        assert result["status"] == "success"
+        assert inv.email_attempts == 1
+        assert inv.email_last_attempt_at is not None
+        assert inv.email_sent_at is not None
+        assert inv.email_last_error is None
+        assert db.commit.called
+
+    def test_success_clears_a_previous_error(self):
+        """A retry that finally lands must not leave the old failure on screen."""
+        inv = _FakeInvitation()
+        inv.email_attempts = 2
+        inv.email_last_error = "SendGrid 503: upstream down (retrying)"
+
+        _run_with_bookkeeping({"status": "success", "message_id": "m-2"}, inv)
+
+        assert inv.email_sent_at is not None
+        assert inv.email_last_error is None
+        assert inv.email_attempts == 3
+
+    def test_permanent_failure_records_the_reason_and_no_sent_at(self):
+        inv = _FakeInvitation()
+
+        result, _db, raised = _run_with_bookkeeping(
+            {
+                "status": "error",
+                "status_code": 400,
+                "error": "Does not contain a valid address",
+            },
+            inv,
+        )
+
+        assert raised is None
+        assert result["status"] == "failed_permanent"
+        assert inv.email_sent_at is None
+        assert inv.email_attempts == 1
+        assert "400" in inv.email_last_error
+        assert "valid address" in inv.email_last_error
+
+    def test_retryable_failure_records_the_reason_and_still_raises(self):
+        """The error has to be durable BEFORE the retry, otherwise a worker
+        that dies during the 60 s countdown leaves nothing behind."""
+        inv = _FakeInvitation()
+
+        _result, _db, raised = _run_with_bookkeeping(
+            {"status": "error", "status_code": 503, "error": "upstream down"}, inv
+        )
+
+        assert isinstance(raised, RuntimeError)
+        assert inv.email_sent_at is None
+        assert inv.email_attempts == 1
+        assert "503" in inv.email_last_error
+        assert "retrying" in inv.email_last_error
+
+    def test_each_attempt_bumps_the_counter(self):
+        """Celery re-invokes the same task on retry, so the count is the only
+        record of how hard we tried."""
+        inv = _FakeInvitation()
+
+        for _ in range(3):
+            _run_with_bookkeeping(
+                {"status": "error", "status_code": 503, "error": "upstream down"}, inv
+            )
+
+        assert inv.email_attempts == 3
+
+    def test_unexpected_exception_records_the_reason_and_propagates(self):
+        import tasks as tasks_module
+
+        inv = _FakeInvitation()
+        db = _fake_invitation_db(inv)
+        boom = MagicMock(side_effect=ValueError("sendgrid client exploded"))
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+             patch.object(tasks_module, "HAS_DATABASE", True), \
+             patch('sendgrid_client.SendGridClient', boom):
+            with pytest.raises(ValueError, match="exploded"):
+                send_invitation_email_task(
+                    inv.id, "x@example.com", "Jane", "Org", "http://x/i", "member"
+                )
+
+        assert inv.email_sent_at is None
+        assert "ValueError" in inv.email_last_error
+
+    def test_bookkeeping_failure_does_not_swallow_a_successful_send(self):
+        """A broken DB must never turn an accepted message into a retry: the
+        task's autoretry_for=(Exception,) would resend mail SendGrid took."""
+        import tasks as tasks_module
+
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "success",
+            "message_id": "m-3",
+        }
+
+        with patch.object(
+            tasks_module,
+            "SessionLocal",
+            MagicMock(side_effect=RuntimeError("no database")),
+        ), patch.object(tasks_module, "HAS_DATABASE", True), patch(
+            'sendgrid_client.SendGridClient', MagicMock(return_value=mock_client)
+        ):
+            result = send_invitation_email_task(
+                "inv-nodb", "x@example.com", "Jane", "Org", "http://x/i", "member"
+            )
+
+        assert result["status"] == "success"
+        mock_client.send_message.assert_called_once()
+
+    def test_missing_invitation_row_is_skipped_not_fatal(self):
+        """A cancelled invitation still has a task in flight. Bookkeeping has
+        nothing to write, and the send must not be retried over it."""
+        import tasks as tasks_module
+
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "success",
+            "message_id": "m-4",
+        }
+        db = _fake_invitation_db(None)
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+             patch.object(tasks_module, "HAS_DATABASE", True), \
+             patch('sendgrid_client.SendGridClient', MagicMock(return_value=mock_client)):
+            result = send_invitation_email_task(
+                "inv-gone", "x@example.com", "Jane", "Org", "http://x/i", "member"
+            )
+
+        assert result["status"] == "success"
+        db.commit.assert_not_called()
+
+    def test_no_database_skips_bookkeeping_entirely(self):
+        import tasks as tasks_module
+
+        inv = _FakeInvitation()
+        db = _fake_invitation_db(inv)
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = {
+            "status": "success",
+            "message_id": "m-5",
+        }
+
+        with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+             patch.object(tasks_module, "HAS_DATABASE", False), \
+             patch('sendgrid_client.SendGridClient', MagicMock(return_value=mock_client)):
+            result = send_invitation_email_task(
+                inv.id, "x@example.com", "Jane", "Org", "http://x/i", "member"
+            )
+
+        assert result["status"] == "success"
+        assert inv.email_attempts == 0
+        db.query.assert_not_called()
+
+    def test_error_text_is_truncated(self):
+        from tasks import INVITATION_ERROR_MAX_CHARS
+
+        inv = _FakeInvitation()
+        _run_with_bookkeeping(
+            {"status": "error", "status_code": 400, "error": "x" * 5000}, inv
+        )
+
+        assert len(inv.email_last_error) == INVITATION_ERROR_MAX_CHARS
