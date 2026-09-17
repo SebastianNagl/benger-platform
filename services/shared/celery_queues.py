@@ -54,7 +54,8 @@ INTERACTIVE = "interactive"
 # token. A 200-address bulk invite at 30/m would otherwise pin the interactive
 # pool for ~7 minutes.
 EMAILS = "emails"
-# Also `aux`: short periodic housekeeping + beat sweeps. Notably
+# Served by the `maintenance` pool (split from `aux` on 2026-09-17 so a
+# housekeeping OOM cannot take mail down): periodic housekeeping + beat sweeps. Notably
 # sweep_missing_immediate_evals, which is the recovery path for immediate
 # evaluation -- behind a generation run it would never get to run at all.
 MAINTENANCE = "maintenance"
@@ -250,10 +251,21 @@ def task_annotations() -> dict[str, dict]:
         soft, hard = time_limits_for(task_name)
         annotations[task_name] = {"soft_time_limit": soft, "time_limit": hard}
 
-    # Rate limits are per-worker-process token buckets, so the `aux` pool runs a
-    # single replica to keep the configured rate honest. With the old 2-replica
-    # shared pool the effective invitation rate was double the number below.
-    annotations["emails.send_invitation"]["rate_limit"] = "30/m"
+    # Rate limits are token buckets on the worker's Consumer, one per task name
+    # per worker INSTANCE and shared by its prefork children (celery 5.6
+    # worker/consumer/consumer.py + worker/strategy.py). Concurrency therefore
+    # does not multiply the rate, replicas do, which is why the `aux` pool runs
+    # a single replica. With the old 2-replica shared pool the effective
+    # invitation rate was double the number below.
+    #
+    # 120/m pairs with INVITATION_FANOUT_SPACING_SECONDS (0.5 s) in
+    # services/workers/tasks.py: a 300-address course launch goes out in
+    # ~2.5 min instead of the 10 min the old 2 s spacing forced. SendGrid
+    # handles far more than this; the binding limit is the plan's DAILY quota,
+    # which this does not change.
+    annotations["emails.send_invitation"]["rate_limit"] = "120/m"
+    # The fan-out task only queues children, so its own rate stays low: it
+    # caps how many bulk invites start per minute, not how fast mail goes out.
     annotations["emails.send_bulk_invitations"]["rate_limit"] = "5/m"
     return annotations
 

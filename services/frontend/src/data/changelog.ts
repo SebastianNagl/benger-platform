@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-17',
     audience: 'both',
     text: {
+      de: 'Die Liste der ausstehenden Einladungen zeigt jetzt, ob die Einladungs-E-Mail wirklich versendet wurde, und nennt bei einem Fehler den Grund. Einladungen lassen sich erneut senden, ohne sie abzubrechen und neu anzulegen. Der bereits versendete Link bleibt dabei gültig.',
+      en: 'The pending invitation list now shows whether the invitation email really went out, and names the reason when it did not. Invitations can be resent without cancelling and recreating them. A link already sent keeps working.',
+    },
+  },
+  {
+    date: '2026-09-17',
+    audience: 'both',
+    text: {
       de: 'Mitgliederlisten zeigen Rollen mit ihrer Bezeichnung, und der Korrektur-Reiter für Bewertungsbögen ist beschriftet. Die Anleitungen zu ILIAS empfehlen jetzt eine Identifikation ohne E-Mail-Adresse, weil ILIAS 10.9 sonst keine Noten annimmt.',
       en: 'Member lists show roles by their label, and the grading tab for grading sheets has a label. The ILIAS guides now recommend identifying people without their email address, because ILIAS 10.9 otherwise accepts no grades.',
     },

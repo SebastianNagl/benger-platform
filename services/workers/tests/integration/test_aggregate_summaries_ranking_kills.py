@@ -2,12 +2,13 @@
 
 The pure (no-DB) helpers of `shared/aggregate_summaries.py` are pinned in
 `tests/test_aggregate_summaries_kills.py`. This file pins the parts that are
-only reachable against a real Postgres because the per-bucket mean/sum
-rollup runs inside a streaming SQL query and the leaderboard tie-break is a
-SQL `ORDER BY`:
+only reachable against a real Postgres because the metric coercion and the
+per-bucket count/sum/stddev rollup run inside SQL and the leaderboard
+tie-break is a SQL `ORDER BY`:
 
   * `_aggregate_leaderboard_rows` — per-(model, metric) mean, sum, and the
-    `round(..., 4)` the worker WRITES into `llm_leaderboard_scores.score`.
+    `round(..., 4)` the worker WRITES into `llm_leaderboard_scores.score`,
+    plus an equivalence check against the old all-in-Python algorithm.
   * `read_llm_leaderboard`        — the published rank order: non-null scores
     first, higher score first (DESC), ties broken by model_id ASC.
 
@@ -243,3 +244,224 @@ class TestLeaderboardRankingOrderDB:
                 LLMLeaderboardScore.model_id.in_(["zeta", "alpha", "beta"])
             ).delete(synchronize_session=False)
             db_conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# SQL rollup vs the pre-2026-09-17 Python algorithm
+# ---------------------------------------------------------------------------
+# Reference copy of the old implementation: stream every raw
+# (model, metric, jsonb) triple, coerce in Python, bucket every float, then
+# mean / sum / t-CI per bucket. `_aggregate_leaderboard_rows` now does the
+# coercion and aggregation in Postgres. For every input the old code handled
+# sanely (no NaN / inf / absurd magnitudes) both must agree.
+_REFERENCE_TRIPLES_SQL = """
+    SELECT g.model_id, kv.key AS metric_key, kv.value AS metric_val
+    FROM task_evaluations te
+    JOIN generations g ON g.id = te.generation_id
+    JOIN evaluation_runs er ON er.id = te.evaluation_id
+    CROSS JOIN LATERAL jsonb_each(te.metrics::jsonb) AS kv
+    WHERE te.evaluation_id = ANY(:run_ids)
+      AND te.generation_id IS NOT NULL
+      AND te.metrics IS NOT NULL
+      AND jsonb_typeof(te.metrics::jsonb) = 'object'
+      AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
+    UNION ALL
+    SELECT g.model_id, 'llm_judge_falloesung_grade_points' AS metric_key,
+           te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points'
+    FROM task_evaluations te
+    JOIN generations g ON g.id = te.generation_id
+    JOIN evaluation_runs er ON er.id = te.evaluation_id
+    WHERE te.evaluation_id = ANY(:run_ids)
+      AND te.generation_id IS NOT NULL
+      AND te.metrics IS NOT NULL
+      AND jsonb_typeof(te.metrics::jsonb) = 'object'
+      AND te.metrics::jsonb ? 'llm_judge_falloesung'
+      AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
+      AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
+      AND (CAST(:eval_types AS text[]) IS NULL
+           OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
+"""
+
+
+def _reference_rows(db, run_ids, *, aggregation="average", evaluation_types=None):
+    """Old algorithm, reduced to {(model, metric): (score, ci_lower, ci_upper)}."""
+    from collections import defaultdict
+
+    from aggregate_summaries import (
+        _coerce_metric_value,
+        _confidence_interval,
+        _metric_key_is_real,
+    )
+    from sqlalchemy import text
+
+    buckets = defaultdict(list)
+    stmt = text(_REFERENCE_TRIPLES_SQL).bindparams(
+        run_ids=run_ids, eval_types=evaluation_types or None
+    )
+    for model_id, metric_key, metric_val in db.execute(stmt).all():
+        if not model_id or not _metric_key_is_real(metric_key):
+            continue
+        coerced = _coerce_metric_value(metric_val)
+        if coerced is None:
+            continue
+        buckets[(model_id, metric_key)].append(coerced)
+
+    out = {}
+    for key, values in buckets.items():
+        if aggregation == "sum":
+            out[key] = (round(sum(values), 4), None, None)
+        else:
+            lo, hi = _confidence_interval(values)
+            out[key] = (round(sum(values) / len(values), 4), lo, hi)
+    return out
+
+
+def _as_comparable(rows):
+    return {
+        (r["model_id"], r["metric"]): (r["score"], r["ci_lower"], r["ci_upper"])
+        for r in rows
+    }
+
+
+def _assert_same(actual, expected):
+    assert set(actual) == set(expected)
+    for key, (score, lo, hi) in expected.items():
+        a_score, a_lo, a_hi = actual[key]
+        assert a_score == pytest.approx(score, abs=1e-9), key
+        if lo is None:
+            assert a_lo is None and a_hi is None, key
+        else:
+            assert a_lo == pytest.approx(lo, rel=1e-9, abs=1e-9), key
+            assert a_hi == pytest.approx(hi, rel=1e-9, abs=1e-9), key
+
+
+# One TaskEvaluation.metrics dict per row. Covers every branch of
+# `_coerce_metric_value`: numbers, numeric strings (incl. whitespace,
+# exponents, underscores), junk strings, booleans, nulls, arrays, dicts with
+# value / total_score / score precedence, nested dicts, noise keys and the
+# lifted grade_points.
+_MIXED_METRICS = [
+    ("eq-alpha", {"accuracy": 0.5, "bleu": "0.25", "flag": True,
+                  "llm_judge_falloesung": {"value": 0.6, "details": {"grade_points": 11}}}),
+    ("eq-alpha", {"accuracy": 1, "bleu": " 1e-1 ", "flag": False,
+                  "llm_judge_falloesung": {"value": 0.8, "details": {"grade_points": 14.5}}}),
+    ("eq-alpha", {"accuracy": "n/a", "bleu": "1_0.5", "rouge": None,
+                  "llm_judge_falloesung": {"value": "0.7", "details": {"grade_points": "9"}}}),
+    ("eq-alpha", {"accuracy": {"value": 0.25, "details": {"x": 1}}, "bleu": [0.3],
+                  "judge": {"total_score": 14, "score": 3},
+                  "accuracy_details": 0.99, "raw_score": 5}),
+    ("eq-alpha", {"accuracy": {"value": None, "total_score": "0.75"},
+                  "judge": {"score": 3}, "bleu": "", "error": "boom"}),
+    ("eq-alpha", {"accuracy": {"value": {"value": 0.4}},
+                  "judge": {"value": "bad", "score": 8},
+                  "multi": {"value": {"precision": 1.0}, "score": 0.2}}),
+    ("eq-beta", {"accuracy": 0.9, "judge": {"value": 0.0, "score": 5},
+                 "multi": {"value": {"precision": 1.0}}, "llm_judge_falloesung": 0.4}),
+    ("eq-beta", {"accuracy": "\t0.7\n", "judge": {"foo": 1},
+                 "llm_judge_falloesung": {"details": {"grade_points": True}}}),
+    ("eq-beta", {"accuracy": "+.5", "constant": 0.1, "judge": 7}),
+    ("eq-beta", {"accuracy": "5.", "constant": 0.1,
+                 "judge": {"value": {"score": 2}}}),
+    ("eq-beta", {"constant": 0.1, "only_one": "3"}),
+    ("eq-gamma", {"accuracy": 0.3333333, "bleu": {"value": True, "score": 1}}),
+    ("eq-gamma", {"accuracy": 0.3333333, "bleu": {"value": [1], "score": "2e0"}}),
+]
+
+
+class TestSqlRollupMatchesPythonReferenceDB:
+    """`_aggregate_leaderboard_rows` (Postgres rollup) must reproduce the old
+    stream-everything-into-Python algorithm on mixed metric shapes."""
+
+    def _seed(self, db_conn, make_project, make_user, make_task, make_generation):
+        return _seed_run_with_metrics(
+            db_conn, make_project, make_user, make_task, make_generation,
+            _MIXED_METRICS,
+        )
+
+    def test_average_matches_reference(
+        self, db_conn, make_project, make_user, make_task, make_generation
+    ):
+        from aggregate_summaries import _aggregate_leaderboard_rows
+
+        run_id = self._seed(db_conn, make_project, make_user, make_task, make_generation)
+        expected = _reference_rows(db_conn, [run_id])
+        rows = _aggregate_leaderboard_rows(
+            db_conn, [run_id], scope="live", period="overall",
+            computed_at=datetime.now(timezone.utc),
+        )
+        actual = _as_comparable(rows)
+        # Sanity: the seed really exercises the interesting buckets.
+        assert ("eq-alpha", "llm_judge_falloesung_grade_points") in expected
+        assert ("eq-alpha", "judge") in expected
+        assert ("eq-beta", "constant") in expected
+        assert ("eq-alpha", "flag") not in expected
+        assert ("eq-alpha", "accuracy_details") not in expected
+        _assert_same(actual, expected)
+        # Constant bucket collapses the CI onto the mean.
+        assert actual[("eq-beta", "constant")][1:] == (
+            pytest.approx(0.1), pytest.approx(0.1)
+        )
+        # Single-sample bucket has no CI.
+        assert actual[("eq-beta", "only_one")] == (3.0, None, None)
+        # Output row shape is unchanged.
+        assert set(rows[0]) == {
+            "model_id", "project_scope_key", "period", "metric", "score",
+            "ci_lower", "ci_upper", "samples_evaluated", "evaluation_count",
+            "generation_count", "last_evaluated_at", "computed_at",
+        }
+
+    def test_sum_matches_reference(
+        self, db_conn, make_project, make_user, make_task, make_generation
+    ):
+        from aggregate_summaries import _aggregate_leaderboard_rows
+
+        run_id = self._seed(db_conn, make_project, make_user, make_task, make_generation)
+        expected = _reference_rows(db_conn, [run_id], aggregation="sum")
+        rows = _aggregate_leaderboard_rows(
+            db_conn, [run_id], scope="live", period="overall",
+            computed_at=datetime.now(timezone.utc), aggregation="sum",
+        )
+        _assert_same(_as_comparable(rows), expected)
+
+    def test_evaluation_types_filter_matches_reference(
+        self, db_conn, make_project, make_user, make_task, make_generation
+    ):
+        from aggregate_summaries import _aggregate_leaderboard_rows
+
+        run_id = self._seed(db_conn, make_project, make_user, make_task, make_generation)
+        types = ["judge", "llm_judge_falloesung_grade_points"]
+        expected = _reference_rows(db_conn, [run_id], evaluation_types=types)
+        rows = _aggregate_leaderboard_rows(
+            db_conn, [run_id], scope="live", period="overall",
+            computed_at=datetime.now(timezone.utc), evaluation_types=types,
+        )
+        actual = _as_comparable(rows)
+        assert {m for _mid, m in actual} == set(types)
+        _assert_same(actual, expected)
+
+    def test_non_finite_values_are_dropped_not_poisoning(
+        self, db_conn, make_project, make_user, make_task, make_generation
+    ):
+        """Deliberate difference: the old code let float('nan') / float('inf')
+        poison the bucket mean. They are picked (so a later dict key is not
+        tried, like before) and then dropped."""
+        from aggregate_summaries import _aggregate_leaderboard_rows
+
+        run_id = _seed_run_with_metrics(
+            db_conn, make_project, make_user, make_task, make_generation,
+            [
+                ("nan-kill", {"accuracy": 0.2, "judge": {"value": "nan", "score": 9}}),
+                ("nan-kill", {"accuracy": "NaN", "judge": 1.0}),
+                ("nan-kill", {"accuracy": " -inf ", "judge": "1e400"}),
+                ("nan-kill", {"accuracy": 0.4, "judge": 3.0, "huge": 1e200}),
+            ],
+        )
+        rows = _aggregate_leaderboard_rows(
+            db_conn, [run_id], scope="live", period="overall",
+            computed_at=datetime.now(timezone.utc),
+        )
+        actual = _as_comparable(rows)
+        assert actual[("nan-kill", "accuracy")][0] == pytest.approx(0.3)
+        # judge: "nan" wins over score=9 and is dropped; "1e400" is inf, dropped.
+        assert actual[("nan-kill", "judge")][0] == pytest.approx(2.0)
+        assert ("nan-kill", "huge") not in actual

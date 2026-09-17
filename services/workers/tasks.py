@@ -1288,12 +1288,105 @@ def generate_llm_responses(
 
 # Email tasks for invitation system
 
+# Seconds between the queued mails of one bulk invite, see
+# send_bulk_invitations_task.
+INVITATION_FANOUT_SPACING_SECONDS = 0.5
+
+# Mail tasks ack LATE (the message stays on the queue until the task returns)
+# and are requeued when their worker dies. The default early ack drops an
+# in-flight mail silently: the 2026-09-17 OOM kill of the mail pod could have
+# swallowed an invitation with no retry and no error anywhere. Redelivery can
+# send one mail twice, which is harmless here (the invitation link is the same
+# token) and far better than an invitation that never arrives. The heavy
+# evaluation tasks already run this way.
+_MAIL_DELIVERY_GUARANTEES = {"acks_late": True, "reject_on_worker_lost": True}
+
+
+# Keeps a pathological provider message from bloating the row. The prefix is
+# what an admin needs; the tail never carries the useful part.
+INVITATION_ERROR_MAX_CHARS = 500
+
+
+def _record_invitation_email(
+    invitation_id: str,
+    *,
+    attempt: bool = False,
+    sent: bool = False,
+    error: Optional[str] = None,
+) -> None:
+    """Write the invitation-mail delivery state onto the invitation row.
+
+    The mail worker used to leave no durable trace of a send: the log line
+    scrolled away and the Celery result expired after a day, so an OOM-killed
+    worker looked exactly like a delivered invitation. This stamps the
+    outcome on ``invitations`` so the admin UI can show it and the resend
+    endpoint has something to gate on.
+
+    Never raises. Bookkeeping is strictly secondary to the mail: an exception
+    here would be caught by the task's ``autoretry_for=(Exception,)`` and
+    resend a message SendGrid already accepted.
+
+    Args:
+        invitation_id: row to stamp.
+        attempt: this call starts a send attempt (bumps the counter and the
+            last-attempt clock).
+        sent: SendGrid accepted the message (stamps ``email_sent_at`` and
+            clears the last error).
+        error: failure reason to store. Ignored when ``sent`` is true.
+    """
+    if not HAS_DATABASE or not invitation_id:
+        return
+
+    from datetime import datetime, timezone
+
+    db = None
+    try:
+        from models import Invitation
+
+        db = SessionLocal()
+        invitation = (
+            db.query(Invitation).filter(Invitation.id == invitation_id).first()
+        )
+        if invitation is None:
+            # Cancelled mid-flight, or a synthetic id from a probe send.
+            logger.warning(
+                f"Invitation {invitation_id} not found; skipping mail bookkeeping"
+            )
+            return
+
+        now = datetime.now(timezone.utc)
+        if attempt:
+            invitation.email_attempts = (invitation.email_attempts or 0) + 1
+            invitation.email_last_attempt_at = now
+        if sent:
+            invitation.email_sent_at = now
+            invitation.email_last_error = None
+        elif error is not None:
+            invitation.email_last_error = error[:INVITATION_ERROR_MAX_CHARS]
+        db.commit()
+    except Exception as e:
+        logger.error(
+            f"Failed to record invitation mail state for {invitation_id}: {e}"
+        )
+        if db is not None:
+            try:
+                db.rollback()
+            except Exception:
+                pass
+    finally:
+        if db is not None:
+            try:
+                db.close()
+            except Exception:
+                pass
+
 
 @app.task(
     name="emails.send_invitation",
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_invitation_email_task(
     self,
@@ -1320,6 +1413,10 @@ def send_invitation_email_task(
         Dictionary with send status
     """
     logger.info(f"Sending invitation email to {to_email} for {organization_name}")
+
+    # Stamp the attempt before the send. A worker killed mid-send then still
+    # leaves a visible "attempted, never confirmed" state behind.
+    _record_invitation_email(invitation_id, attempt=True)
 
     try:
         from email_service import email_service
@@ -1352,6 +1449,7 @@ def send_invitation_email_task(
 
         if result.get("status") == "success":
             logger.info(f"Invitation email sent successfully to {to_email}")
+            _record_invitation_email(invitation_id, sent=True)
             return {
                 "status": "success",
                 "invitation_id": invitation_id,
@@ -1372,6 +1470,9 @@ def send_invitation_email_task(
             logger.error(
                 f"Permanent SendGrid {status_code} for {to_email}; not retrying: {error_msg}"
             )
+            _record_invitation_email(
+                invitation_id, error=f"SendGrid {status_code}: {error_msg}"
+            )
             return {
                 "status": "failed_permanent",
                 "invitation_id": invitation_id,
@@ -1383,13 +1484,19 @@ def send_invitation_email_task(
         logger.error(
             f"Retryable SendGrid failure for {to_email} (status_code={status_code}): {error_msg}"
         )
+        _record_invitation_email(
+            invitation_id, error=f"SendGrid {status_code}: {error_msg} (retrying)"
+        )
         raise RuntimeError(f"SendGrid error: {error_msg}")
 
     except RuntimeError:
-        # Already classified as retryable above — let autoretry_for see it.
+        # Already classified as retryable above — the error is recorded there.
         raise
     except Exception as e:
         logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
+        _record_invitation_email(
+            invitation_id, error=f"{type(e).__name__}: {e} (retrying)"
+        )
         raise
 
 
@@ -1398,6 +1505,7 @@ def send_invitation_email_task(
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_account_activation_task(
     self,
@@ -1533,6 +1641,7 @@ def send_account_activation_task(
     bind=True,
     autoretry_for=(Exception,),
     retry_kwargs={'max_retries': 3, 'countdown': 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_account_link_confirmation_task(
     self,
@@ -1652,7 +1761,7 @@ def send_account_link_confirmation_task(
     raise RuntimeError(f"SendGrid error: {error_msg}")
 
 
-@app.task(name="emails.send_bulk_invitations")
+@app.task(name="emails.send_bulk_invitations", **_MAIL_DELIVERY_GUARANTEES)
 def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
     """
     Send multiple invitation emails with rate limiting
@@ -1682,7 +1791,13 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
                     invitation.get('role'),
                 ],
                 kwargs={'host': invitation.get('host')},
-                countdown=idx * 2,  # 2 second delay between emails
+                # Spread the batch so a course launch does not arrive as one
+                # spike. 0.5 s matches the 120/m rate limit in
+                # celery_queues.task_annotations, so neither brake idles the
+                # other: 300 invitations go out in ~2.5 min. It was 2 s, which
+                # pinned a 300-address launch to 10 min no matter what the rate
+                # limit allowed.
+                countdown=idx * INVITATION_FANOUT_SPACING_SECONDS,
             )
             sent += 1
             results.append(
@@ -1737,6 +1852,7 @@ def _resolve_notification_brand_host(db, user, notification_type, data) -> Optio
     name="emails.send_notification_batch",
     autoretry_for=(OperationalError, DBAPIError),
     retry_kwargs={"max_retries": 3, "countdown": 60},
+    **_MAIL_DELIVERY_GUARANTEES,
 )
 def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any]:
     """Send a batch of in-app-notification emails.
@@ -3632,36 +3748,22 @@ def run_single_sample_evaluation(
         # Prediction/reference resolution needs no DB, so it happens here too.
         # `prediction_fields` carries a literal field name, a
         # `human:<field>` / `model:<field>` prefix, or the bulk selectors
-        # `__all_human__` / `__all_model__`. `annotation_results` is keyed by
-        # raw `from_name`, so we strip prefixes and expand `__all_human__`.
-        def _resolve_human_field(pf: str):
-            if pf == "__all_human__":
-                if not annotation_results:
-                    return None
-                return "\n\n".join(
-                    f"{k}: {v}" for k, v in annotation_results.items() if v
-                )
-            key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
-            return annotation_results.get(key)
+        # `__all_human__` / `__all_model__`. The shared resolver is the same
+        # one the dispatcher uses to decide whether there is anything to
+        # grade, so the two cannot disagree. Model-side selectors never
+        # resolve: single-sample immediate eval has no model generations.
+        from immediate_eval_dispatch import resolve_human_prediction
 
         jobs: List[Dict[str, Any]] = []
+        skipped_configs: List[Dict[str, Any]] = []
         for idx, eval_cfg in enumerate(eligible_configs):
             metric_type = eval_cfg.get("metric", "")
             pred_fields = eval_cfg.get("prediction_fields", [])
             ref_fields = eval_cfg.get("reference_fields", [])
             metric_params = eval_cfg.get("metric_parameters") or {}
 
-            prediction_value = None
+            prediction_value = resolve_human_prediction(eval_cfg, annotation_results)
             reference_value = None
-            for pf in pred_fields:
-                if pf.startswith("model:") or pf == "__all_model__":
-                    # Single-sample immediate eval has no model generations to
-                    # evaluate against — only human annotations. Skip.
-                    continue
-                value = _resolve_human_field(pf)
-                if value:
-                    prediction_value = value
-                    break
 
             for rf in ref_fields:
                 if rf.startswith("task."):
@@ -3674,6 +3776,12 @@ def run_single_sample_evaluation(
 
             if prediction_value is None:
                 logger.warning(f"[SingleSampleEval] Skipping {metric_type} - no prediction value")
+                skipped_configs.append({
+                    "id": eval_cfg.get("id", metric_type),
+                    "metric": metric_type,
+                    "prediction_fields": list(pred_fields or []),
+                    "reason": "no_prediction_value",
+                })
                 continue
 
             # Each config gets its OWN judge_run (distinct run_index) so the
@@ -3744,6 +3852,28 @@ def run_single_sample_evaluation(
             eval_run.status = "completed"
             eval_run.completed_at = _dt_now.now()
 
+            if not jobs:
+                # Nothing to grade: no config found an answer (empty
+                # submission, missing field, or model-only configs). Say so
+                # on the run instead of finishing silently. It stays
+                # `completed`, so the results modal lists the methods as
+                # skipped rather than as a failed grading.
+                eval_run.samples_evaluated = 0
+                eval_run.eval_metadata = {
+                    **(eval_run.eval_metadata or {}),
+                    "nothing_to_grade": {
+                        "reason": "no_prediction_value",
+                        "skipped_configs": skipped_configs,
+                    },
+                }
+                logger.warning(
+                    "[SingleSampleEval] run %s annotation %s: nothing to grade, "
+                    "all %d config(s) skipped",
+                    dispatch_eval_id,
+                    annotation_id,
+                    len(skipped_configs),
+                )
+
             # Aggregate TaskEvaluation scores into EvaluationRun.metrics
             # so the comparison table on /evaluations can display them.
             # Re-query in this session — the rows were written by the worker
@@ -3813,7 +3943,10 @@ def run_single_sample_evaluation(
 
             db.commit()
 
-        grading_succeeded = not any(
+        # A run that graded nothing is not a successful grading: the finalize
+        # hook voids a metered ledger row (no charge, a claimed free slot is
+        # released) and no "grade received" notice goes out.
+        grading_succeeded = bool(jobs) and not any(
             isinstance(r, dict) and r.get("status") == "error" for r in results
         )
         _run_grading_finalize_hook(dispatch_eval_id, grading_succeeded)
@@ -4999,10 +5132,12 @@ def recompute_aggregates(self):
     ad-hoc. Coalesces concurrent runs with a Redis lock so a burst of triggers
     collapses to a single execution.
 
-    The heavy SQL lives in `services/api/services/aggregate_summaries.py`;
-    this is the Celery entry point. Total wall time on prod-scale data
-    (333 evaluation_runs / 60k task_evaluations) should be well under a
-    minute in the worker pod.
+    The heavy SQL lives in `services/shared/aggregate_summaries.py`; this is
+    the Celery entry point. The leaderboard part aggregates in Postgres and
+    only pulls per-(model, metric) summary rows, so worker memory does not
+    grow with the task_evaluations table. Before 2026-09-17 it pulled every
+    metric value into Python: at 390k task_evaluations a run took ~460 s and
+    got the 1 GiB aux worker OOM-killed.
     """
     # aggregate_summaries lives in /shared (moved 2026-05-20 — see module
     # docstring). Worker has /shared on sys.path via the early bootstrap
@@ -5086,6 +5221,12 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     A grading the billing policy refuses keeps its one blocked run (the check
     only refreshes it) and is dispatched on the first sweep after the block
     is lifted; ``blocked`` counts those annotations.
+
+    ``scan_ungraded`` leaves out annotations with nothing to grade (empty
+    answer, no graded field), so they are never dispatched. An annotation
+    whose earlier sweep runs all ended without a grade (a judge outage) is
+    retried up to ``SWEEP_MAX_ATTEMPTS`` times; ``capped`` counts the ones
+    past that. A manual retrigger is not affected by the cap.
     """
     from datetime import datetime as _dt
     from datetime import timedelta, timezone
@@ -5093,14 +5234,17 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     from immediate_eval_dispatch import (
         OUTCOME_BLOCKED,
         OUTCOME_DISPATCHED,
+        SWEEP_MAX_ATTEMPTS,
+        SWEEP_TRIGGER,
         ensure_immediate_evaluation_outcome,
         scan_ungraded,
+        sweep_attempt_counts,
     )
     from project_models import Project
 
     db = SessionLocal()
     cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
-    scanned_projects = dispatched = blocked = 0
+    scanned_projects = dispatched = blocked = capped = 0
     try:
         projects = (
             db.query(Project)
@@ -5115,12 +5259,16 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
             if not candidates:
                 continue
             scanned_projects += 1
+            attempts = sweep_attempt_counts(db, project.id)
             for annotation, task in candidates:
+                if attempts.get(str(annotation.id), 0) >= SWEEP_MAX_ATTEMPTS:
+                    capped += 1
+                    continue
                 try:
                     # cutoff already applied in scan_ungraded → no min-age here.
                     outcome = ensure_immediate_evaluation_outcome(
                         db, project, task, annotation,
-                        trigger="sweep_missing_immediate_evals",
+                        trigger=SWEEP_TRIGGER,
                     )
                     if outcome.status == OUTCOME_DISPATCHED:
                         dispatched += 1
@@ -5134,14 +5282,15 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
                     db.rollback()
         logger.info(
             "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d "
-            "blocked=%d",
-            scanned_projects, dispatched, blocked,
+            "blocked=%d capped=%d",
+            scanned_projects, dispatched, blocked, capped,
         )
         return {
             "status": "success",
             "projects_with_gaps": scanned_projects,
             "dispatched": dispatched,
             "blocked": blocked,
+            "capped": capped,
         }
     except Exception as exc:
         logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)

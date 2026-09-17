@@ -14,7 +14,9 @@ import pytest
 from immediate_eval_dispatch import (
     eligible_configs,
     eligible_metrics,
+    gradable_configs,
     parse_annotation_results,
+    resolve_human_prediction,
     row_has_real_score_for,
 )
 
@@ -98,3 +100,81 @@ class TestEligibleConfigs:
     def test_no_config_returns_empty(self):
         assert eligible_configs(SimpleNamespace(evaluation_config=None)) == []
         assert eligible_configs(SimpleNamespace(evaluation_config={})) == []
+
+
+def _cfg(*fields, metric="llm_judge_falloesung"):
+    return {"id": f"{metric}-1", "metric": metric, "prediction_fields": list(fields)}
+
+
+class TestResolveHumanPrediction:
+    """The one resolver the worker and the dispatcher share (prod: the sweep
+    re-dispatched 14 annotations every hour because the worker skipped every
+    config while the dispatcher did not know it would)."""
+
+    def test_bare_and_prefixed_field(self):
+        results = {"loesung": "Antwort"}
+        assert resolve_human_prediction(_cfg("loesung"), results) == "Antwort"
+        assert resolve_human_prediction(_cfg("human:loesung"), results) == "Antwort"
+
+    def test_empty_and_whitespace_text_is_no_answer(self):
+        assert resolve_human_prediction(_cfg("human:loesung"), {"loesung": ""}) is None
+        assert resolve_human_prediction(_cfg("human:loesung"), {"loesung": " \n "}) is None
+
+    def test_missing_field_is_no_answer(self):
+        results = {"notizen": "x", "gliederung": "y"}
+        assert resolve_human_prediction(_cfg("human:loesung"), results) is None
+
+    def test_model_selectors_never_resolve(self):
+        # Prod "Test" project: a real answer under `answer`, but every config
+        # reads `__all_model__` only.
+        results = {"answer": "Nein, belastendes Gewohnheitsrecht ..."}
+        assert resolve_human_prediction(_cfg("__all_model__"), results) is None
+        assert resolve_human_prediction(_cfg("model:answer"), results) is None
+
+    def test_first_field_with_an_answer_wins(self):
+        cfg = _cfg("__all_model__", "human:loesung")
+        assert resolve_human_prediction(cfg, {"loesung": "L"}) == "L"
+        cfg = _cfg("human:leer", "human:loesung")
+        assert resolve_human_prediction(cfg, {"leer": "", "loesung": "L"}) == "L"
+
+    def test_all_human_joins_non_empty_fields(self):
+        cfg = _cfg("__all_human__")
+        assert resolve_human_prediction(cfg, {"a": "x", "b": "", "c": "y"}) == "a: x\n\nc: y"
+        assert resolve_human_prediction(cfg, {"a": "", "b": "  "}) is None
+        assert resolve_human_prediction(cfg, {}) is None
+
+    def test_rating_zero_is_an_answer_but_bool_and_empty_list_are_not(self):
+        assert resolve_human_prediction(_cfg("r"), {"r": 0}) == 0
+        assert resolve_human_prediction(_cfg("r"), {"r": False}) is None
+        assert resolve_human_prediction(_cfg("r"), {"r": []}) is None
+        assert resolve_human_prediction(_cfg("r"), {"r": ["a", "b"]}) == ["a", "b"]
+
+    def test_tolerates_missing_or_odd_fields(self):
+        assert resolve_human_prediction({"metric": "x"}, {"a": "b"}) is None
+        assert resolve_human_prediction({"prediction_fields": None}, {"a": "b"}) is None
+        assert resolve_human_prediction(_cfg("a"), None) is None
+
+
+class TestGradableConfigs:
+    def test_keeps_only_configs_with_an_answer(self):
+        with_answer = _cfg("human:loesung")
+        model_only = _cfg("__all_model__", metric="llm_judge_lexam")
+        other_field = _cfg("human:gliederung", metric="rouge")
+        results = {"loesung": "L", "gliederung": ""}
+        assert gradable_configs([with_answer, model_only, other_field], results) == [
+            with_answer
+        ]
+
+    def test_prod_shapes_have_nothing_to_grade(self):
+        cfgs = [_cfg("human:loesung"), _cfg("loesung"), _cfg("__all_model__")]
+        for result in (
+            [],
+            [{"type": "textarea", "value": "", "to_name": "text", "from_name": "loesung"}],
+            [{"type": "textarea", "value": "", "to_name": "text", "from_name": "notizen"}],
+        ):
+            ann = SimpleNamespace(result=result)
+            assert gradable_configs(cfgs, parse_annotation_results(ann)) == []
+
+    def test_empty_inputs(self):
+        assert gradable_configs([], {"a": "b"}) == []
+        assert gradable_configs(None, {"a": "b"}) == []

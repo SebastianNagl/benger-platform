@@ -3943,6 +3943,28 @@
     }
   },
   "admin": {
+    "invitationDelivery": {
+      "status": {
+        "sent": "Sent",
+        "failed": "Failed",
+        "queued": "Queued",
+        "unknown": "Unknown"
+      },
+      "hint": {
+        "sent": "The mail provider accepted the invitation email.",
+        "failed": "The last send attempt failed. Try resending.",
+        "queued": "The send was queued but is not confirmed yet.",
+        "unknown": "No delivery record exists for this invitation."
+      },
+      "sentAt": "Sent at",
+      "lastAttemptAt": "Last attempt",
+      "attempts": "Attempts",
+      "lastError": "Last error",
+      "resend": "Resend",
+      "resending": "Sending…",
+      "resendSuccess": "Invitation email re-queued",
+      "resendFailed": "Could not resend the invitation"
+    },
     "globalUsers": "Global Users",
     "usersOrganizations": "Users & Organizations",
     "usersOrganizationsDescription": "Manage users, organizations, and their permissions in a unified interface",

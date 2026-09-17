@@ -10,11 +10,10 @@ cleanup_expired_tokens.
 
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, create_autospec, patch
 
 import pytest
 from fastapi import HTTPException
-
 
 # ---------------------------------------------------------------------------
 # Module-level logger initialization (lines 33-40)
@@ -26,8 +25,8 @@ class TestModuleInit:
     def test_import_module(self):
         """Importing the module should set up loggers."""
         import auth_module.email_verification as ev
-        assert ev.email_monitoring_logger != None  # noqa: E711
-        assert ev.JWT_SECRET != None  # noqa: E711
+        assert ev.email_monitoring_logger != None
+        assert ev.JWT_SECRET != None
         assert ev.VERIFICATION_TOKEN_EXPIRE_HOURS == 48
         assert ev.RATE_LIMIT_MINUTES == 5
 
@@ -201,9 +200,11 @@ class TestGenerateVerificationToken:
 
     def test_token_generation_failure_logs_error(self):
         svc = self._make_service()
-        with patch("auth_module.email_verification.jwt.encode", side_effect=Exception("encode error")):
-            with pytest.raises(Exception, match="encode error"):
-                svc.generate_verification_token("user-1", "test@test.com")
+        with (
+            patch("auth_module.email_verification.jwt.encode", side_effect=Exception("encode error")),
+            pytest.raises(Exception, match="encode error"),
+        ):
+            svc.generate_verification_token("user-1", "test@test.com")
 
 
 # ---------------------------------------------------------------------------
@@ -326,9 +327,9 @@ class TestMarkEmailVerified:
 
         result = svc.mark_email_verified(db, "user-1")
         assert result is True
-        assert user.email_verified == True  # noqa: E712
-        assert user.email_verification_token == None  # noqa: E711
-        assert user.email_verification_sent_at == None  # noqa: E711
+        assert user.email_verified == True
+        assert user.email_verification_token == None
+        assert user.email_verification_sent_at == None
         db.commit.assert_called_once()
 
     def test_admin_verification(self):
@@ -385,17 +386,17 @@ class TestCanSendVerificationEmail:
     def test_no_previous_send(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=None)
-        assert svc.can_send_verification_email(user) == True  # noqa: E712
+        assert svc.can_send_verification_email(user) == True
 
     def test_sent_recently_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=1))
-        assert svc.can_send_verification_email(user) == False  # noqa: E712
+        assert svc.can_send_verification_email(user) == False
 
     def test_sent_long_ago_not_rate_limited(self):
         svc = self._make_service()
         user = Mock(email_verification_sent_at=datetime.now(timezone.utc) - timedelta(minutes=10))
-        assert svc.can_send_verification_email(user) == True  # noqa: E712
+        assert svc.can_send_verification_email(user) == True
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +437,6 @@ class TestSendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=True)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.send_verification_email(db, user, language="de")
         assert result is True
@@ -453,7 +453,6 @@ class TestSendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=False)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.send_verification_email(db, user)
         assert result is False
@@ -475,6 +474,30 @@ class TestSendVerificationEmail:
         result = await svc.send_verification_email(db, user)
         assert result is False
         db.rollback.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_success_with_real_email_service_shape(self):
+        """A delivered mail must report success with the real EmailService attributes.
+
+        The success branch used to read `email_service.config`, which EmailService
+        never had. Every sent verification mail was then logged as an error.
+        """
+        from mailer.email_service import EmailService
+
+        svc = self._make_service()
+        svc.email_service = create_autospec(EmailService, instance=True)
+        svc.email_service.send_verification_email = AsyncMock(return_value=True)
+        db = MagicMock()
+        user = Mock(
+            id="user-1",
+            email="test@test.com",
+            name="Test",
+            email_verification_sent_at=None,
+        )
+
+        result = await svc.send_verification_email(db, user)
+        assert result is True
+        db.rollback.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -535,10 +558,12 @@ class TestVerifyEmailWithToken:
         user = Mock(id="user-1", email="test@test.com", email_verified=False)
         db.query.return_value.filter.return_value.first.return_value = user
 
-        with patch.object(svc, "mark_email_verified", return_value=True):
-            with patch.object(svc, "_auto_accept_invitations", return_value=[]):
-                token = svc.generate_verification_token("user-1", "test@test.com")
-                success, message = svc.verify_email_with_token(db, token)
+        with (
+            patch.object(svc, "mark_email_verified", return_value=True),
+            patch.object(svc, "_auto_accept_invitations", return_value=[]),
+        ):
+            token = svc.generate_verification_token("user-1", "test@test.com")
+            success, message = svc.verify_email_with_token(db, token)
 
         assert success is True
         assert "Email successfully verified" in message
@@ -550,10 +575,12 @@ class TestVerifyEmailWithToken:
         db.query.return_value.filter.return_value.first.return_value = user
 
         invitation_msgs = ["You've been added to Org1 as annotator."]
-        with patch.object(svc, "mark_email_verified", return_value=True):
-            with patch.object(svc, "_auto_accept_invitations", return_value=invitation_msgs):
-                token = svc.generate_verification_token("user-1", "test@test.com")
-                success, message = svc.verify_email_with_token(db, token)
+        with (
+            patch.object(svc, "mark_email_verified", return_value=True),
+            patch.object(svc, "_auto_accept_invitations", return_value=invitation_msgs),
+        ):
+            token = svc.generate_verification_token("user-1", "test@test.com")
+            success, message = svc.verify_email_with_token(db, token)
 
         assert success is True
         assert "Org1" in message
@@ -564,10 +591,12 @@ class TestVerifyEmailWithToken:
         user = Mock(id="user-1", email="test@test.com", email_verified=False)
         db.query.return_value.filter.return_value.first.return_value = user
 
-        with patch.object(svc, "mark_email_verified", return_value=True):
-            with patch.object(svc, "_auto_accept_invitations", side_effect=Exception("DB error")):
-                token = svc.generate_verification_token("user-1", "test@test.com")
-                success, message = svc.verify_email_with_token(db, token)
+        with (
+            patch.object(svc, "mark_email_verified", return_value=True),
+            patch.object(svc, "_auto_accept_invitations", side_effect=Exception("DB error")),
+        ):
+            token = svc.generate_verification_token("user-1", "test@test.com")
+            success, message = svc.verify_email_with_token(db, token)
 
         assert success is True
         assert "Email successfully verified" in message
@@ -619,7 +648,6 @@ class TestResendVerificationEmail:
             email_verification_sent_at=None,
         )
         svc.email_service.send_verification_email = AsyncMock(return_value=True)
-        svc.email_service.config = Mock(provider="smtp")
 
         result = await svc.resend_verification_email(db, user, "http://localhost", language="de")
         assert result is True
@@ -700,10 +728,10 @@ class TestCleanupExpiredTokens:
 
         count = svc.cleanup_expired_tokens(db)
         assert count == 2
-        assert expired_user1.email_verification_token == None  # noqa: E711
-        assert expired_user1.email_verification_sent_at == None  # noqa: E711
-        assert expired_user2.email_verification_token == None  # noqa: E711
-        assert expired_user2.email_verification_sent_at == None  # noqa: E711
+        assert expired_user1.email_verification_token == None
+        assert expired_user1.email_verification_sent_at == None
+        assert expired_user2.email_verification_token == None
+        assert expired_user2.email_verification_sent_at == None
         db.commit.assert_called_once()
 
     def test_exception_rolls_back(self):

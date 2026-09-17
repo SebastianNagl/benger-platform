@@ -75,6 +75,82 @@ class InvitationResponse(BaseModel):
         from_attributes = True
 
 
+class InvitationAdminResponse(InvitationResponse):
+    """Admin list shape: the invitation plus its mail-delivery state.
+
+    Kept separate from ``InvitationResponse`` so the public by-token endpoint
+    cannot leak a provider error message to whoever holds a link.
+    """
+
+    # sent | failed | queued | unknown, see invitation_email_status.
+    email_status: str
+    email_sent_at: Optional[datetime] = None
+    email_last_attempt_at: Optional[datetime] = None
+    email_attempts: int = 0
+    email_last_error: Optional[str] = None
+
+
+class InvitationResendResponse(BaseModel):
+    """Result of a resend. Deliberately carries no token."""
+
+    message: str
+    invitation_id: str
+    email: str
+    email_status: str
+    email_attempts: int
+    email_last_attempt_at: Optional[datetime] = None
+
+
+def invitation_email_status(invitation: Invitation) -> str:
+    """Derive the delivery state an admin should see.
+
+    ``unknown`` and ``failed`` are deliberately distinct: rows created before
+    the bookkeeping columns existed (migration 107) carry no timestamps at
+    all, and calling those failures would cry wolf on every historical invite.
+
+    - ``sent``: SendGrid accepted the message.
+    - ``failed``: a send was attempted or queued and the last outcome was an
+      error. Retries that later succeed clear it.
+    - ``queued``: attempted or queued, no confirmation and no error yet.
+    - ``unknown``: nothing recorded.
+    """
+    if invitation.email_sent_at is not None:
+        return "sent"
+    if invitation.email_last_error:
+        return "failed"
+    if invitation.email_last_attempt_at is not None:
+        return "queued"
+    return "unknown"
+
+
+# A resend is a human action on a single row, so the guard only has to stop an
+# admin leaning on the button. The verification resend uses 5 minutes; an
+# invitation resend is rarer and more often a genuine repair, so a minute is
+# enough. Measured against email_last_attempt_at, which the API stamps at
+# queue time, so a dead worker cannot turn the guard off.
+RESEND_MIN_INTERVAL_SECONDS = 60
+
+# Keeps a pathological provider message out of the row and off the screen.
+INVITATION_ERROR_MAX_CHARS = 500
+
+
+def _stamp_queued(invitation: Invitation, error: Optional[str] = None) -> None:
+    """Record that an invitation mail was handed to (or refused by) Celery.
+
+    Without this the row stays ``unknown`` between the enqueue and the
+    worker's first attempt, and a broker outage would leave no trace at all.
+    The worker stamps ``email_last_attempt_at`` again per attempt.
+
+    A successful enqueue clears a stale error, so a resend after a failure
+    reads as ``queued`` rather than keeping the old failure on screen. The
+    worker writes a fresh error if this send fails too.
+    """
+    invitation.email_last_attempt_at = datetime.now(timezone.utc)
+    invitation.email_last_error = (
+        None if error is None else error[:INVITATION_ERROR_MAX_CHARS]
+    )
+
+
 class InvitationAccept(BaseModel):
     token: str
     user_info: Optional[dict] = None  # For new user registration during acceptance
@@ -288,9 +364,18 @@ async def create_invitation(
             },
         )
         logger.info(f"📮 Queued invitation email for {invitation.email}")
+        _stamp_queued(invitation)
     except Exception as e:
-        # Log error but don't fail the invitation creation
+        # Log error but don't fail the invitation creation. The row records the
+        # queue failure so the admin list shows "failed" instead of claiming
+        # the invite went out.
         logger.error(f"Failed to queue invitation email: {e}")
+        _stamp_queued(invitation, error=f"Failed to queue mail: {e}")
+    try:
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to record invitation mail queue state: {e}")
+        db.rollback()
 
     # Notify organization admins about invitation sent
     try:
@@ -465,8 +550,17 @@ async def create_bulk_invitations(
             logger.info(
                 f"📮 Queued {len(payload)} bulk invitations for organization {organization_id}"
             )
+            for inv in created:
+                _stamp_queued(inv)
         except Exception as e:
             logger.error(f"Failed to queue bulk invitation emails: {e}")
+            for inv in created:
+                _stamp_queued(inv, error=f"Failed to queue mail: {e}")
+        try:
+            db.commit()
+        except Exception as e:
+            logger.error(f"Failed to record bulk invitation mail queue state: {e}")
+            db.rollback()
 
         # Notify org admins per queued invite (best-effort, mirrors single invite).
         for inv in created:
@@ -493,7 +587,7 @@ async def create_bulk_invitations(
 
 @router.get(
     "/organizations/{organization_id}/invitations",
-    response_model=List[InvitationResponse],
+    response_model=List[InvitationAdminResponse],
 )
 async def list_organization_invitations(
     organization_id: str,
@@ -501,11 +595,14 @@ async def list_organization_invitations(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """List organization invitations.
+    """List organization invitations, with the mail-delivery state per row.
 
     Superadmins and the org's ORG_ADMINs see all pending invitations; a
     GROUP admin sees only the invitations scoped to their own groups (so
     the admin UI's pending list works for chair staff too).
+
+    Read-only. ``email_status`` is derived per row (see
+    ``invitation_email_status``) so the UI does not re-implement the rule.
     """
 
     # Check permissions
@@ -562,7 +659,8 @@ async def list_organization_invitations(
         invitation_dict = invitation.__dict__.copy()
         invitation_dict["organization_name"] = organization.name
         invitation_dict["inviter_name"] = inviter.name
-        result.append(InvitationResponse(**invitation_dict))
+        invitation_dict["email_status"] = invitation_email_status(invitation)
+        result.append(InvitationAdminResponse(**invitation_dict))
 
     return result
 
@@ -777,6 +875,38 @@ async def accept_invitation(
     }
 
 
+async def _authorize_existing_invitation(
+    db: AsyncSession,
+    current_user: User,
+    invitation: Invitation,
+    action: str,
+) -> None:
+    """Gate an admin action on an EXISTING invitation row (async lane).
+
+    Superadmins pass; otherwise the actor must hold an active ORG_ADMIN
+    membership in the invitation's organization, or be the inviter. Cancel and
+    resend share this so a resend can never reach further than a cancel.
+    """
+    if current_user.is_superadmin:
+        return
+
+    membership = (
+        await db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.organization_id == invitation.organization_id,
+                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+        )
+    ).scalar_one_or_none()
+    if not membership and invitation.invited_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only organization admins or the inviter can {action} invitations",
+        )
+
+
 @router.delete("/{invitation_id}")
 async def cancel_invitation(
     invitation_id: str,
@@ -791,26 +921,129 @@ async def cancel_invitation(
     if not invitation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
 
-    # Check permissions
-    if not current_user.is_superadmin:
-        membership = (
-            await db.execute(
-                select(OrganizationMembership).where(
-                    OrganizationMembership.user_id == current_user.id,
-                    OrganizationMembership.organization_id == invitation.organization_id,
-                    OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                    OrganizationMembership.is_active == True,  # noqa: E712
-                )
-            )
-        ).scalar_one_or_none()
-        if not membership and invitation.invited_by != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only organization admins or the inviter can cancel invitations",
-            )
+    await _authorize_existing_invitation(db, current_user, invitation, "cancel")
 
     # Delete the invitation
     await db.delete(invitation)
     await db.commit()
 
     return {"message": "Invitation cancelled successfully"}
+
+
+@router.post("/{invitation_id}/resend", response_model=InvitationResendResponse)
+async def resend_invitation(
+    invitation_id: str,
+    request: Request = None,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Re-queue the invitation mail for a pending invitation.
+
+    Before this the only repair for a lost invitation mail (a dead mail
+    worker, a transient provider failure, a mail the recipient deleted) was to
+    cancel the invitation and create it again, which mints a new token and
+    breaks any link already in flight. This reuses the same token, so a link
+    sent earlier keeps working.
+
+    Authorization is the same gate as cancel. Rejects an accepted or expired
+    invitation, and refuses a second resend within
+    ``RESEND_MIN_INTERVAL_SECONDS`` of the last attempt. The response
+    deliberately omits the token: an admin never needs it, and the mail is the
+    only place it belongs.
+    """
+    row = (
+        await db.execute(
+            select(Invitation, Organization)
+            .join(Organization, Invitation.organization_id == Organization.id)
+            .where(Invitation.id == invitation_id)
+        )
+    ).first()
+    if not row:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found")
+
+    invitation, organization = row
+
+    await _authorize_existing_invitation(db, current_user, invitation, "resend")
+
+    if invitation.accepted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation has already been accepted",
+        )
+    if invitation.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation has expired",
+        )
+
+    # Hammering guard. email_last_attempt_at is stamped at queue time, so this
+    # holds even when the worker never picks the task up.
+    if invitation.email_last_attempt_at is not None:
+        elapsed = (
+            datetime.now(timezone.utc) - invitation.email_last_attempt_at
+        ).total_seconds()
+        if elapsed < RESEND_MIN_INTERVAL_SECONDS:
+            wait = int(RESEND_MIN_INTERVAL_SECONDS - elapsed) + 1
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Please wait {wait} seconds before resending this invitation",
+            )
+
+    # The inviter's name is what the recipient already saw, so keep it rather
+    # than substituting whoever pressed resend.
+    inviter_name = (
+        await db.execute(select(User.name).where(User.id == invitation.invited_by))
+    ).scalar_one_or_none() or current_user.name
+
+    invite_host = (
+        (request.headers.get("x-forwarded-host") or request.headers.get("host"))
+        if request
+        else None
+    )
+    brand = resolve_email_brand(invite_host)
+    invitation_url = f"{brand.frontend_url}/accept-invitation/{invitation.token}"
+
+    queue_error: Optional[str] = None
+    try:
+        celery_app.send_task(
+            "emails.send_invitation",
+            args=[
+                invitation.id,
+                invitation.email,
+                inviter_name,
+                organization.name,
+                invitation_url,
+                invitation.role.value,
+            ],
+            kwargs={"host": invite_host},
+            retry=True,
+            retry_policy={
+                'max_retries': 3,
+                'interval_start': 0,
+                'interval_step': 0.2,
+                'interval_max': 0.2,
+            },
+        )
+        logger.info(f"📮 Re-queued invitation email for {invitation.email}")
+    except Exception as e:
+        # Mirrors create_invitation: the queue failure is recorded, not raised,
+        # so the admin sees "failed" rather than a 500 with no trace.
+        logger.error(f"Failed to re-queue invitation email: {e}")
+        queue_error = f"Failed to queue mail: {e}"
+
+    _stamp_queued(invitation, error=queue_error)
+    await db.commit()
+    await db.refresh(invitation)
+
+    return InvitationResendResponse(
+        message=(
+            "Invitation email re-queued"
+            if queue_error is None
+            else "Invitation email could not be queued"
+        ),
+        invitation_id=invitation.id,
+        email=invitation.email,
+        email_status=invitation_email_status(invitation),
+        email_attempts=invitation.email_attempts or 0,
+        email_last_attempt_at=invitation.email_last_attempt_at,
+    )

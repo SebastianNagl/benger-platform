@@ -1413,6 +1413,24 @@ class Invitation(Base):
     )  # User created via invitation signup (before email verification)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
+    # Invitation-mail delivery bookkeeping (migration 107). Before this the
+    # only trace of a send was a worker log line plus a Celery result that
+    # expires after a day, so an admin could not tell a delivered invite from
+    # one whose worker died. Semantics:
+    #   email_sent_at        set once SendGrid accepted the message. NULL means
+    #                        no send was ever confirmed, NOT that it failed.
+    #   email_last_attempt_at when a send was last attempted OR queued. The API
+    #                        stamps it at queue time and the worker stamps it
+    #                        again per attempt, so the resend guard still has a
+    #                        clock when the worker is down.
+    #   email_attempts       how many send attempts the worker started.
+    #   email_last_error     last failure reason, cleared on a confirmed send.
+    # Pre-migration rows keep NULL timestamps, which reads as unknown.
+    email_sent_at = Column(DateTime(timezone=True), nullable=True)
+    email_last_attempt_at = Column(DateTime(timezone=True), nullable=True)
+    email_attempts = Column(Integer, default=0, server_default="0", nullable=False)
+    email_last_error = Column(Text, nullable=True)
+
     # Relationships
     organization = relationship("Organization", back_populates="invitations")
     group = relationship("OrganizationGroup")

@@ -207,7 +207,10 @@ class TestCreateInvitation:
 
         # Check invitation was added to DB
         mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
+        # Two commits: the invitation row, then the mail queue-time stamp. The
+        # stamp has to come AFTER the first commit, or the worker could pick
+        # the task up before the row is visible and find nothing to record on.
+        assert mock_db.commit.call_count == 2
 
     @pytest.mark.asyncio
     async def test_create_invitation_vertretbar_host_branding(
@@ -431,7 +434,8 @@ class TestCreateBulkInvitations:
 
         # Only the one valid new row is persisted.
         assert mock_db.add.call_count == 1
-        mock_db.commit.assert_called_once()
+        # Two commits: the created rows, then their mail queue-time stamps.
+        assert mock_db.commit.call_count == 2
 
         # Dispatched once to the bulk worker task with a 1-item payload.
         mock_celery.send_task.assert_called_once()

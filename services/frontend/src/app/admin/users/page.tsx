@@ -1,6 +1,7 @@
 'use client'
 
 import { EmailVerificationModal } from '@/components/admin/EmailVerificationModal'
+import { InvitationDeliveryBadge } from '@/components/admin/InvitationDeliveryBadge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import {
@@ -55,6 +56,8 @@ export default function AdminUsersPage() {
     useState<Organization | null>(null)
   const [members, setMembers] = useState<OrganizationMember[]>([])
   const [invitations, setInvitations] = useState<InvitationDetails[]>([])
+  // Invitation ids with a resend in flight, so the button can't double-fire.
+  const [resendingInvitations, setResendingInvitations] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -466,6 +469,27 @@ export default function AdminUsersPage() {
         t('admin.users.invitations.cancelFailed'),
         t('admin.usersPage.cancelInvitationFailed'),
       )
+    }
+  }
+
+  // Re-queues the invitation mail. Reuses the existing token, so a link the
+  // recipient already has keeps working. The server refuses a second resend
+  // within a minute and returns 429.
+  const handleResendInvitation = async (invitationId: string) => {
+    setResendingInvitations((ids) => [...ids, invitationId])
+    try {
+      await apiClient.resendInvitation(invitationId)
+      await loadOrganizationData()
+    } catch (error) {
+      console.error('Failed to resend invitation:', error)
+      showError(
+        error instanceof Error
+          ? error.message
+          : t('admin.invitationDelivery.resendFailed'),
+        t('admin.invitationDelivery.resendFailed'),
+      )
+    } finally {
+      setResendingInvitations((ids) => ids.filter((id) => id !== invitationId))
     }
   }
 
@@ -1151,15 +1175,35 @@ export default function AdminUsersPage() {
                                   invitation.expires_at,
                                 ).toLocaleDateString()}
                               </p>
+                              <div className="mt-1">
+                                <InvitationDeliveryBadge
+                                  invitation={invitation}
+                                />
+                              </div>
                             </div>
-                            <button
-                              onClick={() =>
-                                handleCancelInvitation(invitation.id)
-                              }
-                              className="text-red-600 hover:text-red-800 dark:text-red-400"
-                            >
-                              {t('admin.usersPage.cancel')}
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() =>
+                                  handleResendInvitation(invitation.id)
+                                }
+                                disabled={resendingInvitations.includes(
+                                  invitation.id,
+                                )}
+                                className="text-blue-600 hover:text-blue-800 disabled:opacity-50 dark:text-blue-400"
+                              >
+                                {resendingInvitations.includes(invitation.id)
+                                  ? t('admin.invitationDelivery.resending')
+                                  : t('admin.invitationDelivery.resend')}
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleCancelInvitation(invitation.id)
+                                }
+                                className="text-red-600 hover:text-red-800 dark:text-red-400"
+                              >
+                                {t('admin.usersPage.cancel')}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))

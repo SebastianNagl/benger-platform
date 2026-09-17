@@ -275,6 +275,15 @@ workerPools:
       requests:
         cpu: 50m
         memory: 192Mi
+  maintenance:
+    replicaCount: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 768Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
 
 frontend:
   replicaCount: 1

@@ -10,6 +10,8 @@ Pure helpers under test (deterministic, no DB):
   * _period_cutoff          — period -> time-window cutoff
   * _coerce_metric_value    — JSON metric value -> float | None
   * _confidence_interval    — sample -> 95% t-CI of the mean
+  * _confidence_interval_from_stats — (mean, sd, n) -> the same t-CI; the
+                              leaderboard SQL rollup feeds it
   * metric_key_is_real      — the noise filter that decides which metric
                               keys count toward an aggregate (re-exported by
                               this module from metric_filters)
@@ -47,7 +49,9 @@ import aggregate_summaries as agg  # noqa: E402
 from aggregate_summaries import (  # noqa: E402
     _coerce_metric_value,
     _confidence_interval,
+    _confidence_interval_from_stats,
     _period_cutoff,
+    _sql_coerce_metric_value,
 )
 from metric_filters import metric_key_is_real  # noqa: E402
 
@@ -254,6 +258,82 @@ class TestConfidenceInterval:
         tight_lo, tight_hi = _confidence_interval([4.9, 5.0, 5.1])
         wide_lo, wide_hi = _confidence_interval([0.0, 5.0, 10.0])
         assert (tight_hi - tight_lo) < (wide_hi - wide_lo)
+
+
+class TestConfidenceIntervalFromStats:
+    """The SQL rollup only returns (mean, sd, n). The CI built from those
+    must equal the CI built from the raw values, edge cases included."""
+
+    @staticmethod
+    def _stats(values):
+        import statistics
+
+        return statistics.fmean(values), statistics.stdev(values), len(values)
+
+    @pytest.mark.parametrize(
+        "values",
+        [[2.0, 4.0], [2.0, 4.0, 9.0], [1.0, 2.0, 3.0, 10.0], [0.1, 0.25, 0.7, 0.9, 0.33]],
+    )
+    def test_matches_raw_value_ci(self, values):
+        mean, sd, n = self._stats(values)
+        lo, hi = _confidence_interval_from_stats(mean, sd, n)
+        ref_lo, ref_hi = _confidence_interval(values)
+        assert lo == pytest.approx(ref_lo, abs=1e-9)
+        assert hi == pytest.approx(ref_hi, abs=1e-9)
+
+    def test_exact_two_sample_bounds(self):
+        # mean 3, sd sqrt(2), n 2 -> sem 1.0, t(0.975, 1) = 12.7062...
+        lo, hi = _confidence_interval_from_stats(3.0, 2 ** 0.5, 2)
+        assert lo == pytest.approx(-9.706204736174694, abs=1e-9)
+        assert hi == pytest.approx(15.706204736174694, abs=1e-9)
+
+    def test_fewer_than_two_samples_returns_none_none(self):
+        assert _confidence_interval_from_stats(0.5, None, 1) == (None, None)
+        assert _confidence_interval_from_stats(0.5, 0.0, 1) == (None, None)
+        assert _confidence_interval_from_stats(0.0, None, 0) == (None, None)
+
+    def test_zero_sd_collapses_to_the_mean(self):
+        assert _confidence_interval_from_stats(5.0, 0.0, 3) == (5.0, 5.0)
+
+    def test_non_finite_or_missing_sd_collapses_to_the_mean(self):
+        assert _confidence_interval_from_stats(5.0, float("inf"), 3) == (5.0, 5.0)
+        assert _confidence_interval_from_stats(5.0, float("nan"), 3) == (5.0, 5.0)
+        assert _confidence_interval_from_stats(5.0, None, 3) == (5.0, 5.0)
+
+    def test_scipy_missing_returns_none_none(self, monkeypatch):
+        import builtins
+
+        real_import = builtins.__import__
+
+        def _fake_import(name, *args, **kwargs):
+            if name == "scipy" or name.startswith("scipy."):
+                raise ImportError("no scipy")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", _fake_import)
+        assert _confidence_interval_from_stats(3.0, 1.0, 5) == (None, None)
+
+
+class TestSqlCoerceMetricValueShape:
+    """Shape pins for the SQL twin of `_coerce_metric_value`. Its values are
+    checked against the Python original on a real database in
+    tests/integration/test_aggregate_summaries_ranking_kills.py."""
+
+    def test_dict_keys_are_tried_in_python_order(self):
+        sql = _sql_coerce_metric_value("x", depth=1)
+        assert sql.index("-> 'value'") < sql.index("-> 'total_score'") < sql.index("-> 'score'")
+
+    def test_depth_bounds_the_recursion(self):
+        assert "'object'" not in _sql_coerce_metric_value("x", depth=0)
+        assert _sql_coerce_metric_value("x", depth=2).count("THEN COALESCE(") == 4
+
+    def test_no_colon_bind_lookalikes(self):
+        # The expression is embedded into a SQLAlchemy text() query, where a
+        # ":name" token would silently become a bind parameter.
+        import re
+
+        stripped = re.sub(r"::", "", agg._LEADERBOARD_VALUE_SQL)
+        assert re.search(r":\w", stripped) is None
 
 
 # ===========================================================================

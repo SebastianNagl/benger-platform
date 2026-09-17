@@ -940,7 +940,7 @@ class TestEvaluateLLMJudgeSingleMultidim:
 # ===========================================================================
 
 
-def _patch_dispatch_module(scan_side=None, ensure_side=None):
+def _patch_dispatch_module(scan_side=None, ensure_side=None, attempts_side=None):
     """Inject a fake `immediate_eval_dispatch` module so the sweep's local
     import resolves without the real (DB-heavy) scan/dispatch machinery.
     ``ensure_immediate_evaluation_outcome`` answers with ``_outcome`` values
@@ -948,8 +948,11 @@ def _patch_dispatch_module(scan_side=None, ensure_side=None):
     fake = types.ModuleType("immediate_eval_dispatch")
     fake.OUTCOME_DISPATCHED = "dispatched"
     fake.OUTCOME_BLOCKED = "blocked"
+    fake.SWEEP_TRIGGER = "sweep_missing_immediate_evals"
+    fake.SWEEP_MAX_ATTEMPTS = 6
     fake.scan_ungraded = MagicMock(side_effect=scan_side)
     fake.ensure_immediate_evaluation_outcome = MagicMock(side_effect=ensure_side)
+    fake.sweep_attempt_counts = MagicMock(side_effect=attempts_side or (lambda *_a: {}))
     return patch.dict(sys.modules, {"immediate_eval_dispatch": fake})
 
 
@@ -985,6 +988,7 @@ class TestSweepMissingImmediateEvals:
             "projects_with_gaps": 1,
             "dispatched": 1,
             "blocked": 0,
+            "capped": 0,
         }
         assert disp.ensure_immediate_evaluation_outcome.call_count == 2
         # Every dispatch is stamped with the sweep trigger for the audit trail.
@@ -1017,6 +1021,7 @@ class TestSweepMissingImmediateEvals:
             "projects_with_gaps": 1,
             "dispatched": 1,
             "blocked": 1,
+            "capped": 0,
         }
         db.rollback.assert_not_called()
 
@@ -1045,9 +1050,52 @@ class TestSweepMissingImmediateEvals:
             "projects_with_gaps": 1,
             "dispatched": 1,
             "blocked": 0,
+            "capped": 0,
         }
         db.rollback.assert_called_once()
         db.close.assert_called_once()
+
+    def test_annotations_past_the_attempt_cap_are_not_dispatched(self):
+        """An annotation whose sweep runs all ended without a grade is retried
+        until SWEEP_MAX_ATTEMPTS, then left alone and counted as capped."""
+        db = MagicMock()
+        project = MagicMock(id="p1")
+        db.query.return_value.filter.return_value.all.return_value = [project]
+        fresh, at_cap, past_cap = (MagicMock(id=f"a{i}") for i in range(3))
+        anns = [(fresh, MagicMock()), (at_cap, MagicMock()), (past_cap, MagicMock())]
+
+        with _patch_dispatch_module(
+            scan_side=lambda *_a, **_k: (anns, []),
+            attempts_side=lambda _db, _pid: {"a0": 5, "a1": 6, "a2": 40},
+        ):
+            disp = sys.modules["immediate_eval_dispatch"]
+            disp.ensure_immediate_evaluation_outcome.side_effect = [
+                _outcome("run-new", "dispatched"),
+            ]
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+
+        assert result == {
+            "status": "success",
+            "projects_with_gaps": 1,
+            "dispatched": 1,
+            "blocked": 0,
+            "capped": 2,
+        }
+        [call] = disp.ensure_immediate_evaluation_outcome.call_args_list
+        assert call.args[3] is fresh
+        disp.sweep_attempt_counts.assert_called_once_with(db, "p1")
+
+    def test_attempts_are_not_counted_for_a_clean_project(self):
+        """No candidates → no attempt lookup (one query saved per project)."""
+        db = MagicMock()
+        db.query.return_value.filter.return_value.all.return_value = [MagicMock()]
+        with _patch_dispatch_module(scan_side=lambda *_a, **_k: ([], [])):
+            disp = sys.modules["immediate_eval_dispatch"]
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)):
+                result = sweep_missing_immediate_evals()
+        assert result["projects_with_gaps"] == 0
+        disp.sweep_attempt_counts.assert_not_called()
 
     def test_outer_exception_returns_error_dict(self):
         """A failure before/while scanning (here: the Project query) lands in

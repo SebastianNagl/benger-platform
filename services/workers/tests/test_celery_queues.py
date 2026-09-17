@@ -242,8 +242,40 @@ def test_time_limits_are_ordered_and_present_for_every_task():
 def test_annotations_cover_every_task_and_keep_the_email_rate_limits():
     annotations = celery_queues.task_annotations()
     assert set(annotations) == set(celery_queues.TASK_QUEUES)
-    assert annotations["emails.send_invitation"]["rate_limit"] == "30/m"
+    assert annotations["emails.send_invitation"]["rate_limit"] == "120/m"
     assert annotations["emails.send_bulk_invitations"]["rate_limit"] == "5/m"
+
+
+def test_bulk_invite_spacing_matches_the_send_rate_limit():
+    """The fan-out spacing and the rate limit must allow the same throughput.
+
+    Either one alone throttles a course launch, so a change to one without the
+    other silently caps invitation mail at the slower of the two.
+    """
+    import tasks
+
+    per_minute = int(
+        celery_queues.task_annotations()["emails.send_invitation"]["rate_limit"].removesuffix("/m")
+    )
+    assert tasks.INVITATION_FANOUT_SPACING_SECONDS == pytest.approx(60 / per_minute)
+
+
+def test_mail_tasks_survive_a_worker_kill():
+    """Mail must ack late, or an OOM-killed pod drops an in-flight send.
+
+    The 2026-09-17 OOM kill of the mail pool could have swallowed an invitation
+    with no retry and no error recorded anywhere.
+    """
+    import tasks  # noqa: F401
+
+    from worker_celery import app
+
+    mail_tasks = [n for n in celery_queues.TASK_QUEUES if n.startswith("emails.")]
+    assert mail_tasks
+    for name in mail_tasks:
+        task = app.tasks[name]
+        assert task.acks_late is True, name
+        assert task.reject_on_worker_lost is True, name
 
 
 def test_declared_queues_include_legacy_for_the_drain_window():

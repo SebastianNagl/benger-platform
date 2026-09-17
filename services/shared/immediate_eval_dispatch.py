@@ -19,7 +19,8 @@ Exactly-once per annotation: a dispatch is skipped when the annotation already
 carries a real eligible-metric score OR a non-failed immediate ``EvaluationRun``
 already references it (matched via the ``annotation_id`` stamped into
 ``eval_metadata``). Returns the ``EvaluationRun`` id (existing or new), or
-``None`` when the project has no eligible immediate config. Strictly additive —
+``None`` when the project has no eligible immediate config or the annotation
+has no answer any config can grade. Strictly additive —
 only INSERTs an ``EvaluationRun`` and dispatches a Celery task.
 
 Blocked gradings: the extended edition can refuse a grading before dispatch
@@ -165,6 +166,64 @@ def parse_annotation_results(annotation) -> dict:
     return out
 
 
+def _has_answer(value) -> bool:
+    """True if a parsed annotation value is something a metric can grade.
+
+    Whitespace-only text counts as empty. Numbers count (a rating of 0 is an
+    answer), booleans and empty containers do not.
+    """
+    if value is None or isinstance(value, bool):
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (int, float)):
+        return True
+    return bool(value)
+
+
+def resolve_human_prediction(config, annotation_results: dict):
+    """The annotation value ``config`` grades, or None if there is none.
+
+    ``annotation_results`` is the ``{from_name: value}`` map from
+    :func:`parse_annotation_results`. ``prediction_fields`` entries may be a
+    bare field name, ``human:<field>``, ``__all_human__`` (every non-empty
+    field, joined), or a model-side selector (``model:<field>``,
+    ``__all_model__``). Immediate evaluation grades one human submission and
+    has no model generations, so model-side selectors never resolve.
+
+    Single source for the worker (which skips a config without a value) and
+    the dispatcher (which does not dispatch when no config has one).
+    """
+    results = annotation_results or {}
+    for pf in (config or {}).get("prediction_fields") or []:
+        if not isinstance(pf, str):
+            continue
+        if pf.startswith("model:") or pf == "__all_model__":
+            continue
+        if pf == "__all_human__":
+            parts = [f"{k}: {v}" for k, v in results.items() if _has_answer(v)]
+            value = "\n\n".join(parts) if parts else None
+        else:
+            key = pf.split(":", 1)[1] if pf.startswith("human:") else pf
+            value = results.get(key)
+        if _has_answer(value):
+            return value
+    return None
+
+
+def gradable_configs(configs, annotation_results: dict) -> list:
+    """The configs that find an answer to grade in ``annotation_results``.
+
+    Empty when the submission is empty, lacks the graded field, or every
+    config reads model generations only. Dispatching then produces a run
+    with no grade, so callers treat that as "nothing to grade".
+    """
+    return [
+        c for c in configs or []
+        if resolve_human_prediction(c, annotation_results) is not None
+    ]
+
+
 def resolve_org(db, project, user_id) -> Optional[str]:
     """Org to attribute the run to. Thin delegate kept for its importers —
     ``org_resolution.resolve_dispatch_org_for_project`` is the single source
@@ -240,6 +299,10 @@ def scan_ungraded(db, project, *, cutoff=None):
     was refused, so there is nothing to race, and the sweep dispatches it as
     soon as the block is lifted. Shared by the recovery CLI and the hourly
     sweep so both agree on what "ungraded" means.
+
+    An annotation with nothing to grade (see :func:`gradable_configs`) is
+    not a candidate. A run for it would finish without a grade, so the
+    sweep would dispatch it again every hour, forever.
     """
     cfgs = eligible_configs(project)
     if not cfgs:
@@ -277,6 +340,8 @@ def scan_ungraded(db, project, *, cutoff=None):
                 if isinstance(m, dict):
                     present |= {k for k in m.keys() if k in elig}
         if not present:
+            if not gradable_configs(cfgs, parse_annotation_results(a)):
+                continue
             task = tasks_by_id.get(a.task_id)
             if task is not None:
                 candidates.append((a, task))
@@ -294,6 +359,40 @@ def scan_ungraded(db, project, *, cutoff=None):
 # progress" and the hourly sweep skipped it, so a transient judge outage was
 # unrecoverable without hand-editing the row.
 IN_FLIGHT_RUN_STATUSES = ("pending", "queued", "running")
+
+# How often the hourly sweep retries one annotation whose sweep runs all
+# ended without a grade (a transient judge outage, a bad key). After that
+# the sweep leaves it alone; a manual retrigger still works because it does
+# not go through this cap. Billing-blocked runs do not count: a blocked
+# grading keeps one run and is retried until the block is lifted.
+SWEEP_TRIGGER = "sweep_missing_immediate_evals"
+SWEEP_MAX_ATTEMPTS = 6
+
+
+def sweep_attempt_counts(db, project_id) -> dict:
+    """``{annotation_id: n}``: finished sweep runs per annotation of a project.
+
+    Callers only look up annotations without a grade, so every counted run
+    is a sweep attempt that produced none.
+    """
+    rows = (
+        db.query(EvaluationRun.eval_metadata)
+        .filter(
+            EvaluationRun.project_id == str(project_id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.status.notin_(IN_FLIGHT_RUN_STATUSES),
+            EvaluationRun.eval_metadata["trigger"].as_string() == SWEEP_TRIGGER,
+        )
+        .all()
+    )
+    counts: dict = {}
+    for (meta,) in rows:
+        if not isinstance(meta, dict) or meta.get(BILLING_BLOCK_KEY):
+            continue
+        aid = str(meta.get("annotation_id") or "")
+        if aid:
+            counts[aid] = counts.get(aid, 0) + 1
+    return counts
 
 
 def _existing_immediate_run(db, project_id, annotation):
@@ -526,6 +625,7 @@ OUTCOME_IN_FLIGHT = "in_flight"
 OUTCOME_TOO_RECENT = "too_recent"
 OUTCOME_BLOCKED = "blocked"
 OUTCOME_DISPATCHED = "dispatched"
+OUTCOME_NOTHING_TO_GRADE = "nothing_to_grade"
 
 
 @dataclass(frozen=True)
@@ -551,8 +651,8 @@ def ensure_immediate_evaluation(
 
     Returns the EvaluationRun id (existing grade's run, an in-flight run, a
     blocked run, or a newly-dispatched one), or ``None`` when there is nothing
-    eligible to grade (or, with ``min_age_minutes`` set, when the submit is
-    too recent to act on).
+    eligible to grade, no answer to grade, or (with ``min_age_minutes`` set)
+    the submit is too recent to act on.
     """
     return ensure_immediate_evaluation_outcome(
         db,
@@ -598,6 +698,19 @@ def ensure_immediate_evaluation_outcome(
     existing = _existing_immediate_run(db, project.id, annotation)
     if existing is not None:
         return EnsureOutcome(str(existing.id), OUTCOME_IN_FLIGHT)
+
+    # No config finds an answer (empty submission, missing field, or only
+    # model-side configs): a run would finish without a grade. Don't start
+    # one. The /immediate endpoint still dispatches its own run when a
+    # student asks, so the results modal shows the methods as skipped.
+    annotation_results = parse_annotation_results(annotation)
+    if not gradable_configs(cfgs, annotation_results):
+        logger.info(
+            "[immediate-eval] nothing to grade annotation=%s trigger=%s",
+            annotation.id,
+            trigger,
+        )
+        return EnsureOutcome(None, OUTCOME_NOTHING_TO_GRADE)
 
     # Sweep/backfill only: don't race an in-flight client eval on a fresh submit.
     if min_age_minutes:
@@ -671,7 +784,7 @@ def ensure_immediate_evaluation_outcome(
                 "task_id": str(task.id),
                 "annotation_id": str(annotation.id),
                 "evaluation_configs": [dict(c) for c in cfgs],
-                "annotation_results": parse_annotation_results(annotation),
+                "annotation_results": annotation_results,
                 "task_data": task.data or {},
                 "organization_id": resolve_org(db, project, annotation.completed_by),
                 "user_id": user,

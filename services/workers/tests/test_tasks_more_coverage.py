@@ -207,9 +207,10 @@ class TestSendBulkInvitations:
         assert out["failed"] == 0
         assert out["total"] == 2
         assert all(r["status"] == "queued" and r["task_id"] == "task-xyz" for r in out["results"])
-        # Progressive 2s spacing: idx 0 → 0, idx 1 → 2.
+        # Progressive spacing: idx 0 → 0, idx 1 → one spacing step.
+        spacing = tasks_module.INVITATION_FANOUT_SPACING_SECONDS
         countdowns = [c.kwargs["countdown"] for c in apply_async.call_args_list]
-        assert countdowns == [0, 2]
+        assert countdowns == [0, spacing]
         # The 6 positional invite fields are forwarded in order.
         first_args = apply_async.call_args_list[0].kwargs["args"]
         assert first_args == ["i1", "a@example.com", "Inviter", "Org", "https://x/1", "annotator"]
