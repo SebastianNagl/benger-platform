@@ -544,9 +544,9 @@ test.describe('Randomized Order with Annotation Features', () => {
     console.log('Annotation form loaded')
 
     // Verify task counter shows randomized count
-    const taskCounter = page.locator('text=/Task 1 of 3/i')
+    const taskCounter = page.locator('text=/(Task|Aufgabe) 1 (of|von) 3/i')
     await expect(taskCounter).toBeVisible({ timeout: 5000 })
-    console.log('Task counter: Task 1 of 3')
+    console.log('Task counter: Task/Aufgabe 1 of/von 3')
 
     // Select an option and submit
     await choiceOption.click()

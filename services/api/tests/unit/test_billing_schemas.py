@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from schemas.billing_schemas import (
+    GradingPayer,
     GradingUsageEventRead,
     InvoiceSummary,
     StudentSubscriptionRead,
@@ -82,3 +83,22 @@ def test_invoice_summary_optional_fields():
     assert inv.amount_cents == 700
     assert inv.currency == "eur"
     assert inv.pdf_url is None
+
+
+def test_grading_payer_defaults_and_refusal_fields():
+    payer = GradingPayer(context="org", payer_org_id="org-1")
+    assert (payer.metered, payer.judge_tier) == (False, None)
+    assert (payer.block_reason, payer.missing_providers) == (None, [])
+
+    refused = GradingPayer(
+        context="lti_org_unfunded",
+        payer_org_id="org-1",
+        payer_org_name="Uni",
+        block_reason="org_key_missing",
+        missing_providers=["openai"],
+    )
+    assert refused.model_dump()["missing_providers"] == ["openai"]
+    # Separate lists per instance, not one shared default.
+    other = GradingPayer(context="none")
+    other.missing_providers.append("x")
+    assert GradingPayer(context="none").missing_providers == []

@@ -19,7 +19,11 @@ from .service import db_user_to_user, verify_token_cookie_or_header
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optional[User]:
     """
     Get current user from token (either cookie or header)
-    Returns None if no valid token is provided (for optional auth)
+    Returns None if no valid token is provided (for optional auth), and for
+    deactivated or anonymized accounts: an access token issued before the
+    deactivation must not keep an open tab working until it expires.
+    Handlers that need a user must turn None into a 401 (or use
+    ``require_user``).
     """
     try:
         payload = verify_token_cookie_or_header(request)
@@ -28,7 +32,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> Optiona
             return None
 
         db_user = get_user_by_id(db, user_id)
-        if db_user is None:
+        if db_user is None or not db_user.is_active:
             return None
 
         return db_user_to_user(db_user)

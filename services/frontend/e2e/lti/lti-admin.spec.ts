@@ -12,9 +12,9 @@
  * Moodle (URL prefill helper derives the three Moodle endpoints from the
  * issuer) → verify the tool-config panel's copy-paste URLs → add a
  * deployment id → disable the registration via edit. The registrations
- * admin UI has no delete, so afterAll removes the E2E rows via psql in the
- * dev DB container (cascade covers the deployments), keeping the dev DB
- * tidy across runs.
+ * admin UI only deletes switched-off connections, so afterAll removes the
+ * E2E rows via psql in the dev DB container (cascade covers the
+ * deployments), keeping the dev DB tidy across runs even after a failure.
  *
  * The panel ships in the extended edition (LtiRegistrationsAdmin slot),
  * hence the @extended tag per suite convention.
@@ -70,9 +70,10 @@ test.describe('LTI registrations admin @extended', () => {
   })
 
   test.afterAll(async () => {
-    // The UI (deliberately) has no registration delete — tidy the dev DB
-    // directly; ON DELETE CASCADE removes the deployments. The fixed fake
-    // issuer also sweeps strays left by earlier aborted runs.
+    // Deleting through the UI needs a switched-off connection first; tidy
+    // the dev DB directly instead, so a failed step still cleans up. ON
+    // DELETE CASCADE removes the deployments. The fixed fake issuer also
+    // sweeps strays left by earlier aborted runs.
     bengerDbSql(
       `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`,
     )
@@ -159,11 +160,19 @@ test.describe('LTI registrations admin @extended', () => {
       page.getByRole('heading', { name: 'Tool-Konfiguration' }),
     ).toBeVisible()
 
-    // Copy-paste values derive from the admin host's origin.
+    // Copy-paste values derive from the connection's tool host (the
+    // student host unless the form picked another), not from the admin
+    // host the page runs on. The API names that base URL.
+    const configResponse = await page.request.get(
+      `${ADMIN_BASE}/api/admin/lti/registrations/${registrationId}/tool-config`,
+    )
+    expect(configResponse.ok(), await configResponse.text()).toBe(true)
+    const { base_url: toolBase } = await configResponse.json()
+    expect(toolBase, 'tool-config names the base URL').toBeTruthy()
     const expected: Array<[string, string]> = [
-      ['Initiate-Login-URL', `${ADMIN_BASE}/api/lti/login`],
-      ['Weiterleitungs-URL (Launch)', `${ADMIN_BASE}/api/lti/launch`],
-      ['Öffentliche JWKS-URL', `${ADMIN_BASE}/api/lti/jwks`],
+      ['Initiate-Login-URL', `${toolBase}/api/lti/login`],
+      ['Weiterleitungs-URL (Launch)', `${toolBase}/api/lti/launch`],
+      ['Öffentliche JWKS-URL', `${toolBase}/api/lti/jwks`],
     ]
     for (const [label, url] of expected) {
       // Innermost div containing the row's copy button = the CopyField row;

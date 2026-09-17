@@ -17,7 +17,7 @@ callers. Schemas stay endpoint-local (``org_api_keys.py`` precedent).
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import uuid4
 
@@ -38,6 +38,11 @@ from models import (
     OrganizationRole,
 )
 from project_models import ProjectOrganization
+from services.member_privacy import (
+    name_admin_org_ids,
+    org_name_mask,
+    reveal_group_accounts,
+)
 
 from ._common import router
 
@@ -94,6 +99,10 @@ class GroupMemberResponse(BaseModel):
     user_name: Optional[str] = None
     user_email: Optional[str] = None
     org_role: Optional[OrganizationRole] = None
+    # The account came from, or is linked to, an LMS connection.
+    is_lms_account: bool = False
+    # The viewer sees the pseudonym, without email (owner decision D8).
+    is_pseudonymized: bool = False
 
     class Config:
         from_attributes = True
@@ -368,16 +377,19 @@ async def delete_organization_group(
 ):
     """Delete a group (org admin / superadmin).
 
-    409 while project attachments, group API keys, or LTI (Moodle/ILIAS)
-    registrations still reference it — detach/delete those first,
-    explicitly. A delete never silently widens visibility (project
-    attachments), promotes keys org-wide, or re-scopes an LMS integration;
-    group memberships cascade away with the group.
+    409 while project attachments, group API keys, LTI (Moodle/ILIAS)
+    registrations or open LTI registration invites still reference it —
+    detach/delete those first, explicitly. A delete never silently widens
+    visibility (project attachments), promotes keys org-wide, or re-scopes an
+    LMS integration. An open invite would otherwise lose its group (the FK
+    sets NULL) and then create an org-wide connection, active right away.
+    Used and expired invites do not block. Group memberships cascade away
+    with the group.
     """
     await _require_org_admin(current_user, organization_id, db)
     group = await _load_group_or_404(db, organization_id, group_id)
 
-    from models import LtiPlatformRegistration
+    from models import LtiPlatformRegistration, LtiRegistrationInvite
 
     attachment_count = (
         await db.execute(
@@ -400,14 +412,25 @@ async def delete_organization_group(
             )
         )
     ).scalar_one()
-    if attachment_count or key_count or lti_count:
+    invite_count = (
+        await db.execute(
+            select(func.count(LtiRegistrationInvite.id)).where(
+                LtiRegistrationInvite.group_id == group_id,
+                LtiRegistrationInvite.used_at.is_(None),
+                LtiRegistrationInvite.expires_at > datetime.now(timezone.utc),
+            )
+        )
+    ).scalar_one()
+    if attachment_count or key_count or lti_count or invite_count:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 f"Group still has {attachment_count} project attachment(s), "
-                f"{key_count} API key(s), and {lti_count} LTI registration(s). "
-                "Reassign the projects, remove the keys, and re-scope the LMS "
-                "registrations first."
+                f"{key_count} API key(s), {lti_count} LMS connection(s), "
+                f"and {invite_count} open LTI invite(s). "
+                "Reassign the projects and remove the keys first. Move or "
+                "delete the LMS connections and revoke the invites in the "
+                "organization's learning platform panel (LTI)."
             ),
         )
 
@@ -431,7 +454,15 @@ async def list_group_members(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """List a group's members (org admin / group admin / superadmin)."""
+    """List a group's members (org admin / group admin / superadmin).
+
+    Org admins see the real names of the LMS accounts of this org's own
+    connections, and so do contributors of an org whose LMS connections
+    only superadmins run. A group admin sees those of the org's connections
+    scoped to a group they administer (not of every member of their group:
+    they may add any org member to it). Everyone else on the list appears
+    by pseudonym, without email (superadmins see all names).
+    """
     await _load_group_or_404(db, organization_id, group_id)
     await _require_can_manage_group(current_user, organization_id, group_id, db)
 
@@ -463,6 +494,47 @@ async def list_group_members(
             )
         ).all()
     }
+    # Every caller passed the org-admin / group-admin gate above.
+    viewer_membership = (
+        None
+        if current_user.is_superadmin
+        else await _get_membership(db, current_user.id, organization_id)
+    )
+    # Org admins, and contributors of an org whose LMS connections only
+    # superadmins run (names only; the gate above decides access).
+    name_admin_ids = (
+        await name_admin_org_ids(db, [(organization_id, viewer_membership.role)])
+        if viewer_membership is not None
+        else []
+    )
+    mask = await org_name_mask(
+        db,
+        [m.user for m in rows],
+        viewer=current_user,
+        admin_org_ids=name_admin_ids,
+    )
+    if mask.masked_ids and not name_admin_ids:
+        admin_group_ids = (
+            (
+                await db.execute(
+                    select(OrganizationGroupMembership.group_id)
+                    .join(
+                        OrganizationGroup,
+                        OrganizationGroup.id == OrganizationGroupMembership.group_id,
+                    )
+                    .where(
+                        OrganizationGroupMembership.user_id == current_user.id,
+                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+                        OrganizationGroup.organization_id == organization_id,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        mask = await reveal_group_accounts(
+            db, mask, organization_id, admin_group_ids, mask.masked_ids
+        )
     return [
         GroupMemberResponse(
             id=m.id,
@@ -470,9 +542,11 @@ async def list_group_members(
             user_id=m.user_id,
             is_group_admin=m.is_group_admin,
             created_at=m.created_at,
-            user_name=m.user.name if m.user else None,
-            user_email=m.user.email if m.user else None,
+            user_name=mask.label(m.user),
+            user_email=mask.email(m.user),
             org_role=org_roles.get(m.user_id),
+            is_lms_account=mask.is_lms(m.user_id),
+            is_pseudonymized=mask.is_masked(m.user_id),
         )
         for m in rows
     ]

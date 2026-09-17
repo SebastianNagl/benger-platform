@@ -3,7 +3,7 @@
  *
  * The /how-to page renders the platform's own guides plus whatever the
  * extended package registers here during initialization (student-surface
- * guides, Vertretbar-specific answers). Bilingual copy is kept inline, like
+ * guides, edition-specific answers). Bilingual copy is kept inline, like
  * the changelog entries, so a guide is one self-contained object that is
  * easy to review and to keep in sync with the feature it documents.
  *
@@ -67,8 +67,8 @@ export const HOWTO_CATEGORIES: HowToCategory[] = [
     id: 'start',
     title: { de: 'Erste Schritte', en: 'Getting started' },
     blurb: {
-      de: 'Was BenGER und Vertretbar sind, wie Sie sich zurechtfinden und was Sie zuerst einrichten sollten.',
-      en: 'What BenGER and Vertretbar are, how to find your way around, and what to set up first.',
+      de: 'Was BenGER und die Lernoberfläche sind, wie Sie sich zurechtfinden und was Sie zuerst einrichten sollten.',
+      en: 'What BenGER and the student interface are, how to find your way around, and what to set up first.',
     },
   },
   {

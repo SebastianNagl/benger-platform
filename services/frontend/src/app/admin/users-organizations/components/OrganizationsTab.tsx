@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  LmsMemberBadge,
+  MemberEmail,
+  memberOptionLabel,
+} from '@/components/organization/MemberIdentity'
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgGroups } from '@/components/organization/OrgGroups'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
@@ -52,6 +57,13 @@ interface OrganizationWithRole extends Organization {
   user_role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
 }
 
+// Localized labels for the org roles the API sends as enum names.
+const ROLE_LABEL_KEYS: Record<string, string> = {
+  ANNOTATOR: 'admin.organizations.roleAnnotator',
+  CONTRIBUTOR: 'admin.organizations.roleContributor',
+  ORG_ADMIN: 'admin.organizations.roleAdmin',
+}
+
 export function OrganizationsTab() {
   const {
     user: currentUser,
@@ -60,6 +72,8 @@ export function OrganizationsTab() {
     apiClient,
   } = useAuth()
   const { t } = useI18n()
+  const roleLabel = (role?: string | null) =>
+    role && ROLE_LABEL_KEYS[role] ? t(ROLE_LABEL_KEYS[role]) : (role ?? '')
   const { addToast } = useToast()
   const showError = useErrorAlert()
   const confirmDelete = useDeleteConfirm()
@@ -699,9 +713,39 @@ export function OrganizationsTab() {
     return Boolean(entry?.groups?.some((group) => group.is_group_admin))
   }, [organizations, selectedOrganization])
 
-  // LMS/LTI management is superadmin-only and lives in the extended edition
-  // (OrgLtiPanel slot); without the slot the menu item is not offered.
-  const showLtiMenuItem = Boolean(currentUser?.is_superadmin && OrgLtiPanel)
+  // The selected org's active groups the caller administers. Group admins
+  // manage the LMS connections scoped to these groups.
+  const adminGroupIds = useMemo(() => {
+    if (!selectedOrganization) return []
+    const entry = organizations.find(
+      (org) => org.id === selectedOrganization.id,
+    )
+    return (entry?.groups ?? [])
+      .filter((group) => group.is_group_admin && group.is_active !== false)
+      .map((group) => group.id)
+  }, [organizations, selectedOrganization])
+
+  // The caller's own role in the selected org. The LMS panel uses it to cap
+  // the org role a group admin may give LMS teachers.
+  const selectedOrgRole = useMemo(() => {
+    if (!selectedOrganization) return null
+    const role = organizations.find(
+      (org) => org.id === selectedOrganization.id,
+    )?.role
+    return role === 'ORG_ADMIN' ||
+      role === 'CONTRIBUTOR' ||
+      role === 'ANNOTATOR'
+      ? role
+      : null
+  }, [organizations, selectedOrganization])
+
+  // LMS connections live in the extended edition (OrgLtiPanel slot); without
+  // the slot the menu item is not offered. Org admins manage all of the
+  // org's connections, group admins those of their active groups,
+  // superadmins everything. The API enforces the same scope.
+  const showLtiMenuItem = Boolean(
+    OrgLtiPanel && (canManageOrg || adminGroupIds.length > 0),
+  )
 
   // A group admin without org-admin rights may only invite into one of
   // their own groups (and never as ORG_ADMIN).
@@ -940,6 +984,11 @@ export function OrganizationsTab() {
           open={showLtiPanel}
           onOpenChange={setShowLtiPanel}
           hideTrigger
+          isAdmin={canManageOrg}
+          canManageGroups={adminGroupIds.length > 0}
+          isSuperadmin={Boolean(currentUser?.is_superadmin)}
+          adminGroupIds={adminGroupIds}
+          orgRole={selectedOrgRole}
         />
       )}
 
@@ -1005,7 +1054,7 @@ export function OrganizationsTab() {
                           {selectedOrganization.user_role && (
                             <Badge variant="secondary">
                               {t('admin.organizations.yourRole', {
-                                role: selectedOrganization.user_role,
+                                role: roleLabel(selectedOrganization.user_role),
                               })}
                             </Badge>
                           )}
@@ -1172,9 +1221,17 @@ export function OrganizationsTab() {
                         <div className="ml-3">
                           <p className="font-medium text-zinc-900 dark:text-white">
                             {member.user_name}
+                            <LmsMemberBadge
+                              is_lms_account={member.is_lms_account}
+                              is_pseudonymized={member.is_pseudonymized}
+                              data-testid={`member-lms-badge-${member.user_id}`}
+                            />
                           </p>
                           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                            {member.user_email}
+                            <MemberEmail
+                              email={member.user_email}
+                              hidden={member.is_pseudonymized}
+                            />
                           </p>
                           {member.groups && member.groups.length > 0 && (
                             <div className="mt-1 flex flex-wrap gap-1">
@@ -1249,7 +1306,12 @@ export function OrganizationsTab() {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <Badge variant="secondary">{member.role}</Badge>
+                          <Badge
+                            variant="secondary"
+                            data-testid={`member-role-badge-${member.user_id}`}
+                          >
+                            {roleLabel(member.role)}
+                          </Badge>
                         )}
 
                         {canManageOrg &&
@@ -1458,7 +1520,9 @@ export function OrganizationsTab() {
                             const u = allUsers.find(
                               (u) => u.id === selectedUserId,
                             )
-                            return u ? `${u.name} (${u.email})` : undefined
+                            return u
+                              ? memberOptionLabel(u.name, u.email)
+                              : undefined
                           })()
                         : undefined
                     }
@@ -1482,7 +1546,7 @@ export function OrganizationsTab() {
                         )
                         .map((user) => (
                           <SelectItem key={user.id} value={user.id}>
-                            {user.name} ({user.email})
+                            {memberOptionLabel(user.name, user.email)}
                           </SelectItem>
                         ))}
                     </SelectContent>

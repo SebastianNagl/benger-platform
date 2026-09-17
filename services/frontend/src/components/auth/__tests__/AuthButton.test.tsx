@@ -311,6 +311,72 @@ describe('AuthButton', () => {
       expect(screen.getByTestId('chevron-down')).toBeInTheDocument()
     })
 
+    it('keeps the login name for accounts that do not come from an LMS', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...mockUser,
+          name: 'Test User',
+          pseudonym: 'Kluge Eule',
+          use_pseudonym: true,
+          is_lms_account: false,
+        },
+        logout: mockLogout,
+        isLoading: false,
+        currentOrganization: mockOrganization,
+        organizations: [mockOrganization],
+        setCurrentOrganization: jest.fn(),
+      })
+      render(<AuthButton />)
+
+      expect(screen.getByText('testuser')).toBeInTheDocument()
+      expect(screen.queryByText('Kluge Eule')).not.toBeInTheDocument()
+    })
+
+    it('shows the pseudonym instead of the generated login of an LMS account', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...mockUser,
+          username: 'lti-3f9a0c',
+          name: 'Erika Mustermann',
+          pseudonym: 'Kluge Eule',
+          use_pseudonym: true,
+          is_lms_account: true,
+        },
+        logout: mockLogout,
+        isLoading: false,
+        currentOrganization: mockOrganization,
+        organizations: [mockOrganization],
+        setCurrentOrganization: jest.fn(),
+      })
+      render(<AuthButton />)
+
+      expect(screen.getByText('Kluge Eule')).toHaveClass('hidden', 'sm:block')
+      expect(screen.queryByText('lti-3f9a0c')).not.toBeInTheDocument()
+      expect(screen.queryByText('Erika Mustermann')).not.toBeInTheDocument()
+    })
+
+    it('shows the real name of an LMS account that turned the pseudonym off', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...mockUser,
+          username: 'lti-3f9a0c',
+          name: 'Erika Mustermann',
+          pseudonym: 'Kluge Eule',
+          use_pseudonym: false,
+          is_lms_account: true,
+        },
+        logout: mockLogout,
+        isLoading: false,
+        currentOrganization: mockOrganization,
+        organizations: [mockOrganization],
+        setCurrentOrganization: jest.fn(),
+      })
+      render(<AuthButton />)
+
+      expect(screen.getByText('Erika Mustermann')).toBeInTheDocument()
+      expect(screen.queryByText('lti-3f9a0c')).not.toBeInTheDocument()
+    })
+
     it('offers the view-mode switch in the dropdown when capable (issue #35)', async () => {
       const user = userEvent.setup()
       // Capable user in the classic (expert) view → the account dropdown

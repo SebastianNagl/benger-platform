@@ -300,6 +300,7 @@ async def create_invitation(
             organization_name=organization.name,
             invitee_email=invitation_data.email,
             inviter_name=current_user.name,
+            inviter_user_id=current_user.id,
         )
     except Exception as e:
         # Don't fail the invitation creation if notification fails
@@ -476,6 +477,7 @@ async def create_bulk_invitations(
                     organization_name=organization.name,
                     invitee_email=inv.email,
                     inviter_name=current_user.name,
+                    inviter_user_id=current_user.id,
                 )
             except Exception as e:
                 logger.error(f"Failed to send bulk invitation notification: {e}")
@@ -690,17 +692,19 @@ async def accept_invitation(
             detail="This invitation is not for your email address",
         )
 
-    # Check if user is already a member
+    # Check if user is already a member. Removed (inactive) rows count too:
+    # (user, org) is unique, so a removed member comes back by reactivating
+    # that row (as POST /organizations/{id}/members does), never by a second
+    # insert, which failed with a 500.
     existing_membership = (
         db.query(OrganizationMembership)
         .filter(
             OrganizationMembership.user_id == current_user.id,
             OrganizationMembership.organization_id == invitation.organization_id,
-            OrganizationMembership.is_active == True,  # noqa: E712
         )
         .first()
     )
-    if existing_membership:
+    if existing_membership is not None and existing_membership.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are already a member of this organization",
@@ -717,22 +721,25 @@ async def accept_invitation(
             "redirect_url": "/complete-profile",
         }
 
-    # Create organization membership
-    membership = OrganizationMembership(
-        id=str(uuid4()),
-        user_id=current_user.id,
-        organization_id=invitation.organization_id,
-        role=invitation.role,
-        is_active=True,
-    )
+    if existing_membership is not None:
+        # Restore the removed membership with the invited role.
+        existing_membership.is_active = True
+        existing_membership.role = invitation.role
+        existing_membership.updated_at = datetime.now(timezone.utc)
+    else:
+        db.add(
+            OrganizationMembership(
+                id=str(uuid4()),
+                user_id=current_user.id,
+                organization_id=invitation.organization_id,
+                role=invitation.role,
+                is_active=True,
+            )
+        )
 
     # Mark invitation as accepted
     invitation.accepted = True
     invitation.accepted_at = datetime.now(timezone.utc)
-
-    # Organization membership created - no default organization needed in new system
-
-    db.add(membership)
 
     # Group-scoped invitation: also join the group (shared with the
     # register-with-token path in auth/session.py — silent degrade when the
@@ -756,6 +763,7 @@ async def accept_invitation(
             organization_name=(organization.name if organization else "Unknown Organization"),
             new_member_name=current_user.name,
             new_member_email=current_user.email,
+            new_member_user_id=current_user.id,
         )
     except Exception as e:
         # Don't fail the invitation acceptance if notification fails

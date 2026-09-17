@@ -17,6 +17,14 @@ export const publicRoutes = [
   '/lti/error', // LTI launch errors: most failures (invalid token, disabled
   // registration, unavailable state store) abort BEFORE a session is minted,
   // so the explanation page must render unauthenticated (issue #61).
+  // LMS consent and account linking: they run before any session exists
+  // (consent comes first) and are bound to the parked launch, not to a login.
+  // `/lti/link` (the teacher's exam picker) and `/lti/activity` stay
+  // authenticated; no entry here is a prefix of either.
+  '/lti/consent',
+  '/lti/link-account', // Existing-account step: prove ownership or go on separately
+  '/lti/link-confirm', // Mailed confirmation link (/lti/link-confirm/<token>),
+  // opened on any device, often without a session.
   '/about/imprint', // Imprint page
   '/about/data-protection', // Data protection page
   '/changelog', // Changelog page

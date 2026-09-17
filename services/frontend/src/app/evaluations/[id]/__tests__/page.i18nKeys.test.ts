@@ -7,6 +7,7 @@
  * (status labels, match reasons) by calling the helpers that build them.
  */
 import {
+  describeBillingBlock,
   describeConfigMatchReason,
   fieldSelectorLabel,
   runStatusLabel,
@@ -68,6 +69,15 @@ function dynamicKeys(): string[] {
       describeConfigMatchReason({ metric: 'm', reason, subject_counts }, record)
     }
   }
+  for (const reason of [
+    'org_not_paying',
+    'org_key_missing',
+    'connection_removed',
+    'billing_check_failed',
+    'something_else',
+  ]) {
+    describeBillingBlock(`billing_blocked:${reason}`, record)
+  }
   fieldSelectorLabel('__all_model__', record)
   fieldSelectorLabel('__all_human__', record)
   return Array.from(seen)
@@ -95,6 +105,8 @@ describe('evaluation run page i18n keys', () => {
         'evaluations.detail.statusLabels.completed',
         'evaluations.detail.matchReasons.noGenerationsWithAnswers',
         'evaluations.detail.matchReasons.noAnnotationsNothing',
+        'evaluations.detail.billingBlocked.orgKeyMissing',
+        'evaluations.detail.billingBlocked.other',
       ]),
     )
   })

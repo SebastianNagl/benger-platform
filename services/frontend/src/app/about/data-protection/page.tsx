@@ -54,6 +54,11 @@ export default function DataProtectionPage() {
         {t('legal.dataProtection.apiKeysText')}
       </p>
 
+      <h3>{t('legal.dataProtection.lmsData')}</h3>
+      <p className="text-zinc-700 dark:text-zinc-200">
+        {formatText(t('legal.dataProtection.lmsDataText'))}
+      </p>
+
       <h3>{t('legal.dataProtection.cookies')}</h3>
       <p className="text-zinc-700 dark:text-zinc-200">
         {t('legal.dataProtection.cookiesText')}

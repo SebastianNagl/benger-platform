@@ -42,6 +42,9 @@ describe('authRedirect', () => {
         '/accept-invitation',
         '/shares',
         '/lti/error',
+        '/lti/consent',
+        '/lti/link-account',
+        '/lti/link-confirm',
         '/about/imprint',
         '/about/data-protection',
         '/changelog',
@@ -49,7 +52,34 @@ describe('authRedirect', () => {
       ]
 
       expect(publicRoutes).toEqual(expectedRoutes)
-      expect(publicRoutes).toHaveLength(14)
+      expect(publicRoutes).toHaveLength(17)
+    })
+
+    it('keeps the LMS consent and linking pages public but the teacher pages protected', () => {
+      const publicLtiPaths = [
+        '/lti/consent',
+        '/lti/link-account',
+        '/lti/link-confirm/some-token',
+        '/lti/error',
+      ]
+      publicLtiPaths.forEach((path) => {
+        expect(authRedirect.isPublicRoute(path)).toBe(true)
+        expect(authRedirect.isProtectedRoute(path)).toBe(false)
+
+        jest.clearAllMocks()
+        authRedirect.getRedirectForAuthState(false, path, mockRouter)
+        expect(mockRouter.replace).not.toHaveBeenCalled()
+      })
+
+      // The exam picker and the activity view need a session.
+      ;['/lti/link', '/lti/activity'].forEach((path) => {
+        expect(authRedirect.isPublicRoute(path)).toBe(false)
+        expect(authRedirect.isProtectedRoute(path)).toBe(true)
+
+        jest.clearAllMocks()
+        authRedirect.getRedirectForAuthState(false, path, mockRouter)
+        expect(mockRouter.replace).toHaveBeenCalledWith('/login')
+      })
     })
 
     it('treats the reports list and a single report as public (no login bounce)', () => {

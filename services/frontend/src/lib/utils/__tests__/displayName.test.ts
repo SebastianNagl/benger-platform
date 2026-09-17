@@ -3,6 +3,7 @@
  */
 
 import {
+  getAccountMenuName,
   getUserDisplayName,
   getUserDisplayNames,
   isUsingPseudonym,
@@ -135,5 +136,48 @@ describe('isUsingPseudonym', () => {
   it('should return false when pseudonym is undefined', () => {
     const user = createUser({ use_pseudonym: true, pseudonym: undefined })
     expect(isUsingPseudonym(user as any)).toBe(false)
+  })
+})
+
+describe('getAccountMenuName', () => {
+  it('keeps the login name of ordinary accounts', () => {
+    const user = createUser({ pseudonym: 'WiseScholar', use_pseudonym: true })
+    expect(getAccountMenuName(user as any)).toBe('johndoe')
+  })
+
+  it('treats a missing flag as an ordinary account', () => {
+    const user = createUser({ pseudonym: 'WiseScholar', use_pseudonym: true })
+    delete (user as any).is_lms_account
+    expect(getAccountMenuName(user as any)).toBe('johndoe')
+  })
+
+  it('shows the pseudonym of an LMS account', () => {
+    const user = createUser({
+      username: 'lti-3f9a0c',
+      pseudonym: 'WiseScholar',
+      use_pseudonym: true,
+      is_lms_account: true,
+    })
+    expect(getAccountMenuName(user as any)).toBe('WiseScholar')
+  })
+
+  it('shows the real name of an LMS account without the pseudonym', () => {
+    const user = createUser({
+      username: 'lti-3f9a0c',
+      pseudonym: 'WiseScholar',
+      use_pseudonym: false,
+      is_lms_account: true,
+    })
+    expect(getAccountMenuName(user as any)).toBe('John Doe')
+  })
+
+  it('falls back to the login name when an LMS account has no name', () => {
+    const user = createUser({
+      username: 'lti-3f9a0c',
+      name: '',
+      use_pseudonym: true,
+      is_lms_account: true,
+    })
+    expect(getAccountMenuName(user as any)).toBe('lti-3f9a0c')
   })
 })

@@ -737,7 +737,12 @@ from celery.exceptions import SoftTimeLimitExceeded  # noqa: E402
 from worker_celery import app  # noqa: E402,F401
 
 
-def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> None:
+def _mark_immediate_run_failed(
+    db,
+    evaluation_record_id: str,
+    message: str,
+    extra_metadata: Optional[Dict[str, Any]] = None,
+) -> None:
     """Flip a stuck immediate-eval run to ``failed``.
 
     Every error path used to leave the row on ``running``. That is not a cosmetic
@@ -749,6 +754,9 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
 
     Best-effort by construction — it runs while handling another exception, so a
     failure here must never mask the original error.
+
+    ``extra_metadata`` is merged into ``eval_metadata`` (e.g. the
+    ``billing_block`` of a grading the dispatch policy refused).
     """
     try:
         # Imported here, not at module scope: tasks.py keeps model + SQLAlchemy
@@ -766,6 +774,8 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
             stuck.status = "failed"
             meta = dict(stuck.eval_metadata or {})
             meta["error"] = message[:500]
+            if extra_metadata:
+                meta.update(extra_metadata)
             stuck.eval_metadata = meta
             flag_modified(stuck, "eval_metadata")
             db.commit()
@@ -781,6 +791,78 @@ def _mark_immediate_run_failed(db, evaluation_record_id: str, message: str) -> N
         logger.warning(
             "Could not mark immediate run %s failed: %s", evaluation_record_id, exc
         )
+
+
+def _fail_blocked_immediate_run(
+    db,
+    evaluation_record_id: str,
+    message: str,
+    *,
+    extra_metadata: Dict[str, Any],
+    new_run_fields: Dict[str, Any],
+) -> None:
+    """Record an immediate run the grading dispatch policy refused as failed.
+
+    The policy runs on the task session without a savepoint. When one of its
+    queries fails, it still answers with a fail-closed block
+    (``billing_check_failed``), but the transaction is aborted. So roll back
+    first: the dispatchers commit the run as ``running`` before they queue
+    the task, and :func:`_mark_immediate_run_failed` re-reads it. Without the
+    rollback that write failed silently and the run stayed ``running``
+    forever, which every retry path treats as in flight.
+
+    The rollback also drops a run row this task only flushed (no dispatcher
+    pre-created it). That row is written again, already failed, so the
+    refusal stays visible.
+    """
+    try:
+        db.rollback()
+    except Exception as rollback_err:  # pragma: no cover - defensive
+        logger.warning(
+            "Rollback before marking blocked run %s failed: %s",
+            evaluation_record_id,
+            rollback_err,
+        )
+    try:
+        from models import EvaluationRun
+
+        exists = (
+            db.query(EvaluationRun)
+            .filter(EvaluationRun.id == evaluation_record_id)
+            .first()
+            is not None
+        )
+        if not exists:
+            meta = dict(new_run_fields.get("eval_metadata") or {})
+            meta.update(extra_metadata)
+            meta["error"] = message[:500]
+            db.add(
+                EvaluationRun(
+                    id=evaluation_record_id,
+                    project_id=new_run_fields["project_id"],
+                    model_id="immediate",
+                    evaluation_type_ids=new_run_fields.get("evaluation_type_ids")
+                    or [],
+                    status="failed",
+                    created_by=new_run_fields.get("created_by") or "system",
+                    eval_metadata=meta,
+                    metrics={},
+                )
+            )
+            db.commit()
+            return
+    except Exception as exc:
+        logger.warning(
+            "Could not record blocked immediate run %s: %s", evaluation_record_id, exc
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return
+    _mark_immediate_run_failed(
+        db, evaluation_record_id, message, extra_metadata=extra_metadata
+    )
 
 
 # ---- Progress pub/sub (workers → API WebSocket clients) ---------------------
@@ -1334,6 +1416,7 @@ def send_account_activation_task(
     fallback path) parks in ``pending_activation_email`` and is adopted only
     when the link is clicked.
     """
+    from sqlalchemy import func as sa_func
     from sqlalchemy import select as sa_select
 
     from account_activation import (
@@ -1341,12 +1424,16 @@ def send_account_activation_task(
         activation_eligibility,
         build_activation_link,
         current_or_new_activation_token,
+        mail_language_for,
     )
     from email_service import email_service
     from mailer.branding import resolve_email_brand
     from models import User as DBUser
     from sendgrid_client import SendGridClient
 
+    # Addresses are stored lowercased (as signup and LMS provisioning do), so
+    # reset and login, which match exactly, find the account again.
+    target_email = target_email.strip().lower() if target_email else target_email
     db = SessionLocal()
     try:
         user = db.execute(
@@ -1364,7 +1451,8 @@ def send_account_activation_task(
         if target_email:
             taken = db.execute(
                 sa_select(DBUser.id).where(
-                    DBUser.email == target_email, DBUser.id != user.id
+                    sa_func.lower(DBUser.email) == target_email,
+                    DBUser.id != user.id,
                 )
             ).first()
             if taken is not None:
@@ -1377,6 +1465,8 @@ def send_account_activation_task(
             user, pending_email=target_email, force=force
         )
         recipient = target_email or user.email
+        # The user's language, German by default (not the host brand's).
+        language = mail_language_for(user)
         # Commit before sending: a link that reaches a mailbox must resolve.
         db.commit()
 
@@ -1385,7 +1475,7 @@ def send_account_activation_task(
             activation_url=build_activation_link(brand, token),
             brand_name=brand.name,
             frontend_host=brand.frontend_url.split("://", 1)[-1],
-            language=brand.default_language,
+            language=language,
             expiry_days=ACTIVATION_TOKEN_EXPIRY.days,
         )
 
@@ -1436,6 +1526,130 @@ def send_account_activation_task(
         raise
     finally:
         db.close()
+
+
+@app.task(
+    name="emails.send_account_link_confirmation",
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={'max_retries': 3, 'countdown': 60},
+)
+def send_account_link_confirmation_task(
+    self,
+    user_id: str,
+    token: str,
+    host: str = None,
+    connection_name: str = None,
+    organization_name: str = None,
+) -> Dict[str, Any]:
+    """Mail the link that confirms linking an LMS sign-in to an account.
+
+    The extended overlay queues this when someone who started an LMS
+    activity chooses the email proof for the existing account at the LMS
+    address (owner decision D6). It mints and stores ``token`` itself; this
+    task only delivers the link to the account's own address.
+
+    ``host`` is the connection's brand host (never a browser header); it
+    picks sender, link host and brand name. The mail goes out in the user's
+    language, German by default. ``account_link_mail_eligibility`` is checked
+    again here, so an account that became ineligible after the request (for
+    example a superadmin, or an address that is no longer proven) gets no
+    mail. Neither the token nor the full address is logged or returned: the
+    Celery result is logged on success.
+    """
+    from sqlalchemy import select as sa_select
+
+    from account_activation import (
+        ACCOUNT_LINK_TOKEN_EXPIRY,
+        account_link_mail_eligibility,
+        build_account_link_url,
+        clean_display_name,
+        mail_language_for,
+        mask_email,
+    )
+    from email_service import email_service
+    from mailer.branding import resolve_email_brand
+    from models import User as DBUser
+    from sendgrid_client import SendGridClient
+
+    if not token:
+        logger.warning(f"Account link mail for {user_id} skipped: missing token")
+        return {"status": "skipped", "reason": "missing_token"}
+
+    db = SessionLocal()
+    try:
+        user = db.execute(
+            sa_select(DBUser).where(DBUser.id == user_id)
+        ).scalar_one_or_none()
+        skip = account_link_mail_eligibility(user)
+        if skip is not None:
+            logger.info(f"Account link mail for {user_id} skipped: {skip}")
+            return {"status": "skipped", "reason": skip}
+        recipient = user.email
+        language = mail_language_for(user)
+    finally:
+        # Nothing is written: release the connection before the network call.
+        db.close()
+
+    recipient_hint = mask_email(recipient)
+    try:
+        brand = resolve_email_brand(host)
+        subject, html_body = email_service.build_account_link_confirmation_email(
+            confirm_url=build_account_link_url(brand.frontend_url, token),
+            connection_name=clean_display_name(connection_name),
+            organization_name=clean_display_name(organization_name),
+            brand_name=brand.name,
+            frontend_host=brand.frontend_url.split("://", 1)[-1],
+            language=language,
+            expiry_hours=int(ACCOUNT_LINK_TOKEN_EXPIRY.total_seconds() // 3600),
+        )
+
+        result = SendGridClient().send_message(
+            to=[recipient],
+            subject=subject,
+            html_body=html_body,
+            from_address=brand.from_address,
+            from_name=brand.from_name,
+            disable_tracking=True,
+        )
+    except Exception as e:
+        logger.error(
+            f"Error sending account link mail for user {user_id}: "
+            f"{type(e).__name__}"
+        )
+        raise
+
+    if result.get("status") == "success":
+        logger.info(f"Account link mail sent to {recipient_hint} (user {user_id})")
+        return {
+            "status": "success",
+            "user_id": user_id,
+            "recipient_hint": recipient_hint,
+            "message_id": result.get("message_id", "unknown"),
+        }
+
+    # Same permanent-vs-retryable split as the activation task: 4xx (except
+    # 429) must not burn three retries on the rate-limited queue.
+    status_code = result.get("status_code")
+    error_msg = result.get("error", "Unknown SendGrid error")
+    if status_code is not None and 400 <= status_code < 500 and status_code != 429:
+        logger.error(
+            f"Permanent SendGrid {status_code} for account link mail to "
+            f"{recipient_hint} (user {user_id}); not retrying: {error_msg}"
+        )
+        return {
+            "status": "failed_permanent",
+            "user_id": user_id,
+            "recipient_hint": recipient_hint,
+            "status_code": status_code,
+            "error": error_msg,
+        }
+
+    logger.error(
+        f"Retryable SendGrid failure for account link mail to {recipient_hint} "
+        f"(user {user_id}, status_code={status_code}): {error_msg}"
+    )
+    raise RuntimeError(f"SendGrid error: {error_msg}")
 
 
 @app.task(name="emails.send_bulk_invitations")
@@ -1804,6 +2018,27 @@ def run_evaluation(
                     "evaluation_id": evaluation_id,
                 }
 
+            # Billing (extended edition): the policy may name the org whose
+            # keys this run spends, or refuse the run when that org cannot
+            # pay. A refused run fails with the reason before any judge run.
+            (
+                organization_id,
+                batch_billing_block,
+                batch_billing_authorized,
+            ) = _apply_batch_billing(
+                db,
+                evaluation=evaluation,
+                project=project,
+                organization_id=organization_id,
+                configs=enabled_configs,
+            )
+            if batch_billing_block:
+                return {
+                    "status": "blocked",
+                    "evaluation_id": evaluation_id,
+                    "block": batch_billing_block,
+                }
+
             # Probe the task set up-front so we can short-circuit before
             # creating any EvaluationJudgeRun rows. Avoids leaving orphan
             # judge_runs behind when the project has no tasks at all.
@@ -2035,6 +2270,7 @@ def run_evaluation(
                                     organization_id=organization_id,
                                     seed=judge_seed,
                                     project_id=project_id,
+                                    org_billing_authorized=batch_billing_authorized,
                                 )
                                 e2e_test_mode = os.environ.get("E2E_TEST_MODE") == "true"
                                 if not (evaluator.ai_service or e2e_test_mode):
@@ -2767,6 +3003,192 @@ def _get_grading_dispatch_policy_fn():
         return None
 
 
+def _unpack_grading_dispatch_policy(result):
+    """``(org_id, configs, org_billing_authorized, billing_block)`` from a
+    dispatch-policy result.
+
+    The tuple grew over time; every length is still accepted:
+      * 2: ``(org_id, configs)`` (oldest packages): not authorized, no block;
+      * 3: adds the policy-asserted consumer-billing authorization (an
+        entitled non-member on an org-pays project);
+      * 4: adds the billing block (CORE 2.20): None, or why this grading must
+        not run (normalized to a dict with at least ``reason``).
+    Anything else raises, and the caller keeps the dispatched values.
+    """
+    if not isinstance(result, (tuple, list)) or len(result) not in (2, 3, 4):
+        raise ValueError(f"unexpected grading dispatch policy result: {result!r}")
+    org_id, configs = result[0], result[1]
+    authorized = bool(result[2]) if len(result) >= 3 else False
+    block = None
+    if len(result) == 4 and result[3]:
+        from immediate_eval_dispatch import normalize_billing_block
+
+        block = normalize_billing_block(result[3])
+    return org_id, configs, authorized, block
+
+
+def _get_batch_evaluation_policy_fn():
+    """The extended batch billing policy, or None (community edition, or a
+    package without the hook)."""
+    try:
+        from benger_extended.workers import get_batch_evaluation_policy_fn
+    except (ImportError, AttributeError):
+        return None
+    return get_batch_evaluation_policy_fn
+
+
+def _apply_batch_evaluation_policy(
+    db, *, project, user_id, organization_id, configs, evaluation_id
+):
+    """Extension hook: ``(organization_id, billing_block, org_billing_authorized)``
+    for a batch run.
+
+    The extended edition may bill a batch run to another organization (for
+    an exam an LMS activity points at, the connection's organization) or
+    refuse it when that organization cannot pay. The third element lets a
+    starter who is not a member of that organization spend its keys; it is
+    derived by the policy from database state, never read from a payload.
+    The policy may return the older 2-tuple (not authorized). Community
+    edition, a package without the hook, a failing hook or an unexpected
+    result: the dispatched organization, no block, not authorized.
+    """
+    get_policy_fn = _get_batch_evaluation_policy_fn()
+    if get_policy_fn is None:
+        return organization_id, None, False
+    try:
+        policy_fn = get_policy_fn()
+        if policy_fn is None or not user_id:
+            return organization_id, None, False
+        result = policy_fn(
+            db,
+            project=project,
+            user_id=str(user_id),
+            organization_id=organization_id,
+            configs=configs,
+        )
+        if not isinstance(result, (tuple, list)) or len(result) not in (2, 3):
+            raise ValueError(f"unexpected batch evaluation policy result: {result!r}")
+        from immediate_eval_dispatch import normalize_billing_block
+
+        authorized = bool(result[2]) if len(result) == 3 else False
+        block = normalize_billing_block(result[1])
+        return result[0], block, authorized and block is None
+    except Exception as policy_err:
+        logger.error(
+            f"[evaluation {evaluation_id}] batch billing policy failed: {policy_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return organization_id, None, False
+
+
+def _batch_cell_billing_authorized(
+    db, *, project_id, user_id, organization_id, configs
+) -> bool:
+    """Inside one evaluation cell: may the batch starter spend the keys of
+    ``organization_id``?
+
+    Re-runs the batch billing policy in this process (the flag never travels
+    in the task payload). True only when the policy still names the same
+    organization, refuses nothing and grants the authorization.
+    """
+    if not (project_id and user_id and organization_id):
+        return False
+    if _get_batch_evaluation_policy_fn() is None:
+        return False
+    try:
+        from project_models import Project
+
+        project = db.query(Project).filter(Project.id == str(project_id)).first()
+    except Exception as lookup_err:
+        logger.warning(
+            f"Sub-task: project lookup for the billing check failed: {lookup_err}"
+        )
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return False
+    if project is None:
+        return False
+    # Savepoint: a failed query inside the policy (answered with a
+    # fail-closed block) must not leave the cell's session aborted. A failed
+    # RELEASE rolls back to the savepoint and raises; either way the answer
+    # is "not authorized", which is the fail-closed one. (The orchestrator
+    # must not do this: a lost block there would bill the dispatched org.)
+    try:
+        with db.begin_nested():
+            org_id, block, authorized = _apply_batch_evaluation_policy(
+                db,
+                project=project,
+                user_id=user_id,
+                organization_id=organization_id,
+                configs=configs,
+                evaluation_id=f"cell of project {project_id}",
+            )
+    except Exception as policy_err:
+        logger.warning(
+            f"Sub-task: billing check for project {project_id} failed: {policy_err}"
+        )
+        return False
+    return bool(authorized and block is None and org_id == organization_id)
+
+
+def _apply_batch_billing(db, *, evaluation, project, organization_id, configs):
+    """Run the batch billing hook for ``evaluation`` (started by its
+    ``triggered_by`` user).
+
+    Returns ``(organization_id, billing_block, org_billing_authorized)``. On
+    a block the run is already marked failed (``billing_blocked:<reason>``,
+    the block under ``eval_metadata.billing_block``) and committed; the
+    caller stops.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy.orm.attributes import flag_modified
+
+    triggered_by = (evaluation.eval_metadata or {}).get("triggered_by")
+    org_id, block, authorized = _apply_batch_evaluation_policy(
+        db,
+        project=project,
+        user_id=triggered_by,
+        organization_id=organization_id,
+        configs=configs,
+        evaluation_id=evaluation.id,
+    )
+    if not block:
+        return org_id, None, authorized
+
+    reason = block.get("reason") or "blocked"
+    message = f"billing_blocked:{reason}"[:500]
+    logger.warning(
+        f"[evaluation {evaluation.id}] refused by the billing policy: {reason}"
+    )
+    # The policy may have left the transaction aborted (a failed query
+    # answers ``billing_check_failed``). The caller committed ``running``
+    # before the policy ran, so nothing is lost; ``evaluation`` reloads.
+    try:
+        db.rollback()
+    except Exception as rollback_err:  # pragma: no cover - defensive
+        logger.warning(
+            f"[evaluation {evaluation.id}] rollback before the block failed: "
+            f"{rollback_err}"
+        )
+    now = datetime.now(timezone.utc)
+    meta = dict(evaluation.eval_metadata or {})
+    meta["billing_block"] = {**block, "checked_at": now.isoformat()}
+    meta["error"] = message
+    evaluation.eval_metadata = meta
+    flag_modified(evaluation, "eval_metadata")
+    evaluation.status = "failed"
+    evaluation.error_message = message
+    evaluation.completed_at = now
+    db.commit()
+    return organization_id, block, False
+
+
 def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
     """Extension hook: settle the grading's metered-billing ledger row.
 
@@ -2925,7 +3347,7 @@ def run_single_sample_evaluation(
         user_id: User ID for API key resolution
     """
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     db = SessionLocal()
     try:
@@ -3022,6 +3444,7 @@ def run_single_sample_evaluation(
         # silently spending the wrong key.
         _policy_fn = _get_grading_dispatch_policy_fn()
         org_billing_authorized = False
+        billing_block = None
         if _policy_fn is not None:
             try:
                 _policy_res = _policy_fn(
@@ -3033,22 +3456,59 @@ def run_single_sample_evaluation(
                     evaluation_run_id=dispatch_eval_id,
                     eval_metadata=eval_run.eval_metadata or {},
                 )
-                # Newer extended packages return a third element: the
-                # policy-asserted consumer-billing authorization (an entitled
-                # non-member on an org-pays project). Older ones return a
-                # 2-tuple — treat as not authorized.
-                if isinstance(_policy_res, tuple) and len(_policy_res) == 3:
-                    organization_id, eligible_configs, org_billing_authorized = (
-                        _policy_res
-                    )
-                    org_billing_authorized = bool(org_billing_authorized)
-                else:
-                    organization_id, eligible_configs = _policy_res
+                (
+                    organization_id,
+                    eligible_configs,
+                    org_billing_authorized,
+                    billing_block,
+                ) = _unpack_grading_dispatch_policy(_policy_res)
             except Exception as policy_err:  # defensive — see comment above
                 logger.error(
                     f"[SingleSampleEval] grading dispatch policy failed for "
                     f"{dispatch_eval_id}: {policy_err}"
                 )
+
+        if billing_block:
+            # The policy refused this grading (e.g. nobody may pay for it).
+            # Fail the run with the reason instead of grading on some other
+            # key: no judge runs, no jobs. The finalize hook still runs, like
+            # on every other failure, so a claimed slot is released.
+            reason = billing_block.get("reason") or "blocked"
+            logger.warning(
+                "[SingleSampleEval] grading %s blocked by the dispatch policy: %s",
+                dispatch_eval_id,
+                reason,
+            )
+            _fail_blocked_immediate_run(
+                db,
+                dispatch_eval_id,
+                f"billing_blocked:{reason}",
+                extra_metadata={
+                    **run_provenance,
+                    "billing_block": {
+                        **billing_block,
+                        "checked_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                },
+                new_run_fields={
+                    "project_id": project_id,
+                    "evaluation_type_ids": [
+                        c.get("metric", "") for c in eligible_configs
+                    ],
+                    "created_by": user_id or "system",
+                    "eval_metadata": {
+                        "evaluation_type": "immediate",
+                        "expected_config_count": len(eligible_configs),
+                        "configs": configs_meta,
+                    },
+                },
+            )
+            _run_grading_finalize_hook(dispatch_eval_id, False)
+            return {
+                "status": "blocked",
+                "evaluation_record_id": evaluation_record_id,
+                "block": billing_block,
+            }
 
         # Every TaskEvaluation row needs a judge_run_id (NOT NULL since
         # migration 043). CRITICAL: the unique constraint uq_task_evaluations_cell
@@ -3560,6 +4020,7 @@ def _reconstruct_judge_evaluators_for_cell(
 
     judge_runs_by_config: Dict[str, List[Dict[str, Any]]] = {}
     llm_judge_evaluators: Dict[str, Any] = {}
+    billing_authorized = None  # derived once, on the first judge
 
     for config in configs_for_cell:
         metric = config.get("metric", "")
@@ -3579,6 +4040,14 @@ def _reconstruct_judge_evaluators_for_cell(
             # never recompute or re-resolve here so a divergence between
             # orchestrator + sub-task param logic is impossible.
             construct_kwargs = entry.get("judge_evaluator_kwargs") or {}
+            if billing_authorized is None:
+                billing_authorized = _batch_cell_billing_authorized(
+                    db,
+                    project_id=project_id,
+                    user_id=triggered_by_user_id,
+                    organization_id=organization_id,
+                    configs=configs_for_cell,
+                )
 
             try:
                 evaluator = create_llm_judge_for_user(
@@ -3586,6 +4055,7 @@ def _reconstruct_judge_evaluators_for_cell(
                     user_id=triggered_by_user_id,
                     organization_id=organization_id,
                     project_id=project_id,
+                    org_billing_authorized=billing_authorized,
                     **construct_kwargs,
                 )
             except Exception as init_err:
@@ -4296,7 +4766,7 @@ def finalize_evaluation_run(
 
     db = SessionLocal()
     try:
-        from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation
+        from models import EvaluationRun
 
         evaluation = db.query(EvaluationRun).filter(EvaluationRun.id == evaluation_id).first()
         if not evaluation:
@@ -4612,16 +5082,25 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     etc.). Idempotent — ``ensure_immediate_evaluation`` skips annotations that
     already carry a grade or an in-flight run. ``min_age_minutes`` skips very
     recent submits (via the scan cutoff) so an in-flight client eval isn't raced.
+
+    A grading the billing policy refuses keeps its one blocked run (the check
+    only refreshes it) and is dispatched on the first sweep after the block
+    is lifted; ``blocked`` counts those annotations.
     """
     from datetime import datetime as _dt
     from datetime import timedelta, timezone
 
-    from immediate_eval_dispatch import ensure_immediate_evaluation, scan_ungraded
+    from immediate_eval_dispatch import (
+        OUTCOME_BLOCKED,
+        OUTCOME_DISPATCHED,
+        ensure_immediate_evaluation_outcome,
+        scan_ungraded,
+    )
     from project_models import Project
 
     db = SessionLocal()
     cutoff = _dt.now(timezone.utc) - timedelta(minutes=min_age_minutes)
-    scanned_projects = dispatched = 0
+    scanned_projects = dispatched = blocked = 0
     try:
         projects = (
             db.query(Project)
@@ -4639,12 +5118,14 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
             for annotation, task in candidates:
                 try:
                     # cutoff already applied in scan_ungraded → no min-age here.
-                    rid = ensure_immediate_evaluation(
+                    outcome = ensure_immediate_evaluation_outcome(
                         db, project, task, annotation,
                         trigger="sweep_missing_immediate_evals",
                     )
-                    if rid:
+                    if outcome.status == OUTCOME_DISPATCHED:
                         dispatched += 1
+                    elif outcome.status == OUTCOME_BLOCKED:
+                        blocked += 1
                 except Exception as exc:  # noqa: BLE001
                     logger.warning(
                         "sweep_missing_immediate_evals: annotation %s failed: %s",
@@ -4652,10 +5133,16 @@ def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
                     )
                     db.rollback()
         logger.info(
-            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d",
-            scanned_projects, dispatched,
+            "sweep_missing_immediate_evals: projects_with_gaps=%d dispatched=%d "
+            "blocked=%d",
+            scanned_projects, dispatched, blocked,
         )
-        return {"status": "success", "projects_with_gaps": scanned_projects, "dispatched": dispatched}
+        return {
+            "status": "success",
+            "projects_with_gaps": scanned_projects,
+            "dispatched": dispatched,
+            "blocked": blocked,
+        }
     except Exception as exc:
         logger.error("sweep_missing_immediate_evals failed: %s", exc, exc_info=True)
         try:

@@ -85,11 +85,191 @@ whenever one is added, renamed or removed):
   ``enforce_project_read_window(_async)`` (attempted exempt). The extended
   student list/detail, own-review and Korrektur reads honour it; the timer
   and flashcard writes refuse it.
+- 2.20: LMS (LTI) connections run by org admins and group admins, consent
+  before any account, proof-based account linking, co-existing AI and human
+  grades, connection-org billing, staff access to linked exams, LMS name
+  masking and anonymization (one bundled release with the extended overlay).
+  Schema: migration 105 (``tool_host`` on registrations and invites;
+  ``lti_user_links.research_consent_at`` / ``link_method`` / ``unlinked_at``;
+  ``lti_resource_links.ai_lineitem_*``; ``lti_grade_syncs.kind`` /
+  ``last_synced_source`` / ``last_checked_at`` with ``uq_lti_grade_sync`` on
+  (resource_link_id, user_id, kind); the new ``lti_resource_link_users``
+  and ``lti_admin_events`` tables) and migration 106
+  (``task_evaluations.updated_at``, ``users.anonymized_at``,
+  ``ix_users_email_lower``, the ``lti_claim`` email method of provisioned
+  accounts (the verified flag is left alone so older pods keep working),
+  ``users.lms_provisioned_at`` / ``users.lms_origin_org_id`` (the LMS
+  origin of an account a launch created; the extended provisioning sets
+  both, deleting a connection stamps them, migration 106 backfills them),
+  ``project_organizations.attached_via``); the activation and
+  password-reset confirm paths verify an unproven routable address,
+  including a verified one still marked ``lti_claim``
+  (``account_activation.verify_email_by_link``). ``lti_admin_events`` has a
+  ``group_id`` (SET NULL; a row with a registration and no group gets the
+  registration's group on insert). Modules: ``public_hosts``
+  (tool host key to base URL), ``user_display`` (real name or pseudonym label),
+  ``auth_module.org_scope`` (``OrgAdminScope``, ``require_scope_admin`` and
+  its sync twin). API hooks the extended ``get_hooks()`` registers:
+  ``dispatch_lti_grade_sync``, ``privacy_protected_member_ids`` (an LMS
+  user has a provisioned link, a link that is not unlinked, or the LMS
+  origin marker; an org call counts marked accounts of that origin org once
+  no provisioned link is left; with the keyword ``group_ids``: only the
+  org's connections scoped to those groups, markers do not count; a hook
+  without it reveals nobody to group admins),
+  ``project_real_name_viewer``, ``lti_anonymization_policy``,
+  ``lti_protected_org_ids`` and ``projects_real_name_user_ids(db, viewer,
+  {project_id: user_ids}) -> {project_id: set}`` (the bulk form the project
+  list uses; the wrapper loops the single hook when it is missing). Hooks
+  that query run inside a savepoint, so a failed query leaves the caller's
+  transaction usable. Billing contract: the grading dispatch policy
+  may return a 4-tuple ``(org_id, configs, authorized, block)``; a block
+  marks the immediate run failed via
+  ``_mark_immediate_run_failed(extra_metadata=)`` and runs no judge; the
+  shared ``immediate_eval_dispatch.record_blocked_immediate_run`` /
+  ``latest_blocked_run`` keep one blocked run per annotation, and the
+  submit, endpoint and sweep paths consult the optional worker hook
+  ``benger_extended.workers.get_grading_block_fn``. Like
+  ``get_grading_dispatch_policy_fn`` that hook is NOT in ``get_hooks()``:
+  the workers never load ``extensions.py``, and the handshake test only
+  scans that file. The same holds for the optional worker hook
+  ``benger_extended.workers.get_batch_evaluation_policy_fn``:
+  ``run_evaluation`` asks it for ``(org_id, block[, authorized])`` before any
+  judge run, fails a refused batch run with ``billing_blocked:<reason>``
+  (the block under ``eval_metadata.billing_block``), and every evaluation
+  cell asks it again for the authorization instead of reading a payload.
+  ``GradingPayer`` (``schemas/billing_schemas.py``) gains ``block_reason``
+  and ``missing_providers``. Imports refuse a second task on an exam an LMS
+  activity points at (``multi_task_unsupported``, API and import drivers).
+  Admin API: ``/api/admin/lti`` is scoped to org and group admins, with
+  ``GET /tool-hosts``, ``DELETE /registrations/{id}``
+  (``accounts=keep|anonymize``),
+  ``PATCH .../deployments/{pk}``, ``GET .../resource-links``,
+  ``GET|DELETE .../user-links``, ``GET .../events``, the organization
+  history ``GET /api/admin/lti/events`` (``organization_id``,
+  ``registration_id``, ``deleted_only``; also invites and deleted
+  connections, group admins see their groups' entries), grade transfers with
+  context and a retry that dispatches through ``dispatch_lti_grade_sync``,
+  and ``POST /registrations/{id}/grade-syncs/resend-all`` (202, "resend all
+  grades" of a connection, a ``grades_resend_all`` event with counts) through
+  the optional API hook ``resend_all_lti_grades(db, registration_id) ->
+  dict`` (``status`` queued, scheduled, nothing or refused with ``code``,
+  ``message`` and ``http_status``; may commit ``db`` when its queue is down;
+  501 ``grade_transfer_unavailable`` without it). Its Celery task
+  ``tasks.lti_resend_all_grades`` is routed to ``interactive`` in
+  ``celery_queues``.
+  Moving a connection to another group or org, and deleting one, re-derives
+  the org's LMS-linking attachments of its exams
+  (``org_groups.sync_lti_attachments(_async)``, ``collapse_linking_groups``,
+  ``plan_lti_attachment_sync``, ``lti_sync_changed``); the update event
+  lists them under ``resynced_project_ids``. Deleting a connection with
+  ``accounts=anonymize`` runs set-based
+  (``user_anonymization.anonymize_users(_sync)``, ``AnonymizationOutcome``).
+  Consent first and proof linking (the extended overlay parks a launch until
+  consent and links an existing account only after proof):
+  ``account_activation`` gains ``EMAIL_METHOD_LMS_CLAIM``,
+  ``UNPROVEN_EMAIL_METHODS``, ``ACCOUNT_LINK_TOKEN_EXPIRY`` (the proof-token
+  TTL), ``email_ownership_proven``, ``mask_email``,
+  ``build_account_link_url``, ``account_link_mail_eligibility``,
+  ``mail_language_for`` and ``clean_display_name``; the platform mail task
+  ``emails.send_account_link_confirmation(user_id, token, host,
+  connection_name, organization_name)`` runs on the EMAILS queue (not an
+  extended task). Public standalone host routes (no login, no app shell):
+  ``/lti/consent`` (slot ``LtiConsentGate``), ``/lti/link-account`` (slot
+  ``LtiIdentityChoice``), ``/lti/link-confirm/[token]`` (slot
+  ``LtiLinkConfirm``, prop ``token``) and ``/lti/error``. The Next
+  ``/api/lti`` proxy passes the ``lti_pending`` cookie (``Path=/api/lti``)
+  through in both directions.
+  Staff access to linked exams (D13): ``org_groups.lti_staff_role``
+  (``protected_org_ids``: on an org whose connections stay superadmin-run
+  only its admins count), ``get_lti_attachment_map(_async)`` (only
+  ``attached_via='lti'`` rows whose org still has an activity linked to the
+  project) and ``non_lti_attachment``; the three deciders
+  (``check_project_accessible``, ``get_project_access_tier``,
+  ``AuthorizationService``, both lanes) give eligible staff of such an org
+  the full tier on a PRIVATE exam under any org context, the participant
+  tier is unchanged; under the ``private`` context (the LMS landing pages)
+  the same rule opens someone else's NON-private exam to staff of an org
+  that links it (``org_groups.linked_attachment_map``,
+  ``get_linking_org_ids(_async)``: that org's row of any ``attached_via``);
+  ``extensions.lti_protected_org_subset`` resolves the protected orgs
+  fail-closed. On someone else's NON-private exam the same
+  deciders, the edit and effective-role checks and the org project list drop
+  the ``attached_via='lti'`` rows (stale ones included) of protected orgs
+  for everyone but those orgs' admins and the row group's admins
+  (``org_groups.drop_protected_lti_attachments``,
+  ``get_lti_row_org_ids(_async)``). ``get_effective_project_role(_async)``
+  applies the private rule too (someone else's private project: only the
+  staff role of a live, unprotected LMS link, else the participant
+  fallback). Share management stays with the creator
+  unless a manual org row exists. The visibility PATCH keeps linking rows,
+  turns a manual row of a linked org into one (with the connection's group),
+  drops linking rows whose org no longer links the exam and answers 409
+  ``lti_attachment_conflict`` to a group-aware re-scope of a linked org;
+  ``ProjectResponse.organizations[]`` carries ``attached_via``. The project
+  lists agree with those deciders: ``routers.projects.helpers.
+  get_lti_staff_project_ids(_async)`` returns the LMS-linked private exams a
+  user may open as such staff (the extended student exam list imports the
+  async twin). ``check_user_can_edit_project(_async)`` applies the same
+  private rule itself (only a live LMS link opens someone else's private
+  exam, protected orgs count only their admins), and
+  ``get_soft_deletable_project_ids_async`` is the one delete rule (a private
+  project is its creator's alone; only manual org rows count, an LMS link
+  never hands deletion to anyone) behind ``DELETE /projects/{id}``, bulk
+  delete and the extended student list/detail ``can_delete`` flag.
+  Accepting an organization invitation, also through email verification,
+  reactivates a removed membership.
+  Host route ``/lti/activity`` (slot ``LtiActivityView``, props
+  ``resourceLinkId``, ``expectedUserId``, ``requestedUiMode``) is the teacher
+  view.
+  Names (D8): ``/auth/me``, ``/auth/me/contexts`` and the login user carry
+  ``pseudonym``, ``use_pseudonym`` and ``is_lms_account`` (there: a launch
+  created the account; a proof-linked account keeps its header); shared
+  modules ``lms_name_masking`` (``NameVisibility``, ``lms_link_exists``,
+  ``is_lms_account(_sync)``, ``is_lms_provisioned_account(_sync)``) and
+  ``user_display.masked_name`` /
+  ``prefers_pseudonym``; ``services/member_privacy`` masks the org member
+  list, ``/organizations/manage/users``, the group roster, project members,
+  the task listing, task assignments, ``created_by_name`` (list, detail,
+  edit and visibility responses; ``project_name_masks`` for a whole page)
+  and the export ``users`` block (a masked record carries ``"masked": true``
+  and is imported by id when the account exists). Group admins see real
+  names through ``reveal_group_accounts`` (their groups' connections). New API hook ``project_real_name_user_ids(db, viewer,
+  project_id, user_ids)`` (the people a viewer may see by name on a project;
+  project lists unmask only those). The workers (and exports in the API
+  process, while the extension loader accepted the package) read the
+  optional worker hook ``benger_extended.workers.get_name_visibility_fns``,
+  which returns ``(privacy_protected_member_ids,
+  project_real_name_user_ids)``; like the other worker hooks it is NOT in
+  ``get_hooks()``. Anonymization (D16): ``services/user_anonymization``
+  (``anonymize_user(_sync)``, ``anonymization_check(_sync)``,
+  ``anonymization_footprint(_sync)``, ``revoke_lms_link_tokens``,
+  ``is_reserved_username``; a fresh ``Anonym-<hex>`` pseudonym replaces the
+  old one), the endpoints ``GET /api/admin/lti/registrations/{id}/
+  anonymization``, ``GET .../user-links/{id}/anonymization``,
+  ``POST .../user-links/{id}/anonymize`` and the superadmin
+  ``GET|POST /api/users/{id}/anonymization|anonymize``; reactivating an
+  anonymized account answers 400 ``account_anonymized``; signup refuses the
+  ``lti-`` and ``anon-`` username prefixes. ``get_current_user`` returns
+  None for inactive accounts (the handlers that use it answer 401), and the
+  progress WebSockets refuse inactive accounts.
+  Frontend contract (the extended overlay imports these): ``lib/lti/
+  launchErrors`` (``LTI_LAUNCH_ERROR_CODES``, the action categories,
+  ``isLtiLaunchErrorCode``, ``ltiLaunchErrorPath``; the code list mirrors the
+  extended ``lti/errors.py`` page codes, and a parity test in each repo
+  compares them) with the ``lti.error`` locale namespace that the host
+  route ``/lti/error`` renders, and ``lib/utils/displayName``
+  (``getUserDisplayName``). ``StudentModeRedirect`` honours the one-shot
+  ``lti_ui=student|expert`` parameter next to ``lti_u`` / ``rl``, and
+  ``AuthContext`` skips the last-org subdomain redirect while ``lti_u``,
+  ``rl`` or ``lti_ui`` is in the URL. Worker-side,
+  ``immediate_eval_dispatch`` exports ``BILLING_BLOCK_KEY`` and
+  ``normalize_billing_block``, and ``auth_module.org_scope`` exports
+  ``load_org_admin_scope_sync``.
 """
 
 import os
 
-CORE_API_VERSION = "2.19"
+CORE_API_VERSION = "2.20"
 
 
 def extended_required() -> bool:

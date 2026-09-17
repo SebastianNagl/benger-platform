@@ -46,6 +46,13 @@ export function ConditionalLayout({
     '/verify-email', // Email verification (includes token routes)
     '/accept-invitation', // Organization invitation (includes token routes)
     '/shares', // Exam-share join page (includes token routes) — clean, chrome-less (Issue #35)
+    // LMS launch pages that run before (or without) a session: no sidebar,
+    // no student shell, no plan modal. The teacher picker (/lti/link) and
+    // the activity view (/lti/activity) keep the app layout.
+    '/lti/consent',
+    '/lti/link-account',
+    '/lti/link-confirm', // includes the token route
+    '/lti/error',
   ]
 
   // Pages that need minimal layout (with SectionProvider but no sidebar)

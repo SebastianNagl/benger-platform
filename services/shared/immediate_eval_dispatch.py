@@ -22,6 +22,15 @@ already references it (matched via the ``annotation_id`` stamped into
 ``None`` when the project has no eligible immediate config. Strictly additive —
 only INSERTs an ``EvaluationRun`` and dispatches a Celery task.
 
+Blocked gradings: the extended edition can refuse a grading before dispatch
+(optional hook ``benger_extended.workers.get_grading_block_fn``, e.g. when no
+one may pay for it). Such a grading gets ONE failed immediate run carrying
+``eval_metadata.billing_block`` (reason, ``checked_at``) and no Celery task;
+later attempts refresh that run instead of adding rows. Once the hook stops
+blocking, the next attempt dispatches normally and stamps
+``billing_block.superseded_by`` on the old run. The hourly sweep therefore
+costs one lookup per blocked annotation until the block is lifted.
+
 This module lives in ``/shared`` so the api (hook, endpoint, CLI) and the
 workers (auto-submit, sweep) import the same logic. It avoids importing any
 api-only module at top level — the Celery dispatch is resolved lazily so it
@@ -32,6 +41,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -41,6 +51,8 @@ from models import EvaluationRun, TaskEvaluation
 from project_models import Annotation, Task
 
 logger = logging.getLogger(__name__)
+
+BILLING_BLOCK_KEY = "billing_block"
 
 
 def _select_immediate_configs(db, user_id, configs, project=None):
@@ -181,6 +193,39 @@ def _graded_run_id(db, annotation_id, elig_metrics: set) -> Optional[str]:
     return None
 
 
+def _recent_blocked_annotations(db, project_id, recent) -> list:
+    """The ``recent`` annotations whose newest immediate run is an open
+    billing block (the grading was already attempted and refused)."""
+    if not recent:
+        return []
+    wanted = {str(a.id) for a in recent}
+    submitters = {str(a.completed_by) for a in recent if a.completed_by}
+    if not submitters:
+        return []
+    runs = (
+        db.query(EvaluationRun.eval_metadata)
+        .filter(
+            EvaluationRun.project_id == str(project_id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.created_by.in_(submitters),
+        )
+        .order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc())
+        .all()
+    )
+    seen: set = set()
+    blocked: set = set()
+    for (meta,) in runs:
+        if not isinstance(meta, dict):
+            continue
+        aid = str(meta.get("annotation_id") or "")
+        if aid not in wanted or aid in seen:
+            continue
+        seen.add(aid)  # only the newest run of the annotation decides
+        if _open_block(meta) is not None:
+            blocked.add(aid)
+    return [a for a in recent if str(a.id) in blocked]
+
+
 def scan_ungraded(db, project, *, cutoff=None):
     """Find annotations on ``project`` that have no eligible immediate grade.
 
@@ -190,8 +235,11 @@ def scan_ungraded(db, project, *, cutoff=None):
         reported only (re-dispatching risks duplicating the present metric).
 
     ``cutoff`` (a tz-aware datetime) excludes submits newer than it so an
-    in-flight client eval isn't raced. Shared by the recovery CLI and the
-    hourly sweep so both agree on what "ungraded" means.
+    in-flight client eval isn't raced. A newer submit whose latest immediate
+    run is an open billing block is kept: its grading already ran once and
+    was refused, so there is nothing to race, and the sweep dispatches it as
+    soon as the block is lifted. Shared by the recovery CLI and the hourly
+    sweep so both agree on what "ungraded" means.
     """
     cfgs = eligible_configs(project)
     if not cfgs:
@@ -204,8 +252,11 @@ def scan_ungraded(db, project, *, cutoff=None):
         Annotation.result.isnot(None),
     )
     if cutoff is not None:
-        q = q.filter(Annotation.created_at < cutoff)
-    anns = q.all()
+        anns = q.filter(Annotation.created_at < cutoff).all()
+        recent = q.filter(Annotation.created_at >= cutoff).all()
+        anns.extend(_recent_blocked_annotations(db, project.id, recent))
+    else:
+        anns = q.all()
     if not anns:
         return [], []
 
@@ -271,6 +322,182 @@ def _existing_immediate_run(db, project_id, annotation):
 
 
 # --------------------------------------------------------------------------- #
+# Blocked gradings (billing policy refused the grading before dispatch).
+# --------------------------------------------------------------------------- #
+def normalize_billing_block(block) -> Optional[dict]:
+    """A billing block as a dict with at least ``reason``, or None.
+
+    Accepts what a policy may return: None/empty (not blocked), a dict
+    (``code``, ``reason``, providers, ...), or a bare reason string.
+    """
+    if not block:
+        return None
+    if isinstance(block, dict):
+        out = dict(block)
+        out["reason"] = str(out.get("reason") or out.get("code") or "blocked")
+        return out
+    return {"reason": str(block)}
+
+
+def _grading_block(db, project, user_id, configs) -> Optional[dict]:
+    """Extension hook: why this grading must not be dispatched, else None.
+
+    Community edition (or an extended package without the hook): None. A
+    failing hook is logged and treated as "not blocked"; the worker's
+    dispatch policy still gets the final say. The hook runs inside a
+    savepoint so a failed query cannot poison the caller's session.
+    """
+    try:
+        from benger_extended.workers import get_grading_block_fn
+    except (ImportError, AttributeError):
+        return None
+    try:
+        block_fn = get_grading_block_fn()
+        if block_fn is None:
+            return None
+        with db.begin_nested():
+            block = block_fn(db, project=project, user_id=user_id, configs=configs)
+    except Exception:
+        logger.exception(
+            "grading block hook failed for project %s; dispatching normally",
+            getattr(project, "id", None),
+        )
+        return None
+    return normalize_billing_block(block)
+
+
+def _open_block(meta) -> Optional[dict]:
+    """The run's billing block if it is still the current one."""
+    if not isinstance(meta, dict):
+        return None
+    block = meta.get(BILLING_BLOCK_KEY)
+    if isinstance(block, dict) and not block.get("superseded_by"):
+        return block
+    return None
+
+
+def latest_blocked_run(db, project_id, annotation):
+    """The current blocked immediate run of ``annotation``, else None.
+
+    Same scan pattern as ``_existing_immediate_run``: the submitter's failed
+    immediate runs, newest first, matched on the stamped ``annotation_id``;
+    a run whose block was superseded by a later dispatch does not count.
+    """
+    runs = (
+        db.query(EvaluationRun)
+        .filter(
+            EvaluationRun.project_id == str(project_id),
+            EvaluationRun.model_id == "immediate",
+            EvaluationRun.created_by == str(annotation.completed_by),
+            EvaluationRun.status == "failed",
+        )
+        .order_by(EvaluationRun.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    aid = str(annotation.id)
+    for r in runs:
+        meta = r.eval_metadata or {}
+        if (
+            isinstance(meta, dict)
+            and str(meta.get("annotation_id")) == aid
+            and _open_block(meta) is not None
+        ):
+            return r
+    return None
+
+
+def _run_metadata(annotation, cfgs, trigger: str) -> dict:
+    return {
+        "evaluation_type": "immediate",
+        "trigger": trigger,
+        # annotation_id makes get-or-create race-free across hook/endpoint/worker.
+        "annotation_id": str(annotation.id),
+        "expected_config_count": len(cfgs),
+        "configs": [
+            {
+                "id": c.get("id", c.get("metric", "")),
+                "metric": c.get("metric", ""),
+                "display_name": c.get("display_name", c.get("metric", "")),
+            }
+            for c in cfgs
+        ],
+    }
+
+
+def record_blocked_immediate_run(
+    db,
+    project,
+    annotation,
+    *,
+    user_id=None,
+    configs=None,
+    block,
+    trigger: str = "annotation_submit",
+) -> str:
+    """Record that ``annotation`` cannot be graded yet; return the run id.
+
+    Refreshes the current blocked run (new reason, ``checked_at``) when one
+    exists, otherwise inserts a failed immediate ``EvaluationRun`` with the
+    usual metadata plus ``billing_block``. Never dispatches. Commits.
+
+    The run always belongs to the annotation's submitter, whatever
+    ``user_id`` the caller passes: ``latest_blocked_run`` finds it by that
+    owner, so repeated attempts refresh one row instead of adding more.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+
+    block = normalize_billing_block(block) or {"reason": "blocked"}
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+    message = f"billing_blocked:{block['reason']}"[:500]
+
+    existing = latest_blocked_run(db, project.id, annotation)
+    if existing is not None:
+        meta = dict(existing.eval_metadata or {})
+        previous = meta.get(BILLING_BLOCK_KEY) or {}
+        meta[BILLING_BLOCK_KEY] = {
+            **block,
+            "first_blocked_at": previous.get("first_blocked_at")
+            or previous.get("checked_at")
+            or now_iso,
+            "checked_at": now_iso,
+        }
+        meta["error"] = message
+        existing.eval_metadata = meta
+        existing.error_message = message
+        flag_modified(existing, "eval_metadata")
+        db.commit()
+        return str(existing.id)
+
+    cfgs = configs if configs is not None else eligible_configs(project)
+    run_id = str(uuid.uuid4())
+    meta = _run_metadata(annotation, cfgs, trigger)
+    meta[BILLING_BLOCK_KEY] = {
+        **block,
+        "first_blocked_at": now_iso,
+        "checked_at": now_iso,
+    }
+    meta["error"] = message
+    db.add(
+        EvaluationRun(
+            id=run_id,
+            project_id=str(project.id),
+            model_id="immediate",
+            evaluation_type_ids=[c.get("metric", "") for c in cfgs],
+            status="failed",
+            created_by=str(annotation.completed_by or user_id),
+            eval_metadata=meta,
+            metrics={},
+            error_message=message,
+            completed_at=now,
+        )
+    )
+    db.commit()
+    return run_id
+
+
+# --------------------------------------------------------------------------- #
 # Portable Celery dispatch (api: send_task_safe; worker: worker_celery.app).
 # --------------------------------------------------------------------------- #
 def _dispatch_task(task_name: str, kwargs: dict, queue: str):
@@ -293,6 +520,22 @@ def _dispatch_task(task_name: str, kwargs: dict, queue: str):
 # --------------------------------------------------------------------------- #
 # The single entry point.
 # --------------------------------------------------------------------------- #
+OUTCOME_NO_CONFIGS = "no_configs"
+OUTCOME_GRADED = "graded"
+OUTCOME_IN_FLIGHT = "in_flight"
+OUTCOME_TOO_RECENT = "too_recent"
+OUTCOME_BLOCKED = "blocked"
+OUTCOME_DISPATCHED = "dispatched"
+
+
+@dataclass(frozen=True)
+class EnsureOutcome:
+    """What ``ensure_immediate_evaluation`` did for one annotation."""
+
+    run_id: Optional[str]
+    status: str
+
+
 def ensure_immediate_evaluation(
     db,
     project,
@@ -306,10 +549,35 @@ def ensure_immediate_evaluation(
 ) -> Optional[str]:
     """Idempotently ensure an immediate evaluation exists for ``annotation``.
 
-    Returns the EvaluationRun id (existing grade's run, an in-flight run, or a
-    newly-dispatched one), or ``None`` when there is nothing eligible to grade
-    (or, with ``min_age_minutes`` set, when the submit is too recent to act on).
+    Returns the EvaluationRun id (existing grade's run, an in-flight run, a
+    blocked run, or a newly-dispatched one), or ``None`` when there is nothing
+    eligible to grade (or, with ``min_age_minutes`` set, when the submit is
+    too recent to act on).
     """
+    return ensure_immediate_evaluation_outcome(
+        db,
+        project,
+        task,
+        annotation,
+        user_id=user_id,
+        configs=configs,
+        trigger=trigger,
+        min_age_minutes=min_age_minutes,
+    ).run_id
+
+
+def ensure_immediate_evaluation_outcome(
+    db,
+    project,
+    task,
+    annotation,
+    *,
+    user_id=None,
+    configs=None,
+    trigger: str = "annotation_submit",
+    min_age_minutes: int = 0,
+) -> EnsureOutcome:
+    """:func:`ensure_immediate_evaluation`, also saying which branch ran."""
     cfgs = configs if configs is not None else eligible_configs(project)
     # Narrow a free/paid judge pair to the solver's tier BEFORE the expected
     # list is stamped, so all server-side triggers agree on the one config that
@@ -318,18 +586,18 @@ def ensure_immediate_evaluation(
         db, user_id or getattr(annotation, "completed_by", None), cfgs, project=project
     )
     if not cfgs:
-        return None
+        return EnsureOutcome(None, OUTCOME_NO_CONFIGS)
     elig = eligible_metrics(cfgs)
 
     # Already graded → never re-dispatch; surface the grading run.
     graded = _graded_run_id(db, annotation.id, elig)
     if graded is not None:
-        return graded
+        return EnsureOutcome(graded, OUTCOME_GRADED)
 
     # A run is already in flight for this annotation → attach to it.
     existing = _existing_immediate_run(db, project.id, annotation)
     if existing is not None:
-        return str(existing.id)
+        return EnsureOutcome(str(existing.id), OUTCOME_IN_FLIGHT)
 
     # Sweep/backfill only: don't race an in-flight client eval on a fresh submit.
     if min_age_minutes:
@@ -338,28 +606,48 @@ def ensure_immediate_evaluation(
             cutoff = datetime.now(timezone.utc) - timedelta(minutes=min_age_minutes)
             try:
                 if created > cutoff:
-                    return None
+                    return EnsureOutcome(None, OUTCOME_TOO_RECENT)
             except TypeError:
                 # naive vs aware datetime — be permissive and proceed.
                 pass
 
     user = str(user_id or annotation.completed_by)
+
+    # Billing may refuse the grading (extended edition). Keep one failed run
+    # with the reason instead of dispatching a task that cannot run.
+    block = _grading_block(db, project, user, cfgs)
+    if block is not None:
+        run_id = record_blocked_immediate_run(
+            db,
+            project,
+            annotation,
+            user_id=user,
+            configs=cfgs,
+            block=block,
+            trigger=trigger,
+        )
+        logger.info(
+            "[immediate-eval] blocked run=%s annotation=%s trigger=%s reason=%s",
+            run_id,
+            annotation.id,
+            trigger,
+            block.get("reason"),
+        )
+        return EnsureOutcome(run_id, OUTCOME_BLOCKED)
+
     eval_record_id = str(uuid.uuid4())
-    meta = {
-        "evaluation_type": "immediate",
-        "trigger": trigger,
-        # annotation_id makes get-or-create race-free across hook/endpoint/worker.
-        "annotation_id": str(annotation.id),
-        "expected_config_count": len(cfgs),
-        "configs": [
-            {
-                "id": c.get("id", c.get("metric", "")),
-                "metric": c.get("metric", ""),
-                "display_name": c.get("display_name", c.get("metric", "")),
-            }
-            for c in cfgs
-        ],
-    }
+    meta = _run_metadata(annotation, cfgs, trigger)
+    prior_block = latest_blocked_run(db, project.id, annotation)
+    if prior_block is not None:
+        from sqlalchemy.orm.attributes import flag_modified
+
+        prior_meta = dict(prior_block.eval_metadata or {})
+        prior_meta[BILLING_BLOCK_KEY] = {
+            **(prior_meta.get(BILLING_BLOCK_KEY) or {}),
+            "superseded_by": eval_record_id,
+        }
+        prior_block.eval_metadata = prior_meta
+        flag_modified(prior_block, "eval_metadata")
     db.add(
         EvaluationRun(
             id=eval_record_id,
@@ -421,4 +709,4 @@ def ensure_immediate_evaluation(
         trigger,
         sorted(elig),
     )
-    return eval_record_id
+    return EnsureOutcome(eval_record_id, OUTCOME_DISPATCHED)

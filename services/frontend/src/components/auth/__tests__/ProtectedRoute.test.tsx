@@ -280,6 +280,29 @@ describe('ProtectedRoute Component', () => {
       )
     })
 
+    it('keeps the query string for the way back after login', async () => {
+      window.history.replaceState(null, '', '/lti/link?rl=rl-1&lti_ui=expert')
+      mockUsePathname.mockReturnValue('/lti/link')
+      mockUseAuth.mockReturnValue({ user: null, isLoading: false })
+
+      try {
+        render(
+          <ProtectedRoute>
+            <TestComponent />
+          </ProtectedRoute>,
+        )
+
+        await waitFor(() => {
+          expect(mockToLogin).toHaveBeenCalledWith(
+            mockRouter,
+            '/lti/link?rl=rl-1&lti_ui=expert',
+          )
+        })
+      } finally {
+        window.history.replaceState(null, '', '/')
+      }
+    })
+
     it('redirects to login when not authenticated', async () => {
       mockUseAuth.mockReturnValue({
         user: null,

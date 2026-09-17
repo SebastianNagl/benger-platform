@@ -829,6 +829,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (!user) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
+    // A private project is its creator's alone, even when a learning
+    // platform link opens it to org staff (the API enforces the same rule).
+    if (
+      currentProject?.is_private &&
+      String(currentProject.created_by) !== String(user.id)
+    )
+      return false
     if (isOrgProject) return user.role === 'ORG_ADMIN'
     return false
   }

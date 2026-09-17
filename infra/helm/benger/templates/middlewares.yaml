@@ -10,23 +10,25 @@ metadata:
     app.kubernetes.io/part-of: benger
     app.kubernetes.io/managed-by: helm
 spec:
-  headers:
-    stsSeconds: {{ .Values.middleware.securityHeaders.stsSeconds | default 300 }}
-    stsIncludeSubdomains: {{ .Values.middleware.securityHeaders.stsIncludeSubdomains | default false }}
-    stsPreload: {{ .Values.middleware.securityHeaders.stsPreload | default false }}
-    contentTypeNosniff: true
-    frameDeny: true
-    browserXssFilter: true
-    referrerPolicy: "strict-origin-when-cross-origin"
-    customResponseHeaders:
-      Server: ""
-      X-Powered-By: ""
-      {{- if .Values.middleware.noindex }}
-      # Keep search engines out of non-production hosts (demo/staging). The
-      # header applies to every router that carries the security-headers
-      # middleware: api, frontend and the vertretbar apex.
-      X-Robots-Tag: "noindex, nofollow"
-      {{- end }}
+  {{- include "benger.securityHeadersSpec" (dict "root" $ "frameDeny" true) | nindent 2 }}
+---
+# Security headers for the one page an LMS shows inside its own admin page:
+# IMS LTI Dynamic Registration (/api/lti/register/init). Moodle's "Add LTI
+# Advantage" loads it in an iframe, so frameDeny would hide the result page
+# (and its org.imsglobal.lti.close message) from the LMS admin. Identical to
+# security-headers except frameDeny. The API answer limits framing itself
+# with Content-Security-Policy frame-ancestors (the LMS origin only).
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-security-headers-frameable
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  {{- include "benger.securityHeadersSpec" (dict "root" $ "frameDeny" false) | nindent 2 }}
 ---
 # Compression middleware (API only — Next.js handles frontend compression)
 apiVersion: traefik.io/v1alpha1
@@ -73,6 +75,23 @@ spec:
   chain:
     middlewares:
       - name: {{ .Release.Name }}-security-headers
+---
+# LTI Dynamic Registration chain: frameable security headers only, on every
+# host (the student host included: no beta BasicAuth, like the
+# vertretbar-lti chain). Used by the lti-register Ingresses.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-lti-register-chain
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+spec:
+  chain:
+    middlewares:
+      - name: {{ .Release.Name }}-security-headers-frameable
 {{- end }}
 {{- if .Values.vertretbar.enabled }}
 ---

@@ -499,3 +499,18 @@ class TestSkipQueueProjectSetting:
                 json={"skip_queue": "invalid_value"},
             )
         assert resp.status_code == 422
+
+
+def test_next_task_order_breaks_created_at_ties():
+    """Tasks created in one transaction share ``created_at``; the task
+    number and the id decide then, so ``/next`` is deterministic."""
+    from types import SimpleNamespace
+
+    from routers.projects.tasks.listing import _next_task_order
+
+    user = SimpleNamespace(id="u-1")
+    sequential = _next_task_order(SimpleNamespace(randomize_task_order=False), user)
+    assert [c.key for c in sequential] == ["created_at", "inner_id", "id"]
+    shuffled = _next_task_order(SimpleNamespace(randomize_task_order=True), user)
+    assert len(shuffled) == 2
+    assert shuffled[1].key == "id"

@@ -11,9 +11,12 @@
  * The five steps ride one fresh Moodle activity + one fresh Moodle student
  * per run (unique run-id suffix), so re-runs never collide with earlier
  * state:
- *   a. instructor first launch → LtiLinkPicker → link a fresh exam → exam
- *   b. student first launch → consent gate (required GDPR + optional
- *      research checkbox) → exam
+ *   a. instructor launch → consent (when this teacher has no current
+ *      consent on the connection) → LtiLinkPicker → link a fresh exam → exam
+ *   b. student first launch → public consent page (no session yet; both
+ *      the processing and the research consent are required) → one-time
+ *      address prompt (the test account's address cannot receive mail),
+ *      skipped → exam
  *   c. returning student launch → straight into the exam (no consent)
  *   d. two-tabs guard: ?lti_u mismatch hard-blocks the exam page
  *   e. /lti/error?code=not_linked renders the German explanation
@@ -61,6 +64,57 @@ test.describe('LTI Moodle launch flows @extended', () => {
   let studentPage: Page
 
   /**
+   * Consent first (owner decision D7): a launch without current consent on
+   * the connection lands on the public consent page. Give both consents and
+   * wait until the page moves on. An existing account with the same email
+   * leads to the account choice; the suite then continues with a separate
+   * account (the dev harness has no mailbox for the proof mail).
+   */
+  async function passConsentIfAsked(page: Page): Promise<void> {
+    if (!new URL(page.url()).pathname.startsWith('/lti/consent')) return
+    const continueButton = page.getByTestId('lti-consent-continue')
+    await expect(continueButton).toBeVisible({ timeout: 20_000 })
+    await page.getByTestId('lti-gdpr-consent').check()
+    await page.getByTestId('research-consent-checkbox').check()
+    await continueButton.click()
+    await skipEmailPromptIfShown(page)
+    await page.waitForURL((url) => !url.pathname.startsWith('/lti/consent'), {
+      timeout: 30_000,
+    })
+    if (new URL(page.url()).pathname.startsWith('/lti/link-account')) {
+      const separate = page.getByTestId('lti-identity-separate')
+      await expect(separate).toBeVisible({ timeout: 20_000 })
+      await separate.click()
+      await page.waitForURL(
+        (url) => !url.pathname.startsWith('/lti/link-account'),
+        { timeout: 30_000 },
+      )
+    }
+  }
+
+  /**
+   * The harness's Moodle accounts carry `@e2e.example.invalid` addresses,
+   * which the launch drops. Such an account is asked once for an address
+   * right after consent, before the page moves on. The suite skips it (no
+   * mailbox in the dev harness).
+   */
+  async function skipEmailPromptIfShown(page: Page): Promise<void> {
+    const prompt = page.getByTestId('lti-email-prompt')
+    const promptVisible = () => prompt.isVisible().catch(() => false)
+    await expect
+      .poll(
+        async () =>
+          !new URL(page.url()).pathname.startsWith('/lti/consent') ||
+          (await promptVisible()),
+        { timeout: 30_000 },
+      )
+      .toBe(true)
+    if (await promptVisible()) {
+      await page.getByTestId('lti-email-prompt-skip').click()
+    }
+  }
+
+  /**
    * App-side browser context: pin the suite's `e2e_test_mode` flag before
    * any app script runs — the dev stack's auto-login (layout.tsx) would
    * otherwise log the context in as `admin` and yank it to /dashboard,
@@ -88,7 +142,9 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await warmAppRoutes(warmPage, APP_BASE, [
       '/login',
       '/lti/link',
+      '/lti/activity',
       '/lti/consent',
+      '/lti/link-account',
       '/lti/error',
       '/student/exams',
       '/student/exams/warm-up',
@@ -113,6 +169,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
       MOODLE_TEACHER.password,
     )
     await launchActivity(teacherPage, cmid)
+    await passConsentIfAsked(teacherPage)
 
     // Unlinked activity + Instructor role → the link picker host route.
     await expect(teacherPage).toHaveURL(/\/lti\/link\?rl=[0-9a-f-]+/)
@@ -153,16 +210,18 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await expect(submit).toBeEnabled()
     await submit.click()
 
-    // Linking navigates into the exam the activity now points at.
-    await teacherPage.waitForURL(new RegExp(`/student/exams/${examId}`), {
+    // Linking opens the activity overview of the linked exam (the teacher
+    // view), bound to this session.
+    await teacherPage.waitForURL(/\/lti\/activity\?rl=[0-9a-f-]+/, {
       timeout: 30_000,
     })
-    await expect(
-      teacherPage.getByRole('heading', { name: examTitle }),
-    ).toBeVisible({ timeout: 20_000 })
+    await expect(teacherPage.getByTestId('lti-activity-exam')).toContainText(
+      examTitle,
+      { timeout: 20_000 },
+    )
   })
 
-  test('b. student first launch requires GDPR consent before opening the exam', async ({
+  test('b. student first launch requires both consents before opening the exam', async ({
     browser,
   }) => {
     createMoodleStudent(studentUsername, studentPassword)
@@ -172,34 +231,59 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await moodleLogin(studentPage, studentUsername, studentPassword)
     await launchActivity(studentPage, cmid)
 
-    // Linked activity + first-time student → the consent gate.
-    await expect(studentPage).toHaveURL(/\/lti\/consent\?rl=[0-9a-f-]+/)
-    await expect(
-      studentPage.getByRole('heading', { name: examTitle }),
-    ).toBeVisible({ timeout: 20_000 })
+    // Linked activity + first-time student → the launch is parked and the
+    // public consent page opens with the parked launch's handle.
+    await expect(studentPage).toHaveURL(
+      /\/lti\/consent\?rl=[0-9a-f-]+&p=[\w-]+/,
+    )
+    // Nothing is provisioned before consent: no session exists yet.
+    const before = await studentPage.request.get(`${APP_BASE}/api/auth/me`)
+    expect(before.ok(), `/api/auth/me answered ${before.status()}`).toBe(false)
 
-    const gdpr = studentPage.getByTestId('lti-gdpr-consent')
+    // Standalone page titled after the LMS activity.
+    await expect(
+      studentPage.getByRole('heading', { name: activityName }),
+    ).toBeVisible({ timeout: 20_000 })
+    await expect(studentPage.getByTestId('lti-consent-identity')).toBeVisible()
+
+    const processing = studentPage.getByTestId('lti-gdpr-consent')
     const research = studentPage.getByTestId('research-consent-checkbox')
     const continueButton = studentPage.getByTestId('lti-consent-continue')
 
-    await expect(gdpr).toBeVisible()
-    await expect(gdpr).not.toBeChecked()
+    await expect(processing).toBeVisible()
+    await expect(processing).not.toBeChecked()
     await expect(research).toBeVisible()
     await expect(research).not.toBeChecked()
     await expect(continueButton).toBeDisabled()
 
-    // The optional research consent alone must NOT unlock the button …
+    // Both consents are required: neither box alone unlocks the button.
     await research.check()
     await expect(continueButton).toBeDisabled()
+    await research.uncheck()
+    await processing.check()
+    await expect(continueButton).toBeDisabled()
 
-    // … only the required GDPR consent does.
-    await gdpr.check()
+    await research.check()
     await expect(continueButton).toBeEnabled()
     await continueButton.click()
 
-    await studentPage.waitForURL(new RegExp(`/student/exams/${examId}`), {
+    // The account has no address that can receive mail: the page asks once
+    // for one before it opens the exam. Skipping leads to the same exam.
+    await expect(studentPage.getByTestId('lti-email-prompt')).toBeVisible({
       timeout: 30_000,
     })
+    await expect(studentPage).toHaveURL(/\/lti\/consent\?/)
+    await studentPage.getByTestId('lti-email-prompt-skip').click()
+
+    await studentPage.waitForURL(
+      new RegExp(`/student/exams/${examId}\\?.*lti_u=`),
+      { timeout: 30_000 },
+    )
+    // The landing carries the two-tabs guard binding of the new account.
+    const landing = new URL(studentPage.url())
+    expect(landing.searchParams.get('lti_u')).toBe(
+      await currentUserId(studentPage),
+    )
     await expect(
       studentPage.getByRole('heading', { name: examTitle }),
     ).toBeVisible({ timeout: 20_000 })
@@ -251,21 +335,24 @@ test.describe('LTI Moodle launch flows @extended', () => {
   })
 
   test('e. launch error page explains the not_linked case in German', async () => {
-    // Failed launches 303 here with ?code=<reason>. Ride the student's
-    // session: the real not_linked branch also lands authenticated, and
-    // unauthenticated visits get bounced to /login by the app-wide auth
-    // guard (see report — /lti/error is not in publicRoutes).
+    // Failed launches 303 here with ?code=<reason>. The page is public and
+    // standalone, so it renders with or without a session.
     await gotoWithRetry(studentPage, `${APP_BASE}/lti/error?code=not_linked`)
 
     await expect(
       studentPage.getByRole('heading', {
-        name: 'Start aus Moodle fehlgeschlagen',
+        name: 'Start aus der Lernplattform fehlgeschlagen',
       }),
     ).toBeVisible({ timeout: 20_000 })
     await expect(
       studentPage.getByText(
-        'Diese Aktivität ist noch keiner Klausur zugeordnet.',
+        'Diese Aktivität ist noch mit keiner Klausur verknüpft.',
       ),
+    ).toBeVisible()
+    // The page says what to do and who can do it.
+    await expect(studentPage.getByText('So geht es weiter')).toBeVisible()
+    await expect(
+      studentPage.getByText(/Bitte deine Lehrenden, die Aktivität/),
     ).toBeVisible()
     await expect(studentPage.getByText('Fehlercode')).toBeVisible()
     await expect(

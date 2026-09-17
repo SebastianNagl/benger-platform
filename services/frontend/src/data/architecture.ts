@@ -19,7 +19,7 @@ export interface ArchSection {
 
 export const ARCHITECTURE_DIAGRAM = `    +----------------------------------------------------+
     |                 Traefik (Ingress)                  |
-    |what-a-benger.net / vertretbar.net / org subdomains |
+    |    BenGER host / student host / org subdomains     |
     +----------------------------------------------------+
                 |                             |
 +-----------------------+       +-----------------------+
@@ -48,8 +48,8 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
       en: 'Overview: open core, two interfaces, one system',
     },
     intro: {
-      de: 'BenGER ist als **Open-Core-System** gebaut. Das öffentliche Repository `benger-platform` (Apache-2.0) enthält Annotationssystem, Generierung, Evaluation, Berichte und Organisationsverwaltung. Das private Paket `benger-extended` liefert die proprietären Erweiterungen (Klausurlösung, KI-Korrektur, Korrektur- und Review-Workflows, Timer, Bestenlisten für Menschen, LTI, die Studierendenplattform Vertretbar) und wird beim Build in dieselben Images eingebettet. In Produktion läuft ein Satz Container, der beide Oberflächen bedient: die Expertenplattform auf what-a-benger.net und Vertretbar auf vertretbar.net.',
-      en: 'BenGER is built as an **open-core system**. The public repository `benger-platform` (Apache-2.0) contains the annotation system, generation, evaluation, reports and organization management. The private package `benger-extended` supplies the proprietary extensions (exam solving, AI grading, grading and review workflows, timers, human leaderboards, LTI, the student platform Vertretbar) and is embedded into the same images at build time. Production runs one set of containers serving both interfaces: the expert platform on what-a-benger.net and Vertretbar on vertretbar.net.',
+      de: 'BenGER ist als **Open-Core-System** gebaut. Das öffentliche Repository `benger-platform` (Apache-2.0) enthält Annotationssystem, Generierung, Evaluation, Berichte und Organisationsverwaltung. Das private Paket `benger-extended` liefert die proprietären Erweiterungen (Klausurlösung, KI-Korrektur, Korrektur- und Review-Workflows, Timer, Bestenlisten für Menschen, LTI, die Studierendenplattform) und wird beim Build in dieselben Images eingebettet. In Produktion läuft ein Satz Container, der beide Oberflächen bedient: die Expertenplattform auf der BenGER-Adresse und die Studierendenplattform auf einer eigenen Studierenden-Adresse.',
+      en: 'BenGER is built as an **open-core system**. The public repository `benger-platform` (Apache-2.0) contains the annotation system, generation, evaluation, reports and organization management. The private package `benger-extended` supplies the proprietary extensions (exam solving, AI grading, grading and review workflows, timers, human leaderboards, LTI, the student platform) and is embedded into the same images at build time. Production runs one set of containers serving both interfaces: the expert platform on the BenGER host and the student platform on a student host of its own.',
     },
     bullets: {
       de: [
@@ -69,8 +69,8 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
     id: 'frontend',
     title: { de: 'Frontend', en: 'Frontend' },
     intro: {
-      de: '**Next.js 15** (App Router, Turbopack) mit React 18, TypeScript und Tailwind CSS. Das Frontend ist eine Anwendung mit zwei Shells: der Experten-Shell mit Seitenleiste und Konfigurationskarten und der Studierenden-Shell mit Lernstatistik, Klausuren und Karteikarten. Welche Shell rendert, entscheidet der Host (vertretbar.net ist auf die Studierenden-Shell festgelegt) zusammen mit der gespeicherten Nutzerpräferenz.',
-      en: '**Next.js 15** (App Router, Turbopack) with React 18, TypeScript and Tailwind CSS. The frontend is one application with two shells: the expert shell with sidebar and configuration cards, and the student shell with learning statistics, exams and flashcards. Which shell renders is decided by the host (vertretbar.net is locked to the student shell) together with the stored user preference.',
+      de: '**Next.js 15** (App Router, Turbopack) mit React 18, TypeScript und Tailwind CSS. Das Frontend ist eine Anwendung mit zwei Shells: der Experten-Shell mit Seitenleiste und Konfigurationskarten und der Studierenden-Shell mit Lernstatistik, Klausuren und Karteikarten. Welche Shell rendert, entscheidet der Host (die Studierenden-Adresse ist auf die Studierenden-Shell festgelegt) zusammen mit der gespeicherten Nutzerpräferenz.',
+      en: '**Next.js 15** (App Router, Turbopack) with React 18, TypeScript and Tailwind CSS. The frontend is one application with two shells: the expert shell with sidebar and configuration cards, and the student shell with learning statistics, exams and flashcards. Which shell renders is decided by the host (the student host is locked to the student shell) together with the stored user preference.',
     },
     bullets: {
       de: [
@@ -188,13 +188,13 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
     bullets: {
       de: [
         'Sichtbarkeit von Projekten: privat, Organisation (optional eine Gruppe) oder öffentlich; zusätzlich Freigabe-Links mit Passwort und ein Verzeichnis (*Entdecken*) für Studierende. Wer über Link oder Verzeichnis beitritt, bekommt die schmale Teilnehmer-Stufe ohne Referenzdaten.',
-        'API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person.',
+        'API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person. Bei Klausuren, die mit einer Lernplattform verknüpft sind, zahlt die Organisation der Anbindung die KI-Korrektur ihrer Studierenden aus der Lernplattform und ihres Personals. Fehlt ihr ein Schlüssel, läuft keine Korrektur.',
         'Einladungen per E-Mail mit siebentägigem Token, optional gruppenbezogen; Benachrichtigungen in der App und per E-Mail (SendGrid) mit Ruhezeiten und Digest.',
         'Feature-Flags (datenbankgestützt, von Superadmins geschaltet) blenden ganze Bereiche ein oder aus.',
       ],
       en: [
         'Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.',
-        'API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key.',
+        'API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.',
         'Invitations by email with a seven-day token, optionally group-scoped; notifications in-app and by email (SendGrid) with quiet hours and digests.',
         'Feature flags (database-backed, switched by superadmins) show or hide whole sections.',
       ],
@@ -204,18 +204,18 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
     id: 'integrations',
     title: { de: 'Integrationen', en: 'Integrations' },
     intro: {
-      de: '**LTI 1.3** verbindet BenGER mit Moodle und ILIAS: Dynamic Registration über einen einmaligen Einladungslink, Just-in-time-Anlage von Konten beim ersten Start, einmalige Einwilligung, Verknüpfung einer Aktivität mit einer Klausur und Rückgabe der Noten (0 bis 18 Notenpunkte) über den Assignment and Grade Service.',
-      en: '**LTI 1.3** connects BenGER with Moodle and ILIAS: dynamic registration through a one-time invitation link, just-in-time account creation on first launch, one-time consent, linking an activity to an exam and grade passback (0 to 18 grade points) via the Assignment and Grade Service.',
+      de: '**LTI 1.3** verbindet BenGER mit Moodle und ILIAS. Org- und Gruppen-Admins richten Anbindungen selbst ein, per einmaligem Einladungslink (Dynamic Registration) oder von Hand, und die Anbindung ist sofort aktiv. Beim ersten Start wird die Zustimmung eingeholt, einmal je Anbindung, und erst danach ein Konto angelegt oder nach Anmeldung oder E-Mail-Bestätigung ein bestehendes verknüpft. Lehrende verknüpfen die Aktivität mit einer Klausur. Die Noten (0 bis 18 Notenpunkte) gehen über den Assignment and Grade Service zurück: die Endnote in die Spalte der Aktivität und in Moodle die KI-Note in eine eigene Spalte.',
+      en: '**LTI 1.3** connects BenGER with Moodle and ILIAS. Org and group admins set up connections themselves, through a one-time invitation link (dynamic registration) or by hand, and the connection is active at once. The first launch asks for consent, once per connection, and only then creates an account or, after sign-in or email confirmation, links an existing one. Teachers link the activity to an exam. Grades (0 to 18 grade points) go back via the Assignment and Grade Service: the final grade to the activity column and, in Moodle, the AI grade to a column of its own.',
     },
     bullets: {
       de: [
         'KI-Anbieter: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi u.a.), Grok, Mistral, Cohere. Eigene OpenAI-kompatible Endpunkte lassen sich registrieren und teilen; eine SSRF-Sperre verhindert Aufrufe ins interne Netz.',
-        'E-Mail über SendGrid, mit Marken-Absender je Host (BenGER oder Vertretbar).',
+        'E-Mail über SendGrid, mit einem Marken-Absender je Host.',
         'Cloud-Speicherverbindungen von Organisationen (S3) für Importe direkt aus dem eigenen Bucket.',
       ],
       en: [
         'AI providers: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi and more), Grok, Mistral, Cohere. Custom OpenAI-compatible endpoints can be registered and shared; an SSRF guard blocks calls into internal networks.',
-        'Email via SendGrid, with a branded sender per host (BenGER or Vertretbar).',
+        'Email via SendGrid, with a branded sender per host.',
         'Organization cloud storage connections (S3) for imports straight from your own bucket.',
       ],
     },
@@ -227,21 +227,21 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
       en: 'Operations, deployment and CI',
     },
     intro: {
-      de: 'Produktion läuft auf **Kubernetes (K3s)** mit Helm, in zwei Namespaces: `benger` (Produktion) und `benger-staging`. Traefik terminiert TLS mit Wildcard-Zertifikaten für what-a-benger.net und vertretbar.net und leitet Organisations-Subdomains an dieselbe Frontend-Instanz.',
-      en: 'Production runs on **Kubernetes (K3s)** with Helm, in two namespaces: `benger` (production) and `benger-staging`. Traefik terminates TLS with wildcard certificates for what-a-benger.net and vertretbar.net and routes organization subdomains to the same frontend instance.',
+      de: 'Produktion läuft auf **Kubernetes (K3s)** mit Helm, getrennt in eine Produktions- und eine Staging-Umgebung. Traefik terminiert TLS mit Wildcard-Zertifikaten für beide Adressen und leitet Organisations-Subdomains an dieselbe Frontend-Instanz.',
+      en: 'Production runs on **Kubernetes (K3s)** with Helm, split into a production and a staging environment. Traefik terminates TLS with wildcard certificates for both hosts and routes organization subdomains to the same frontend instance.',
     },
     bullets: {
       de: [
         'Deployments: API und Frontend mit je zwei Replikas und Rolling Updates, Worker-Pools pro Warteschlange, Celery Beat, MinIO, PostgreSQL, Redis, ein Migrations-Job vor jedem Rollout und ein nächtlicher Backup-CronJob. Autoscaling ist vorbereitet, aber ausgeschaltet.',
         'CI/CD: Pull Requests auf das Platform-Repository laufen Jest und Lint; ein Merge auf `main` läuft zusätzlich die vollständigen API- und Worker-Suiten (sechs parallele Shards) und löst danach den Build im Extended-Repository aus, der die Images nach GHCR pusht und Produktion ausrollt. Pull Requests im Extended-Repository deployen nach Staging.',
         'Nächtliche Läufe: kompletter Test-Suite-Lauf inklusive End-to-End-Tests, Coverage-Ratchets und Mutation-Testing; ein Drift-Check vergleicht den Modellkatalog mit der Datenbank.',
-        'Lokale Entwicklung mit Docker Compose und Traefik unter `benger.localhost` und `vertretbar.localhost`, Hot Reload über Turbopack, isolierte Test-Infrastruktur (PostgreSQL 5433, Redis 6380, eigener MinIO).',
+        'Lokale Entwicklung mit Docker Compose und Traefik unter `benger.localhost` und einer lokalen Studierenden-Adresse, Hot Reload über Turbopack, isolierte Test-Infrastruktur (PostgreSQL 5433, Redis 6380, eigener MinIO).',
       ],
       en: [
         'Deployments: API and frontend with two replicas each and rolling updates, worker pools per queue, Celery beat, MinIO, PostgreSQL, Redis, a migration job before every rollout and a nightly backup CronJob. Autoscaling is prepared but switched off.',
         'CI/CD: pull requests on the platform repository run Jest and lint; a merge to `main` additionally runs the full API and worker suites (six parallel shards) and then triggers the build in the extended repository, which pushes the images to GHCR and rolls out production. Pull requests in the extended repository deploy to staging.',
         'Nightly runs: the complete test suite including end-to-end tests, coverage ratchets and mutation testing; a drift check compares the model catalog with the database.',
-        'Local development with Docker Compose and Traefik under `benger.localhost` and `vertretbar.localhost`, hot reload via Turbopack, isolated test infrastructure (PostgreSQL 5433, Redis 6380, its own MinIO).',
+        'Local development with Docker Compose and Traefik under `benger.localhost` and a local student host, hot reload via Turbopack, isolated test infrastructure (PostgreSQL 5433, Redis 6380, its own MinIO).',
       ],
     },
   },

@@ -929,12 +929,16 @@ export const projectsAPI = {
       id: string
       user_id: string
       name: string
-      email: string
+      /** Null for an LMS account whose real identity the viewer may not
+       *  see (the name is then the pseudonym). */
+      email: string | null
       role: string
       is_direct_member: boolean
       organization_id: string | null
       organization_name: string | null
       added_at: string
+      is_lms_account?: boolean
+      is_pseudonymized?: boolean
     }>
   > => {
     const response = await apiClient.get(`/projects/${projectId}/members`)

@@ -9,7 +9,6 @@ from functools import wraps
 from typing import Callable, List, Optional
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -110,6 +109,9 @@ class AuthorizationService:
         memberships,
         attachment_groups=None,
         user_groups=None,
+        lti_attachments=None,
+        protected_org_ids=None,
+        linked_attachments=None,
     ) -> bool:
         """Pure access decision shared by the sync/async entry points.
 
@@ -118,6 +120,26 @@ class AuthorizationService:
         between sync and async. ``attachment_groups`` ({org_id: group_id|None})
         and ``user_groups`` ({group_id: is_group_admin}) carry the group axis
         (see shared/org_groups); omitted, every attachment counts as org-wide.
+        ``lti_attachments`` ({org_id: group_id|None} of the rows LMS linking
+        created) opens a private exam to those orgs' eligible staff with
+        their staff role (``org_groups.lti_staff_role``), whatever context the
+        client sends; omitted, a private project stays creator-only.
+        ``protected_org_ids`` are the linked orgs whose connections stay
+        superadmin-run: only their admins count there. On a non-private exam
+        the entry points drop such orgs' LMS rows from ``attachment_groups``
+        for everyone else before calling this. ``linked_attachments``
+        (``org_groups.linked_attachment_map``) gives the same staff their
+        role on someone else's non-private exam under the ``private``
+        context, which the LMS landing pages on the apex host send.
+
+        Both modes apply the exam carve-out of ``helpers._org_grants_full_tier``
+        (``org_groups.grants_full_tier``): an ANNOTATOR membership confers no
+        project-level permission on an exam-kind project, because for an exam
+        those permissions expose the Musterlösung, the Bewertungsbogen
+        criteria and the evaluation config. Students reach org exams through
+        the narrow participant tier instead (``get_student_read_access``). A
+        group admin of the attachment counts as staff, and the creator keeps
+        the role-based access to their own exam.
         """
         # Superadmins have all permissions
         if user.is_superadmin:
@@ -143,6 +165,31 @@ class AuthorizationService:
                 return self._check_org_role_permission(public_role, permission)
             return False
 
+        # Private projects belong to their creator, whatever context the
+        # client sends (the sync entry point applies the same rule as a
+        # zero-DB fast path; the async lane relies on this branch). Without
+        # it, an org member reached a private org-attached exam in org mode.
+        # The one exception: staff of an org the exam is LMS-linked to get
+        # their staff role's permissions (never ANNOTATORs).
+        if getattr(project, 'is_private', False):
+            if user.id == project.created_by:
+                return True
+            from org_groups import lti_staff_role
+
+            role = lti_staff_role(
+                getattr(project, "kind", None),
+                memberships,
+                lti_attachments,
+                user_groups,
+                protected_org_ids=protected_org_ids,
+            )
+            return role is not None and self._check_org_role_permission(
+                role, permission
+            )
+
+        is_creator = user.id == project.created_by
+        project_kind = getattr(project, "kind", None)
+
         # Context-aware mode
         if org_context is not None:
             if org_context == "private":
@@ -151,8 +198,22 @@ class AuthorizationService:
                 # the request that refreshes the page right after an
                 # org-visibility switch (still carrying the private context)
                 # 403s, and the creator loses their project from the private
-                # scope entirely. Non-creators get nothing here.
-                return user.id == project.created_by
+                # scope entirely. Other people get only what staff of an
+                # org that links the exam to an LMS activity hold there.
+                if user.id == project.created_by:
+                    return True
+                from org_groups import lti_staff_role
+
+                role = lti_staff_role(
+                    project_kind,
+                    memberships,
+                    linked_attachments,
+                    user_groups,
+                    protected_org_ids=protected_org_ids,
+                )
+                return role is not None and self._check_org_role_permission(
+                    role, permission
+                )
 
             # A project attached to NO organization is private whatever
             # context the client sends: the creator keeps access under a
@@ -171,14 +232,18 @@ class AuthorizationService:
             )
             if not membership:
                 return False
-            from org_groups import attachment_eligible
+            from org_groups import attachment_eligible, grants_full_tier
 
             group_id = (attachment_groups or {}).get(org_context)
             if not attachment_eligible(
                 group_id,
-                is_creator=user.id == project.created_by,
+                is_creator=is_creator,
                 membership_role=membership.role,
                 user_groups=user_groups,
+            ):
+                return False
+            if not is_creator and not grants_full_tier(
+                project_kind, membership.role, group_id, user_groups
             ):
                 return False
             role = (
@@ -189,10 +254,7 @@ class AuthorizationService:
             return self._check_org_role_permission(role, permission)
 
         # Legacy mode (org_context=None): backward compatibility
-        if getattr(project, 'is_private', False):
-            return user.id == project.created_by
-
-        if user.id == project.created_by:
+        if is_creator:
             if permission in [
                 Permission.PROJECT_VIEW,
                 Permission.PROJECT_EDIT,
@@ -201,35 +263,46 @@ class AuthorizationService:
                 return True
 
         if project_org_ids:
-            from org_groups import attachment_eligible
+            from org_groups import attachment_eligible, grants_full_tier
 
-            user_org_ids = [m.organization_id for m in memberships]
             for org_id in project_org_ids:
-                if org_id in user_org_ids:
-                    membership = next(
-                        (m for m in memberships if m.organization_id == org_id),
-                        None,
+                # Only an ACTIVE membership counts (same as context mode and
+                # the helpers deciders): a removed member keeps a soft-deleted
+                # row that must not grant anything.
+                membership = next(
+                    (
+                        m
+                        for m in memberships
+                        if m.organization_id == org_id and m.is_active
+                    ),
+                    None,
+                )
+                if membership:
+                    # Group axis: an ineligible grouped attachment is
+                    # skipped (the next attachment may still grant);
+                    # eligibility via a group the user group-admins
+                    # upgrades that attachment's role to ORG_ADMIN.
+                    group_id = (attachment_groups or {}).get(org_id)
+                    if not attachment_eligible(
+                        group_id,
+                        is_creator=is_creator,
+                        membership_role=membership.role,
+                        user_groups=user_groups,
+                    ):
+                        continue
+                    # Exam carve-out: an ANNOTATOR attachment is skipped too,
+                    # a staff membership through another org may still grant.
+                    if not is_creator and not grants_full_tier(
+                        project_kind, membership.role, group_id, user_groups
+                    ):
+                        continue
+                    role = (
+                        "ORG_ADMIN"
+                        if group_id is not None
+                        and (user_groups or {}).get(group_id, False)
+                        else membership.role
                     )
-                    if membership:
-                        # Group axis: an ineligible grouped attachment is
-                        # skipped (the next attachment may still grant);
-                        # eligibility via a group the user group-admins
-                        # upgrades that attachment's role to ORG_ADMIN.
-                        group_id = (attachment_groups or {}).get(org_id)
-                        if not attachment_eligible(
-                            group_id,
-                            is_creator=user.id == project.created_by,
-                            membership_role=membership.role,
-                            user_groups=user_groups,
-                        ):
-                            continue
-                        role = (
-                            "ORG_ADMIN"
-                            if group_id is not None
-                            and (user_groups or {}).get(group_id, False)
-                            else membership.role
-                        )
-                        return self._check_org_role_permission(role, permission)
+                    return self._check_org_role_permission(role, permission)
 
         return False
 
@@ -251,7 +324,8 @@ class AuthorizationService:
             db: Database session
             org_context: Value of X-Organization-Context header.
                 When provided, enforces context-aware checking:
-                - "private" -> only creator's own private projects
+                - "private" -> the creator, plus staff of an org that links
+                  the exam to an LMS activity
                 - org_id -> only check membership in that specific org
                 When None, falls back to legacy behavior (any org membership).
         """
@@ -276,9 +350,20 @@ class AuthorizationService:
             if public_role:
                 return self._check_org_role_permission(public_role, permission)
             return False
-        if getattr(project, 'is_private', False):
+        # A private project resolves on creatorship alone, except someone
+        # else's private exam: its LMS attachments may grant staff (the
+        # decider below), so that shape falls through to the reads.
+        needs_lti = self._private_exam_needs_lti_map(user, project)
+        needs_linked = self._private_context_needs_linked_map(
+            user, project, org_context
+        )
+        if getattr(project, 'is_private', False) and not needs_lti:
             return user.id == project.created_by
-        if org_context == "private":
+        if (
+            not getattr(project, 'is_private', False)
+            and org_context == "private"
+            and not needs_linked
+        ):
             return user.id == project.created_by
         if org_context is None and user.id == project.created_by and permission in (
             Permission.PROJECT_VIEW,
@@ -293,11 +378,46 @@ class AuthorizationService:
         # lane) so the sync/async ORG semantics — including the group axis
         # and the soft-delete guard the old inline copy was missing — cannot
         # drift. This used to be a third inline copy of the decision logic.
-        from org_groups import get_attachment_group_map, get_user_group_context
+        from org_groups import (
+            get_attachment_group_map,
+            get_linking_org_ids,
+            get_lti_attachment_map,
+            get_user_group_context,
+            linked_attachment_map,
+        )
 
+        lti_attachments = None
+        protected_org_ids = None
+        linking_org_ids = None
+        if needs_linked:
+            linking_org_ids = get_linking_org_ids(db, str(project.id))
+            if not linking_org_ids:
+                return False
+        if needs_lti:
+            lti_attachments = get_lti_attachment_map(db, str(project.id))
+            if not lti_attachments:
+                return False
+            protected_org_ids = self._protected_org_ids(db, lti_attachments)
         attachment_groups = get_attachment_group_map(db, str(project.id))
         memberships = self._get_user_org_memberships(user, db)
         user_groups = get_user_group_context(db, str(user.id))
+        if self._needs_protected_lti_filter(user, project) and attachment_groups:
+            from org_groups import drop_protected_lti_attachments, get_lti_row_org_ids
+
+            lti_orgs = get_lti_row_org_ids(db, str(project.id)) & set(attachment_groups)
+            protected = self._protected_org_ids(db, lti_orgs) if lti_orgs else set()
+            if protected:
+                attachment_groups = drop_protected_lti_attachments(
+                    attachment_groups, protected, memberships, user_groups
+                )
+        linked_attachments = None
+        if needs_linked:
+            linked_attachments = linked_attachment_map(
+                attachment_groups, linking_org_ids
+            )
+            if not linked_attachments:
+                return False
+            protected_org_ids = self._protected_org_ids(db, linked_attachments)
         return self._decide_project_access(
             user,
             project,
@@ -307,6 +427,9 @@ class AuthorizationService:
             memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
+            linked_attachments=linked_attachments,
         )
 
     async def check_project_access_async(
@@ -334,12 +457,64 @@ class AuthorizationService:
 
         from org_groups import (
             get_attachment_group_map_async,
+            get_linking_org_ids_async,
+            get_lti_attachment_map_async,
             get_user_group_context_async,
+            linked_attachment_map,
         )
 
+        # Lockstep with the sync lane: the LMS attachment map is only read
+        # for someone else's private exam, the linking orgs only for someone
+        # else's non-private exam under the private context.
+        lti_attachments = None
+        protected_org_ids = None
+        needs_linked = self._private_context_needs_linked_map(
+            user, project, org_context
+        )
+        linking_org_ids = None
+        if needs_linked:
+            linking_org_ids = await get_linking_org_ids_async(db, str(project.id))
+            if not linking_org_ids:
+                return False
+        if self._private_exam_needs_lti_map(user, project):
+            lti_attachments = await get_lti_attachment_map_async(db, str(project.id))
+            if not lti_attachments:
+                return False
+            org_ids = list(lti_attachments)
+            protected_org_ids = await db.run_sync(
+                lambda sync_db: self._protected_org_ids(sync_db, org_ids)
+            )
         attachment_groups = await get_attachment_group_map_async(db, str(project.id))
         memberships = await self._get_user_org_memberships_async(user, db)
         user_groups = await get_user_group_context_async(db, str(user.id))
+        if self._needs_protected_lti_filter(user, project) and attachment_groups:
+            from org_groups import (
+                drop_protected_lti_attachments,
+                get_lti_row_org_ids_async,
+            )
+
+            lti_orgs = await get_lti_row_org_ids_async(db, str(project.id))
+            lti_orgs &= set(attachment_groups)
+            protected = set()
+            if lti_orgs:
+                protected = await db.run_sync(
+                    lambda sync_db: self._protected_org_ids(sync_db, lti_orgs)
+                )
+            if protected:
+                attachment_groups = drop_protected_lti_attachments(
+                    attachment_groups, protected, memberships, user_groups
+                )
+        linked_attachments = None
+        if needs_linked:
+            linked_attachments = linked_attachment_map(
+                attachment_groups, linking_org_ids
+            )
+            if not linked_attachments:
+                return False
+            linked_org_ids = list(linked_attachments)
+            protected_org_ids = await db.run_sync(
+                lambda sync_db: self._protected_org_ids(sync_db, linked_org_ids)
+            )
         return self._decide_project_access(
             user,
             project,
@@ -349,6 +524,54 @@ class AuthorizationService:
             memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
+            linked_attachments=linked_attachments,
+        )
+
+    @staticmethod
+    def _private_context_needs_linked_map(user, project, org_context) -> bool:
+        """Whether the decision needs the linked attachment map: someone
+        else's non-private, non-public exam under the ``private`` context
+        (staff of an org that links it keep their role there)."""
+        return (
+            org_context == "private"
+            and not bool(getattr(project, "is_private", False))
+            and getattr(project, "is_public", False) is not True
+            and user.id != project.created_by
+            and getattr(project, "kind", None) == "exam"
+        )
+
+    @staticmethod
+    def _protected_org_ids(db, org_ids) -> set:
+        """The linked orgs whose connections stay superadmin-run (sync;
+        fails closed, see ``extensions.lti_protected_org_subset``)."""
+        import extensions
+
+        return extensions.lti_protected_org_subset(db, list(org_ids))
+
+    @staticmethod
+    def _needs_protected_lti_filter(user, project) -> bool:
+        """Someone else's non-private, non-public exam: the LMS attachments of
+        orgs whose connections stay superadmin-run count only for their
+        admins (``org_groups.drop_protected_lti_attachments``), as on
+        private exams."""
+        return (
+            getattr(project, "kind", None) == "exam"
+            and getattr(project, "is_private", False) is not True
+            and getattr(project, "is_public", False) is not True
+            and user.id != project.created_by
+        )
+
+    @staticmethod
+    def _private_exam_needs_lti_map(user, project) -> bool:
+        """Whether the decision needs the LMS attachment map: only someone
+        else's private, non-public exam can be opened through one."""
+        return (
+            bool(getattr(project, "is_private", False))
+            and getattr(project, "is_public", False) is not True
+            and user.id != project.created_by
+            and getattr(project, "kind", None) == "exam"
         )
 
     def check_organization_access(

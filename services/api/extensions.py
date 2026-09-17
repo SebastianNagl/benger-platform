@@ -269,3 +269,356 @@ def tasks_with_evaluation_for_user(db, project_id, user_id, task_ids):
             result = hook(db, project_id, user_id, list(task_ids))
             return set(result or ())
     return set()
+
+
+# --------------------------------------------------------------------------- #
+# LMS (LTI) connection hooks. The extended edition implements them with sync
+# SQLAlchemy sessions and never commits; async callers pass a sync session via
+# ``await db.run_sync(lambda s: extensions.<hook>(s, ...))``. A failing hook
+# is logged and answered with the safe value documented per wrapper, never
+# raised into the request. Hooks that query through ``db`` run inside a
+# savepoint (:func:`_run_hook_in_savepoint`): a failed query rolls back to it,
+# so the caller's transaction stays usable and the safe value really is the
+# answer instead of a later ``InFailedSqlTransaction``.
+# --------------------------------------------------------------------------- #
+def _run_hook_in_savepoint(db, hook, *args, **kwargs):
+    """Call ``hook(db, *args, **kwargs)`` inside ``db.begin_nested()``.
+
+    Sessions without savepoints (``None``, test doubles) call the hook
+    directly. Exceptions propagate after the rollback to the savepoint; the
+    wrappers turn them into their safe values.
+    """
+    begin_nested = getattr(db, "begin_nested", None)
+    if begin_nested is None:
+        return hook(db, *args, **kwargs)
+    with begin_nested():
+        return hook(db, *args, **kwargs)
+
+
+def dispatch_lti_grade_sync(sync_id):
+    """Queue the grade push for one ``lti_grade_syncs`` row right away.
+
+    Returns True when the extended edition accepted the dispatch. False in
+    the community edition (no LMS grade transfer) and when the hook fails;
+    the row then waits for the next sweep.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("dispatch_lti_grade_sync")
+            if hook:
+                return bool(hook(sync_id))
+        except Exception:
+            logger.exception("dispatch_lti_grade_sync hook failed for %s", sync_id)
+    return False
+
+
+#: ``status`` of :func:`resend_all_lti_grades` when the hook failed.
+RESEND_ALL_FAILED = "failed"
+
+
+def resend_all_lti_grades(db, registration_id):
+    """Queue "resend all grades" for one LMS connection.
+
+    The extended hook checks the connection, counts what goes out and
+    queues the transfers of every current grade of every activity, also
+    unchanged ones. It returns a dict with ``status``:
+
+    - ``queued``: the transfers are queued;
+    - ``scheduled``: the queue was unreachable, so the hook marked the rows
+      in ``db`` and committed them; the hourly sweep sends them;
+    - ``nothing``: no grade to send;
+    - ``refused``: with ``code``, ``message`` and ``http_status`` (unknown
+      or switched-off connection, inactive organization, no switched-on
+      deployment).
+
+    The other keys are counts (``activities``, ``students``,
+    ``transfers``, ``skipped``, ...). Call it before staging the caller's
+    own changes: the hook may commit ``db``.
+
+    Returns None in the community edition (no hook). A failing hook is
+    logged, the session is rolled back, and the answer is
+    ``{"status": "failed"}``. Not run in a savepoint, because the hook may
+    commit.
+    """
+    if not (_extended and hasattr(_extended, "get_hooks")):
+        return None
+    try:
+        hooks = _extended.get_hooks()
+        hook = hooks.get("resend_all_lti_grades")
+    except Exception:
+        logger.exception("resend_all_lti_grades hook lookup failed")
+        return {"status": RESEND_ALL_FAILED}
+    if hook is None:
+        return None
+    try:
+        result = hook(db, str(registration_id))
+    except Exception:
+        logger.exception("resend_all_lti_grades hook failed for %s", registration_id)
+        rollback = getattr(db, "rollback", None)
+        if rollback is not None:
+            try:
+                rollback()
+            except Exception:
+                logger.exception("rollback after resend_all_lti_grades failed")
+        return {"status": RESEND_ALL_FAILED}
+    if not isinstance(result, dict):
+        logger.error(
+            "resend_all_lti_grades hook returned %r for %s", type(result), registration_id
+        )
+        return {"status": RESEND_ALL_FAILED}
+    return dict(result)
+
+
+def privacy_protected_member_ids(db, organization_id, user_ids, *, group_ids=None):
+    """Subset of ``user_ids`` that count as LMS users.
+
+    An LMS user is an account an LMS launch provisioned (even after an admin
+    unlink or once its connection is deleted, since it keeps the LMS clear
+    name: ``users.lms_provisioned_at``), or an existing account with a live
+    link to an LMS identity. ``organization_id`` limits the check to
+    connections owned by that org, plus accounts a deleted connection of that
+    org created (``users.lms_origin_org_id``); None means any connection
+    counts. ``group_ids`` (keyword, only with an org) further limits it to
+    that org's connections scoped to one of these groups; org-wide
+    connections, connections of other groups and deleted connections do not
+    count.
+
+    Calling rule for a list of users:
+
+    - mask ``privacy_protected_member_ids(db, None, ids)``;
+    - a viewer with admin rights in org X may unmask
+      ``privacy_protected_member_ids(db, X, ids)``; superadmins unmask all;
+    - a group admin (without org admin rights) of groups G in org X may
+      unmask ``privacy_protected_member_ids(db, X, ids, group_ids=G)``: the
+      LMS users of their groups' connections, whoever is in the group.
+
+    So an LMS user of org B who is also a member of org A stays masked in
+    org A's lists, even for A's admins. Project-scoped views use
+    :func:`project_real_name_user_ids` instead of the org admin check.
+
+    Community edition: empty set (there are no LMS accounts). If the hook
+    fails, every call fails closed: the None call returns every given id
+    (everyone masked) and an org call returns an empty set (nobody
+    unmasked), so a failure never reveals a name. A group call also returns
+    an empty set when the hook does not accept ``group_ids``, when
+    ``group_ids`` is empty or when no org is given.
+    """
+    ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+    if not ids:
+        return set()
+    kwargs = {}
+    if group_ids is not None:
+        groups = sorted({str(gid) for gid in group_ids if gid})
+        if not groups or organization_id is None:
+            return set()
+        kwargs["group_ids"] = groups
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("privacy_protected_member_ids")
+            if hook:
+                result = _run_hook_in_savepoint(
+                    db, hook, organization_id, sorted(ids), **kwargs
+                )
+                return {str(uid) for uid in (result or ())} & ids
+            if kwargs:
+                return set()
+        except Exception:
+            logger.exception("privacy_protected_member_ids hook failed")
+            return ids if organization_id is None else set()
+    return set()
+
+
+def project_real_name_viewer(db, viewer, project_id):
+    """True when ``viewer`` may see real names of the LMS accounts on
+    ``project_id`` (for example staff who grade the linked exam).
+
+    False in the community edition and when the hook fails.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("project_real_name_viewer")
+            if hook:
+                return bool(_run_hook_in_savepoint(db, hook, viewer, project_id))
+        except Exception:
+            logger.exception(
+                "project_real_name_viewer hook failed for project %s", project_id
+            )
+    return False
+
+
+def project_real_name_user_ids(db, viewer, project_id, user_ids):
+    """Subset of ``user_ids`` whose real names ``viewer`` may see on
+    ``project_id``.
+
+    Finer than :func:`project_real_name_viewer`: a person counts only when
+    they hold an identity on a connection that links an activity to the
+    project, the viewer may see that connection's students (staff who may
+    grade the exam in its org, its course teachers) and the person takes
+    part in the exam (a launch of one of its activities on that connection,
+    or, for identities from before the participation table, a submission or
+    assignment on the project). Project-scoped lists use this set to
+    unmask, so an org-wide member list never unmasks the whole university.
+
+    Community edition: empty set. If the hook fails the set is empty too,
+    so nobody is unmasked.
+    """
+    ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+    if not ids or viewer is None or not project_id:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("project_real_name_user_ids")
+            if hook:
+                result = _run_hook_in_savepoint(
+                    db, hook, viewer, str(project_id), sorted(ids)
+                )
+                return {str(uid) for uid in (result or ())} & ids
+        except Exception:
+            logger.exception(
+                "project_real_name_user_ids hook failed for project %s", project_id
+            )
+    return set()
+
+
+def projects_real_name_user_ids(db, viewer, user_ids_by_project):
+    """Bulk form of :func:`project_real_name_user_ids`.
+
+    ``user_ids_by_project`` maps project ids to the user ids to check there;
+    the result maps every given project id to the subset whose real names
+    ``viewer`` may see on it. Lists call this once per page instead of once
+    per row.
+
+    Uses the extended bulk hook when it is registered, else calls the
+    per-project hook for each project. Community edition: empty sets. If
+    the bulk hook fails, every project gets an empty set (nobody unmasked).
+    """
+    wanted = {}
+    for project_id, user_ids in (user_ids_by_project or {}).items():
+        if not project_id:
+            continue
+        ids = {str(uid) for uid in (user_ids or ()) if uid is not None}
+        wanted[str(project_id)] = ids
+    empty = {pid: set() for pid in wanted}
+    pending = {pid: ids for pid, ids in wanted.items() if ids}
+    if not pending or viewer is None:
+        return empty
+    if not (_extended and hasattr(_extended, "get_hooks")):
+        return empty
+    try:
+        hooks = _extended.get_hooks()
+        hook = hooks.get("projects_real_name_user_ids")
+    except Exception:
+        logger.exception("projects_real_name_user_ids hook lookup failed")
+        return empty
+    if hook is None:
+        result = dict(empty)
+        for pid, ids in pending.items():
+            result[pid] = project_real_name_user_ids(db, viewer, pid, ids)
+        return result
+    try:
+        raw = _run_hook_in_savepoint(
+            db, hook, viewer, {pid: sorted(ids) for pid, ids in pending.items()}
+        )
+    except Exception:
+        logger.exception("projects_real_name_user_ids hook failed")
+        return empty
+    result = dict(empty)
+    for pid, ids in pending.items():
+        got = (raw or {}).get(pid) if isinstance(raw, dict) else None
+        result[pid] = {str(uid) for uid in (got or ())} & ids
+    return result
+
+
+def lti_anonymization_policy(db, user_id):
+    """Extra anonymization rules for one account.
+
+    Returns ``{"implicit_org_ids": set[str], "blockers": list[str]}``:
+    ``implicit_org_ids`` are orgs whose ANNOTATOR membership the LMS launch
+    added on its own (it does not count as "member elsewhere");
+    ``blockers`` are reasons that forbid anonymizing the account.
+
+    Community edition: no implicit orgs, no blockers. If the hook fails the
+    answer carries the blocker ``policy_unavailable``, so nothing is
+    anonymized on an unchecked policy.
+    """
+    policy = {"implicit_org_ids": set(), "blockers": []}
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_anonymization_policy")
+            if hook:
+                result = _run_hook_in_savepoint(db, hook, user_id) or {}
+                policy["implicit_org_ids"] = {
+                    str(oid) for oid in (result.get("implicit_org_ids") or ())
+                }
+                policy["blockers"] = [
+                    str(code) for code in (result.get("blockers") or ())
+                ]
+        except Exception:
+            logger.exception("lti_anonymization_policy hook failed for %s", user_id)
+            return {"implicit_org_ids": set(), "blockers": ["policy_unavailable"]}
+    return policy
+
+
+def lti_protected_org_ids(db):
+    """Orgs whose LMS connections only superadmins may manage.
+
+    Community edition: empty set. If the hook fails the result is empty too,
+    so use it for filtering and display only; gate access with
+    :func:`is_lti_protected_org`, which fails closed.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return {str(oid) for oid in (hook(db) or ())}
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+    return set()
+
+
+def is_lti_protected_org(db, organization_id):
+    """True when the LMS connections of ``organization_id`` are
+    superadmin-only. False in the community edition; True when the hook
+    fails, so a broken hook never opens those connections to org admins.
+    """
+    if not organization_id:
+        return False
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return str(organization_id) in {str(oid) for oid in (hook(db) or ())}
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+            return True
+    return False
+
+
+def lti_protected_org_subset(db, organization_ids):
+    """The orgs among ``organization_ids`` whose LMS connections are
+    superadmin-only (see :func:`is_lti_protected_org`).
+
+    Fails closed like :func:`is_lti_protected_org`: when the hook fails,
+    every given org counts as protected, so an access decision never opens
+    those connections' exams to the wrong people.
+    """
+    ids = {str(oid) for oid in (organization_ids or ()) if oid}
+    if not ids:
+        return set()
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("lti_protected_org_ids")
+            if hook:
+                return {str(oid) for oid in (hook(db) or ())} & ids
+        except Exception:
+            logger.exception("lti_protected_org_ids hook failed")
+            return ids
+    return set()

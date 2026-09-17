@@ -181,6 +181,17 @@
   @apply rounded-sm bg-zinc-400 hover:bg-zinc-500 dark:bg-zinc-600 dark:hover:bg-zinc-500;
 }
 
+/* Scrollable but without a visible scrollbar (e.g. the how-to sidebar).
+   scrollbar-width covers Firefox and current Chromium; the pseudo-element
+   covers Safari and also beats the .overflow-y-auto rule below. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Alternative without custom classes - direct styling */
 .overflow-y-auto::-webkit-scrollbar {
   width: 8px;

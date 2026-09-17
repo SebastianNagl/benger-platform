@@ -1,5 +1,10 @@
 'use client'
 
+import {
+  LmsMemberBadge,
+  MemberEmail,
+  memberOptionLabel,
+} from '@/components/organization/MemberIdentity'
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -16,6 +21,10 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useCallback, useEffect, useState } from 'react'
+
+// Roster rows of LMS accounts carry the privacy flags and may withhold the
+// email (the viewer sees the pseudonym); the API type says so.
+type GroupMemberRow = OrganizationGroupMember
 
 interface OrgGroupsProps {
   organizationId: string
@@ -67,7 +76,7 @@ export function OrgGroups({
   const [selectedGroup, setSelectedGroup] = useState<OrganizationGroup | null>(
     null,
   )
-  const [members, setMembers] = useState<OrganizationGroupMember[]>([])
+  const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [membersLoading, setMembersLoading] = useState(false)
   const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([])
   const [addUserId, setAddUserId] = useState('')
@@ -271,7 +280,7 @@ export function OrgGroups({
     }
   }
 
-  const handleToggleGroupAdmin = async (member: OrganizationGroupMember) => {
+  const handleToggleGroupAdmin = async (member: GroupMemberRow) => {
     if (!selectedGroup) return
 
     setMemberLoading((prev) => ({ ...prev, [member.user_id]: true }))
@@ -300,7 +309,7 @@ export function OrgGroups({
     }
   }
 
-  const handleRemoveMember = async (member: OrganizationGroupMember) => {
+  const handleRemoveMember = async (member: GroupMemberRow) => {
     if (!selectedGroup) return
 
     setMemberLoading((prev) => ({ ...prev, [member.user_id]: true }))
@@ -416,7 +425,10 @@ export function OrgGroups({
                         </option>
                         {addableMembers.map((member) => (
                           <option key={member.user_id} value={member.user_id}>
-                            {member.user_name} ({member.user_email})
+                            {memberOptionLabel(
+                              member.user_name,
+                              member.user_email,
+                            )}
                           </option>
                         ))}
                       </select>
@@ -473,6 +485,11 @@ export function OrgGroups({
                             <div>
                               <p className="text-sm font-medium text-zinc-900 dark:text-white">
                                 {member.user_name}
+                                <LmsMemberBadge
+                                  is_lms_account={member.is_lms_account}
+                                  is_pseudonymized={member.is_pseudonymized}
+                                  data-testid={`group-member-lms-badge-${member.user_id}`}
+                                />
                                 {member.is_group_admin && (
                                   <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                     {t(
@@ -482,7 +499,17 @@ export function OrgGroups({
                                 )}
                               </p>
                               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                                {member.user_email} · {member.org_role}
+                                {member.user_email ||
+                                member.is_pseudonymized ? (
+                                  <>
+                                    <MemberEmail
+                                      email={member.user_email}
+                                      hidden={member.is_pseudonymized}
+                                    />
+                                    {' · '}
+                                  </>
+                                ) : null}
+                                {member.org_role}
                               </p>
                             </div>
                             {canManageMembersOf(selectedGroup) && (

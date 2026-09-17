@@ -7,6 +7,7 @@ from .blinding import (
     visible_top_level_keys,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
+from services.member_privacy import NameMask, project_name_mask
 
 
 @router.get("/{project_id}/tasks")
@@ -368,6 +369,17 @@ async def list_project_tasks(
             ).scalars().all()
             users_by_id = {u.id: u for u in user_rows}
 
+    # LMS accounts appear by pseudonym, without email, unless the caller may
+    # see real names on this project (D8). Blinded callers only get their
+    # own rows below, which are never masked.
+    name_mask = (
+        await project_name_mask(
+            db, users_by_id.values(), viewer=current_user, project_id=project_id
+        )
+        if users_by_id and _bound_fields is None
+        else NameMask()
+    )
+
     def _people(uids: List[str]) -> List[Dict[str, str]]:
         """Resolve a list of user ids to lightweight {id, name} dicts,
         skipping ids whose User row wasn't fetched (e.g. deleted user)."""
@@ -375,7 +387,7 @@ async def list_project_tasks(
         for uid in uids:
             resolved = users_by_id.get(uid)
             if resolved is not None:
-                people.append({"id": uid, "name": resolved.name})
+                people.append({"id": uid, "name": name_mask.label(resolved)})
         return people
 
     # Annotator blinding (extended #56): reduce task.data to the label-config-
@@ -442,8 +454,8 @@ async def list_project_tasks(
                 {
                     "id": assignment.id,
                     "user_id": assignment.user_id,
-                    "user_name": assigned_user.name,
-                    "user_email": assigned_user.email,
+                    "user_name": name_mask.label(assigned_user),
+                    "user_email": name_mask.email(assigned_user),
                     "status": assignment.status,
                     "priority": getattr(assignment, "priority", 0),
                     "due_date": getattr(assignment, "due_date", None),
@@ -468,6 +480,15 @@ async def list_project_tasks(
         "page_size": page_size,
         "pages": math.ceil(total / page_size) if total > 0 else 0,
     }
+
+
+def _next_task_order(project, current_user) -> tuple:
+    """ORDER BY of the next-task pick: per-user shuffled, or sequential by
+    creation. Tasks created in one transaction share ``created_at``, so the
+    task number and the id break ties (the pick was arbitrary before)."""
+    if project.randomize_task_order:
+        return (func.hashtext(func.concat(Task.id, current_user.id)), Task.id)
+    return (Task.created_at, Task.inner_id, Task.id)
 
 
 @router.get("/{project_id}/next")
@@ -586,10 +607,7 @@ async def get_next_task(
             # Phase 2: Auto-assign a new task on demand
 
             # Determine ordering: randomized per-user or sequential
-            if project.randomize_task_order:
-                order_clause = func.hashtext(func.concat(Task.id, current_user.id))
-            else:
-                order_clause = Task.created_at
+            order_clauses = _next_task_order(project, current_user)
 
             # Build skip exclusion queries (same pattern as open mode)
             skip_queue = getattr(project, 'skip_queue', 'requeue_for_others')
@@ -669,7 +687,7 @@ async def get_next_task(
             candidate_task = (
                 await db.execute(
                     candidate_query
-                    .order_by(order_clause)
+                    .order_by(*order_clauses)
                     .with_for_update(skip_locked=True)
                 )
             ).scalars().first()
@@ -695,10 +713,7 @@ async def get_next_task(
         # Note: Annotation and sqlalchemy functions already imported at module level
 
         # Determine ordering: randomized per-user or sequential
-        if project.randomize_task_order:
-            order_clause = func.hashtext(func.concat(Task.id, current_user.id))
-        else:
-            order_clause = Task.created_at
+        order_clauses = _next_task_order(project, current_user)
 
         # First, check if user has any tasks with drafts (incomplete annotations)
         # A draft has: draft field populated, result field empty
@@ -716,7 +731,7 @@ async def get_next_task(
                         func.length(func.cast(Annotation.result, String)) <= 2,  # Empty "[]" or null
                     ),
                 )
-                .order_by(order_clause)
+                .order_by(*order_clauses)
             )
         ).scalars().first()
 
@@ -761,7 +776,7 @@ async def get_next_task(
                 unannotated_query = unannotated_query.where(Task.id.notin_(any_skips_query))
 
             next_task = (
-                await db.execute(unannotated_query.order_by(order_clause))
+                await db.execute(unannotated_query.order_by(*order_clauses))
             ).scalars().first()
 
     if not next_task:

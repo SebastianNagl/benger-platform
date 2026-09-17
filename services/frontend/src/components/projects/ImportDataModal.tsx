@@ -40,6 +40,21 @@ interface ImportDataModalProps {
   onImportComplete?: () => void
 }
 
+/** Code the API and the import worker use when an import would give an exam
+ * linked to a learning platform activity a second task. */
+const MULTI_TASK_UNSUPPORTED = 'multi_task_unsupported'
+
+function isLinkedExamTaskLimit(error: any): boolean {
+  const detail = error?.response?.data?.detail
+  if (detail && typeof detail === 'object') {
+    return detail.code === MULTI_TASK_UNSUPPORTED
+  }
+  return (
+    typeof error?.message === 'string' &&
+    error.message.includes(MULTI_TASK_UNSUPPORTED)
+  )
+}
+
 export function ImportDataModal({
   isOpen,
   onClose,
@@ -263,7 +278,12 @@ export function ImportDataModal({
         errorMessage = error.message
       }
 
-      addToast(t('projects.data.importFailed'), 'error')
+      addToast(
+        isLinkedExamTaskLimit(error)
+          ? t('projects.data.importLinkedExamSingleTask')
+          : t('projects.data.importFailed'),
+        'error',
+      )
     } finally {
       setLoading(false)
     }

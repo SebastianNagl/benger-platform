@@ -44,6 +44,7 @@ from typing import Any, Dict, Iterator, Optional, Set, Tuple
 
 import ijson
 from ijson.common import ObjectBuilder
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import joinedload
 
 # models must be imported before project_models so the User mapper is registered
@@ -57,6 +58,7 @@ from models import (
     HumanEvaluationResult,
     HumanEvaluationSession,
     LikertScaleEvaluation,
+    LtiResourceLink,
     Organization,
     PreferenceRanking,
     ResponseGeneration,
@@ -152,6 +154,44 @@ def _deduplicate_project_title(db, original_title: str) -> str:
         new_title = f"{original_title} ({counter})"
         counter += 1
     return new_title
+
+
+# An exam an LMS activity points at holds exactly one task (owner decision
+# D12): the LMS receives one grade per activity. Imports into such an exam
+# may not add a second one. The API checks this before it accepts an import;
+# the drivers check it again before their commit, with the real task count.
+LINKED_EXAM_MAX_TASKS = 1
+MULTI_TASK_UNSUPPORTED = "multi_task_unsupported"
+MULTI_TASK_MESSAGE = (
+    "This exam is linked to a learning platform activity. Linked exams hold "
+    "exactly one task, so no further tasks can be imported."
+)
+
+
+def linked_exam_stmt(project_id: str):
+    """Selects the id of ``project_id`` when it is an exam an LMS activity
+    points at (sync and async sessions)."""
+    return select(Project.id).where(
+        Project.id == project_id,
+        Project.kind == "exam",
+        exists().where(LtiResourceLink.project_id == project_id),
+    )
+
+
+def task_count_stmt(project_id: str):
+    return select(func.count(Task.id)).where(Task.project_id == project_id)
+
+
+def _enforce_linked_exam_task_limit(db, project_id: str) -> None:
+    """Refuse the import (422) when it leaves a linked exam with more than
+    one task. Runs before the drivers' single commit."""
+    if db.execute(linked_exam_stmt(project_id)).first() is None:
+        return
+    db.flush()
+    if (db.execute(task_count_stmt(project_id)).scalar() or 0) > LINKED_EXAM_MAX_TASKS:
+        raise ImportValidationError(
+            422, f"{MULTI_TASK_MESSAGE} ({MULTI_TASK_UNSUPPORTED})"
+        )
 
 
 class ImportValidationError(Exception):
@@ -1145,6 +1185,8 @@ def run_nested_import(db, project_id: str, fileobj, user_id: str) -> dict:
         ))
         created_grading_feedback += 1
 
+    _enforce_linked_exam_task_limit(db, project_id)
+
     # Commit everything atomically
     db.commit()
 
@@ -1270,6 +1312,8 @@ def run_tabular_import(
         # Detach so the wrapper's GC never closes the caller-owned spool.
         text_stream.detach()
 
+    _enforce_linked_exam_task_limit(db, project_id)
+
     # Commit everything atomically (single end commit, like run_nested_import).
     db.commit()
     if progress_cb is not None:
@@ -1317,6 +1361,8 @@ class _FullImportContext:
         "matched_user_ids",
         "grading_feedback_seen",
         "active_rubric_tasks",
+        "active_annotation_keys",
+        "task_level_assignment_keys",
     )
 
     def __init__(self, db, user_id: str):
@@ -1357,6 +1403,13 @@ class _FullImportContext:
         # opinion (see _insert_grading_feedback).
         self.matched_user_ids: Dict[str, str] = {}
         self.grading_feedback_seen: set = set()
+        # (new task id, new user id) of imported active annotations and of
+        # imported task-level assignments. Several exported accounts can map
+        # to the same user (the importer fallback), and both tables allow one
+        # such row per pair (uq_annotations_active_task_user,
+        # uniq_task_level_assignment); a second one would fail the import.
+        self.active_annotation_keys: Set[tuple] = set()
+        self.task_level_assignment_keys: Set[tuple] = set()
         self.task_counter = 1
         self.te_seen = 0
         self.comment_id_mapping: Dict[str, str] = {}
@@ -1372,6 +1425,11 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
     No row is inserted — imported projects reuse the importing org's users.
     Populates ``id_mappings["users"]`` so downstream FKs (created_by, etc.) can
     be remapped.
+
+    A masked record (an LMS user the exporter saw by pseudonym, no email) is
+    matched by its id instead: on the deployment it came from, the copy then
+    keeps each student's work under that student. Elsewhere the id is
+    unknown and the record maps to the importer like any unmatched account.
     """
     old_user_id = user_data.get("id", str(uuid.uuid4()))
     email = user_data.get("email")
@@ -1386,9 +1444,17 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
             # For now, map to current importing user as fallback
             ctx.id_mappings["users"][old_user_id] = ctx.user_id
             ctx.user_email_to_id[email] = ctx.user_id
-    else:
-        # No email, map to current user
-        ctx.id_mappings["users"][old_user_id] = ctx.user_id
+        return
+    if user_data.get("masked") is True and isinstance(old_user_id, str) and old_user_id:
+        existing_id = (
+            ctx.db.query(User.id).filter(User.id == old_user_id).scalar()
+        )
+        if existing_id is not None:
+            ctx.id_mappings["users"][old_user_id] = existing_id
+            ctx.matched_user_ids[old_user_id] = existing_id
+            return
+    # No email, map to current user
+    ctx.id_mappings["users"][old_user_id] = ctx.user_id
 
 
 def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
@@ -1501,6 +1567,20 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
     completed_by = ctx.id_mappings["users"].get(
         annotation_data.get("completed_by"), ctx.user_id
     )
+    if task_id and not annotation_data.get("was_cancelled", False):
+        key = (task_id, completed_by)
+        if key in ctx.active_annotation_keys:
+            # Two exported authors collapsed onto one user (the importer
+            # fallback). Keep the first answer; the rest cannot be stored
+            # under the same user, and rows pointing at them lose the link.
+            logger.warning(
+                f"[import {ctx.new_project_id}] skipping annotation "
+                f"{old_annotation_id!r}: user {completed_by} already has an "
+                f"active annotation on task {task_id}"
+            )
+            del ctx.id_mappings["annotations"][old_annotation_id]
+            return
+        ctx.active_annotation_keys.add(key)
     if task_id:  # Only import if task exists
         # Issue #964: Convert Label Studio span annotations to BenGER format
         imported_result = convert_from_label_studio_format(
@@ -1988,9 +2068,16 @@ def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> N
     )
 
     if task_id and assignment_user_id:  # Only import if both mappings exist
+        # Exports carry task-level assignments only, and at most one per
+        # (task, user) may exist; collapsed users would repeat the pair.
+        key = (task_id, assignment_user_id)
+        if key in ctx.task_level_assignment_keys:
+            return
+        ctx.task_level_assignment_keys.add(key)
+        # TaskAssignment has no project column (the task carries it); passing
+        # one made every import of a project with assignments fail.
         new_assignment = TaskAssignment(
             id=new_assignment_id,
-            project_id=ctx.new_project_id,
             task_id=task_id,
             user_id=assignment_user_id,
             assigned_by=assigned_by,

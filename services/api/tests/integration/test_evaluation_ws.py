@@ -213,3 +213,33 @@ async def test_ws_forwards_pubsub_message_as_tick_type(
     # Publisher fields should still be present alongside.
     assert forwarded["evaluation_id"] == "e-1"
     assert forwarded["samples_added"] == 5
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/ws/projects/{pid}/evaluation-progress",
+        "/api/ws/projects/{pid}/generation-progress",
+    ],
+)
+async def test_ws_refuses_a_deactivated_account(
+    client, test_db, eval_ws_project, test_user, path
+):
+    """An anonymized (deactivated) account whose access token has not expired
+    yet gets no progress channel, even on its own project."""
+    from starlette.websockets import WebSocketDisconnect
+
+    test_user.is_active = False
+    test_db.commit()
+    client.cookies.set("access_token", test_user.token)
+
+    with patch("routers.evaluations.ws.get_redis_client") as eval_redis, \
+         patch("routers.generation.get_redis_client") as generation_redis:
+        eval_redis.return_value = MagicMock(spec=[])
+        generation_redis.return_value = MagicMock(spec=[])
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(path.format(pid=eval_ws_project.id)) as ws:
+                ws.receive_json()
+
+    assert exc_info.value.code == 4403

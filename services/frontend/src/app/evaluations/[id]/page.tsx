@@ -45,6 +45,7 @@ import {
   BENIGN_MATCH_REASONS,
   configDisplayLabel,
   configMetricMean,
+  describeBillingBlock,
   describeConfigMatchReason,
   fieldSelectorLabel,
   formatMetricNumber,
@@ -531,6 +532,8 @@ export default function EvaluationDashboard({
   const allPhrased =
     phrasedUnmatched.length > 0 &&
     phrasedUnmatched.every((item) => item.sentence !== null)
+  // A run the billing policy refused says why in the reader's language.
+  const billingBlock = describeBillingBlock(evaluation?.error_message, t)
 
   const tabs: Array<{ id: TabId; label: string; hidden?: boolean }> = [
     { id: 'overview', label: t('evaluation.human.results.summary') },
@@ -707,8 +710,13 @@ export default function EvaluationDashboard({
                     </ul>
                   </div>
                 )}
+                {billingBlock && (
+                  <p className="mt-2" data-testid="evaluation-billing-blocked">
+                    {billingBlock}
+                  </p>
+                )}
                 {evaluation.error_message &&
-                  (allPhrased ? (
+                  (allPhrased || billingBlock ? (
                     <details className="mt-3">
                       <summary className="cursor-pointer font-medium">
                         {t('evaluations.detail.technicalDetails')}

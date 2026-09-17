@@ -13,6 +13,8 @@ from models import OrganizationMembership, User
 from org_groups import group_member_fan_in_clause
 from project_models import Annotation, ProjectMember, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
+from services.member_privacy import lms_account_ids, masked_name, project_name_mask
+from user_display import prefers_pseudonym
 
 router = APIRouter()
 
@@ -24,7 +26,13 @@ async def list_project_members(
     db: AsyncSession = Depends(get_async_db),
     _access: ProjectAccess = Depends(require_project_access()),
 ):
-    """List all members of a project"""
+    """List all members of a project.
+
+    LMS accounts appear by pseudonym, without email, unless the viewer may
+    see that person's real name on this project
+    (``project_real_name_user_ids``, D8: people who take part in the linked
+    exam through a connection whose students the viewer may see).
+    """
 
     # Project existence + read access enforced by require_project_access
     # (404 "Project not found" / 403 "Access denied").
@@ -58,6 +66,24 @@ async def list_project_members(
     )
     org_members = org_result.scalars().unique().all()
 
+    mask = await project_name_mask(
+        db,
+        [pm.user for pm in direct_members] + [om.user for om in org_members],
+        viewer=current_user,
+        project_id=project_id,
+    )
+
+    def _identity(user) -> dict:
+        if user is None:
+            return {"name": "Unknown", "email": ""}
+        return {"name": mask.label(user), "email": mask.email(user)}
+
+    def _privacy(user_id) -> dict:
+        return {
+            "is_lms_account": mask.is_lms(user_id),
+            "is_pseudonymized": mask.is_masked(user_id),
+        }
+
     # Combine results
     members = []
 
@@ -67,13 +93,13 @@ async def list_project_members(
             {
                 "id": pm.id,
                 "user_id": pm.user_id,
-                "name": pm.user.name if pm.user else "Unknown",
-                "email": pm.user.email if pm.user else "",
+                **_identity(pm.user),
                 "role": pm.role,
                 "is_direct_member": True,
                 "organization_id": None,
                 "organization_name": None,
                 "added_at": pm.created_at.isoformat() if pm.created_at else None,
+                **_privacy(pm.user_id),
             }
         )
 
@@ -86,13 +112,13 @@ async def list_project_members(
                 {
                     "id": f"org-{om.id}",
                     "user_id": om.user_id,
-                    "name": om.user.name if om.user else "Unknown",
-                    "email": om.user.email if om.user else "",
+                    **_identity(om.user),
                     "role": om.role,
                     "is_direct_member": False,
                     "organization_id": om.organization_id,
                     "organization_name": (om.organization.name if om.organization else "Unknown"),
                     "added_at": om.joined_at.isoformat() if om.joined_at else None,
+                    **_privacy(om.user_id),
                 }
             )
 
@@ -134,9 +160,23 @@ async def get_project_annotators(
 
     results = (await db.execute(stmt)).all()
 
+    # Pseudonym-first for everyone (research views key on this label). An
+    # LMS account without a pseudonym gets the neutral label, never its
+    # real name (D8).
+    no_alias_lms = await lms_account_ids(
+        db,
+        [
+            r.user_id
+            for r in results
+            if not r.pseudonym and prefers_pseudonym(use_pseudonym=r.use_pseudonym)
+        ],
+    )
+
     annotators = []
     for r in results:
         display_name = r.pseudonym if r.use_pseudonym and r.pseudonym else r.name
+        if str(r.user_id) in no_alias_lms:
+            display_name = masked_name(user_id=r.user_id, pseudonym=None)
         annotators.append(
             {
                 "id": r.user_id,

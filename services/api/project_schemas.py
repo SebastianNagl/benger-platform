@@ -549,8 +549,12 @@ class ProjectResponse(ProjectBase):
         # group scope per attachment when the project_organizations rows are
         # already eager-loaded (read via __dict__ only — never trigger a
         # lazy load, which raises on the async lane).
+        # ``attached_via`` tells a manual share from an attachment that
+        # linking the exam to an LMS activity created (the settings panel
+        # locks the latter); None when the rows are not loaded.
         if hasattr(obj, "organizations") and obj.organizations:
             group_by_org = {}
+            via_by_org = {}
             loaded_pos = (
                 obj.__dict__.get("project_organizations")
                 if hasattr(obj, "__dict__")
@@ -560,11 +564,16 @@ class ProjectResponse(ProjectBase):
                 group_by_org = {
                     po.organization_id: po.group_id for po in loaded_pos
                 }
+                via_by_org = {
+                    po.organization_id: po.__dict__.get("attached_via")
+                    for po in loaded_pos
+                }
             data["organizations"] = [
                 {
                     "id": org.id,
                     "name": org.name,
                     "group_id": group_by_org.get(org.id),
+                    "attached_via": via_by_org.get(org.id),
                 }
                 for org in obj.organizations
             ]

@@ -10,6 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy import JSON, Boolean, CheckConstraint, Column, DateTime
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy import BigInteger, Float, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import event as sa_event
 from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -165,7 +166,9 @@ class User(Base):
     )  # When the email was verified
     email_verification_method = Column(
         String, nullable=True, default="self"
-    )  # How email was verified: 'self', 'admin', 'system'
+    )  # How email was verified: 'self', 'admin', 'system', 'activation'
+    # (activation or reset link used); 'lti_claim' = address supplied by an
+    # LMS and not proven yet (email_verified is false until activation).
 
     # Password reset fields
     password_reset_token = Column(
@@ -297,9 +300,30 @@ class User(Base):
     # writer is PUT /auth/me/exam-layout. Display preference only — never an
     # authorization or exam-integrity input.
     exam_layout_prefs = Column(JSON, nullable=True)
+    # Set when the account was anonymized (migration 106): name, email and
+    # credentials are scrubbed and the account is deactivated, while answers
+    # and grades stay as anonymous records. NULL = a normal account.
+    anonymized_at = Column(DateTime(timezone=True), nullable=True)
+    # LMS origin (migration 106): set when an LMS launch created the account.
+    # It outlives the identity link (a deleted connection cascades its links
+    # away), so the account keeps counting as an LMS account and stays
+    # masked (D8). ``lms_origin_org_id`` is the org whose connection created
+    # it; its admins may still see the real name once the link is gone.
+    lms_provisioned_at = Column(DateTime(timezone=True), nullable=True)
+    lms_origin_org_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        # Case-insensitive email lookups (migration 106).
+        Index("ix_users_email_lower", text("lower(email)")),
+    )
 
     # Relationships
     # created_tasks relationship removed
@@ -906,6 +930,14 @@ class LtiPlatformRegistration(Base):
     # admin-UI presets/warnings and diagnostics only — protocol code never
     # branches on it.
     lms_family = Column(String(16), nullable=True)
+    # Public host the connection's tool URLs use: 'student_locked' | 'main'
+    # (base URLs resolved from the environment by shared/public_hosts.py).
+    tool_host = Column(
+        String(16),
+        nullable=False,
+        default="student_locked",
+        server_default="student_locked",
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -921,6 +953,10 @@ class LtiPlatformRegistration(Base):
         CheckConstraint(
             "lms_family IN ('moodle', 'ilias')",
             name="ck_lti_platform_registrations_lms_family",
+        ),
+        CheckConstraint(
+            "tool_host IN ('student_locked', 'main')",
+            name="ck_lti_platform_registrations_tool_host",
         ),
         sa.ForeignKeyConstraint(
             ["organization_id", "group_id"],
@@ -981,6 +1017,8 @@ class LtiResourceLink(Base):
     (``lineitem_url`` / ``lineitems_url`` / ``ags_scopes``) cache the grade
     passback endpoints and scopes advertised in the launch claims;
     ``sync_ai_grades`` is the per-activity opt-out for automatic score sync.
+    ``ai_lineitem_*`` track the separate AI grade column the tool creates
+    where the LMS allows column management.
     """
 
     __tablename__ = "lti_resource_links"
@@ -1006,6 +1044,12 @@ class LtiResourceLink(Base):
     sync_ai_grades = Column(Boolean, nullable=False, default=True, server_default="true")
     linked_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     linked_at = Column(DateTime(timezone=True), nullable=True)
+    # The tool-created AI grade column: its line-item URL, its state
+    # ('ready' | 'unavailable' | 'error' | 'deleted'; NULL = not tried yet)
+    # and the reason for the last non-ready state.
+    ai_lineitem_url = Column(Text, nullable=True)
+    ai_lineitem_status = Column(String(16), nullable=True)
+    ai_lineitem_error = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -1017,6 +1061,10 @@ class LtiResourceLink(Base):
             name="uq_lti_resource_link",
         ),
         Index("ix_lti_resource_links_project", "project_id"),
+        CheckConstraint(
+            "ai_lineitem_status IN ('ready', 'unavailable', 'error', 'deleted')",
+            name="ck_lti_resource_links_ai_lineitem_status",
+        ),
     )
 
     def __repr__(self):
@@ -1029,11 +1077,22 @@ class LtiResourceLink(Base):
 class LtiUserLink(Base):
     """Mapping from an LTI platform identity (``sub``) to a BenGER user.
 
-    Created on first launch — auto-provision or verified-email link, per the
-    registration's policy. ``claims`` caches a minimized ``{name, email,
-    roles}`` snapshot from the last launch (data minimization: never the full
-    id_token); the consent fields record the GDPR consent shown at account
-    linking. CASCADE on ``user_id``: right-to-erasure removes the link.
+    ``link_method`` records how the identity reached the account:
+    ``provisioned`` (the launch created it), ``login_proof`` /
+    ``email_proof`` (linked to an existing account after proof) or
+    ``legacy_email`` (linked by the former automatic email match); NULL is
+    treated as "not provisioned". ``claims`` caches a minimized ``{name,
+    email, roles, role}`` snapshot from the last launch (data minimization:
+    never the full id_token) plus the tool's own ``group_grant`` record
+    (``{group_id, admin}``: the group a launch added the account to, and
+    whether it made the account group admin there), which lets a group
+    removal or demotion stick. The consent fields record the GDPR consent
+    (and the research-use consent) given for this connection.
+    ``unlinked_at`` is the tombstone of an admin unlink; the tombstone keeps
+    only ``group_grant`` of the claims. CASCADE on ``user_id``:
+    right-to-erasure removes the link. CASCADE on ``registration_id``:
+    deleting a connection removes its links, so ``users.lms_provisioned_at``
+    is what keeps a kept account recognizable as an LMS account.
     """
 
     __tablename__ = "lti_user_links"
@@ -1048,15 +1107,25 @@ class LtiUserLink(Base):
     user_id = Column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    # Minimized {name, email, roles} cache from the last launch.
+    # Minimized {name, email, roles, role} cache from the last launch, plus
+    # the tool's group_grant record (kept on unlink).
     claims = Column(JSON, nullable=True)
     consent_at = Column(DateTime(timezone=True), nullable=True)
     consent_version = Column(String(32), nullable=True)
+    research_consent_at = Column(DateTime(timezone=True), nullable=True)
+    # provisioned | login_proof | email_proof | legacy_email (NULL = unknown)
+    link_method = Column(String(16), nullable=True)
+    unlinked_at = Column(DateTime(timezone=True), nullable=True)
     last_launch_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     __table_args__ = (
         UniqueConstraint("registration_id", "sub", name="uq_lti_user_link"),
+        CheckConstraint(
+            "link_method IN ('provisioned', 'login_proof', 'email_proof', "
+            "'legacy_email')",
+            name="ck_lti_user_links_link_method",
+        ),
     )
 
     def __repr__(self):
@@ -1067,12 +1136,16 @@ class LtiUserLink(Base):
 
 
 class LtiGradeSync(Base):
-    """Grade-passback outbox: one row per (resource link, student).
+    """Grade-passback outbox: one row per (resource link, student, column).
 
-    The AGS score-sync worker (``benger_extended``) upserts a row when a
-    syncable grade appears and drives it pending → synced / failed with
-    bounded retries (``attempts`` / ``next_retry_at``). ``last_synced_hash``
-    dedupes — an unchanged score is never re-sent to the LMS.
+    ``kind`` names the LMS column: ``final`` (the activity's own column) or
+    ``ai`` (the separate AI grade column). The AGS score-sync worker
+    (``benger_extended``) upserts a row when a syncable grade appears and
+    drives it pending → synced / failed with bounded retries (``attempts`` /
+    ``next_retry_at``); ``idle`` (nothing to send) and ``skipped`` (column not
+    available) are terminal too. ``last_synced_hash`` dedupes — an unchanged
+    score is never re-sent to the LMS; ``last_checked_at`` records the last
+    comparison and ``last_synced_source`` which grade (human or AI) was sent.
     ``ix_lti_grade_syncs_due`` serves the worker's due-scan
     (``status='pending' AND next_retry_at <= now()``).
     """
@@ -1089,7 +1162,9 @@ class LtiGradeSync(Base):
     user_id = Column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    # pending | synced | failed
+    # final | ai
+    kind = Column(String(16), nullable=False, default="final", server_default="final")
+    # pending | synced | failed | idle | skipped
     status = Column(
         String(16), nullable=False, default="pending", server_default="pending"
     )
@@ -1098,6 +1173,10 @@ class LtiGradeSync(Base):
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
     last_synced_score = Column(Float, nullable=True)
     last_synced_hash = Column(String(64), nullable=True)
+    # immediate | human — the ``model_id`` of the run whose grade the last
+    # successful push carried (the AI grade comes from immediate runs).
+    last_synced_source = Column(String(16), nullable=True)
+    last_checked_at = Column(DateTime(timezone=True), nullable=True)
     source_task_evaluation_id = Column(
         String, ForeignKey("task_evaluations.id", ondelete="SET NULL"), nullable=True
     )
@@ -1106,8 +1185,11 @@ class LtiGradeSync(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     __table_args__ = (
-        UniqueConstraint("resource_link_id", "user_id", name="uq_lti_grade_sync"),
+        UniqueConstraint(
+            "resource_link_id", "user_id", "kind", name="uq_lti_grade_sync"
+        ),
         Index("ix_lti_grade_syncs_due", "status", "next_retry_at"),
+        CheckConstraint("kind IN ('final', 'ai')", name="ck_lti_grade_syncs_kind"),
     )
 
     def __repr__(self):
@@ -1120,10 +1202,11 @@ class LtiGradeSync(Base):
 class LtiRegistrationInvite(Base):
     """A one-time, org-bound invite for LTI Dynamic Registration.
 
-    A superadmin mints an invite URL in BenGER; the university's Moodle
-    admin pastes it into "Manage tools" and Moodle calls the tool's
-    registration endpoint (served by ``benger_extended``), which validates
-    the token and auto-creates the ``lti_platform_registrations`` row.
+    An org admin (or a superadmin) mints an invite URL in BenGER; the
+    university's LMS admin pastes it into the tool registration form and the
+    LMS calls the tool's registration endpoint (served by
+    ``benger_extended``), which validates the token and auto-creates the
+    ``lti_platform_registrations`` row on the invite's ``tool_host``.
     Only the sha256 hex of the raw token is stored — the raw token appears
     exactly once, in the create response (API-key semantics). A used invite
     stays as an audit record (``used_at`` + ``resulting_registration_id``);
@@ -1144,8 +1227,10 @@ class LtiRegistrationInvite(Base):
     )
     # Optional group scope carried into the auto-created registration (a
     # chair's one-link Moodle onboarding). SET NULL: a deleted group
-    # degrades the pending invite to org-wide — invites are ephemera, and
-    # the resulting registration is reviewed before activation anyway.
+    # degrades the pending invite to org-wide (invites are ephemera). The
+    # extended Dynamic Registration then only accepts the invite while its
+    # creator (``created_by``) may still manage the whole organization, so a
+    # group admin's invite never turns into an org-wide connection.
     group_id = Column(
         String,
         ForeignKey("organization_groups.id", ondelete="SET NULL"),
@@ -1165,12 +1250,139 @@ class LtiRegistrationInvite(Base):
         ForeignKey("lti_platform_registrations.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Public host the resulting registration uses ('student_locked' | 'main').
+    tool_host = Column(
+        String(16),
+        nullable=False,
+        default="student_locked",
+        server_default="student_locked",
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "tool_host IN ('student_locked', 'main')",
+            name="ck_lti_registration_invites_tool_host",
+        ),
+    )
 
     def __repr__(self):
         return (
             f"<LtiRegistrationInvite(id={self.id}, "
             f"organization_id={self.organization_id}, used_at={self.used_at})>"
         )
+
+
+class LtiResourceLinkUser(Base):
+    """Who took part in one LTI resource link (activity), and in which role.
+
+    One row per (resource link, user), written only after the user consented
+    for the connection. ``is_instructor`` is the course role of the latest
+    launch on this link, so teacher access is scoped to the course instead of
+    the whole connection. The rows hold ids and timestamps only; they stay
+    when an account is anonymized so the activity view can still count the
+    submission. CASCADE on both FKs.
+    """
+
+    __tablename__ = "lti_resource_link_users"
+
+    id = Column(String, primary_key=True)
+    resource_link_id = Column(
+        String,
+        ForeignKey("lti_resource_links.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    is_instructor = Column(Boolean, nullable=False, default=False, server_default="false")
+    first_launch_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_launch_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    resource_link = relationship("LtiResourceLink")
+    user = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "resource_link_id", "user_id", name="uq_lti_resource_link_user"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiResourceLinkUser(resource_link_id={self.resource_link_id}, "
+            f"user_id={self.user_id}, is_instructor={self.is_instructor})>"
+        )
+
+
+class LtiAdminEvent(Base):
+    """Audit trail of changes to an organization's LMS connections.
+
+    One row per admin action (registration created / updated / deleted,
+    deployment changes, invites, unlink, anonymize, retry) or Dynamic
+    Registration completion. ``changes`` holds ``{field: {old, new}}`` diffs
+    and ids only, never personal data or secrets. ``registration_name`` is a
+    snapshot, so the entry stays readable after the registration is deleted
+    (``registration_id`` is then NULL; the org feed
+    ``GET /api/admin/lti/events`` still lists it). ``group_id`` is the group
+    scope of the connection or invite the entry is about (NULL = org-wide);
+    a row written with a registration and without a group gets the
+    registration's group on insert. ``actor_kind`` is ``user``,
+    ``dynamic_registration`` or ``lti_launch``.
+    """
+
+    __tablename__ = "lti_admin_events"
+
+    id = Column(String, primary_key=True)
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    registration_id = Column(
+        String,
+        ForeignKey("lti_platform_registrations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    registration_name = Column(String(200), nullable=True)
+    group_id = Column(
+        String,
+        ForeignKey("organization_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    actor_user_id = Column(
+        String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    actor_kind = Column(String(32), nullable=False, default="user", server_default="user")
+    action = Column(String(48), nullable=False)
+    changes = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return (
+            f"<LtiAdminEvent(id={self.id}, organization_id={self.organization_id}, "
+            f"action={self.action})>"
+        )
+
+
+@sa_event.listens_for(LtiAdminEvent, "before_insert")
+def _stamp_lti_admin_event_group(mapper, connection, target):
+    """A row about a registration carries that registration's group scope
+    unless the writer set one (every writer, including the extended ones,
+    then scopes the org feed correctly)."""
+    if target.group_id is not None or not target.registration_id:
+        return
+    target.group_id = connection.execute(
+        sa.select(LtiPlatformRegistration.group_id).where(
+            LtiPlatformRegistration.id == target.registration_id
+        )
+    ).scalar()
 
 
 class Invitation(Base):
@@ -1843,6 +2055,10 @@ class TaskEvaluation(Base):
         String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Stamped on every ORM update (migration 106), so in-place grade changes
+    # (human revisions, grade-scale recomputes) are detectable. NULL = the
+    # row was never updated after insert.
+    updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
     # Relationships
     evaluation_run = relationship("EvaluationRun", back_populates="task_evaluations")

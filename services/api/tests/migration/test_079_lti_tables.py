@@ -1,4 +1,4 @@
-"""Shape tests for migration 076: the five LTI 1.3 tables.
+"""Shape tests for migration 079: the five LTI 1.3 tables.
 
 The shared test DB already carries the ``lti_*`` tables (created from the
 models by ``Base.metadata.create_all``), so ``upgrade()`` must be a clean
@@ -9,7 +9,7 @@ transaction (Postgres DDL is transactional), so the shared test DB is
 untouched after rollback.
 
 Binds the alembic ``op`` proxy via ``Operations.context`` — the same
-mechanism ``MigrationContext.run_migrations`` uses — because 076 issues real
+mechanism ``MigrationContext.run_migrations`` uses — because 079 issues real
 DDL (``op.create_table``), unlike the data-only migrations tested elsewhere
 in this directory that only need ``op.get_bind()`` patched.
 """
@@ -49,6 +49,21 @@ INVITES_MIGRATION_PATH = os.path.normpath(
     )
 )
 
+# 105 hangs lti_resource_link_users off lti_resource_links and
+# lti_admin_events off lti_platform_registrations, so its downgrade runs
+# before 083's and 079's for the same reason.
+SELF_SERVICE_MIGRATION_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "alembic",
+        "versions",
+        "105_lti_self_service.py",
+    )
+)
+SELF_SERVICE_TABLES = ["lti_resource_link_users", "lti_admin_events"]
+
 LTI_TABLES = [
     "lti_platform_registrations",
     "lti_deployments",
@@ -66,7 +81,7 @@ EXPECTED_UNIQUES = {
 }
 
 
-def _load_migration(path: str = MIGRATION_PATH, name: str = "mig_076"):
+def _load_migration(path: str = MIGRATION_PATH, name: str = "mig_079"):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
     spec.loader.exec_module(module)  # type: ignore[union-attr]
@@ -85,7 +100,7 @@ def _op_context(connection):
 
 
 class TestMigration079Shape:
-    def test_revision_chains_after_075(self):
+    def test_revision_chains_after_078(self):
         mig = _load_migration()
         assert mig.revision == "079_add_lti_tables"
         assert mig.down_revision == "078_evaluation_lifecycle_columns"
@@ -104,20 +119,26 @@ class TestMigration079Shape:
         conn = test_db.get_bind()
         mig = _load_migration()
         invites_mig = _load_migration(INVITES_MIGRATION_PATH, "mig_083")
+        self_service_mig = _load_migration(SELF_SERVICE_MIGRATION_PATH, "mig_105")
 
-        # Walk the chain the way alembic would: 083 (dependent FK) first.
+        # Walk the chain the way alembic would: the dependent FKs (105, 083)
+        # first.
         with _op_context(conn):
+            self_service_mig.downgrade()
             invites_mig.downgrade()
             mig.downgrade()
         remaining = set(inspect(conn).get_table_names())
         assert not set(LTI_TABLES) & remaining
         assert "lti_registration_invites" not in remaining
+        assert not set(SELF_SERVICE_TABLES) & remaining
 
         with _op_context(conn):
             mig.upgrade()
             invites_mig.upgrade()
+            self_service_mig.upgrade()
         insp = inspect(conn)
         assert set(LTI_TABLES) <= set(insp.get_table_names())
+        assert set(SELF_SERVICE_TABLES) <= set(insp.get_table_names())
 
         for table, uq_name in EXPECTED_UNIQUES.items():
             uq_names = {c["name"] for c in insp.get_unique_constraints(table)}

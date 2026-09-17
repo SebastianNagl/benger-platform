@@ -62,6 +62,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.data.import': 'Import Data',
         'projects.data.importSuccess': 'Data imported successfully',
         'projects.data.importFailed': 'Failed to import data',
+        'projects.data.importLinkedExamSingleTask':
+          'Linked exams hold exactly one task',
         'tasks.importModal.description':
           'Import data to create tasks in your project',
         'tasks.importModal.fieldRequirements': 'Data Field Requirements',
@@ -728,6 +730,57 @@ describe('ImportDataModal', () => {
         )
       })
     })
+
+    it.each([
+      [
+        'the API refusal',
+        {
+          response: {
+            status: 422,
+            data: {
+              detail: {
+                code: 'multi_task_unsupported',
+                message: 'Linked exams hold exactly one task.',
+              },
+            },
+          },
+        },
+      ],
+      [
+        'the failed import job',
+        new Error(
+          '422: multi_task_unsupported: This exam is linked to a learning platform activity.',
+        ),
+      ],
+    ])(
+      'explains the one-task limit of a linked exam (%s)',
+      async (_label, rejection) => {
+        ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue(
+          rejection,
+        )
+
+        const user = userEvent.setup()
+        render(<ImportDataModal {...defaultProps} />)
+
+        const file = new File(['{"data": {"text": "test"}}'], 'test.json', {
+          type: 'application/json',
+        })
+        const input = document.querySelector(
+          'input[type="file"]',
+        ) as HTMLInputElement
+
+        await userEvent.upload(input, file)
+        await waitFor(() => screen.getByText('Selected: test.json'))
+        await user.click(screen.getByRole('button', { name: /Import Data/i }))
+
+        await waitFor(() => {
+          expect(mockAddToast).toHaveBeenCalledWith(
+            'Linked exams hold exactly one task',
+            'error',
+          )
+        })
+      },
+    )
 
     it('handles authentication errors', async () => {
       ;(projectsAPI.runNestedImportJob as jest.Mock).mockRejectedValue({

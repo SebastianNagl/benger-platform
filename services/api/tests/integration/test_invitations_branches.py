@@ -773,6 +773,46 @@ class TestAcceptInvitation:
         inv = test_db.query(Invitation).filter(Invitation.token == token).first()
         assert inv.accepted is False
 
+    def test_accept_restores_a_removed_membership(
+        self, client, test_db, test_users, test_org
+    ):
+        """A removed member who is invited again gets the old row back with
+        the invited role (the (user, org) pair is unique; a second insert
+        used to fail with a 500)."""
+        invitee = _make_user(test_db, f"removed-{_uid()[:8]}@example.com", "Removed")
+        removed = _membership(
+            test_db, invitee.id, test_org.id, role="ANNOTATOR", is_active=False
+        )
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            token=token,
+            role=OrganizationRole.CONTRIBUTOR,
+        )
+        resp = client.post(
+            f"/api/invitations/accept/{token}",
+            headers=_bearer(invitee),
+        )
+        assert resp.status_code == 200, resp.text
+
+        test_db.expire_all()
+        rows = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == invitee.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .all()
+        )
+        assert [r.id for r in rows] == [removed.id]
+        assert rows[0].is_active is True
+        assert rows[0].role == OrganizationRole.CONTRIBUTOR
+        inv = test_db.query(Invitation).filter(Invitation.token == token).first()
+        assert inv.accepted is True
+
     def test_accept_incomplete_profile_short_circuits(
         self, client, test_db, test_users, test_org
     ):
@@ -1128,3 +1168,116 @@ class TestAcceptGroupScopedInvitation:
             .first()
         )
         assert membership is not None
+
+
+class TestEmailVerificationAutoAccept:
+    """Verifying an email accepts the address's pending invitations
+    (``EmailVerificationService._auto_accept_invitations``)."""
+
+    def _service(self):
+        from auth_module.email_verification import EmailVerificationService
+
+        with patch("auth_module.email_verification.EmailService"):
+            return EmailVerificationService()
+
+    def _memberships(self, test_db, user_id, org_id):
+        test_db.expire_all()
+        return (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id == org_id,
+            )
+            .all()
+        )
+
+    def test_restores_a_removed_membership(self, test_db, test_users, test_org):
+        """A removed member gets the old row back with the invited role.
+        The (user, org) pair is unique, so a second insert used to fail and
+        the invitation silently stayed pending."""
+        invitee = _make_user(
+            test_db, f"verify-removed-{_uid()[:8]}@example.com", email_verified=False
+        )
+        removed = _membership(
+            test_db, invitee.id, test_org.id, role="ANNOTATOR", is_active=False
+        )
+        inv = _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            role=OrganizationRole.CONTRIBUTOR,
+        )
+
+        messages = self._service()._auto_accept_invitations(
+            test_db, invitee.id, invitee.email
+        )
+
+        assert len(messages) == 1
+        rows = self._memberships(test_db, invitee.id, test_org.id)
+        assert [r.id for r in rows] == [removed.id]
+        assert rows[0].is_active is True
+        assert rows[0].role == OrganizationRole.CONTRIBUTOR
+        stored = test_db.query(Invitation).filter(Invitation.id == inv.id).one()
+        assert stored.accepted is True
+        assert stored.accepted_at is not None
+        assert stored.pending_user_id == invitee.id
+
+    def test_new_member_gets_one_row_and_the_group(
+        self, test_db, test_users, test_org
+    ):
+        from models import OrganizationGroup, OrganizationGroupMembership
+
+        group = OrganizationGroup(
+            id=_uid(), organization_id=test_org.id, name=f"G-{_uid()[:6]}"
+        )
+        test_db.add(group)
+        test_db.commit()
+        invitee = _make_user(
+            test_db, f"verify-new-{_uid()[:8]}@example.com", email_verified=False
+        )
+        inv = _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email,
+            group_id=group.id,
+        )
+
+        self._service()._auto_accept_invitations(test_db, invitee.id, invitee.email)
+
+        rows = self._memberships(test_db, invitee.id, test_org.id)
+        assert len(rows) == 1 and rows[0].is_active is True
+        assert rows[0].role == OrganizationRole.ANNOTATOR
+        assert (
+            test_db.query(OrganizationGroupMembership)
+            .filter(
+                OrganizationGroupMembership.group_id == group.id,
+                OrganizationGroupMembership.user_id == invitee.id,
+            )
+            .count()
+            == 1
+        )
+        assert test_db.query(Invitation).filter(Invitation.id == inv.id).one().accepted
+
+    def test_active_member_only_marks_the_invitation(
+        self, test_db, test_users, test_org
+    ):
+        invitee = _make_user(
+            test_db, f"verify-active-{_uid()[:8]}@example.com", email_verified=False
+        )
+        existing = _membership(test_db, invitee.id, test_org.id, role="CONTRIBUTOR")
+        inv = _make_invitation(
+            test_db, test_org.id, test_users[0].id, email=invitee.email
+        )
+
+        messages = self._service()._auto_accept_invitations(
+            test_db, invitee.id, invitee.email
+        )
+
+        assert messages == []
+        rows = self._memberships(test_db, invitee.id, test_org.id)
+        assert [r.id for r in rows] == [existing.id]
+        assert rows[0].role == OrganizationRole.CONTRIBUTOR
+        stored = test_db.query(Invitation).filter(Invitation.id == inv.id).one()
+        assert stored.accepted is True

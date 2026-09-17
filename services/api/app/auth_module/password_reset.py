@@ -9,6 +9,7 @@ from typing import Optional
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
+from account_activation import verify_email_by_link
 from auth_module.user_service import get_password_hash
 from models import User
 
@@ -42,6 +43,11 @@ class PasswordResetService:
         # Store token in user record (you may want to create a separate table for this)
         user.password_reset_token = token
         user.password_reset_expires = expiry
+        # The reset link goes to user.email and replaces any activation link
+        # mailed to a parked address. Leaving that address parked would make
+        # the reset skip the email verification (the link seemingly went
+        # elsewhere) and lock the account out of login.
+        user.pending_activation_email = None
         db.commit()
 
         return token
@@ -91,6 +97,10 @@ class PasswordResetService:
         # activated by this path exactly like by /auth/activate-account.
         user.hashed_password = get_password_hash(new_password)
         user.password_set = True
+        # The reset link was mailed to user.email, so using it proves the
+        # mailbox. Without this an account whose address is still unproven
+        # (e.g. supplied by an LMS) could set a password but never log in.
+        verify_email_by_link(user, method="self")
 
         # Clear reset token
         user.password_reset_token = None

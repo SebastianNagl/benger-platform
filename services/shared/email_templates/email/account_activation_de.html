@@ -2,7 +2,8 @@ Subject: Aktiviere dein {{ brand_name }}-Konto
 <html>
 <body style="font-family: Arial, sans-serif; padding: 20px;">
     <h2>Dein {{ brand_name }}-Konto wartet auf dich</h2>
-    <p>Über die Lernplattform deiner Universität (z.&nbsp;B. Moodle oder ILIAS) wurde für dich ein {{ brand_name }}-Konto erstellt. Lege jetzt ein Passwort fest, um dich auch direkt auf {{ frontend_host }} anzumelden — deine Klausuren und Ergebnisse bleiben dabei erhalten.</p>
+    <p>Du hast über die Lernplattform deiner Hochschule der Nutzung von {{ brand_name }} zugestimmt. Dabei wurde ein Konto für dich angelegt. Lege ein Passwort fest, dann kannst du dich auch direkt auf {{ frontend_host }} anmelden.</p>
+    <p>Deine Klausuren und Ergebnisse bleiben dabei erhalten.</p>
     <p style="margin: 30px 0;">
         <a href="{{ activation_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
             Konto aktivieren
@@ -11,7 +12,7 @@ Subject: Aktiviere dein {{ brand_name }}-Konto
     <p>Oder kopiere diesen Link in deinen Browser:</p>
     <p style="color: #059669;">{{ activation_url }}</p>
     <p style="color: #666; font-size: 12px; margin-top: 30px;">
-        Der Link ist {{ expiry_days }} Tage gültig. Ohne Aktivierung kannst du {{ brand_name }} weiterhin wie gewohnt über deine Lernplattform nutzen — dann kannst du diese E-Mail einfach ignorieren.
+        Der Link ist {{ expiry_days }} Tage gültig. Du kannst {{ brand_name }} auch ohne Aktivierung weiter über deine Lernplattform nutzen. Dann kannst du diese E-Mail einfach ignorieren.
     </p>
 </body>
 </html>

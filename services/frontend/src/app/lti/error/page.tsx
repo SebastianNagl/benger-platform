@@ -1,67 +1,114 @@
 'use client'
 
-import { useSlot } from '@/lib/extensions/slots'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+
+import { useI18n } from '@/contexts/I18nContext'
+import { useSlot } from '@/lib/extensions/slots'
+import {
+  isLtiLaunchErrorCode,
+  ltiErrorActions,
+  type LtiErrorAction,
+} from '@/lib/lti/launchErrors'
 
 /**
  * Host route for LTI launch errors.
  *
- * The API's LTI endpoints redirect the browser here with ?code=<reason>
- * whenever a launch cannot complete. Unlike the other LTI host routes, the
- * community fallback is fully functional: launches can fail on a community
- * install too (misconfigured registration, blocked cookies, ...), so the
- * platform must render a human-readable explanation without the extended
- * package. The extended edition may register a richer 'LtiLaunchError' slot
- * (retry actions, support links) that replaces this fallback.
+ * The LTI endpoints redirect the browser here with ?code=<reason> (and
+ * &ref=<id> for unexpected server errors) whenever a launch from a learning
+ * platform cannot complete. The consent and account pages forward their
+ * errors here too. Unlike the other LTI host routes, the community fallback
+ * is a working page: it explains every code of lib/lti/launchErrors.ts in
+ * the UI language and says who can fix the problem. The route is public and
+ * standalone (see authRedirect.publicRoutes and ConditionalLayout). The
+ * extended edition may register a richer 'LtiLaunchError' slot that
+ * replaces this fallback.
  */
 
-const ERROR_MESSAGES: Record<string, string> = {
-  invalid_request:
-    'The launch request from your learning platform was incomplete or malformed. Go back to your learning platform and open the activity again.',
-  registration_not_found:
-    'This learning platform is not registered with the platform. Ask an administrator to create the LTI registration first.',
-  registration_disabled:
-    'The LTI registration for this learning platform is disabled. Ask an administrator to re-enable it.',
-  state_unavailable:
-    'Your browser did not send the cookie that protects this launch. Allow cookies for this site (including third-party cookies if the activity is embedded in your learning platform) and try again.',
-  invalid_state:
-    'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
-  invalid_token:
-    'The identity token from your learning platform could not be verified. Go back and try again; if this keeps happening, the registration keys may be out of date.',
-  nonce_mismatch:
-    'The launch could not be verified because it did not match the login it started from. Go back to your learning platform and click the activity again.',
-  nonce_reused:
-    'This launch link has expired or was already used – go back to your learning platform and click the activity again.',
-  unknown_deployment:
-    'This course connection is not known to the platform. Ask an administrator to add the deployment to the LTI registration.',
-  unsupported_message:
-    'This type of LTI message is not supported by the platform.',
-  not_linked: 'Your instructor has not connected this activity to an exam yet.',
-  user_inactive:
-    'Your account on this platform is deactivated. Contact your instructor or an administrator.',
-  internal:
-    'Something went wrong on our side while processing the launch. Please try again in a moment.',
-}
+/** Actions that someone other than the person at the browser takes. */
+const STAFF_ACTIONS: ReadonlySet<LtiErrorAction> = new Set<LtiErrorAction>([
+  'orgAdmin',
+  'lmsAdmin',
+  'support',
+])
 
-const DEFAULT_MESSAGE =
-  'The launch could not be completed. Go back to your learning platform and click the activity again; if the problem persists, contact your instructor.'
+// The page repeats both query values verbatim. Only well-formed values are
+// shown, so a crafted link cannot place arbitrary text on the page.
+const CODE_PATTERN = /^[a-z0-9_]{1,64}$/
+const REF_PATTERN = /^[0-9a-f]{4,32}$/i
 
 function LtiErrorFallback() {
+  const { t } = useI18n()
   const searchParams = useSearchParams()
-  const code = searchParams?.get('code') ?? ''
-  const message = ERROR_MESSAGES[code] ?? DEFAULT_MESSAGE
+  const rawCode = searchParams?.get('code') ?? ''
+  const rawRef = searchParams?.get('ref') ?? ''
+  const code = CODE_PATTERN.test(rawCode) ? rawCode : ''
+  const ref = REF_PATTERN.test(rawRef) ? rawRef : ''
+
+  const message = isLtiLaunchErrorCode(code)
+    ? t(`lti.error.codes.${code}`)
+    : t('lti.error.default')
+  const actions = ltiErrorActions(code)
+  const showStudentHint = actions.some((action) => STAFF_ACTIONS.has(action))
 
   return (
-    <div className="flex min-h-[400px] items-center justify-center px-4">
-      <div className="max-w-md text-center">
+    <div
+      className="flex min-h-screen items-center justify-center px-4 py-10"
+      data-testid="lti-error-fallback"
+    >
+      <div className="w-full max-w-md space-y-4 text-center">
+        <ExclamationTriangleIcon
+          aria-hidden="true"
+          className="mx-auto h-10 w-10 text-amber-500"
+        />
         <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-          Launch failed
+          {t('lti.error.title')}
         </h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">{message}</p>
+        <p
+          className="text-zinc-600 dark:text-zinc-400"
+          data-testid="lti-error-message"
+        >
+          {message}
+        </p>
+        <div className="rounded-lg bg-zinc-50 p-4 text-left dark:bg-zinc-800/60">
+          <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {t('lti.error.actionsTitle')}
+          </h2>
+          <ul
+            className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300"
+            data-testid="lti-error-actions"
+          >
+            {actions.map((action) => (
+              <li key={action} data-testid={`lti-error-action-${action}`}>
+                {t(`lti.error.actions.${action}`)}
+              </li>
+            ))}
+          </ul>
+          {showStudentHint ? (
+            <p
+              className="mt-2 text-sm text-zinc-500 dark:text-zinc-400"
+              data-testid="lti-error-student-hint"
+            >
+              {t('lti.error.studentHint')}
+            </p>
+          ) : null}
+        </div>
         {code ? (
-          <p className="mt-4 text-xs text-zinc-400 dark:text-zinc-500">
-            Error code: {code}
+          <p
+            className="text-xs text-zinc-500 dark:text-zinc-400"
+            data-testid="lti-error-code"
+          >
+            {t('lti.error.codeLabel')}:{' '}
+            <span className="font-mono">{code}</span>
+          </p>
+        ) : null}
+        {ref ? (
+          <p
+            className="text-xs text-zinc-500 dark:text-zinc-400"
+            data-testid="lti-error-ref"
+          >
+            {t('lti.error.refLabel')}: <span className="font-mono">{ref}</span>
           </p>
         ) : null}
       </div>

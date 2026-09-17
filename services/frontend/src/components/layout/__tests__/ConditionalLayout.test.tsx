@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import { usePathname } from 'next/navigation'
 import { ConditionalLayout } from '../ConditionalLayout'
 
@@ -219,6 +219,117 @@ describe('ConditionalLayout', () => {
         expect(screen.getByTestId('full-layout')).toBeInTheDocument()
         expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
       })
+    })
+
+    describe('LMS launch pages', () => {
+      // Public LMS steps run before a session exists: no app chrome (no
+      // sidebar, student shell or plan modal), and no auth spinner.
+      const standaloneLtiPages = [
+        '/lti/consent',
+        '/lti/link-account',
+        '/lti/link-confirm/tok-123',
+        '/lti/error',
+      ]
+
+      const loadingAuth = {
+        user: null,
+        isLoading: true,
+        login: jest.fn(),
+        logout: jest.fn(),
+        isInitialized: false,
+      } as any
+
+      afterEach(() => {
+        jest.useRealTimers()
+      })
+
+      it.each(standaloneLtiPages)(
+        'renders %s without the app layout, also while auth is loading',
+        (path) => {
+          jest.useFakeTimers()
+          mockUsePathname.mockReturnValue(path)
+          mockUseAuth.mockReturnValue(loadingAuth)
+
+          render(
+            <ConditionalLayout allSections={{}}>
+              <div>LTI step</div>
+            </ConditionalLayout>,
+          )
+          // Past the 200 ms delay after which other pages show the spinner.
+          act(() => {
+            jest.advanceTimersByTime(300)
+          })
+
+          expect(screen.getByText('LTI step')).toBeInTheDocument()
+          expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
+          expect(screen.queryByTestId('minimal-layout')).not.toBeInTheDocument()
+          expect(
+            screen.queryByText('common.checkingAuth'),
+          ).not.toBeInTheDocument()
+        },
+      )
+
+      it('shows the auth spinner instead of the teacher picker while auth is loading', () => {
+        jest.useFakeTimers()
+        mockUsePathname.mockReturnValue('/lti/link')
+        mockUseAuth.mockReturnValue(loadingAuth)
+
+        render(
+          <ConditionalLayout allSections={{}}>
+            <div>Teacher page</div>
+          </ConditionalLayout>,
+        )
+        act(() => {
+          jest.advanceTimersByTime(300)
+        })
+
+        expect(screen.getByText('common.checkingAuth')).toBeInTheDocument()
+        expect(screen.queryByText('Teacher page')).not.toBeInTheDocument()
+      })
+
+      it.each(standaloneLtiPages)(
+        'keeps %s standalone for a signed-in user',
+        (path) => {
+          mockUsePathname.mockReturnValue(path)
+          mockUseAuth.mockReturnValue({
+            user: { id: '1', email: 'test@example.com' },
+            isLoading: false,
+            login: jest.fn(),
+            logout: jest.fn(),
+            isInitialized: true,
+          } as any)
+
+          render(
+            <ConditionalLayout allSections={{}}>
+              <div>LTI step</div>
+            </ConditionalLayout>,
+          )
+
+          expect(screen.queryByTestId('full-layout')).not.toBeInTheDocument()
+        },
+      )
+
+      it.each(['/lti/link', '/lti/activity'])(
+        'keeps the app layout on the teacher page %s',
+        (path) => {
+          mockUsePathname.mockReturnValue(path)
+          mockUseAuth.mockReturnValue({
+            user: { id: '1', email: 'test@example.com' },
+            isLoading: false,
+            login: jest.fn(),
+            logout: jest.fn(),
+            isInitialized: true,
+          } as any)
+
+          render(
+            <ConditionalLayout allSections={{}}>
+              <div>Teacher page</div>
+            </ConditionalLayout>,
+          )
+
+          expect(screen.getByTestId('full-layout')).toBeInTheDocument()
+        },
+      )
     })
 
     describe('standalone pages', () => {

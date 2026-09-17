@@ -249,6 +249,33 @@ export function describeConfigMatchReason(
   return t(base)
 }
 
+/** Prefix the worker writes when the billing policy refused a run. */
+const BILLING_BLOCKED_PREFIX = 'billing_blocked:'
+
+const BILLING_BLOCK_KEYS: Record<string, string> = {
+  org_not_paying: 'orgNotPaying',
+  org_key_missing: 'orgKeyMissing',
+  connection_removed: 'connectionRemoved',
+  billing_check_failed: 'checkFailed',
+}
+
+/**
+ * The reader's sentence for a run the billing policy refused
+ * (`billing_blocked:<reason>`, e.g. an exam linked to a learning platform
+ * whose organization provides no API key), else null.
+ */
+export function describeBillingBlock(
+  errorMessage: string | null | undefined,
+  t: Translate,
+): string | null {
+  if (!errorMessage?.startsWith(BILLING_BLOCKED_PREFIX)) return null
+  const reason = errorMessage.slice(BILLING_BLOCKED_PREFIX.length).trim()
+  const key = Object.prototype.hasOwnProperty.call(BILLING_BLOCK_KEYS, reason)
+    ? BILLING_BLOCK_KEYS[reason]
+    : 'other'
+  return t(`evaluations.detail.billingBlocked.${key}`)
+}
+
 /** Reasons that mean nothing was left to do, not that the run failed. */
 export const BENIGN_MATCH_REASONS = new Set([
   'all_cells_already_evaluated',

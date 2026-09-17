@@ -19,7 +19,15 @@ from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
+from services.member_privacy import (
+    lms_account_ids,
+    project_name_mask,
+    project_name_masks,
+)
+from user_display import prefers_pseudonym
 from models import (
+    LtiPlatformRegistration,
+    LtiResourceLink,
     Organization,
     OrganizationGroup,
     OrganizationGroupMembership,
@@ -28,6 +36,11 @@ from models import (
     User,
 )
 from notification_service import notify_project_created, notify_project_deleted
+from org_groups import (
+    collapse_linking_groups,
+    get_lti_attachment_map_async,
+    non_lti_attachment,
+)
 from project_models import Project, ProjectMember, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
@@ -357,10 +370,20 @@ async def list_projects(
             _calculate_generation_stats_batch_sync, projects
         )
 
+        # Creators that are LMS accounts are shown by pseudonym unless the
+        # viewer may see their real name on that project (D8).
+        # One hook call for the whole page (no per-row lookups).
+        lms_creator_ids = await lms_account_ids(
+            db, {p.created_by for p in projects if p.creator is not None}
+        )
+        creator_masks = await _creator_masks(
+            db, projects, current_user, lms_creator_ids
+        )
+
         enriched_projects = []
         for project in projects:
             response = ProjectResponse.from_orm(project)
-            response.created_by_name = project.creator.name if project.creator else None
+            response.created_by_name = _masked_creator_name(project, creator_masks)
             via = participant_map.get(str(project.id))
             outside_full = accessible_set is not None and project.id not in accessible_set
             # The org-annotator archive carve-out of check_project_accessible:
@@ -688,6 +711,64 @@ def _strip_participant_fields(response: ProjectResponse) -> None:
         response.korrektur_config = None
 
 
+def _creator_shown_as_is(creator, viewer) -> bool:
+    """The creator's name needs no masking check for ``viewer``: the viewer
+    is the creator or a superadmin, or the creator turned the pseudonym off.
+    Mirrors the candidate rule of ``member_privacy``."""
+    if getattr(viewer, "is_superadmin", False) is True:
+        return True
+    if str(creator.id) == str(getattr(viewer, "id", "") or ""):
+        return True
+    return not prefers_pseudonym(creator)
+
+
+async def _creator_label(db, project, viewer, lms_creator_ids=None):
+    """``created_by_name`` for ``viewer``: the creator's name, or their
+    pseudonym when the creator is an LMS account whose real name the viewer
+    may not see on this project (D8). ``lms_creator_ids`` is the batch
+    answer of ``lms_account_ids`` when the caller already has it."""
+    creator = project.creator
+    if creator is None:
+        return None
+    if lms_creator_ids is not None and str(creator.id) not in lms_creator_ids:
+        return creator.name
+    if _creator_shown_as_is(creator, viewer):
+        return creator.name
+    mask = await project_name_mask(
+        db,
+        [creator],
+        viewer=viewer,
+        project_id=str(project.id),
+        lms_ids=lms_creator_ids,
+    )
+    return mask.label(creator)
+
+
+async def _creator_masks(db, projects, viewer, lms_creator_ids) -> dict:
+    """Name masks of the creators of ``projects`` that may need one, keyed
+    by project id, from a single hook call."""
+    targets = {
+        str(p.id): [p.creator]
+        for p in projects
+        if p.creator is not None
+        and str(p.creator.id) in lms_creator_ids
+        and not _creator_shown_as_is(p.creator, viewer)
+    }
+    if not targets:
+        return {}
+    return await project_name_masks(
+        db, targets, viewer=viewer, lms_ids=lms_creator_ids
+    )
+
+
+def _masked_creator_name(project, creator_masks: dict):
+    creator = project.creator
+    if creator is None:
+        return None
+    mask = creator_masks.get(str(project.id))
+    return mask.label(creator) if mask is not None else creator.name
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,
@@ -733,7 +814,7 @@ async def get_project(
 
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
-    response.created_by_name = project.creator.name if project.creator else None
+    response.created_by_name = await _creator_label(db, project, current_user)
     response.access_tier = tier
     response.effective_role = await get_effective_project_role_async(db, current_user, project)
     response.can_manage_shares = await check_user_can_manage_shares_async(
@@ -911,7 +992,7 @@ async def update_project(
 
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
-    response.created_by_name = project.creator.name if project.creator else None
+    response.created_by_name = await _creator_label(db, project, current_user)
 
     # Calculate statistics including generation_models_count
     await calculate_project_stats_async(db, project.id, response, project=project)
@@ -927,30 +1008,17 @@ async def update_project(
 
 
 async def _can_soft_delete(db: AsyncSession, current_user, project: Project) -> bool:
-    """Who may (soft-)delete: superadmin; the creator of a PERSONAL project
-    (private, or org-less — mirrors the share-management rule); an active
-    ORG_ADMIN of an org the project is shared with (matches the project
-    page's delete button, which the old hard delete silently 403'd for org
-    admins). A creator who is a mere CONTRIBUTOR of an org project cannot
-    delete it out from under the org."""
-    if current_user.is_superadmin:
-        return True
-    is_creator = str(project.created_by) == str(current_user.id)
-    if project.is_private and is_creator:
-        return True
-    org_ids = (
-        await db.execute(
-            select(ProjectOrganization.organization_id).where(
-                ProjectOrganization.project_id == project.id
-            )
-        )
-    ).scalars().all()
-    if not org_ids:
-        return is_creator
-    from routers.projects.helpers import _build_select_org_admin_membership
+    """Who may (soft-)delete ``project``. The rule lives in
+    :func:`routers.projects.helpers.get_soft_deletable_project_ids_async`
+    (superadmin; the creator of a private project or of one without manual
+    org rows; an active ORG_ADMIN of an org a non-private project is shared
+    with by hand, never through an LMS link), so the delete controls of the
+    student exam views can ask the same question in bulk."""
+    from routers.projects.helpers import get_soft_deletable_project_ids_async
 
-    admin = await db.execute(_build_select_org_admin_membership(current_user.id, list(org_ids)))
-    return admin.first() is not None
+    return project.id in await get_soft_deletable_project_ids_async(
+        db, current_user, [project]
+    )
 
 
 async def _notify_deleted(db, project_id, project_title, current_user):
@@ -1076,6 +1144,63 @@ async def purge_project(
     return {"message": "Project purged"}
 
 
+async def _lms_linked_org_groups(db: AsyncSession, project_id: str) -> dict:
+    """``{org_id: group_id | None}`` of the orgs with an LMS connection that
+    has an activity pointing at the project.
+
+    The group is the one a linking attachment of that org carries
+    (``org_groups.collapse_linking_groups``, the same rule
+    ``sync_lti_attachments`` applies when a connection moves): None when any
+    of the org's linking connections is org-wide, else the first of their
+    groups.
+    """
+    rows = await db.execute(
+        select(LtiPlatformRegistration.organization_id, LtiPlatformRegistration.group_id)
+        .join(
+            LtiResourceLink,
+            LtiResourceLink.registration_id == LtiPlatformRegistration.id,
+        )
+        .where(LtiResourceLink.project_id == project_id)
+        .distinct()
+    )
+    return collapse_linking_groups(rows.all())
+
+
+async def _release_manual_attachments(
+    db: AsyncSession, project_id: str, *, replacing=frozenset()
+) -> None:
+    """Drop the project's manual org attachments before a visibility change.
+
+    Attachments LMS linking created (``attached_via='lti'``) stay while a
+    connection of their org still links the project: they carry the linked
+    exam's staff access and billing for the connection's org. A manual row
+    of such an org becomes a linking row instead of being dropped (with the
+    connection's group scope), unless the request writes that org's manual
+    row again (``replacing``). A linking row whose org no longer links the
+    project is dropped like a manual one.
+    """
+    linked = await _lms_linked_org_groups(db, project_id)
+    for org_id in sorted(set(linked) - set(replacing)):
+        await db.execute(
+            ProjectOrganization.__table__.update()
+            .where(
+                ProjectOrganization.project_id == project_id,
+                ProjectOrganization.organization_id == org_id,
+                non_lti_attachment(ProjectOrganization),
+            )
+            .values(attached_via="lti", group_id=linked[org_id])
+        )
+    doomed = [ProjectOrganization.project_id == project_id]
+    if linked:
+        doomed.append(
+            or_(
+                non_lti_attachment(ProjectOrganization),
+                ProjectOrganization.organization_id.notin_(sorted(linked)),
+            )
+        )
+    await db.execute(ProjectOrganization.__table__.delete().where(*doomed))
+
+
 @router.patch("/{project_id}/visibility")
 async def update_project_visibility(
     project_id: str,
@@ -1090,6 +1215,12 @@ async def update_project_visibility(
     - Make org-assigned: {"is_private": false, "organization_ids": ["org1", "org2"]}
     - Make public: {"is_public": true, "public_role": "ANNOTATOR" | "CONTRIBUTOR"}
     - Flip public_role on already-public project: {"public_role": "CONTRIBUTOR"}
+
+    Org attachments that linking the exam to an LMS activity created
+    (``attached_via='lti'``) survive every shape: they are never deleted or
+    replaced here, and naming their org again changes nothing. Naming it
+    with a different group is refused (409 ``lti_attachment_conflict``),
+    because the group follows the LMS connection.
     """
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -1141,12 +1272,8 @@ async def update_project_visibility(
                 status_code=400,
                 detail="public_role must be 'ANNOTATOR' or 'CONTRIBUTOR'",
             )
-        # Remove all org assignments
-        await db.execute(
-            ProjectOrganization.__table__.delete().where(
-                ProjectOrganization.project_id == project_id
-            )
-        )
+        # Remove the manual org assignments (LMS-linking ones stay)
+        await _release_manual_attachments(db, project_id)
         project.is_private = False
         project.is_public = True
         project.public_role = public_role
@@ -1163,12 +1290,9 @@ async def update_project_visibility(
                 raise HTTPException(status_code=404, detail="Owner user not found")
             project.created_by = owner_user_id
 
-        # Remove all org assignments
-        await db.execute(
-            ProjectOrganization.__table__.delete().where(
-                ProjectOrganization.project_id == project_id
-            )
-        )
+        # Remove the manual org assignments (LMS-linking ones stay and keep
+        # the linked orgs' staff on the now private exam)
+        await _release_manual_attachments(db, project_id)
 
         project.is_private = True
         project.is_public = False
@@ -1191,6 +1315,10 @@ async def update_project_visibility(
                 detail="At least one organization_id is required for non-private projects",
             )
 
+        # Only the group-aware shape states a group; the legacy id list
+        # carries none, so it never conflicts with an LMS attachment's group.
+        group_aware = "organization_attachments" in visibility
+        lti_attachments = await get_lti_attachment_map_async(db, project_id)
         seen_orgs = set()
         for att in attachments:
             org_id = (att or {}).get("organization_id")
@@ -1209,20 +1337,40 @@ async def update_project_visibility(
             ).scalar_one_or_none()
             if not org:
                 raise HTTPException(status_code=404, detail=f"Organization {org_id} not found")
+            if org_id in lti_attachments:
+                # The LMS attachment stands as it is; the group follows the
+                # connection, so the request cannot re-scope it.
+                if group_aware and (att.get("group_id") or None) != lti_attachments[org_id]:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "code": "lti_attachment_conflict",
+                            "message": (
+                                f"{org.display_name or org.name} is attached through "
+                                "a learning platform connection. Its group follows "
+                                "that connection and cannot be changed here."
+                            ),
+                        },
+                    )
+                continue
             if att.get("group_id"):
                 await _validate_group_attachment(
                     db, current_user, org_id, att["group_id"]
                 )
 
-        # Remove existing org assignments
-        await db.execute(
-            ProjectOrganization.__table__.delete().where(
-                ProjectOrganization.project_id == project_id
-            )
+        new_attachments = [
+            att for att in attachments if att["organization_id"] not in lti_attachments
+        ]
+
+        # Remove the manual org assignments (LMS-linking ones stay)
+        await _release_manual_attachments(
+            db,
+            project_id,
+            replacing={att["organization_id"] for att in new_attachments},
         )
 
         # Create new org assignments
-        for att in attachments:
+        for att in new_attachments:
             project_org = ProjectOrganization(
                 id=str(uuid.uuid4()),
                 project_id=project_id,
@@ -1256,7 +1404,7 @@ async def update_project_visibility(
     project = result.scalars().unique().one_or_none()
 
     response = ProjectResponse.from_orm(project)
-    response.created_by_name = project.creator.name if project.creator else None
+    response.created_by_name = await _creator_label(db, project, current_user)
     await calculate_project_stats_async(db, project.id, response, project=project)
     await calculate_generation_stats_async(db, project, response)
 

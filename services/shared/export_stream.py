@@ -103,7 +103,7 @@ from stream_io.serialization import (
     serialize_project_member_row,
     serialize_response_generation_row,
     serialize_task_assignment_row,
-    serialize_user_row,
+    serialize_user_rows,
 )
 
 BATCH_SIZE = 50
@@ -635,6 +635,7 @@ def stream_export_txt(
 def stream_comprehensive_project_data_json(
     db: Session,
     project_id: str,
+    viewer=None,
 ) -> Iterator[str]:
     """Stream the comprehensive (clone-format) project export as JSON chunks.
 
@@ -656,6 +657,9 @@ def stream_comprehensive_project_data_json(
     serialize once — they're tiny in practice. `users` is computed at the end
     from refs collected during the stream, and `statistics` is the running
     counters.
+
+    ``viewer`` is the user the export is for: LMS users whose real names they
+    may not see appear by pseudonym, without email (None masks all of them).
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -990,10 +994,11 @@ def stream_comprehensive_project_data_json(
     yield '"users": ['
     first = True
     if user_ids:
-        for u in db.query(User).filter(User.id.in_(user_ids)).all():
-            yield ("" if first else ",") + json.dumps(
-                serialize_user_row(u), ensure_ascii=False
-            )
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        for row in serialize_user_rows(
+            db, users, project_id=project_id, viewer=viewer
+        ):
+            yield ("" if first else ",") + json.dumps(row, ensure_ascii=False)
             first = False
     yield "],"
 
@@ -1003,6 +1008,7 @@ def stream_comprehensive_project_data_json(
 def stream_export_ndjson(
     db: Session,
     project_id: str,
+    viewer=None,
 ) -> Iterator[str]:
     """Yield an NDJSON typed-record comprehensive export, one JSON object per line.
 
@@ -1031,6 +1037,8 @@ def stream_export_ndjson(
     arrive as a JSON array element (legacy multi-pass) or an NDJSON line. Heavy
     sections stream through ``_drain`` (``yield_per`` + per-row ``expunge``) so
     peak memory stays O(batch) regardless of project size.
+
+    ``viewer`` masks the ``user`` records like the comprehensive generator.
     """
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -1124,8 +1132,11 @@ def stream_export_ndjson(
             user_ids.add(uid)
 
     if user_ids:
-        for u in db.query(User).filter(User.id.in_(user_ids)).all():
-            yield _emit("user", serialize_user_row(u))
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        for row in serialize_user_rows(
+            db, users, project_id=project_id, viewer=viewer
+        ):
+            yield _emit("user", row)
 
     # --- tasks (heavy) ---
     for task in _drain(db.query(Task).filter(Task.project_id == project_id)):
@@ -1417,6 +1428,7 @@ def select_export_generator(
     fmt: str,
     task_ids: Optional[List[str]] = None,
     progress_cb: Optional[Callable[[int, int], None]] = None,
+    viewer=None,
 ) -> Iterator[str]:
     """Return the chunk-yielding generator for ``fmt`` against ``project``.
 
@@ -1432,6 +1444,9 @@ def select_export_generator(
     ``progress_cb`` is only wired into the ``json`` generator (the path the UI
     Download uses); other formats stream without a progress signal, so their
     callers keep an indeterminate bar.
+
+    ``viewer`` (the requesting user) decides which LMS users' real names the
+    comprehensive formats may carry; the other formats carry no user block.
     """
     project_id = project.id
     if task_ids and fmt != "json":
@@ -1455,10 +1470,10 @@ def select_export_generator(
     if fmt == "txt":
         return stream_export_txt(db, project_id, project.title, project.description)
     if fmt == "comprehensive":
-        return stream_comprehensive_project_data_json(db, project_id)
+        return stream_comprehensive_project_data_json(db, project_id, viewer=viewer)
     if fmt in ("ndjson", "ndjson_gz"):
         # Same text stream for both; the worker compresses when fmt is gzipped.
-        return stream_export_ndjson(db, project_id)
+        return stream_export_ndjson(db, project_id, viewer=viewer)
     if fmt in ("anki_csv", "anki_apkg"):
         return stream_export_anki(db, project_id, project.title, fmt)
     raise ValueError(f"Unsupported export format: {fmt!r}")

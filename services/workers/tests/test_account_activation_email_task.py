@@ -67,7 +67,7 @@ def _brand():
     return brand
 
 
-def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", **kwargs):
+def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", brand=None, **kwargs):
     """Drive the task with all of its lazily-imported collaborators stubbed."""
     email_service = MagicMock()
     email_service.build_account_activation_email.return_value = ("Betreff", "<p>hi</p>")
@@ -76,7 +76,7 @@ def _run(db, *, sendgrid_class, eligibility=None, token="tok-abc", **kwargs):
          patch("account_activation.activation_eligibility", return_value=eligibility), \
          patch("account_activation.current_or_new_activation_token", return_value=token), \
          patch("account_activation.build_activation_link", return_value=f"https://x/activate/{token}"), \
-         patch("mailer.branding.resolve_email_brand", return_value=_brand()), \
+         patch("mailer.branding.resolve_email_brand", return_value=brand or _brand()), \
          patch("email_service.email_service", email_service), \
          patch("sendgrid_client.SendGridClient", sendgrid_class):
         return send_account_activation_task.run(**kwargs), email_service
@@ -122,6 +122,37 @@ class TestActivationEmailGuards:
         db.commit.assert_not_called()
 
 
+class TestActivationEmailLetterCase:
+    def test_target_email_is_lowercased_and_the_taken_check_ignores_case(self):
+        """Addresses are stored lowercased; login and reset match exactly,
+        so a mixed-case entry would lock the student out later. The taken
+        probe compares lower(email)."""
+        cls, client = _sendgrid({"status": "success", "message_id": "m"})
+        db = _fake_db(_user(email="lti-x@lti.invalid"))
+        with patch("account_activation.current_or_new_activation_token") as mint:
+            mint.return_value = "tok"
+            email_service = MagicMock()
+            email_service.build_account_activation_email.return_value = ("S", "<p/>")
+            with patch.object(tasks_module, "SessionLocal", MagicMock(return_value=db)), \
+                 patch("account_activation.activation_eligibility", return_value=None), \
+                 patch("account_activation.build_activation_link", return_value="https://x/a/tok"), \
+                 patch("mailer.branding.resolve_email_brand", return_value=_brand()), \
+                 patch("email_service.email_service", email_service), \
+                 patch("sendgrid_client.SendGridClient", cls):
+                result = send_account_activation_task.run(
+                    user_id="u-1", target_email="  Max.Mustermann@Uni-X.de "
+                )
+
+        assert result["recipient"] == "max.mustermann@uni-x.de"
+        assert mint.call_args.kwargs["pending_email"] == "max.mustermann@uni-x.de"
+        probe = str(
+            db.execute.call_args_list[1].args[0].compile(
+                compile_kwargs={"literal_binds": True}
+            )
+        )
+        assert "lower(users.email) = 'max.mustermann@uni-x.de'" in probe
+
+
 class TestActivationEmailSend:
     def test_success_commits_the_token_before_sending(self):
         """A link that reaches a mailbox must resolve, so the token commit has
@@ -165,6 +196,42 @@ class TestActivationEmailSend:
         assert kwargs["expiry_days"] == 7  # ACTIVATION_TOKEN_EXPIRY
         assert kwargs["brand_name"] == "Vertretbar"
         assert kwargs["frontend_host"] == "vertretbar.net"
+
+
+class TestActivationEmailLanguage:
+    """The mail follows the user's language, German by default, whatever the
+    host brand's default is (plan default "Mail language")."""
+
+    def _brand_with_english_default(self):
+        brand = _brand()
+        brand.name = "BenGER"
+        brand.frontend_url = "https://what-a-benger.net"
+        brand.default_language = "en"
+        return brand
+
+    def test_german_by_default_even_on_an_english_brand(self):
+        cls, _ = _sendgrid({"status": "success", "message_id": "m"})
+        user = _user()
+        user.language_preference = None
+        _, email_service = _run(
+            _fake_db(user),
+            sendgrid_class=cls,
+            brand=self._brand_with_english_default(),
+            user_id="u-1",
+        )
+
+        kwargs = email_service.build_account_activation_email.call_args.kwargs
+        assert kwargs["language"] == "de"
+
+    def test_user_preference_wins(self):
+        cls, _ = _sendgrid({"status": "success", "message_id": "m"})
+        user = _user()
+        user.language_preference = "en"
+
+        _, email_service = _run(_fake_db(user), sendgrid_class=cls, user_id="u-1")
+
+        kwargs = email_service.build_account_activation_email.call_args.kwargs
+        assert kwargs["language"] == "en"
 
 
 class TestActivationEmailFailureClassification:

@@ -41,6 +41,7 @@ describe('DataProtectionPage', () => {
       screen.getByText('legal.dataProtection.usageData'),
     ).toBeInTheDocument()
     expect(screen.getByText('legal.dataProtection.apiKeys')).toBeInTheDocument()
+    expect(screen.getByText('legal.dataProtection.lmsData')).toBeInTheDocument()
     expect(screen.getByText('legal.dataProtection.cookies')).toBeInTheDocument()
     expect(
       screen.getByText('legal.dataProtection.dataSharing'),
@@ -72,6 +73,9 @@ describe('DataProtectionPage', () => {
       screen.getByText('legal.dataProtection.apiKeysText'),
     ).toBeInTheDocument()
     expect(
+      screen.getByText('legal.dataProtection.lmsDataText'),
+    ).toBeInTheDocument()
+    expect(
       screen.getByText('legal.dataProtection.cookiesText'),
     ).toBeInTheDocument()
     expect(
@@ -99,6 +103,16 @@ describe('DataProtectionPage', () => {
   it('should wrap content in LegalPageWrapper', () => {
     render(<DataProtectionPage />)
     expect(screen.getByTestId('legal-wrapper')).toBeInTheDocument()
+  })
+
+  it('places the learning platform section between API keys and cookies', () => {
+    render(<DataProtectionPage />)
+    const headings = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent)
+    const lms = headings.indexOf('legal.dataProtection.lmsData')
+    expect(lms).toBe(headings.indexOf('legal.dataProtection.apiKeys') + 1)
+    expect(headings.indexOf('legal.dataProtection.cookies')).toBe(lms + 1)
   })
 
   it('should format controller info with line breaks', () => {

@@ -6,6 +6,7 @@ import {
   bareMetricName,
   configDisplayLabel,
   configMetricMean,
+  describeBillingBlock,
   describeConfigMatchReason,
   fieldSelectorLabel,
   formatMetricNumber,
@@ -343,5 +344,31 @@ describe('configMetricMean', () => {
     expect(configMetricMean(results, 'missing', 'llm_judge_rubric')).toBeNull()
     expect(configMetricMean(undefined, 'paid', 'llm_judge_rubric')).toBeNull()
     expect(configMetricMean(results, 'paid', '')).toBeNull()
+  })
+})
+
+describe('describeBillingBlock', () => {
+  it('phrases each billing refusal', () => {
+    expect(describeBillingBlock('billing_blocked:org_key_missing', t)).toBe(
+      'Die Organisation, über deren Lernplattform diese Klausur läuft, hat keinen API-Schlüssel für die gewählten Bewertungsmodelle hinterlegt. Die KI-Bewertung wurde deshalb nicht gestartet.',
+    )
+    expect(describeBillingBlock('billing_blocked:org_not_paying', t)).toContain(
+      'stellt keine API-Schlüssel bereit',
+    )
+    expect(
+      describeBillingBlock('billing_blocked:connection_removed', t),
+    ).toContain('besteht nicht mehr')
+    expect(
+      describeBillingBlock('billing_blocked:billing_check_failed', t),
+    ).toContain('später erneut')
+    expect(describeBillingBlock('billing_blocked:toString', t)).toBe(
+      'Die Abrechnung hat die KI-Bewertung abgelehnt.',
+    )
+  })
+
+  it('ignores every other error message', () => {
+    expect(describeBillingBlock('worker crashed', t)).toBeNull()
+    expect(describeBillingBlock(null, t)).toBeNull()
+    expect(describeBillingBlock(undefined, t)).toBeNull()
   })
 })

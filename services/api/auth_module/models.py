@@ -30,6 +30,11 @@ class User(BaseModel):
     # one-time Vertretbar plan-choice modal doesn't re-fire on fresh login.
     vertretbar_onboarding_completed_at: Optional[str] = None  # ISO-8601, matches /auth/me wire format
     exam_layout_prefs: Optional[dict] = None
+    # Display-name fields, also on /auth/me: the header shows the pseudonym
+    # of accounts an LMS launch created.
+    pseudonym: Optional[str] = None
+    use_pseudonym: bool = True
+    is_lms_account: bool = False
 
     # Several endpoints (signup, register, PATCH /users/{id}/...) use
     # response_model=User on a raw ORM row, so the datetime column reaches the
@@ -43,6 +48,23 @@ class User(BaseModel):
     @classmethod
     def _coerce_exam_layout(cls, v):
         return ensure_dict(v)
+
+    # Raw ORM rows and unit-test doubles reach these too: anything that is
+    # not a plain value degrades to the column default.
+    @field_validator("pseudonym", mode="before")
+    @classmethod
+    def _coerce_pseudonym(cls, v):
+        return v if isinstance(v, str) else None
+
+    @field_validator("use_pseudonym", mode="before")
+    @classmethod
+    def _coerce_use_pseudonym(cls, v):
+        return v if isinstance(v, bool) else True
+
+    @field_validator("is_lms_account", mode="before")
+    @classmethod
+    def _coerce_is_lms_account(cls, v):
+        return v if isinstance(v, bool) else False
 
     class Config:
         from_attributes = True

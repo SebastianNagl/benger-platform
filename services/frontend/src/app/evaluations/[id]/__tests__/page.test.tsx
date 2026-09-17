@@ -1127,6 +1127,23 @@ describe('EvaluationDashboard ([id] page)', () => {
       ).toBeInTheDocument()
     })
 
+    it('phrases a run the billing policy refused', async () => {
+      ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
+        ...baseEvaluation,
+        status: 'failed',
+        error_message: 'billing_blocked:org_key_missing',
+      })
+      renderPage()
+      const banner = await screen.findByTestId('evaluation-run-failed')
+      expect(
+        within(banner).getByTestId('evaluation-billing-blocked'),
+      ).toHaveTextContent('evaluations.detail.billingBlocked.orgKeyMissing')
+      // The raw code moves into the technical details.
+      const details = banner.querySelector('details')
+      expect(details).not.toBeNull()
+      expect(details).toHaveTextContent('billing_blocked:org_key_missing')
+    })
+
     it('shows the worker message for a failure without config records', async () => {
       ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue({
         ...baseEvaluation,

@@ -41,6 +41,20 @@ export function getUserDisplayName(user: User | null | undefined): string {
 }
 
 /**
+ * The name in the account menu of the expert header.
+ *
+ * LMS (LTI) accounts have a generated login name, so the header shows their
+ * display name (pseudonym by default). Every other account keeps its login
+ * name.
+ */
+export function getAccountMenuName(user: User): string {
+  if (user.is_lms_account) {
+    return getUserDisplayName(user)
+  }
+  return user.username
+}
+
+/**
  * Batch version for efficiently processing multiple users.
  *
  * Useful for displaying lists of users while respecting privacy preferences.

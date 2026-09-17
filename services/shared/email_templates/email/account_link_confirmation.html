@@ -1,0 +1,19 @@
+Subject: Confirm the link to your {{ brand_name }} account
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Link a learning platform sign-in</h2>
+    <p>A request was made through {% if connection_name %}the connection “{{ connection_name }}”{% else %}a learning platform connection{% endif %}{% if organization_name %} of the organization {{ organization_name }}{% endif %} to link a learning platform sign-in to your {{ brand_name }} account{% if frontend_host %} at {{ frontend_host }}{% endif %}.</p>
+    <p>Once you confirm, every sign-in through this connection opens your account.</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ confirm_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Confirm link
+        </a>
+    </p>
+    <p>Or copy this link into your browser:</p>
+    <p style="color: #059669;">{{ confirm_url }}</p>
+    <p><strong>If this wasn’t you, ignore this email.</strong> Your account then stays unchanged.</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        This link is valid for {{ expiry_hours }} hours and works only once.
+    </p>
+</body>
+</html>

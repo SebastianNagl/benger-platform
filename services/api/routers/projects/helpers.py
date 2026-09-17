@@ -7,7 +7,7 @@ These functions provide common operations used across multiple project endpoints
 from typing import Any, Dict, List, Optional
 
 from fastapi import HTTPException, Request
-from sqlalchemy import case, cast, func, or_, select
+from sqlalchemy import case, cast, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session, joinedload
@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session, joinedload
 from models import (
     EvaluationRun,
     Generation,
+    LtiPlatformRegistration,
+    LtiResourceLink,
     OrganizationMembership,
     OrganizationRole,
     ResponseGeneration,
@@ -25,11 +27,21 @@ from org_groups import (
     attachment_eligible,
     attachment_group_clause,
     build_select_group_admin_on_attachments,
+    drop_protected_lti_attachments,
     get_attachment_group_map,
     get_attachment_group_map_async,
+    get_linking_org_ids,
+    get_linking_org_ids_async,
+    get_lti_attachment_map,
+    get_lti_attachment_map_async,
+    get_lti_row_org_ids,
+    get_lti_row_org_ids_async,
     get_user_group_context,
     get_user_group_context_async,
     grants_full_tier,
+    linked_attachment_map,
+    lti_staff_role,
+    non_lti_attachment,
 )
 from project_models import (
     Annotation,
@@ -829,6 +841,12 @@ def get_accessible_project_ids(
                      org_id string = projects in that org
                      Ignored for superadmins — they always get an org-agnostic
                      view of every project across every org.
+                     Private exams that other users linked to an LMS activity
+                     follow the per-project deciders (D13): the private
+                     context lists every one the caller may open as staff of
+                     a linked org (:func:`get_lti_staff_project_ids`); an org
+                     context keeps a private project only for its creator or
+                     such staff.
         include_all_private: Superadmin-only opt-in. When True, the helper
                      returns None (no filter) so the caller sees every project
                      in the system, including other users' private projects.
@@ -883,17 +901,10 @@ def get_accessible_project_ids(
             )
             .all()
         )
-        seen = set()
-        result = []
-        for r in rows:
-            if r.id not in seen:
-                seen.add(r.id)
-                result.append(r.id)
-        for pid in public_ids:
-            if pid not in seen:
-                seen.add(pid)
-                result.append(pid)
-        return result
+        # The apex host always sends this context, so the LMS-linked private
+        # exams the caller may open as org staff are listed here too.
+        lti_ids = sorted(get_lti_staff_project_ids(db, user))
+        return _dedup_preserve_order([r.id for r in rows] + lti_ids, public_ids)
 
     # Org mode: verify membership then get org projects. Superadmins are
     # already handled above and never reach this branch.
@@ -923,7 +934,9 @@ def get_accessible_project_ids(
     # scoped attachments are eligible only for their group's members and the
     # creator — ORG_ADMINs see through group boundaries and skip the clause.
     org_query = (
-        db.query(ProjectOrganization.project_id)
+        db.query(
+            ProjectOrganization.project_id, Project.is_private, Project.created_by
+        )
         .join(Project, Project.id == ProjectOrganization.project_id)
         .filter(ProjectOrganization.organization_id == org_context, not_deleted())
     )
@@ -931,7 +944,17 @@ def get_accessible_project_ids(
         org_query = org_query.filter(
             attachment_group_clause(ProjectOrganization, str(user.id), project=Project)
         )
-    org_project_ids = [r.project_id for r in org_query.all()]
+    org_rows = org_query.all()
+    # A private project in the org (only LMS linking attaches one) is listed
+    # for its creator and for the staff the LMS grant opens it to.
+    hidden_private = _foreign_private_ids(org_rows, user)
+    if hidden_private:
+        hidden_private -= get_lti_staff_project_ids(
+            db, user, memberships=user_with_memberships.organization_memberships
+        )
+    org_project_ids = [
+        r.project_id for r in org_rows if r.project_id not in hidden_private
+    ]
     # ANNOTATOR members reach org exams through the student surface (narrow
     # participant tier) — the full-tier carve-out denies them the generic
     # project detail, so listing exams here would only produce dead entries
@@ -962,7 +985,51 @@ def get_accessible_project_ids(
                     .all()
                 }
         org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
+    # An org whose connections stay superadmin-run: other authors' exams it
+    # is attached to only through an LMS link are for its admins (and the
+    # attachment group's admins), like the per-project deciders.
+    if (
+        caller_role != OrganizationRole.ORG_ADMIN
+        and org_project_ids
+        and _lti_protected_org_ids(db, [org_context])
+    ):
+        admin_group_ids = {
+            gid for gid, is_admin in get_user_group_context(db, str(user.id)).items() if is_admin
+        }
+        rows = db.execute(
+            _build_select_protected_lti_list_rows(user.id, org_context, org_project_ids)
+        ).all()
+        hidden = _protected_lti_list_hidden(rows, admin_group_ids)
+        org_project_ids = [pid for pid in org_project_ids if pid not in hidden]
     return _dedup_preserve_order(org_project_ids, public_ids)
+
+
+def _build_select_protected_lti_list_rows(user_id, org_id: str, project_ids):
+    """Shared SQL builder: other users' non-private exams among
+    ``project_ids`` attached to ``org_id`` by an LMS link, as
+    (project, group) rows."""
+    return (
+        select(ProjectOrganization.project_id, ProjectOrganization.group_id)
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(
+            ProjectOrganization.project_id.in_(list(project_ids)),
+            ProjectOrganization.organization_id == org_id,
+            ProjectOrganization.attached_via == "lti",
+            Project.kind == "exam",
+            Project.is_private.isnot(True),
+            Project.created_by != str(user_id),
+        )
+    )
+
+
+def _protected_lti_list_hidden(rows, admin_group_ids) -> set:
+    """Pure: the listed projects a non-admin of the protected org does not
+    get (the rows of the builder above, minus groups they administer)."""
+    return {
+        project_id
+        for project_id, group_id in rows
+        if not (group_id and str(group_id) in admin_group_ids)
+    }
 
 
 def _dedup_preserve_order(ids, extra=()):
@@ -980,6 +1047,158 @@ def _dedup_preserve_order(ids, extra=()):
             seen.add(i)
             result.append(i)
     return result
+
+
+# ── LMS-linked private exams in the project lists (D13) ─────────────────────
+# The per-project deciders open another user's private exam to the staff of
+# an org it is LMS-linked to (``org_groups.lti_staff_role``). The helpers
+# below find those exams in bulk and hand every candidate to that same pure
+# predicate, so the lists and the deciders cannot disagree.
+
+
+def _foreign_private_ids(rows, user) -> set:
+    """Ids of the private projects among org-list ``rows`` (``project_id``,
+    ``is_private``, ``created_by``) that the caller did not create."""
+    uid = str(user.id)
+    return {r.project_id for r in rows if r.is_private and str(r.created_by) != uid}
+
+
+def _lti_staff_reach(memberships, user_groups):
+    """Where the LMS staff grant can come from (pure; a pre-filter only).
+
+    Returns ``(staff_org_ids, admin_group_ids)``: the orgs with an active
+    CONTRIBUTOR or ORG_ADMIN membership, and the groups the user
+    group-admins. An attachment outside both never passes
+    :func:`org_groups.lti_staff_role`, so skipping it changes nothing.
+    """
+    staff_org_ids = {
+        str(m.organization_id)
+        for m in memberships or ()
+        if m.is_active and _role_rank(m.role) >= _role_rank("CONTRIBUTOR")
+    }
+    admin_group_ids = {
+        str(gid) for gid, is_admin in (user_groups or {}).items() if is_admin
+    }
+    return staff_org_ids, admin_group_ids
+
+
+def _build_select_lti_staff_candidates(user_id: str, staff_org_ids, admin_group_ids):
+    """Shared SQL builder: LMS-linking attachments that may open another
+    user's private exam to ``user_id``, as (project, org, group) rows.
+
+    Same rows as ``org_groups._lti_attachment_filters`` (``attached_via='lti'``
+    and an activity of a connection of that org still points at the exam),
+    for many projects at once; change both together. Only rows in the
+    ``_lti_staff_reach`` orgs and groups are read.
+    """
+    still_linked = exists().where(
+        LtiResourceLink.project_id == ProjectOrganization.project_id,
+        LtiResourceLink.registration_id == LtiPlatformRegistration.id,
+        LtiPlatformRegistration.organization_id == ProjectOrganization.organization_id,
+    )
+    reach = []
+    if staff_org_ids:
+        reach.append(ProjectOrganization.organization_id.in_(sorted(staff_org_ids)))
+    if admin_group_ids:
+        reach.append(ProjectOrganization.group_id.in_(sorted(admin_group_ids)))
+    return (
+        select(
+            ProjectOrganization.project_id,
+            ProjectOrganization.organization_id,
+            ProjectOrganization.group_id,
+        )
+        .join(Project, Project.id == ProjectOrganization.project_id)
+        .where(
+            Project.is_private == True,  # noqa: E712
+            Project.kind == "exam",
+            Project.created_by != str(user_id),
+            not_deleted(),
+            ProjectOrganization.attached_via == "lti",
+            still_linked,
+            or_(*reach),
+        )
+    )
+
+
+def _pick_lti_staff_projects(rows, memberships, user_groups, protected_org_ids) -> set:
+    """Pure: the candidate projects :func:`org_groups.lti_staff_role` grants.
+
+    ``rows`` are the (project, org, group) rows of the builder above. The
+    per-project map holds only the caller's reachable orgs; the orgs it
+    leaves out never grant anything, so the answer equals the decider's.
+    """
+    by_project: Dict[str, Dict[str, Optional[str]]] = {}
+    for project_id, org_id, group_id in rows:
+        by_project.setdefault(str(project_id), {})[str(org_id)] = (
+            str(group_id) if group_id else None
+        )
+    return {
+        project_id
+        for project_id, lti_attachments in by_project.items()
+        if lti_staff_role(
+            "exam",
+            memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids=protected_org_ids,
+        )
+        is not None
+    }
+
+
+def get_lti_staff_project_ids(db: Session, user, memberships=None) -> set:
+    """Other users' private exams the caller opens as LMS-linked org staff.
+
+    The bulk form of the private-exam rule in the per-project deciders
+    (creator excluded, soft-deleted excluded, archived included). Empty for
+    users without an active staff membership or group-admin role, which
+    costs at most two reads. ``memberships`` may pass the already loaded
+    ``organization_memberships``.
+    """
+    if memberships is None:
+        loaded = get_user_with_memberships(db, str(user.id))
+        memberships = loaded.organization_memberships if loaded is not None else ()
+    memberships = [m for m in memberships or () if m.is_active]
+    if not memberships:
+        return set()
+    user_groups = get_user_group_context(db, str(user.id))
+    staff_org_ids, admin_group_ids = _lti_staff_reach(memberships, user_groups)
+    if not staff_org_ids and not admin_group_ids:
+        return set()
+    rows = db.execute(
+        _build_select_lti_staff_candidates(user.id, staff_org_ids, admin_group_ids)
+    ).all()
+    if not rows:
+        return set()
+    protected_org_ids = _lti_protected_org_ids(db, {str(r[1]) for r in rows})
+    return _pick_lti_staff_projects(rows, memberships, user_groups, protected_org_ids)
+
+
+async def get_lti_staff_project_ids_async(
+    db: AsyncSession, user, memberships=None
+) -> set:
+    """Async twin of :func:`get_lti_staff_project_ids`."""
+    if memberships is None:
+        loaded = await get_user_with_memberships_async(db, str(user.id))
+        memberships = loaded.organization_memberships if loaded is not None else ()
+    memberships = [m for m in memberships or () if m.is_active]
+    if not memberships:
+        return set()
+    user_groups = await get_user_group_context_async(db, str(user.id))
+    staff_org_ids, admin_group_ids = _lti_staff_reach(memberships, user_groups)
+    if not staff_org_ids and not admin_group_ids:
+        return set()
+    rows = (
+        await db.execute(
+            _build_select_lti_staff_candidates(user.id, staff_org_ids, admin_group_ids)
+        )
+    ).all()
+    if not rows:
+        return set()
+    protected_org_ids = await _lti_protected_org_ids_async(
+        db, {str(r[1]) for r in rows}
+    )
+    return _pick_lti_staff_projects(rows, memberships, user_groups, protected_org_ids)
 
 
 async def get_accessible_project_ids_async(
@@ -1022,7 +1241,9 @@ async def get_accessible_project_ids_async(
                 )
             )
         ).all()
-        return _dedup_preserve_order([r.id for r in rows], public_ids)
+        # Lockstep with the sync helper: LMS-linked private exams of staff.
+        lti_ids = sorted(await get_lti_staff_project_ids_async(db, user))
+        return _dedup_preserve_order([r.id for r in rows] + lti_ids, public_ids)
 
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     user_org_ids = []
@@ -1051,7 +1272,7 @@ async def get_accessible_project_ids_async(
     # One joined query: org projects that are not soft-deleted (093). Mirror
     # of the sync helper's group-eligibility clause — ORG_ADMINs skip it.
     org_stmt = (
-        select(ProjectOrganization.project_id)
+        select(ProjectOrganization.project_id, Project.is_private, Project.created_by)
         .join(Project, Project.id == ProjectOrganization.project_id)
         .where(ProjectOrganization.organization_id == org_context, not_deleted())
     )
@@ -1060,7 +1281,14 @@ async def get_accessible_project_ids_async(
             attachment_group_clause(ProjectOrganization, str(user.id), project=Project)
         )
     rows = (await db.execute(org_stmt)).all()
-    org_project_ids = [r.project_id for r in rows]
+    # Mirror of the sync helper: private projects only for their creator
+    # and the staff of an org the exam is LMS-linked to.
+    hidden_private = _foreign_private_ids(rows, user)
+    if hidden_private:
+        hidden_private -= await get_lti_staff_project_ids_async(
+            db, user, memberships=user_with_memberships.organization_memberships
+        )
+    org_project_ids = [r.project_id for r in rows if r.project_id not in hidden_private]
     # Mirror of the sync helper: annotators reach org exams via the student
     # surface only, so keep exam ids out of the generic browser list —
     # except exams attached via a group the caller group-admins.
@@ -1093,6 +1321,28 @@ async def get_accessible_project_ids_async(
                 ).all()
                 exam_ids -= {r.project_id for r in admin_exam_rows}
         org_project_ids = [pid for pid in org_project_ids if pid not in exam_ids]
+    # Mirror of the sync helper: the protected-org rule for LMS-linked exams.
+    if (
+        caller_role != OrganizationRole.ORG_ADMIN
+        and org_project_ids
+        and await _lti_protected_org_ids_async(db, [org_context])
+    ):
+        admin_group_ids = {
+            gid
+            for gid, is_admin in (
+                await get_user_group_context_async(db, str(user.id))
+            ).items()
+            if is_admin
+        }
+        protected_rows = (
+            await db.execute(
+                _build_select_protected_lti_list_rows(
+                    user.id, org_context, org_project_ids
+                )
+            )
+        ).all()
+        hidden = _protected_lti_list_hidden(protected_rows, admin_group_ids)
+        org_project_ids = [pid for pid in org_project_ids if pid not in hidden]
     return _dedup_preserve_order(org_project_ids, public_ids)
 
 
@@ -1128,6 +1378,119 @@ def _org_grants_full_tier(
     )
 
 
+def _decide_private_project(
+    user,
+    project,
+    user_with_memberships,
+    lti_attachments,
+    user_groups,
+    protected_org_ids=None,
+) -> bool:
+    """Shared private-project rule of both pure deciders (no DB).
+
+    The creator, plus eligible staff of an org the exam is LMS-linked to
+    (``org_groups.lti_staff_role``), whatever org context the client sent.
+    ``lti_attachments`` omitted (None) keeps the creator-only rule;
+    ``protected_org_ids`` are the linked orgs whose connections stay
+    superadmin-run (only their admins count).
+    """
+    if str(user.id) == str(project.created_by):
+        return True
+    memberships = (
+        user_with_memberships.organization_memberships
+        if user_with_memberships is not None
+        else None
+    )
+    return (
+        lti_staff_role(
+            getattr(project, "kind", None),
+            memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids=protected_org_ids,
+        )
+        is not None
+    )
+
+
+def _lti_protected_org_ids(db: Session, lti_attachments) -> set:
+    """Sync: the linked orgs whose connections stay superadmin-run.
+
+    Fails closed (``extensions.lti_protected_org_subset``): a broken hook
+    counts every linked org as protected.
+    """
+    if not lti_attachments:
+        return set()
+    import extensions
+
+    return extensions.lti_protected_org_subset(db, list(lti_attachments))
+
+
+async def _lti_protected_org_ids_async(db: AsyncSession, lti_attachments) -> set:
+    """Async twin of :func:`_lti_protected_org_ids` (the hooks are sync)."""
+    if not lti_attachments:
+        return set()
+    import extensions
+
+    org_ids = list(lti_attachments)
+    return await db.run_sync(
+        lambda sync_db: extensions.lti_protected_org_subset(sync_db, org_ids)
+    )
+
+
+def _memberships_of(user_with_memberships):
+    """The loaded memberships (only iterated when a rule needs them)."""
+    if user_with_memberships is None:
+        return ()
+    return getattr(user_with_memberships, "organization_memberships", None) or ()
+
+
+def _needs_protected_lti_filter(user, project) -> bool:
+    """Whether ``project`` is someone else's non-private exam, where the LMS
+    attachments of protected orgs count only for their admins
+    (``org_groups.drop_protected_lti_attachments``). Strict string and bool
+    checks keep the mock-based unit tests on the generic path."""
+    return (
+        project is not None
+        and getattr(project, "kind", None) == "exam"
+        and getattr(project, "is_private", False) is not True
+        and not getattr(user, "is_superadmin", False)
+        and str(getattr(project, "created_by", "")) != str(getattr(user, "id", user))
+    )
+
+
+def _drop_protected_lti_rows(
+    db: Session, user, project, attachment_groups, memberships, user_groups
+):
+    """Sync: ``attachment_groups`` as they count for ``user`` on ``project``
+    (the protected-org rule on non-private exams; fails closed)."""
+    if not attachment_groups or not _needs_protected_lti_filter(user, project):
+        return attachment_groups
+    lti_orgs = get_lti_row_org_ids(db, str(project.id)) & set(attachment_groups)
+    protected = _lti_protected_org_ids(db, lti_orgs)
+    if not protected:
+        return attachment_groups
+    return drop_protected_lti_attachments(
+        attachment_groups, protected, memberships, user_groups
+    )
+
+
+async def _drop_protected_lti_rows_async(
+    db: AsyncSession, user, project, attachment_groups, memberships, user_groups
+):
+    """Async twin of :func:`_drop_protected_lti_rows`."""
+    if not attachment_groups or not _needs_protected_lti_filter(user, project):
+        return attachment_groups
+    lti_orgs = await get_lti_row_org_ids_async(db, str(project.id))
+    lti_orgs &= set(attachment_groups)
+    protected = await _lti_protected_org_ids_async(db, lti_orgs)
+    if not protected:
+        return attachment_groups
+    return drop_protected_lti_attachments(
+        attachment_groups, protected, memberships, user_groups
+    )
+
+
 def _decide_project_accessible_context_mode(
     user,
     project,
@@ -1137,6 +1500,9 @@ def _decide_project_accessible_context_mode(
     *,
     attachment_groups=None,
     user_groups=None,
+    lti_attachments=None,
+    protected_org_ids=None,
+    linked_attachments=None,
 ) -> bool:
     """Org-context-mode decision (pure; no DB). Mirrors the inline logic.
 
@@ -1144,16 +1510,45 @@ def _decide_project_accessible_context_mode(
     ({group_id: is_group_admin}) carry the group axis; omitted (None) they
     fall back to "every attachment is org-wide" — pre-groups behavior, kept
     for legacy callers. Production wrappers always pass both.
+    ``lti_attachments`` ({org_id: group_id|None} of ``attached_via='lti'``
+    rows) opens a private exam to the linked orgs' eligible staff, under any
+    context including ``private``; omitted, private stays creator-only.
+    ``linked_attachments`` (``org_groups.linked_attachment_map``) does the
+    same for someone else's non-private exam under the ``private`` context,
+    which the LMS landing pages on the apex host send; omitted, that stays
+    creator-only. ``protected_org_ids``: linked orgs where only admins count.
     """
     if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
+        return _decide_private_project(
+            user,
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids,
+        )
 
     if org_context == "private":
         # Creator keeps access to their own org-assigned projects from the
         # private context — otherwise the refetch right after an
         # org-visibility switch (client still sends the private context)
         # 403s and the project vanishes from the creator's private scope.
-        return str(user.id) == str(project.created_by)
+        if str(user.id) == str(project.created_by):
+            return True
+        # Staff of an org that links the exam to an LMS activity (D13/D14):
+        # the teacher view and its Korrektur link run without an org
+        # subdomain. Same rule as on private exams, so nobody gets more
+        # than their org context already gives them.
+        return (
+            lti_staff_role(
+                getattr(project, "kind", None),
+                _memberships_of(user_with_memberships),
+                linked_attachments,
+                user_groups,
+                protected_org_ids=protected_org_ids,
+            )
+            is not None
+        )
 
     if org_context not in project_org_ids:
         return False
@@ -1185,14 +1580,25 @@ def _decide_project_accessible_legacy_mode(
     *,
     attachment_groups=None,
     user_groups=None,
+    lti_attachments=None,
+    protected_org_ids=None,
 ) -> bool:
     """Legacy-mode (org_context=None) decision (pure; no DB).
 
     Evaluated per attachment (not org-set intersection) so a group-scoped
-    attachment only counts through an eligible membership.
+    attachment only counts through an eligible membership. Private projects
+    follow the same rule as context mode (creator, plus LMS-linked staff
+    when ``lti_attachments`` is given).
     """
     if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
+        return _decide_private_project(
+            user,
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            protected_org_ids,
+        )
 
     if not project_org_ids:
         return str(user.id) == str(project.created_by)
@@ -1218,6 +1624,28 @@ def _decide_project_accessible_legacy_mode(
     return False
 
 
+def _private_exam_needs_lti_map(project, is_creator: bool) -> bool:
+    """Whether the private-project decision needs the LMS attachment map:
+    only someone else's private exam can be opened through one."""
+    return (
+        bool(getattr(project, "is_private", False))
+        and not is_creator
+        and getattr(project, "kind", None) == "exam"
+    )
+
+
+def _private_context_needs_linked_map(project, is_creator: bool, org_context) -> bool:
+    """Whether the ``private``-context decision on a non-private project
+    needs the linked attachment map: only someone else's exam can be opened
+    there, by staff of an org that links it."""
+    return (
+        org_context == "private"
+        and not bool(getattr(project, "is_private", False))
+        and not is_creator
+        and getattr(project, "kind", None) == "exam"
+    )
+
+
 def check_project_accessible(
     db: Session,
     user,
@@ -1233,7 +1661,8 @@ def check_project_accessible(
         project_id: Project to check access for
         org_context: Value of X-Organization-Context header.
             When provided, enforces context-aware checking:
-            - "private" -> only creator's own private projects
+            - "private" -> the creator, plus staff of an org that links the
+              exam to an LMS activity (the LMS landing pages send it)
             - org_id -> project must belong to that org, user must be member
             When None, falls back to legacy behavior (any org membership).
         project: Optional pre-loaded Project object to avoid redundant DB query.
@@ -1262,22 +1691,52 @@ def check_project_accessible(
     if getattr(project, "is_public", False) is True:
         return True
 
-    # Fast-paths that need no org/group reads: a private project and the
-    # private context resolve purely on creatorship (the deciders below
-    # apply the same rule — this just skips three queries on those paths).
-    if getattr(project, "is_private", False):
-        return str(user.id) == str(project.created_by)
-    if org_context == "private":
-        return str(user.id) == str(project.created_by)
+    # Fast-paths that need no org/group reads: the creator of a private
+    # project, a private non-exam, and the private context on a non-private
+    # project resolve purely on creatorship (the deciders below apply the
+    # same rule — this just skips the reads on those paths). A private exam
+    # of someone else falls through: its LMS attachments may grant staff.
+    is_creator = str(user.id) == str(project.created_by)
+    needs_lti = _private_exam_needs_lti_map(project, is_creator)
+    needs_linked = _private_context_needs_linked_map(project, is_creator, org_context)
+    if getattr(project, "is_private", False) and not needs_lti:
+        return is_creator
+    if (
+        not getattr(project, "is_private", False)
+        and org_context == "private"
+        and not needs_linked
+    ):
+        return is_creator
+    linking_org_ids = get_linking_org_ids(db, project_id) if needs_linked else None
+    if needs_linked and not linking_org_ids:
+        return False
 
     # Both modes now delegate to the pure deciders (same as the async lane)
     # so the sync/async semantics — including the group-eligibility axis —
     # cannot drift. The reads stay on the legacy ``db.query`` API for the
     # mock-based unit tests.
+    lti_attachments = get_lti_attachment_map(db, project_id) if needs_lti else None
+    if needs_lti and not lti_attachments:
+        return False
+    protected_org_ids = _lti_protected_org_ids(db, lti_attachments)
     attachment_groups = get_attachment_group_map(db, project_id)
-    project_org_ids = list(attachment_groups.keys())
     user_with_memberships = get_user_with_memberships(db, str(user.id))
     user_groups = get_user_group_context(db, str(user.id))
+    attachment_groups = _drop_protected_lti_rows(
+        db,
+        user,
+        project,
+        attachment_groups,
+        _memberships_of(user_with_memberships),
+        user_groups,
+    )
+    project_org_ids = list(attachment_groups.keys())
+    linked_attachments = None
+    if needs_linked:
+        linked_attachments = linked_attachment_map(attachment_groups, linking_org_ids)
+        if not linked_attachments:
+            return False
+        protected_org_ids = _lti_protected_org_ids(db, linked_attachments)
 
     if org_context is not None:
         return _decide_project_accessible_context_mode(
@@ -1288,6 +1747,9 @@ def check_project_accessible(
             user_with_memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
+            linked_attachments=linked_attachments,
         )
     return _decide_project_accessible_legacy_mode(
         user,
@@ -1296,6 +1758,8 @@ def check_project_accessible(
         user_with_memberships,
         attachment_groups=attachment_groups,
         user_groups=user_groups,
+        lti_attachments=lti_attachments,
+        protected_org_ids=protected_org_ids,
     )
 
 
@@ -1327,10 +1791,39 @@ async def check_project_accessible_async(
     if getattr(project, "is_public", False) is True:
         return True
 
+    # The LMS attachment map is only an input for someone else's private
+    # exam (lockstep with the sync lane, which skips every read otherwise).
+    is_creator = str(user.id) == str(project.created_by)
+    lti_attachments = None
+    if _private_exam_needs_lti_map(project, is_creator):
+        lti_attachments = await get_lti_attachment_map_async(db, project_id)
+        if not lti_attachments:
+            return False
+    needs_linked = _private_context_needs_linked_map(project, is_creator, org_context)
+    linking_org_ids = None
+    if needs_linked:
+        linking_org_ids = await get_linking_org_ids_async(db, project_id)
+        if not linking_org_ids:
+            return False
+    protected_org_ids = await _lti_protected_org_ids_async(db, lti_attachments)
     attachment_groups = await get_attachment_group_map_async(db, project_id)
-    project_org_ids = list(attachment_groups.keys())
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     user_groups = await get_user_group_context_async(db, str(user.id))
+    attachment_groups = await _drop_protected_lti_rows_async(
+        db,
+        user,
+        project,
+        attachment_groups,
+        _memberships_of(user_with_memberships),
+        user_groups,
+    )
+    project_org_ids = list(attachment_groups.keys())
+    linked_attachments = None
+    if needs_linked:
+        linked_attachments = linked_attachment_map(attachment_groups, linking_org_ids)
+        if not linked_attachments:
+            return False
+        protected_org_ids = await _lti_protected_org_ids_async(db, linked_attachments)
 
     if org_context is not None:
         return _decide_project_accessible_context_mode(
@@ -1341,6 +1834,9 @@ async def check_project_accessible_async(
             user_with_memberships,
             attachment_groups=attachment_groups,
             user_groups=user_groups,
+            lti_attachments=lti_attachments,
+            protected_org_ids=protected_org_ids,
+            linked_attachments=linked_attachments,
         )
     return _decide_project_accessible_legacy_mode(
         user,
@@ -1349,6 +1845,8 @@ async def check_project_accessible_async(
         user_with_memberships,
         attachment_groups=attachment_groups,
         user_groups=user_groups,
+        lti_attachments=lti_attachments,
+        protected_org_ids=protected_org_ids,
     )
 
 
@@ -1535,6 +2033,66 @@ def _build_select_org_admin_membership(user_id, project_org_ids):
             OrganizationMembership.is_active == True,  # noqa: E712
         )
     )
+
+
+async def get_soft_deletable_project_ids_async(db: AsyncSession, user, projects) -> set:
+    """Ids among the loaded ``projects`` the user may soft-delete (batched).
+
+    The one place of the delete rule (``DELETE /projects/{id}``, bulk delete,
+    and the delete controls of the student exam list and detail):
+    superadmins delete everything. Only manual org attachments count: an LMS
+    link (``attached_via='lti'``) opens an exam to the linking org's staff
+    but never hands deletion to them, nor takes it from the creator, at any
+    visibility. A private project is its creator's alone. Otherwise a
+    project without manual org rows is the creator's, and a project with
+    them needs an active ORG_ADMIN membership in one of those orgs (a mere
+    CONTRIBUTOR creator cannot delete it out from under the org).
+    """
+    projects = [p for p in projects if p is not None]
+    if getattr(user, "is_superadmin", False):
+        return {p.id for p in projects}
+    uid = str(user.id)
+    allowed = set()
+    shared = []
+    for project in projects:
+        if project.is_private:
+            if str(project.created_by) == uid:
+                allowed.add(project.id)
+        else:
+            shared.append(project)
+    if not shared:
+        return allowed
+    orgs_by_project: Dict[str, set] = {}
+    rows = await db.execute(
+        select(
+            ProjectOrganization.project_id,
+            ProjectOrganization.organization_id,
+            non_lti_attachment(ProjectOrganization),
+        ).where(ProjectOrganization.project_id.in_([p.id for p in shared]))
+    )
+    for project_id, org_id, is_manual in rows.all():
+        if is_manual:
+            orgs_by_project.setdefault(str(project_id), set()).add(str(org_id))
+    all_orgs = set().union(*orgs_by_project.values()) if orgs_by_project else set()
+    admin_orgs = set()
+    if all_orgs:
+        admin_rows = await db.execute(
+            select(OrganizationMembership.organization_id).where(
+                OrganizationMembership.user_id == uid,
+                OrganizationMembership.organization_id.in_(sorted(all_orgs)),
+                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+        )
+        admin_orgs = {str(org_id) for org_id in admin_rows.scalars().all()}
+    for project in shared:
+        org_ids = orgs_by_project.get(str(project.id))
+        if not org_ids:
+            if str(project.created_by) == uid:
+                allowed.add(project.id)
+        elif org_ids & admin_orgs:
+            allowed.add(project.id)
+    return allowed
 
 
 def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
@@ -1795,6 +2353,22 @@ def _resolve_effective_role(
 PARTICIPANT_EFFECTIVE_ROLE = "ANNOTATOR"
 
 
+def _private_project_role(
+    project, user_with_memberships, lti_attachments, user_groups, protected
+) -> Optional[str]:
+    """Pure: the org role someone else holds on a PRIVATE project.
+
+    Only a live, non-protected LMS link of an exam counts
+    (:func:`_private_edit_role`); plain, stale or manual org rows give
+    nothing, as in the access and edit checks.
+    """
+    if getattr(project, "kind", None) != "exam" or not lti_attachments:
+        return None
+    return _private_edit_role(
+        user_with_memberships, lti_attachments, user_groups, protected
+    )
+
+
 def get_effective_project_role(
     db: Session,
     user,
@@ -1805,9 +2379,13 @@ def get_effective_project_role(
     Returns one of: "ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR", or None.
     Resolution order:
       1. Superadmin or project creator → ORG_ADMIN.
-      2. Active org membership in any org assigned to this project → that role.
-      3. Project is public and user has no other claim → project.public_role.
-      4. Otherwise → None.
+      2. Someone else's private project: only the staff role a live LMS link
+         grants (the private rule of the access and edit checks).
+      3. Otherwise, active org membership in any org assigned to this
+         project → that role (on someone else's exam, LMS attachments of
+         protected orgs count only for their admins).
+      4. Project is public and user has no other claim → project.public_role.
+      5. A participant grant → ANNOTATOR. Otherwise → None.
 
     Sync body kept on the legacy ``db.query`` API to preserve the existing
     ``db.query``-mocking unit tests; the async twin lives below.
@@ -1816,16 +2394,39 @@ def get_effective_project_role(
         return "ORG_ADMIN"
 
     user_with_memberships = get_user_with_memberships(db, str(user.id))
-    attachment_groups = get_attachment_group_map(db, str(project.id))
-    user_groups = get_user_group_context(db, str(user.id))
-    role = _resolve_effective_role(
-        user,
-        project,
-        user_with_memberships,
-        list(attachment_groups.keys()),
-        attachment_groups=attachment_groups,
-        user_groups=user_groups,
-    )
+    if _is_private_row(project):
+        user_groups = get_user_group_context(db, str(user.id))
+        lti_attachments = (
+            get_lti_attachment_map(db, str(project.id))
+            if getattr(project, "kind", None) == "exam"
+            else {}
+        )
+        role = _private_project_role(
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            _lti_protected_org_ids(db, lti_attachments),
+        )
+    else:
+        attachment_groups = get_attachment_group_map(db, str(project.id))
+        user_groups = get_user_group_context(db, str(user.id))
+        attachment_groups = _drop_protected_lti_rows(
+            db,
+            user,
+            project,
+            attachment_groups,
+            _memberships_of(user_with_memberships),
+            user_groups,
+        )
+        role = _resolve_effective_role(
+            user,
+            project,
+            user_with_memberships,
+            list(attachment_groups.keys()),
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
+        )
     if role is None and get_student_read_access(db, user, str(project.id)):
         return PARTICIPANT_EFFECTIVE_ROLE
     return role
@@ -1841,16 +2442,39 @@ async def get_effective_project_role_async(
         return "ORG_ADMIN"
 
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
-    attachment_groups = await get_attachment_group_map_async(db, str(project.id))
-    user_groups = await get_user_group_context_async(db, str(user.id))
-    role = _resolve_effective_role(
-        user,
-        project,
-        user_with_memberships,
-        list(attachment_groups.keys()),
-        attachment_groups=attachment_groups,
-        user_groups=user_groups,
-    )
+    if _is_private_row(project):
+        user_groups = await get_user_group_context_async(db, str(user.id))
+        lti_attachments = (
+            await get_lti_attachment_map_async(db, str(project.id))
+            if getattr(project, "kind", None) == "exam"
+            else {}
+        )
+        role = _private_project_role(
+            project,
+            user_with_memberships,
+            lti_attachments,
+            user_groups,
+            await _lti_protected_org_ids_async(db, lti_attachments),
+        )
+    else:
+        attachment_groups = await get_attachment_group_map_async(db, str(project.id))
+        user_groups = await get_user_group_context_async(db, str(user.id))
+        attachment_groups = await _drop_protected_lti_rows_async(
+            db,
+            user,
+            project,
+            attachment_groups,
+            _memberships_of(user_with_memberships),
+            user_groups,
+        )
+        role = _resolve_effective_role(
+            user,
+            project,
+            user_with_memberships,
+            list(attachment_groups.keys()),
+            attachment_groups=attachment_groups,
+            user_groups=user_groups,
+        )
     if role is None and await get_student_read_access_async(db, user, str(project.id)):
         return PARTICIPANT_EFFECTIVE_ROLE
     return role
@@ -2065,21 +2689,53 @@ def get_project_access_tier(
     return None
 
 
+def _build_select_project_attachment_kinds(project_id: str):
+    """Shared SQL builder: the project's attachments as (org id, is manual)."""
+    return select(
+        ProjectOrganization.organization_id,
+        non_lti_attachment(ProjectOrganization),
+    ).where(ProjectOrganization.project_id == project_id)
+
+
+def _share_manager_by_attachments(user, project, rows):
+    """Pure first step of the share-management gates.
+
+    ``rows`` are (org_id, is_manual) pairs. Returns ``(decided, org_ids)``:
+    ``decided`` is True/False when the rows settle it, None when the org
+    admin / group admin checks must run over ``org_ids``. Only a MANUAL org
+    attachment takes share management away from the creator; linking the
+    exam to an LMS activity (``attached_via='lti'``) does not.
+    """
+    org_ids = [str(org_id) for org_id, _ in rows]
+    if not org_ids:
+        return str(user.id) == str(project.created_by), org_ids
+    if str(user.id) == str(project.created_by) and not any(
+        manual for _, manual in rows
+    ):
+        return True, org_ids
+    return None, org_ids
+
+
 async def check_user_can_manage_shares_async(db: AsyncSession, user, project: Project) -> bool:
     """Whether a user may create / update / revoke share links on a project.
 
-    Org projects (≥1 ``ProjectOrganization`` row): only active ORG_ADMIN
-    members of one of those orgs — deliberately NO creator fast-path, so a
-    CONTRIBUTOR who created an org project cannot let outside people in on
-    their own. Personal projects (no org rows): the creator. Superadmins
-    always. Viewing links / the roster / evicting stays on the edit tier.
+    Org projects (≥1 manual ``ProjectOrganization`` row): only active
+    ORG_ADMIN members of one of the project's orgs — deliberately NO creator
+    fast-path, so a CONTRIBUTOR who created an org project cannot let outside
+    people in on their own. Personal projects (no org rows, or only rows
+    created by LMS linking): the creator. The attached orgs' ORG_ADMINs and
+    the attachments' group admins also manage an LMS-linked exam.
+    Superadmins always. Viewing links / the roster / evicting stays on the
+    edit tier.
     """
     if user.is_superadmin:
         return True
-    org_result = await db.execute(_build_select_project_org_ids(project.id))
-    project_org_ids = list(org_result.scalars().all())
-    if not project_org_ids:
-        return str(user.id) == str(project.created_by)
+    rows = (
+        await db.execute(_build_select_project_attachment_kinds(project.id))
+    ).all()
+    decided, project_org_ids = _share_manager_by_attachments(user, project, rows)
+    if decided is not None:
+        return decided
     admin_result = await db.execute(
         _build_select_org_admin_membership(user.id, project_org_ids)
     )
@@ -2097,14 +2753,10 @@ def check_user_can_manage_shares(db: Session, user, project: Project) -> bool:
     """Sync twin of :func:`check_user_can_manage_shares_async`."""
     if user.is_superadmin:
         return True
-    project_org_ids = [
-        r.organization_id
-        for r in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project.id)
-        .all()
-    ]
-    if not project_org_ids:
-        return str(user.id) == str(project.created_by)
+    rows = db.execute(_build_select_project_attachment_kinds(project.id)).all()
+    decided, project_org_ids = _share_manager_by_attachments(user, project, rows)
+    if decided is not None:
+        return decided
     if (
         db.execute(_build_select_org_admin_membership(user.id, project_org_ids)).first()
         is not None
@@ -2262,7 +2914,11 @@ def check_user_can_edit_project(
     """Check if a user can edit a project (creator, superadmin, or allowed org role).
 
     Used for project updates, bulk task operations, and other write actions.
-    Does NOT check project accessibility — call check_project_accessible first.
+    Does NOT check general project accessibility (public projects, archived
+    annotators, org context) — call check_project_accessible first. It does
+    apply the private-project rule itself (:func:`_private_edit_role`), so a
+    caller that skips the access check cannot hand someone else's private
+    project to a plain org member.
     """
     if user.is_superadmin:
         return True
@@ -2275,6 +2931,23 @@ def check_user_can_edit_project(
     if project and str(project.created_by) == str(user.id):
         return True
 
+    if _is_private_row(project):
+        if getattr(project, "kind", None) != "exam":
+            return False
+        lti_attachments = get_lti_attachment_map(db, project_id)
+        if not lti_attachments:
+            return False
+        user_with_memberships = get_user_with_memberships(db, str(user.id))
+        return (
+            _private_edit_role(
+                user_with_memberships,
+                lti_attachments,
+                get_user_group_context(db, str(user.id)),
+                _lti_protected_org_ids(db, lti_attachments),
+            )
+            in allowed_roles
+        )
+
     # Check org role — a membership only counts through an ELIGIBLE
     # attachment (group axis), and eligibility via a group the user
     # group-admins upgrades that attachment's role to ORG_ADMIN.
@@ -2282,6 +2955,16 @@ def check_user_can_edit_project(
     if user_with_memberships and user_with_memberships.organization_memberships:
         attachment_groups = get_attachment_group_map(db, project_id)
         user_groups = get_user_group_context(db, str(user.id))
+        # On someone else's exam, protected orgs' LMS rows count only for
+        # their admins (same rule as the private branch above).
+        attachment_groups = _drop_protected_lti_rows(
+            db,
+            user,
+            project,
+            attachment_groups,
+            user_with_memberships.organization_memberships,
+            user_groups,
+        )
         return _membership_grants_edit(
             user_with_memberships.organization_memberships,
             attachment_groups,
@@ -2290,6 +2973,36 @@ def check_user_can_edit_project(
         )
 
     return False
+
+
+def _is_private_row(project) -> bool:
+    """Whether a loaded project row is private. Strict ``is True`` so the
+    mock-based unit tests (whose ``Mock`` rows answer every attribute with a
+    truthy ``Mock``) keep the generic path."""
+    return project is not None and getattr(project, "is_private", False) is True
+
+
+def _private_edit_role(user_with_memberships, lti_attachments, user_groups, protected):
+    """Pure: the edit role on someone else's private exam (or None).
+
+    Plain org memberships never count on a private project. The only path is
+    a live LMS link, with the same staff rule the access deciders apply
+    (:func:`org_groups.lti_staff_role`: active, group-eligible CONTRIBUTOR or
+    ORG_ADMIN, only admins for protected orgs). Stale or manual attachment
+    rows grant nothing.
+    """
+    memberships = (
+        user_with_memberships.organization_memberships
+        if user_with_memberships is not None
+        else None
+    )
+    return lti_staff_role(
+        "exam",
+        memberships,
+        lti_attachments,
+        user_groups,
+        protected_org_ids=protected,
+    )
 
 
 def _membership_grants_edit(
@@ -2332,10 +3045,37 @@ async def check_user_can_edit_project_async(
     if project and str(project.created_by) == str(user.id):
         return True
 
+    if _is_private_row(project):
+        # Lockstep with the sync lane: a private project opens to others
+        # only through a live LMS link.
+        if getattr(project, "kind", None) != "exam":
+            return False
+        lti_attachments = await get_lti_attachment_map_async(db, project_id)
+        if not lti_attachments:
+            return False
+        user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
+        return (
+            _private_edit_role(
+                user_with_memberships,
+                lti_attachments,
+                await get_user_group_context_async(db, str(user.id)),
+                await _lti_protected_org_ids_async(db, lti_attachments),
+            )
+            in allowed_roles
+        )
+
     user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
     if user_with_memberships and user_with_memberships.organization_memberships:
         attachment_groups = await get_attachment_group_map_async(db, project_id)
         user_groups = await get_user_group_context_async(db, str(user.id))
+        attachment_groups = await _drop_protected_lti_rows_async(
+            db,
+            user,
+            project,
+            attachment_groups,
+            user_with_memberships.organization_memberships,
+            user_groups,
+        )
         return _membership_grants_edit(
             user_with_memberships.organization_memberships,
             attachment_groups,

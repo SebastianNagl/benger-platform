@@ -10,6 +10,16 @@ interface ProtectedRouteProps {
   children: React.ReactNode
 }
 
+/**
+ * Where login should send the user back to: the current path plus its query,
+ * so parameters such as an LMS landing's `rl`/`lti_u` survive the login.
+ */
+function returnPath(pathname: string | null): string | null {
+  if (!pathname || typeof window === 'undefined') return pathname
+  if (window.location.pathname !== pathname) return pathname
+  return pathname + window.location.search
+}
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, isLoading } = useAuth()
   const { t } = useI18n()
@@ -27,7 +37,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // If user is not authenticated and trying to access a protected route
     // Only redirect when auth state is stable (not loading)
     if (!user && !isLoading) {
-      authRedirect.toLogin(router, pathname)
+      authRedirect.toLogin(router, returnPath(pathname))
     }
   }, [user, isLoading, isPublicRoute, router, pathname])
 

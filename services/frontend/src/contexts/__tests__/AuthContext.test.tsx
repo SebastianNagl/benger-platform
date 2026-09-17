@@ -1830,6 +1830,150 @@ describe('AuthContext', () => {
       expect(clearLastOrgSlug).toHaveBeenCalled()
       expect(getOrgUrl).not.toHaveBeenCalled()
     })
+
+    describe('query strings and LMS launch landings', () => {
+      const subdomain = () => require('@/lib/utils/subdomain')
+
+      const renderAuth = async () => {
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+          <AuthProvider>{children}</AuthProvider>
+        )
+        const rendered = renderHook(() => useAuth(), { wrapper })
+        await waitForInit()
+        return rendered
+      }
+
+      // The login flow reads the org list back from the manager.
+      const statefulOrgManager = () => {
+        let storedOrgs: any[] = []
+        ;(OrganizationManager as jest.Mock).mockImplementation(() => ({
+          setOrganizations: jest.fn((orgs: any[]) => {
+            storedOrgs = orgs
+          }),
+          setCurrentOrganization: jest.fn(),
+          getOrganizationContext: jest.fn(),
+          getOrganizations: jest.fn(() => storedOrgs),
+          clear: jest.fn(),
+        }))
+      }
+
+      beforeEach(() => {
+        subdomain().parseSubdomain.mockReturnValue({
+          orgSlug: null,
+          isPrivateMode: true,
+        })
+        subdomain().getLastOrgSlug.mockReturnValue(null)
+      })
+
+      afterEach(() => {
+        subdomain().getLastOrgSlug.mockReturnValue(null)
+        window.location.href = 'http://benger.localhost/'
+      })
+
+      it('keeps the query and hash when sending a returning user to their org', async () => {
+        subdomain().getLastOrgSlug.mockReturnValue('test-org')
+        window.location.href =
+          'http://benger.localhost/projects/p1?tab=data#top'
+
+        await renderAuth()
+
+        await waitFor(() =>
+          expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
+            'test-org',
+            '/projects/p1?tab=data#top',
+          ),
+        )
+      })
+
+      it.each([
+        '/lti/link?rl=rl-1&lti_ui=expert',
+        '/student/exams/p1?lti_u=abc&lti_ui=student',
+        '/lti/activity?rl=rl-1',
+        '/login?next=%2Flti%2Flink%3Frl%3Drl-1',
+      ])('leaves an LMS launch landing on this host (%s)', async (path) => {
+        subdomain().getLastOrgSlug.mockReturnValue('test-org')
+        window.location.href = `http://benger.localhost${path}`
+
+        const { result } = await renderAuth()
+
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        expect(result.current.user).toEqual(mockUser)
+        expect(subdomain().getOrgUrl).not.toHaveBeenCalled()
+        expect(result.current.currentOrganization).toBeNull()
+      })
+
+      it('keeps the query when an org subdomain is not accessible', async () => {
+        subdomain().parseSubdomain.mockReturnValue({
+          orgSlug: 'foreign-org',
+          isPrivateMode: false,
+        })
+        window.location.href =
+          'http://foreign-org.benger.localhost/lti/link?rl=rl-1'
+
+        await renderAuth()
+
+        await waitFor(() =>
+          expect(subdomain().getPrivateUrl).toHaveBeenCalledWith(
+            '/lti/link?rl=rl-1',
+          ),
+        )
+      })
+
+      it('sends the user to the login target on their org after login', async () => {
+        statefulOrgManager()
+        window.location.href =
+          'http://benger.localhost/login?next=%2Fprojects%2Fp1%3Ftab%3Ddata'
+        const { result } = await renderAuth()
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        subdomain().getOrgUrl.mockClear()
+        subdomain().getLastOrgSlug.mockReturnValue('test-org')
+
+        await act(async () => {
+          await result.current.login('testuser', 'password')
+        })
+
+        expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
+          'test-org',
+          '/projects/p1?tab=data',
+        )
+      })
+
+      it('falls back to the dashboard for an unsafe login target', async () => {
+        statefulOrgManager()
+        window.location.href =
+          'http://benger.localhost/login?next=%2F%2Fevil.example'
+        const { result } = await renderAuth()
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        subdomain().getOrgUrl.mockClear()
+        subdomain().getLastOrgSlug.mockReturnValue('test-org')
+
+        await act(async () => {
+          await result.current.login('testuser', 'password')
+        })
+
+        expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
+          'test-org',
+          '/dashboard',
+        )
+      })
+
+      it('keeps an LMS launch behind the login page on this host', async () => {
+        statefulOrgManager()
+        window.location.href =
+          'http://benger.localhost/login?next=%2Fstudent%2Fexams%2Fp1%3Flti_u%3Dabc'
+        const { result } = await renderAuth()
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        subdomain().getOrgUrl.mockClear()
+        subdomain().getLastOrgSlug.mockReturnValue('test-org')
+
+        await act(async () => {
+          await result.current.login('testuser', 'password')
+        })
+
+        expect(subdomain().getOrgUrl).not.toHaveBeenCalled()
+        expect(result.current.user).toEqual(mockUser)
+      })
+    })
   })
 
   describe('auth failure during initialization', () => {

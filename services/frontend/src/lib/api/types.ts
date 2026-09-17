@@ -37,7 +37,8 @@ export interface User {
   email_verified?: boolean
   email_verified_by_id?: string | null
   email_verified_at?: string | null
-  email_verification_method?: 'self' | 'admin' | 'system' | null
+  email_verification_method?:
+    'self' | 'admin' | 'system' | 'activation' | 'lti_claim' | null
   name: string
   full_name?: string // Full display name
   role?: OrganizationRole // User's current role context
@@ -48,6 +49,13 @@ export interface User {
   // Pseudonymization fields (Issue #790, GDPR-compliant)
   pseudonym?: string // Unique pseudonym for privacy protection
   use_pseudonym?: boolean // Privacy preference: true = show pseudonym, false = show real name
+  // Signed-in user (/auth/me, login): an LMS (LTI) launch created the
+  // account. /manage/users rows: the account came from, or is linked to,
+  // an LMS connection.
+  is_lms_account?: boolean
+  // /manage/users rows only: the viewer may not see the real name, so
+  // name/username carry the pseudonym and email is null.
+  is_pseudonymized?: boolean
 
   // Notification and timezone preferences
   timezone?: string
@@ -163,7 +171,19 @@ export interface OrganizationUpdate {
   is_active?: boolean
 }
 
-export interface OrganizationMember {
+/**
+ * Flags on member rows of LMS (LTI) accounts. Their real name and email are
+ * only shown to viewers allowed to see them; everyone else gets the
+ * pseudonym and a null email.
+ */
+export interface MemberPrivacyFlags {
+  /** The account came from, or is linked to, an LMS connection. */
+  is_lms_account?: boolean
+  /** The viewer sees the pseudonym; the email is withheld (null). */
+  is_pseudonymized?: boolean
+}
+
+export interface OrganizationMember extends MemberPrivacyFlags {
   id: string
   user_id: string
   organization_id: string
@@ -171,9 +191,10 @@ export interface OrganizationMember {
   is_active: boolean
   joined_at: string
   user_name?: string
-  user_email?: string
+  user_email?: string | null
   email_verified?: boolean
-  email_verification_method?: 'self' | 'admin' | 'system' | null
+  email_verification_method?:
+    'self' | 'admin' | 'system' | 'activation' | 'lti_claim' | null
   // Group memberships of this member within the organization.
   groups?: Array<{ id: string; name: string; is_group_admin: boolean }>
 }

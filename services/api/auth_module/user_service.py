@@ -165,6 +165,22 @@ def authenticate_user(db: Session, username_or_email: str, password: str) -> Opt
     return user
 
 
+RESERVED_USERNAME_MESSAGE = "This username is reserved. Please choose another one."
+
+
+def _reject_reserved_username(username: Optional[str]) -> None:
+    """400 for usernames with a prefix only the system hands out (``lti-``
+    for LMS accounts, ``anon-`` for anonymized ones): a self-chosen one could
+    pass for, or collide with, such an account."""
+    from services.user_anonymization import is_reserved_username
+
+    if is_reserved_username(username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=RESERVED_USERNAME_MESSAGE,
+        )
+
+
 def create_user(
     db: Session,
     username: str,
@@ -217,6 +233,9 @@ def create_user(
     # Normalize email to lowercase to prevent case-sensitive duplicates
     # RFC 5321 specifies that email addresses should be case-insensitive
     normalized_email = email.lower().strip()
+
+    # Prefixes only the system hands out (LMS accounts, anonymized accounts)
+    _reject_reserved_username(username)
 
     # Check if username already exists
     if get_user_by_username(db, username):
@@ -934,6 +953,10 @@ def update_user_profile(
         # Reset email verification when email changes
         if hasattr(user, "email_verified"):
             user.email_verified = False
+        # A reset or activation link mailed to the old address must not
+        # verify the new one (both confirm paths verify user.email).
+        user.password_reset_token = None
+        user.password_reset_expires = None
 
     # Update pseudonym privacy preference (Issue #790)
     if use_pseudonym is not None:

@@ -405,6 +405,110 @@ describe('OrgGroups', () => {
       ).toBeInTheDocument()
     })
 
+    it('marks LMS accounts and hides withheld emails', async () => {
+      mockGetGroupMembers.mockResolvedValue([
+        memberFixture(),
+        memberFixture({
+          id: 'gm-5',
+          user_id: 'user-5',
+          user_name: 'Kluge Eule',
+          user_email: null,
+          org_role: 'ANNOTATOR',
+          is_lms_account: true,
+          is_pseudonymized: true,
+        }),
+        memberFixture({
+          id: 'gm-6',
+          user_id: 'user-6',
+          user_name: 'Erika Mustermann',
+          user_email: 'erika@uni.example',
+          org_role: 'ANNOTATOR',
+          is_lms_account: true,
+          is_pseudonymized: false,
+        }),
+      ])
+      await openMembers()
+
+      const masked = screen.getByTestId('group-member-user-5')
+      expect(
+        screen.getByTestId('group-member-lms-badge-user-5'),
+      ).toHaveAttribute(
+        'title',
+        'admin.organizations.memberPrivacy.pseudonymTitle',
+      )
+      expect(masked).toHaveTextContent(
+        'admin.organizations.memberPrivacy.emailHidden · ANNOTATOR',
+      )
+      expect(masked).not.toHaveTextContent('null')
+
+      expect(screen.getByTestId('group-member-user-6')).toHaveTextContent(
+        'erika@uni.example · ANNOTATOR',
+      )
+      expect(
+        screen.getByTestId('group-member-lms-badge-user-6'),
+      ).toHaveAttribute(
+        'title',
+        'admin.organizations.memberPrivacy.lmsBadgeTitle',
+      )
+      expect(
+        screen.queryByTestId('group-member-lms-badge-user-2'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('shows only the role when a row has no email at all', async () => {
+      mockGetGroupMembers.mockResolvedValue([
+        memberFixture(),
+        memberFixture({
+          id: 'gm-7',
+          user_id: 'user-7',
+          user_name: 'Ohne Adresse',
+          user_email: null,
+          org_role: 'ANNOTATOR',
+        }),
+      ])
+      await openMembers()
+
+      const row = screen.getByTestId('group-member-user-7')
+      expect(row).toHaveTextContent('Ohne AdresseANNOTATOR')
+      expect(row).not.toHaveTextContent('·')
+    })
+
+    it('labels org members without an email in the add picker', async () => {
+      mockGetOrganizationMembers.mockResolvedValue([
+        {
+          id: 'om-5',
+          user_id: 'user-5',
+          organization_id: 'org-1',
+          role: 'ANNOTATOR',
+          is_active: true,
+          joined_at: '2026-01-01T00:00:00Z',
+          user_name: 'Stilles Wasser',
+          user_email: null,
+          is_lms_account: true,
+          is_pseudonymized: true,
+        },
+        {
+          id: 'om-2',
+          user_id: 'user-3',
+          organization_id: 'org-1',
+          role: 'ANNOTATOR',
+          is_active: true,
+          joined_at: '2026-01-01T00:00:00Z',
+          user_name: 'Anna Annotator',
+          user_email: 'anna@example.com',
+        },
+      ])
+      await openMembers()
+
+      const select = screen.getByTestId(
+        'group-add-member-select',
+      ) as HTMLSelectElement
+      const labels = Array.from(select.options).map((o) => o.textContent)
+      expect(labels).toContain('Stilles Wasser')
+      expect(labels).toContain('Anna Annotator (anna@example.com)')
+      expect(labels.join(' ')).not.toContain('null')
+    })
+
     it('excludes existing group members from the add picker', async () => {
       await openMembers()
 

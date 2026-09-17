@@ -111,10 +111,13 @@ def _patched(tmp_path):
 
     gen_holder = {"chunks": [""], "task_ids": "__unset__", "drive_progress": False}
 
-    def _fake_select_generator(db, proj, fmt, task_ids=None, progress_cb=None):
+    def _fake_select_generator(
+        db, proj, fmt, task_ids=None, progress_cb=None, viewer=None
+    ):
         # Record the subset the worker forwarded so tests can assert that
         # job.task_ids reaches select_export_generator unchanged.
         gen_holder["task_ids"] = task_ids
+        gen_holder["viewer"] = viewer
         chunks = gen_holder["chunks"]
         if callable(chunks):
             return chunks()
@@ -145,6 +148,8 @@ def _patched(tmp_path):
             # Lets a test read back the task_ids the worker forwarded to
             # select_export_generator (whole-project export forwards None).
             set_generator.forwarded_task_ids = lambda: gen_holder["task_ids"]
+            # ...and the viewer (the requester) the user block is masked for.
+            set_generator.forwarded_viewer = lambda: gen_holder.get("viewer")
             # Opt a test into having the fake generator drive progress_cb.
             set_generator.drive_progress = lambda on=True: gen_holder.__setitem__(
                 "drive_progress", on
@@ -195,6 +200,23 @@ def test_export_forwards_job_task_ids_subset(_patched):
 
     assert result["status"] == "completed"
     assert set_generator.forwarded_task_ids() == ["t-1", "t-2", "t-3"]
+
+
+def test_export_is_masked_for_the_requester(_patched):
+    """The export's user block hides LMS users' real names from requesters
+    who may not see them, so the worker hands the requesting user to the
+    generator."""
+    from models import User
+
+    workers_tasks, storage, job, project, session, set_generator = _patched
+    requester = types.SimpleNamespace(id="user-1", is_superadmin=False)
+    session._by_model[User] = requester
+    set_generator(['{"project": {"id": "proj-1"}, "tasks": []}'])
+
+    result = workers_tasks.export_project("job-1")
+
+    assert result["status"] == "completed"
+    assert set_generator.forwarded_viewer() is requester
 
 
 def test_export_multipart_concatenates_parts(_patched):

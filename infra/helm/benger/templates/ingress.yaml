@@ -92,6 +92,66 @@ spec:
                   number: {{ $.Values.frontend.service.port }}
           {{- end }}
     {{- end }}
+{{- $registerHosts := list }}
+{{- range .Values.frontend.ingress.hosts }}
+{{- if not (hasPrefix "*" .host) }}
+{{- $registerHosts = append $registerHosts .host }}
+{{- end }}
+{{- end }}
+{{- if and .Values.frontend.ingress.enabled $registerHosts }}
+{{- $frontendPriority := index (.Values.frontend.ingress.annotations | default dict) "traefik.ingress.kubernetes.io/router.priority" | default "0" | int }}
+{{- if ge $frontendPriority (include "benger.ltiRegisterPriority" . | int) }}
+{{- fail "frontend.ingress router.priority must stay below the LTI registration priority (benger.ltiRegisterPriority)" }}
+{{- end }}
+---
+# IMS LTI Dynamic Registration on the main host(s). Moodle's "Add LTI
+# Advantage" shows /api/lti/register/init in an iframe, so this one path uses
+# the frameable header chain (no X-Frame-Options; the API answer carries a
+# CSP frame-ancestors for the LMS origin). Exact path, exact hosts only: a
+# wildcard host at this priority would also catch other namespaces' hosts
+# (staging.<domain>, demo.<domain>). TLS is the frontend Ingress's.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-lti-register
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: {{ include "benger.ltiRegisterPriority" . | quote }}
+    {{- if .Values.middleware.enabled }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-lti-register-chain@kubernetescrd
+    {{- end }}
+spec:
+  ingressClassName: traefik
+  {{- if .Values.frontend.ingress.tls }}
+  tls:
+    {{- range .Values.frontend.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range $registerHosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /api/lti/register/init
+            pathType: Exact
+            backend:
+              service:
+                name: {{ $.Release.Name }}-{{ $.Values.frontend.name }}
+                port:
+                  number: {{ $.Values.frontend.service.port }}
+    {{- end }}
+{{- end }}
 {{- end }}
 ---
 {{- if .Values.vertretbar.enabled }}
@@ -166,6 +226,43 @@ spec:
         paths:
           - path: /api/lti
             pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+                port:
+                  number: {{ .Values.frontend.service.port }}
+---
+# IMS LTI Dynamic Registration on the vertretbar host: the one path an LMS
+# frames (see the lti-register Ingress above). Beats vertretbar-lti (110) and
+# swaps its chain for the frameable one. No beta BasicAuth either.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-vertretbar-lti-register
+  labels:
+    app: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/name: {{ .Release.Name }}-{{ .Values.frontend.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: benger
+    app.kubernetes.io/managed-by: helm
+  annotations:
+    traefik.ingress.kubernetes.io/router.priority: {{ include "benger.ltiRegisterPriority" . | quote }}
+    {{- if .Values.middleware.enabled }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-{{ .Release.Name }}-lti-register-chain@kubernetescrd
+    {{- end }}
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - {{ .Values.vertretbar.host | quote }}
+      secretName: {{ .Values.vertretbar.tlsSecretName }}
+  rules:
+    - host: {{ .Values.vertretbar.host | quote }}
+      http:
+        paths:
+          - path: /api/lti/register/init
+            pathType: Exact
             backend:
               service:
                 name: {{ .Release.Name }}-{{ .Values.frontend.name }}
