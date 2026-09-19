@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
-import { Input } from '@/components/shared/Input'
+import { SearchIcon } from '@/components/shared/SearchIcon'
 import { useI18n } from '@/contexts/I18nContext'
 import { Organization } from '@/lib/api'
 import {
@@ -17,7 +17,6 @@ import {
   BuildingOfficeIcon,
   CheckIcon,
   ChevronDownIcon,
-  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
@@ -96,11 +95,11 @@ export function OrganizationSwitcher<T extends Organization>({
               }}
             >
               <div className="relative border-b border-zinc-200 p-2 dark:border-zinc-700">
-                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-5 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                {/* Same pill as the navbar search box (shared/Search.tsx). */}
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 stroke-zinc-500 dark:stroke-zinc-400" />
                 <ComboboxInput
-                  as={Input}
                   autoFocus
-                  className="pl-8 text-sm"
+                  className="h-8 w-full rounded-full bg-white pr-3 pl-9 text-sm text-zinc-900 ring-1 ring-zinc-900/10 outline-hidden transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-zinc-900/20 dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-white/20"
                   placeholder={t(
                     'admin.organizations.filters.switcherSearchPlaceholder',
                   )}
