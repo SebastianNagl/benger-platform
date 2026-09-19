@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { Organization } from '@/lib/api'
 import {
@@ -61,7 +62,7 @@ export function OrganizationSwitcher<T extends Organization>({
 
   return (
     <Popover className="relative">
-      {({ close }) => (
+      {({ open, close }) => (
         <>
           <PopoverButton
             as={Button}
@@ -72,11 +73,16 @@ export function OrganizationSwitcher<T extends Organization>({
             {selectedOrganization
               ? selectedOrganization.name
               : t('admin.organizations.selectOrganization')}
-            <ChevronDownIcon className="h-4 w-4" />
+            <ChevronDownIcon
+              className={clsx(
+                'h-4 w-4 opacity-70 transition-transform',
+                open && 'rotate-180',
+              )}
+            />
           </PopoverButton>
 
           <PopoverPanel
-            className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg bg-white shadow-lg ring-1 ring-black/5 focus:outline-none dark:bg-zinc-800 dark:ring-white/10"
+            className="absolute left-0 z-50 mt-2 w-72 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
             data-testid="org-switcher-panel"
           >
             <Combobox
@@ -89,11 +95,12 @@ export function OrganizationSwitcher<T extends Organization>({
                 close()
               }}
             >
-              <div className="relative border-b border-zinc-900/5 p-2 dark:border-white/10">
+              <div className="relative border-b border-zinc-200 p-2 dark:border-zinc-700">
                 <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-5 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <ComboboxInput
+                  as={Input}
                   autoFocus
-                  className="h-8 w-full rounded-full bg-white pr-3 pl-8 text-sm text-zinc-900 ring-1 ring-zinc-900/10 placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-zinc-100 dark:ring-white/10 dark:placeholder:text-zinc-400 dark:focus:ring-emerald-400"
+                  className="pl-8 text-sm"
                   placeholder={t(
                     'admin.organizations.filters.switcherSearchPlaceholder',
                   )}
@@ -103,10 +110,10 @@ export function OrganizationSwitcher<T extends Organization>({
               </div>
               <ComboboxOptions
                 static
-                className="max-h-72 overflow-auto py-1 text-sm focus:outline-none"
+                className="max-h-72 overflow-y-auto overscroll-contain py-1 focus:outline-none"
               >
                 {filteredOrganizations.length === 0 ? (
-                  <div className="px-4 py-3 text-zinc-500 dark:text-zinc-400">
+                  <div className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
                     {t('admin.organizations.noOrganizations')}
                   </div>
                 ) : (
@@ -114,44 +121,30 @@ export function OrganizationSwitcher<T extends Organization>({
                     <ComboboxOption
                       key={`org-switcher-${org.id}`}
                       value={org}
+                      title={org.name}
                       className={({ focus }) =>
                         clsx(
-                          'relative cursor-default py-2 pr-4 pl-10 select-none',
-                          focus
-                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100'
-                            : 'text-zinc-900 dark:text-zinc-100',
+                          'flex w-full min-w-0 cursor-default items-center px-4 py-2 text-sm text-zinc-700 select-none dark:text-zinc-300',
+                          focus && 'bg-zinc-100 dark:bg-zinc-700',
                         )
                       }
                     >
-                      {({ selected, focus }) => (
+                      {({ selected }) => (
                         <>
-                          <span
-                            className={clsx(
-                              'block truncate',
-                              selected ? 'font-medium' : 'font-normal',
+                          <BuildingOfficeIcon className="mr-3 h-4 w-4 shrink-0" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">{org.name}</span>
+                            {org.description && (
+                              <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                {org.description}
+                              </span>
                             )}
-                          >
-                            {org.name}
                           </span>
-                          {org.description && (
-                            <span
-                              className={clsx(
-                                'block truncate text-xs',
-                                focus
-                                  ? 'text-emerald-800 dark:text-emerald-200'
-                                  : 'text-zinc-500 dark:text-zinc-400',
-                              )}
-                            >
-                              {org.description}
-                            </span>
-                          )}
                           {selected && (
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-emerald-600 dark:text-emerald-400">
-                              <CheckIcon
-                                className="h-5 w-5"
-                                aria-hidden="true"
-                              />
-                            </span>
+                            <CheckIcon
+                              className="ml-2 h-4 w-4 shrink-0 text-amber-600"
+                              aria-hidden="true"
+                            />
                           )}
                         </>
                       )}

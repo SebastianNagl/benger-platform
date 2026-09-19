@@ -46,7 +46,7 @@ const openSwitcher = async () => {
 const optionNames = (listbox: HTMLElement) =>
   within(listbox)
     .getAllByRole('option')
-    .map((o) => o.querySelector('span')?.textContent)
+    .map((o) => o.querySelector('span > span')?.textContent)
 
 describe('sortOrganizationsByName', () => {
   it('sorts case-insensitively with German collation', () => {
@@ -120,7 +120,7 @@ describe('OrganizationSwitcher', () => {
     const listbox = await openSwitcher()
     const selected = within(listbox).getByRole('option', { selected: true })
     expect(selected).toHaveTextContent('Coburg')
-    expect(selected.querySelector('.text-emerald-600')).not.toBeNull()
+    expect(selected.querySelector('.text-amber-600')).not.toBeNull()
   })
 
   it('calls onSelect and closes when an option is clicked', async () => {
