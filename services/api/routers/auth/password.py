@@ -1,5 +1,6 @@
 """Auth: password change / reset handlers."""
 from fastapi import Request
+from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
@@ -43,7 +44,13 @@ async def request_password_reset(
     from mailer.branding import resolve_email_brand
     from models import User as DBUser
 
-    user = db.query(DBUser).filter(DBUser.email == reset_request.email).first()
+    # Case-insensitive: signup stores the address lowercased, but people
+    # type it as they like (T.Name@...), and a miss here is silent.
+    user = (
+        db.query(DBUser)
+        .filter(func.lower(DBUser.email) == reset_request.email.strip().lower())
+        .first()
+    )
 
     # Always return success to prevent email enumeration
     if not user:

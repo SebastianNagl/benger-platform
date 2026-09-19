@@ -11,7 +11,7 @@ from typing import List, Optional
 
 import bcrypt
 from fastapi import HTTPException, status
-from sqlalchemy import inspect, or_, select, text
+from sqlalchemy import func, inspect, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -114,7 +114,7 @@ def get_user_by_username(db: Session, username: str) -> Optional[User]:
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     """Get user by email"""
     try:
-        return db.query(User).filter(User.email == email).first()
+        return db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
     except Exception as e:
         # Handle database schema issues gracefully (e.g., in tests with old schema)
         if "no such column: users.is_superadmin" in str(e):
@@ -134,7 +134,7 @@ def get_user_by_username_or_email(db: Session, username_or_email: str) -> Option
             .filter(
                 or_(
                     User.username == username_or_email,
-                    User.email == username_or_email,
+                    func.lower(User.email) == username_or_email.strip().lower(),
                 )
             )
             .first()
@@ -1431,7 +1431,7 @@ def _build_select_user_by_username(username: str):
 
 
 def _build_select_user_by_email(email: str):
-    return select(User).where(User.email == email)
+    return select(User).where(func.lower(User.email) == email.strip().lower())
 
 
 async def get_user_by_id_async(db: AsyncSession, user_id: str) -> Optional[User]:

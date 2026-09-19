@@ -1,4 +1,6 @@
 """Auth: login / signup / registration handlers."""
+from sqlalchemy import func
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post(
@@ -165,7 +167,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
                 db.query(Invitation)
                 .filter(
                     Invitation.token == invitation_token,
-                    Invitation.email == user_data.email,
+                    func.lower(Invitation.email) == user_data.email.strip().lower(),
                     Invitation.accepted == False,  # noqa: E712
                 )
                 .first()

@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status  # noqa: E402
 from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError  # noqa: E402
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
@@ -280,7 +280,11 @@ async def create_invitation(
     )
 
     # Check if user is already a member
-    existing_user = db.query(User).filter(User.email == invitation_data.email).first()
+    existing_user = (
+        db.query(User)
+        .filter(func.lower(User.email) == invitation_data.email.strip().lower())
+        .first()
+    )
     if existing_user:
         existing_membership = (
             db.query(OrganizationMembership)
@@ -302,7 +306,7 @@ async def create_invitation(
         db.query(Invitation)
         .filter(
             Invitation.organization_id == organization_id,
-            Invitation.email == invitation_data.email,
+            func.lower(Invitation.email) == invitation_data.email.strip().lower(),
             Invitation.accepted == False,  # noqa: E712
             Invitation.expires_at > datetime.now(timezone.utc),
         )
@@ -466,7 +470,7 @@ async def create_bulk_invitations(
         seen.add(key)
 
         # Already an active member of this organization?
-        existing_user = db.query(User).filter(User.email == email).first()
+        existing_user = db.query(User).filter(func.lower(User.email) == key).first()
         if existing_user:
             existing_membership = (
                 db.query(OrganizationMembership)
@@ -486,7 +490,7 @@ async def create_bulk_invitations(
             db.query(Invitation)
             .filter(
                 Invitation.organization_id == organization_id,
-                Invitation.email == email,
+                func.lower(Invitation.email) == key,
                 Invitation.accepted == False,  # noqa: E712
                 Invitation.expires_at > datetime.now(timezone.utc),
             )
