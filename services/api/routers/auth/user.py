@@ -279,7 +279,9 @@ async def get_user_contexts(
     if current_user.is_superadmin:
         organizations = (
             await db.execute(
-                select(Organization).where(Organization.is_active == True)  # noqa: E712
+                select(Organization)
+                .where(Organization.is_active == True)  # noqa: E712
+                .order_by(func.lower(Organization.name), Organization.id)
             )
         ).scalars().all()
 
@@ -336,6 +338,7 @@ async def get_user_contexts(
                     OrganizationMembership.is_active == True,  # noqa: E712
                     Organization.is_active == True,  # noqa: E712
                 )
+                .order_by(func.lower(Organization.name), Organization.id)
             )
         ).all()
 

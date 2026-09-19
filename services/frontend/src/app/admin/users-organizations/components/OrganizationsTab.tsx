@@ -13,7 +13,6 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
-import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -43,7 +42,6 @@ import {
   CloudIcon,
   EnvelopeIcon,
   KeyIcon,
-  MagnifyingGlassIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
@@ -53,6 +51,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { OrganizationSwitcher } from './OrganizationSwitcher'
 
 interface OrganizationWithRole extends Organization {
   user_role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
@@ -110,7 +109,6 @@ export function OrganizationsTab() {
   const [showCreateOrgModal, setShowCreateOrgModal] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
-  const [showOrgSwitcher, setShowOrgSwitcher] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
@@ -154,7 +152,6 @@ export function OrganizationsTab() {
   const [addingUser, setAddingUser] = useState(false)
 
   // Filters
-  const [orgSwitcherSearch, setOrgSwitcherSearch] = useState('')
   const [memberSearch, setMemberSearch] = useState('')
   const [memberRoleFilter, setMemberRoleFilter] = useState<
     'all' | 'ANNOTATOR' | 'CONTRIBUTOR' | 'ORG_ADMIN'
@@ -162,18 +159,6 @@ export function OrganizationsTab() {
   const [memberVerificationFilter, setMemberVerificationFilter] = useState<
     'all' | 'verified' | 'unverified'
   >('all')
-
-  const filteredOrganizations = useMemo(() => {
-    const list = Array.isArray(organizations) ? organizations : []
-    const q = orgSwitcherSearch.trim().toLowerCase()
-    if (!q) return list
-    return list.filter((org: any) => {
-      return (
-        org.name?.toLowerCase().includes(q) ||
-        org.description?.toLowerCase().includes(q)
-      )
-    })
-  }, [organizations, orgSwitcherSearch])
 
   const filteredMembers = useMemo(() => {
     const q = memberSearch.trim().toLowerCase()
@@ -846,76 +831,21 @@ export function OrganizationsTab() {
     <div className="space-y-6">
       {/* Organization Selector and Actions */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative">
-          <button
-            onClick={() => setShowOrgSwitcher(!showOrgSwitcher)}
-            className="inline-flex items-center rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          >
-            <BuildingOfficeIcon className="mr-2 h-4 w-4" />
-            {selectedOrganization
-              ? selectedOrganization.name
-              : t('admin.organizations.selectOrganization')}
-            <ChevronDownIcon className="ml-2 h-4 w-4" />
-          </button>
-
-          {showOrgSwitcher && (
-            <div className="absolute z-10 mt-1 w-72 rounded-md border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-              <div className="relative px-2 py-2">
-                <MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-5 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <Input
-                  type="text"
-                  placeholder={t(
-                    'admin.organizations.filters.switcherSearchPlaceholder',
-                  )}
-                  value={orgSwitcherSearch}
-                  onChange={(e) => setOrgSwitcherSearch(e.target.value)}
-                  className="pl-8 text-sm"
-                  autoFocus
-                />
-              </div>
-              <div className="max-h-72 overflow-y-auto">
-                {filteredOrganizations.length === 0 ? (
-                  <div className="px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-                    {t('admin.organizations.noOrganizations')}
-                  </div>
-                ) : (
-                  filteredOrganizations.map((org: any) => (
-                    <button
-                      key={`org-switcher-${org.id}`}
-                      onClick={() => {
-                        setSelectedOrganization(org)
-                        setShowOrgSwitcher(false)
-                        setOrgSwitcherSearch('')
-                        // Update URL without triggering navigation
-                        const params = new URLSearchParams(
-                          window.location.search,
-                        )
-                        params.set('org', org.id)
-                        window.history.replaceState(
-                          null,
-                          '',
-                          `${window.location.pathname}?${params.toString()}`,
-                        )
-                      }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
-                        selectedOrganization?.id === org.id
-                          ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300'
-                          : 'text-zinc-900 dark:text-zinc-100'
-                      }`}
-                    >
-                      <div className="font-medium">{org.name}</div>
-                      {org.description && (
-                        <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
-                          {org.description}
-                        </div>
-                      )}
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <OrganizationSwitcher
+          organizations={Array.isArray(organizations) ? organizations : []}
+          selectedOrganization={selectedOrganization}
+          onSelect={(org) => {
+            setSelectedOrganization(org)
+            // Update URL without triggering navigation
+            const params = new URLSearchParams(window.location.search)
+            params.set('org', org.id)
+            window.history.replaceState(
+              null,
+              '',
+              `${window.location.pathname}?${params.toString()}`,
+            )
+          }}
+        />
 
         <div className="flex flex-wrap gap-2">
           {selectedOrganization &&

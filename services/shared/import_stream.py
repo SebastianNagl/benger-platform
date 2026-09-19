@@ -1435,7 +1435,9 @@ def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
     email = user_data.get("email")
 
     if email:
-        existing_user = ctx.db.query(User).filter(User.email == email).first()
+        existing_user = (
+            ctx.db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
+        )
         if existing_user:
             ctx.id_mappings["users"][old_user_id] = existing_user.id
             ctx.user_email_to_id[email] = existing_user.id

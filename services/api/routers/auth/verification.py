@@ -1,4 +1,6 @@
 """Auth: email verification handlers."""
+from sqlalchemy import func
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/verify-email")
@@ -51,7 +53,11 @@ async def resend_verification_email(
     """Resend email verification link"""
     from models import User as DBUser
 
-    user = db.query(DBUser).filter(DBUser.email == resend_request.email).first()
+    user = (
+        db.query(DBUser)
+        .filter(func.lower(DBUser.email) == resend_request.email.strip().lower())
+        .first()
+    )
 
     # Always return success to prevent email enumeration
     if not user:
