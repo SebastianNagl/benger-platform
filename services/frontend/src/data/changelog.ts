@@ -7,6 +7,22 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-19',
+    audience: 'both',
+    text: {
+      de: 'Anmeldung und Passwort-Zurücksetzen erkennen die E-Mail-Adresse jetzt unabhängig von Groß- und Kleinschreibung. Bisher scheiterte die Anmeldung mit „T.Name@…“ statt „t.name@…“, und die Mail zum Zurücksetzen kam nie an.',
+      en: 'Sign-in and password reset now recognise your email address regardless of upper or lower case. Until now, signing in as “T.Name@…” instead of “t.name@…” failed, and the reset email never arrived.',
+    },
+  },
+  {
+    date: '2026-09-19',
+    audience: 'both',
+    text: {
+      de: 'Organisationen erscheinen im Organisationswechsler und im Kontomenü alphabetisch. Der Wechsler auf der Organisationsseite sieht aus wie die übrigen Auswahllisten, schließt bei Klick daneben oder mit Esc und lässt sich mit den Pfeiltasten bedienen.',
+      en: 'Organizations are listed alphabetically in the organization switcher and the account menu. The switcher on the Organizations page looks like the other dropdowns, closes on a click outside or Esc, and works with the arrow keys.',
+    },
+  },
+  {
     date: '2026-09-17',
     audience: 'both',
     text: {
