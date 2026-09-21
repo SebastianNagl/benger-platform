@@ -31,13 +31,16 @@ def test_calculate_project_stats_batch_with_projects():
         Mock(project_id='p2', annotation_count=18),
     ]
 
-    # Scored (subject, metric) pairs. p1 has 3 distinct pairs (one is a
-    # noise key — `_raw` — that must be filtered out), p2 has none.
+    # Scored (subject, config, metric) cells. p1 has 3 distinct evaluations;
+    # the `_raw` noise key and the judge's registered Notenpunkte twin (a
+    # second view of the same judge call) must both be filtered out. p2 has
+    # none.
     evaluation_pairs = [
-        ('p1', 'ann-1', 'bleu'),
-        ('p1', 'ann-1', 'rouge'),
-        ('p1', 'ann-2', 'bleu'),
-        ('p1', 'ann-2', 'bleu_raw'),  # noise suffix, should be dropped
+        ('p1', 'ann-1', 'cfg-bleu', 'bleu'),
+        ('p1', 'ann-1', 'cfg-judge', 'llm_judge_rubric'),
+        ('p1', 'ann-1', 'cfg-judge', 'llm_judge_rubric_grade_points'),  # twin, dropped
+        ('p1', 'ann-2', 'cfg-bleu', 'bleu'),
+        ('p1', 'ann-2', 'cfg-bleu', 'bleu_raw'),  # noise suffix, dropped
     ]
 
     # Setup mock query chain for task stats

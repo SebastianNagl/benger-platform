@@ -265,6 +265,113 @@ class TestProjectSummaries:
         # available_models is the JSONB list of distinct generation model ids.
         assert set(row.available_models) == {"gpt-4o", "claude-sonnet-4-6"}
 
+    def _judge_row(self, test_db, seeded, *, metrics, config_id, field_name, new_judge_run=False):
+        """Add a judged row on the fixture's human annotation."""
+        er = seeded["evaluation_run"]
+        ann = test_db.query(Annotation).filter(
+            Annotation.project_id == seeded["project"].id
+        ).one()
+        if new_judge_run:
+            jr = EvaluationJudgeRun(
+                id=str(uuid.uuid4()),
+                evaluation_id=er.id,
+                judge_model_id=None,
+                run_index=test_db.query(EvaluationJudgeRun)
+                .filter(EvaluationJudgeRun.evaluation_id == er.id)
+                .count(),
+                status="completed",
+            )
+            test_db.add(jr)
+            test_db.flush()
+            judge_run_id = jr.id
+        else:
+            judge_run_id = seeded["task_evaluations"][0].judge_run_id
+        te = TaskEvaluation(
+            id=str(uuid.uuid4()),
+            evaluation_id=er.id,
+            judge_run_id=judge_run_id,
+            task_id=ann.task_id,
+            annotation_id=ann.id,
+            field_name=field_name,
+            answer_type="text",
+            ground_truth=None,
+            prediction=None,
+            metrics=metrics,
+            passed=True,
+            evaluation_config_id=config_id,
+        )
+        test_db.add(te)
+        test_db.commit()
+        return te
+
+    @staticmethod
+    def _judge_metrics(base, value, grade_points):
+        # The exact key set a judge row carries in prod: the nested blob plus
+        # the flat Notenpunkte / passed / raw_score companions.
+        return {
+            base: {
+                "value": value,
+                "method": base,
+                "details": {"grade_points": grade_points, "passed": True},
+                "error": None,
+            },
+            f"{base}_grade_points": float(grade_points),
+            f"{base}_passed": 1.0,
+            "raw_score": value,
+        }
+
+    @pytest.mark.parametrize("base", ["llm_judge_rubric", "llm_judge_falloesung"])
+    def test_notenpunkte_twin_is_not_a_second_evaluation(self, test_db, seeded, base):
+        # One judged annotation is ONE evaluation. The registered
+        # `<base>_grade_points` twin used to count as a second one, so a
+        # project with 24 judged annotations + 1 Korrektur showed 49.
+        self._judge_row(
+            test_db,
+            seeded,
+            metrics=self._judge_metrics(base, 0.655, 11),
+            config_id="judge-a",
+            field_name="loesung",
+        )
+        recompute_project_summaries(test_db)
+        row = read_project_summary(test_db, seeded["project"].id, period="overall")
+        assert row.evaluation_pairs_count == 2 + 1  # fixture's 2 + the judged annotation
+
+    def test_two_judge_configs_on_one_answer_count_twice(self, test_db, seeded):
+        # Same metric, two configs (e.g. a gpt-5-mini and a gpt-5.4-mini
+        # judge): the student gets two grades, so that is two evaluations.
+        # A metric without a Notenpunkte twin, so the +2 can only come from
+        # the config id being part of the key.
+        for config_id in ("judge-a", "judge-b"):
+            self._judge_row(
+                test_db,
+                seeded,
+                metrics={
+                    "llm_judge_custom": {"value": 0.5, "details": {}, "error": None},
+                    "raw_score": 0.5,
+                },
+                config_id=config_id,
+                field_name=f"loesung|{config_id}",
+            )
+        recompute_project_summaries(test_db)
+        row = read_project_summary(test_db, seeded["project"].id, period="overall")
+        assert row.evaluation_pairs_count == 2 + 2
+
+    def test_rerun_of_one_config_still_counts_once(self, test_db, seeded):
+        # A second judge run of the SAME config re-grades the same cell; the
+        # tile reports coverage, not job count.
+        for _ in range(2):
+            self._judge_row(
+                test_db,
+                seeded,
+                metrics=self._judge_metrics("llm_judge_rubric", 0.5, 9),
+                config_id="judge-a",
+                field_name="loesung",
+                new_judge_run=True,
+            )
+        recompute_project_summaries(test_db)
+        row = read_project_summary(test_db, seeded["project"].id, period="overall")
+        assert row.evaluation_pairs_count == 2 + 1
+
     def test_recompute_is_idempotent(self, test_db, seeded):
         upserts_a = recompute_project_summaries(test_db)
         upserts_b = recompute_project_summaries(test_db)
@@ -678,6 +785,74 @@ class TestFalloesungGradePointsLift:
         assert gp_rows
         # The grade_points scale is 0..18, so the mean is well above 1.
         assert all(r.score != None and r.score > 1 for r in gp_rows)  # noqa: E711
+
+
+    def _rows(self, test_db, seeded_falloesung):
+        return (
+            test_db.query(TaskEvaluation)
+            .filter(TaskEvaluation.evaluation_id == seeded_falloesung["evaluation_run"].id)
+            .all()
+        )
+
+    def test_row_with_flat_and_nested_notenpunkte_counts_once(
+        self, test_db, seeded_falloesung
+    ):
+        # Newer writers store the flat `<base>_grade_points` key next to the
+        # nested `details.grade_points`. jsonb_each already emits the flat
+        # key, so the lift must skip that row: emitting it twice skewed the
+        # mean towards such rows and doubled them in `sum`.
+        high = next(
+            te for te in self._rows(test_db, seeded_falloesung)
+            if (te.metrics["llm_judge_falloesung"].get("details") or {}).get("grade_points") == 14
+        )
+        high.metrics = {**high.metrics, "llm_judge_falloesung_grade_points": 14.0}
+        test_db.commit()
+
+        def _gp(aggregation):
+            rows = live_aggregate_leaderboard(
+                test_db,
+                project_ids=[seeded_falloesung["project"].id],
+                period="overall",
+                evaluation_types=None,
+                aggregation=aggregation,
+            )
+            return next(
+                r for r in rows
+                if r["model_id"] == "gpt-4o"
+                and r["metric"] == "llm_judge_falloesung_grade_points"
+            )["score"]
+
+        # 14 (flat, counted once) and 4 (nested, lifted). Double counting the
+        # flat row gave mean 10.67 and sum 32.
+        assert _gp("average") == pytest.approx(9.0, abs=1e-3)
+        assert _gp("sum") == pytest.approx(18.0, abs=1e-3)
+
+    def test_rubric_judge_notenpunkte_are_lifted_too(self, test_db, seeded_falloesung):
+        # The Bewertungsbogen judge nests grade_points the same way; its
+        # registered twin must reach the leaderboard from nested-only rows.
+        low = next(
+            te for te in self._rows(test_db, seeded_falloesung)
+            if (te.metrics["llm_judge_falloesung"].get("details") or {}).get("grade_points") == 4
+        )
+        low.metrics = {
+            "llm_judge_rubric": {
+                "value": 0.45,
+                "method": "llm_judge_rubric",
+                "details": {"grade_points": 7, "passed": True},
+                "error": None,
+            }
+        }
+        test_db.commit()
+
+        rows = live_aggregate_leaderboard(
+            test_db,
+            project_ids=[seeded_falloesung["project"].id],
+            period="overall",
+            evaluation_types=None,
+        )
+        scores = {r["metric"]: r["score"] for r in rows if r["model_id"] == "gpt-4o"}
+        assert scores["llm_judge_rubric_grade_points"] == pytest.approx(7.0, abs=1e-3)
+        assert scores["llm_judge_falloesung_grade_points"] == pytest.approx(14.0, abs=1e-3)
 
 
 # ---------------------------------------------------------------------------

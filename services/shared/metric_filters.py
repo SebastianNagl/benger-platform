@@ -39,8 +39,23 @@ _METRIC_REGISTERED_OVERRIDES = frozenset(
 )
 
 
+_GRADE_POINTS_SUFFIX = "_grade_points"
+
+# Base metrics whose Notenpunkte twin is a registered standalone metric,
+# derived from the overrides so the leaderboard SQL that lifts
+# `details.grade_points` (aggregate_summaries.py) and this filter cannot
+# disagree on which metrics carry one.
+GRADE_POINT_LIFT_BASES: Tuple[str, ...] = tuple(
+    sorted(
+        key[: -len(_GRADE_POINTS_SUFFIX)]
+        for key in _METRIC_REGISTERED_OVERRIDES
+        if key.endswith(_GRADE_POINTS_SUFFIX)
+    )
+)
+
+
 def metric_key_is_real(key: Optional[str]) -> bool:
-    """True for keys that should count toward the scored-pairs tally."""
+    """True for keys that are displayable / aggregatable metrics."""
     if not key or key in _METRIC_EXCLUDED_KEYS:
         return False
     if key in _METRIC_REGISTERED_OVERRIDES:
@@ -50,6 +65,18 @@ def metric_key_is_real(key: Optional[str]) -> bool:
 
 # Legacy underscore alias — many call sites already use this name.
 _metric_key_is_real = metric_key_is_real
+
+
+def metric_key_counts_as_evaluation(key: Optional[str]) -> bool:
+    """True for keys that are an evaluation of their own.
+
+    Narrower than :func:`metric_key_is_real`: a registered override is a
+    second view of its base metric (the Notenpunkte of the same judge call),
+    so it gets a leaderboard column but must not count as a second
+    evaluation. Counting it made every judged answer show up twice in the
+    project tile.
+    """
+    return metric_key_is_real(key) and key not in _METRIC_REGISTERED_OVERRIDES
 
 
 # ---------------------------------------------------------------------------

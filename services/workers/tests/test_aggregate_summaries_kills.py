@@ -53,7 +53,11 @@ from aggregate_summaries import (  # noqa: E402
     _period_cutoff,
     _sql_coerce_metric_value,
 )
-from metric_filters import metric_key_is_real  # noqa: E402
+from metric_filters import (  # noqa: E402
+    GRADE_POINT_LIFT_BASES,
+    metric_key_counts_as_evaluation,
+    metric_key_is_real,
+)
 
 
 # ===========================================================================
@@ -375,6 +379,26 @@ class TestMetricKeyIsReal:
         assert metric_key_is_real("llm_judge_falloesung_grade_points") is True
         # A different *_grade_points key is NOT overridden -> stays filtered.
         assert metric_key_is_real("other_grade_points") is False
+
+    def test_module_counts_evaluations_with_the_narrower_predicate(self):
+        # The project tile (`_count_eval_pairs`) must use the counting
+        # predicate, not the display one: a registered Notenpunkte twin gets
+        # a leaderboard column but is the same judge call as its base, so
+        # counting it doubled every judged answer in the tile.
+        assert agg.metric_key_counts_as_evaluation is metric_key_counts_as_evaluation
+        assert metric_key_is_real("llm_judge_rubric_grade_points") is True
+        assert metric_key_counts_as_evaluation("llm_judge_rubric_grade_points") is False
+        assert metric_key_counts_as_evaluation("llm_judge_falloesung_grade_points") is False
+        assert metric_key_counts_as_evaluation("llm_judge_rubric") is True
+
+    def test_lift_bases_are_derived_from_the_overrides(self):
+        # The leaderboard SQL lifts nested `details.grade_points` for these
+        # bases. Deriving them from the override list keeps the two in step.
+        assert agg.GRADE_POINT_LIFT_BASES is GRADE_POINT_LIFT_BASES
+        assert set(GRADE_POINT_LIFT_BASES) == {
+            "llm_judge_falloesung",
+            "llm_judge_rubric",
+        }
 
 
 if __name__ == "__main__":  # pragma: no cover

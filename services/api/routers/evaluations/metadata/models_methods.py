@@ -414,15 +414,14 @@ async def get_configured_methods(
         ).all()
 
         # Drop sidekey/derivation noise so the dropdown only shows real metric
-        # names (no `_details`, `_raw`, `raw_score`, etc.).
-        _SUFFIX_NOISE = ("_details", "_raw", "_passed", "_grade_points", "_response")
-        _EXCLUDED_KEYS = {"raw_score", "error"}
+        # names (no `_details`, `_raw`, `raw_score`, etc.). Shared predicate,
+        # so this list and the project tile count the same metrics.
+        from metric_filters import metric_key_counts_as_evaluation
+
         method_results = {
             r.metric: {"count": r.cnt, "last_run": r.last_run}
             for r in raw_counts
-            if r.metric
-            and r.metric not in _EXCLUDED_KEYS
-            and not r.metric.endswith(_SUFFIX_NOISE)
+            if metric_key_counts_as_evaluation(r.metric)
         }
 
         # Build response
