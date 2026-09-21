@@ -39,6 +39,7 @@ import re
 import shutil
 import tempfile
 import uuid
+import zipfile
 from datetime import datetime
 from typing import Any, Dict, Iterator, Optional, Set, Tuple
 
@@ -82,6 +83,7 @@ from serializers import _parse_iso
 # Shared batch helper extracted alongside the export side. See
 # stream_io/__init__.py for why the package is named stream_io and not io.
 from stream_io.batch_utils import flush_every, stream_array_rows
+from user_display import masked_name
 
 logger = logging.getLogger(__name__)
 
@@ -1362,6 +1364,8 @@ class _FullImportContext:
         "grading_feedback_seen",
         "active_rubric_tasks",
         "active_annotation_keys",
+        "skipped_annotations",
+        "stub_users_created",
         "task_level_assignment_keys",
     )
 
@@ -1409,6 +1413,11 @@ class _FullImportContext:
         # such row per pair (uq_annotations_active_task_user,
         # uniq_task_level_assignment); a second one would fail the import.
         self.active_annotation_keys: Set[tuple] = set()
+        # Answers dropped because their author collapsed onto a user who
+        # already holds the task's active annotation. Reported in the stats.
+        self.skipped_annotations = 0
+        # Placeholder accounts created for exported users unknown here.
+        self.stub_users_created = 0
         self.task_level_assignment_keys: Set[tuple] = set()
         self.task_counter = 1
         self.te_seen = 0
@@ -1419,44 +1428,132 @@ class _FullImportContext:
         self.catchall_judge_runs: Dict[str, str] = {}
 
 
+# Placeholder accounts for exported users this deployment does not know.
+# `.invalid` is reserved (RFC 2606) and never resolves, so the address can
+# never receive mail; the mail client refuses it as well. The local part is
+# the SOURCE user id, which makes the placeholder deterministic (a second
+# import of the same export reuses it) and lets you look the person up on the
+# deployment the export came from.
+STUB_EMAIL_DOMAIN = "imported.invalid"
+# Not a bcrypt hash, so no password ever verifies against it.
+_STUB_PASSWORD_HASH = "!imported-placeholder"
+_STUB_ID_SAFE = re.compile(r"[^a-z0-9-]")
+
+
+def is_stub_email(email: Optional[str]) -> bool:
+    """True for the address of a placeholder account created by an import."""
+    return bool(email) and email.strip().lower().endswith("@" + STUB_EMAIL_DOMAIN)
+
+
+def _exported_alias(user_data: dict) -> Optional[str]:
+    """The pseudonym an exported user record carries, if any.
+
+    A masked record predating the explicit ``pseudonym`` key holds it in
+    ``name``. An unmasked ``name`` is the person's real name and is never used.
+    """
+    if "pseudonym" in user_data:
+        alias = user_data.get("pseudonym")
+    elif user_data.get("masked") is True:
+        alias = user_data.get("name")
+        # The neutral label of an account without a pseudonym is no alias.
+        if isinstance(alias, str) and alias == masked_name(user_id=user_data.get("id")):
+            alias = None
+    else:
+        alias = None
+    alias = alias.strip() if isinstance(alias, str) else ""
+    return alias[:100] or None
+
+
+def _get_or_create_stub_user(ctx: _FullImportContext, user_data: dict) -> str:
+    """Placeholder for an exported user that exists nowhere on this deployment.
+
+    Pseudonymous on purpose: the export carries the person's name and email,
+    and neither belongs on a deployment they never signed up to. The
+    placeholder shows the pseudonym the person already has where the export
+    came from (the label other users see there anyway), or a neutral label
+    when the export carries none. The account cannot log in, is in no
+    organization, and stays active so the imported work still shows up
+    wherever users are listed (leaderboards, Korrektur).
+    """
+    old_user_id = user_data.get("id")
+    key = _STUB_ID_SAFE.sub("-", str(old_user_id).strip().lower())[:64]
+    email = f"{key}@{STUB_EMAIL_DOMAIN}"
+    alias = _exported_alias(user_data)
+    # `users.pseudonym` is unique: a local account may hold the same one.
+    # The label still shows through `name`; only the column stays empty.
+    alias_is_free = bool(alias) and (
+        ctx.db.query(User.id)
+        .filter(User.pseudonym == alias, func.lower(User.email) != email)
+        .first()
+        is None
+    )
+
+    stub = ctx.db.query(User).filter(func.lower(User.email) == email).first()
+    if stub is not None:
+        # An earlier import (an export without pseudonyms) left a neutral
+        # label; take the pseudonym over now that one is on offer.
+        if alias and not stub.pseudonym:
+            stub.name = alias
+            if alias_is_free:
+                stub.pseudonym = alias
+            ctx.db.flush()
+        return stub.id
+
+    stub = User(
+        id=str(uuid.uuid4()),
+        username=f"imported_{key}",
+        email=email,
+        name=alias or masked_name(user_id=key),
+        pseudonym=alias if alias_is_free else None,
+        use_pseudonym=True,
+        hashed_password=_STUB_PASSWORD_HASH,
+        is_active=True,
+        is_superadmin=False,
+        email_verified=False,
+    )
+    ctx.db.add(stub)
+    # Annotations and grades reference the row by FK in the same transaction.
+    ctx.db.flush()
+    ctx.stub_users_created += 1
+    return stub.id
+
+
 def _insert_user(ctx: _FullImportContext, user_data: dict) -> None:
-    """Map an exported user to an existing user (by email) or the importer.
+    """Map an exported user onto exactly one user of this deployment.
 
-    No row is inserted — imported projects reuse the importing org's users.
-    Populates ``id_mappings["users"]`` so downstream FKs (created_by, etc.) can
-    be remapped.
+    The mapping is 1:1 by construction, which is what keeps authorship intact:
+    two exported authors collapsing onto one account lose all but one answer
+    per task (one active annotation per task and user) and merge their grades.
 
-    A masked record (an LMS user the exporter saw by pseudonym, no email) is
-    matched by its id instead: on the deployment it came from, the copy then
-    keeps each student's work under that student. Elsewhere the id is
-    unknown and the record maps to the importer like any unmatched account.
+    1. Same id: the same account. The id is the primary key and never changes,
+       whereas an email can, so this is what makes an export re-import onto
+       the right people on the deployment it came from. A foreign id is a
+       random UUID and simply is not found elsewhere.
+    2. Same email: the same person with an account on both deployments.
+    3. Neither: a placeholder under the person's exported pseudonym
+       (``_get_or_create_stub_user``).
     """
     old_user_id = user_data.get("id", str(uuid.uuid4()))
     email = user_data.get("email")
 
+    matched_id = None
+    if isinstance(old_user_id, str) and old_user_id:
+        matched_id = ctx.db.query(User.id).filter(User.id == old_user_id).scalar()
+    if matched_id is None and email:
+        matched_id = (
+            ctx.db.query(User.id)
+            .filter(func.lower(User.email) == email.strip().lower())
+            .scalar()
+        )
+    if matched_id is None:
+        matched_id = _get_or_create_stub_user(ctx, {**user_data, "id": old_user_id})
+
+    ctx.id_mappings["users"][old_user_id] = matched_id
+    # Identity is preserved either way (a real account or its own
+    # placeholder), never re-attributed to the importer.
+    ctx.matched_user_ids[old_user_id] = matched_id
     if email:
-        existing_user = (
-            ctx.db.query(User).filter(func.lower(User.email) == email.strip().lower()).first()
-        )
-        if existing_user:
-            ctx.id_mappings["users"][old_user_id] = existing_user.id
-            ctx.user_email_to_id[email] = existing_user.id
-            ctx.matched_user_ids[old_user_id] = existing_user.id
-        else:
-            # For now, map to current importing user as fallback
-            ctx.id_mappings["users"][old_user_id] = ctx.user_id
-            ctx.user_email_to_id[email] = ctx.user_id
-        return
-    if user_data.get("masked") is True and isinstance(old_user_id, str) and old_user_id:
-        existing_id = (
-            ctx.db.query(User.id).filter(User.id == old_user_id).scalar()
-        )
-        if existing_id is not None:
-            ctx.id_mappings["users"][old_user_id] = existing_id
-            ctx.matched_user_ids[old_user_id] = existing_id
-            return
-    # No email, map to current user
-    ctx.id_mappings["users"][old_user_id] = ctx.user_id
+        ctx.user_email_to_id[email] = matched_id
 
 
 def _insert_task(ctx: _FullImportContext, task_data: dict) -> None:
@@ -1581,6 +1678,7 @@ def _insert_annotation(ctx: _FullImportContext, annotation_data: dict) -> None:
                 f"active annotation on task {task_id}"
             )
             del ctx.id_mappings["annotations"][old_annotation_id]
+            ctx.skipped_annotations += 1
             return
         ctx.active_annotation_keys.add(key)
     if task_id:  # Only import if task exists
@@ -1760,6 +1858,19 @@ def _get_or_create_catchall_judge_run(
     return jr_id
 
 
+def _map_grader(ctx: _FullImportContext, old_user_id: Optional[str]) -> Optional[str]:
+    """Remap the grader of a human-graded evaluation row.
+
+    ``created_by`` is FK'd to users, so the exported id only exists on the
+    deployment it came from; written as-is, importing anywhere else failed the
+    whole job on the FK. NULL stays NULL: it marks an automated (LLM judge)
+    row, and turning it into a user would make the row read as a human grade.
+    """
+    if not old_user_id:
+        return None
+    return ctx.id_mappings["users"].get(old_user_id, ctx.user_id)
+
+
 def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
     # te_seen counts every row in the payload (imported or skipped) to reproduce
     # the old len(import_data["task_evaluations"]) stat without holding the array.
@@ -1804,7 +1915,7 @@ def _insert_task_evaluation(ctx: _FullImportContext, te_data: dict) -> None:
             judge_run_id=judge_run_id,
             # Per-config linkage — config ids are stable strings, not remapped.
             evaluation_config_id=te_data.get("evaluation_config_id"),
-            created_by=te_data.get("created_by"),
+            created_by=_map_grader(ctx, te_data.get("created_by")),
         )
 
         ctx.db.add(new_te)
@@ -1979,13 +2090,13 @@ def _insert_grading_feedback(ctx: _FullImportContext, fb: dict) -> None:
     """Insert one grading-feedback row — or skip it.
 
     Feedback is an OPINION bound to an identity, so the author is the one FK
-    here that is never remapped to the importing user: the row is imported only
-    when the exported author matched a real user of this deployment by email
-    (``matched_user_ids``). Otherwise it is dropped, because a thumbs-down
-    silently re-attributed to whoever ran the import would poison the very
-    analysis the table exists for — and an anonymous row is not an option
-    either (``user_id`` is NOT NULL, and one row per (user, annotation, source)
-    is what the unique index expects).
+    here that is never remapped to the importing user: the row follows its own
+    author (``matched_user_ids``: the same account, the same person by email,
+    or that author's own placeholder). A thumbs-down silently re-attributed to
+    whoever ran the import would poison the very analysis the table exists
+    for - and an anonymous row is not an option either (``user_id`` is NOT
+    NULL, and one row per (user, annotation, source) is what the unique index
+    expects). An author missing from the export's users block is dropped.
 
     Skips rows whose submission didn't come along, whose source this deployment
     doesn't know, or that would violate the table's CHECK/unique constraints.
@@ -2494,6 +2605,15 @@ def _build_full_import_stats(
             "grading_feedback": len(ctx.grading_feedback_seen),
             "task_rubrics": len(ctx.id_mappings["task_rubrics"]),
         },
+        # Rows the payload carried that could NOT be stored. The job still
+        # completes, so the client has to say so: a project imported on a
+        # deployment that knows none of its authors keeps one answer per task.
+        "skipped_counts": {
+            "annotations": ctx.skipped_annotations,
+        },
+        # Exported users unknown on this deployment, kept 1:1 as pseudonymous
+        # placeholder accounts instead of being merged into the importer.
+        "placeholder_users_created": ctx.stub_users_created,
     }
 
 
@@ -2575,6 +2695,57 @@ def _maybe_decompress(fileobj):
     )
     with gzip.GzipFile(fileobj=fileobj, mode="rb") as gz:
         shutil.copyfileobj(gz, out, length=1024 * 1024)
+    out.seek(0)
+    return out
+
+
+# Local-file-header magic of a zip archive. The projects list exports a
+# selection as a .zip with one JSON per project (`bulk-export-full`).
+_ZIP_MAGIC = b"PK\x03\x04"
+
+
+def _maybe_unzip(fileobj):
+    """Return the single project export inside a zip, or ``fileobj`` untouched.
+
+    The projects list hands out its full export as a ``.zip`` and its import
+    accepts ``.zip``, so the archive has to round-trip. Extracts the JSON
+    member into a fresh ``SpooledTemporaryFile`` (same spill threshold as the
+    gzip path) for the multi-pass importer. An archive holding several
+    project exports is refused: importing just the first would silently drop
+    the rest.
+    """
+    fileobj.seek(0)
+    magic = fileobj.read(4)
+    fileobj.seek(0)
+    if magic != _ZIP_MAGIC:
+        return fileobj
+    try:
+        archive = zipfile.ZipFile(fileobj, "r")
+    except zipfile.BadZipFile:
+        raise ImportValidationError(400, "Invalid ZIP file")
+    with archive:
+        members = [
+            info
+            for info in archive.infolist()
+            if not info.is_dir() and info.filename.lower().endswith(".json")
+        ]
+        if not members:
+            raise ImportValidationError(400, "No JSON file found in ZIP archive")
+        if len(members) > 1:
+            raise ImportValidationError(
+                400,
+                f"This ZIP archive holds {len(members)} project exports. "
+                "Extract it and import the project files one at a time.",
+            )
+        out = tempfile.SpooledTemporaryFile(
+            max_size=_DECOMPRESS_SPOOL_THRESHOLD, mode="w+b"
+        )
+        try:
+            with archive.open(members[0]) as inner:
+                shutil.copyfileobj(inner, out, length=1024 * 1024)
+        except zipfile.BadZipFile:
+            out.close()
+            raise ImportValidationError(400, "Invalid ZIP file")
     out.seek(0)
     return out
 
@@ -2723,8 +2894,8 @@ def run_full_project_import(
 ) -> dict:
     """Import a flat comprehensive payload, creating a NEW project.
 
-    Streams ``fileobj`` (a seekable spool already filled with the inner JSON;
-    the caller extracts a ``.zip`` into it first) in FK-dependency order and
+    Streams ``fileobj`` (a seekable spool holding the upload as-is; a ``.zip``
+    from the projects list export is unpacked here) in FK-dependency order and
     commits once. Does NOT roll back on failure — the caller owns transaction
     cleanup. Raises ``ImportValidationError`` (HTTP 400 equivalent) for an
     unsupported version, missing project data, malformed JSON, or a user with no
@@ -2740,7 +2911,7 @@ def run_full_project_import(
     a seekable spool before format detection, so .gz, NDJSON, and legacy JSON all
     funnel through this one entry point.
     """
-    fileobj = _maybe_decompress(fileobj)
+    fileobj = _maybe_decompress(_maybe_unzip(fileobj))
 
     if _is_ndjson_stream(fileobj):
         return run_ndjson_import(db, fileobj, user_id, organization_id)

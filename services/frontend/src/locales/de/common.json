@@ -636,6 +636,7 @@
       "unknownError": "Unbekannter Fehler",
       "importingProject": "Importiere Projekt aus {filename} ({size} MB)...",
       "importStats": " - {tasks} Aufgaben, {annotations} Annotationen",
+      "importSkippedAnnotations": "{count} Antworten wurden nicht importiert: Ihre Verfasser sind hier unbekannt und wurden Ihrem Konto zugeordnet, das pro Aufgabe nur eine aktive Antwort halten kann. Legen Sie die Nutzer vor dem Import mit derselben E-Mail-Adresse an.",
       "importSuccess": "\"{title}\" erfolgreich importiert{stats} ({time}s)",
       "importFailed": "Import des Projekts fehlgeschlagen",
       "invalidJsonFormat": "Ungültiges JSON-Format in Datei",

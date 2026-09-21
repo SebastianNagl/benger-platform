@@ -387,6 +387,20 @@ export function ProjectListTable({
         'success',
       )
 
+      // The job completes even when answers could not be stored (authors the
+      // deployment does not know collapse onto the importer, who may hold
+      // one active answer per task). Say so instead of a bare success.
+      const skippedAnnotations =
+        result.statistics?.skipped_counts?.annotations || 0
+      if (skippedAnnotations > 0) {
+        addToast(
+          t('projects.list.importSkippedAnnotations', {
+            count: skippedAnnotations,
+          }),
+          'warning',
+        )
+      }
+
       // Clear file input
       if (fileInputRef.current) {
         fileInputRef.current.value = ''

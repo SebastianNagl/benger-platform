@@ -53,7 +53,7 @@ async def bulk_delete_projects(
     project_ids = data.get("project_ids", [])
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Bulk delete requested for projects: {project_ids} by user: {current_user.email}")
+    logger.info(f"Bulk delete requested for projects: {project_ids} by user: {current_user.id}")
 
     # Verify user has permission to delete each project
     deleted_count = 0

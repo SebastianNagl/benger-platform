@@ -1536,41 +1536,52 @@ def _comprehensive_users(db, project_id, viewer):
 
 
 def _masked_record(record, user):
-    return record["name"] == user.pseudonym and record["email"] is None and record["username"] is None
+    from user_display import masked_name
 
-
-def _real_record(record, user):
     return (
-        record["name"] == user.name
-        and record["email"] == user.email
-        and record["username"] == user.username
+        record["name"] == masked_name(user)
+        and record["pseudonym"] == user.pseudonym
+        and record["email"] is None
+        and record["username"] is None
+        and record["masked"] is True
+    )
+
+
+def _identifies_nobody(body, *users):
+    """No name, address or login name of ``users`` appears anywhere in ``body``."""
+    return not any(
+        value and value in body
+        for user in users
+        for value in (user.name, user.email, user.username)
     )
 
 
 @pytest.mark.parametrize("read_users", [_ndjson_users, _comprehensive_users])
-def test_export_users_block_without_hooks(export_world, read_users):
-    """Without the extended worker hook the link table decides and only
-    superadmins see real names."""
+def test_export_users_block_is_pseudonymous_for_every_viewer(export_world, read_users):
+    """An export is a file that leaves the deployment, so it names nobody:
+    not for the teacher, not for a superadmin, not the exporter's own record
+    and not an ordinary (non-LMS) account. Until 2026-09 only LMS students
+    were masked, and only for viewers who may not see them."""
     w = export_world
-    db, pid, student = w["db"], w["project"].id, w["student"]
+    db, pid = w["db"], w["project"].id
 
-    assert _masked_record(read_users(db, pid, w["teacher"])[student.id], student)
-    assert _masked_record(read_users(db, pid, None)[student.id], student)
-    assert _real_record(read_users(db, pid, w["superadmin"])[student.id], student)
-    # The exporting user's own record is never masked.
-    assert _real_record(read_users(db, pid, student)[student.id], student)
-    # Ordinary accounts are exported as before.
-    assert _real_record(read_users(db, pid, w["teacher"])[w["teacher"].id], w["teacher"])
+    for viewer in (w["teacher"], None, w["superadmin"], w["student"]):
+        records = read_users(db, pid, viewer)
+        for user in (w["student"], w["teacher"]):
+            assert _masked_record(records[user.id], user), (viewer, user.id)
 
 
 @pytest.mark.parametrize("read_users", [_ndjson_users, _comprehensive_users])
-def test_export_users_block_follows_the_viewer_hook(
+def test_export_users_block_ignores_a_viewer_hook_that_would_unmask(
     export_world, read_users, monkeypatch
 ):
+    # The hook decides who sees a real name INSIDE the app. It must not
+    # unmask a file.
     import lms_name_masking
 
     w = export_world
     fake = _Viewers()
+    fake.allowed.add(w["teacher"].id)
     monkeypatch.setattr(
         lms_name_masking.NameVisibility,
         "load",
@@ -1579,11 +1590,9 @@ def test_export_users_block_follows_the_viewer_hook(
     db, pid, student = w["db"], w["project"].id, w["student"]
 
     assert _masked_record(read_users(db, pid, w["teacher"])[student.id], student)
-    fake.allowed.add(w["teacher"].id)
-    assert _real_record(read_users(db, pid, w["teacher"])[student.id], student)
 
 
-def test_export_select_generator_passes_the_viewer(export_world, monkeypatch):
+def test_no_export_format_carries_a_name_email_or_username(export_world, monkeypatch):
     import lms_name_masking
     from export_stream import select_export_generator
 
@@ -1596,12 +1605,14 @@ def test_export_select_generator_passes_the_viewer(export_world, monkeypatch):
         classmethod(lambda cls: cls(_protected, fake)),
     )
     for fmt in ("comprehensive", "ndjson"):
-        body = "".join(
-            select_export_generator(w["db"], w["project"], fmt, viewer=w["teacher"])
-        )
-        assert w["student"].name in body
-        assert w["student"].email in body
-    assert (w["teacher"].id, w["project"].id) in fake.calls
+        for viewer in (w["teacher"], w["superadmin"]):
+            body = "".join(
+                select_export_generator(w["db"], w["project"], fmt, viewer=viewer)
+            )
+            assert _identifies_nobody(body, w["student"], w["teacher"]), (fmt, viewer.id)
+            # The people are still there, by id and pseudonym.
+            assert w["student"].id in body
+            assert w["student"].pseudonym in body
 
 
 def test_failing_hooks_never_reveal_a_name(export_world, monkeypatch):
@@ -1617,10 +1628,8 @@ def test_failing_hooks_never_reveal_a_name(export_world, monkeypatch):
         classmethod(lambda cls: cls(_boom, _boom)),
     )
     users = _ndjson_users(w["db"], w["project"].id, w["teacher"])
-    # The link table still identifies the LMS student; the teacher is not
-    # allowed while the viewer hook fails.
     assert _masked_record(users[w["student"].id], w["student"])
-    assert _real_record(users[w["teacher"].id], w["teacher"])
+    assert _masked_record(users[w["teacher"].id], w["teacher"])
 
 
 def test_name_visibility_loads_the_extended_worker_hook(monkeypatch):
@@ -1772,11 +1781,13 @@ def test_masked_export_reimport_keeps_each_students_work(export_world, fmt):
 
 
 @pytest.mark.parametrize("fmt", ["ndjson", "comprehensive"])
-def test_masked_export_from_elsewhere_falls_back_without_failing(export_world, fmt):
-    """Accounts the importing deployment does not know map to the importer.
-    Two of them on one task collapse onto one user: the import keeps the
-    first answer and one assignment instead of failing on the unique
-    indexes."""
+def test_masked_export_from_elsewhere_keeps_every_author_apart(export_world, fmt):
+    """Accounts the importing deployment does not know each get their own
+    pseudonymous placeholder. Mapping them all to the importer collapsed two
+    students on one task onto one user, which kept the first answer and one
+    assignment and dropped the rest."""
+    from import_stream import is_stub_email
+
     w = export_world
     db, source = w["db"], w["project"]
     second = _second_student_world(w)
@@ -1789,19 +1800,22 @@ def test_masked_export_from_elsewhere_falls_back_without_failing(export_world, f
     copy = _imported_project(db, source.id, w["teacher"])
     assert copy is not None
     annotations = db.query(Annotation).filter(Annotation.project_id == copy.id).all()
-    assert [a.completed_by for a in annotations] == [w["teacher"].id]
+    authors = {a.completed_by for a in annotations}
+    assert len(annotations) == 2 and len(authors) == 2
+    assert w["teacher"].id not in authors
+    assert all(is_stub_email(db.get(User, uid).email) for uid in authors)
     assignments = (
         db.query(TaskAssignment)
         .join(Task, Task.id == TaskAssignment.task_id)
         .filter(Task.project_id == copy.id)
         .all()
     )
-    assert [a.user_id for a in assignments] == [w["teacher"].id]
+    assert {a.user_id for a in assignments} == authors
 
 
-def test_masked_record_is_flagged_and_crafted_flags_need_a_known_id(export_world):
-    """Only a record marked ``masked`` is matched by id, and only to an
-    existing account."""
+def test_masked_record_is_flagged_and_ids_only_match_a_known_account(export_world):
+    """A record is matched by id, masked or not, and only to an existing
+    account; an unknown id never lands on the importer."""
     from import_stream import _FullImportContext, _insert_user
 
     w = export_world
@@ -1812,12 +1826,17 @@ def test_masked_record_is_flagged_and_crafted_flags_need_a_known_id(export_world
     _insert_user(ctx, {"id": "nobody-here", "email": None, "masked": True})
 
     users = ctx.id_mappings["users"]
+    from import_stream import is_stub_email
+
     assert users[w["student"].id] == w["student"].id
-    assert ctx.matched_user_ids == {w["student"].id: w["student"].id}
-    # Unflagged or unknown: the importer.
-    assert users[w["superadmin"].id] == w["teacher"].id
-    assert users["nobody-here"] == w["teacher"].id
+    # The id is the account, with or without the flag.
+    assert users[w["superadmin"].id] == w["superadmin"].id
+    # Unknown: its own placeholder, never the importer.
+    placeholder = db.get(User, users["nobody-here"])
+    assert placeholder.id != w["teacher"].id
+    assert is_stub_email(placeholder.email)
 
     records = _ndjson_users(db, w["project"].id, w["teacher"])
     assert records[w["student"].id]["masked"] is True
-    assert "masked" not in records[w["teacher"].id]
+    # Ordinary accounts are exported pseudonymously too.
+    assert records[w["teacher"].id]["masked"] is True

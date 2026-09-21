@@ -1139,9 +1139,9 @@ async def bulk_export_full_projects(
     org_context = get_org_context_from_request(request)
 
     logger.info(
-        "bulk-export-full: %d project(s) requested by %s",
+        "bulk-export-full: %d project(s) requested by user %s",
         len(project_ids),
-        current_user.email,
+        current_user.id,
     )
 
     # Write the ZIP to a tempfile on disk and stream each project's JSON
