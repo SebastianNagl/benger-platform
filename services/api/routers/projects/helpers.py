@@ -69,6 +69,7 @@ from metric_filters import (  # noqa: F401 — re-exported for legacy callers
     _METRIC_EXCLUDED_KEYS,
     _METRIC_NOISE_SUFFIXES,
     _metric_key_is_real,
+    metric_key_counts_as_evaluation,
 )
 
 
@@ -123,9 +124,11 @@ def attempt_grade_points_from_metrics(metrics: Any) -> Optional[float]:
 
 
 def _scored_pairs_query(db: Session):
-    """Base query that yields (project_id, subject_id, metric_key) for every
-    (annotation|generation, metric) pair that has at least one scored row in a
-    completed evaluation run. Caller adds project filters + DISTINCT."""
+    """Base query that yields (project_id, subject_id, config_id, metric_key)
+    for every (annotation|generation, evaluation config, metric) cell that has
+    at least one scored row in a completed evaluation run. Caller adds project
+    filters + DISTINCT. The config id keeps two judges of the same metric on
+    one answer apart; re-runs of one config still collapse."""
     subject_expr = func.coalesce(
         TaskEvaluation.annotation_id, TaskEvaluation.generation_id
     )
@@ -134,6 +137,7 @@ def _scored_pairs_query(db: Session):
         db.query(
             EvaluationRun.project_id,
             subject_expr.label("subject_id"),
+            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
             func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
         )
         .select_from(TaskEvaluation)
@@ -150,8 +154,9 @@ def _scored_pairs_query(db: Session):
 def _async_scored_pairs_select():
     """select()-based twin of :func:`_scored_pairs_query` for the async lane.
 
-    Yields (project_id, subject_id, metric_key) for every (subject, metric)
-    pair with a scored row in a completed run. Caller adds project filters +
+    Yields (project_id, subject_id, config_id, metric_key) for every
+    (subject, evaluation config, metric) cell with a scored row in a
+    completed run. Caller adds project filters +
     ``.distinct()`` exactly like the sync builder.
     """
     subject_expr = func.coalesce(
@@ -162,6 +167,7 @@ def _async_scored_pairs_select():
         select(
             EvaluationRun.project_id,
             subject_expr.label("subject_id"),
+            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
             func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
         )
         .select_from(TaskEvaluation)
@@ -338,7 +344,9 @@ def calculate_project_stats(
             .all()
         )
         response.evaluation_count = sum(
-            1 for _pid, sub_id, mk in pairs if _metric_key_is_real(mk)
+            1
+            for _pid, _sub_id, _cfg, mk in pairs
+            if metric_key_counts_as_evaluation(mk)
         )
     response.evaluations_completed_count = response.evaluation_count
 
@@ -445,7 +453,9 @@ async def calculate_project_stats_async(
             .distinct()
         )
         response.evaluation_count = sum(
-            1 for _pid, sub_id, mk in pairs_result.all() if _metric_key_is_real(mk)
+            1
+            for _pid, _sub_id, _cfg, mk in pairs_result.all()
+            if metric_key_counts_as_evaluation(mk)
         )
     response.evaluations_completed_count = response.evaluation_count
 
@@ -553,8 +563,8 @@ def calculate_project_stats_batch(db: Session, project_ids: List[str]) -> Dict[s
             .distinct()
             .all()
         )
-        for pid, _sub_id, metric_key in live_pairs:
-            if not _metric_key_is_real(metric_key):
+        for pid, _sub_id, _cfg, metric_key in live_pairs:
+            if not metric_key_counts_as_evaluation(metric_key):
                 continue
             stats_map[pid]['evaluation_count'] += 1
             stats_map[pid]['evaluations_completed_count'] += 1

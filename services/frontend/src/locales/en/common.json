@@ -636,6 +636,7 @@
       "unknownError": "Unknown error",
       "importingProject": "Importing project from {filename} ({size} MB)...",
       "importStats": " - {tasks} tasks, {annotations} annotations",
+      "importSkippedAnnotations": "{count} answers were not imported: their authors are unknown here and were mapped to your account, which can hold only one active answer per task. Create the users with the same email address before importing.",
       "importSuccess": "Successfully imported \"{title}\"{stats} ({time}s)",
       "importFailed": "Failed to import project",
       "invalidJsonFormat": "Invalid JSON format in file",

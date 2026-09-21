@@ -5,18 +5,18 @@ Dashboard and analytics endpoints.
 import logging
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import cast, func, select, text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_user
 from database import get_async_db
-from models import EvaluationRun, Generation, TaskEvaluation
+from models import EvaluationRun, Generation
 from project_models import Annotation, Task
 from redis_cache import RedisCache
 from routers.projects.helpers import (
-    _metric_key_is_real,
+    _async_scored_pairs_select,
     get_accessible_project_ids,
+    metric_key_counts_as_evaluation,
 )
 from aggregate_summaries import read_dashboard_sum_async
 
@@ -29,35 +29,14 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
 def _build_scored_pairs_select(accessible_ids):
-    """Async-friendly select equivalent of routers.projects.helpers._scored_pairs_query.
+    """DISTINCT scored cells across the accessible projects.
 
-    Yields DISTINCT (project_id, subject_id, metric_key) for every
-    (annotation|generation, metric) pair scored in a completed evaluation run.
-    The sync helper builds a `db.query(...)` Query that can't run on an
-    AsyncSession; this returns a plain `select()` so the async handler can
-    `await db.execute(...)` it. The noise filter (`_metric_key_is_real`) is
-    applied in Python by the caller, identical to the sync path.
+    Thin wrapper over routers.projects.helpers._async_scored_pairs_select so
+    the dashboard and the project tiles count the same thing. The
+    `metric_key_counts_as_evaluation` filter is applied in Python by the
+    caller, identical to the project path.
     """
-    subject_expr = func.coalesce(
-        TaskEvaluation.annotation_id, TaskEvaluation.generation_id
-    )
-    metrics_jsonb = cast(TaskEvaluation.metrics, JSONB)
-    stmt = (
-        select(
-            EvaluationRun.project_id,
-            subject_expr.label("subject_id"),
-            func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
-        )
-        .select_from(TaskEvaluation)
-        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
-        .where(
-            EvaluationRun.status == "completed",
-            subject_expr.isnot(None),
-            TaskEvaluation.metrics.isnot(None),
-            func.jsonb_typeof(metrics_jsonb) == "object",
-        )
-        .distinct()
-    )
+    stmt = _async_scored_pairs_select().distinct()
     if accessible_ids is not None:
         stmt = stmt.where(EvaluationRun.project_id.in_(accessible_ids))
     return stmt
@@ -67,12 +46,14 @@ async def _live_evaluations_count_async(db: AsyncSession, accessible_ids):
     """Async twin of the original `_live_evaluations_count` fallback.
 
     Fallback path when project_summaries hasn't been populated yet — pulls
-    (subject, metric) pairs and applies the noise filter in Python. Kept for
+    (subject, config, metric) cells and applies the noise filter in Python. Kept for
     new-project safety so brand-new projects show accurate stats before the
     next `recompute_aggregates` cycle.
     """
     rows = (await db.execute(_build_scored_pairs_select(accessible_ids))).all()
-    return sum(1 for _pid, _sub, mk in rows if _metric_key_is_real(mk))
+    return sum(
+        1 for _pid, _sub, _cfg, mk in rows if metric_key_counts_as_evaluation(mk)
+    )
 
 
 async def _live_dashboard_counts_async(db: AsyncSession, accessible_ids):

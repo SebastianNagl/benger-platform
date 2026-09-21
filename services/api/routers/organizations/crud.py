@@ -61,7 +61,9 @@ async def list_organizations(
         # OPTIMIZED: Get all organizations first
         organizations = (
             await db.execute(
-                select(Organization).where(Organization.is_active == True)  # noqa: E712
+                select(Organization)
+                .where(Organization.is_active == True)  # noqa: E712
+                .order_by(func.lower(Organization.name), Organization.id)
             )
         ).scalars().all()
 
@@ -121,6 +123,7 @@ async def list_organizations(
                     OrganizationMembership.is_active == True,  # noqa: E712
                     Organization.is_active == True,  # noqa: E712
                 )
+                .order_by(func.lower(Organization.name), Organization.id)
             )
         ).all()
 

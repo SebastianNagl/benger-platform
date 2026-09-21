@@ -27,6 +27,8 @@ from typing import List, Optional
 
 import requests
 
+from account_activation import email_is_routable
+
 logger = logging.getLogger(__name__)
 
 
@@ -69,6 +71,22 @@ class SendGridClient:
         if not self.api_key:
             logger.error("SendGrid API key not configured")
             return {"status": "error", "error": "SendGrid not configured"}
+
+        # Synthetic accounts (LMS sub-only users, anonymized users, the
+        # placeholders a project import creates) carry a reserved `.invalid`
+        # address. Sending there only earns bounces, so those recipients are
+        # dropped before the API call. With nobody left the result is a
+        # permanent 4xx, which callers do not retry.
+        requested = len(to)
+        to = [email for email in to if email_is_routable(email)]
+        cc = [email for email in cc or [] if email_is_routable(email)]
+        bcc = [email for email in bcc or [] if email_is_routable(email)]
+        if requested and not to:
+            return {
+                "status": "error",
+                "status_code": 400,
+                "error": "No deliverable recipient (reserved .invalid address)",
+            }
 
         # Build SendGrid payload
         payload = {

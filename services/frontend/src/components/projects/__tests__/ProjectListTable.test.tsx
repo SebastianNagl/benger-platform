@@ -1147,6 +1147,80 @@ describe('ProjectListTable', () => {
       })
     })
 
+    it('warns when the completed import could not store every answer', async () => {
+      // The job completes although answers were dropped (authors unknown on
+      // this deployment collapse onto the importer). A bare success toast
+      // hid that 23 of 24 answers were missing.
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        project_id: 'imported-1',
+        result: {
+          project_title: 'Imported Project',
+          statistics: {
+            imported_counts: { tasks: 1, annotations: 1 },
+            skipped_counts: { annotations: 23 },
+          },
+        },
+      })
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+
+      render(<ProjectListTable />)
+
+      fireEvent.click(screen.getByTestId('projects-more-button'))
+      fireEvent.click(screen.getByTestId('projects-import-button'))
+      await userEvent.upload(
+        screen.getByTestId('project-import-file-input'),
+        new File(['{}'], 'project.json', { type: 'application/json' }),
+      )
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledWith(
+          expect.stringContaining('23 answers were not imported'),
+          'warning',
+        )
+      })
+    })
+
+    it('does not warn when every answer was stored', async () => {
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue({
+        job_id: 'job-1',
+        status: 'completed',
+        project_id: 'imported-1',
+        result: {
+          project_title: 'Imported Project',
+          statistics: {
+            imported_counts: { tasks: 1, annotations: 24 },
+            skipped_counts: { annotations: 0 },
+          },
+        },
+      })
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+
+      render(<ProjectListTable />)
+
+      fireEvent.click(screen.getByTestId('projects-more-button'))
+      fireEvent.click(screen.getByTestId('projects-import-button'))
+      await userEvent.upload(
+        screen.getByTestId('project-import-file-input'),
+        new File(['{}'], 'project.json', { type: 'application/json' }),
+      )
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/projects/imported-1')
+      })
+      expect(mockAddToast).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'warning',
+      )
+    })
+
     it('should reject non-JSON files', async () => {
       ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
         ...defaultStoreState,

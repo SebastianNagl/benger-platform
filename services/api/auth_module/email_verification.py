@@ -13,6 +13,7 @@ from email_service import EmailService
 from fastapi import HTTPException, status
 from localization import LanguageDetector
 from models import User
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .config import ALGORITHM as JWT_ALGORITHM
@@ -96,7 +97,10 @@ class EmailVerificationService:
             db.query(Invitation, Organization)
             .join(Organization, Invitation.organization_id == Organization.id)
             .filter(
-                ((Invitation.email == user_email) | (Invitation.pending_user_id == user_id)),
+                (
+                    (func.lower(Invitation.email) == user_email.strip().lower())
+                    | (Invitation.pending_user_id == user_id)
+                ),
                 Invitation.accepted == False,
                 Invitation.expires_at > datetime.now(timezone.utc),
             )

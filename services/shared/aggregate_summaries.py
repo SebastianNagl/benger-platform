@@ -69,7 +69,11 @@ _TUM_SCOPE_ORG_IDS: Tuple[str, ...] = (
 # Single source of truth for the noise filter lives in /shared so this
 # module is importable by both the API and the worker. Routers re-export
 # the name for backwards compatibility with existing call sites.
-from metric_filters import _metric_key_is_real  # noqa: E402
+from metric_filters import (  # noqa: E402
+    GRADE_POINT_LIFT_BASES,
+    _metric_key_is_real,
+    metric_key_counts_as_evaluation,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -382,12 +386,15 @@ def _compute_project_summary(
 
 
 def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) -> int:
-    """Count DISTINCT (subject, real-metric) pairs scored in completed runs.
+    """Count DISTINCT (subject, evaluation config, metric) cells scored in
+    completed runs.
 
     Mirrors routers.projects.helpers._scored_pairs_query semantics but
     project-scoped and time-filtered. The Python loop applies the
-    `_metric_key_is_real` noise filter — same source of truth as the live
-    path.
+    `metric_key_counts_as_evaluation` filter - same source of truth as the
+    live path. The config id is part of the key so two judges of the same
+    metric on one answer count as the two evaluations they are; re-runs of
+    one config still collapse.
     """
     subject_expr = func.coalesce(
         TaskEvaluation.annotation_id, TaskEvaluation.generation_id
@@ -396,6 +403,7 @@ def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) 
     stmt = (
         select(
             subject_expr.label("subject_id"),
+            func.coalesce(TaskEvaluation.evaluation_config_id, "").label("config_id"),
             func.jsonb_object_keys(metrics_jsonb).label("metric_key"),
         )
         .select_from(TaskEvaluation)
@@ -419,7 +427,9 @@ def _count_eval_pairs(db: Session, project_id: str, cutoff: Optional[datetime]) 
     if cutoff is not None:
         stmt = stmt.where(EvaluationRun.created_at >= cutoff)
     return sum(
-        1 for _sub, mk in db.execute(stmt).all() if _metric_key_is_real(mk)
+        1
+        for _sub, _cfg, mk in db.execute(stmt).all()
+        if metric_key_counts_as_evaluation(mk)
     )
 
 
@@ -535,13 +545,16 @@ def _aggregate_leaderboard_rows(
 
     # jsonb_each returns a record type; using text() for clarity.
     #
-    # The UNION ALL branch synthesises a `llm_judge_falloesung_grade_points`
-    # triple per row from `metrics.llm_judge_falloesung.details.grade_points`.
-    # The worker stores grade points inside `details` (next to raw_score), so
-    # jsonb_each above only ever sees the parent `llm_judge_falloesung`
-    # (0–1 normalised score). The frontend leaderboard defaults to the
-    # grade_points metric — without this lift the column is always n/a even
-    # though the per-row value exists.
+    # The UNION ALL branch synthesises a `<base>_grade_points` triple per row
+    # from `metrics.<base>.details.grade_points`, for every base metric whose
+    # Notenpunkte twin is registered (`GRADE_POINT_LIFT_BASES`). Older rows
+    # store grade points only inside `details` (next to raw_score), so
+    # jsonb_each above sees just the parent (0-1 normalised score). The
+    # frontend leaderboard defaults to the grade_points metric - without this
+    # lift the column is always n/a even though the per-row value exists.
+    # Newer rows ALSO carry the flat `<base>_grade_points` key, which the
+    # first branch already emits; the lift skips those so a row is never
+    # counted twice (doubled n narrows the CI, and doubles a `sum`).
     #
     # The outer query coerces each value once (`OFFSET 0` keeps the planner
     # from inlining the large coercion CASE into every aggregate argument)
@@ -582,19 +595,20 @@ def _aggregate_leaderboard_rows(
 
             SELECT
                 g.model_id,
-                'llm_judge_falloesung_grade_points' AS metric_key,
-                te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points' AS metric_val
+                gp.base || '_grade_points' AS metric_key,
+                te.metrics::jsonb->gp.base->'details'->'grade_points' AS metric_val
             FROM task_evaluations te
             JOIN generations g ON g.id = te.generation_id
             JOIN evaluation_runs er ON er.id = te.evaluation_id
+            CROSS JOIN unnest(CAST(:gp_bases AS text[])) AS gp(base)
             WHERE te.evaluation_id = ANY(:run_ids)
               AND te.generation_id IS NOT NULL
               AND te.metrics IS NOT NULL
               AND jsonb_typeof(te.metrics::jsonb) = 'object'
-              AND te.metrics::jsonb ? 'llm_judge_falloesung'
-              AND te.metrics::jsonb->'llm_judge_falloesung'->'details' ? 'grade_points'
-              AND jsonb_typeof(te.metrics::jsonb->'llm_judge_falloesung'->'details'->'grade_points') = 'number'
-              AND (CAST(:eval_types AS text[]) IS NULL OR 'llm_judge_falloesung_grade_points' = ANY(:eval_types))
+              AND te.metrics::jsonb ? gp.base
+              AND NOT (te.metrics::jsonb ? (gp.base || '_grade_points'))
+              AND jsonb_typeof(te.metrics::jsonb->gp.base->'details'->'grade_points') = 'number'
+              AND (CAST(:eval_types AS text[]) IS NULL OR gp.base || '_grade_points' = ANY(:eval_types))
             ) AS src
             OFFSET 0
         ) AS coerced
@@ -602,7 +616,11 @@ def _aggregate_leaderboard_rows(
         GROUP BY model_id, metric_key
         ORDER BY model_id, metric_key
         """
-    ).bindparams(run_ids=run_ids, eval_types=eval_types_bind)
+    ).bindparams(
+        run_ids=run_ids,
+        eval_types=eval_types_bind,
+        gp_bases=list(GRADE_POINT_LIFT_BASES),
+    )
 
     # (model_id, metric_key) -> (count, sum, sample sd)
     buckets: Dict[Tuple[str, str], Tuple[int, float, Optional[float]]] = {}

@@ -23,6 +23,7 @@ import {
 import Highlighter from 'react-highlight-words'
 
 import { navigation } from '@/components/layout/Navigation'
+import { SearchIcon } from '@/components/shared/SearchIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -227,18 +228,6 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   })
 
   return { autocomplete, autocompleteState }
-}
-
-function SearchIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" {...props}>
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12.01 12a4.25 4.25 0 1 0-6.02-6 4.25 4.25 0 0 0 6.02 6Zm0 0 3.24 3.25"
-      />
-    </svg>
-  )
 }
 
 function NoResultsIcon(props: React.ComponentPropsWithoutRef<'svg'>) {

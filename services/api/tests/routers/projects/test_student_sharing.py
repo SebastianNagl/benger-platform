@@ -780,6 +780,17 @@ async def test_roster_scores_read_nested_canonical_metrics(
         (ranked,) = r.json()
         assert ranked["best_score"] == pytest.approx(0.83)
         assert ranked["rank"] == 1
+        # The owner looks at someone else's row.
+        assert ranked["is_current_user"] is False
+
+    # The invitee sees the same row marked as their own: names can be
+    # pseudonyms, so the "Du" pill needs the server to say which row it is.
+    with _as_user(invitee):
+        r = await async_test_client.get(f"/api/projects/{exam.id}/cohort-leaderboard")
+        assert r.status_code == 200
+        (own,) = r.json()
+        assert own["user_id"] == invitee.id
+        assert own["is_current_user"] is True
 
 
 @pytest.mark.integration

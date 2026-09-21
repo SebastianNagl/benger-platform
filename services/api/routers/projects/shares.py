@@ -424,6 +424,9 @@ async def cohort_leaderboard(
                 "best_score": s.get("best"),
                 "last_score": s.get("last"),
                 "attempts": s.get("attempts", 0),
+                # Names may be pseudonyms, so the client cannot tell which
+                # row is the viewer's own; the table marks it ("Du").
+                "is_current_user": uid == current_user.id,
             }
         )
     # Rank by best score desc, then last score desc; unscored members last.

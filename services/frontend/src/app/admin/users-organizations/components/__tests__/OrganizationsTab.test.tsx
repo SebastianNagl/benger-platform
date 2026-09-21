@@ -621,8 +621,9 @@ describe('OrganizationsTab', () => {
       })
       fireEvent.click(switcherButton)
 
-      const secondOrgButton = screen.getByText('Second Organization')
-      fireEvent.click(secondOrgButton)
+      // Headless UI's Combobox selects on mousedown, so drive a full
+      // pointer sequence rather than a bare click event.
+      await userEvent.click(screen.getByText('Second Organization'))
 
       await waitFor(() => {
         expect(replaceStateSpy).toHaveBeenCalledWith(
@@ -649,8 +650,9 @@ describe('OrganizationsTab', () => {
         expect(screen.getByText('Second Organization')).toBeInTheDocument()
       })
 
-      const secondOrgButton = screen.getByText('Second Organization')
-      fireEvent.click(secondOrgButton)
+      // Headless UI's Combobox selects on mousedown, so drive a full
+      // pointer sequence rather than a bare click event.
+      await userEvent.click(screen.getByText('Second Organization'))
 
       // The dropdown should close
       await waitFor(() => {

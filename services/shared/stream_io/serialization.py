@@ -25,11 +25,10 @@ Scope note (what is and isn't here):
 - The Label-Studio export object and the per-task JSON/CSV export object are
   built in their own generators and were NOT duplicated, so they stay in
   ``export_stream.py``.
-- The ``users`` block hides the real names of LMS users from exporting users
-  who may not see them (``serialize_user_rows``).
+- The ``users`` block is pseudonymous for everyone: id and pseudonym, never
+  name, email or username (``serialize_user_row``).
 """
 
-from lms_name_masking import NameVisibility
 from user_display import masked_name
 
 
@@ -288,45 +287,39 @@ def serialize_post_annotation_response_row(r) -> dict:
     }
 
 
-def serialize_user_row(u, *, masked: bool = False) -> dict:
-    """One ``users`` record.
+def serialize_user_row(u) -> dict:
+    """One ``users`` record: who a person IS never leaves the deployment.
 
-    A masked record belongs to an LMS user whose real name the exporting
-    user may not see (owner decision D8): it keeps the id, shows the
-    pseudonym as ``name``, leaves out email and username and carries
-    ``"masked": true``. The importer maps such a record by id when that
-    account exists on the importing deployment (a copy on the same
-    deployment keeps who wrote what), else to the importing user. The id
-    reveals nothing new: the same file carries it in every ``completed_by``.
+    An export is a file that gets downloaded, mailed and imported elsewhere,
+    so it identifies people only by the account id and the pseudonym they
+    already show to other users. Name, email and username are left out for
+    everyone, not just for LMS users the exporter may not see; until
+    2026-09 an unmasked record carried all three in clear text.
+
+    The importer maps a record by id when that account exists on the
+    importing deployment (a copy on the same deployment keeps who wrote
+    what), else to a placeholder under the same pseudonym. The id reveals
+    nothing new: the same file carries it in every ``completed_by``.
+    ``"masked": true`` and the ``None`` fields keep the record readable for
+    importers that predate this shape.
     """
-    if masked:
-        return {
-            "id": u.id,
-            "email": None,
-            "username": None,
-            "name": masked_name(u),
-            "is_active": u.is_active,
-            "is_superadmin": u.is_superadmin,
-            "masked": True,
-        }
     return {
         "id": u.id,
-        "email": u.email,
-        "username": u.username,
-        "name": u.name,
+        "email": None,
+        "username": None,
+        "name": masked_name(u),
+        "pseudonym": getattr(u, "pseudonym", None),
         "is_active": u.is_active,
         "is_superadmin": u.is_superadmin,
+        "masked": True,
     }
 
 
 def serialize_user_rows(db, users, *, project_id, viewer=None, name_visibility=None):
-    """The ``users`` records of a project export, masked for ``viewer``.
+    """The ``users`` records of a project export.
 
-    ``viewer`` is the user the export is for (None masks every LMS user);
-    ``name_visibility`` defaults to the hooks of this process
-    (:meth:`lms_name_masking.NameVisibility.load`).
+    Every record is pseudonymous (:func:`serialize_user_row`), whoever the
+    export is for, so the name-visibility arguments no longer change the
+    result. They stay in the signature for the callers that pass them.
     """
-    users = [u for u in users if u is not None]
-    policy = name_visibility if name_visibility is not None else NameVisibility.load()
-    masked = policy.masked_user_ids(db, users, project_id=project_id, viewer=viewer)
-    return [serialize_user_row(u, masked=str(u.id) in masked) for u in users]
+    return [serialize_user_row(u) for u in users if u is not None]

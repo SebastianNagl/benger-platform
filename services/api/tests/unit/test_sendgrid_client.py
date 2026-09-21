@@ -83,6 +83,44 @@ class TestSendGridClient:
         assert payload['from']['name'] == 'Test BenGER'
 
     @patch('requests.post')
+    def test_placeholder_account_is_never_mailed(self, mock_post, sendgrid_client):
+        """A synthetic `.invalid` address (the placeholder a project import
+        creates, an LMS sub-only user) cannot receive mail. Nothing is sent,
+        and the 4xx tells callers not to retry."""
+        result = sendgrid_client.send_message(
+            to=['0b6f6c2e-1c1b-4a7e-9d35-0d2a8f1e7a10@imported.invalid'],
+            subject='You were assigned a task',
+            html_body='<p>Test</p>',
+        )
+
+        mock_post.assert_not_called()
+        assert result['status'] == 'error'
+        assert result['status_code'] == 400
+
+    @patch('requests.post')
+    def test_unroutable_recipients_are_dropped_from_a_mixed_send(
+        self, mock_post, sendgrid_client
+    ):
+        mock_response = MagicMock()
+        mock_response.status_code = 202
+        mock_response.headers = {'X-Message-Id': 'msg_789'}
+        mock_post.return_value = mock_response
+
+        result = sendgrid_client.send_message(
+            to=['real@example.com', 'someone@imported.invalid'],
+            subject='Mixed',
+            html_body='<p>Test</p>',
+            cc=['lti-1a2b@lti.invalid'],
+            bcc=['audit@example.com'],
+        )
+
+        assert result['status'] == 'success'
+        personalizations = mock_post.call_args[1]['json']['personalizations'][0]
+        assert personalizations['to'] == [{'email': 'real@example.com'}]
+        assert 'cc' not in personalizations
+        assert personalizations['bcc'] == [{'email': 'audit@example.com'}]
+
+    @patch('requests.post')
     def test_send_message_with_multiple_recipients(self, mock_post, sendgrid_client):
         """Test sending email to multiple recipients"""
         mock_response = MagicMock()

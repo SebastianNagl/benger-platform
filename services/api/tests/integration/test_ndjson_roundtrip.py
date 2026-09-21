@@ -30,6 +30,7 @@ from models import (
     Generation,
     ResponseGeneration,
     TaskEvaluation,
+    User,
 )
 from project_models import (
     Annotation,
@@ -52,7 +53,11 @@ from routers.projects._import_stream import (
     run_full_project_import,
     run_ndjson_import,
 )
-from import_stream import _is_ndjson_stream, _maybe_decompress  # noqa: E402
+from import_stream import (  # noqa: E402
+    _is_ndjson_stream,
+    _maybe_decompress,
+    _maybe_unzip,
+)
 
 
 def _uid() -> str:
@@ -499,6 +504,440 @@ class TestGzipNDJSON:
         new_pid = result["project_id"]
         assert new_pid and new_pid != project.id
         assert _counts(test_db, new_pid) == _counts(test_db, project.id)
+
+
+@pytest.mark.integration
+class TestImportedUserMatching:
+    """Every exported user maps onto exactly ONE local user: the same id, else
+    the same email, else a pseudonymous placeholder. Falling back to the
+    importer merged all unknown authors into one account, which keeps one
+    answer per task and drops the rest."""
+
+    @staticmethod
+    def _payload(test_db, project) -> dict:
+        return json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+
+    @classmethod
+    def _foreign_payload(cls, test_db, project) -> dict:
+        """An export as another deployment sees it: no id and no email of its
+        users exists locally. The records have the shape exports had until
+        2026-09 (clear name, email and username, no ``masked`` flag), because
+        such files are still around and must import without leaking any of it."""
+        data = cls._payload(test_db, project)
+        remap = {}
+        for user in data["users"]:
+            remap[user["id"]] = _uid()
+            user["id"] = remap[user["id"]]
+            user["email"] = f"nobody-{_uid()}@foreign.test"
+            user["username"] = f"nobody-{_uid()[:8]}"
+            user["name"] = "Somebody Real"
+            user.pop("masked", None)
+            user.pop("pseudonym", None)
+        for ann in data["annotations"]:
+            ann["completed_by"] = remap.get(ann.get("completed_by"), ann.get("completed_by"))
+        for te in data["task_evaluations"]:
+            if te.get("created_by"):
+                te["created_by"] = remap.get(te["created_by"], te["created_by"])
+        return data
+
+    @staticmethod
+    def _import(test_db, data, admin) -> dict:
+        return run_full_project_import(
+            test_db, io.BytesIO(json.dumps(data).encode("utf-8")), admin.id
+        )
+
+    def test_unknown_authors_keep_their_own_answers(self, test_db, full_project):
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+        # A second foreign author answers a task that already has an answer:
+        # merged into the importer, one of the two would be dropped.
+        template = next(a for a in data["annotations"] if not a.get("was_cancelled"))
+        extra_user = _uid()
+        data["users"].append({"id": extra_user, "email": f"extra-{_uid()}@foreign.test"})
+        data["annotations"].append({**template, "id": _uid(), "completed_by": extra_user})
+        active = [a for a in data["annotations"] if not a.get("was_cancelled")]
+
+        result = self._import(test_db, data, admin)
+
+        stats = result["statistics"]
+        assert stats["skipped_counts"] == {"annotations": 0}
+        assert stats["placeholder_users_created"] == len(data["users"])
+        stored = (
+            test_db.query(Annotation)
+            .filter(
+                Annotation.project_id == result["project_id"],
+                Annotation.was_cancelled == False,  # noqa: E712
+            )
+            .all()
+        )
+        assert len(stored) == len(active)
+        # Nobody's work is attributed to the person who ran the import.
+        assert admin.id not in {a.completed_by for a in stored}
+        assert len({a.completed_by for a in stored}) == len(
+            {a["completed_by"] for a in active}
+        )
+
+    def test_placeholder_is_pseudonymous_and_cannot_be_used(self, test_db, full_project):
+        from auth_module.user_service import verify_password
+        from import_stream import STUB_EMAIL_DOMAIN, is_stub_email
+        from models import OrganizationMembership
+
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+        source = data["users"][0]
+        source["name"] = "Erika Mustermann"
+        source["username"] = "erika.mustermann"
+
+        self._import(test_db, data, admin)
+
+        stub = (
+            test_db.query(User)
+            .filter(User.email == f"{source['id']}@{STUB_EMAIL_DOMAIN}")
+            .one()
+        )
+        assert is_stub_email(stub.email)
+        # Nothing personal crosses over: the export's name, username and
+        # address stay on the deployment they belong to.
+        assert "erika" not in (stub.name + stub.username + stub.email).lower()
+        assert "foreign.test" not in stub.email
+        # Listed (leaderboards only show active users) but unusable.
+        assert stub.is_active is True and stub.is_superadmin is False
+        assert verify_password("", stub.hashed_password) is False
+        assert verify_password("!imported-placeholder", stub.hashed_password) is False
+        assert (
+            test_db.query(OrganizationMembership)
+            .filter(OrganizationMembership.user_id == stub.id)
+            .count()
+            == 0
+        )
+
+    def test_placeholder_takes_over_the_exported_pseudonym(self, test_db, full_project):
+        # The pseudonym is what other users already see on the source
+        # deployment, so the imported board reads the same as the original.
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+        source = data["users"][0]
+        source["name"] = "Erika Mustermann"
+        source["pseudonym"] = f"ZealousJudge-{_uid()[:6]}"
+
+        self._import(test_db, data, admin)
+
+        stub = (
+            test_db.query(User)
+            .filter(User.email == f"{source['id']}@{STUB_EMAIL_DOMAIN}")
+            .one()
+        )
+        assert stub.pseudonym == source["pseudonym"]
+        assert stub.name == source["pseudonym"]
+        assert stub.use_pseudonym is True
+        assert "erika" not in stub.name.lower()
+
+    def test_pseudonym_held_by_a_local_account_still_labels_the_placeholder(
+        self, test_db, full_project
+    ):
+        # `users.pseudonym` is unique. A clash must not fail the import, and
+        # must not take the pseudonym away from the account that has it.
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        taken = f"CalmOwl-{_uid()[:6]}"
+        admin.pseudonym = taken
+        test_db.commit()
+        data = self._foreign_payload(test_db, project)
+        source = data["users"][0]
+        source["pseudonym"] = taken
+
+        self._import(test_db, data, admin)
+
+        stub = (
+            test_db.query(User)
+            .filter(User.email == f"{source['id']}@{STUB_EMAIL_DOMAIN}")
+            .one()
+        )
+        assert stub.pseudonym is None
+        assert stub.name == taken
+        test_db.refresh(admin)
+        assert admin.pseudonym == taken
+
+    def test_export_without_pseudonym_gets_a_neutral_label(self, test_db, full_project):
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+        source = data["users"][0]
+        source["name"] = "Erika Mustermann"
+        source.pop("pseudonym", None)
+
+        self._import(test_db, data, admin)
+
+        stub = (
+            test_db.query(User)
+            .filter(User.email == f"{source['id']}@{STUB_EMAIL_DOMAIN}")
+            .one()
+        )
+        assert stub.name == f"User {source['id'][:8]}"
+        assert stub.pseudonym is None
+
+        # A later export that does carry the pseudonym upgrades the label.
+        source["pseudonym"] = f"BraveFox-{_uid()[:6]}"
+        self._import(test_db, data, admin)
+        test_db.refresh(stub)
+        assert stub.name == source["pseudonym"]
+        assert stub.pseudonym == source["pseudonym"]
+
+    def test_export_carries_the_pseudonym_and_nothing_that_names_a_person(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        admin.pseudonym = f"QuietHeron-{_uid()[:6]}"
+        test_db.commit()
+        records = {u["id"]: u for u in self._payload(test_db, project)["users"]}
+        assert records[admin.id]["pseudonym"] == admin.pseudonym
+        assert records[admin.id]["name"] == admin.pseudonym
+        for record in records.values():
+            assert record["email"] is None and record["username"] is None
+            assert record["masked"] is True
+        body = json.dumps(self._payload(test_db, project))
+        assert admin.email not in body and admin.username not in body
+
+    def test_new_export_roundtrips_onto_a_foreign_deployment_by_pseudonym(
+        self, test_db, full_project
+    ):
+        # The whole chain in the current format: pseudonymous export ->
+        # unknown ids -> placeholders under the same pseudonyms.
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        admin.pseudonym = f"SwiftLynx-{_uid()[:6]}"
+        test_db.commit()
+        data = self._payload(test_db, project)
+        body = json.dumps(data)
+        remap = {u["id"]: _uid() for u in data["users"]}
+        for old, new in remap.items():
+            body = body.replace(old, new)
+        data = json.loads(body)
+        # Free the pseudonym locally, as on a deployment that never had it.
+        admin.pseudonym = None
+        test_db.commit()
+
+        result = self._import(test_db, data, admin)
+
+        assert result["statistics"]["placeholder_users_created"] == len(data["users"])
+        stub = (
+            test_db.query(User)
+            .filter(User.email == f"{remap[admin.id]}@{STUB_EMAIL_DOMAIN}")
+            .one()
+        )
+        assert stub.pseudonym and stub.pseudonym.startswith("SwiftLynx-")
+
+    def test_alias_comes_only_from_a_pseudonym_never_from_a_name(self):
+        from import_stream import _exported_alias
+
+        uid = "0b6f6c2e-1c1b-4a7e-9d35-0d2a8f1e7a10"
+        # Current format: the explicit key decides, even when it is empty.
+        assert _exported_alias({"id": uid, "pseudonym": "CalmOwl", "name": "x"}) == "CalmOwl"
+        assert _exported_alias({"id": uid, "pseudonym": None, "name": "User 0b6f6c2e", "masked": True}) is None
+        # Masked record from before the explicit key: the name IS the pseudonym,
+        # unless it is only the neutral label of an account without one.
+        assert _exported_alias({"id": uid, "name": "CalmOwl", "masked": True}) == "CalmOwl"
+        assert _exported_alias({"id": uid, "name": "User 0b6f6c2e", "masked": True}) is None
+        # Unmasked record from before 2026-09: the name is a real name.
+        assert _exported_alias({"id": uid, "name": "Erika Mustermann"}) is None
+
+    def test_reimport_reuses_the_same_placeholders(self, test_db, full_project):
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+
+        first = self._import(test_db, data, admin)
+        count = test_db.query(User).filter(User.email.like(f"%@{STUB_EMAIL_DOMAIN}")).count()
+        second = self._import(test_db, data, admin)
+
+        assert first["statistics"]["placeholder_users_created"] == len(data["users"])
+        assert second["statistics"]["placeholder_users_created"] == 0
+        assert (
+            test_db.query(User).filter(User.email.like(f"%@{STUB_EMAIL_DOMAIN}")).count()
+            == count
+        )
+
+    def test_same_id_wins_even_after_an_email_change(self, test_db, full_project):
+        # The round trip on ONE deployment: the id is the primary key and
+        # never changes, an email can. Matching by email first sent the work
+        # of anyone who changed theirs to the importer.
+        project, admin = full_project
+        data = self._payload(test_db, project)
+        author = next(a["completed_by"] for a in data["annotations"] if a.get("completed_by"))
+        for user in data["users"]:
+            user["email"] = f"old-address-{_uid()}@changed.test"
+
+        result = self._import(test_db, data, admin)
+
+        assert result["statistics"]["placeholder_users_created"] == 0
+        stored = (
+            test_db.query(Annotation)
+            .filter(Annotation.project_id == result["project_id"])
+            .all()
+        )
+        assert author in {a.completed_by for a in stored}
+
+    def test_same_email_matches_when_the_id_is_foreign(self, test_db, full_project):
+        # The same person with an account on both deployments.
+        project, admin = full_project
+        data = self._payload(test_db, project)
+        author_id = next(
+            a["completed_by"] for a in data["annotations"] if a.get("completed_by")
+        )
+        foreign_id = _uid()
+        local_email = test_db.get(User, author_id).email
+        for user in data["users"]:
+            if user["id"] == author_id:
+                user["id"] = foreign_id
+                # Only exports from before 2026-09 carry an email to match on.
+                user["email"] = local_email.upper()
+        for ann in data["annotations"]:
+            if ann.get("completed_by") == author_id:
+                ann["completed_by"] = foreign_id
+
+        result = self._import(test_db, data, admin)
+
+        stored = (
+            test_db.query(Annotation)
+            .filter(Annotation.project_id == result["project_id"])
+            .all()
+        )
+        assert author_id in {a.completed_by for a in stored}
+
+    def test_human_grader_follows_its_own_user(self, test_db, full_project):
+        # `task_evaluations.created_by` is FK'd to users. Written raw, the
+        # exported grader id failed the whole import on the FK.
+        from import_stream import STUB_EMAIL_DOMAIN
+
+        project, admin = full_project
+        data = self._foreign_payload(test_db, project)
+        assert data["task_evaluations"], "fixture must carry evaluation rows"
+        grader = data["users"][0]["id"]
+        data["task_evaluations"][0]["created_by"] = grader
+        for te in data["task_evaluations"][1:]:
+            te["created_by"] = None
+
+        result = self._import(test_db, data, admin)
+
+        rows = (
+            test_db.query(TaskEvaluation)
+            .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
+            .filter(EvaluationRun.project_id == result["project_id"])
+            .all()
+        )
+        assert len(rows) == len(data["task_evaluations"])
+        graders = [r.created_by for r in rows if r.created_by is not None]
+        # The human grade follows the grader's placeholder; automated rows
+        # stay NULL so they still read as automated.
+        assert len(graders) == 1
+        assert test_db.get(User, graders[0]).email == f"{grader}@{STUB_EMAIL_DOMAIN}"
+
+    def test_two_exported_users_on_one_account_are_reported(self, test_db, full_project):
+        # The one collapse left: an export listing the same local person
+        # twice (once by id, once by email). One answer per task survives and
+        # the statistics say so instead of reporting a clean import.
+        project, admin = full_project
+        data = self._payload(test_db, project)
+        template = next(a for a in data["annotations"] if not a.get("was_cancelled"))
+        local = test_db.get(User, template["completed_by"])
+        twin = _uid()
+        data["users"].append({"id": twin, "email": local.email})
+        data["annotations"].append({**template, "id": _uid(), "completed_by": twin})
+
+        result = self._import(test_db, data, admin)
+
+        assert result["statistics"]["skipped_counts"]["annotations"] == 1
+
+    def test_nothing_is_skipped_or_created_when_everyone_is_known(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        ).encode("utf-8")
+        result = run_full_project_import(test_db, io.BytesIO(comprehensive), admin.id)
+        assert result["statistics"]["skipped_counts"] == {"annotations": 0}
+        assert result["statistics"]["placeholder_users_created"] == 0
+
+
+def _zip(members: dict) -> bytes:
+    """Archive ``{name: bytes}`` the way `bulk-export-full` does (deflated)."""
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, data in members.items():
+            zf.writestr(name, data)
+    return buf.getvalue()
+
+
+@pytest.mark.integration
+class TestZippedProjectExport:
+    """The projects list exports a selection as a .zip (one JSON per project)
+    and its import accepts .zip, so that archive has to import. The unpacking
+    went missing when import moved to object storage (#158): every UI export
+    then failed to re-import with "Invalid JSON format"."""
+
+    def test_zipped_comprehensive_export_roundtrips(self, test_db, full_project):
+        project, admin = full_project
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        ).encode("utf-8")
+        archive = _zip({f"{project.title}_{project.id[:8]}.json": comprehensive})
+
+        result = run_full_project_import(test_db, io.BytesIO(archive), admin.id)
+
+        new_pid = result["project_id"]
+        assert new_pid and new_pid != project.id
+        assert _counts(test_db, new_pid) == _counts(test_db, project.id)
+
+    def test_non_zip_passes_through_untouched(self):
+        plain = io.BytesIO(b'{"format_version": "1.0.0"}')
+        assert _maybe_unzip(plain) is plain
+        assert plain.tell() == 0
+
+    def test_multi_project_archive_is_refused_not_half_imported(
+        self, test_db, full_project
+    ):
+        project, admin = full_project
+        comprehensive = "".join(
+            stream_comprehensive_project_data_json(test_db, project.id)
+        ).encode("utf-8")
+        archive = _zip({"a.json": comprehensive, "b.json": comprehensive})
+        before = test_db.query(Project).count()
+
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(test_db, io.BytesIO(archive), admin.id)
+
+        assert exc.value.status_code == 400
+        assert "2 project exports" in exc.value.detail
+        assert test_db.query(Project).count() == before
+
+    def test_archive_without_json_is_a_client_error(self, test_db, full_project):
+        _project, admin = full_project
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(_zip({"readme.txt": b"hi"})), admin.id
+            )
+        assert exc.value.status_code == 400
+        assert "No JSON file" in exc.value.detail
+
+    def test_corrupt_archive_is_a_client_error(self, test_db, full_project):
+        _project, admin = full_project
+        with pytest.raises(ImportValidationError) as exc:
+            run_full_project_import(
+                test_db, io.BytesIO(b"PK\x03\x04 this is not a zip"), admin.id
+            )
+        assert exc.value.status_code == 400
+        assert exc.value.detail == "Invalid ZIP file"
 
 
 @pytest.mark.integration
