@@ -12,39 +12,39 @@ from routers.projects.helpers import (
 
 
 class TestGetOrgContextFromRequest:
-    """Tests for get_org_context_from_request."""
+    """get_org_context_from_request reads the (inert) header only; the
+    retired middleware's request.state value plays no part (core 2.22)."""
 
-    def test_from_state(self):
+    def test_state_is_ignored(self):
         request = Mock()
         request.state.organization_context = "org-123"
-        assert get_org_context_from_request(request) == "org-123"
-
-    def test_from_header_when_no_state(self):
-        request = Mock(spec=["headers"])
-        del request.state
-        request.headers = {"X-Organization-Context": "org-456"}
-        assert get_org_context_from_request(request) == "org-456"
-
-    def test_state_exists_but_no_org_context(self):
-        request = Mock()
-        del request.state.organization_context
-        request.headers = {"X-Organization-Context": "org-789"}
-        assert get_org_context_from_request(request) == "org-789"
-
-    def test_none_when_no_context(self):
-        request = Mock(spec=["headers"])
-        del request.state
         request.headers = {}
         assert get_org_context_from_request(request) is None
 
-    def test_private_context(self):
+    def test_from_header(self):
+        request = Mock(spec=["headers"])
+        request.headers = {"X-Organization-Context": "org-456"}
+        assert get_org_context_from_request(request) == "org-456"
+
+    def test_header_wins_over_state(self):
         request = Mock()
-        request.state.organization_context = "private"
+        request.state.organization_context = "org-from-state"
+        request.headers = {"X-Organization-Context": "org-789"}
+        assert get_org_context_from_request(request) == "org-789"
+
+    def test_none_when_no_header(self):
+        request = Mock(spec=["headers"])
+        request.headers = {}
+        assert get_org_context_from_request(request) is None
+
+    def test_private_header(self):
+        request = Mock(spec=["headers"])
+        request.headers = {"X-Organization-Context": "private"}
         assert get_org_context_from_request(request) == "private"
 
-    def test_empty_string_context(self):
-        request = Mock()
-        request.state.organization_context = ""
+    def test_empty_string_header(self):
+        request = Mock(spec=["headers"])
+        request.headers = {"X-Organization-Context": ""}
         assert get_org_context_from_request(request) == ""
 
 
