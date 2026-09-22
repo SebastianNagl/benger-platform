@@ -1,6 +1,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { useModelScope } from '@/contexts/ModelScopeContext'
 import { api } from '@/lib/api'
 import { ParameterConstraints } from '@/lib/api/types'
 import type { RecommendedParameters } from '@/lib/modelConstraints'
@@ -56,6 +57,9 @@ export interface UseModelsReturn {
 
 export function useModels(): UseModelsReturn {
   const { t } = useI18n()
+  // The scope decides whose keys are listed: the project's dispatch org
+  // (project pages), the wizard's creation target, else personal keys.
+  const { projectId, organizationId } = useModelScope()
   const [models, setModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ModelError | null>(null)
@@ -65,10 +69,12 @@ export function useModels(): UseModelsReturn {
       setLoading(true)
       setError(null)
 
-      // Fetch available models directly - the /available-models endpoint
-      // already handles org context (via X-Organization-Context header) and
-      // resolves providers through org or user API keys as appropriate.
-      const data = await api.getAvailableModels()
+      // The endpoint resolves the providers through the org key of the
+      // scope or the user's own keys, exactly as the worker will.
+      const data = await api.getAvailableModels({
+        projectId: projectId ?? undefined,
+        organizationId: organizationId ?? undefined,
+      })
       setModels(data)
 
       if (data.length === 0) {
@@ -111,7 +117,7 @@ export function useModels(): UseModelsReturn {
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, projectId, organizationId])
 
   const refetch = useCallback(async () => {
     await fetchModels()

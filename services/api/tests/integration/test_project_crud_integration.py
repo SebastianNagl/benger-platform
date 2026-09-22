@@ -336,8 +336,7 @@ class TestProjectCrudIntegration:
         with _as_user(annotator), n, d, r:
             response = await async_test_client.post(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
-                json={"title": "Annotator Project"},
+                json={"title": "Annotator Project", "organization_id": org.id},
             )
         assert response.status_code in (403, 401)
 

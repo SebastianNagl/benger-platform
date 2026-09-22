@@ -114,13 +114,12 @@ describe('AuthButton br4 - uncovered branches', () => {
     expect(screen.getByTestId('login-modal')).toBeInTheDocument()
   })
 
-  it('shows dropdown with org switcher when user has orgs', async () => {
+  it('lists the memberships in the dropdown when the user has orgs', async () => {
     mockUser = { id: 1, username: 'testuser', is_superadmin: false }
     mockOrganizations = [
       { id: 'org-1', name: 'TUM' },
       { id: 'org-2', name: 'LMU' },
     ]
-    mockCurrentOrganization = { id: 'org-1', name: 'TUM' }
 
     const user = userEvent.setup()
     render(<AuthButton />)
@@ -128,33 +127,17 @@ describe('AuthButton br4 - uncovered branches', () => {
     // Open dropdown
     await user.click(screen.getByText('testuser'))
 
-    expect(screen.getByText('Switch Context')).toBeInTheDocument()
-    expect(screen.getByText('Private')).toBeInTheDocument()
-    expect(screen.getByText('TUM')).toBeInTheDocument()
-    expect(screen.getByText('LMU')).toBeInTheDocument()
+    const list = screen.getByTestId('account-organizations')
+    expect(list).toHaveTextContent('TUM')
+    expect(list).toHaveTextContent('LMU')
+    // Core 2.22: no context switch, the rows are plain text.
+    expect(screen.queryByText('Switch Context')).not.toBeInTheDocument()
+    expect(list.querySelectorAll('button')).toHaveLength(0)
   })
 
-  it('switches to private context (setCurrentOrganization(null), line 108-109)', async () => {
+  it('clicking an organization row changes nothing', async () => {
     mockUser = { id: 1, username: 'testuser', is_superadmin: false }
     mockOrganizations = [{ id: 'org-1', name: 'TUM' }]
-    mockCurrentOrganization = { id: 'org-1', name: 'TUM' }
-
-    const user = userEvent.setup()
-    render(<AuthButton />)
-
-    await user.click(screen.getByText('testuser'))
-    await user.click(screen.getByText('Private'))
-
-    expect(mockSetCurrentOrganization).toHaveBeenCalledWith(null)
-  })
-
-  it('switches to specific org (line 123-124)', async () => {
-    mockUser = { id: 1, username: 'testuser', is_superadmin: false }
-    mockOrganizations = [
-      { id: 'org-1', name: 'TUM' },
-      { id: 'org-2', name: 'LMU' },
-    ]
-    mockCurrentOrganization = null
 
     const user = userEvent.setup()
     render(<AuthButton />)
@@ -162,10 +145,9 @@ describe('AuthButton br4 - uncovered branches', () => {
     await user.click(screen.getByText('testuser'))
     await user.click(screen.getByText('TUM'))
 
-    expect(mockSetCurrentOrganization).toHaveBeenCalledWith({
-      id: 'org-1',
-      name: 'TUM',
-    })
+    expect(mockSetCurrentOrganization).not.toHaveBeenCalled()
+    // The dropdown stays open: the row is not a menu action.
+    expect(screen.getByTestId('account-organizations')).toBeInTheDocument()
   })
 
   it('shows feature flags link for superadmin (line 155)', async () => {

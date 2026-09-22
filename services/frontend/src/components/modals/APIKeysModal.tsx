@@ -16,25 +16,38 @@ interface APIKeysModalProps {
 
 export function APIKeysModal({ isOpen, onClose }: APIKeysModalProps) {
   const { t } = useI18n()
-  const { currentOrganization } = useAuth()
-  const [orgProvidesKeys, setOrgProvidesKeys] = useState(false)
+  const { organizations } = useAuth()
+  // The organizations that provide their own keys for their projects. The
+  // personal keys stay editable regardless: they apply to private projects
+  // and to organizations that require private keys.
+  const [keyProvidingOrgs, setKeyProvidingOrgs] = useState<string[]>([])
+  // Keyed by the membership ids, not the array identity: a context that
+  // hands out a fresh array per render must not refetch (or loop) here.
+  const organizationIds = organizations.map((org) => org.id).join(',')
 
   useEffect(() => {
-    if (!isOpen || !currentOrganization) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOrgProvidesKeys(false)
+    if (!isOpen || organizations.length === 0) {
+      setKeyProvidingOrgs((prev) => (prev.length === 0 ? prev : []))
       return
     }
-
-    organizationsAPI
-      .getOrgApiKeySettings(currentOrganization.id)
-      .then((data) => {
-        setOrgProvidesKeys(!data.require_private_keys)
-      })
-      .catch(() => {
-        setOrgProvidesKeys(false)
-      })
-  }, [isOpen, currentOrganization])
+    let cancelled = false
+    Promise.all(
+      organizations.map((org) =>
+        organizationsAPI
+          .getOrgApiKeySettings(org.id)
+          .then((data) => (data.require_private_keys ? null : org.name))
+          .catch(() => null),
+      ),
+    ).then((names) => {
+      if (!cancelled) {
+        setKeyProvidingOrgs(names.filter((n): n is string => Boolean(n)))
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, organizationIds])
 
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
@@ -65,14 +78,17 @@ export function APIKeysModal({ isOpen, onClose }: APIKeysModalProps) {
 
           {/* Content */}
           <div className="max-h-[70vh] overflow-y-auto px-6 py-4">
-            <UserApiKeys
-              disabled={orgProvidesKeys}
-              disabledMessage={
-                orgProvidesKeys
-                  ? `API keys are managed by your organization (${currentOrganization?.name}).`
-                  : undefined
-              }
-            />
+            {keyProvidingOrgs.length > 0 && (
+              <p
+                className="mb-4 rounded-md bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:bg-zinc-700/50 dark:text-zinc-300"
+                data-testid="api-keys-org-provided-note"
+              >
+                {t('profile.orgProvidesKeys', {
+                  names: keyProvidingOrgs.join(', '),
+                })}
+              </p>
+            )}
+            <UserApiKeys />
           </div>
 
           {/* Footer */}

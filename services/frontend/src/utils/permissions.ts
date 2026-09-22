@@ -66,19 +66,11 @@ export const canMakeProjectPublic = (
 }
 
 /**
- * Check if user can create projects
- * In org mode: superadmins, ORG_ADMIN, and CONTRIBUTOR can create projects.
- * In private mode: any authenticated user can create private projects.
+ * Every signed-in user may create a project: a private one always, an
+ * organization one in any org where they are ORG_ADMIN or CONTRIBUTOR (the
+ * wizard offers exactly those, the API checks the membership).
  */
-export const canCreateProjects = (
-  user: User | null,
-  options?: { isPrivateMode?: boolean },
-): boolean => {
-  if (!user) return false
-  if (user.is_superadmin) return true
-  if (options?.isPrivateMode) return true
-  return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
-}
+export const canCreateProjects = (user: User | null): boolean => !!user
 
 /**
  * Check if user can access project data/management features.

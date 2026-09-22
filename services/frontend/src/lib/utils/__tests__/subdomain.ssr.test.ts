@@ -6,12 +6,7 @@
  * the node test environment gives us `typeof document === 'undefined'`.
  */
 
-import {
-  clearLastOrgSlug,
-  getLastOrgSlug,
-  getSisterHostUrl,
-  setLastOrgSlug,
-} from '../subdomain'
+import { getSisterHostUrl } from '../subdomain'
 
 describe('subdomain helpers (SSR)', () => {
   it('getSisterHostUrl returns null without window and no host', () => {
@@ -23,17 +18,5 @@ describe('subdomain helpers (SSR)', () => {
     expect(getSisterHostUrl('vertretbar.localhost:3000')).toBe(
       'http://benger.localhost:3000',
     )
-  })
-
-  it('getLastOrgSlug returns null when document is undefined', () => {
-    expect(getLastOrgSlug()).toBeNull()
-  })
-
-  it('setLastOrgSlug does not throw when document is undefined', () => {
-    expect(() => setLastOrgSlug('test')).not.toThrow()
-  })
-
-  it('clearLastOrgSlug does not throw when document is undefined', () => {
-    expect(() => clearLastOrgSlug()).not.toThrow()
   })
 })

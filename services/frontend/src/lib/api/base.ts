@@ -72,7 +72,6 @@ const CACHE_TTL = 30000 // 30 seconds cache for GET requests
 export class BaseApiClient {
   private onAuthFailure?: () => void
   private refreshPromise: Promise<boolean> | null = null
-  private organizationContextProvider?: () => string | null
   private activeRequests = new Set<string>()
   private requestQueue: Array<() => void> = []
   private responseCache = new Map<string, CacheEntry>()
@@ -271,13 +270,6 @@ export class BaseApiClient {
   }
 
   /**
-   * Set function to provide current organization context
-   */
-  setOrganizationContextProvider(provider: () => string | null) {
-    this.organizationContextProvider = provider
-  }
-
-  /**
    * Check if a JWT token is expired or will expire soon
    */
   private isTokenExpired(token: string): boolean {
@@ -339,14 +331,6 @@ export class BaseApiClient {
     // SECURITY FIX: Removed localStorage token fallback
     // Authentication now relies entirely on HttpOnly cookies for XSS protection
     // The browser automatically includes cookies with 'credentials: include'
-
-    // Add organization context header if available
-    if (this.organizationContextProvider) {
-      const orgContext = this.organizationContextProvider()
-      if (orgContext) {
-        headers['X-Organization-Context'] = orgContext
-      }
-    }
 
     try {
       const response = await fetch(url, {
@@ -514,14 +498,6 @@ export class BaseApiClient {
           headers['Authorization'] = `Bearer ${token}`
         } else if (token && this.isTokenExpired(token)) {
           logger.debug('Token is expired, will trigger refresh on 401 response')
-        }
-      }
-
-      // Add organization context header if available
-      if (this.organizationContextProvider) {
-        const orgContext = this.organizationContextProvider()
-        if (orgContext) {
-          headers['X-Organization-Context'] = orgContext
         }
       }
 
@@ -784,8 +760,8 @@ export class BaseApiClient {
    *   leave a silently-truncated file.
    * - It bypasses the response cache entirely.
    *
-   * Auth (HttpOnly cookies + Bearer fallback) and `X-Organization-Context`
-   * are applied exactly as in `request`. The caller owns the returned stream
+   * Auth (HttpOnly cookies + Bearer fallback) is applied exactly as in
+   * `request`. The caller owns the returned stream
    * and is responsible for consuming or aborting it.
    */
   async requestRaw(
@@ -804,13 +780,6 @@ export class BaseApiClient {
       const token = localStorage.getItem('access_token')
       if (token && !this.isTokenExpired(token)) {
         headers['Authorization'] = `Bearer ${token}`
-      }
-    }
-
-    if (this.organizationContextProvider) {
-      const orgContext = this.organizationContextProvider()
-      if (orgContext) {
-        headers['X-Organization-Context'] = orgContext
       }
     }
 

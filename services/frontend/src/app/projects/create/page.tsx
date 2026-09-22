@@ -14,7 +14,6 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { canCreateProjects } from '@/utils/permissions'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -23,18 +22,16 @@ export default function CreateProjectPage() {
   const { t } = useI18n()
   const { user, isLoading } = useAuth()
   const router = useRouter()
-  const { isPrivateMode } =
-    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   // Check permissions - redirect if user cannot create projects
   useEffect(() => {
     if (!isLoading) {
-      if (!canCreateProjects(user, { isPrivateMode })) {
+      if (!canCreateProjects(user)) {
         // Redirect to projects list with error message
         router.replace('/projects?error=no-permission')
       }
     }
-  }, [user, isLoading, router, isPrivateMode])
+  }, [user, isLoading, router])
 
   // Show loading state while checking permissions
   if (isLoading) {
@@ -51,7 +48,7 @@ export default function CreateProjectPage() {
   }
 
   // Show permission denied if user cannot create projects
-  if (!canCreateProjects(user, { isPrivateMode })) {
+  if (!canCreateProjects(user)) {
     return (
       <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">

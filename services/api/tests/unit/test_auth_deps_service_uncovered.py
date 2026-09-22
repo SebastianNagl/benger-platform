@@ -147,40 +147,24 @@ class TestRequireOrgAdminInner:
         assert exc_info.value.status_code == 403
         assert "Organization admin access required" in exc_info.value.detail
 
-    def test_org_id_from_request_state(self):
-        """When no org_id parameter, get from request.state."""
+    def test_request_state_and_header_are_ignored(self):
+        """Core 2.22: the org must be named by the route; neither the
+        retired middleware's request.state nor the client's header counts."""
         from auth_module.dependencies import require_org_admin
 
         checker = require_org_admin()  # no org_id param
         user = _make_user(is_superadmin=False)
         request = Mock()
         request.state.organization_context = "org-from-state"
-        db = MagicMock()
-
-        # Mock membership found
-        membership = Mock()
-        db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
-
-        result = checker(request, user, db)
-        assert result.id == user.id
-
-    def test_org_id_from_header_fallback(self):
-        """When no org_id from param or state, fallback to header."""
-        from auth_module.dependencies import require_org_admin
-
-        checker = require_org_admin()
-        user = _make_user(is_superadmin=False)
-        request = Mock()
-        request.state = Mock(spec=[])  # no organization_context attribute
         request.headers = {"X-Organization-Context": "org-from-header"}
         db = MagicMock()
-
-        # Mock membership found
         membership = Mock()
         db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
 
-        result = checker(request, user, db)
-        assert result.id == user.id
+        with pytest.raises(HTTPException) as exc_info:
+            checker(request, user, db)
+        assert exc_info.value.status_code == 400
+        db.query.assert_not_called()
 
     def test_no_org_context_raises_400(self):
         """When no org context from any source, raise 400."""
@@ -246,36 +230,22 @@ class TestRequireOrgContributorInner:
         assert exc_info.value.status_code == 403
         assert "Organization contributor access required" in exc_info.value.detail
 
-    def test_org_id_from_request_state(self):
+    def test_request_state_and_header_are_ignored(self):
         from auth_module.dependencies import require_org_contributor
 
         checker = require_org_contributor()
         user = _make_user(is_superadmin=False)
         request = Mock()
         request.state.organization_context = "org-from-state"
-        db = MagicMock()
-
-        membership = Mock()
-        db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
-
-        result = checker(request, user, db)
-        assert result.id == user.id
-
-    def test_org_id_from_header(self):
-        from auth_module.dependencies import require_org_contributor
-
-        checker = require_org_contributor()
-        user = _make_user(is_superadmin=False)
-        request = Mock()
-        request.state = Mock(spec=[])  # no organization_context
         request.headers = {"X-Organization-Context": "org-from-header"}
         db = MagicMock()
-
         membership = Mock()
         db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
 
-        result = checker(request, user, db)
-        assert result.id == user.id
+        with pytest.raises(HTTPException) as exc_info:
+            checker(request, user, db)
+        assert exc_info.value.status_code == 400
+        db.query.assert_not_called()
 
     def test_no_org_context_raises_400(self):
         from auth_module.dependencies import require_org_contributor

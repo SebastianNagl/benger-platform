@@ -11,7 +11,6 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { canCreateProjects } from '@/utils/permissions'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -21,12 +20,9 @@ export default function ArchivedProjectsPage() {
   const router = useRouter()
   const { user, isLoading } = useAuth()
 
-  // Annotators may not access archived projects; mirror the hidden Archive
-  // button (same canCreateProjects gate) and keep them off the archived list.
-  // The backend access check is the authoritative enforcement.
-  const { isPrivateMode } =
-    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
-  const allowed = canCreateProjects(user, { isPrivateMode })
+  // Same gate as the Archive button; the backend access check is the
+  // authoritative enforcement (the list only holds what the user may see).
+  const allowed = canCreateProjects(user)
   useEffect(() => {
     if (!isLoading && user && !allowed) {
       router.replace('/projects')

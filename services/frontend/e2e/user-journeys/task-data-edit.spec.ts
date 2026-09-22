@@ -275,10 +275,9 @@ test.describe('Task Data Edit Modal (#159)', () => {
       projectId = seeded.projectId
 
       // Grant the annotator access via the public ANNOTATOR tier (pattern
-      // from public-project-visibility.spec.ts). The E2E host runs in
-      // private mode, where the UI sends X-Organization-Context: private —
-      // org-scoped access paths are unreachable from the browser, so a
-      // public project is the way an annotator can open this page in the UI.
+      // from public-project-visibility.spec.ts): the seeded project has no
+      // organization, so a public project is the way an annotator can open
+      // this page in the UI.
       const flip = await adminPage.evaluate(async (id) => {
         const r = await fetch(`/api/projects/${id}/visibility`, {
           method: 'PATCH',

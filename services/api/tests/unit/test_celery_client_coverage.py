@@ -27,12 +27,3 @@ class TestCeleryClient:
         app = get_celery_app()
         assert hasattr(app, 'conf')
 
-
-class TestMiddlewareConfig:
-    def test_org_context_middleware_import(self):
-        from middleware.org_context import OrgContextMiddleware
-        assert OrgContextMiddleware is not None
-
-    def test_org_context_has_dispatch(self):
-        from middleware.org_context import OrgContextMiddleware
-        assert hasattr(OrgContextMiddleware, '__call__') or hasattr(OrgContextMiddleware, 'dispatch')

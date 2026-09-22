@@ -218,10 +218,10 @@ describe('usePermissions', () => {
   describe('ANNOTATOR', () => {
     beforeEach(() => setUser(makeUser({ role: 'ANNOTATOR' })))
 
-    it('cannot create / access data / start generation; reports list is public', () => {
+    it('can create (a private project), cannot access data / start generation; reports list is public', () => {
       const { result } = renderHook(() => usePermissions())
       const p = result.current
-      expect(p.canCreateProjects()).toBe(false)
+      expect(p.canCreateProjects()).toBe(true)
       expect(p.canAccessProjectData()).toBe(false)
       expect(p.canStartGeneration()).toBe(false)
       expect(p.canAccessReports()).toBe(true) // reports list is public (API filters)
@@ -233,11 +233,9 @@ describe('usePermissions', () => {
       expect(result.current.isAnnotatorOnly()).toBe(true)
     })
 
-    it('private-mode lets an annotator create projects but not access data', () => {
+    it('creating never unlocks the data surfaces', () => {
       const { result } = renderHook(() => usePermissions())
-      expect(result.current.canCreateProjects({ isPrivateMode: true })).toBe(
-        true,
-      )
+      expect(result.current.canCreateProjects()).toBe(true)
       expect(result.current.canAccessProjectData({ isPrivateMode: true })).toBe(
         false,
       )
@@ -248,7 +246,7 @@ describe('usePermissions', () => {
       expect(result.current.summary).toMatchObject({
         role: 'ANNOTATOR',
         isAnnotatorOnly: true,
-        canCreate: false,
+        canCreate: true,
       })
     })
   })

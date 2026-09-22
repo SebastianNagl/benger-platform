@@ -385,32 +385,8 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
     })
   })
 
-  describe('Organization context provider', () => {
-    it('should include organization context header when provider is set', async () => {
-      const orgProvider = jest.fn(() => 'org-123')
-      client.setOrganizationContextProvider(orgProvider)
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ 'content-type': 'application/json' }),
-        text: async () => JSON.stringify({ success: true }),
-      })
-
-      await client.get('/test')
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-Organization-Context': 'org-123',
-          }),
-        }),
-      )
-    })
-
-    it('should not include header when provider returns null', async () => {
-      const orgProvider = jest.fn(() => null)
-      client.setOrganizationContextProvider(orgProvider)
+  describe('Organization context', () => {
+    it('never sends an X-Organization-Context header (core 2.22)', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -422,6 +398,10 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0][1]
       expect(fetchCall.headers['X-Organization-Context']).toBeUndefined()
+      expect(
+        (client as unknown as Record<string, unknown>)
+          .setOrganizationContextProvider,
+      ).toBeUndefined()
     })
   })
 

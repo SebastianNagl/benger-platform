@@ -191,7 +191,7 @@ class TestAvailableModelsOrgCredentialSource:
         with _as_user(caller), _org_providers([]):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": org.id},
+                params={"organization_id": org.id},
             )
         assert resp.status_code == status.HTTP_200_OK
         entry = {m["id"]: m for m in resp.json()}[model.id]
@@ -218,7 +218,7 @@ class TestAvailableModelsOrgCredentialSource:
         with _as_user(caller), _org_providers([]):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": org.id},
+                params={"organization_id": org.id},
             )
         entry = {m["id"]: m for m in resp.json()}[model.id]
         # require_private_keys True → shared key never counts.
@@ -253,7 +253,7 @@ class TestAvailableModelsOrgCredentialSource:
         with _as_user(caller), _org_providers([]):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": org.id},
+                params={"organization_id": org.id},
             )
         entry = {m["id"]: m for m in resp.json()}[model.id]
         assert entry["has_credential"] is True
@@ -408,10 +408,10 @@ class TestAvailableModelsCustomPass:
 
 
 class TestAvailableModelsNonMemberOrgSuppressed:
-    """X-Organization-Context is caller-supplied and unvalidated, so the org
-    shared-credential annotation is honored ONLY for ACTIVE members of that
-    org. A non-member passing another org's id must not learn whether that org
-    has provisioned a shared credential for a PUBLIC custom model."""
+    """``organization_id`` is caller-supplied, so the scope is honored ONLY
+    for ACTIVE members of that org. A non-member passing another org's id
+    is refused and must not learn whether that org has provisioned a shared
+    credential for a PUBLIC custom model."""
 
     async def _seed_public_model_with_org_cred(self, async_test_db):
         """Owner + a PUBLIC custom model + org A (shared-billing) that has a
@@ -456,13 +456,14 @@ class TestAvailableModelsNonMemberOrgSuppressed:
         with _as_user(outsider), _org_providers([]):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": org_a.id},
+                params={"organization_id": org_a.id},
             )
+        assert resp.status_code == status.HTTP_403_FORBIDDEN
+        # Without a scope the personal keys decide: no org annotation.
+        with _as_user(outsider), _org_providers([]):
+            resp = await async_test_client.get("/api/users/api-keys/available-models")
         assert resp.status_code == status.HTTP_200_OK
         entry = {m["id"]: m for m in resp.json()}[model.id]
-        # Org annotation suppressed for the non-member: source not "org",
-        # has_credential reflects only the (absent) user key.
-        assert entry["credential_source"] != "org"
         assert entry["credential_source"] is None
         assert entry["has_credential"] is False
 
@@ -490,7 +491,7 @@ class TestAvailableModelsNonMemberOrgSuppressed:
         with _as_user(member), _org_providers([]):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": org_a.id},
+                params={"organization_id": org_a.id},
             )
         entry = {m["id"]: m for m in resp.json()}[model.id]
         assert entry["credential_source"] == "org"

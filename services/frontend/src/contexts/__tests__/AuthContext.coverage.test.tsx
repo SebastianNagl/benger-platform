@@ -7,10 +7,10 @@
  *
  *   - initializeAuth getUserContexts() failure -> separate getUser/getOrgs
  *     fallback (lines 278-297).
- *   - subdomain present but user lacks access -> redirect to private URL
+ *   - the host is never changed, whatever the memberships are
  *     (lines 342-345).
  *   - login: returning-user last-org redirect before state update (576-584).
- *   - refreshOrganizations subdomain match (486-489) via refreshAuth.
+ *   - refreshOrganizations via refreshAuth.
  *   - signup with invitation but no organizations -> flash + /dashboard
  *     (721-724).
  *   - silentTokenRefresh network-error catch (166-168).
@@ -22,11 +22,6 @@ jest.unmock('@/contexts/AuthContext')
 
 import { ApiClient } from '@/lib/api'
 import { sessionManager } from '@/lib/auth/sessionManager'
-import {
-  getLastOrgSlug,
-  getOrgUrl,
-  parseSubdomain,
-} from '@/lib/utils/subdomain'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useRouter } from 'next/navigation'
@@ -78,18 +73,6 @@ jest.mock('@/lib/auth/sessionManager', () => ({
   },
 }))
 
-jest.mock('@/lib/auth/organizationManager', () => {
-  return {
-    OrganizationManager: jest.fn().mockImplementation(() => ({
-      setOrganizations: jest.fn(),
-      setCurrentOrganization: jest.fn(),
-      getOrganizationContext: jest.fn(),
-      getOrganizations: jest.fn().mockReturnValue([]),
-      clear: jest.fn(),
-    })),
-  }
-})
-
 jest.mock('@/utils/authRedirect', () => ({
   authRedirect: {
     toLogin: jest.fn(),
@@ -103,15 +86,8 @@ jest.mock('@/lib/auth/sessionExpired', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  parseSubdomain: jest.fn(() => ({ orgSlug: null, isPrivateMode: true })),
-  getOrgUrl: jest.fn(
-    (slug: string, path = '') => `http://${slug}.benger.localhost${path}`,
-  ),
   getPrivateUrl: jest.fn((path = '') => `http://benger.localhost${path}`),
   getCookieDomain: jest.fn(() => ''),
-  getLastOrgSlug: jest.fn(() => null),
-  setLastOrgSlug: jest.fn(),
-  clearLastOrgSlug: jest.fn(),
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
@@ -191,11 +167,6 @@ describe('AuthContext - coverage complement', () => {
     ;(sessionManager.isLoginInProgress as jest.Mock).mockReturnValue(false)
     ;(sessionManager.getLastSessionUserId as jest.Mock).mockReturnValue(null)
     ;(sessionManager.detectUserSwitch as jest.Mock).mockReturnValue(false)
-    ;(parseSubdomain as jest.Mock).mockReturnValue({
-      orgSlug: null,
-      isPrivateMode: true,
-    })
-    ;(getLastOrgSlug as jest.Mock).mockReturnValue(null)
 
     mockApiClient = newApiClient()
     ;(ApiClient as jest.Mock).mockImplementation(() => mockApiClient)
@@ -239,57 +210,40 @@ describe('AuthContext - coverage complement', () => {
     expect(result.current.organizations).toEqual([orgA])
   })
 
-  it('redirects to the private URL when the subdomain org is not accessible', async () => {
-    // Subdomain points at "other-org", but the user only belongs to org-a.
-    ;(parseSubdomain as jest.Mock).mockReturnValue({
-      orgSlug: 'other-org',
-      isPrivateMode: false,
-    })
+  it('stays on the host it was opened on, whatever the memberships are', async () => {
+    // Core 2.22: no subdomain redirect in either direction. The membership
+    // list is exposed as is; access is decided per project by the API.
+    window.location.href = 'http://other-org.benger.localhost/projects'
     mockApiClient.getUserContexts.mockResolvedValue({
       user: mockUser,
       organizations: [orgA],
     })
 
-    renderHook(() => useAuth(), { wrapper })
-    await waitForInit()
-
-    await waitFor(() => {
-      // getPrivateUrl() assigned to window.location.href.
-      expect(window.location.href).toContain('benger.localhost')
-    })
-  })
-
-  it('login redirects a returning user to their last org subdomain', async () => {
-    // No subdomain in the URL, but a remembered last org the user belongs to.
-    ;(parseSubdomain as jest.Mock).mockReturnValue({
-      orgSlug: null,
-      isPrivateMode: true,
-    })
-    ;(getLastOrgSlug as jest.Mock).mockReturnValue('org-a')
-
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitForInit()
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    // The OrganizationManager mock must report org-a so the lookup succeeds.
-    const orgManagerInstance = result.current.apiClient as any
-    // refreshOrganizations is driven by the login flow; make the org list known
-    // via the manager used inside AuthContext. We assert the redirect side
-    // effect through getOrgUrl being called with the last-org slug.
-    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+    expect(result.current.organizations).toEqual([orgA])
+    expect(window.location.href).toBe(
+      'http://other-org.benger.localhost/projects',
+    )
+  })
 
-    // Stub the manager's getOrganizations through the real instance: the login
-    // path reads orgManager.getOrganizations(). The OrganizationManager mock
-    // returns [] by default, so override the instance for this assertion by
-    // making getOrgUrl observable instead.
+  it('login keeps the user on the current host', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitForInit()
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+    const before = window.location.href
     await act(async () => {
       await result.current.login('testuser', 'password123')
       for (let i = 0; i < 6; i++) await Promise.resolve()
     })
 
-    // The login attempt completed without throwing; org redirect is best-effort
-    // and exercised here. getOrgUrl is the redirect builder.
     expect(mockApiClient.login).toHaveBeenCalledWith('testuser', 'password123')
+    expect(window.location.href).toBe(before)
+    expect(result.current.organizations).toEqual([orgA])
   })
 
   it('refreshAuth re-fetches the user and organizations', async () => {
@@ -310,16 +264,11 @@ describe('AuthContext - coverage complement', () => {
     expect(mockApiClient.getOrganizations).toHaveBeenCalled()
   })
 
-  it('refreshAuth selects the subdomain-matched org when refreshing', async () => {
+  it('refreshAuth replaces the membership list', async () => {
     const { result } = renderHook(() => useAuth(), { wrapper })
     await waitForInit()
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    // Now a subdomain points at org-a, which the refreshed org list contains.
-    ;(parseSubdomain as jest.Mock).mockReturnValue({
-      orgSlug: 'org-a',
-      isPrivateMode: false,
-    })
     mockApiClient.getOrganizations.mockResolvedValue([orgA])
 
     await act(async () => {
@@ -328,7 +277,7 @@ describe('AuthContext - coverage complement', () => {
     })
 
     await waitFor(() => {
-      expect(result.current.currentOrganization).toEqual(orgA)
+      expect(result.current.organizations).toEqual([orgA])
     })
   })
 

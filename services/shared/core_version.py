@@ -281,11 +281,20 @@ whenever one is added, renamed or removed):
   generation run resolves the org whose keys it spends from the project
   (``org_resolution.resolve_dispatch_org_for_project_async``), not from the
   header.
+
+2.22 (2026-09-22): the selected organization of the client is retired.
+  ``POST /api/projects/`` takes the target ``organization_id`` in the body
+  (private when absent); ``/api/users/api-keys/available-models`` takes
+  ``project_id`` (dispatch org of that project) or ``organization_id``
+  (creation target) as query parameters; ``require_org_admin`` /
+  ``require_org_contributor`` need an explicit org id; the
+  ``OrgContextMiddleware`` (``request.state.organization_context``) is
+  gone. ``X-Organization-Context`` is still accepted and ignored.
 """
 
 import os
 
-CORE_API_VERSION = "2.21"
+CORE_API_VERSION = "2.22"
 
 
 def extended_required() -> bool:

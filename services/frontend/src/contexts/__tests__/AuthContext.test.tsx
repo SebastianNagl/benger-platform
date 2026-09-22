@@ -8,7 +8,6 @@ jest.unmock('@/contexts/AuthContext')
 
 import { ApiClient, Organization, User } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
-import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { authRedirect } from '@/utils/authRedirect'
@@ -63,18 +62,6 @@ jest.mock('@/lib/auth/sessionManager', () => ({
   },
 }))
 
-jest.mock('@/lib/auth/organizationManager', () => {
-  return {
-    OrganizationManager: jest.fn().mockImplementation(() => ({
-      setOrganizations: jest.fn(),
-      setCurrentOrganization: jest.fn(),
-      getOrganizationContext: jest.fn(),
-      getOrganizations: jest.fn().mockReturnValue([]),
-      clear: jest.fn(),
-    })),
-  }
-})
-
 jest.mock('@/utils/authRedirect', () => ({
   authRedirect: {
     toLogin: jest.fn(),
@@ -116,13 +103,8 @@ jest.mock('@/lib/auth/sessionExpired', () => ({
 }))
 
 jest.mock('@/lib/utils/subdomain', () => ({
-  parseSubdomain: jest.fn(() => ({ orgSlug: null, isPrivateMode: true })),
-  getOrgUrl: jest.fn((slug: string) => `http://${slug}.benger.localhost`),
   getPrivateUrl: jest.fn(() => 'http://benger.localhost'),
   getCookieDomain: jest.fn(() => ''),
-  getLastOrgSlug: jest.fn(() => null),
-  setLastOrgSlug: jest.fn(),
-  clearLastOrgSlug: jest.fn(),
 }))
 
 jest.mock('@/lib/utils/logger', () => ({
@@ -312,19 +294,6 @@ describe('AuthContext', () => {
 
       await waitFor(() => {
         expect(mockApiClient.setAuthFailureHandler).toHaveBeenCalled()
-      })
-    })
-
-    it('sets up API client with organization context provider', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(mockApiClient.setOrganizationContextProvider).toHaveBeenCalled()
       })
     })
 
@@ -602,24 +571,8 @@ describe('AuthContext', () => {
       )
     })
 
-    it('successfully signs up user with invitation token and redirects to org subdomain', async () => {
-      // Mock window.location to track href assignment
+    it('signs up with an invitation token and stays on this host (dashboard)', async () => {
       window.location.href = 'http://benger.localhost/register'
-
-      const { getOrgUrl } = require('@/lib/utils/subdomain')
-
-      // Configure OrganizationManager mock to store orgs statefully
-      // We need to set this up BEFORE the component mounts
-      let storedOrgs: any[] = []
-      ;(OrganizationManager as jest.Mock).mockImplementation(() => ({
-        setOrganizations: jest.fn().mockImplementation((orgs: any[]) => {
-          storedOrgs = orgs
-        }),
-        setCurrentOrganization: jest.fn(),
-        getOrganizationContext: jest.fn(),
-        getOrganizations: jest.fn().mockImplementation(() => storedOrgs),
-        clear: jest.fn(),
-      }))
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
@@ -651,8 +604,10 @@ describe('AuthContext', () => {
         undefined,
         'invitation-token-123',
       )
-      // Should redirect to org subdomain, not just /dashboard
-      expect(getOrgUrl).toHaveBeenCalledWith('test-org', '/dashboard')
+      // No org-subdomain redirect any more: every host shows the same
+      // projects, so the new member simply lands on the dashboard.
+      expect(mockRouter.push).toHaveBeenCalledWith('/dashboard')
+      expect(window.location.href).toBe('http://benger.localhost/register')
     })
 
     it('throws error on signup failure', async () => {
@@ -832,7 +787,7 @@ describe('AuthContext', () => {
   })
 
   describe('organization management', () => {
-    it('sets no organization in private mode on initialization', async () => {
+    it('exposes the membership list and no selected organization', async () => {
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
       )
@@ -844,63 +799,11 @@ describe('AuthContext', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      // In private mode (default mock), currentOrganization should be null
-      expect(result.current.currentOrganization).toBeNull()
-    })
-
-    it('allows changing current organization (triggers navigation)', async () => {
-      // Mock window.location for navigation
-      window.location.href = 'http://benger.localhost/dashboard'
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const newOrg: Organization = {
-        id: 2,
-        name: 'Second Org',
-        display_name: 'Second Org',
-        slug: 'second-org',
-        description: 'Second Description',
-        is_active: true,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
-
-      act(() => {
-        result.current.setCurrentOrganization(newOrg)
-      })
-
-      expect(result.current.currentOrganization).toEqual(newOrg)
-    })
-
-    it('allows setting current organization to null', async () => {
-      // Mock window.location for navigation
-      window.location.href = 'http://test-org.benger.localhost/dashboard'
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      act(() => {
-        result.current.setCurrentOrganization(null)
-      })
-
-      expect(result.current.currentOrganization).toBeNull()
+      // The selected organization is retired (core 2.22): access is decided
+      // per project from every membership, so the context only lists them.
+      expect(Array.isArray(result.current.organizations)).toBe(true)
+      expect(result.current).not.toHaveProperty('currentOrganization')
+      expect(result.current).not.toHaveProperty('setCurrentOrganization')
     })
   })
 
@@ -1313,65 +1216,6 @@ describe('AuthContext', () => {
     })
   })
 
-  describe('organization context provider', () => {
-    it('sets organization context for API calls', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(mockApiClient.setOrganizationContextProvider).toHaveBeenCalled()
-      })
-
-      const contextProvider = (
-        mockApiClient.setOrganizationContextProvider as jest.Mock
-      ).mock.calls[0][0]
-
-      expect(typeof contextProvider).toBe('function')
-    })
-
-    it('updates organization manager when current organization changes', async () => {
-      // Mock window.location for navigation
-      window.location.href = 'http://benger.localhost/dashboard'
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const newOrg: Organization = {
-        id: 2,
-        name: 'New Org',
-        display_name: 'New Org',
-        slug: 'new-org',
-        description: 'Description',
-        is_active: true,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
-
-      const orgManagerInstance = (OrganizationManager as jest.Mock).mock
-        .results[0].value
-
-      act(() => {
-        result.current.setCurrentOrganization(newOrg)
-      })
-
-      expect(orgManagerInstance.setCurrentOrganization).toHaveBeenCalledWith(
-        newOrg,
-      )
-    })
-  })
-
   describe('debounce logic', () => {
     it('debounces auth initialization', async () => {
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -1449,16 +1293,11 @@ describe('AuthContext', () => {
         expect(result.current.isLoading).toBe(false)
       })
 
-      const orgManagerInstance = (OrganizationManager as jest.Mock).mock
-        .results[0].value
-
       await act(async () => {
         await result.current.logout()
       })
 
-      expect(orgManagerInstance.clear).toHaveBeenCalled()
       expect(result.current.organizations).toEqual([])
-      expect(result.current.currentOrganization).toBeNull()
     })
 
     it('handles refreshAuth failure and clears organizations', async () => {
@@ -1475,17 +1314,12 @@ describe('AuthContext', () => {
 
       mockApiClient.getUser.mockRejectedValue(new Error('Auth failed'))
 
-      const orgManagerInstance = (OrganizationManager as jest.Mock).mock
-        .results[0].value
-
       await act(async () => {
         await result.current.refreshAuth()
       })
 
       expect(result.current.user).toBeNull()
       expect(result.current.organizations).toEqual([])
-      expect(result.current.currentOrganization).toBeNull()
-      expect(orgManagerInstance.clear).toHaveBeenCalled()
     })
 
     it('refreshes organizations after successful login', async () => {
@@ -1573,85 +1407,6 @@ describe('AuthContext', () => {
     })
   })
 
-  describe('organization refresh scenarios', () => {
-    it('keeps currentOrganization null in private mode after refresh', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const org2: Organization = {
-        id: 2,
-        name: 'Org 2',
-        display_name: 'Org 2',
-        slug: 'org-2',
-        description: 'Desc',
-        is_active: true,
-        created_at: '2025-01-01T00:00:00Z',
-        updated_at: '2025-01-01T00:00:00Z',
-      }
-
-      mockApiClient.getOrganizations.mockResolvedValue([org2])
-
-      await act(async () => {
-        await result.current.refreshOrganizations()
-      })
-
-      // In private mode (no orgSlug), currentOrganization stays null
-      expect(result.current.currentOrganization).toBeNull()
-    })
-
-    it('preserves null currentOrganization in private mode', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      await act(async () => {
-        await result.current.refreshOrganizations()
-      })
-
-      // In private mode, currentOrganization is always null
-      expect(result.current.currentOrganization).toBeNull()
-    })
-
-    it('clears organization manager on refresh failure', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      mockApiClient.getOrganizations.mockRejectedValue(new Error('Failed'))
-
-      const orgManagerInstance = (OrganizationManager as jest.Mock).mock
-        .results[0].value
-
-      await act(async () => {
-        await result.current.refreshOrganizations()
-      })
-
-      expect(orgManagerInstance.clear).toHaveBeenCalled()
-    })
-  })
-
   describe('login with 403 error variations', () => {
     it('redirects on 403 status code error', async () => {
       mockApiClient.login.mockRejectedValue(new Error('403'))
@@ -1716,263 +1471,29 @@ describe('AuthContext', () => {
     })
   })
 
-  describe('org redirect on login', () => {
-    it('redirects returning user to last org on login from private mode', async () => {
-      const {
-        parseSubdomain,
-        getOrgUrl,
-        getLastOrgSlug,
-      } = require('@/lib/utils/subdomain')
-
-      // Simulate private mode (no org subdomain)
-      parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
-
-      // Returning user has a stored org slug
-      getLastOrgSlug.mockReturnValue('test-org')
-
-      // Production code writes to window.location.href — jest-location-mock
-      // captures those writes. Set the starting URL via the History API.
-      window.location.href = 'http://benger.localhost/dashboard'
+  describe('host after login', () => {
+    it('never leaves the host, whatever target the login page carried', async () => {
+      // Core 2.22: no org-subdomain redirect. An LMS launch target and a
+      // remembered organization used to steer the host; now every host
+      // shows the same projects and the page simply stays put.
+      window.location.href =
+        'http://benger.localhost/login?next=%2Flti%2Flink%3Frl%3Drl-1'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <AuthProvider>{children}</AuthProvider>
       )
-
-      renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        // Should redirect to org subdomain
-        expect(getOrgUrl).toHaveBeenCalledWith('test-org', expect.any(String))
-      })
-    })
-
-    it('does not redirect first-time user without last org', async () => {
-      const {
-        parseSubdomain,
-        getOrgUrl,
-        getLastOrgSlug,
-      } = require('@/lib/utils/subdomain')
-
-      // Simulate private mode
-      parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
-
-      // No stored org slug — first time user
-      getLastOrgSlug.mockReturnValue(null)
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
       const { result } = renderHook(() => useAuth(), { wrapper })
       await waitForInit()
+      await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
+      await act(async () => {
+        await result.current.login('testuser', 'password123')
       })
 
-      // Should NOT redirect — stays in private mode
-      expect(getOrgUrl).not.toHaveBeenCalled()
-      expect(result.current.currentOrganization).toBeNull()
-    })
-
-    it('persists org slug cookie when on org subdomain', async () => {
-      const {
-        parseSubdomain,
-        setLastOrgSlug,
-      } = require('@/lib/utils/subdomain')
-
-      // Simulate being on org subdomain
-      parseSubdomain.mockReturnValue({
-        orgSlug: 'test-org',
-        isPrivateMode: false,
-      })
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
+      expect(window.location.href).toBe(
+        'http://benger.localhost/login?next=%2Flti%2Flink%3Frl%3Drl-1',
       )
-
-      renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(setLastOrgSlug).toHaveBeenCalledWith('test-org')
-      })
-    })
-
-    it('clears last org slug when user no longer has access', async () => {
-      const {
-        parseSubdomain,
-        getOrgUrl,
-        getLastOrgSlug,
-        clearLastOrgSlug,
-      } = require('@/lib/utils/subdomain')
-
-      // Simulate private mode with a stored org that user no longer belongs to
-      parseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
-      getLastOrgSlug.mockReturnValue('removed-org')
-
-      // Mock window.location
-      window.location.href = 'http://benger.localhost/dashboard'
-
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      // Should clear the stale org slug and NOT redirect
-      expect(clearLastOrgSlug).toHaveBeenCalled()
-      expect(getOrgUrl).not.toHaveBeenCalled()
-    })
-
-    describe('query strings and LMS launch landings', () => {
-      const subdomain = () => require('@/lib/utils/subdomain')
-
-      const renderAuth = async () => {
-        const wrapper = ({ children }: { children: React.ReactNode }) => (
-          <AuthProvider>{children}</AuthProvider>
-        )
-        const rendered = renderHook(() => useAuth(), { wrapper })
-        await waitForInit()
-        return rendered
-      }
-
-      // The login flow reads the org list back from the manager.
-      const statefulOrgManager = () => {
-        let storedOrgs: any[] = []
-        ;(OrganizationManager as jest.Mock).mockImplementation(() => ({
-          setOrganizations: jest.fn((orgs: any[]) => {
-            storedOrgs = orgs
-          }),
-          setCurrentOrganization: jest.fn(),
-          getOrganizationContext: jest.fn(),
-          getOrganizations: jest.fn(() => storedOrgs),
-          clear: jest.fn(),
-        }))
-      }
-
-      beforeEach(() => {
-        subdomain().parseSubdomain.mockReturnValue({
-          orgSlug: null,
-          isPrivateMode: true,
-        })
-        subdomain().getLastOrgSlug.mockReturnValue(null)
-      })
-
-      afterEach(() => {
-        subdomain().getLastOrgSlug.mockReturnValue(null)
-        window.location.href = 'http://benger.localhost/'
-      })
-
-      it('keeps the query and hash when sending a returning user to their org', async () => {
-        subdomain().getLastOrgSlug.mockReturnValue('test-org')
-        window.location.href =
-          'http://benger.localhost/projects/p1?tab=data#top'
-
-        await renderAuth()
-
-        await waitFor(() =>
-          expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
-            'test-org',
-            '/projects/p1?tab=data#top',
-          ),
-        )
-      })
-
-      it.each([
-        '/lti/link?rl=rl-1&lti_ui=expert',
-        '/student/exams/p1?lti_u=abc&lti_ui=student',
-        '/lti/activity?rl=rl-1',
-        '/login?next=%2Flti%2Flink%3Frl%3Drl-1',
-      ])('leaves an LMS launch landing on this host (%s)', async (path) => {
-        subdomain().getLastOrgSlug.mockReturnValue('test-org')
-        window.location.href = `http://benger.localhost${path}`
-
-        const { result } = await renderAuth()
-
-        await waitFor(() => expect(result.current.isLoading).toBe(false))
-        expect(result.current.user).toEqual(mockUser)
-        expect(subdomain().getOrgUrl).not.toHaveBeenCalled()
-        expect(result.current.currentOrganization).toBeNull()
-      })
-
-      it('keeps the query when an org subdomain is not accessible', async () => {
-        subdomain().parseSubdomain.mockReturnValue({
-          orgSlug: 'foreign-org',
-          isPrivateMode: false,
-        })
-        window.location.href =
-          'http://foreign-org.benger.localhost/lti/link?rl=rl-1'
-
-        await renderAuth()
-
-        await waitFor(() =>
-          expect(subdomain().getPrivateUrl).toHaveBeenCalledWith(
-            '/lti/link?rl=rl-1',
-          ),
-        )
-      })
-
-      it('sends the user to the login target on their org after login', async () => {
-        statefulOrgManager()
-        window.location.href =
-          'http://benger.localhost/login?next=%2Fprojects%2Fp1%3Ftab%3Ddata'
-        const { result } = await renderAuth()
-        await waitFor(() => expect(result.current.isLoading).toBe(false))
-        subdomain().getOrgUrl.mockClear()
-        subdomain().getLastOrgSlug.mockReturnValue('test-org')
-
-        await act(async () => {
-          await result.current.login('testuser', 'password')
-        })
-
-        expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
-          'test-org',
-          '/projects/p1?tab=data',
-        )
-      })
-
-      it('falls back to the dashboard for an unsafe login target', async () => {
-        statefulOrgManager()
-        window.location.href =
-          'http://benger.localhost/login?next=%2F%2Fevil.example'
-        const { result } = await renderAuth()
-        await waitFor(() => expect(result.current.isLoading).toBe(false))
-        subdomain().getOrgUrl.mockClear()
-        subdomain().getLastOrgSlug.mockReturnValue('test-org')
-
-        await act(async () => {
-          await result.current.login('testuser', 'password')
-        })
-
-        expect(subdomain().getOrgUrl).toHaveBeenCalledWith(
-          'test-org',
-          '/dashboard',
-        )
-      })
-
-      it('keeps an LMS launch behind the login page on this host', async () => {
-        statefulOrgManager()
-        window.location.href =
-          'http://benger.localhost/login?next=%2Fstudent%2Fexams%2Fp1%3Flti_u%3Dabc'
-        const { result } = await renderAuth()
-        await waitFor(() => expect(result.current.isLoading).toBe(false))
-        subdomain().getOrgUrl.mockClear()
-        subdomain().getLastOrgSlug.mockReturnValue('test-org')
-
-        await act(async () => {
-          await result.current.login('testuser', 'password')
-        })
-
-        expect(subdomain().getOrgUrl).not.toHaveBeenCalled()
-        expect(result.current.user).toEqual(mockUser)
-      })
+      expect(result.current.user).not.toBeNull()
     })
   })
 
@@ -2309,48 +1830,6 @@ describe('AuthContext', () => {
       })
 
       expect(devAuthHelper.clearManualLogout).toHaveBeenCalled()
-    })
-  })
-
-  describe('organization initialization', () => {
-    it('sets organization context when current organization changes', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      const { result } = renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(result.current.isLoading).toBe(false)
-      })
-
-      const orgManagerInstance = (OrganizationManager as jest.Mock).mock
-        .results[0].value
-
-      // In private mode, org is set to null
-      expect(orgManagerInstance.setCurrentOrganization).toHaveBeenCalledWith(
-        null,
-      )
-    })
-
-    it('provides organization context to API client', async () => {
-      const wrapper = ({ children }: { children: React.ReactNode }) => (
-        <AuthProvider>{children}</AuthProvider>
-      )
-
-      renderHook(() => useAuth(), { wrapper })
-      await waitForInit()
-
-      await waitFor(() => {
-        expect(mockApiClient.setOrganizationContextProvider).toHaveBeenCalled()
-      })
-
-      const contextProvider = (
-        mockApiClient.setOrganizationContextProvider as jest.Mock
-      ).mock.calls[0][0]
-
-      expect(typeof contextProvider).toBe('function')
     })
   })
 

@@ -93,6 +93,8 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: 'E2E korrektur falloesung grading journey',
             label_config: labelConfig,
           }),

@@ -44,8 +44,7 @@ export function usePermissions() {
     () => ({
       /** The raw user (or null) these predicates are bound to. */
       user,
-      canCreateProjects: (options?: { isPrivateMode?: boolean }) =>
-        canCreateProjects(user, options),
+      canCreateProjects: () => canCreateProjects(user),
       // The user's memberships are bound in so the global (no-project) form
       // resolves the access tier across ALL orgs, not the selected one.
       canAccessProjectData: (options?: {

@@ -161,6 +161,9 @@ export interface ProjectCreate {
   enable_empty_annotation?: boolean
   llm_model_ids?: string[]
   is_private?: boolean
+  // The organization the new project belongs to (the wizard's creation
+  // target); omitted = private project. The API checks the membership.
+  organization_id?: string | null
   is_public?: boolean
   public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
   // Scope the created org attachment to one organization group (null =

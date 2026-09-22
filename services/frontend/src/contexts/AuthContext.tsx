@@ -1,25 +1,12 @@
 'use client'
 
 import { ApiClientContextProvider } from '@/contexts/ApiClientContext'
-import apiClientSingleton, {
-  ApiClient,
-  createApiClient,
-  Organization,
-  User,
-} from '@/lib/api'
+import { ApiClient, createApiClient, Organization, User } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
-import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { logger } from '@/lib/utils/logger'
-import {
-  clearLastOrgSlug,
-  getLastOrgSlug,
-  getOrgUrl,
-  getPrivateUrl,
-  parseSubdomain,
-  setLastOrgSlug,
-} from '@/lib/utils/subdomain'
+import { getPrivateUrl } from '@/lib/utils/subdomain'
 import { translate } from '@/lib/utils/translate'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { authRedirect, publicRoutes } from '@/utils/authRedirect'
@@ -33,45 +20,6 @@ import React, {
   useRef,
   useState,
 } from 'react'
-
-/** Query params only LMS (LTI) launch redirects carry. */
-const LTI_LANDING_PARAMS = ['lti_u', 'rl', 'lti_ui']
-
-/** The current page as a relative URL: path, query and hash. */
-function currentRelativeUrl(): string {
-  if (typeof window === 'undefined') return '/'
-  const { pathname, search, hash } = window.location
-  return `${pathname}${search}${hash}`
-}
-
-/**
- * True when a relative URL is an LMS launch landing. Such a page must stay on
- * the host the launch used: the session was set there and the page reads
- * `lti_u`/`rl` from its URL, so the last-org subdomain redirect is skipped.
- */
-function isLtiLanding(url: string | null | undefined): boolean {
-  if (!url) return false
-  const queryStart = url.indexOf('?')
-  if (queryStart < 0) return false
-  const hashStart = url.indexOf('#', queryStart)
-  const query = url.slice(queryStart + 1, hashStart < 0 ? undefined : hashStart)
-  const params = new URLSearchParams(query)
-  return LTI_LANDING_PARAMS.some((key) => params.has(key))
-}
-
-/**
- * The login page's `?next=` return path, if it is an internal path.
- * Same rule as `authRedirect.sanitizeNext`: root-relative, not
- * protocol-relative, not the login page itself. It is appended to an org
- * host, so it must start with a slash.
- */
-function loginReturnPath(): string | null {
-  if (typeof window === 'undefined') return null
-  const next = new URLSearchParams(window.location.search).get('next')
-  if (!next || !next.startsWith('/') || next.startsWith('//')) return null
-  if (next === '/login' || next.startsWith('/login?')) return null
-  return next
-}
 
 interface AuthContextType {
   user: User | null
@@ -110,9 +58,13 @@ interface AuthContextType {
   isLoading: boolean
   refreshAuth: () => Promise<void>
   apiClient: ApiClient
+  /**
+   * Every organization the user belongs to, with their role in each. Purely
+   * informational: the API decides access per project from all memberships,
+   * and a new project names its organization in the wizard, so there is no
+   * "current" organization to select any more.
+   */
   organizations: Organization[]
-  currentOrganization: Organization | null
-  setCurrentOrganization: (org: Organization | null) => void
   refreshOrganizations: () => Promise<void>
 }
 
@@ -122,8 +74,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [currentOrganization, setCurrentOrganizationState] =
-    useState<Organization | null>(null)
   const router = useRouter()
 
   // Prevent multiple simultaneous auth checks
@@ -131,22 +81,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasInitialized = useRef(false)
   const lastAuthCheckTime = useRef(0)
   const authCheckDebounceTimer = useRef<NodeJS.Timeout | null>(null)
-  const orgSwitchNavigating = useRef(false)
 
-  // Initialize API client and managers with stable references.
-  // The org manager owns the org-context source of truth; create it first so
-  // the API client can be built via the factory with the org-context provider
-  // threaded in explicitly at construction time (rather than relying solely on
-  // post-hoc global mutation). The auth-failure handler is still applied via
-  // the effect below because it's a useCallback that changes with deps.
-  const orgManager = useMemo(() => new OrganizationManager(), [])
-  const apiClient = useMemo(
-    () =>
-      createApiClient({
-        orgContextProvider: () => orgManager.getOrganizationContext(),
-      }),
-    [orgManager],
-  )
+  // One API client with a stable reference. The auth-failure handler is
+  // applied via the effect below because it's a useCallback that changes
+  // with deps.
+  const apiClient = useMemo(() => createApiClient(), [])
 
   // Set up auth failure handler with stable callback
   const handleAuthFailure = useCallback(() => {
@@ -175,8 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logger.debug('Ignoring auth failure - on public route:', currentPath)
       setUser(null)
       setOrganizations([])
-      setCurrentOrganizationState(null)
-      orgManager.clear()
       return
     }
 
@@ -187,26 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // below is belt-and-suspenders (the unmount handles it too).
     setUser(null)
     setOrganizations([])
-    setCurrentOrganizationState(null)
-    orgManager.clear()
     redirectToLoginAsExpired()
-  }, [orgManager])
+  }, [])
 
   React.useEffect(() => {
     apiClient.setAuthFailureHandler(handleAuthFailure)
   }, [apiClient, handleAuthFailure])
-
-  // Set up organization context provider
-  React.useEffect(() => {
-    orgManager.setCurrentOrganization(currentOrganization)
-  }, [currentOrganization, orgManager])
-
-  React.useEffect(() => {
-    const contextProvider = () => orgManager.getOrganizationContext()
-    apiClient.setOrganizationContextProvider(contextProvider)
-    // Also set on the global singleton used by module-level API clients (projects, etc.)
-    apiClientSingleton.setOrganizationContextProvider(contextProvider)
-  }, [apiClient, orgManager])
 
   // Silent token refresh function
   const silentTokenRefresh = useCallback(async () => {
@@ -392,58 +315,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         logger.debug('[AuthContext] Setting user and organizations in state')
         setUser(currentUser)
         setOrganizations(orgs)
-        orgManager.setOrganizations(orgs)
-
-        // Set org based on subdomain context
-        const { orgSlug, isPrivateMode } = parseSubdomain()
-        if (orgSlug && orgs.length > 0) {
-          const matchedOrg = orgs.find((o: Organization) => o.slug === orgSlug)
-          if (matchedOrg) {
-            logger.debug('[AuthContext] Setting org from subdomain:', orgSlug)
-            setCurrentOrganizationState(matchedOrg)
-            orgManager.setCurrentOrganization(matchedOrg)
-            // Persist for returning users, but skip if user is switching away
-            if (!orgSwitchNavigating.current) {
-              setLastOrgSlug(matchedOrg.slug)
-            }
-          } else {
-            // User doesn't have access to this org subdomain
-            logger.debug('[AuthContext] No access to org:', orgSlug)
-            setCurrentOrganizationState(null)
-            orgManager.setCurrentOrganization(null)
-            window.location.href = getPrivateUrl(currentRelativeUrl())
-          }
-        } else {
-          // Private mode — check if returning user has a last org. An LMS
-          // launch landing (on the page itself, or behind the login page)
-          // stays where it is.
-          const lastOrgSlug = getLastOrgSlug()
-          const ltiLanding =
-            isLtiLanding(currentRelativeUrl()) ||
-            isLtiLanding(loginReturnPath())
-          if (lastOrgSlug && orgs.length > 0 && !ltiLanding) {
-            const lastOrg = orgs.find(
-              (o: Organization) => o.slug === lastOrgSlug,
-            )
-            if (lastOrg) {
-              logger.debug(
-                '[AuthContext] Redirecting returning user to last org:',
-                lastOrgSlug,
-              )
-              window.location.href = getOrgUrl(
-                lastOrgSlug,
-                currentRelativeUrl(),
-              )
-              return
-            } else {
-              // User no longer has access to this org, clear it
-              clearLastOrgSlug()
-            }
-          }
-          logger.debug('[AuthContext] Private mode - no org selected')
-          setCurrentOrganizationState(null)
-          orgManager.setCurrentOrganization(null)
-        }
+        // The host the page was opened on (apex or an org subdomain) does
+        // not matter: every page shows what the user may see through any
+        // membership, so no redirect between hosts takes place.
 
         logger.debug('[AuthContext] Auth initialization successful')
       } catch (error) {
@@ -453,7 +327,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Don't log authentication errors as they are expected for unauthenticated users
         setUser(null)
         setOrganizations([])
-        orgManager.clear()
 
         // Only clear verification if we're sure auth failed
         if (
@@ -477,7 +350,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
       authInitializationInProgress.current = false
     }
-  }, [apiClient, orgManager]) // Remove currentOrganization dependency to prevent circular updates
+  }, [apiClient])
 
   // Handle hydration and check for existing session using cookies
   useEffect(() => {
@@ -521,31 +394,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initializeAuth]) // Include initializeAuth to satisfy exhaustive deps
 
-  const refreshOrganizations = useCallback(
-    async (userForOrgCheck?: User) => {
-      try {
-        const orgs = await apiClient.getOrganizations()
-        setOrganizations(orgs)
-        orgManager.setOrganizations(orgs)
-
-        // Set org based on subdomain context
-        const { orgSlug } = parseSubdomain()
-        if (orgSlug && orgs.length > 0) {
-          const matchedOrg = orgs.find((o: Organization) => o.slug === orgSlug)
-          if (matchedOrg) {
-            setCurrentOrganizationState(matchedOrg)
-            orgManager.setCurrentOrganization(matchedOrg)
-          }
-        }
-        // In private mode, keep currentOrganization as null
-      } catch (error) {
-        // Failed to fetch organizations
-        setOrganizations([])
-        orgManager.clear()
-      }
-    },
-    [apiClient, orgManager],
-  )
+  const refreshOrganizations = useCallback(async () => {
+    try {
+      const orgs = await apiClient.getOrganizations()
+      setOrganizations(orgs)
+    } catch (error) {
+      // Failed to fetch organizations
+      setOrganizations([])
+    }
+  }, [apiClient])
 
   const refreshAuth = useCallback(async () => {
     try {
@@ -560,45 +417,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If refresh fails, user is no longer authenticated
       setUser(null)
       setOrganizations([])
-      setCurrentOrganizationState(null)
-      orgManager.clear()
     }
-  }, [apiClient, refreshOrganizations, orgManager])
-
-  const setCurrentOrganization = useCallback(
-    (org: Organization | null) => {
-      setCurrentOrganizationState(org)
-      orgManager.setCurrentOrganization(org)
-
-      // Navigate to the appropriate subdomain
-      if (typeof window !== 'undefined') {
-        if (org && org.slug) {
-          setLastOrgSlug(org.slug)
-          const targetUrl = getOrgUrl(org.slug)
-          if (
-            !window.location.href.startsWith(
-              targetUrl.split('/').slice(0, 3).join('/'),
-            )
-          ) {
-            orgSwitchNavigating.current = true
-            window.location.href = targetUrl
-          }
-        } else {
-          clearLastOrgSlug()
-          const targetUrl = getPrivateUrl()
-          if (
-            !window.location.href.startsWith(
-              targetUrl.split('/').slice(0, 3).join('/'),
-            )
-          ) {
-            orgSwitchNavigating.current = true
-            window.location.href = targetUrl
-          }
-        }
-      }
-    },
-    [orgManager],
-  )
+  }, [apiClient, refreshOrganizations])
 
   const login = useCallback(
     async (username: string, password: string) => {
@@ -619,42 +439,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionManager.trackUserSession(data.user)
 
         // Fetch organizations BEFORE updating user state to prevent dashboard flash
-        await refreshOrganizations(data.user)
+        await refreshOrganizations()
 
-        // Check if we need an org subdomain redirect (before rendering authenticated UI).
-        // The login page's ?next= target (query included) is kept; an LMS
-        // launch landing is never moved to another host.
-        const { orgSlug: currentOrgSlug } = parseSubdomain()
-        const nextPath = loginReturnPath()
-        const ltiLanding =
-          isLtiLanding(nextPath) || isLtiLanding(currentRelativeUrl())
-        if (!currentOrgSlug && !ltiLanding) {
-          const lastOrgSlug = getLastOrgSlug()
-          if (lastOrgSlug) {
-            const orgs = orgManager.getOrganizations()
-            const lastOrg = orgs.find(
-              (o: Organization) => o.slug === lastOrgSlug,
-            )
-            if (lastOrg) {
-              logger.debug(
-                '[AuthContext] Redirecting returning user to last org after login:',
-                lastOrgSlug,
-              )
-              const targetUrl = getOrgUrl(lastOrgSlug, nextPath || '/dashboard')
-              // sessionStorage doesn't survive a cross-subdomain redirect —
-              // encode the success flash on the URL so the destination's
-              // ToastProvider can pick it up on mount.
-              window.location.href = useNotificationStore
-                .getState()
-                .flashRedirect(targetUrl, translate('auth.loggedIn'), 'success')
-              return
-            } else {
-              clearLastOrgSlug()
-            }
-          }
-        }
-
-        // Only now update local state — org redirect decided, no flash
+        // The user stays on the host they logged in on; every host shows
+        // the same projects.
         setUser(data.user)
 
         // Clear development helper flags (dead-code-eliminated in production)
@@ -694,13 +482,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear session and all caches
     sessionManager.clearSession(apiClient)
 
-    // Clear organization state
-    orgManager.clear()
-
     // Clear local state
     setUser(null)
     setOrganizations([])
-    setCurrentOrganizationState(null)
 
     // Mark manual logout for dev helper (dead-code-eliminated in production)
     if (process.env.NODE_ENV === 'development') {
@@ -710,7 +494,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Full page navigation to base domain landing page to reset all React state
     // Use getPrivateUrl to strip org subdomain (e.g., benchathon.what-a-benger.net → what-a-benger.net)
     window.location.href = getPrivateUrl('/')
-  }, [apiClient, orgManager])
+  }, [apiClient])
 
   const signup = useCallback(
     async (
@@ -756,30 +540,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // If invitation token was provided, user is already verified and added to org
         // Otherwise, redirect to email verification
         if (invitationToken) {
-          // Refresh auth to get updated user data — populates organizations list
+          // Refresh auth to get updated user data (populates the
+          // organizations list); the dashboard already shows the inviting
+          // organization's projects, no host change needed.
           await initializeAuth()
-          // After signup with invitation, redirect to the org subdomain.
-          // The inviting org's id is not available here (signup only returns
-          // the user and the token is opaque), so the first membership is
-          // used; a freshly invited account has exactly one anyway. The
-          // existing-account flow (accept-invitation page) redirects to the
-          // inviting org by id.
-          const currentOrgs = orgManager.getOrganizations()
-          if (currentOrgs.length > 0) {
-            const targetUrl = getOrgUrl(currentOrgs[0].slug, '/dashboard')
-            window.location.href = useNotificationStore
-              .getState()
-              .flashRedirect(
-                targetUrl,
-                translate('auth.signupComplete'),
-                'success',
-              )
-          } else {
-            useNotificationStore
-              .getState()
-              .flash(translate('auth.signupComplete'), 'success')
-            router.push('/dashboard')
-          }
+          useNotificationStore
+            .getState()
+            .flash(translate('auth.signupComplete'), 'success')
+          router.push('/dashboard')
         } else {
           // Regular signup needs email verification
           router.push('/verify-email?messageKey=registrationSuccess')
@@ -808,8 +576,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshAuth,
       apiClient,
       organizations,
-      currentOrganization,
-      setCurrentOrganization,
       refreshOrganizations,
     }),
     [
@@ -822,8 +588,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshAuth,
       apiClient,
       organizations,
-      currentOrganization,
-      setCurrentOrganization,
       refreshOrganizations,
     ],
   )
@@ -831,9 +595,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={contextValue}>
       {/*
-        Expose the org-wired client to descendants via useApiClient() so new
-        call sites can thread the API client explicitly instead of importing
-        the global singleton. The singleton path stays fully functional for
+        Expose the client to descendants via useApiClient() so new call
+        sites can thread the API client explicitly instead of importing the
+        global singleton. The singleton path stays fully functional for
         everything not yet migrated.
       */}
       <ApiClientContextProvider client={apiClient}>

@@ -46,62 +46,23 @@ describe('admin-defaults.ts', () => {
   describe('configureAdminDefaultsClient', () => {
     it('should configure auth failure handler', () => {
       const authHandler = jest.fn()
-      configureAdminDefaultsClient(authHandler, undefined)
+      configureAdminDefaultsClient(authHandler)
 
       expect(mockSetAuthFailureHandler).toHaveBeenCalledWith(authHandler)
     })
 
-    it('should configure organization context provider', () => {
-      const orgProvider = jest.fn(() => 'org-123')
-      configureAdminDefaultsClient(undefined, orgProvider)
-
-      expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider,
-      )
-    })
-
-    it('should configure both handlers', () => {
-      const authHandler = jest.fn()
-      const orgProvider = jest.fn(() => 'org-456')
-      configureAdminDefaultsClient(authHandler, orgProvider)
-
-      expect(mockSetAuthFailureHandler).toHaveBeenCalledWith(authHandler)
-      expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider,
-      )
-    })
-
-    it('should handle undefined auth handler gracefully', () => {
-      const orgProvider = jest.fn(() => 'org-789')
-      configureAdminDefaultsClient(undefined, orgProvider)
+    it('should handle an undefined handler gracefully', () => {
+      configureAdminDefaultsClient(undefined)
 
       expect(mockSetAuthFailureHandler).not.toHaveBeenCalled()
-      expect(mockSetOrganizationContextProvider).toHaveBeenCalledWith(
-        orgProvider,
-      )
-    })
-
-    it('should handle undefined org provider gracefully', () => {
-      const authHandler = jest.fn()
-      configureAdminDefaultsClient(authHandler, undefined)
-
-      expect(mockSetAuthFailureHandler).toHaveBeenCalledWith(authHandler)
-      expect(mockSetOrganizationContextProvider).not.toHaveBeenCalled()
-    })
-
-    it('should handle both undefined gracefully', () => {
-      configureAdminDefaultsClient(undefined, undefined)
-
-      expect(mockSetAuthFailureHandler).not.toHaveBeenCalled()
-      expect(mockSetOrganizationContextProvider).not.toHaveBeenCalled()
     })
 
     it('should allow reconfiguration', () => {
       const authHandler1 = jest.fn()
       const authHandler2 = jest.fn()
 
-      configureAdminDefaultsClient(authHandler1, undefined)
-      configureAdminDefaultsClient(authHandler2, undefined)
+      configureAdminDefaultsClient(authHandler1)
+      configureAdminDefaultsClient(authHandler2)
 
       expect(mockSetAuthFailureHandler).toHaveBeenCalledTimes(2)
       expect(mockSetAuthFailureHandler).toHaveBeenLastCalledWith(authHandler2)

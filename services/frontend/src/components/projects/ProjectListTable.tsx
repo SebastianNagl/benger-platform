@@ -23,7 +23,6 @@ import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { projectIcon } from '@/lib/projectKind'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { canCreateProjects } from '@/utils/permissions'
@@ -126,9 +125,7 @@ export function ProjectListTable({
   const [discoverOpen, setDiscoverOpen] = useState(false)
 
   // Check if user has permissions to create/modify projects
-  const { isPrivateMode } =
-    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
-  const userCanCreateProjects = canCreateProjects(user, { isPrivateMode })
+  const userCanCreateProjects = canCreateProjects(user)
 
   // Clear selections when page changes
   useEffect(() => {
@@ -1109,11 +1106,16 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300"
+                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-700 dark:text-zinc-300"
                         onClick={() => router.push(`/projects/${project.id}`)}
                         data-testid={`project-organizations-${project.id}`}
                       >
-                        {organizationNames(project)}
+                        <div
+                          className="max-w-[14rem] truncate"
+                          title={organizationNames(project)}
+                        >
+                          {organizationNames(project)}
+                        </div>
                       </td>
                       <td
                         className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"

@@ -56,7 +56,7 @@
       "goToSignIn": "Zur Anmeldung",
       "cancel": "Abbrechen"
     },
-    "switchContext": "Kontext wechseln",
+    "myOrganizations": "Meine Organisationen",
     "private": "Privat"
   },
   "loginModal": {
@@ -309,7 +309,7 @@
           },
           "assignedOrganizations": "Zugewiesene Organisationen",
           "assignedOrganizationsHelp": "Wählen Sie die Organisationen, deren Mitglieder auf dieses Projekt zugreifen können. Unabhängig von der aktuellen Subdomain.",
-          "orgPreselectedHint": "Vorausgewählt, weil Sie in der Organisation {name} arbeiten. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.",
+          "orgPreselectedHint": "Vorausgewählt: Ihre Organisation {name}. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.",
           "noOrganizationsAvailable": "Keine Organisationen verfügbar.",
           "groupScopeLabel": "Gruppe",
           "groupScopeOrgWide": "Gesamte Organisation",
@@ -511,8 +511,9 @@
           "skip": "Datenimport überspringen",
           "creating": "Wird erstellt...",
           "create": "Projekt erstellen",
-          "creationTarget": "Wird erstellt in: {{name}}",
-          "privateTarget": "Privat"
+          "creationTarget": "Wird erstellt in: {name}",
+          "privateTarget": "Privat",
+          "publicTarget": "Öffentlich"
         },
         "templates": {
           "questionAnswering": {
@@ -2029,6 +2030,7 @@
     "show": "Anzeigen",
     "apiSettings": "API-Einstellungen",
     "apiKeysDescription": "Verwalten Sie Ihre persönlichen API-Schlüssel für LLM-Anbieter. Diese Schlüssel werden verschlüsselt und sicher gespeichert.",
+    "orgProvidesKeys": "Für Projekte in {names} stellt die Organisation die API-Schlüssel bereit. Ihre eigenen Schlüssel gelten für private Projekte.",
     "optionalInfo": "Weitere Informationen",
     "optionalSettings": "Weitere Einstellungen",
     "hideOptionalSettings": "Forschungsprofil ausblenden",

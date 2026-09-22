@@ -666,13 +666,65 @@ describe('useModels', () => {
   })
 
   describe('API Integration', () => {
-    it('should call getAvailableModels with correct parameters', async () => {
+    it('lists the personal keys outside any model scope', async () => {
       mockGetAvailableModels.mockResolvedValue(mockModels)
 
       renderHook(() => useModels())
 
       await waitFor(() => {
-        expect(mockGetAvailableModels).toHaveBeenCalledWith()
+        expect(mockGetAvailableModels).toHaveBeenCalledWith({
+          projectId: undefined,
+          organizationId: undefined,
+        })
+      })
+    })
+
+    it('lists the models a run on the scoped project can use', async () => {
+      const { ModelScopeProvider } = require('@/contexts/ModelScopeContext')
+      mockGetAvailableModels.mockResolvedValue(mockModels)
+
+      renderHook(() => useModels(), {
+        wrapper: ({ children }) => (
+          <ModelScopeProvider projectId="proj-1">{children}</ModelScopeProvider>
+        ),
+      })
+
+      await waitFor(() => {
+        expect(mockGetAvailableModels).toHaveBeenCalledWith({
+          projectId: 'proj-1',
+          organizationId: undefined,
+        })
+      })
+    })
+
+    it('lists the models of the wizard creation target and refetches when it changes', async () => {
+      const { ModelScopeProvider } = require('@/contexts/ModelScopeContext')
+      mockGetAvailableModels.mockResolvedValue(mockModels)
+
+      // The wrapper reads the scope from a variable so a rerender can
+      // change the creation target the way the wizard does.
+      let scopeOrganizationId = 'org-a'
+      const { rerender } = renderHook(() => useModels(), {
+        wrapper: ({ children }) => (
+          <ModelScopeProvider organizationId={scopeOrganizationId}>
+            {children}
+          </ModelScopeProvider>
+        ),
+      })
+
+      await waitFor(() => {
+        expect(mockGetAvailableModels).toHaveBeenCalledWith({
+          projectId: undefined,
+          organizationId: 'org-a',
+        })
+      })
+      scopeOrganizationId = 'org-b'
+      rerender()
+      await waitFor(() => {
+        expect(mockGetAvailableModels).toHaveBeenLastCalledWith({
+          projectId: undefined,
+          organizationId: 'org-b',
+        })
       })
     })
 

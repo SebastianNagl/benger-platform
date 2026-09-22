@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from sqlalchemy import select
 
 from models import (
     Organization,
@@ -365,3 +366,125 @@ async def test_creator_holds_org_admin_permissions_without_a_membership(async_te
                     principal, project, p, s, org_context=c
                 )
             ) is True, (ctx, perm)
+
+
+# ------------------------------------------------------------ core 2.22 ----
+# The selected organization is retired: the creation target and the model
+# list scope travel in the request itself.
+
+
+async def test_create_project_targets_the_org_named_in_the_body(
+    async_test_client, async_test_db
+):
+    db = async_test_db
+    w = await _world(db)
+    stale = {"X-Organization-Context": w["other"].id}
+
+    with _as_user(w["contributor"]):
+        # No organization_id: private, whatever the (ignored) header says.
+        r = await async_test_client.post(
+            "/api/projects/", json={"title": "mine"}, headers=stale
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["is_private"] is True and r.json()["organizations"] == []
+
+        # organization_id: attached there, the header still ignored.
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "for lmu", "organization_id": w["lmu"].id},
+            headers=stale,
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["is_private"] is False
+        assert [o["id"] for o in body["organizations"]] == [w["lmu"].id]
+        row = (
+            await db.execute(
+                select(ProjectOrganization).where(
+                    ProjectOrganization.project_id == body["id"]
+                )
+            )
+        ).scalar_one()
+        assert row.organization_id == w["lmu"].id and row.group_id is None
+
+        # Contradictory flags are refused.
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "x", "organization_id": w["lmu"].id, "is_private": True},
+        )
+        assert r.status_code == 400
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "x", "organization_id": w["lmu"].id, "is_public": True},
+        )
+        assert r.status_code == 400
+
+        # An org the caller never joined: refused, even with a matching header.
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "x", "organization_id": w["other"].id},
+            headers={"X-Organization-Context": w["other"].id},
+        )
+        assert r.status_code == 403
+
+    with _as_user(w["annotator"]):
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "x", "organization_id": w["lmu"].id},
+        )
+        assert r.status_code == 403
+
+
+async def test_available_models_scope_comes_from_the_request(
+    async_test_client, async_test_db
+):
+    from unittest.mock import AsyncMock, patch
+
+    db = async_test_db
+    w = await _world(db)
+    seen = []
+
+    async def _providers(db_, user_id, org_id):
+        seen.append(org_id)
+        return []
+
+    with patch(
+        "services.org_api_key_service.org_api_key_service.get_available_providers_for_context_async",
+        new=AsyncMock(side_effect=_providers),
+    ), patch(
+        "routers.api_keys.user_api_key_service.get_user_available_providers_async",
+        new=AsyncMock(side_effect=lambda db_, uid: seen.append(None) or []),
+    ):
+        with _as_user(w["contributor"]):
+            # A project: the org a run on it dispatches with, header ignored.
+            r = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                params={"project_id": w["exam"].id},
+                headers={"X-Organization-Context": w["other"].id},
+            )
+            assert r.status_code == 200, r.text
+            assert seen[-1] == w["lmu"].id
+            # The wizard's creation target.
+            r = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                params={"organization_id": w["lmu"].id},
+            )
+            assert r.status_code == 200 and seen[-1] == w["lmu"].id
+            # Neither: personal keys, whatever the header says.
+            r = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                headers={"X-Organization-Context": w["lmu"].id},
+            )
+            assert r.status_code == 200 and seen[-1] is None
+            # A foreign org or project is refused.
+            r = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                params={"organization_id": w["other"].id},
+            )
+            assert r.status_code == 403
+        with _as_user(w["stranger"]):
+            r = await async_test_client.get(
+                "/api/users/api-keys/available-models",
+                params={"project_id": w["exam"].id},
+            )
+            assert r.status_code == 403

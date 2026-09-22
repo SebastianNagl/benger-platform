@@ -116,8 +116,8 @@ def require_org_admin(organization_id: Optional[str] = None):
     Factory function to create organization admin dependency
 
     Args:
-        organization_id: If provided, check against specific organization.
-                        If None, will try to get from X-Organization-Context header
+        organization_id: The organization to check. Required: without it the
+                        dependency answers 400.
     """
 
     def _check_org_admin(
@@ -131,15 +131,9 @@ def require_org_admin(organization_id: Optional[str] = None):
         if current_user.is_superadmin:
             return current_user
 
-        # Determine which organization to check
+        # The organization is named by the route, never taken from the
+        # client's selected context.
         check_org_id = organization_id
-        if not check_org_id:
-            # Try to get from request state (set by middleware)
-            check_org_id = getattr(request.state, "organization_context", None)
-        if not check_org_id:
-            # Fallback to header (for direct header access)
-            check_org_id = request.headers.get("X-Organization-Context")
-
         if not check_org_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -176,8 +170,8 @@ def require_org_contributor(organization_id: Optional[str] = None):
     Factory function to create organization contributor dependency
 
     Args:
-        organization_id: If provided, check against specific organization.
-                        If None, will try to get from X-Organization-Context header
+        organization_id: The organization to check. Required: without it the
+                        dependency answers 400.
     """
 
     def _check_org_contributor(
@@ -191,15 +185,9 @@ def require_org_contributor(organization_id: Optional[str] = None):
         if current_user.is_superadmin:
             return current_user
 
-        # Determine which organization to check
+        # The organization is named by the route, never taken from the
+        # client's selected context.
         check_org_id = organization_id
-        if not check_org_id:
-            # Try to get from request state (set by middleware)
-            check_org_id = getattr(request.state, "organization_context", None)
-        if not check_org_id:
-            # Fallback to header (for direct header access)
-            check_org_id = request.headers.get("X-Organization-Context")
-
         if not check_org_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
