@@ -1109,11 +1109,16 @@ export function ProjectListTable({
                         </div>
                       </td>
                       <td
-                        className="cursor-pointer px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300"
+                        className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-700 dark:text-zinc-300"
                         onClick={() => router.push(`/projects/${project.id}`)}
                         data-testid={`project-organizations-${project.id}`}
                       >
-                        {organizationNames(project)}
+                        <div
+                          className="max-w-[14rem] truncate"
+                          title={organizationNames(project)}
+                        >
+                          {organizationNames(project)}
+                        </div>
                       </td>
                       <td
                         className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"
