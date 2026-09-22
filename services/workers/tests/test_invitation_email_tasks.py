@@ -46,7 +46,7 @@ class TestInvitationEmailTask:
 
         assert result["status"] == "success"
         assert result["invitation_id"] == invitation_id
-        assert result["recipient"] == to_email
+        assert result["recipient_hint"] == "te…@example.com"
         assert result["organization"] == organization_name
         mock_client.send_message.assert_called_once()
 
@@ -215,6 +215,9 @@ class TestInvitationEmailTask:
             info_calls = [str(call) for call in mock_logger.info.call_args_list]
             assert any('Sending invitation email' in str(call) for call in info_calls)
             assert any('successfully' in str(call) for call in info_calls)
+            # The invitation id identifies the mail; the address stays out.
+            assert all(invitation_id in call for call in info_calls)
+            assert not any(to_email in call for call in info_calls)
 
         assert result["status"] == "success"
 
@@ -582,3 +585,67 @@ class TestInvitationEmailBookkeeping:
         )
 
         assert len(inv.email_last_error) == INVITATION_ERROR_MAX_CHARS
+
+
+class TestInvitationEmailKeepsTheAddressOutOfTheLog:
+    """Celery logs a task's return value at INFO ("Task ... succeeded: ..."),
+    and worker logs are kept outside the database. The invitation id
+    identifies the mail; the address only appears as a masked hint."""
+
+    ADDRESS = "erika.musterfrau@uni-x.de"
+
+    def _send(self, send_result, caplog, invitation_id="inv-log-1"):
+        mock_client = MagicMock()
+        mock_client.send_message.return_value = send_result
+        with patch('sendgrid_client.SendGridClient', MagicMock(return_value=mock_client)), \
+             caplog.at_level("DEBUG"):
+            return send_invitation_email_task(
+                invitation_id, self.ADDRESS, "Jane", "Org", "http://example.com/invite", "member"
+            )
+
+    def test_success_result_and_log_carry_only_the_hint(self, caplog):
+        result = self._send({"status": "success", "message_id": "m-1"}, caplog)
+
+        assert result["status"] == "success"
+        assert result["recipient_hint"] == "er…@uni-x.de"
+        assert "recipient" not in result
+        assert self.ADDRESS not in repr(result)
+        assert self.ADDRESS not in caplog.text
+        assert "inv-log-1" in caplog.text
+
+    def test_permanent_failure_result_and_log_carry_only_the_hint(self, caplog):
+        result = self._send(
+            {"status": "error", "status_code": 400, "error": "SendGrid API error: 400"}, caplog
+        )
+
+        assert result["status"] == "failed_permanent"
+        assert result["recipient_hint"] == "er…@uni-x.de"
+        assert self.ADDRESS not in repr(result)
+        assert self.ADDRESS not in caplog.text
+        assert "Permanent SendGrid 400 for invitation inv-log-1" in caplog.text
+
+    def test_retryable_failure_log_names_the_invitation(self, caplog):
+        with pytest.raises(RuntimeError, match="SendGrid error"):
+            self._send(
+                {"status": "error", "status_code": 503, "error": "SendGrid API error: 503"}, caplog
+            )
+
+        assert self.ADDRESS not in caplog.text
+        assert "Retryable SendGrid failure for invitation inv-log-1" in caplog.text
+
+    def test_bulk_fan_out_result_and_log_name_invitations_only(self, caplog):
+        queued = MagicMock()
+        queued.id = "task-1"
+        with patch.object(
+            tasks.send_invitation_email_task, "apply_async", return_value=queued
+        ), caplog.at_level("DEBUG"):
+            result = send_bulk_invitations_task(
+                [{"invitation_id": "inv-b1", "to_email": self.ADDRESS, "inviter_name": "Jane"}]
+            )
+
+        assert result["results"] == [
+            {"invitation_id": "inv-b1", "task_id": "task-1", "status": "queued"}
+        ]
+        assert self.ADDRESS not in repr(result)
+        assert self.ADDRESS not in caplog.text
+        assert "inv-b1" in caplog.text

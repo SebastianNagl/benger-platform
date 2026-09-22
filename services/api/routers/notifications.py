@@ -815,7 +815,7 @@ async def send_test_email(
             )
 
     except Exception as e:
-        logger.error(f"Error sending test email to {current_user.email}: {e}")
+        logger.error(f"Error sending test email to user {current_user.id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error sending test email",

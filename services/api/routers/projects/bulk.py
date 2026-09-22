@@ -75,7 +75,7 @@ async def bulk_delete_projects(
                 continue
             if not await _can_soft_delete(db, current_user, project):
                 logger.warning(
-                    f"User {current_user.email} lacks permission to delete project {project_id}"
+                    f"User {current_user.id} lacks permission to delete project {project_id}"
                 )
                 failed_projects.append({"id": project_id, "reason": "Permission denied"})
                 continue

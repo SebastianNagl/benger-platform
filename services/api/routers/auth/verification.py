@@ -1,4 +1,5 @@
 """Auth: email verification handlers."""
+from account_activation import mask_email
 from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
@@ -61,15 +62,16 @@ async def resend_verification_email(
 
     # Always return success to prevent email enumeration
     if not user:
-        logger.info(f"Verification resend requested for non-existent email: {resend_request.email}")
+        logger.info(
+            "Verification resend requested for non-existent email: "
+            f"{mask_email(resend_request.email)}"
+        )
         return {
             "message": "If the email exists and is unverified, a verification link has been sent"
         }
 
     if user.email_verified:
-        logger.info(
-            f"Verification resend requested for already verified email: {resend_request.email}"
-        )
+        logger.info(f"Verification resend requested for already verified user: {user.id}")
         return {
             "message": "If the email exists and is unverified, a verification link has been sent"
         }
@@ -84,9 +86,9 @@ async def resend_verification_email(
             db=db, user=user, language=resend_request.language, host=resend_host
         )
         if success:
-            logger.info(f"Verification email resent to: {user.email}")
+            logger.info(f"Verification email resent to user: {user.id}")
         else:
-            logger.warning(f"Failed to resend verification email to: {user.email}")
+            logger.warning(f"Failed to resend verification email to user: {user.id}")
     except Exception as e:
         logger.error(f"Error resending verification email: {e}")
 

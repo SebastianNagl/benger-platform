@@ -1,4 +1,5 @@
 """Auth: password change / reset handlers."""
+from account_activation import mask_email
 from fastapi import Request
 from sqlalchemy import func
 
@@ -54,7 +55,9 @@ async def request_password_reset(
 
     # Always return success to prevent email enumeration
     if not user:
-        logger.info(f"Password reset requested for non-existent email: {reset_request.email}")
+        logger.info(
+            f"Password reset requested for non-existent email: {mask_email(reset_request.email)}"
+        )
         return {"message": "If the email exists, a password reset link has been sent"}
 
     try:
@@ -67,9 +70,9 @@ async def request_password_reset(
             db=db, user=user, base_url=brand.frontend_url, language=reset_request.language
         )
         if success:
-            logger.info(f"Password reset email sent to: {user.email}")
+            logger.info(f"Password reset email sent to user: {user.id}")
         else:
-            logger.warning(f"Failed to send password reset email to: {user.email}")
+            logger.warning(f"Failed to send password reset email to user: {user.id}")
     except Exception as e:
         logger.error(f"Error sending password reset email: {e}")
 

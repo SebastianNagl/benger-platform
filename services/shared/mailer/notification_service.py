@@ -747,9 +747,7 @@ class NotificationService:
 
                 # Validate email address before attempting to send
                 if not is_valid_email(user.email):
-                    logger.warning(
-                        f"Skipping notification for user {user.id} - invalid email: {user.email}"
-                    )
+                    logger.warning(f"Skipping notification for user {user.id} - invalid email")
                     continue
 
                 # Check if user wants email notifications for this type

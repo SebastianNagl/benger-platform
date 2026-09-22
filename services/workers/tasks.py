@@ -1410,9 +1410,13 @@ def send_invitation_email_task(
         role: Role being offered
 
     Returns:
-        Dictionary with send status
+        Dictionary with send status. The full address is neither logged nor
+        returned: the Celery result is logged on success.
     """
-    logger.info(f"Sending invitation email to {to_email} for {organization_name}")
+    from account_activation import mask_email
+
+    recipient_hint = mask_email(to_email)
+    logger.info(f"Sending invitation email for invitation {invitation_id} ({organization_name})")
 
     # Stamp the attempt before the send. A worker killed mid-send then still
     # leaves a visible "attempted, never confirmed" state behind.
@@ -1448,12 +1452,12 @@ def send_invitation_email_task(
         )
 
         if result.get("status") == "success":
-            logger.info(f"Invitation email sent successfully to {to_email}")
+            logger.info(f"Invitation email sent successfully for invitation {invitation_id}")
             _record_invitation_email(invitation_id, sent=True)
             return {
                 "status": "success",
                 "invitation_id": invitation_id,
-                "recipient": to_email,
+                "recipient_hint": recipient_hint,
                 "organization": organization_name,
                 "message_id": result.get("message_id", "unknown"),
             }
@@ -1468,7 +1472,8 @@ def send_invitation_email_task(
         error_msg = result.get("error", "Unknown SendGrid error")
         if status_code is not None and 400 <= status_code < 500 and status_code != 429:
             logger.error(
-                f"Permanent SendGrid {status_code} for {to_email}; not retrying: {error_msg}"
+                f"Permanent SendGrid {status_code} for invitation {invitation_id}; "
+                f"not retrying: {error_msg}"
             )
             _record_invitation_email(
                 invitation_id, error=f"SendGrid {status_code}: {error_msg}"
@@ -1476,13 +1481,14 @@ def send_invitation_email_task(
             return {
                 "status": "failed_permanent",
                 "invitation_id": invitation_id,
-                "recipient": to_email,
+                "recipient_hint": recipient_hint,
                 "status_code": status_code,
                 "error": error_msg,
             }
 
         logger.error(
-            f"Retryable SendGrid failure for {to_email} (status_code={status_code}): {error_msg}"
+            f"Retryable SendGrid failure for invitation {invitation_id} "
+            f"(status_code={status_code}): {error_msg}"
         )
         _record_invitation_email(
             invitation_id, error=f"SendGrid {status_code}: {error_msg} (retrying)"
@@ -1493,7 +1499,7 @@ def send_invitation_email_task(
         # Already classified as retryable above — the error is recorded there.
         raise
     except Exception as e:
-        logger.error(f"Error sending invitation email to {to_email}: {str(e)}")
+        logger.error(f"Error sending invitation email for invitation {invitation_id}: {str(e)}")
         _record_invitation_email(
             invitation_id, error=f"{type(e).__name__}: {e} (retrying)"
         )
@@ -1522,7 +1528,8 @@ def send_account_activation_task(
     no-ops and refuses activated accounts; the token is committed BEFORE the
     send so a delivered link always exists in the DB. ``target_email`` (the
     fallback path) parks in ``pending_activation_email`` and is adopted only
-    when the link is clicked.
+    when the link is clicked. The full address is neither logged nor returned:
+    the Celery result is logged on success.
     """
     from sqlalchemy import func as sa_func
     from sqlalchemy import select as sa_select
@@ -1533,6 +1540,7 @@ def send_account_activation_task(
         build_activation_link,
         current_or_new_activation_token,
         mail_language_for,
+        mask_email,
     )
     from email_service import email_service
     from mailer.branding import resolve_email_brand
@@ -1573,6 +1581,7 @@ def send_account_activation_task(
             user, pending_email=target_email, force=force
         )
         recipient = target_email or user.email
+        recipient_hint = mask_email(recipient)
         # The user's language, German by default (not the host brand's).
         language = mail_language_for(user)
         # Commit before sending: a link that reaches a mailbox must resolve.
@@ -1597,11 +1606,11 @@ def send_account_activation_task(
         )
 
         if result.get("status") == "success":
-            logger.info(f"Activation email sent to {recipient} (user {user_id})")
+            logger.info(f"Activation email sent to {recipient_hint} (user {user_id})")
             return {
                 "status": "success",
                 "user_id": user_id,
-                "recipient": recipient,
+                "recipient_hint": recipient_hint,
                 "message_id": result.get("message_id", "unknown"),
             }
 
@@ -1612,19 +1621,19 @@ def send_account_activation_task(
         if status_code is not None and 400 <= status_code < 500 and status_code != 429:
             logger.error(
                 f"Permanent SendGrid {status_code} for activation mail to "
-                f"{recipient}; not retrying: {error_msg}"
+                f"{recipient_hint} (user {user_id}); not retrying: {error_msg}"
             )
             return {
                 "status": "failed_permanent",
                 "user_id": user_id,
-                "recipient": recipient,
+                "recipient_hint": recipient_hint,
                 "status_code": status_code,
                 "error": error_msg,
             }
 
         logger.error(
-            f"Retryable SendGrid failure for activation mail to {recipient} "
-            f"(status_code={status_code}): {error_msg}"
+            f"Retryable SendGrid failure for activation mail to {recipient_hint} "
+            f"(user {user_id}, status_code={status_code}): {error_msg}"
         )
         raise RuntimeError(f"SendGrid error: {error_msg}")
     except RuntimeError:
@@ -1801,17 +1810,28 @@ def send_bulk_invitations_task(invitations_data: List[Dict]) -> Dict[str, Any]:
             )
             sent += 1
             results.append(
-                {"email": invitation.get('to_email'), "task_id": result.id, "status": "queued"}
+                {
+                    "invitation_id": invitation.get('invitation_id'),
+                    "task_id": result.id,
+                    "status": "queued",
+                }
             )
             logger.info(
-                f"📮 Queued invitation {sent}/{len(invitations_data)} for {invitation.get('to_email')}"
+                f"📮 Queued invitation {sent}/{len(invitations_data)} "
+                f"for invitation {invitation.get('invitation_id')}"
             )
 
         except Exception as e:
-            logger.error(f"❌ Failed to queue invitation for {invitation.get('to_email')}: {e}")
+            logger.error(
+                f"❌ Failed to queue invitation {invitation.get('invitation_id')}: {e}"
+            )
             failed += 1
             results.append(
-                {"email": invitation.get('to_email'), "status": "failed", "error": str(e)}
+                {
+                    "invitation_id": invitation.get('invitation_id'),
+                    "status": "failed",
+                    "error": str(e),
+                }
             )
 
     logger.info(f"✅ Bulk invitation processing complete: {sent} queued, {failed} failed")
@@ -1899,9 +1919,7 @@ def send_notification_batch_task(notification_data: List[Dict]) -> Dict[str, Any
                     continue
 
                 if not is_valid_email(user.email):
-                    logger.warning(
-                        f"Skipping notification for user {user.id} — invalid email: {user.email}"
-                    )
+                    logger.warning(f"Skipping notification for user {user.id} - invalid email")
                     skipped += 1
                     continue
 

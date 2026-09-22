@@ -190,6 +190,27 @@ class TestLogin:
         )
         assert resp.status_code == 401
 
+    def test_failed_login_logs_neither_the_login_name_nor_the_address(
+        self, client, test_db, caplog
+    ):
+        """No account id exists for an unknown login, so the log shows a
+        masked hint only; a known login never appears either."""
+        import logging
+
+        with caplog.at_level(logging.INFO):
+            client.post(
+                "/api/auth/login",
+                json={"username": "nonexistent.person@test.com", "password": "anypass"},
+            )
+            client.post(
+                "/api/auth/login",
+                json={"username": "somebody_known", "password": "wrongpassword"},
+            )
+        assert "nonexistent.person@" not in caplog.text
+        assert "somebody_known" not in caplog.text
+        assert "Authentication failed for login: no…@test.com" in caplog.text
+        assert "Authentication failed for login: so…" in caplog.text
+
     def test_login_contributor(self, client, test_db, test_users):
         resp = client.post(
             "/api/auth/login",

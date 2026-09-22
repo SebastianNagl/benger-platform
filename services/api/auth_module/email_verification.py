@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import jwt
+from account_activation import mask_email
 from email_service import EmailService
 from fastapi import HTTPException, status
 from localization import LanguageDetector
@@ -209,18 +210,26 @@ class EmailVerificationService:
         Args:
             event_type: Type of event (token_generated, email_sent, token_validated, etc.)
             user_id: User ID
-            email: Email address
+            email: Email address (only its masked hint is logged)
             success: Whether the operation was successful
             error: Error message if failed
-            metadata: Additional metadata to log
+            metadata: Additional metadata to log (``*email`` values are masked)
         """
+        # Logs are retained outside the database: the person is identified by
+        # user_id, the address only appears as a masked hint.
+        safe_metadata = {
+            key: mask_email(value)
+            if str(key).endswith("email") and isinstance(value, str)
+            else value
+            for key, value in (metadata or {}).items()
+        }
         log_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
             "user_id": user_id,
-            "email": email,
+            "email_hint": mask_email(email),
             "success": success,
-            "metadata": metadata or {},
+            "metadata": safe_metadata,
         }
 
         if error:
@@ -572,7 +581,7 @@ class EmailVerificationService:
                         "verification_link_created": True,
                     },
                 )
-                logger.info(f"Verification email sent to {user.email}")
+                logger.info(f"Verification email sent to user {user.id}")
             else:
                 self._log_email_event(
                     event_type="email_send_failed",
@@ -584,7 +593,7 @@ class EmailVerificationService:
                         "send_duration_seconds": send_duration,
                     },
                 )
-                logger.error(f"Failed to send verification email to {user.email}")
+                logger.error(f"Failed to send verification email to user {user.id}")
 
             return success
 
@@ -658,7 +667,10 @@ class EmailVerificationService:
 
         # Check if email matches
         if user.email != email:
-            logger.warning(f"Email mismatch for user {user_id}: {user.email} != {email}")
+            logger.warning(
+                f"Email mismatch for user {user_id}: "
+                f"{mask_email(user.email)} != {mask_email(email)}"
+            )
             self._log_email_event(
                 event_type="verification_attempt_failed",
                 user_id=user_id,

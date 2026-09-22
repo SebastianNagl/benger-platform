@@ -1,7 +1,16 @@
 """Auth: login / signup / registration handlers."""
+from account_activation import mask_email
 from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+
+
+def _login_hint(login: str) -> str:
+    """Log-safe form of a typed login (username or email) with no account id."""
+    if "@" in login:
+        return mask_email(login)
+    return login[:2] + "…"
+
 
 @router.post(
     "/login",
@@ -51,17 +60,10 @@ async def login(
     db: Session = Depends(get_db),
 ):
     """Login endpoint that returns JWT tokens and sets HttpOnly cookies"""
-    logger.info(f"Login attempt - Username: {login_data.username}")
-    safe_headers = {k: v for k, v in request.headers.items()
-                    if k.lower() not in ("cookie", "authorization", "x-api-key")}
-    logger.info(f"Request headers: {safe_headers}")
-    logger.info(f"Client host: {request.client.host if request.client else 'Unknown'}")
-    logger.info(f"Request URL: {request.url}")
-
     try:
         user = authenticate_user(login_data.username, login_data.password, db)
         if not user:
-            logger.info(f"Authentication failed for user: {login_data.username}")
+            logger.info(f"Authentication failed for login: {_login_hint(login_data.username)}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
@@ -70,13 +72,13 @@ async def login(
 
         # Check if email is verified
         if not user.email_verified:
-            logger.info(f"Login blocked - unverified email for user: {login_data.username}")
+            logger.info(f"Login blocked - unverified email for user: {user.id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Email verification required. Please check your email for the verification link.",
             )
 
-        logger.info(f"Authentication successful for user: {login_data.username}")
+        logger.info(f"Authentication successful for user: {user.id}")
 
         # Extension hook: host-aware login onboarding — an EXISTING account's
         # first sign-in on a student-locked host (vertretbar.net) attaches the
@@ -156,7 +158,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
     from models import Invitation
 
     try:
-        logger.info(f"Signup attempt for username: {user_data.username}, email: {user_data.email}")
+        logger.info(f"Signup attempt for email: {mask_email(user_data.email)}")
 
         # Check if this is an invitation-based signup
         invitation_token = getattr(user_data, 'invitation_token', None)
@@ -185,7 +187,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
                     detail="Invitation has expired",
                 )
 
-            logger.info(f"Invitation-based signup for {user_data.email}")
+            logger.info(f"Invitation-based signup for invitation {invitation.id}")
 
         # Extension hook: extended edition gates signup on research-data consent.
         # No-op when extended is not loaded.
@@ -221,7 +223,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
             ki_experience_scores=getattr(user_data, 'ki_experience_scores', None),
             research_data_consent_accepted=getattr(user_data, 'research_data_consent_accepted', None),
         )
-        logger.info(f"User created successfully: {user.username} ({user.id})")
+        logger.info(f"User created successfully: {user.id}")
 
         # If this was an invitation signup, accept the invitation and add to organization
         if invitation:
@@ -258,7 +260,7 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
             user.profile_completed = True
             db.commit()
 
-            logger.info(f"User {user.username} added to organization via invitation")
+            logger.info(f"User {user.id} added to organization via invitation")
 
         # Extension hook: onboard a student who signed up via a student-locked
         # host (vertretbar.net) — sets preferred_ui_mode + Vertretbar membership.
@@ -288,9 +290,9 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
                     db=db, user=user, host=signup_host
                 )
                 if success:
-                    logger.info(f"Verification email sent to new user: {user.email}")
+                    logger.info(f"Verification email sent to new user: {user.id}")
                 else:
-                    logger.warning(f"Failed to send verification email to new user: {user.email}")
+                    logger.warning(f"Failed to send verification email to new user: {user.id}")
             except Exception as e:
                 logger.error(f"Error sending verification email during signup: {e}", exc_info=True)
 

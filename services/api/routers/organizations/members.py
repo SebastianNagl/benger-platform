@@ -469,8 +469,8 @@ async def verify_member_email(
 
     logger = logging.getLogger(__name__)
     logger.info(
-        f"Email verified by admin: user={user_to_verify.email}, "
-        f"verified_by={current_user.email}, organization={organization_id}, "
+        f"Email verified by admin: user={user_to_verify.id}, "
+        f"verified_by={current_user.id}, organization={organization_id}, "
         f"reason={request.reason}"
     )
 
@@ -608,7 +608,7 @@ async def bulk_verify_member_emails(
 
     logger = logging.getLogger(__name__)
     logger.info(
-        f"Bulk email verification by admin: verified_by={current_user.email}, "
+        f"Bulk email verification by admin: verified_by={current_user.id}, "
         f"organization={organization_id}, total={len(request.user_ids)}, "
         f"success={success_count}, skipped={skip_count}, errors={error_count}, "
         f"reason={request.reason}"

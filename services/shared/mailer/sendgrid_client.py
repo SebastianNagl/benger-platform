@@ -23,13 +23,26 @@ is on ``sys.path`` in both containers).
 
 import logging
 import os
+import re
 from typing import List, Optional
 
 import requests
 
-from account_activation import email_is_routable
+from account_activation import email_is_routable, mask_email
 
 logger = logging.getLogger(__name__)
+
+# Also a malformed address ("name@", "name@host"): those are what a 400 echoes.
+_ADDRESS_IN_TEXT = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]*")
+
+
+def mask_addresses(text: Optional[str]) -> str:
+    """Provider error text with every address replaced by its masked hint.
+
+    SendGrid echoes the offending recipient back in 4xx bodies, and callers
+    log the ``error`` string returned below, so it is masked at this boundary.
+    """
+    return _ADDRESS_IN_TEXT.sub(lambda match: mask_email(match.group(0)), text or "")
 
 
 class SendGridClient:
@@ -145,7 +158,7 @@ class SendGridClient:
             )
 
             if response.status_code in [200, 201, 202]:
-                logger.info(f"Email sent successfully via SendGrid to {', '.join(to)}")
+                logger.info(f"Email sent successfully via SendGrid to {len(to)} recipient(s)")
                 return {
                     "status": "success",
                     "message_id": response.headers.get("X-Message-Id", "unknown"),
@@ -153,19 +166,21 @@ class SendGridClient:
                     "status_code": response.status_code,
                 }
             else:
-                logger.error(f"SendGrid API error: {response.status_code} - {response.text}")
+                details = mask_addresses(response.text)
+                logger.error(f"SendGrid API error: {response.status_code} - {details}")
                 return {
                     "status": "error",
                     "error": f"SendGrid API error: {response.status_code}",
-                    "details": response.text,
+                    "details": details,
                     "recipients": to,
                     "status_code": response.status_code,
                 }
 
         except Exception as e:
-            logger.error(f"Failed to send email via SendGrid: {e}")
+            error = mask_addresses(str(e))
+            logger.error(f"Failed to send email via SendGrid: {error}")
             # status_code=None signals a network/transport failure (retryable).
-            return {"status": "error", "status_code": None, "error": str(e), "recipients": to}
+            return {"status": "error", "status_code": None, "error": error, "recipients": to}
 
     async def verify_webhook_signature(self, signature: str, payload: bytes) -> bool:
         """Verify SendGrid webhook signature if needed"""

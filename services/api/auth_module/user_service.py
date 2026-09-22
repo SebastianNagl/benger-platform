@@ -818,7 +818,7 @@ def init_demo_users(db: Session):
                 user.email_verified = True
                 user.email_verification_method = "self"
                 db.commit()
-                print(f"Created demo user: {user_data['email']}")
+                print(f"Created demo user: {user.id}")
                 existing_user = user
             except HTTPException:
                 pass

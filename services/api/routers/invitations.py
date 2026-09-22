@@ -367,7 +367,7 @@ async def create_invitation(
                 'interval_max': 0.2,
             },
         )
-        logger.info(f"📮 Queued invitation email for {invitation.email}")
+        logger.info(f"📮 Queued invitation email for invitation {invitation.id}")
         _stamp_queued(invitation)
     except Exception as e:
         # Log error but don't fail the invitation creation. The row records the
@@ -1028,7 +1028,7 @@ async def resend_invitation(
                 'interval_max': 0.2,
             },
         )
-        logger.info(f"📮 Re-queued invitation email for {invitation.email}")
+        logger.info(f"📮 Re-queued invitation email for invitation {invitation.id}")
     except Exception as e:
         # Mirrors create_invitation: the queue failure is recorded, not raised,
         # so the admin sees "failed" rather than a 500 with no trace.

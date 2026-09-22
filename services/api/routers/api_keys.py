@@ -258,7 +258,7 @@ async def get_available_models_for_user(
         )
 
     # Development debugging
-    logger.info(f"🔍 User {current_user.username} requesting available models")
+    logger.info(f"🔍 User {current_user.id} requesting available models")
     logger.info(f"📋 Available providers for user: {available_providers}")
 
     # Get all OFFICIAL catalog models from database. Custom (BYOM) rows are
@@ -369,10 +369,10 @@ async def get_available_models_for_user(
                 }
             )
 
-    logger.info(f"✅ Returning {len(available_models)} models to user {current_user.username}")
+    logger.info(f"✅ Returning {len(available_models)} models to user {current_user.id}")
     if len(available_models) == 0:
         logger.warning(
-            f"⚠️ No models available for user {current_user.username}. Check API key configuration."
+            f"⚠️ No models available for user {current_user.id}. Check API key configuration."
         )
 
     return available_models

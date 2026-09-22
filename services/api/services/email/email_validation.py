@@ -9,6 +9,8 @@ import logging
 import re
 from typing import Optional, Tuple
 
+from account_activation import mask_email
+
 logger = logging.getLogger(__name__)
 
 # RFC 5322 compliant email regex pattern
@@ -51,7 +53,7 @@ def is_valid_email(email: str) -> bool:
     # Check for common invalid patterns (optional)
     for pattern in INVALID_PATTERNS:
         if re.search(pattern, email, re.IGNORECASE):
-            logger.warning(f"Email {email} matches invalid pattern: {pattern}")
+            logger.warning(f"Email {mask_email(email)} matches invalid pattern: {pattern}")
             # We still return True here as these are valid formats,
             # just potentially unwanted. This can be made stricter if needed.
 
