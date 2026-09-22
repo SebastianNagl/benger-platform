@@ -133,6 +133,10 @@ export interface Project {
   access_tier?: 'full' | 'participant' | 'attempted' | null
   participant_via?: 'share' | 'entitlement' | 'org_exam' | 'attempted' | null
   effective_role?: string | null
+  // The backend's own edit decision for the caller (creator, superadmin or
+  // an elevated membership in ANY of the project's orgs). Never derived from
+  // the selected organization context.
+  can_edit?: boolean
   can_manage_shares?: boolean
   origin?: string | null
 

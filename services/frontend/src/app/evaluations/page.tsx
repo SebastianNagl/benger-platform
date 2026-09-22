@@ -162,7 +162,7 @@ export default function EvaluationDashboard() {
     useOperationToasts()
   const { t } = useI18n()
   const searchParams = useSearchParams()
-  const { user, isLoading: authLoading } = useAuth()
+  const { user, isLoading: authLoading, organizations } = useAuth()
   const { isPrivateMode } =
     typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
@@ -913,12 +913,15 @@ export default function EvaluationDashboard() {
     return modelMatch
   })
 
-  // Check permissions
+  // Check permissions (resolved across all org memberships)
   useEffect(() => {
-    if (!authLoading && !canAccessProjectData(user, { isPrivateMode })) {
+    if (
+      !authLoading &&
+      !canAccessProjectData(user, { isPrivateMode, organizations })
+    ) {
       router.replace('/projects?error=no-permission')
     }
-  }, [user, authLoading, router, isPrivateMode])
+  }, [user, authLoading, router, isPrivateMode, organizations])
 
   // Early-return rendering is computed once after all hooks have run — this
   // keeps `useMemo`/`useEffect` calls below in the same order on every render
@@ -927,7 +930,7 @@ export default function EvaluationDashboard() {
     <div className="flex min-h-[50vh] items-center justify-center">
       <LoadingSpinner />
     </div>
-  ) : !canAccessProjectData(user, { isPrivateMode }) ? (
+  ) : !canAccessProjectData(user, { isPrivateMode, organizations }) ? (
     <div className="flex min-h-[50vh] items-center justify-center">
       <div className="text-center">
         <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">

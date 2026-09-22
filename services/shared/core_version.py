@@ -265,11 +265,27 @@ whenever one is added, renamed or removed):
   ``immediate_eval_dispatch`` exports ``BILLING_BLOCK_KEY`` and
   ``normalize_billing_block``, and ``auth_module.org_scope`` exports
   ``load_org_admin_scope_sync``.
+- 2.21: project read access is context-free. ``check_project_accessible``,
+  ``get_project_access_tier`` and ``AuthorizationService`` (both lanes)
+  decide from every active org membership; the ``org_context`` parameter
+  stays for call-site symmetry and is ignored (the selected organization
+  used to be a read boundary and demoted staff of a started exam to the
+  participant tier from the private context). ``get_accessible_project_ids
+  (_async)`` returns the union over all memberships (``_pick_member_org_
+  projects``: eligibility, foreign-private, ANNOTATOR exam and archive
+  carve-outs, protected LMS orgs) and never raises for the header org; the
+  project list sets ``effective_role`` per row and both list and detail
+  carry the new ``ProjectResponse.can_edit`` (``resolve_project_roles_
+  batch_async``). Removed: ``org_groups.linked_attachment_map``,
+  ``get_linking_org_ids(_async)`` and the private-context deciders. A
+  generation run resolves the org whose keys it spends from the project
+  (``org_resolution.resolve_dispatch_org_for_project_async``), not from the
+  header.
 """
 
 import os
 
-CORE_API_VERSION = "2.20"
+CORE_API_VERSION = "2.21"
 
 
 def extended_required() -> bool:

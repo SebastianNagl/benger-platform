@@ -12,17 +12,22 @@ import { useEffect } from 'react'
 
 export default function DataManagementPage() {
   const { t } = useI18n()
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, organizations } = useAuth()
   const router = useRouter()
   const { isPrivateMode } =
     typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
-  // Check permissions - only superadmins, org_admins, and contributors can access
+  // Check permissions - superadmins and users with an ORG_ADMIN or
+  // CONTRIBUTOR membership in any org can access (independent of the
+  // selected org context)
   useEffect(() => {
-    if (!isLoading && !canAccessProjectData(user, { isPrivateMode })) {
+    if (
+      !isLoading &&
+      !canAccessProjectData(user, { isPrivateMode, organizations })
+    ) {
       router.replace('/projects?error=no-permission')
     }
-  }, [user, isLoading, router, isPrivateMode])
+  }, [user, isLoading, router, isPrivateMode, organizations])
 
   // Show loading state while checking permissions
   if (isLoading) {
@@ -39,7 +44,7 @@ export default function DataManagementPage() {
   }
 
   // Show permission denied if user cannot access
-  if (!canAccessProjectData(user, { isPrivateMode })) {
+  if (!canAccessProjectData(user, { isPrivateMode, organizations })) {
     return (
       <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">

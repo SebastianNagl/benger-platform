@@ -583,13 +583,16 @@ async def test_stale_org_context_falls_back_to_participant_list(async_test_clien
         assert r.status_code == 200, r.text
         rows = {x["id"]: x for x in r.json()["items"]}
         assert rows[p.id]["access_tier"] == "participant"
-    # Without participant standing the stale context still 403s (old behavior).
+    # Without participant standing the stale context lists nothing of that
+    # project: the selected organization is no read boundary (core 2.21),
+    # so it never refuses either.
     stranger = await _user(db)
     with _as_user(stranger):
         r = await async_test_client.get(
             "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
         )
-        assert r.status_code == 403
+        assert r.status_code == 200, r.text
+        assert p.id not in {x["id"] for x in r.json()["items"]}
 
 
 async def test_double_join_via_two_links_keeps_one_membership(async_test_client, async_test_db):

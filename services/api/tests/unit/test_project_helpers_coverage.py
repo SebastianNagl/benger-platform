@@ -358,99 +358,179 @@ class TestGetAccessibleProjectIds:
         )
         assert result is None
 
-    def test_private_context(self):
+    def _union_db(self, own_private_ids, org_rows):
+        """A db whose ``query`` chains answer the public and own-private
+        reads and whose ``execute`` answers the member-org rows query."""
         db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-
-        rows = [Mock(id="proj-1"), Mock(id="proj-2")]
-        db.query.return_value.filter.return_value.all.return_value = rows
-
-        # No LMS-linked exams of other users (covered with real rows in
-        # tests/integration/test_lti_staff_project_list.py).
-        with patch(
-            "routers.projects.helpers.get_lti_staff_project_ids", return_value=set()
-        ):
-            result = get_accessible_project_ids(db, user, org_context="private")
-        assert result == ["proj-1", "proj-2"]
-
-    def test_no_context(self):
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-
-        rows = [Mock(id="proj-1")]
-        db.query.return_value.filter.return_value.all.return_value = rows
-
-        with patch(
-            "routers.projects.helpers.get_lti_staff_project_ids",
-            return_value={"lti-exam"},
-        ) as staff_ids:
-            result = get_accessible_project_ids(db, user, org_context=None)
-        # LMS-linked exams the caller opens as org staff follow the own ones.
-        assert result == ["proj-1", "lti-exam"]
-        staff_ids.assert_called_once_with(db, user)
-
-    def test_org_context_with_membership(self):
-        db = Mock()
-        user = Mock(is_superadmin=False, id="user-1")
-
-        # Mock get_user_with_memberships
-        membership = Mock(organization_id="org-1", is_active=True)
-        user_with_memberships = Mock(organization_memberships=[membership])
-
-        # 1) public_ids query (no public projects in this scenario)
         public_query = MagicMock()
         public_query.filter.return_value = public_query
         public_query.all.return_value = []
+        own_query = MagicMock()
+        own_query.filter.return_value = own_query
+        own_query.all.return_value = [Mock(id=i) for i in own_private_ids]
+        db.query.side_effect = [public_query, own_query]
+        db.execute.return_value.all.return_value = org_rows
+        return db
 
-        # 2) get_user_with_memberships
-        user_query = MagicMock()
-        user_query.options.return_value = user_query
-        user_query.filter.return_value = user_query
-        user_query.first.return_value = user_with_memberships
+    @staticmethod
+    def _org_row(project_id, org_id, **kw):
+        row = dict(
+            project_id=project_id,
+            organization_id=org_id,
+            group_id=None,
+            attached_via="manual",
+            is_private=False,
+            created_by="user-2",
+            kind=None,
+            is_archived=False,
+        )
+        row.update(kw)
+        return Mock(**row)
 
-        # 3) Project IDs in the org — one joined query with the soft-delete
-        #    filter inlined (migration 093).
-        proj_query = MagicMock()
-        proj_query.join.return_value = proj_query
-        proj_query.filter.return_value = proj_query
-        proj_row = Mock(project_id="proj-1", is_private=False, created_by="user-2")
-        proj_query.all.return_value = [proj_row]
+    def _run(self, db, user, memberships, org_context, staff_ids=frozenset(), groups=None):
+        loaded = Mock(organization_memberships=list(memberships)) if memberships is not None else None
+        with patch(
+            "routers.projects.helpers.get_user_with_memberships", return_value=loaded
+        ), patch(
+            "routers.projects.helpers.get_lti_staff_project_ids",
+            return_value=set(staff_ids),
+        ), patch(
+            "routers.projects.helpers.get_user_group_context",
+            return_value=dict(groups or {}),
+        ), patch(
+            "routers.projects.helpers._lti_protected_org_ids", return_value=set()
+        ):
+            return get_accessible_project_ids(db, user, org_context=org_context)
 
-        db.query.side_effect = [public_query, user_query, proj_query]
-
-        result = get_accessible_project_ids(db, user, org_context="org-1")
-        assert result == ["proj-1"]
-
-    def test_org_context_no_membership_raises(self):
-        db = Mock()
+    def test_private_context_lists_own_private_projects(self):
         user = Mock(is_superadmin=False, id="user-1")
+        db = self._union_db(["proj-1", "proj-2"], [])
+        assert self._run(db, user, [], "private") == ["proj-1", "proj-2"]
 
-        user_with_memberships = Mock(organization_memberships=[])
-        user_query = MagicMock()
-        user_query.options.return_value = user_query
-        user_query.filter.return_value = user_query
-        user_query.first.return_value = user_with_memberships
-
-        db.query.return_value = user_query
-
-        with pytest.raises(HTTPException) as exc_info:
-            get_accessible_project_ids(db, user, org_context="org-not-member")
-        assert exc_info.value.status_code == 403
-
-    def test_org_context_no_user_memberships(self):
-        db = Mock()
+    def test_no_context_appends_lms_staff_exams(self):
         user = Mock(is_superadmin=False, id="user-1")
+        db = self._union_db(["proj-1"], [])
+        # LMS-linked exams the caller opens as org staff follow the own ones.
+        assert self._run(db, user, [], None, staff_ids={"lti-exam"}) == [
+            "proj-1",
+            "lti-exam",
+        ]
 
-        user_query = MagicMock()
-        user_query.options.return_value = user_query
-        user_query.filter.return_value = user_query
-        user_query.first.return_value = None
+    def test_every_membership_lists_its_org_projects_whatever_the_context(self):
+        user = Mock(is_superadmin=False, id="user-1")
+        memberships = [
+            Mock(organization_id="org-1", is_active=True, role="CONTRIBUTOR"),
+            Mock(organization_id="org-2", is_active=True, role="CONTRIBUTOR"),
+        ]
+        rows = [self._org_row("proj-1", "org-1"), self._org_row("proj-2", "org-2")]
+        # The selected organization is not a read boundary: the same union
+        # under the org's context, another org's context and the private one.
+        for ctx in ("org-1", "org-2", "org-elsewhere", "private", None):
+            db = self._union_db(["own-1"], rows)
+            assert self._run(db, user, memberships, ctx) == ["own-1", "proj-1", "proj-2"], ctx
 
-        db.query.return_value = user_query
+    def test_inactive_membership_lists_nothing(self):
+        user = Mock(is_superadmin=False, id="user-1")
+        memberships = [Mock(organization_id="org-1", is_active=False, role="ORG_ADMIN")]
+        db = self._union_db([], [self._org_row("proj-1", "org-1")])
+        # No active membership: the org rows query is never issued.
+        assert self._run(db, user, memberships, "org-1") == []
+        db.execute.assert_not_called()
 
-        with pytest.raises(HTTPException) as exc_info:
-            get_accessible_project_ids(db, user, org_context="org-1")
-        assert exc_info.value.status_code == 403
+    def test_foreign_context_never_raises(self):
+        user = Mock(is_superadmin=False, id="user-1")
+        db = self._union_db([], [])
+        assert self._run(db, user, None, "org-not-member") == []
+        db = self._union_db(["own-1"], [])
+        assert self._run(db, user, [], "org-not-member") == ["own-1"]
+
+
+class TestPickMemberOrgProjects:
+    """The pure per-row rules of the union list (one row per attachment)."""
+
+    @staticmethod
+    def _row(project_id, org_id, **kw):
+        row = dict(
+            project_id=project_id,
+            organization_id=org_id,
+            group_id=None,
+            attached_via="manual",
+            is_private=False,
+            created_by="author",
+            kind=None,
+            is_archived=False,
+        )
+        row.update(kw)
+        return Mock(**row)
+
+    @staticmethod
+    def _active(**roles):
+        return {
+            org: Mock(organization_id=org, is_active=True, role=role)
+            for org, role in roles.items()
+        }
+
+    def _pick(self, rows, active, user_id="u1", groups=None, staff=(), protected=()):
+        from routers.projects.helpers import _pick_member_org_projects
+
+        return _pick_member_org_projects(
+            rows, active, user_id, dict(groups or {}), set(staff), set(protected)
+        )
+
+    def test_group_eligibility(self):
+        rows = [
+            self._row("wide", "o1"),
+            self._row("mine", "o1", group_id="g1"),
+            self._row("other", "o1", group_id="g2"),
+        ]
+        contributor = self._active(o1="CONTRIBUTOR")
+        assert self._pick(rows, contributor, groups={"g1": False}) == ["wide", "mine"]
+        # ORG_ADMINs see through group boundaries.
+        assert self._pick(rows, self._active(o1="ORG_ADMIN")) == ["wide", "mine", "other"]
+        # A membership the rows do not belong to lists nothing.
+        assert self._pick(rows, self._active(o9="ORG_ADMIN")) == []
+
+    def test_foreign_private_only_for_lms_staff(self):
+        rows = [self._row("priv", "o1", is_private=True, kind="exam", attached_via="lti")]
+        contributor = self._active(o1="CONTRIBUTOR")
+        assert self._pick(rows, contributor) == []
+        assert self._pick(rows, contributor, staff={"priv"}) == ["priv"]
+        # The creator keeps their own private project.
+        assert self._pick(rows, contributor, user_id="author") == ["priv"]
+
+    def test_annotator_exam_and_archive_carve_outs(self):
+        rows = [
+            self._row("exam", "o1", kind="exam"),
+            self._row("old", "o1", is_archived=True),
+            self._row("plain", "o1"),
+            self._row("gexam", "o1", kind="exam", group_id="g1"),
+        ]
+        annotator = self._active(o1="ANNOTATOR")
+        assert self._pick(rows, annotator, groups={"g1": False}) == ["plain"]
+        # A group admin of the attachment's group is staff on its projects.
+        assert self._pick(rows, annotator, groups={"g1": True}) == ["plain", "gexam"]
+        # Staff through another attached org still lists the same rows.
+        rows2 = rows + [self._row("exam", "o2", kind="exam")]
+        two = self._active(o1="ANNOTATOR", o2="CONTRIBUTOR")
+        assert self._pick(rows2, two) == ["plain", "exam"]
+        assert self._pick(rows, self._active(o1="CONTRIBUTOR"), groups={"g1": False}) == [
+            "exam",
+            "old",
+            "plain",
+            "gexam",
+        ]
+
+    def test_protected_lms_org_lists_only_for_admins(self):
+        rows = [self._row("linked", "o1", kind="exam", attached_via="lti")]
+        assert self._pick(rows, self._active(o1="CONTRIBUTOR"), protected={"o1"}) == []
+        assert self._pick(rows, self._active(o1="ORG_ADMIN"), protected={"o1"}) == ["linked"]
+        grouped = [self._row("linked", "o1", kind="exam", attached_via="lti", group_id="g1")]
+        assert self._pick(
+            grouped, self._active(o1="CONTRIBUTOR"), groups={"g1": True}, protected={"o1"}
+        ) == ["linked"]
+        # A manual row of the same org is not an LMS row: the generic rules.
+        manual = [self._row("shared", "o1", kind="exam")]
+        assert self._pick(manual, self._active(o1="CONTRIBUTOR"), protected={"o1"}) == ["shared"]
 
 
 # ============= check_project_accessible (more branches) =============

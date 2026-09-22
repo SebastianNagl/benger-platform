@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 export default function GenerationPage() {
   const { t } = useI18n()
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, organizations } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -24,12 +24,15 @@ export default function GenerationPage() {
   const { isPrivateMode } =
     typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
-  // Check permissions
+  // Check permissions (resolved across all org memberships)
   useEffect(() => {
-    if (!isLoading && !canAccessProjectData(user, { isPrivateMode })) {
+    if (
+      !isLoading &&
+      !canAccessProjectData(user, { isPrivateMode, organizations })
+    ) {
       router.replace('/projects?error=no-permission')
     }
-  }, [user, isLoading, router, isPrivateMode])
+  }, [user, isLoading, router, isPrivateMode, organizations])
 
   // Persist selection and sync URL
   const handleProjectSelect = useCallback(
@@ -86,7 +89,7 @@ export default function GenerationPage() {
     )
   }
 
-  if (!canAccessProjectData(user, { isPrivateMode })) {
+  if (!canAccessProjectData(user, { isPrivateMode, organizations })) {
     return (
       <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">

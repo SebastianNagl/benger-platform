@@ -59,11 +59,12 @@ from routers.projects.helpers import (
     get_org_context_from_request,
     get_participant_project_ids_async,
     get_project_access_tier_async,
+    PARTICIPANT_EFFECTIVE_ROLE,
     TIER_ATTEMPTED,
     TIER_FULL,
     TIER_PARTICIPANT,
-    get_org_membership_role_async,
     get_user_with_memberships_async,
+    resolve_project_roles_batch_async,
 )
 # Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
 # working for existing importers (tests) after the local copy was removed.
@@ -234,24 +235,24 @@ async def list_projects(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    List projects based on organization context.
+    List every project the caller may open, through any of their orgs.
 
-    The X-Organization-Context header determines which projects are shown:
-    - "private" or absent: Show only private projects created by the user
-    - org ID: Show only projects assigned to that organization
+    The selected organization (``X-Organization-Context``) is not a read
+    boundary: the list is the union of the caller's own private projects,
+    the projects each active org membership lists, the LMS-linked exams
+    they open as staff, the public projects, and the rows reached only
+    through the participant or attempted tier. Every row carries the
+    caller's ``access_tier``, ``effective_role`` and ``can_edit``.
 
-    Superadmins are scoped the same way by default; pass
-    include_all_private=true to surface every project in the system.
+    Superadmins see every org's projects plus their own private ones by
+    default; pass include_all_private=true to surface every project in the
+    system.
     """
 
     try:
-        # Read organization context from header
-        org_context = request.headers.get("X-Organization-Context")
-
-        # Projects reached only through the participant tier are computed
-        # FIRST: the org-context helper below 403s for non-members, and a
-        # participant with a stale X-Organization-Context header must still
-        # see their joined projects (fall back to the participant-only set).
+        # Projects reached only through the participant tier (share link,
+        # entitlement, org exam) and only through an own submission
+        # (attempted tier) are listed next to the full-tier set.
         participant_map: Dict[str, str] = {}
         # Likewise the projects the user reaches only through an own
         # submission (attempted tier): listed read-only whatever the window /
@@ -266,7 +267,6 @@ async def list_projects(
             accessible_ids = await get_accessible_project_ids_async(
                 db,
                 current_user,
-                org_context,
                 # The deleted view must not be pre-filtered by the alive-only
                 # id helper; superadmin + include_all_private returns None
                 # (no id filter) and the only_deleted base filter takes over.
@@ -318,26 +318,9 @@ async def list_projects(
         if origin is not None:
             base_filters.append(Project.origin == origin)
 
-        # Annotators never see archived projects in an org context: mirror the
-        # annotator block in check_project_accessible_async so this list endpoint
-        # can't surface archived rows the detail endpoint would refuse. The
-        # project creator keeps their own archived projects (a creator resolves
-        # to ORG_ADMIN in the role model, so the block doesn't apply to them).
-        annotator_in_context = False
-        if not current_user.is_superadmin and org_context and org_context != "private":
-            membership_role = await get_org_membership_role_async(
-                db, current_user, org_context
-            )
-            if membership_role == "ANNOTATOR":
-                annotator_in_context = True
-                archived_ok = [
-                    Project.is_archived.is_(False),
-                    Project.created_by == str(current_user.id),
-                ]
-                # An own submission survives the archive (attempted tier).
-                if attempted_ids:
-                    archived_ok.append(Project.id.in_(list(attempted_ids)))
-                base_filters.append(or_(*archived_ok))
+        # The archive carve-out for org ANNOTATORs is part of the id set
+        # (helpers._pick_member_org_projects), so archived rows an annotator
+        # may not open never reach the response.
 
         # Pagination
         count_stmt = select(func.count()).select_from(Project)
@@ -379,6 +362,10 @@ async def list_projects(
         creator_masks = await _creator_masks(
             db, projects, current_user, lms_creator_ids
         )
+        # The caller's role and edit right per row, from one page-wide load
+        # (no per-row queries), so the UI gates on the project and never on
+        # the selected organization.
+        roles = await resolve_project_roles_batch_async(db, current_user, projects)
 
         enriched_projects = []
         for project in projects:
@@ -386,26 +373,25 @@ async def list_projects(
             response.created_by_name = _masked_creator_name(project, creator_masks)
             via = participant_map.get(str(project.id))
             outside_full = accessible_set is not None and project.id not in accessible_set
-            # The org-annotator archive carve-out of check_project_accessible:
-            # an archived org project is NOT full access for an annotator
-            # (only their own submission, if any, lets the row through above).
-            if (
-                annotator_in_context
-                and bool(getattr(project, "is_archived", False))
-                and project.created_by != str(current_user.id)
-            ):
-                outside_full = True
+            effective_role, can_edit = roles.get(str(project.id), (None, False))
             if via is not None and outside_full:
                 response.access_tier = TIER_PARTICIPANT
                 response.participant_via = via
                 _strip_participant_fields(response)
+                # Participants behave like org annotators everywhere
+                # (get_effective_project_role's fallback).
+                effective_role = effective_role or PARTICIPANT_EFFECTIVE_ROLE
+                can_edit = False
             elif outside_full and str(project.id) in attempted_ids:
                 # Precedence full > participant > attempted, like the
                 # per-project resolver.
                 response.access_tier = TIER_ATTEMPTED
                 _strip_participant_fields(response)
+                can_edit = False
             else:
                 response.access_tier = TIER_FULL
+            response.effective_role = effective_role
+            response.can_edit = can_edit
 
             # Apply pre-fetched statistics
             stats = stats_map.get(
@@ -445,9 +431,9 @@ async def list_projects(
 
             enriched_projects.append(response)
 
-        # is_archived (and the annotator carve-out) are applied in SQL above, so
-        # total_count already reflects the filtered set — no post-pagination
-        # filtering needed.
+        # is_archived is applied in SQL above and the annotator carve-out is
+        # part of the id set, so total_count already reflects the filtered
+        # set: no post-pagination filtering needed.
         total_pages = math.ceil(total_count / page_size) if total_count > 0 else 0
 
         return PaginatedResponse(
@@ -817,6 +803,7 @@ async def get_project(
     response.created_by_name = await _creator_label(db, project, current_user)
     response.access_tier = tier
     response.effective_role = await get_effective_project_role_async(db, current_user, project)
+    response.can_edit = await check_user_can_edit_project_async(db, current_user, project_id)
     response.can_manage_shares = await check_user_can_manage_shares_async(
         db, current_user, project
     )

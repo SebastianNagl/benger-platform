@@ -948,7 +948,22 @@ export function ProjectCreationWizard() {
             : t('projects.creation.wizard.navigation.back')}
         </Button>
 
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
+          {isLastStep && (
+            // The one place the selected organization still matters: it is
+            // the context a new project (and a synthetic generation) is
+            // created in, so say so next to the button.
+            <span
+              className="text-xs text-zinc-500 dark:text-zinc-400"
+              data-testid="project-create-target"
+            >
+              {t('projects.creation.wizard.navigation.creationTarget', {
+                name:
+                  activeOrganization?.name ??
+                  t('projects.creation.wizard.navigation.privateTarget'),
+              })}
+            </span>
+          )}
           {isLastStep ? (
             <Button
               onClick={handleFinish}

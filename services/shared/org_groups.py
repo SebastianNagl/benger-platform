@@ -130,12 +130,9 @@ def lti_staff_role(
     depend on it (legacy mode already grants through any membership).
     Callers handle the creator and superadmins. On private projects the
     input is :func:`get_lti_attachment_map`. Non-private exams keep the
-    generic rules under an org context or none, except that an LMS
-    attachment of a protected org is first dropped for everyone but its
-    admins (:func:`drop_protected_lti_attachments`). Under the ``private``
-    context (the LMS landing pages on the apex host), someone else's
-    non-private exam uses this rule over :func:`linked_attachment_map`, so
-    the same staff reach it from the teacher view.
+    generic rules (every membership counts, whatever the client's context),
+    except that an LMS attachment of a protected org is first dropped for
+    everyone but its admins (:func:`drop_protected_lti_attachments`).
     """
     del org_context  # see docstring
     if project_kind != "exam" or not lti_attachments:
@@ -443,55 +440,6 @@ async def get_lti_row_org_ids_async(db, project_id: str) -> set:
     """Async twin of :func:`get_lti_row_org_ids`."""
     result = await db.execute(_build_select_lti_row_org_ids(project_id))
     return {str(org_id) for org_id in result.scalars().all()}
-
-
-def _build_select_linking_org_ids(project_id: str):
-    from sqlalchemy import select
-
-    from models import LtiPlatformRegistration, LtiResourceLink
-
-    return (
-        select(LtiPlatformRegistration.organization_id)
-        .join(
-            LtiResourceLink,
-            LtiResourceLink.registration_id == LtiPlatformRegistration.id,
-        )
-        .where(LtiResourceLink.project_id == str(project_id))
-        .distinct()
-    )
-
-
-def linked_attachment_map(
-    attachment_groups: Optional[Dict[str, Optional[str]]], linking_org_ids
-) -> Dict[str, Optional[str]]:
-    """Pure: the attachments (``{org_id: group_id}``, any ``attached_via``)
-    of orgs that own a connection with an activity linked to the project.
-
-    The input of :func:`lti_staff_role` for someone else's NON-private exam
-    under the ``private`` org context (the context the LMS landing pages
-    send): linking keeps an org row the author made by hand, so the
-    ``lti`` rows alone would miss the typical org-visible exam. Pass the
-    attachments after :func:`drop_protected_lti_attachments`.
-    """
-    linking = {str(org_id) for org_id in (linking_org_ids or ()) if org_id}
-    return {
-        str(org_id): group_id
-        for org_id, group_id in (attachment_groups or {}).items()
-        if str(org_id) in linking
-    }
-
-
-def get_linking_org_ids(db, project_id: str) -> set:
-    """Sync: the orgs owning a connection (any status) with an activity
-    linked to the project."""
-    rows = db.execute(_build_select_linking_org_ids(project_id)).scalars().all()
-    return {str(org_id) for org_id in rows if org_id}
-
-
-async def get_linking_org_ids_async(db, project_id: str) -> set:
-    """Async twin of :func:`get_linking_org_ids`."""
-    result = await db.execute(_build_select_linking_org_ids(project_id))
-    return {str(org_id) for org_id in result.scalars().all() if org_id}
 
 
 # ---------------------------------------------------------------------------

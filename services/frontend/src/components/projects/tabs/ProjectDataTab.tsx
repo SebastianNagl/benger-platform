@@ -568,13 +568,11 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
   const [showDataModal, setShowDataModal] = useState(false)
   const [dataModalMode, setDataModalMode] = useState<'view' | 'edit'>('view')
 
-  // Per-project edit gate: superadmins, the project creator, and ORG_ADMINs of
-  // the project's org. The backend re-checks and returns 403 if not allowed.
+  // Per-project edit gate: superadmins and callers the API resolved to
+  // ORG_ADMIN for this project (creator, or org admin in any of its orgs).
+  // The backend re-checks and returns 403 if not allowed.
   const canEditTasks =
-    perms.getEffectiveProjectRole(
-      currentProject ?? null,
-      user?.role ?? null,
-    ) === 'ORG_ADMIN'
+    !!user?.is_superadmin || currentProject?.effective_role === 'ORG_ADMIN'
 
   // State for annotation comparison modal
   const [selectedTaskForComparison, setSelectedTaskForComparison] =

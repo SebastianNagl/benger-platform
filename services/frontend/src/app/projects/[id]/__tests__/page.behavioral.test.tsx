@@ -501,12 +501,22 @@ describe('ProjectDetailPage — delete permission of org admins', () => {
     is_superadmin: false,
   }
 
+  // The API resolves the caller's role for the project across all of their
+  // memberships; the selected org context (null = private mode) plays no
+  // part, nor does the global user.role.
   function renderAsOrgAdmin(project: Record<string, any>) {
     ;(useAuth as jest.Mock).mockReturnValue({
       user: orgAdmin,
-      currentOrganization: { id: 'org-1', name: 'TUM' },
+      currentOrganization: null,
     })
-    setStore({ currentProject: { ...baseProject, ...project } })
+    setStore({
+      currentProject: {
+        ...baseProject,
+        effective_role: 'ORG_ADMIN',
+        can_edit: true,
+        ...project,
+      },
+    })
     render(<ProjectDetailPage params={params()} />)
   }
 

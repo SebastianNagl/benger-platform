@@ -305,11 +305,12 @@ class TestListTasksAccessBranches:
         assert resp.json()["detail"] == "Project not found"
 
     @pytest.mark.asyncio
-    async def test_access_denied_403_for_outsider_org_context(
+    async def test_member_allowed_under_an_outsider_org_context(
         self, async_test_client, async_test_db, seeded
     ):
-        """Non-superadmin requesting in a wrong (non-member) org context →
-        check_project_accessible returns False → 403."""
+        """A member requesting in a wrong (non-member) org context: the
+        selected organization is no read boundary (core 2.21), so the
+        membership in the project's org still grants access."""
         users, org = seeded
         other_org = Organization(
             id=_uid(),
@@ -327,8 +328,8 @@ class TestListTasksAccessBranches:
                 f"/api/projects/{project.id}/tasks",
                 headers={"X-Organization-Context": other_org.id},
             )
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "Access denied"
+        assert resp.status_code == 200, resp.text
+        assert resp.json().get("detail") != "Access denied"
 
 
 @pytest.mark.integration
@@ -806,7 +807,7 @@ class TestNextTaskBranches:
         assert body["task"] is None
 
     @pytest.mark.asyncio
-    async def test_access_denied_403(self, async_test_client, async_test_db, seeded):
+    async def test_member_allowed_under_an_outsider_org_context(self, async_test_client, async_test_db, seeded):
         users, org = seeded
         other_org = Organization(
             id=_uid(),
@@ -824,8 +825,9 @@ class TestNextTaskBranches:
                 f"/api/projects/{project.id}/next",
                 headers={"X-Organization-Context": other_org.id},
             )
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "Access denied"
+        # A member: the outsider context does not take the project away.
+        assert resp.status_code == 200, resp.text
+        assert resp.json().get("detail") != "Access denied"
 
     @pytest.mark.asyncio
     async def test_open_mode_returns_unannotated_task(
@@ -1054,7 +1056,7 @@ class TestGetTaskBranches:
         assert resp.json()["detail"] == "Task not found"
 
     @pytest.mark.asyncio
-    async def test_access_denied_403(self, async_test_client, async_test_db, seeded):
+    async def test_member_allowed_under_an_outsider_org_context(self, async_test_client, async_test_db, seeded):
         users, org = seeded
         other_org = Organization(
             id=_uid(),
@@ -1073,8 +1075,9 @@ class TestGetTaskBranches:
                 f"/api/projects/tasks/{tasks[0].id}",
                 headers={"X-Organization-Context": other_org.id},
             )
-        assert resp.status_code == 403
-        assert resp.json()["detail"] == "Access denied"
+        # A member: the outsider context does not take the project away.
+        assert resp.status_code == 200, resp.text
+        assert resp.json().get("detail") != "Access denied"
 
     @pytest.mark.asyncio
     async def test_annotator_unassigned_task_in_manual_mode_404(

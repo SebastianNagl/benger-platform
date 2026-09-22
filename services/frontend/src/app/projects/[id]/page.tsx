@@ -132,7 +132,7 @@ interface ProjectDetailPageProps {
 export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const router = useRouter()
   const [projectId, setProjectId] = useState<string | null>(null)
-  const { user, currentOrganization } = useAuth()
+  const { user } = useAuth()
   const { addToast } = useToast()
   const { isSidebarHidden } = useUIStore()
   const { t } = useI18n()
@@ -145,15 +145,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     deleteProject,
   } = useProjectStore()
 
-  // Only counts when the SELECTED org is one of the project's orgs — the
-  // caller's role in an unrelated org must not unlock the edit UI of a
-  // public project (the backend 403s anyway; this avoids a false affordance).
-  const isOrgProject = !!(
-    currentOrganization &&
-    currentProject?.organizations?.some(
-      (org) => String(org.id) === String(currentOrganization.id),
-    )
-  )
+  // Every gate below reads the per-project fields the API resolves across
+  // ALL of the caller's memberships (effective_role, can_edit, access_tier).
+  // The selected organization context plays no part in read or edit access.
   // Narrow tiers: joined via share link / discovery enrollment / org exam
   // (participant), or read access kept through an own submission after the
   // window closed / the project was archived / the membership ended
@@ -772,17 +766,13 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- Using currentProject.id instead of currentProject to prevent unnecessary re-renders
   }, [currentProject?.id, skipModelReset])
 
+  // The backend's own edit decision (creator, superadmin or an elevated
+  // membership in any of the project's orgs); public visitors get false.
   const canEditProject = () => {
     if (!user || !currentProject) return false
     if (user.is_superadmin) return true
     if (isParticipant) return false
-    // NOTE: currentProject.effective_role is NOT used here — the backend
-    // resolves it to public_role for any logged-in visitor of a public
-    // project, but public visitors have no write access
-    // (check_user_can_edit_project is membership/creator based).
-    if (isOrgProject)
-      return user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR'
-    return currentProject.created_by === user.id
+    return currentProject.can_edit === true
   }
 
   // Icon: creator, org admins and superadmins may change it later.
@@ -791,7 +781,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     if (user.is_superadmin) return true
     if (isParticipant) return false
     if (String(currentProject.created_by) === String(user.id)) return true
-    return isOrgProject && user.role === 'ORG_ADMIN'
+    return currentProject.effective_role === 'ORG_ADMIN'
   }
 
   const handlePickIcon = async (icon: string) => {
@@ -836,21 +826,21 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       String(currentProject.created_by) !== String(user.id)
     )
       return false
-    if (isOrgProject) return user.role === 'ORG_ADMIN'
-    return false
+    return !isParticipant && currentProject?.effective_role === 'ORG_ADMIN'
   }
 
   const getReadOnlyMessage = (sectionTitle: string) =>
-    isOrgProject
+    currentProject?.organizations?.length
       ? t('project.permissions.orgAdminOnly', { section: sectionTitle })
       : t('project.permissions.creatorOnly', { section: sectionTitle })
 
+  // A private project's creator resolves to ORG_ADMIN on the backend, so
+  // the per-project role covers org and private projects alike.
   const canSeeQuickAction = (action: string) => {
     if (user?.is_superadmin) return true
     if (isAttempted) return action === 'myTasks'
     if (isParticipant) return action === 'startLabeling' || action === 'myTasks'
-    if (!isOrgProject) return true
-    const role = user?.role
+    const role = currentProject?.effective_role
     switch (action) {
       case 'startLabeling':
       case 'myTasks':
@@ -3238,11 +3228,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           </div>
 
           {/* Project Report - Issue #770 */}
-          {(isOrgProject
-            ? user?.is_superadmin ||
-              user?.role === 'ORG_ADMIN' ||
-              user?.role === 'CONTRIBUTOR'
-            : user?.is_superadmin) &&
+          {(user?.is_superadmin ||
+            currentProject?.effective_role === 'ORG_ADMIN' ||
+            currentProject?.effective_role === 'CONTRIBUTOR') &&
             reportStatus && (
               <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/10">
                 <div className="mb-4 flex items-center justify-between">

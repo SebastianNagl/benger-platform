@@ -16,6 +16,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { OrganizationRole } from '@/lib/api'
 import { Project } from '@/types/labelStudio'
 import {
   canAccessProjectData,
@@ -33,11 +34,11 @@ import { useMemo } from 'react'
 
 type ProjectRoleInput = Pick<
   Project,
-  'created_by' | 'is_public' | 'public_role'
+  'created_by' | 'is_public' | 'public_role' | 'effective_role'
 >
 
 export function usePermissions() {
-  const { user } = useAuth()
+  const { user, organizations } = useAuth()
 
   return useMemo(
     () => ({
@@ -45,10 +46,13 @@ export function usePermissions() {
       user,
       canCreateProjects: (options?: { isPrivateMode?: boolean }) =>
         canCreateProjects(user, options),
+      // The user's memberships are bound in so the global (no-project) form
+      // resolves the access tier across ALL orgs, not the selected one.
       canAccessProjectData: (options?: {
         isPrivateMode?: boolean
         project?: ProjectRoleInput | null
-      }) => canAccessProjectData(user, options),
+        organizations?: Array<{ role?: OrganizationRole | null }> | null
+      }) => canAccessProjectData(user, { organizations, ...options }),
       canEditTaskData: (project?: ProjectRoleInput | null) =>
         canEditTaskData(user, project),
       canDeleteProjects: () => canDeleteProjects(user),
@@ -65,7 +69,7 @@ export function usePermissions() {
       /** Memoised summary bundle for display/debug. */
       summary: getUserPermissions(user),
     }),
-    [user],
+    [user, organizations],
   )
 }
 

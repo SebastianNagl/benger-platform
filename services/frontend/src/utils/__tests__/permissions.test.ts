@@ -5,6 +5,7 @@
 
 import { Organization, User } from '@/lib/api'
 import {
+  bestOrgRole,
   canAccessProjectData,
   canCreateProjects,
   canDeleteProjects,
@@ -405,6 +406,49 @@ const mkProject = (overrides: Partial<any> = {}): any => ({
   ...overrides,
 })
 
+describe('bestOrgRole', () => {
+  it('returns null without memberships', () => {
+    expect(bestOrgRole(null)).toBeNull()
+    expect(bestOrgRole(undefined)).toBeNull()
+    expect(bestOrgRole([])).toBeNull()
+    expect(bestOrgRole([{ role: null }, {}])).toBeNull()
+  })
+
+  it('returns the highest role across memberships in any order', () => {
+    expect(bestOrgRole([{ role: 'ANNOTATOR' }])).toBe('ANNOTATOR')
+    expect(bestOrgRole([{ role: 'ANNOTATOR' }, { role: 'CONTRIBUTOR' }])).toBe(
+      'CONTRIBUTOR',
+    )
+    expect(
+      bestOrgRole([
+        { role: 'CONTRIBUTOR' },
+        { role: 'ORG_ADMIN' },
+        { role: 'ANNOTATOR' },
+      ]),
+    ).toBe('ORG_ADMIN')
+  })
+})
+
+describe('canEditTaskData with API effective_role', () => {
+  it('prefers the per-project effective_role over the local mirror', () => {
+    expect(
+      canEditTaskData(
+        mkUser({ id: 'visitor' }),
+        mkProject({ created_by: 'someone', effective_role: 'ORG_ADMIN' }),
+      ),
+    ).toBe(true)
+    expect(
+      canEditTaskData(
+        mkUser({ id: 'visitor', role: 'ORG_ADMIN' }),
+        mkProject({ created_by: 'someone', effective_role: 'CONTRIBUTOR' }),
+      ),
+    ).toBe(false)
+    // No effective_role in the response: the local mirror still decides
+    // (the creator resolves to ORG_ADMIN).
+    expect(canEditTaskData(mkUser({ id: 'creator-1' }), mkProject())).toBe(true)
+  })
+})
+
 describe('Public visibility helpers', () => {
   describe('getEffectiveProjectRole', () => {
     it('returns null for null user or project', () => {
@@ -529,6 +573,59 @@ describe('Public visibility helpers', () => {
     it('falls through to legacy user.role check when no project supplied', () => {
       expect(canAccessProjectData(mkUser({ role: 'CONTRIBUTOR' }))).toBe(true)
       expect(canAccessProjectData(mkUser({ role: 'ANNOTATOR' }))).toBe(false)
+    })
+
+    it('is not granted by private mode alone', () => {
+      expect(
+        canAccessProjectData(mkUser({ role: 'ANNOTATOR' }), {
+          isPrivateMode: true,
+        }),
+      ).toBe(false)
+      expect(canAccessProjectData(mkUser(), { isPrivateMode: true })).toBe(
+        false,
+      )
+    })
+
+    it('is granted by an elevated role in ANY membership, whatever the selected org', () => {
+      expect(
+        canAccessProjectData(mkUser({ role: 'ANNOTATOR' }), {
+          isPrivateMode: true,
+          organizations: [{ role: 'ANNOTATOR' }, { role: 'CONTRIBUTOR' }],
+        }),
+      ).toBe(true)
+      expect(
+        canAccessProjectData(mkUser({ role: 'ANNOTATOR' }), {
+          organizations: [{ role: 'ORG_ADMIN' }],
+        }),
+      ).toBe(true)
+      // A supplied membership list replaces the legacy user.role fallback.
+      expect(
+        canAccessProjectData(mkUser({ role: 'CONTRIBUTOR' }), {
+          organizations: [{ role: 'ANNOTATOR' }],
+        }),
+      ).toBe(false)
+    })
+
+    it('prefers the API per-project effective_role over the local mirror', () => {
+      expect(
+        canAccessProjectData(mkUser({ id: 'visitor' }), {
+          isPrivateMode: true,
+          project: mkProject({
+            created_by: 'someone',
+            effective_role: 'CONTRIBUTOR',
+          }),
+        }),
+      ).toBe(true)
+      // Elevated elsewhere, but ANNOTATOR on this project per the API.
+      expect(
+        canAccessProjectData(mkUser({ id: 'visitor', role: 'ORG_ADMIN' }), {
+          project: mkProject({
+            created_by: 'someone',
+            effective_role: 'ANNOTATOR',
+          }),
+          organizations: [{ role: 'ORG_ADMIN' }],
+        }),
+      ).toBe(false)
     })
   })
 

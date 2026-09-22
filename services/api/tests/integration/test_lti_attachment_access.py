@@ -36,8 +36,7 @@ from models import (
 from org_groups import get_lti_attachment_map, get_lti_attachment_map_async, lti_staff_role
 from project_models import MarketplaceEntitlement, Project, ProjectOrganization, Task
 from routers.projects.helpers import (
-    _decide_project_accessible_context_mode,
-    _decide_project_accessible_legacy_mode,
+    _decide_project_accessible,
     check_project_accessible,
     check_project_accessible_async,
     check_user_can_manage_shares,
@@ -468,12 +467,11 @@ async def test_archived_linked_exam_stays_open_to_staff_only(async_test_db):
 async def test_non_private_linked_exam_keeps_the_generic_rules(async_test_db):
     db = async_test_db
     w = await _world(db)
-    # Staff: full in legacy mode and in the org's context (today's rules),
-    # and under the private context the LMS landing pages send (the linked
-    # org's staff, D13/D14). A foreign org context still gives nothing.
-    for ctx in (None, w.uni.id, "private"):
+    # Staff: full whatever organization the client has selected (core 2.21):
+    # none, the org's, the private context of the LMS landing pages, a
+    # foreign org's.
+    for ctx in (None, w.uni.id, "private", w.foreign.id):
         await _assert_full(db, w.contributor, w.exam_open, True, (ctx,))
-    await _assert_full(db, w.contributor, w.exam_open, False, (w.foreign.id,))
     # Org students keep the participant tier on the org-visible exam (D13).
     for ctx in _contexts(w):
         assert await get_project_access_tier_async(
@@ -731,28 +729,21 @@ def test_lti_staff_role_matrix():
         ) == "CONTRIBUTOR"
 
 
-def test_pure_deciders_without_the_map_keep_private_creator_only():
+def test_pure_decider_without_the_map_keeps_private_creator_only():
     project = SimpleNamespace(kind="exam", is_private=True, created_by="creator")
     staff = _Memberships(_M("uni", "CONTRIBUTOR"))
     user = SimpleNamespace(id="colleague")
     lti = {"uni": None}
-    for ctx in ("private", "uni", "elsewhere"):
-        assert _decide_project_accessible_context_mode(
-            user, project, ctx, ["uni"], staff
-        ) is False
-        assert _decide_project_accessible_context_mode(
-            user, project, ctx, ["uni"], staff, lti_attachments=lti
-        ) is True
-    assert _decide_project_accessible_legacy_mode(user, project, ["uni"], staff) is False
-    assert _decide_project_accessible_legacy_mode(
+    assert _decide_project_accessible(user, project, ["uni"], staff) is False
+    assert _decide_project_accessible(
         user, project, ["uni"], staff, lti_attachments=lti
     ) is True
     # No memberships at all: nothing to grant.
-    assert _decide_project_accessible_legacy_mode(
+    assert _decide_project_accessible(
         user, project, ["uni"], None, lti_attachments=lti
     ) is False
-    assert _decide_project_accessible_context_mode(
-        SimpleNamespace(id="creator"), project, "elsewhere", [], None
+    assert _decide_project_accessible(
+        SimpleNamespace(id="creator"), project, [], None
     ) is True
 
 
@@ -1157,28 +1148,31 @@ async def test_private_context_follows_the_attachment_group(async_test_db):
     await _assert_full(db, w.contributor, exam, False, private)
 
 
-async def test_unlinked_open_exam_stays_creator_only_in_the_private_context(
+async def test_org_staff_reach_an_unlinked_open_exam_from_the_private_context(
     async_test_db,
 ):
+    """The selected organization is not a read boundary (core 2.21): the
+    university's staff open an exam shared with it by hand from the private
+    context too, LMS link or not."""
     db = async_test_db
     w = await _world(db)
-    # Shared with the university by hand, but the only LMS link belongs to
-    # the foreign org: the university's staff are not linking staff.
+    # Shared with the university by hand; the only LMS link belongs to the
+    # foreign org, which has no attachment row of its own.
     exam = await _exam(db, w.creator, private=False)
     await _attach(db, exam, w.uni, via="manual", by=w.creator)
     await _activity(db, exam, w.foreign)
     await db.commit()
     private = ("private",)
     for user in (w.org_admin, w.contributor):
-        await _assert_full(db, user, exam, False, private)
+        await _assert_full(db, user, exam, True, private)
     await _assert_full(db, w.creator, exam, True, private)
-    # The foreign org has no attachment row: nothing to grant there either.
+    # The foreign org has no attachment row: nothing to grant there.
     await _assert_full(db, w.foreign_admin, exam, False, private)
-    # Not an exam: the private context stays creator-only.
+    # Not an exam: the same rule, the org admin is in.
     benchmark = await _exam(db, w.creator, private=False, kind="benchmark")
     await _attach(db, benchmark, w.uni, via="manual", by=w.creator, linked=True)
     await db.commit()
-    await _assert_full(db, w.org_admin, benchmark, False, private)
+    await _assert_full(db, w.org_admin, benchmark, True, private)
 
 
 async def test_private_context_permissions_follow_the_staff_role(async_test_db):

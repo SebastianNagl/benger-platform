@@ -327,18 +327,12 @@ describe('ProjectDetailPage — participant tier', () => {
   })
 
   it('mounts the deck workspace slot with canEdit for editors', async () => {
-    // Org project + CONTRIBUTOR context role (edit rights are membership
-    // based; the API's effective_role is display-only on this page).
-    setup(
-      { access_tier: 'full', effective_role: 'CONTRIBUTOR' },
-      {
-        ...annotatorUser,
-        role: 'CONTRIBUTOR',
-      },
-    )
-    ;(useAuth as jest.Mock).mockReturnValue({
-      user: { ...annotatorUser, role: 'CONTRIBUTOR' },
-      currentOrganization: { id: 'org-1', name: 'TUM' },
+    // Edit rights come from the API's per-project can_edit; the selected
+    // org context (null) and the global user.role (ANNOTATOR) play no part.
+    setup({
+      access_tier: 'full',
+      effective_role: 'CONTRIBUTOR',
+      can_edit: true,
     })
     const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
     const Stub = jest.fn(({ project, canEdit }: any) => (
@@ -353,6 +347,68 @@ describe('ProjectDetailPage — participant tier', () => {
     expect(stub).toHaveAttribute('data-can-edit', 'true')
     expect(stub).toHaveTextContent('test-project-123')
     registerSlot('project-deck-workspace', null as any)
+  })
+
+  it('private mode: a CONTRIBUTOR per the API gets the Korrektur action and edit affordances', async () => {
+    // currentOrganization is null (private mode) and the global user.role is
+    // ANNOTATOR; the project belongs to LMU and the API resolved the caller
+    // to CONTRIBUTOR with can_edit: true across their memberships.
+    setup({
+      access_tier: 'full',
+      effective_role: 'CONTRIBUTOR',
+      can_edit: true,
+      korrektur_enabled: true,
+      organizations: [{ id: 'org-1', name: 'LMU' }],
+      created_by: 'someone-else',
+    })
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    await screen.findAllByText('Test Project')
+    expect(
+      screen.getByText('project.quickActions.korrektur'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('project.quickActions.projectData'),
+    ).toBeInTheDocument()
+    // Contributors may edit but not delete.
+    expect(screen.queryByText('project.deleteProject')).not.toBeInTheDocument()
+    // Edit affordances: the config cards render their editable UI, not the
+    // read-only notices.
+    expect(screen.getByText('project.settings.title')).toBeInTheDocument()
+    expect(
+      screen.queryByText(/project\.permissions\.(orgAdminOnly|creatorOnly)/),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('participant-card-stub'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('private mode: an ANNOTATOR participant per the API gets neither, whatever the global role', async () => {
+    setup(
+      {
+        access_tier: 'participant',
+        participant_via: 'org_exam',
+        effective_role: 'ANNOTATOR',
+        can_edit: false,
+        korrektur_enabled: true,
+        organizations: [{ id: 'org-1', name: 'LMU' }],
+        created_by: 'someone-else',
+      },
+      { ...annotatorUser, role: 'ORG_ADMIN' },
+    )
+    const params = Promise.resolve({ id: 'test-project-123' })
+    render(<ProjectDetailPage params={params} />)
+    expect(
+      await screen.findByTestId('project-participant-badge'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.korrektur'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('project.quickActions.projectData'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('project.deleteProject')).not.toBeInTheDocument()
+    expect(screen.queryByText('project.settings.title')).not.toBeInTheDocument()
   })
 })
 

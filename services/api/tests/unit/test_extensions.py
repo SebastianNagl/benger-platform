@@ -114,7 +114,9 @@ class TestExtensionLoader:
         # public_hosts / user_display / auth_module.org_scope, the five LTI
         # API hooks and the 4-tuple grading dispatch policy with block runs.
         # The full per-version log lives in services/shared/core_version.py.
-        assert CORE_API_VERSION == "2.20"
+        # 2.21 makes project read access context-free (every membership
+        # counts), adds ProjectResponse.can_edit and the per-row roles.
+        assert CORE_API_VERSION == "2.21"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

@@ -67,8 +67,8 @@ describe('canAccessProjectData', () => {
   it('should return true for superadmin', () => {
     expect(canAccessProjectData(superadmin)).toBe(true)
   })
-  it('should return true in private mode', () => {
-    expect(canAccessProjectData(annotator, { isPrivateMode: true })).toBe(true)
+  it('is not granted by private mode alone', () => {
+    expect(canAccessProjectData(annotator, { isPrivateMode: true })).toBe(false)
   })
   it('should return true for ORG_ADMIN', () => {
     expect(canAccessProjectData(orgAdmin)).toBe(true)

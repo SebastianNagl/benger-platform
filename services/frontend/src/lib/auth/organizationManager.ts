@@ -78,8 +78,14 @@ export class OrganizationManager {
   }
 
   /**
-   * Get organization context for API calls.
-   * Returns org ID when in org mode, 'private' when in private mode (no org selected).
+   * Get organization context for API calls (the X-Organization-Context
+   * header). Returns the org ID in org mode, 'private' when no org is
+   * selected.
+   *
+   * The header only targets WRITES: it names the creation target for new
+   * projects and selects which org's API keys a run charges. It never
+   * decides read access or the access tier of a project - the API resolves
+   * those from all of the user's memberships regardless of this value.
    */
   getOrganizationContext(): string | null {
     return this.state.currentOrganization?.id || 'private'

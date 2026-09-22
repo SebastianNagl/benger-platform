@@ -191,6 +191,10 @@ describe('ProjectListTable', () => {
       task_count: 10,
       annotation_count: 5,
       progress_percentage: 50,
+      organizations: [
+        { id: 'org-1', name: 'LMU' },
+        { id: 'org-2', name: 'TUM' },
+      ],
     },
     {
       id: '2',
@@ -199,6 +203,7 @@ describe('ProjectListTable', () => {
       task_count: 20,
       annotation_count: 20,
       progress_percentage: 100,
+      organizations: [{ id: 'org-2', name: 'TUM' }],
     },
     {
       id: '3',
@@ -317,6 +322,17 @@ describe('ProjectListTable', () => {
         progress_percentage: 100,
         access_tier: 'attempted',
       },
+      {
+        id: 'ro-1',
+        title: 'Read-only Org Project',
+        created_at: '2024-01-04T00:00:00Z',
+        task_count: 1,
+        annotation_count: 0,
+        progress_percentage: 0,
+        access_tier: 'full',
+        can_edit: false,
+        organizations: [{ id: 'org-1', name: 'LMU' }],
+      },
     ]
 
     beforeEach(() => {
@@ -352,6 +368,20 @@ describe('ProjectListTable', () => {
       expect(
         screen.queryByTestId('projects-table-checkbox-att-1'),
       ).not.toBeInTheDocument()
+    })
+
+    it('offers no bulk checkbox when the API says the row is not editable', () => {
+      render(<ProjectListTable />)
+      // Full tier, but can_edit: false (e.g. an ANNOTATOR of the org).
+      expect(
+        screen.queryByTestId('projects-table-checkbox-ro-1'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.getByTestId('projects-table-checkbox-full-1'),
+      ).toBeInTheDocument()
+      expect(
+        screen.getByTestId('project-organizations-ro-1'),
+      ).toHaveTextContent('LMU')
     })
   })
 
@@ -483,7 +513,7 @@ describe('ProjectListTable', () => {
 
       const rows = screen.getAllByTestId(/projects-table-row/)
       const firstProjectTasks =
-        rows[0].querySelector('td:nth-child(3)')?.textContent
+        rows[0].querySelector('td:nth-child(4)')?.textContent
       expect(firstProjectTasks).toBe('5')
     })
 
@@ -502,7 +532,7 @@ describe('ProjectListTable', () => {
 
       const rows = screen.getAllByTestId(/projects-table-row/)
       const firstProjectProgress =
-        rows[0].querySelector('td:nth-child(5)')?.textContent
+        rows[0].querySelector('td:nth-child(6)')?.textContent
       expect(firstProjectProgress).toContain('0%')
     })
 
@@ -516,6 +546,54 @@ describe('ProjectListTable', () => {
 
       const createdHeader = screen.getByText('Created').closest('button')
       expect(createdHeader?.querySelector('svg')).toBeInTheDocument()
+    })
+  })
+
+  describe('Organization column', () => {
+    beforeEach(() => {
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+    })
+
+    it('shows the names of the orgs a project is attached to, empty for a private project', () => {
+      render(<ProjectListTable />)
+      expect(
+        within(screen.getByRole('table')).getByText('Organization'),
+      ).toBeInTheDocument()
+      expect(screen.getByTestId('project-organizations-1')).toHaveTextContent(
+        'LMU, TUM',
+      )
+      expect(screen.getByTestId('project-organizations-2')).toHaveTextContent(
+        'TUM',
+      )
+      expect(screen.getByTestId('project-organizations-3').textContent).toBe('')
+    })
+
+    it('sorts by organization name in both directions', () => {
+      render(<ProjectListTable />)
+      const header = within(screen.getByRole('table'))
+        .getByText('Organization')
+        .closest('button')
+      const order = () =>
+        screen
+          .getAllByTestId(/projects-table-row/)
+          .map((r) => r.getAttribute('data-testid'))
+
+      fireEvent.click(header!)
+      // asc: '' (Gamma) < 'lmu, tum' (Alpha) < 'tum' (Beta)
+      expect(order()).toEqual([
+        'projects-table-row-3',
+        'projects-table-row-1',
+        'projects-table-row-2',
+      ])
+      fireEvent.click(header!)
+      expect(order()).toEqual([
+        'projects-table-row-2',
+        'projects-table-row-1',
+        'projects-table-row-3',
+      ])
     })
   })
 
