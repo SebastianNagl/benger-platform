@@ -152,14 +152,20 @@ api:
 
 workers:
   replicaCount: 1
-  concurrency: 2  # Reduce worker processes for demo
+  # ONE fork and a 2Gi limit (2026-09-22). The previous shape, two forks under
+  # a 1Gi limit, was the source of every OOM kill on the node over the last
+  # weeks (dmesg: parent ~350Mi + two forks ~150Mi each + the liveness probe's
+  # `celery inspect ping` re-importing tasks.py, ~0.5Gi transient, all inside
+  # the same cgroup). Requests stay at 512Mi on purpose: the node's memory
+  # REQUESTS are the scheduling bottleneck, the limit only caps bursts.
+  concurrency: 1
   resources:
     limits:
       # 1 CPU (staging: 500m): the readiness/liveness exec probe re-imports
       # tasks.py (~15-20 s at full CPU); at 500m it timed out on first install
       # and the bulk pod never became Ready.
       cpu: 1000m
-      memory: 1Gi
+      memory: 2Gi
     requests:
       cpu: 100m
       memory: 512Mi
