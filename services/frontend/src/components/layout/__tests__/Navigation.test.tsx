@@ -987,4 +987,62 @@ describe('Navigation', () => {
       expect(screen.getByRole('navigation')).toBeInTheDocument()
     })
   })
+
+  describe('Private mode access tiers', () => {
+    const mockParseSubdomain = require('@/lib/utils/subdomain').parseSubdomain
+    beforeEach(() => {
+      mockParseSubdomain.mockReturnValue({ orgSlug: null, isPrivateMode: true })
+    })
+    afterEach(() => {
+      mockParseSubdomain.mockReturnValue({
+        orgSlug: 'test-org',
+        isPrivateMode: false,
+      })
+    })
+    // An enabled entry renders as a link; a gated one as a plain div without
+    // an href. Looked up by href so the assertion does not depend on which
+    // i18n mock an earlier test left behind.
+    const linkFor = (container: HTMLElement, href: string) =>
+      container.querySelector(`a[href="${href}"]`)
+    const user = {
+      id: 1,
+      email: 'member@example.com',
+      is_superadmin: false,
+      role: 'ANNOTATOR',
+    }
+
+    it('hides data, generations and evaluations for a user with only ANNOTATOR memberships', () => {
+      mockUseAuth.mockReturnValue({
+        user,
+        organizations: [
+          { id: 1, name: 'A', slug: 'a', role: 'ANNOTATOR' },
+          { id: 2, name: 'B', slug: 'b', role: 'ANNOTATOR' },
+        ],
+      })
+
+      const { container } = render(<Navigation />)
+
+      expect(linkFor(container, '/projects')).not.toBeNull()
+      expect(linkFor(container, '/data')).toBeNull()
+      expect(linkFor(container, '/generations')).toBeNull()
+      expect(linkFor(container, '/evaluations')).toBeNull()
+    })
+
+    it('shows them when any membership is CONTRIBUTOR, whatever the selected org', () => {
+      mockUseAuth.mockReturnValue({
+        user,
+        organizations: [
+          { id: 1, name: 'A', slug: 'a', role: 'ANNOTATOR' },
+          { id: 2, name: 'B', slug: 'b', role: 'CONTRIBUTOR' },
+        ],
+      })
+
+      const { container } = render(<Navigation />)
+
+      expect(linkFor(container, '/projects')).not.toBeNull()
+      expect(linkFor(container, '/data')).not.toBeNull()
+      expect(linkFor(container, '/generations')).not.toBeNull()
+      expect(linkFor(container, '/evaluations')).not.toBeNull()
+    })
+  })
 })

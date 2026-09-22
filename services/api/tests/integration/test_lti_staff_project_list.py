@@ -22,7 +22,6 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
-from fastapi import HTTPException
 from models import (
     LtiPlatformRegistration,
     LtiResourceLink,
@@ -378,23 +377,13 @@ async def _world(db) -> World:
 
 async def _ids(db, user, ctx):
     """Both lanes of the list helper; asserts they agree and returns the set.
-    ``None`` when the helper refuses the context (403) on both lanes."""
+    The context never changes the answer (core 2.21), so callers pass it
+    only to document the client the case stands for."""
     principal = _principal(user)
-    try:
-        got_async = await get_accessible_project_ids_async(db, principal, ctx)
-    except HTTPException as exc:
-        assert exc.status_code == 403
-        got_async = None
-    try:
-        got_sync = await db.run_sync(
-            lambda s: get_accessible_project_ids(s, principal, ctx)
-        )
-    except HTTPException as exc:
-        assert exc.status_code == 403
-        got_sync = None
-    if got_async is None or got_sync is None:
-        assert got_async is None and got_sync is None, (user.id, ctx)
-        return None
+    got_async = await get_accessible_project_ids_async(db, principal, ctx)
+    got_sync = await db.run_sync(
+        lambda s: get_accessible_project_ids(s, principal, ctx)
+    )
     assert got_async == got_sync, f"sync/async drift for {user.id} in {ctx}"
     return set(got_async)
 
@@ -462,9 +451,9 @@ async def test_annotators_students_and_outsiders_find_nothing(async_test_db):
     # contributor who is a student of the university.
     await _assert_listed(db, w, w.annotator, (None, "private", w.uni.id), set())
     for user in (w.inactive_contributor, w.stranger):
-        await _assert_listed(db, w, user, (None, "private"), set())
-        # Not an active member: the org context stays refused.
-        assert await _ids(db, user, w.uni.id) is None
+        # Not an active member: the org's context lists nothing of the org
+        # either (it is no read boundary, so it never refuses).
+        await _assert_listed(db, w, user, (None, "private", w.uni.id), set())
 
 
 async def test_foreign_org_staff_find_only_their_own_linked_exam(async_test_db):
@@ -474,8 +463,9 @@ async def test_foreign_org_staff_find_only_their_own_linked_exam(async_test_db):
         await _assert_listed(
             db, w, user, (None, "private", w.foreign.id), {w.exam_foreign}
         )
-    # The foreign contributor is only a student of the university.
-    await _assert_listed(db, w, w.foreign_contributor, (w.uni.id,), set())
+    # The foreign contributor is only a student of the university: the
+    # university's context adds nothing and takes nothing away.
+    await _assert_listed(db, w, w.foreign_contributor, (w.uni.id,), {w.exam_foreign})
 
 
 async def test_creator_keeps_all_own_private_projects(async_test_db):
@@ -618,9 +608,9 @@ async def test_non_private_and_public_projects_keep_their_rules(async_test_db):
     for user in (w.contributor, w.org_admin):
         in_private = await _ids(db, user, "private")
         in_org = await _ids(db, user, w.uni.id)
-        # Non-private org projects (LMS-linked or not) belong to the org list.
-        assert w.exam_open.id not in in_private
-        assert w.org_project.id not in in_private
+        # Non-private org projects (LMS-linked or not) are listed from every
+        # context (core 2.21).
+        assert {w.exam_open.id, w.org_project.id} <= in_private
         assert {w.exam_open.id, w.org_project.id} <= in_org
         assert w.public_project.id in in_private and w.public_project.id in in_org
     # Org students still get no exams in the generic org list, but keep the

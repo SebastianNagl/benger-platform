@@ -194,13 +194,19 @@ class TestCheckProjectAccessSimple:
             user, project, Permission.PROJECT_VIEW, db, org_context="private"
         )
 
-    def test_private_context_org_project_non_creator_denied(self):
+    def test_org_project_stranger_denied_in_every_context(self):
+        # No membership in any attached org: denied whatever context the
+        # client sends (the context itself grants nothing, core 2.21).
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(deleted_at=None, is_private=False, created_by="user-2")
+        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="user-2", kind=None)
         db = Mock()
-        assert not self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context="private"
-        )
+        with patch("org_groups.get_attachment_group_map", return_value={"org-a": None}), patch(
+            "org_groups.get_user_group_context", return_value={}
+        ), patch.object(self.service, "_get_user_org_memberships", return_value=[]):
+            for ctx in ("private", "org-a", "org-elsewhere", None):
+                assert not self.service.check_project_access(
+                    user, project, Permission.PROJECT_VIEW, db, org_context=ctx
+                ), ctx
 
     def test_legacy_mode_private_project_creator(self):
         user = Mock(is_superadmin=False, id="user-1")

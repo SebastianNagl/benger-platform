@@ -372,14 +372,13 @@ class TestEvaluationListEndpoint:
         assert match["project_id"] == project.id
         assert match["samples_evaluated"] == 7
 
-    def test_empty_accessible_returns_empty_list(
+    def test_org_member_lists_the_orgs_runs_from_the_private_context(
         self, client, auth_headers, test_db, test_users, test_org
     ):
-        """A non-superadmin in private context with no own private projects
-        gets the empty-accessible short-circuit (empty list)."""
-        # Seed a run in an org project so something exists but is out of scope.
+        """The selected organization is no read boundary (core 2.21): an org
+        member lists the org project's runs from the private context too."""
         project = _make_project(test_db, test_users[0], test_org)
-        _make_eval_run(test_db, project, test_users[0])
+        run = _make_eval_run(test_db, project, test_users[0])
         test_db.commit()
 
         resp = client.get(
@@ -390,7 +389,7 @@ class TestEvaluationListEndpoint:
             },
         )
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert run.id in {r["id"] for r in resp.json()}
 
 
 @pytest.mark.integration

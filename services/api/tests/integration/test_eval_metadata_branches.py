@@ -29,8 +29,8 @@ Access model recap (routers/projects/helpers.check_project_accessible_async):
     and auth as them; access returns True natively).
   * a PRIVATE project's creator is the only non-superadmin allowed; a private
     project created by a contributor and hit by an annotator (neither superadmin
-    nor creator) with ``X-Organization-Context: private`` -> deterministic 403.
-    ``_decide_project_accessible_context_mode`` short-circuits private projects to
+    nor creator) -> deterministic 403 whatever ``X-Organization-Context`` says.
+    ``check_project_accessible_async`` short-circuits private projects to
     ``user.id == project.created_by`` -> False -> 403. The 403 tests exercise the
     REAL async access logic (no patch).
 
@@ -292,9 +292,9 @@ async def _seed_model_eval(
 class TestAccessDenied:
     """Every metadata endpoint runs check_project_accessible_async after the 404
     guard. A private project created by a contributor and hit by an annotator
-    (neither superadmin nor creator) with the private context yields a
-    deterministic 403 — the branch the deep suite never reaches. The access
-    helper runs FOR REAL here (no patch)."""
+    (neither superadmin nor creator) yields a deterministic 403 whatever
+    context the client sends, the branch the deep suite never reaches. The
+    access helper runs FOR REAL here (no patch)."""
 
     async def _private_project_and_annotator(self, db):
         # creator = contributor (non-superadmin); requester = annotator

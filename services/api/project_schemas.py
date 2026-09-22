@@ -444,6 +444,9 @@ class ProjectResponse(ProjectBase):
     participant_via: Optional[str] = None  # share | entitlement | org_exam
     effective_role: Optional[str] = None  # ORG_ADMIN | CONTRIBUTOR | ANNOTATOR
     can_manage_shares: bool = False
+    # The backend's own edit decision (check_user_can_edit_project) for the
+    # caller, so the UI gates per project and never on the selected org.
+    can_edit: bool = False
 
     # Additional fields not in ProjectBase
     instructions: Optional[str] = None  # Mapped from expert_instruction

@@ -438,6 +438,7 @@ async def test_async_legacy_exam_staff_membership_in_second_org_grants(async_tes
 
     assert await _allowed(db, user, exam, Permission.TASK_VIEW, None) is True
     assert await _allowed_sync(db, user, exam, Permission.TASK_VIEW, None) is True
-    # Context mode is pinned to the named org.
-    assert await _allowed(db, user, exam, Permission.TASK_VIEW, org_a.id) is False
+    # The selected organization is not a read boundary (core 2.21): the
+    # staff membership grants under the annotator org's context too.
+    assert await _allowed(db, user, exam, Permission.TASK_VIEW, org_a.id) is True
     assert await _allowed(db, user, exam, Permission.TASK_VIEW, org_b.id) is True

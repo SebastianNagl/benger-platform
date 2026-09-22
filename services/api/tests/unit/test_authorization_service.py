@@ -119,15 +119,15 @@ class TestDecideProjectAccessUnattachedProjectUnderOrgContext:
             user, project, org_context="org-foreign", project_org_ids=[], memberships=[membership],
         ) is False
 
-    def test_org_attached_project_unchanged_foreign_context_still_denied(self):
-        # The new rule fires only for unattached projects: an org-attached
-        # project keeps rejecting a context that is not one of its orgs,
-        # creator or not.
+    def test_org_attached_project_creator_allowed_under_any_context(self):
+        # The selected organization is not a read boundary: the creator of
+        # an org-attached project holds ORG_ADMIN on it whatever context the
+        # client sends (core 2.21).
         user = Mock(is_superadmin=False, id="user-1")
         project = self._project("user-1")
         assert self._decide(
             user, project, org_context="org-foreign", project_org_ids=["org-a"],
-        ) is False
+        ) is True
 
     def test_org_attached_project_unchanged_member_in_matching_context_allowed(self):
         user = Mock(is_superadmin=False, id="user-2")

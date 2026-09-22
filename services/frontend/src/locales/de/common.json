@@ -187,6 +187,7 @@
     },
     "table": {
       "project": "Projekt",
+      "organization": "Organisation",
       "tasks": "Aufgaben",
       "annotations": "ANNOTATIONEN",
       "progress": "Fortschritt",
@@ -509,7 +510,9 @@
           "next": "Weiter",
           "skip": "Datenimport überspringen",
           "creating": "Wird erstellt...",
-          "create": "Projekt erstellen"
+          "create": "Projekt erstellen",
+          "creationTarget": "Wird erstellt in: {{name}}",
+          "privateTarget": "Privat"
         },
         "templates": {
           "questionAnswering": {
@@ -649,6 +652,7 @@
       "actions": "Aktionen",
       "label": "Annotieren",
       "sortTitle": "Titel",
+      "sortOrganization": "Organisation",
       "sortCreated": "Erstellungsdatum",
       "sortTaskCount": "Aufgabenanzahl",
       "sortProgress": "Fortschritt",

@@ -1332,9 +1332,9 @@ describe('ProjectDataTab', () => {
     })
 
     describe('Edit data column gating (#159)', () => {
-      // Drives the real getEffectiveProjectRole logic: the mocked
-      // currentProject has no created_by, so the effective role comes from
-      // is_superadmin or the user's org role.
+      // The gate reads the API's per-project effective_role (resolved across
+      // all memberships) or is_superadmin; the global user.role plays no
+      // part. The default mocked currentProject carries no effective_role.
       const setAuthUser = (overrides: {
         is_superadmin?: boolean
         role?: string
@@ -1370,7 +1370,19 @@ describe('ProjectDataTab', () => {
           .some((h) => h.textContent === 'annotationTab.columns.edit')
 
       it('shows the edit-data pencil for an ORG_ADMIN of the project', async () => {
-        setAuthUser({ role: 'ORG_ADMIN' })
+        // Global role stays ANNOTATOR; the project itself says ORG_ADMIN.
+        setAuthUser({ role: 'ANNOTATOR' })
+        mockUseProjectStore.mockReturnValue({
+          currentProject: {
+            id: 'project-1',
+            title: 'Test Project',
+            num_tasks: 2,
+            num_annotations: 2,
+            effective_role: 'ORG_ADMIN',
+          },
+          loading: false,
+          fetchProjectTasks: mockFetchProjectTasks,
+        } as any)
 
         render(<ProjectDataTab projectId="project-1" />)
 

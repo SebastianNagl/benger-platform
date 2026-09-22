@@ -1428,12 +1428,20 @@ describe('Annotation card — auto-save & instructions', () => {
 // ── Read-only (non-editor) gating ─────────────────────────────────────────
 describe('Read-only gating for non-editors', () => {
   it('renders creator-only read-only notices when the user cannot edit', async () => {
-    // Different user, not superadmin, not creator, non-org project → no edit.
+    // Different user, not superadmin, not creator; the API answered
+    // can_edit: false for this private (org-less) project -> no edit.
     ;(useAuth as jest.Mock).mockReturnValue({
       user: { id: 'other', is_superadmin: false, role: 'ANNOTATOR' },
       currentOrganization: null,
     })
-    setStore()
+    setStore({
+      currentProject: {
+        ...baseProject,
+        organizations: [],
+        effective_role: 'ANNOTATOR',
+        can_edit: false,
+      },
+    })
     render(<ProjectDetailPage params={params()} />)
     await screen.findByTestId(
       'config-card-project.annotationConfiguration.title',
@@ -1445,6 +1453,37 @@ describe('Read-only gating for non-editors', () => {
     expect(notices.length).toBeGreaterThan(0)
     // The model-selection edit UI is replaced by a read-only notice too, so
     // no model checkboxes exist for a non-editor.
+    expect(
+      screen.queryByText('project.modelSelection.title'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders org-admin-only notices for an org project the user cannot edit', async () => {
+    // A global ORG_ADMIN role (in some other org) does not matter: the API
+    // resolved this org project to ANNOTATOR / can_edit false for the caller.
+    ;(useAuth as jest.Mock).mockReturnValue({
+      user: { id: 'other', is_superadmin: false, role: 'ORG_ADMIN' },
+      currentOrganization: null,
+    })
+    setStore({
+      currentProject: {
+        ...baseProject,
+        organizations: [{ id: 'org-1', name: 'TUM' }],
+        effective_role: 'ANNOTATOR',
+        can_edit: false,
+      },
+    })
+    render(<ProjectDetailPage params={params()} />)
+    await screen.findByTestId(
+      'config-card-project.annotationConfiguration.title',
+    )
+
+    expect(
+      screen.getAllByText(/project\.permissions\.orgAdminOnly/).length,
+    ).toBeGreaterThan(0)
+    expect(
+      screen.queryByText(/project\.permissions\.creatorOnly/),
+    ).not.toBeInTheDocument()
     expect(
       screen.queryByText('project.modelSelection.title'),
     ).not.toBeInTheDocument()

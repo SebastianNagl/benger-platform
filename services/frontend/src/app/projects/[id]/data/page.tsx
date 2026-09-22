@@ -24,24 +24,37 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   const resolvedParams = use(params)
   const projectId = resolvedParams.id
   const { t } = useI18n()
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, organizations } = useAuth()
   const router = useRouter()
   const { isPrivateMode } =
     typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
 
   const { currentProject, fetchProject } = useProjectStore()
 
-  // Check permissions - redirect if user cannot access project data
+  // Check permissions - redirect if user cannot access project data. Waits
+  // for THIS project to be loaded: the decision is the API's per-project
+  // effective_role, which is unknown until then.
   useEffect(() => {
-    if (!isLoading) {
-      if (
-        !canAccessProjectData(user, { isPrivateMode, project: currentProject })
-      ) {
-        // Redirect to project overview with error message
-        router.replace(`/projects/${projectId}?error=no-data-access`)
-      }
+    if (isLoading || !currentProject || currentProject.id !== projectId) return
+    if (
+      !canAccessProjectData(user, {
+        isPrivateMode,
+        project: currentProject,
+        organizations,
+      })
+    ) {
+      // Redirect to project overview with error message
+      router.replace(`/projects/${projectId}?error=no-data-access`)
     }
-  }, [user, isLoading, router, projectId])
+  }, [
+    user,
+    isLoading,
+    router,
+    projectId,
+    currentProject,
+    isPrivateMode,
+    organizations,
+  ])
 
   // Load project if not already loaded
   useEffect(() => {
@@ -65,7 +78,13 @@ export default function ProjectDataPage({ params }: ProjectDataPageProps) {
   }
 
   // Show permission denied if user cannot access project data
-  if (!canAccessProjectData(user, { isPrivateMode, project: currentProject })) {
+  if (
+    !canAccessProjectData(user, {
+      isPrivateMode,
+      project: currentProject,
+      organizations,
+    })
+  ) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
         <div className="flex min-h-[50vh] items-center justify-center">

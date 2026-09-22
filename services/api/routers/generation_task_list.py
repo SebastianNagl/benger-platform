@@ -21,7 +21,7 @@ from database import get_async_db
 from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
-from project_models import Project, ProjectOrganization, Task
+from project_models import Project, Task
 from routers.generation_revoke import (
     generation_run_task_ids,
     send_generation_trial,
@@ -639,39 +639,14 @@ async def start_generation(
     # access group (editors exempt). No-op when the project has no window.
     await enforce_project_write_window_async(db, current_user, project)
 
-    # Extract organization context for API key resolution (Issue #1180).
-    # The frontend sets X-Organization-Context when the user has an explicit
-    # org tab selected. When it's missing/"private" we fall back to the
-    # project's M2M `project_organizations` link — otherwise org-level
-    # `require_private_keys: False` settings are silently bypassed for any
-    # request triggered from the Private tab.
-    org_context = raw_request.headers.get("X-Organization-Context")
-    org_id = org_context if org_context and org_context != "private" else None
-    if org_id is None:
-        linked_org_ids = [
-            row[0]
-            for row in (
-                await db.execute(
-                    select(ProjectOrganization.organization_id).where(
-                        ProjectOrganization.project_id == project_id
-                    )
-                )
-            ).all()
-        ]
-        if len(linked_org_ids) == 1:
-            org_id = linked_org_ids[0]
-        # If zero: project has no org → user-key fallback is appropriate.
-        # If multiple: caller must disambiguate via the header; leave None
-        # so the resolver continues to use the user's personal keys rather
-        # than guessing which org's keys to spend.
-    # Trust boundary: the header travels unvalidated through the middleware,
-    # and the sole-org fallback can name an org the caller never joined. An
-    # org id only survives for an active member (or a superadmin) — anyone
-    # else falls back to their personal key instead of spending org money.
-    if org_id is not None:
-        from org_resolution import validate_org_context_header_async
+    # Which org's keys the run may spend: resolved from the project and the
+    # caller's memberships (services/shared/org_resolution.py), the same
+    # rule grading uses, never from the selected organization. A member of
+    # an org that provides keys gets that org's key; everyone else falls
+    # back to their personal keys.
+    from org_resolution import resolve_dispatch_org_for_project_async
 
-        org_id = await validate_org_context_header_async(db, current_user, org_id)
+    org_id = await resolve_dispatch_org_for_project_async(db, current_user, project_id)
 
     # Get generation configuration
     generation_config = project.generation_config or {}

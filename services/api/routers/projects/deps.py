@@ -58,7 +58,8 @@ class ProjectAccess:
         user: The authenticated user.
         org_context: The organization context resolved from the request
             (``request.state`` or the ``X-Organization-Context`` header), or
-            ``None`` in legacy mode.
+            ``None``. Informational only: access is decided from every
+            membership.
     """
 
     __slots__ = ("project", "user", "org_context", "tier")
@@ -89,7 +90,9 @@ def require_project_access(
     Args:
         min_role: ``"view"`` (default) checks read access via
             ``check_project_accessible``; ``"edit"`` additionally requires
-            ``check_user_can_edit_project``.
+            ``check_user_can_edit_project``. Both decide from every active
+            org membership; the selected organization
+            (``X-Organization-Context``) is passed along for symmetry only.
         not_found_detail: Detail message for the 404 when the project is absent.
         access_denied_detail: Detail message for the 403 on failed read access.
         edit_denied_detail: Detail message for the 403 on failed edit access.

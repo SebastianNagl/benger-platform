@@ -233,13 +233,13 @@ describe('usePermissions', () => {
       expect(result.current.isAnnotatorOnly()).toBe(true)
     })
 
-    it('private-mode lets an annotator create + access their own data', () => {
+    it('private-mode lets an annotator create projects but not access data', () => {
       const { result } = renderHook(() => usePermissions())
       expect(result.current.canCreateProjects({ isPrivateMode: true })).toBe(
         true,
       )
       expect(result.current.canAccessProjectData({ isPrivateMode: true })).toBe(
-        true,
+        false,
       )
     })
 

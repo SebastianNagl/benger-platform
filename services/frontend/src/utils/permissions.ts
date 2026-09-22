@@ -31,6 +31,28 @@ export const getEffectiveProjectRole = (
 }
 
 /**
+ * Highest role the user holds across a set of organization memberships
+ * (ORG_ADMIN > CONTRIBUTOR > ANNOTATOR), independent of which organization
+ * is currently selected. Returns null when there is no membership at all.
+ */
+export const bestOrgRole = (
+  organizations: Array<{ role?: OrganizationRole | null }> | null | undefined,
+): OrganizationRole | null => {
+  if (!organizations || organizations.length === 0) return null
+  let best: OrganizationRole | null = null
+  for (const org of organizations) {
+    const role = org.role ?? null
+    if (role === 'ORG_ADMIN') return 'ORG_ADMIN'
+    if (role === 'CONTRIBUTOR') best = 'CONTRIBUTOR'
+    else if (role === 'ANNOTATOR' && best === null) best = 'ANNOTATOR'
+  }
+  return best
+}
+
+const isElevatedRole = (role?: string | null): boolean =>
+  role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
+
+/**
  * Whether the user can flip a project to public visibility.
  * Per design: project creator + superadmins.
  */
@@ -59,48 +81,68 @@ export const canCreateProjects = (
 }
 
 /**
- * Check if user can access project data/management features
- * In org mode: superadmins, ORG_ADMIN, and CONTRIBUTOR can access project data.
- * In private mode: any authenticated user can access their own project data.
+ * Check if user can access project data/management features.
  *
- * When a `project` is supplied, public-tier visitors fall back to the
- * project's `public_role` (treated as CONTRIBUTOR-equivalent for data access).
+ * Access is resolved from the user's memberships, never from the selected
+ * organization context: a private-mode session grants nothing by itself.
+ *
+ * - With a `project`: the API's per-project `effective_role` decides
+ *   (ORG_ADMIN / CONTRIBUTOR). When the response carries none, fall back to
+ *   the local effective-role mirror (creator, public_role).
+ * - Without a project (the global /data, /generations, /evaluations pages):
+ *   the highest role across `organizations`, falling back to the legacy
+ *   `user.role` when no membership list is supplied.
+ *
+ * `isPrivateMode` stays in the options for callers but no longer grants
+ * anything.
  */
 export const canAccessProjectData = (
   user: User | null,
   options?: {
     isPrivateMode?: boolean
-    project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null
+    project?: Pick<
+      Project,
+      'created_by' | 'is_public' | 'public_role' | 'effective_role'
+    > | null
+    organizations?: Array<{ role?: OrganizationRole | null }> | null
   },
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
-  if (options?.isPrivateMode) return true
-  if (user.role === 'ORG_ADMIN' || user.role === 'CONTRIBUTOR') return true
   if (options?.project) {
-    const eff = getEffectiveProjectRole(user, options.project)
-    return eff === 'ORG_ADMIN' || eff === 'CONTRIBUTOR'
+    const eff =
+      options.project.effective_role ??
+      getEffectiveProjectRole(user, options.project)
+    return isElevatedRole(eff)
   }
-  return false
+  return isElevatedRole(bestOrgRole(options?.organizations) ?? user.role)
 }
 
 /**
  * Check if user can edit individual task data.
  * Allowed: superadmins and organization admins only (not contributors).
  *
- * When a `project` is supplied (per-project context), the user's effective
- * project role must be ORG_ADMIN (covers project creator + superadmin too).
+ * When a `project` is supplied (per-project context), the API's per-project
+ * `effective_role` must be ORG_ADMIN; when the response carries none, the
+ * local effective-role mirror decides (covers the project creator).
  * Without a project (the global /data page, which spans orgs), fall back to
- * the user's org-context role as a UI hint — the backend remains the source
+ * the user's org-context role as a UI hint - the backend remains the source
  * of truth and returns 403 for tasks the user may not edit.
  */
 export const canEditTaskData = (
   user: User | null,
-  project?: Pick<Project, 'created_by' | 'is_public' | 'public_role'> | null,
+  project?: Pick<
+    Project,
+    'created_by' | 'is_public' | 'public_role' | 'effective_role'
+  > | null,
 ): boolean => {
   if (!user) return false
   if (user.is_superadmin) return true
-  if (project) return getEffectiveProjectRole(user, project) === 'ORG_ADMIN'
+  if (project) {
+    if (project.effective_role != null)
+      return project.effective_role === 'ORG_ADMIN'
+    return getEffectiveProjectRole(user, project) === 'ORG_ADMIN'
+  }
   return user.role === 'ORG_ADMIN'
 }
 

@@ -758,7 +758,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (invitationToken) {
           // Refresh auth to get updated user data — populates organizations list
           await initializeAuth()
-          // After signup with invitation, redirect to the org subdomain
+          // After signup with invitation, redirect to the org subdomain.
+          // The inviting org's id is not available here (signup only returns
+          // the user and the token is opaque), so the first membership is
+          // used; a freshly invited account has exactly one anyway. The
+          // existing-account flow (accept-invitation page) redirects to the
+          // inviting org by id.
           const currentOrgs = orgManager.getOrganizations()
           if (currentOrgs.length > 0) {
             const targetUrl = getOrgUrl(currentOrgs[0].slug, '/dashboard')

@@ -309,7 +309,7 @@ def _compute_project_summary(
     ann_stmt = select(func.count(Annotation.id)).where(
         Annotation.project_id == project_id,
         Annotation.was_cancelled == False,  # noqa: E712
-        func.jsonb_array_length(Annotation.result) > 0,
+        func.jsonb_array_length(cast(Annotation.result, JSONB)) > 0,
     )
     if cutoff is not None:
         ann_stmt = ann_stmt.where(Annotation.created_at >= cutoff)

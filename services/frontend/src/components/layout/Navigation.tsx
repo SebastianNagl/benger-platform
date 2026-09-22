@@ -17,6 +17,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { remToPx } from '@/lib/remToPx'
 import { parseSubdomain } from '@/lib/utils/subdomain'
+import { bestOrgRole } from '@/utils/permissions'
 import { CloseButton } from '@headlessui/react'
 
 interface NavGroup {
@@ -507,19 +508,18 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     // Superadmins see everything regardless of context
     if (user.is_superadmin) return true
 
-    // Private mode: Dashboard, Projects, Data, Generations, Evaluations, Runs
+    // Private mode: the data-management surfaces need an elevated role in
+    // at least one of the user's orgs (the API resolves access across all
+    // memberships, independent of the selected org); the rest stays open.
     if (isPrivateMode) {
+      if (['/data', '/generations', '/evaluations', '/runs'].includes(href)) {
+        const best = bestOrgRole(organizations)
+        return best === 'ORG_ADMIN' || best === 'CONTRIBUTOR'
+      }
       return (
-        [
-          '/dashboard',
-          '/projects',
-          '/data',
-          '/generations',
-          '/evaluations',
-          '/runs',
-          '/reports',
-          '/leaderboards',
-        ].includes(href) ||
+        ['/dashboard', '/projects', '/reports', '/leaderboards'].includes(
+          href,
+        ) ||
         href.startsWith('/about') ||
         href.startsWith('/how-to') ||
         href === '/models' ||

@@ -49,7 +49,12 @@ import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
-type SortField = 'title' | 'created_at' | 'task_count' | 'progress'
+type SortField =
+  | 'title'
+  | 'organization'
+  | 'created_at'
+  | 'task_count'
+  | 'progress'
 type SortOrder = 'asc' | 'desc'
 
 // Code the project importer puts in the job error when the file is a
@@ -517,6 +522,12 @@ export function ProjectListTable({
   // active page — or active rows on the archived page — before the fetch
   // resolves. Only an *explicit* mismatch is dropped (is_archived is a
   // non-nullable boolean in real data), so this filters nothing in steady state.
+  // Comma-joined names of the orgs a project is attached to; empty for a
+  // private project. The list is the union across the user's memberships,
+  // so the column is what tells the rows apart.
+  const organizationNames = (project: Project): string =>
+    (project.organizations ?? []).map((o) => o.name).join(', ')
+
   const sortedProjects = [...(projects || [])]
     .filter((p) =>
       showArchivedOnly ? p.is_archived !== false : p.is_archived !== true,
@@ -529,6 +540,10 @@ export function ProjectListTable({
         case 'title':
           aValue = a.title.toLowerCase()
           bValue = b.title.toLowerCase()
+          break
+        case 'organization':
+          aValue = organizationNames(a).toLowerCase()
+          bValue = organizationNames(b).toLowerCase()
           break
         case 'created_at':
           aValue = new Date(a.created_at).getTime()
@@ -758,6 +773,9 @@ export function ProjectListTable({
                 <SelectItem value="title">
                   {t('projects.list.sortTitle')}
                 </SelectItem>
+                <SelectItem value="organization">
+                  {t('projects.list.sortOrganization')}
+                </SelectItem>
                 <SelectItem value="created_at">
                   {t('projects.list.sortCreated')}
                 </SelectItem>
@@ -854,6 +872,18 @@ export function ProjectListTable({
                   className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
                 >
                   <button
+                    onClick={() => handleSort('organization')}
+                    className="group inline-flex items-center space-x-1 hover:text-zinc-900 dark:hover:text-zinc-100"
+                  >
+                    <span>{t('projects.table.organization')}</span>
+                    <SortIcon field="organization" />
+                  </button>
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400"
+                >
+                  <button
                     onClick={() => handleSort('task_count')}
                     className="group inline-flex items-center space-x-1 hover:text-zinc-900 dark:hover:text-zinc-100"
                   >
@@ -900,7 +930,7 @@ export function ProjectListTable({
               {sortedProjects.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={userCanCreateProjects ? 7 : 6}
+                    colSpan={userCanCreateProjects ? 8 : 7}
                     className="px-6 py-12 text-center"
                   >
                     <div
@@ -948,7 +978,8 @@ export function ProjectListTable({
                           onClick={(e) => e.stopPropagation()}
                         >
                           {project.access_tier !== 'participant' &&
-                            project.access_tier !== 'attempted' && (
+                            project.access_tier !== 'attempted' &&
+                            project.can_edit !== false && (
                               <TableCheckbox
                                 checked={selectedProjects.has(project.id)}
                                 onChange={() => handleSelectProject(project.id)}
@@ -1080,6 +1111,13 @@ export function ProjectListTable({
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td
+                        className="cursor-pointer px-6 py-4 text-sm text-zinc-700 dark:text-zinc-300"
+                        onClick={() => router.push(`/projects/${project.id}`)}
+                        data-testid={`project-organizations-${project.id}`}
+                      >
+                        {organizationNames(project)}
                       </td>
                       <td
                         className="cursor-pointer px-6 py-4 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100"

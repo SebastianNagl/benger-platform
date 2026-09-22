@@ -479,21 +479,28 @@ class TestAnalyticsDifficultyAnalysis:
 class TestAuthorizationOrgContextMode:
     """Cover lines 119-139: org_context mode with org membership checks."""
 
-    def test_org_context_project_not_in_org_denied(self):
+    def test_membership_outside_the_projects_orgs_denied_in_every_context(self):
+        from unittest.mock import patch
+
         from app.core.authorization import AuthorizationService, Permission
 
         svc = AuthorizationService()
         user = Mock(is_superadmin=False, id="user-1")
-        project = Mock(id="proj-1", deleted_at=None, is_private=False, created_by="other")
-        db = Mock()
-
-        # Project has no org matching org_context
-        db.query.return_value.filter.return_value.all.return_value = [("org-other", None)]
-
-        result = svc.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context="org-123"
+        project = Mock(
+            id="proj-1", deleted_at=None, is_private=False, created_by="other", kind=None
         )
-        assert result is False
+        db = Mock()
+        membership = Mock(organization_id="org-123", is_active=True, role="ORG_ADMIN")
+
+        # The project is attached to another org than the one the user is a
+        # member of: no context (the member's own included) grants access.
+        with patch("org_groups.get_attachment_group_map", return_value={"org-other": None}), patch(
+            "org_groups.get_user_group_context", return_value={}
+        ), patch.object(svc, "_get_user_org_memberships", return_value=[membership]):
+            for ctx in ("org-123", "org-other", "private", None):
+                assert svc.check_project_access(
+                    user, project, Permission.PROJECT_VIEW, db, org_context=ctx
+                ) is False, ctx
 
     def test_org_context_project_in_org_but_user_not_member(self):
         from app.core.authorization import AuthorizationService, Permission

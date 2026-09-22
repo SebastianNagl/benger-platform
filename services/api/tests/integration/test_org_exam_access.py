@@ -27,8 +27,7 @@ import pytest
 from models import Organization, OrganizationMembership, OrganizationRole, User
 from project_models import MarketplaceEntitlement, Project, ProjectOrganization
 from routers.projects.helpers import (
-    _decide_project_accessible_context_mode,
-    _decide_project_accessible_legacy_mode,
+    _decide_project_accessible,
     _org_grants_full_tier,
     check_project_accessible,
     get_accessible_project_ids,
@@ -151,51 +150,37 @@ class TestOrgGrantsFullTierPredicate:
 
 
 class TestPureDeciders:
-    def test_context_mode_annotator_denied_contributor_allowed(self):
-        project = _P(kind="exam", is_private=False)
-        annotator = _Memberships(_Membership("o1", OrganizationRole.ANNOTATOR))
-        contributor = _Memberships(_Membership("o1", OrganizationRole.CONTRIBUTOR))
-        args = (_U("u1"), project, "o1", ["o1"])
-        assert _decide_project_accessible_context_mode(*args, annotator) is False
-        assert _decide_project_accessible_context_mode(*args, contributor) is True
+    """The one full-tier decider, whatever organization the client selects."""
 
-    def test_legacy_mode_annotator_denied_contributor_allowed(self):
+    def test_annotator_denied_contributor_allowed(self):
         project = _P(kind="exam", is_private=False)
         annotator = _Memberships(_Membership("o1", OrganizationRole.ANNOTATOR))
         contributor = _Memberships(_Membership("o1", OrganizationRole.CONTRIBUTOR))
         args = (_U("u1"), project, ["o1"])
-        assert _decide_project_accessible_legacy_mode(*args, annotator) is False
-        assert _decide_project_accessible_legacy_mode(*args, contributor) is True
+        assert _decide_project_accessible(*args, annotator) is False
+        assert _decide_project_accessible(*args, contributor) is True
+
+    def test_membership_in_another_attached_org_grants(self):
+        # The membership need not match any "selected" org: any eligible
+        # attachment counts.
+        project = _P(kind="exam", is_private=False)
+        contributor = _Memberships(_Membership("o2", OrganizationRole.CONTRIBUTOR))
+        assert _decide_project_accessible(_U("u1"), project, ["o1", "o2"], contributor) is True
+        assert _decide_project_accessible(_U("u1"), project, ["o1"], contributor) is False
 
     def test_private_exam_stays_creator_only_for_all_roles(self):
         project = _P(kind="exam", is_private=True, created_by="creator")
         contributor = _Memberships(_Membership("o1", OrganizationRole.CONTRIBUTOR))
+        assert _decide_project_accessible(_U("creator"), project, ["o1"], contributor) is True
         assert (
-            _decide_project_accessible_context_mode(
-                _U("creator"), project, "o1", ["o1"], contributor
-            )
-            is True
-        )
-        assert (
-            _decide_project_accessible_context_mode(
-                _U("someone-else"), project, "o1", ["o1"], contributor
-            )
+            _decide_project_accessible(_U("someone-else"), project, ["o1"], contributor)
             is False
         )
 
     def test_annotator_keeps_access_to_non_exam_org_projects(self):
         project = _P(kind="korrektur", is_private=False)
         annotator = _Memberships(_Membership("o1", OrganizationRole.ANNOTATOR))
-        assert (
-            _decide_project_accessible_context_mode(
-                _U("u1"), project, "o1", ["o1"], annotator
-            )
-            is True
-        )
-        assert (
-            _decide_project_accessible_legacy_mode(_U("u1"), project, ["o1"], annotator)
-            is True
-        )
+        assert _decide_project_accessible(_U("u1"), project, ["o1"], annotator) is True
 
 
 class TestCheckProjectAccessibleSync:

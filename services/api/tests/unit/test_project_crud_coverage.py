@@ -8,7 +8,7 @@ recalculate_project_statistics, get_project_completion_stats.
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException
@@ -319,22 +319,29 @@ class TestProjectHelpersCoverage:
         result = get_accessible_project_ids(mock_db, user, "private")
         assert result == ["p1", "p2"]
 
-    def test_get_accessible_project_ids_org_not_member(self):
+    def test_get_accessible_project_ids_foreign_context_no_403(self):
+        # The selected organization is not a read boundary: a context the
+        # caller is no member of yields their union like any other context.
         from routers.projects.helpers import get_accessible_project_ids
         user = Mock()
         user.is_superadmin = False
         user.id = "u1"
         mock_db = MagicMock()
-        user_obj = Mock()
-        membership = Mock()
-        membership.organization_id = "other-org"
-        membership.is_active = True
-        user_obj.organization_memberships = [membership]
-        mock_db.query.return_value.options.return_value.filter.return_value.first.return_value = user_obj
-
-        with pytest.raises(HTTPException) as exc_info:
-            get_accessible_project_ids(mock_db, user, "org-999")
-        assert exc_info.value.status_code == 403
+        mock_db.query.return_value.filter.return_value.all.return_value = []
+        membership = Mock(organization_id="other-org", is_active=True, role="CONTRIBUTOR")
+        loaded = Mock(organization_memberships=[membership])
+        row = Mock(
+            project_id="p-other", organization_id="other-org", group_id=None,
+            attached_via="manual", is_private=False, created_by="u2",
+            kind=None, is_archived=False,
+        )
+        mock_db.execute.return_value.all.return_value = [row]
+        with patch("routers.projects.helpers.get_user_with_memberships", return_value=loaded), patch(
+            "routers.projects.helpers.get_lti_staff_project_ids", return_value=set()
+        ), patch("routers.projects.helpers.get_user_group_context", return_value={}), patch(
+            "routers.projects.helpers._lti_protected_org_ids", return_value=set()
+        ):
+            assert get_accessible_project_ids(mock_db, user, "org-999") == ["p-other"]
 
     def test_get_accessible_project_ids_superadmin_foreign_org_no_403(self):
         # Regression: a superadmin switching to an org they don't formally
