@@ -379,9 +379,9 @@ describe('ProjectListTable', () => {
       expect(
         screen.getByTestId('projects-table-checkbox-full-1'),
       ).toBeInTheDocument()
-      expect(screen.getByTestId('project-organizations-ro-1')).toHaveTextContent(
-        'LMU',
-      )
+      expect(
+        screen.getByTestId('project-organizations-ro-1'),
+      ).toHaveTextContent('LMU')
     })
   })
 
@@ -568,9 +568,7 @@ describe('ProjectListTable', () => {
       expect(screen.getByTestId('project-organizations-2')).toHaveTextContent(
         'TUM',
       )
-      expect(screen.getByTestId('project-organizations-3').textContent).toBe(
-        '',
-      )
+      expect(screen.getByTestId('project-organizations-3').textContent).toBe('')
     })
 
     it('sorts by organization name in both directions', () => {

@@ -445,9 +445,7 @@ describe('canEditTaskData with API effective_role', () => {
     ).toBe(false)
     // No effective_role in the response: the local mirror still decides
     // (the creator resolves to ORG_ADMIN).
-    expect(canEditTaskData(mkUser({ id: 'creator-1' }), mkProject())).toBe(
-      true,
-    )
+    expect(canEditTaskData(mkUser({ id: 'creator-1' }), mkProject())).toBe(true)
   })
 })
 

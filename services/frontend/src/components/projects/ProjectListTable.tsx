@@ -50,11 +50,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 type SortField =
-  | 'title'
-  | 'organization'
-  | 'created_at'
-  | 'task_count'
-  | 'progress'
+  'title' | 'organization' | 'created_at' | 'task_count' | 'progress'
 type SortOrder = 'asc' | 'desc'
 
 // Code the project importer puts in the job error when the file is a
