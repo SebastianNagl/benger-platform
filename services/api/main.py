@@ -37,8 +37,9 @@ if not os.path.isdir(shared_dir):
 if shared_dir not in sys.path:
     sys.path.insert(0, shared_dir)
 
-# Keep secrets out of uvicorn's access log: the LTI registration URL carries
-# the one-time invite token and the LMS's registration JWT in its query.
+# Keep secrets and personal data out of uvicorn's access log: the LTI
+# registration URL carries the one-time invite token and the LMS's registration
+# JWT in its query, and user searches carry addresses and login names.
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration

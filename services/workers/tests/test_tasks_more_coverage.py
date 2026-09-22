@@ -49,10 +49,8 @@ from tasks import (
     _reconstruct_judge_evaluators_for_cell,
     _row_has_score,
     cleanup_project_data,
-    recompute_aggregates,
     send_bulk_invitations_task,
     send_notification_batch_task,
-    update_report_annotations_async,
 )
 
 
@@ -217,8 +215,8 @@ class TestSendBulkInvitations:
 
     def test_failed_to_queue_counted_separately(self):
         invitations = [
-            {"to_email": "a@example.com"},
-            {"to_email": "b@example.com"},
+            {"invitation_id": "i1", "to_email": "a@example.com"},
+            {"invitation_id": "i2", "to_email": "b@example.com"},
         ]
         ok = MagicMock()
         ok.id = "t1"
@@ -231,9 +229,11 @@ class TestSendBulkInvitations:
         assert out["sent"] == 1
         assert out["failed"] == 1
         assert out["total"] == 2
-        statuses = {r["email"]: r["status"] for r in out["results"]}
-        assert statuses["a@example.com"] == "queued"
-        assert statuses["b@example.com"] == "failed"
+        # Entries are keyed by invitation id: the Celery result is logged, so
+        # it carries no address.
+        statuses = {r["invitation_id"]: r["status"] for r in out["results"]}
+        assert statuses == {"i1": "queued", "i2": "failed"}
+        assert "example.com" not in repr(out)
         failed_entry = next(r for r in out["results"] if r["status"] == "failed")
         assert "broker down" in failed_entry["error"]
 

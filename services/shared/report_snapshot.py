@@ -32,12 +32,13 @@ the LLM leaderboard, so a published report cannot leak a private endpoint.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+
+from user_display import masked_name
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +242,10 @@ WHERE rg.project_id = :project_id
 """
 
 _PARTICIPANTS_SQL = """
-SELECT u.id, u.username, u.name, u.pseudonym, u.use_pseudonym, COUNT(a.id) AS annotation_count
+SELECT u.id, u.pseudonym, COUNT(a.id) AS annotation_count
 FROM annotations a JOIN users u ON u.id = a.completed_by
 WHERE a.project_id = :project_id AND a.was_cancelled = false
-GROUP BY u.id, u.username, u.name, u.pseudonym, u.use_pseudonym
+GROUP BY u.id, u.pseudonym
 """
 
 _JUDGE_NAMES_SQL = "SELECT id, name FROM llm_models WHERE id = ANY(:ids)"
@@ -262,13 +263,6 @@ SELECT config_id, judge_model_id FROM (
     GROUP BY 1, 2
 ) ranked WHERE rn = 1
 """
-
-
-def _display_name(username: str, name: Optional[str], pseudonym: Optional[str], use_pseudonym: bool) -> str:
-    """Same rule as the leaderboards: pseudonym when the user opted in (default), else name/username."""
-    if use_pseudonym and pseudonym:
-        return pseudonym
-    return name or username
 
 
 def _model_label(model_id: str, catalog_name: Optional[str]) -> str:
@@ -328,7 +322,10 @@ def build_report_snapshot(
     participants = []
     human_labels: Dict[str, str] = {}
     for r in participant_rows:
-        label = _display_name(r["username"], r["name"], r["pseudonym"], bool(r["use_pseudonym"]))
+        # The snapshot is frozen into a published, possibly public report:
+        # the pseudonym, never the real name or login name. The old rule fell
+        # back to those for people who had switched their pseudonym off.
+        label = masked_name(user_id=r["id"], pseudonym=r["pseudonym"])
         human_labels[f"annotator:{r['id']}"] = label
         participants.append({"id": r["id"], "label": label, "annotation_count": int(r["annotation_count"])})
     participants.sort(key=lambda p: (-p["annotation_count"], p["label"]))

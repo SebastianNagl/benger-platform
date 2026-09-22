@@ -32,6 +32,7 @@ from typing import Any, Dict, List, Optional
 
 from jinja2 import Environment, FileSystemLoader
 
+from account_activation import mask_email
 from email_templates.template_map import template_for
 from mailer.branding import EmailBrand, resolve_email_brand
 from models import Notification
@@ -258,7 +259,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"Notification email sent to {user_email}")
+                logger.info(f"Notification email sent to {mask_email(user_email)}")
                 return True
             else:
                 logger.error(f"Failed to send notification email: {result.get('error')}")
@@ -290,7 +291,7 @@ class EmailService:
             return False
 
         if not notifications:
-            logger.info(f"No notifications to send in {digest_type} digest for {user_email}")
+            logger.info(f"No notifications to send in {digest_type} digest")
             return True
 
         # Group notifications by type
@@ -325,7 +326,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"{digest_type.capitalize()} digest sent to {user_email}")
+                logger.info(f"{digest_type.capitalize()} digest sent to {mask_email(user_email)}")
                 return True
             else:
                 logger.error(f"Failed to send digest email: {result.get('error')}")
@@ -370,7 +371,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"Test email sent to {user_email}")
+                logger.info(f"Test email sent to {mask_email(user_email)}")
                 return True
             else:
                 logger.error(f"Failed to send test email: {result.get('error')}")
@@ -531,7 +532,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"Invitation email sent to {to_email}")
+                logger.info(f"Invitation email sent to {mask_email(to_email)}")
                 return True
             else:
                 logger.error(f"Failed to send invitation email: {result.get('error')}")
@@ -619,7 +620,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"Verification email sent to {to_email}")
+                logger.info(f"Verification email sent to {mask_email(to_email)}")
                 return True
             else:
                 logger.error(f"Failed to send verification email: {result.get('error')}")
@@ -710,7 +711,7 @@ class EmailService:
             )
 
             if result.get("status") == "success":
-                logger.info(f"Password reset email sent to {to_email}")
+                logger.info(f"Password reset email sent to {mask_email(to_email)}")
                 return True
             else:
                 logger.error(f"Failed to send password reset email: {result.get('error')}")

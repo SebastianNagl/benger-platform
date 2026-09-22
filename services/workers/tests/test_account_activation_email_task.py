@@ -143,7 +143,8 @@ class TestActivationEmailLetterCase:
                     user_id="u-1", target_email="  Max.Mustermann@Uni-X.de "
                 )
 
-        assert result["recipient"] == "max.mustermann@uni-x.de"
+        assert client.send_message.call_args.kwargs["to"] == ["max.mustermann@uni-x.de"]
+        assert result["recipient_hint"] == "ma…@uni-x.de"
         assert mint.call_args.kwargs["pending_email"] == "max.mustermann@uni-x.de"
         probe = str(
             db.execute.call_args_list[1].args[0].compile(
@@ -170,7 +171,7 @@ class TestActivationEmailSend:
 
         assert result["status"] == "success"
         assert result["user_id"] == "u-1"
-        assert result["recipient"] == "student@uni.example"
+        assert result["recipient_hint"] == "st…@uni.example"
         assert result["message_id"] == "msg-1"
         assert order == ["commit", "send"], "token must be committed before the send"
         # Tracking off: activation links must not be rewritten by SendGrid.
@@ -184,7 +185,7 @@ class TestActivationEmailSend:
             db, sendgrid_class=cls, user_id="u-1", target_email="new@uni.example"
         )
 
-        assert result["recipient"] == "new@uni.example"
+        assert result["recipient_hint"] == "ne…@uni.example"
         assert client.send_message.call_args.kwargs["to"] == ["new@uni.example"]
 
     def test_expiry_days_travel_into_the_template(self):
@@ -264,3 +265,44 @@ class TestActivationEmailFailureClassification:
 
         with pytest.raises(Exception, match="socket exploded"):
             _run(_fake_db(_user()), sendgrid_class=cls, user_id="u-1")
+
+
+class TestActivationEmailKeepsTheAddressOutOfTheLog:
+    """Celery logs a task's return value at INFO ("Task ... succeeded: ..."),
+    and worker logs are kept outside the database. The person is identified
+    by user id; the address only appears as a masked hint."""
+
+    ADDRESS = "student@uni.example"
+
+    def test_success_result_and_log_carry_only_the_hint(self, caplog):
+        cls, _ = _sendgrid({"status": "success", "message_id": "m"})
+
+        with caplog.at_level("DEBUG"):
+            result, _ = _run(_fake_db(_user()), sendgrid_class=cls, user_id="u-1")
+
+        assert result["recipient_hint"] == "st…@uni.example"
+        assert "recipient" not in result
+        assert self.ADDRESS not in repr(result)
+        assert self.ADDRESS not in caplog.text
+        assert "st…@uni.example (user u-1)" in caplog.text
+
+    def test_permanent_failure_result_and_log_carry_only_the_hint(self, caplog):
+        cls, _ = _sendgrid({"status": "error", "status_code": 400, "error": "bad address"})
+
+        with caplog.at_level("DEBUG"):
+            result, _ = _run(_fake_db(_user()), sendgrid_class=cls, user_id="u-1")
+
+        assert result["status"] == "failed_permanent"
+        assert result["recipient_hint"] == "st…@uni.example"
+        assert self.ADDRESS not in repr(result)
+        assert self.ADDRESS not in caplog.text
+        assert "user u-1" in caplog.text
+
+    def test_retryable_failure_log_carries_only_the_hint(self, caplog):
+        cls, _ = _sendgrid({"status": "error", "status_code": 503, "error": "boom"})
+
+        with caplog.at_level("DEBUG"), pytest.raises(RuntimeError):
+            _run(_fake_db(_user()), sendgrid_class=cls, user_id="u-1")
+
+        assert self.ADDRESS not in caplog.text
+        assert "user u-1" in caplog.text

@@ -651,7 +651,7 @@ async def complete_profile(
 
     try:
         await db.commit()
-        logger.info(f"Profile completed for user {db_user.id} ({db_user.email})")
+        logger.info(f"Profile completed for user {db_user.id}")
 
         return ProfileCompletionResponse(
             success=True,

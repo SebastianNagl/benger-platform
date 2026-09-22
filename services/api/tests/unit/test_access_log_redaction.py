@@ -1,4 +1,4 @@
-"""The uvicorn access log never shows LTI secrets.
+"""The uvicorn access log never shows LTI secrets or who was searched for.
 
 Found on staging: the access log line of the Moodle registration call
 
@@ -9,6 +9,10 @@ text. ``app.core.access_log`` rewrites the path argument of every
 ``uvicorn.access`` record before it is formatted. These tests feed real
 ``LogRecord``s through the filter and through uvicorn's own access
 formatter, the one the pods use.
+
+The same filter replaces the values of the query parameters that carry an
+address, a login name or a person search, on every path: logs are kept
+outside the database and must not name anyone.
 """
 
 import io
@@ -18,9 +22,9 @@ import pytest
 from app.core.access_log import (
     ACCESS_LOGGER_NAME,
     REDACTED,
-    LtiQueryRedactionFilter,
+    QueryRedactionFilter,
     install_access_log_redaction,
-    redact_lti_query,
+    redact_query,
 )
 from uvicorn.logging import AccessFormatter
 from uvicorn.protocols.utils import get_path_with_query_string
@@ -62,7 +66,7 @@ class TestRegistrationCall:
     def test_the_staging_line_loses_both_tokens(self):
         record = _record(_scope_path("/api/lti/register/init", REGISTER_QUERY))
 
-        assert LtiQueryRedactionFilter().filter(record) is True
+        assert QueryRedactionFilter().filter(record) is True
         line = record.getMessage()
 
         assert INVITE not in line
@@ -76,7 +80,7 @@ class TestRegistrationCall:
 
     def test_uvicorn_access_formatter_prints_the_redacted_request_line(self):
         record = _record(f"/api/lti/register/init?{REGISTER_QUERY}")
-        LtiQueryRedactionFilter().filter(record)
+        QueryRedactionFilter().filter(record)
 
         out = AccessFormatter(
             fmt='%(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s',
@@ -97,23 +101,23 @@ class TestRegistrationCall:
         ],
     )
     def test_trailing_slash_and_root_path_prefix(self, path):
-        assert redact_lti_query(f"{path}?token={INVITE}") == f"{path}?token={REDACTED}"
+        assert redact_query(f"{path}?token={INVITE}") == f"{path}?token={REDACTED}"
 
     def test_unknown_and_bare_parameters_are_redacted_too(self):
         assert (
-            redact_lti_query(f"/api/lti/register/init?foo=bar&{INVITE}")
+            redact_query(f"/api/lti/register/init?foo=bar&{INVITE}")
             == f"/api/lti/register/init?foo={REDACTED}&{REDACTED}"
         )
 
     def test_empty_values_and_empty_pairs_stay(self):
         assert (
-            redact_lti_query("/api/lti/register/init?token=&&registration_token=")
+            redact_query("/api/lti/register/init?token=&&registration_token=")
             == "/api/lti/register/init?token=&&registration_token="
         )
 
     def test_no_query_is_unchanged(self):
         record = _record("/api/lti/register/init", status=400)
-        LtiQueryRedactionFilter().filter(record)
+        QueryRedactionFilter().filter(record)
         assert record.getMessage() == (
             '10.42.0.154:47736 - "GET /api/lti/register/init HTTP/1.1" 400'
         )
@@ -126,7 +130,7 @@ class TestOtherLtiPaths:
             "&login_hint=12&lti_message_hint=%7B%22cmid%22%3A4%7D"
             "&client_id=abc123&lti_deployment_id=1"
         )
-        assert redact_lti_query(path) == (
+        assert redact_query(path) == (
             "/api/lti/login?iss=https%3A%2F%2Filias.example.org"
             f"&login_hint={REDACTED}&lti_message_hint={REDACTED}"
             "&client_id=abc123&lti_deployment_id=1"
@@ -151,13 +155,65 @@ class TestOtherLtiPaths:
     )
     def test_token_like_names_are_redacted(self, name):
         assert (
-            redact_lti_query(f"/api/lti/pending/identity?{name}=s3cr3t&h=abc")
+            redact_query(f"/api/lti/pending/identity?{name}=s3cr3t&h=abc")
             == f"/api/lti/pending/identity?{name}={REDACTED}&h=abc"
         )
 
     def test_public_handles_stay_readable(self):
         path = "/api/lti/pending?h=9Mb-LeIgM6mnnydvXP8JKQ"
-        assert redact_lti_query(path) == path
+        assert redact_query(path) == path
+
+
+class TestPersonalParameters:
+    ADDRESS = "erika.musterfrau%40uni-x.de"
+
+    @pytest.mark.parametrize(
+        "path, name",
+        [
+            ("/api/users", "search"),
+            ("/api/users", "q"),
+            ("/api/users", "email"),
+            ("/api/health/email", "test_email"),
+            ("/api/auth/check", "username"),
+            ("/api/projects/p1/annotations", "completed_by_username"),
+        ],
+    )
+    def test_the_value_goes_and_the_name_stays(self, path, name):
+        record = _record(_scope_path(path, f"page=2&{name}={self.ADDRESS}&limit=50"))
+
+        assert QueryRedactionFilter().filter(record) is True
+        line = record.getMessage()
+
+        assert "erika" not in line
+        assert "uni-x.de" not in line
+        assert line == (
+            f'10.42.0.154:47736 - "GET {path}?page=2&{name}={REDACTED}&limit=50 HTTP/1.1" 200'
+        )
+
+    def test_encoded_and_upper_case_names_are_matched(self):
+        assert (
+            redact_query("/api/users?SEARCH=erika&test%5Femail=a%40b.de")
+            == f"/api/users?SEARCH={REDACTED}&test%5Femail={REDACTED}"
+        )
+
+    def test_other_parameters_are_left_alone(self):
+        path = "/api/users?role=annotator&search_mode=prefix&email_verified=true&query=x"
+        assert redact_query(path) == path
+
+    def test_empty_values_stay(self):
+        assert redact_query("/api/users?search=&page=1") == "/api/users?search=&page=1"
+
+    def test_lti_paths_lose_secrets_and_personal_values(self):
+        assert (
+            redact_query(f"/api/lti/pending/identity?email={self.ADDRESS}&id_token=s3cr3t&h=abc")
+            == f"/api/lti/pending/identity?email={REDACTED}&id_token={REDACTED}&h=abc"
+        )
+
+    def test_a_token_outside_lti_is_still_not_touched(self):
+        assert (
+            redact_query("/api/projects?token=abc&search=erika")
+            == f"/api/projects?token=abc&search={REDACTED}"
+        )
 
 
 class TestEverythingElseIsUntouched:
@@ -174,11 +230,11 @@ class TestEverythingElseIsUntouched:
     def test_non_lti_api_paths(self, path):
         record = _record(path)
         before = record.getMessage()
-        assert LtiQueryRedactionFilter().filter(record) is True
+        assert QueryRedactionFilter().filter(record) is True
         assert record.getMessage() == before
 
     def test_records_without_tuple_args(self):
-        f = LtiQueryRedactionFilter()
+        f = QueryRedactionFilter()
         plain = logging.LogRecord(
             ACCESS_LOGGER_NAME, logging.INFO, __file__, 1, "no args", None, None
         )
@@ -198,7 +254,7 @@ class TestEverythingElseIsUntouched:
 
     def test_non_string_arguments_pass_through(self):
         record = _record(f"/api/lti/register/init?token={INVITE}", status=404)
-        LtiQueryRedactionFilter().filter(record)
+        QueryRedactionFilter().filter(record)
         assert record.args[4] == 404
         assert record.args[0] == "10.42.0.154:47736"
 
@@ -217,7 +273,7 @@ class TestInstallation:
             install_access_log_redaction(name)
             install_access_log_redaction(name)
             assert (
-                sum(isinstance(f, LtiQueryRedactionFilter) for f in logger.filters) == 1
+                sum(isinstance(f, QueryRedactionFilter) for f in logger.filters) == 1
             )
 
             logger.info(
@@ -242,7 +298,7 @@ class TestInstallation:
         import main  # noqa: F401  (importing the app installs the filter)
 
         filters = logging.getLogger(ACCESS_LOGGER_NAME).filters
-        assert any(isinstance(f, LtiQueryRedactionFilter) for f in filters)
+        assert any(isinstance(f, QueryRedactionFilter) for f in filters)
 
     def test_the_filter_survives_a_uvicorn_logging_reconfiguration(self):
         """uvicorn runs dictConfig in each worker; logger filters survive it."""
@@ -265,7 +321,7 @@ class TestInstallation:
         try:
             logging.config.dictConfig(copy.deepcopy(LOGGING_CONFIG))
             filters = logging.getLogger(ACCESS_LOGGER_NAME).filters
-            assert any(isinstance(f, LtiQueryRedactionFilter) for f in filters)
+            assert any(isinstance(f, QueryRedactionFilter) for f in filters)
         finally:
             for n, (handlers, level, propagate, disabled) in saved.items():
                 lg = logging.getLogger(n)

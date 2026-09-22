@@ -121,6 +121,29 @@ class TestSendGridClient:
         assert personalizations['bcc'] == [{'email': 'audit@example.com'}]
 
     @patch('requests.post')
+    def test_provider_error_echoing_the_address_is_masked(self, mock_post, sendgrid_client, caplog):
+        """SendGrid echoes the offending recipient in 4xx bodies. Callers log
+        the returned error, so the address is masked at this boundary, in
+        the log line and in what the method returns."""
+        import logging
+
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = '{"errors":[{"message":"Invalid recipient student.one@uni-example.de"}]}'
+        mock_post.return_value = mock_response
+
+        with caplog.at_level(logging.ERROR):
+            result = sendgrid_client.send_message(
+                to=['student.one@uni-example.de'], subject='x', html_body='<p>x</p>'
+            )
+
+        assert result['status'] == 'error'
+        assert 'student.one@' not in caplog.text
+        assert 'st…@uni-example.de' in caplog.text
+        assert 'student.one@' not in result['details']
+        assert 'st…@uni-example.de' in result['details']
+
+    @patch('requests.post')
     def test_send_message_with_multiple_recipients(self, mock_post, sendgrid_client):
         """Test sending email to multiple recipients"""
         mock_response = MagicMock()

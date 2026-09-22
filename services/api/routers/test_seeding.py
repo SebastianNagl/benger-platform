@@ -354,7 +354,7 @@ async def seed_mock_annotations(
                     if annotator:
                         user_cache[annotator_username] = annotator.id
                     else:
-                        logger.warning(f"User '{annotator_username}' not found, using current user")
+                        logger.warning("Annotator user not found, using current user")
                         user_cache[annotator_username] = current_user.id
                 completed_by = user_cache[annotator_username]
             else:

@@ -104,6 +104,35 @@ class TestLogEmailEvent:
             )
             mock_logger.info.assert_called_once()
 
+    def test_log_carries_only_a_masked_hint(self):
+        """The monitoring log goes to stdout and is shipped: the person is
+        identified by user_id, the address appears only as a masked hint,
+        also inside metadata (the mismatch event passes two addresses)."""
+        import json
+
+        svc = self._make_service()
+        with patch("auth_module.email_verification.email_monitoring_logger") as mock_logger:
+            svc._log_email_event(
+                event_type="verification_attempt_failed",
+                user_id="user-1",
+                email="student.one@uni-example.de",
+                success=False,
+                error="mismatch",
+                metadata={
+                    "user_current_email": "student.one@uni-example.de",
+                    "token_email": "other.person@uni-example.de",
+                    "reason": "x",
+                },
+            )
+        message = mock_logger.error.call_args[0][0]
+        assert "student.one@" not in message and "other.person@" not in message
+        payload = json.loads(message.split(" ", 1)[1]) if not message.startswith("{") else json.loads(message)
+        assert payload["user_id"] == "user-1"
+        assert "email" not in payload
+        assert payload["email_hint"] == "st…@uni-example.de"
+        assert payload["metadata"]["token_email"] == "ot…@uni-example.de"
+        assert payload["metadata"]["reason"] == "x"
+
     def test_log_failure_event(self):
         svc = self._make_service()
         with patch("auth_module.email_verification.email_monitoring_logger") as mock_logger:

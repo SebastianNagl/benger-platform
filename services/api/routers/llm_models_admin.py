@@ -60,8 +60,8 @@ def reseed_llm_models(
             logger.warning("Could not remove stale flag %s: %s", stale, e)
 
     logger.info(
-        "Manual reseed by %s: %d rows changed (catalog v%s)",
-        current_user.username,
+        "Manual reseed by user %s: %d rows changed (catalog v%s)",
+        current_user.id,
         rows_changed,
         catalog.content_hash[:8],
     )

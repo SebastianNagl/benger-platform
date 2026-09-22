@@ -9,6 +9,7 @@ means a test that patches `_get_task_data_availability` on this module
 reaches both the handler's direct call and the helper's internal call.
 """
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from user_display import masked_name
 
 
 @router.get("/{evaluation_id}/results/by-task-model")
@@ -253,6 +254,7 @@ async def get_results_by_task_model(
             else []
         )
         model_name_map = {m.id: m.name for m in llm_models}
+        model_export_labels: dict = {}
 
         # For models not in LLMModel table, use the model_id as the name
         for model_id in model_ids:
@@ -334,6 +336,7 @@ async def get_results_by_task_model(
                             DBUser.name,
                             DBUser.pseudonym,
                             DBUser.use_pseudonym,
+                            DBUser.id.label("user_id"),
                         )
                         .join(DBUser, Annotation.completed_by == DBUser.id)
                         .where(Annotation.id.in_(annotation_ids))
@@ -349,6 +352,14 @@ async def get_results_by_task_model(
                         if (a.use_pseudonym and a.pseudonym)
                         else (a.name or a.username)
                     )
+                    for a in annotations_with_users
+                }
+                # What a DOWNLOAD of this grid may say about the same people.
+                # The labels above honour each person's own choice for the
+                # screen and can be a real name; a file never names anyone,
+                # so it gets the account id and the pseudonym instead.
+                annotator_export_map = {
+                    a.id: (a.user_id, masked_name(user_id=a.user_id, pseudonym=a.pseudonym))
                     for a in annotations_with_users
                 }
 
@@ -377,6 +388,13 @@ async def get_results_by_task_model(
                         model_scores_list[synthetic_model_id] = []
                         model_ids.append(synthetic_model_id)
                     model_name_map[synthetic_model_id] = f"Annotator: {display}"
+                    export_user_id, export_label = annotator_export_map.get(
+                        r.annotation_id, (None, "Unknown")
+                    )
+                    model_export_labels[synthetic_model_id] = {
+                        "id": f"annotator:{export_user_id or 'unknown'}",
+                        "name": f"Annotator: {export_label}",
+                    }
 
                     if aggregate_mean:
                         annotation_cell_scores.setdefault(
@@ -428,6 +446,9 @@ async def get_results_by_task_model(
             "evaluation_id": evaluation_id,
             "models": sorted_models,
             "model_names": model_name_map,
+            # File-safe twin of `model_names` for the annotator columns: what
+            # the grid's CSV / JSON download writes instead.
+            "model_export_labels": model_export_labels,
             "tasks": tasks_response,
             "summary": summary,
         }
@@ -923,6 +944,7 @@ async def get_project_results_by_task_model(
             else []
         )
         model_name_map = {m.id: m.name for m in llm_models}
+        model_export_labels: dict = {}
 
         # For models not in LLMModel table, use the model_id as the name
         for model_id in model_ids:
@@ -981,6 +1003,7 @@ async def get_project_results_by_task_model(
                             DBUser.name,
                             DBUser.pseudonym,
                             DBUser.use_pseudonym,
+                            DBUser.id.label("user_id"),
                         )
                         .join(DBUser, Annotation.completed_by == DBUser.id)
                         .where(Annotation.id.in_(annotation_ids))
@@ -994,6 +1017,14 @@ async def get_project_results_by_task_model(
                         if (a.use_pseudonym and a.pseudonym)
                         else (a.name or a.username)
                     )
+                    for a in annotations_with_users
+                }
+                # What a DOWNLOAD of this grid may say about the same people.
+                # The labels above honour each person's own choice for the
+                # screen and can be a real name; a file never names anyone,
+                # so it gets the account id and the pseudonym instead.
+                annotator_export_map = {
+                    a.id: (a.user_id, masked_name(user_id=a.user_id, pseudonym=a.pseudonym))
                     for a in annotations_with_users
                 }
 
@@ -1022,6 +1053,13 @@ async def get_project_results_by_task_model(
                         model_scores[synthetic_model_id] = []
                         model_ids.append(synthetic_model_id)
                     model_name_map[synthetic_model_id] = f"Annotator: {display}"
+                    export_user_id, export_label = annotator_export_map.get(
+                        r.annotation_id, (None, "Unknown")
+                    )
+                    model_export_labels[synthetic_model_id] = {
+                        "id": f"annotator:{export_user_id or 'unknown'}",
+                        "name": f"Annotator: {export_label}",
+                    }
 
                     if include_history:
                         annotation_cell_scores.setdefault(
@@ -1091,6 +1129,9 @@ async def get_project_results_by_task_model(
             "project_id": project_id,
             "models": sorted_models,
             "model_names": model_name_map,
+            # File-safe twin of `model_names` for the annotator columns: what
+            # the grid's CSV / JSON download writes instead.
+            "model_export_labels": model_export_labels,
             "tasks": tasks_response,
             "summary": summary,
             # Phase 6.3: how many historical runs were suppressed by

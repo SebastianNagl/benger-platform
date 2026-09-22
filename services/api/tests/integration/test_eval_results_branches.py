@@ -808,6 +808,16 @@ class TestEvalByTaskModelBranches:
         assert synth == "annotator:Test Admin"
         assert body["model_names"][synth] == "Annotator: Test Admin"
         assert body["summary"][synth]["avg"] == pytest.approx(0.75)
+        # The screen label above honours the person's own choice and can be a
+        # real name. What the grid's CSV / JSON DOWNLOAD writes is the
+        # file-safe twin: the account id and the pseudonym (here the neutral
+        # label, the account has none), never the name.
+        export = body["model_export_labels"][synth]
+        assert export == {
+            "id": f"annotator:{owner.id}",
+            "name": f"Annotator: User {owner.id[:8]}",
+        }
+        assert "Test Admin" not in str(export)
 
     @pytest.mark.asyncio
     async def test_empty_result_shape(self, async_test_client, async_test_db):
@@ -1023,6 +1033,14 @@ class TestProjectByTaskModelBranches:
         # two different runs, under the one config id.
         assert cell["scores"].get("gpt-union") == pytest.approx(0.70)
         assert cell["scores"].get("annotator:Test Admin") == pytest.approx(0.55)
+        # The project-scoped grid carries the same file-safe labels: only the
+        # annotator column needs one, and it names nobody.
+        assert body["model_export_labels"] == {
+            "annotator:Test Admin": {
+                "id": f"annotator:{owner.id}",
+                "name": f"Annotator: User {owner.id[:8]}",
+            }
+        }
 
     @pytest.mark.asyncio
     async def test_evaluation_config_id_isolates_same_metric_configs(

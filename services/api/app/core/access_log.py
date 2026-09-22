@@ -1,4 +1,4 @@
-"""Keep secrets out of uvicorn's access log.
+"""Keep secrets and personal data out of uvicorn's access log.
 
 uvicorn logs every request on the ``uvicorn.access`` logger as
 ``'%s - "%s %s HTTP/%s" %d'``. The third argument is the path together with
@@ -8,17 +8,25 @@ browser opens
 (IMS Dynamic Registration): the one-time invite token and the LMS's
 registration JWT would land in the pod log in clear text.
 
-``LtiQueryRedactionFilter`` rewrites the path argument before the record is
+Other calls carry a person there: ``/api/users?search=<email>``,
+``/api/health/email?test_email=<address>`` or
+``.../annotations?completed_by_username=<name>``. Logs are shipped and kept
+outside the database, so they must not name anyone.
+
+``QueryRedactionFilter`` rewrites the path argument before the record is
 formatted:
 
 - ``/api/lti/register/init``: every query value is replaced. The parameter
   names stay, so a log line still shows which parameters arrived.
 - any other ``/api/lti/`` path: the values of token-like parameters are
   replaced (see ``_is_secret_name``).
-- every other path is left alone.
+- every path: the values of the parameters in ``_PERSONAL_NAMES`` are
+  replaced.
+- everything else is left alone.
 
-The filter never drops a record and never raises. If an LTI path cannot be
-parsed, its whole query string is replaced.
+The filter never drops a record and never raises. If a query string cannot be
+parsed, it is replaced as a whole. It runs on every request, so a path without
+a query string returns after one ``partition``.
 
 ``install_access_log_redaction`` attaches the filter to the logger. uvicorn
 configures logging before it imports ``main`` (also in each ``--workers``
@@ -53,13 +61,30 @@ _SECRET_NAMES = frozenset(
 )
 _SECRET_NAME_PARTS = ("token", "secret", "password")
 
+# Parameters that carry an address, a login name or a free-text person search.
+_PERSONAL_NAMES = frozenset(
+    {
+        "email",
+        "test_email",
+        "search",
+        "q",
+        "username",
+        "completed_by_username",
+    }
+)
+
 
 def _is_secret_name(name: str) -> bool:
     key = unquote_plus(name).strip().lower()
     return key in _SECRET_NAMES or any(part in key for part in _SECRET_NAME_PARTS)
 
 
-def _redact_pairs(query: str, *, everything: bool) -> str:
+def _is_personal_name(name: str) -> bool:
+    key = unquote_plus(name) if "%" in name or "+" in name else name
+    return key.strip().lower() in _PERSONAL_NAMES
+
+
+def _redact_pairs(query: str, *, everything: bool, lti: bool) -> str:
     parts = []
     for pair in query.split("&"):
         if not pair:
@@ -69,34 +94,37 @@ def _redact_pairs(query: str, *, everything: bool) -> str:
         if not sep:
             # A bare value without a name could be the secret itself.
             parts.append(REDACTED if everything else pair)
-        elif value and (everything or _is_secret_name(name)):
+        elif value and (
+            everything or _is_personal_name(name) or (lti and _is_secret_name(name))
+        ):
             parts.append(f"{name}={REDACTED}")
         else:
             parts.append(pair)
     return "&".join(parts)
 
 
-def redact_lti_query(path_with_query: str) -> str:
-    """The access-log path with LTI secrets removed from its query string."""
+def redact_query(path_with_query: str) -> str:
+    """The access-log path with secrets and personal values removed from its query."""
     path, sep, query = path_with_query.partition("?")
-    if not sep or not _LTI_PATH.search(path):
+    if not sep or not query:
         return path_with_query
     try:
-        everything = bool(_REGISTER_INIT_PATH.search(path))
-        return f"{path}?{_redact_pairs(query, everything=everything)}"
+        lti = bool(_LTI_PATH.search(path))
+        everything = lti and bool(_REGISTER_INIT_PATH.search(path))
+        return f"{path}?{_redact_pairs(query, everything=everything, lti=lti)}"
     except Exception:  # noqa: BLE001  # pragma: no cover - the parser is total
         return f"{path}?{REDACTED}"
 
 
-class LtiQueryRedactionFilter(logging.Filter):
-    """Redacts LTI secrets in the string arguments of an access-log record."""
+class QueryRedactionFilter(logging.Filter):
+    """Redacts secrets and personal values in the string arguments of an access-log record."""
 
     def filter(self, record: logging.LogRecord) -> bool:
         try:
             args = record.args
             if isinstance(args, tuple) and args:
                 redacted = tuple(
-                    redact_lti_query(arg) if isinstance(arg, str) else arg
+                    redact_query(arg) if isinstance(arg, str) else arg
                     for arg in args
                 )
                 if redacted != args:
@@ -109,5 +137,5 @@ class LtiQueryRedactionFilter(logging.Filter):
 def install_access_log_redaction(logger_name: str = ACCESS_LOGGER_NAME) -> None:
     """Attach the filter to the access logger once."""
     logger = logging.getLogger(logger_name)
-    if not any(isinstance(f, LtiQueryRedactionFilter) for f in logger.filters):
-        logger.addFilter(LtiQueryRedactionFilter())
+    if not any(isinstance(f, QueryRedactionFilter) for f in logger.filters):
+        logger.addFilter(QueryRedactionFilter())

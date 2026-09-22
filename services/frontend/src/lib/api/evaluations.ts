@@ -1186,6 +1186,9 @@ export class EvaluationsClient extends BaseApiClient {
     evaluation_id: string
     models: string[]
     model_names: Record<string, string>
+    /** File-safe labels for annotator columns (account id + pseudonym).
+     *  `model_names` can hold a real name; a download must not. */
+    model_export_labels?: Record<string, { id: string; name: string }>
     tasks: Array<{
       task_id: string
       task_preview: string
@@ -1223,6 +1226,9 @@ export class EvaluationsClient extends BaseApiClient {
     project_id: string
     models: string[]
     model_names: Record<string, string>
+    /** File-safe labels for annotator columns (account id + pseudonym).
+     *  `model_names` can hold a real name; a download must not. */
+    model_export_labels?: Record<string, { id: string; name: string }>
     tasks: Array<{
       task_id: string
       task_preview: string
