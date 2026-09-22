@@ -1075,7 +1075,8 @@ class TestResolvePerModelMetrics:
         assert "gpt-4" not in result
 
     def test_resolves_annotator_synthetic_ids(self):
-        """Pass 2: annotation-based TaskEvaluation rows yield 'annotator:<display>'."""
+        """Pass 2: annotation-based TaskEvaluation rows yield 'annotator:<pseudonym>'
+        (neutral id label when the account has none); never a real name."""
         from report_service import _resolve_per_model_metrics
 
         db = Mock()
@@ -1085,17 +1086,17 @@ class TestResolvePerModelMetrics:
         q.all.side_effect = [
             [],  # no gen-based rows
             [
-                # (metrics, username, name, pseudonym, use_pseudonym)
-                ({"bleu": 0.6}, "alice", "Alice A.", None, False),
-                ({"bleu": 0.4}, "bob", "Bob B.", "Codename", True),
+                # (metrics, user_id, pseudonym)
+                ({"bleu": 0.6}, "0a1b2c3d-1111-4222-8333-444455556666", None),
+                ({"bleu": 0.4}, "bob-id", "Codename"),
             ],
         ]
         db.query.return_value = q
 
         result = _resolve_per_model_metrics(db, ["eval-1"])
-        assert "annotator:Alice A." in result
-        assert "annotator:Codename" in result  # use_pseudonym wins
-        assert abs(result["annotator:Alice A."]["bleu"] - 0.6) < 1e-6
+        assert "annotator:User 0a1b2c3d" in result
+        assert "annotator:Codename" in result
+        assert abs(result["annotator:User 0a1b2c3d"]["bleu"] - 0.6) < 1e-6
 
 
 class TestUpdateMetadata:

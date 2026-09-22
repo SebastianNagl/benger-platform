@@ -246,6 +246,71 @@ async def test_snapshot_builder_normalizes_shapes_and_hides_private_models(async
     assert [m["id"] for m in snap["models"]] == ["official-model"]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "pseudonym, use_pseudonym",
+    [("KindAlly", False), (None, True), (None, False)],
+    ids=["pseudonym_switched_off", "no_pseudonym", "neither"],
+)
+async def test_snapshot_never_names_a_participant(async_test_db, pseudonym, use_pseudonym):
+    """A snapshot is frozen into a published report that can be public. The old
+    label rule fell back to the real name, then the login name, for anyone who
+    had switched their pseudonym off or had none."""
+    import json
+
+    admin = await _user(async_test_db, is_superadmin=True)
+    ann = await _user(
+        async_test_db, pseudonym=pseudonym, use_pseudonym=use_pseudonym, name="Erika Mustermann"
+    )
+    project, _ = await _seed_benchmark(async_test_db, admin, ann)
+
+    snap = await async_test_db.run_sync(build_report_snapshot, project.id)
+
+    expected = pseudonym or f"User {ann.id[:8]}"
+    assert snap["participants"] == [{"id": ann.id, "label": expected, "annotation_count": 1}]
+    human = next(r["subject"] for r in snap["series"] if r["subject"]["kind"] == "human")
+    assert human["label"] == expected
+    body = json.dumps(snap, ensure_ascii=False)
+    assert "Erika Mustermann" not in body
+    assert ann.username not in body
+    assert ann.email not in body
+
+
+@pytest.mark.asyncio
+async def test_report_content_lists_participants_by_pseudonym(async_test_db):
+    """`content` is served whole to anonymous visitors of a public report.
+    `update_report_annotations_section` wrote `User.username` into it, and
+    the metrics section keyed people by real name when their pseudonym was
+    off; a prod report listed 37 login names and real names publicly."""
+    import json
+
+    from models import EvaluationRun
+    from report_service import _resolve_per_model_metrics, get_report_participants
+
+    admin = await _user(async_test_db, is_superadmin=True)
+    ann = await _user(
+        async_test_db, pseudonym="KindAlly", use_pseudonym=False, name="Erika Mustermann"
+    )
+    project, _ = await _seed_benchmark(async_test_db, admin, ann)
+
+    participants = await async_test_db.run_sync(
+        lambda sync_db: get_report_participants(sync_db, project.id)
+    )
+    assert participants == [{"id": ann.id, "name": "KindAlly", "annotation_count": 1}]
+
+    def _metrics(sync_db):
+        run_ids = [
+            r.id for r in sync_db.query(EvaluationRun.id).filter(EvaluationRun.project_id == project.id)
+        ]
+        return _resolve_per_model_metrics(sync_db, run_ids)
+
+    metrics = await async_test_db.run_sync(_metrics)
+    body = json.dumps(metrics, ensure_ascii=False)
+    assert "annotator:KindAlly" in body
+    for leaked in ("Erika Mustermann", ann.username, ann.email):
+        assert leaked not in body
+
+
 # ---------------------------------------------------------------------------
 # HTTP surface
 # ---------------------------------------------------------------------------

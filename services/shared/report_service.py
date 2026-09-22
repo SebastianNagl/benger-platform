@@ -19,6 +19,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from models import EvaluationRun, EvaluationType, Generation, ResponseGeneration, TaskEvaluation, User
 from project_models import Annotation, Project, Task
 from report_models import ProjectReport
+from user_display import masked_name
 
 
 def generate_uuid() -> str:
@@ -36,8 +37,8 @@ def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[s
     1. Generation-based rows: join TaskEvaluation.generation_id -> Generation.model_id.
     2. Annotation-based rows (generation_id IS NULL, annotation_id IS NOT NULL):
        look up the annotator via Annotation.completed_by -> User and synthesize
-       model_id = "annotator:<display>" using the same pseudonym rule the
-       leaderboard applies.
+       model_id = "annotator:<pseudonym>" (never a real or login name: the
+       result is stored in a report that can be public).
 
     Returns: {model_id: {metric_name: avg_value, ...}, ...}
     """
@@ -54,10 +55,8 @@ def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[s
     ann_rows = (
         db.query(
             TaskEvaluation.metrics,
-            User.username,
-            User.name,
+            User.id,
             User.pseudonym,
-            User.use_pseudonym,
         )
         .join(Annotation, TaskEvaluation.annotation_id == Annotation.id)
         .join(User, Annotation.completed_by == User.id)
@@ -85,9 +84,11 @@ def _resolve_per_model_metrics(db: Session, evaluation_ids: List[str]) -> Dict[s
     for model_id, metrics in gen_rows:
         _add(model_id, metrics)
 
-    for metrics, username, name, pseudonym, use_pseudonym in ann_rows:
-        display = pseudonym if (use_pseudonym and pseudonym) else (name or username)
-        _add(f"annotator:{display}", metrics)
+    # Stored in the report, which can be public: the pseudonym, never the
+    # real name or login name (the old fallback for people who switched
+    # their pseudonym off).
+    for metrics, annotator_id, pseudonym in ann_rows:
+        _add(f"annotator:{masked_name(user_id=annotator_id, pseudonym=pseudonym)}", metrics)
 
     return {
         model_id: {m: sum(vs) / len(vs) for m, vs in metric_lists.items() if vs}
@@ -214,15 +215,21 @@ def update_report_annotations_section(db: Session, project_id: str) -> Optional[
     )
 
     # Get participants with their contribution counts
+    # A report is published and can be public, and its whole `content` is
+    # served to anonymous visitors. People appear in it by pseudonym, never by
+    # login name or real name: until 2026-09-21 this wrote `User.username`.
     participants_data = (
-        db.query(Annotation.completed_by, User.username, func.count(Annotation.id).label('count'))
+        db.query(Annotation.completed_by, User.pseudonym, func.count(Annotation.id).label('count'))
         .join(User, Annotation.completed_by == User.id)
         .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
-        .group_by(Annotation.completed_by, User.username)
+        .group_by(Annotation.completed_by, User.pseudonym)
         .all()
     )
 
-    participants = [{"id": p[0], "name": p[1], "count": p[2]} for p in participants_data]
+    participants = [
+        {"id": p[0], "name": masked_name(user_id=p[0], pseudonym=p[1]), "count": p[2]}
+        for p in participants_data
+    ]
 
     # Preserve custom text if it exists
     existing_annotations = report.content.get("sections", {}).get("annotations", {})
@@ -564,18 +571,24 @@ def get_report_participants(db: Session, project_id: str) -> List[Dict]:
         project_id: ID of the project
 
     Returns:
-        List of dicts with id, username, annotation_count
+        List of dicts with id, name (the pseudonym, never the login name or
+        real name: the list is stored in a report that can be public) and
+        annotation_count
     """
     participants = (
-        db.query(User.id, User.username, func.count(Annotation.id).label('annotation_count'))
+        db.query(User.id, User.pseudonym, func.count(Annotation.id).label('annotation_count'))
         .join(Annotation, Annotation.completed_by == User.id)
         .filter(Annotation.project_id == project_id, Annotation.was_cancelled == False)
-        .group_by(User.id, User.username)
+        .group_by(User.id, User.pseudonym)
         .all()
     )
 
     return [
-        {"id": p.id, "username": p.username, "annotation_count": p.annotation_count}
+        {
+            "id": p.id,
+            "name": masked_name(user_id=p.id, pseudonym=p.pseudonym),
+            "annotation_count": p.annotation_count,
+        }
         for p in participants
     ]
 

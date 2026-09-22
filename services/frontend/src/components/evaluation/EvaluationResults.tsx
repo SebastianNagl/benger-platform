@@ -1167,20 +1167,48 @@ export function EvaluationResults({
                   availableMetricRuns.find((r) => r.id === selectedMetricRunId)
                     ?.displayName || 'evaluation'
                 const fileName = `evaluation-${metricName.toLowerCase().replace(/\s+/g, '-')}`
+                // What the FILE may call a column. `model_names` (and the
+                // annotator ids themselves) can carry a real name for the
+                // screen; a download identifies people by account id and
+                // pseudonym only, from the server's file-safe labels. An
+                // annotator column without one gets a neutral numbered
+                // label instead of its id, which embeds the display name.
+                const exportLabels = taskModelData.model_export_labels || {}
+                let unlabeledAnnotators = 0
+                const fileLabels = new Map(
+                  displayModels.map((mid) => {
+                    if (exportLabels[mid]) return [mid, exportLabels[mid]]
+                    if (mid.startsWith('annotator:')) {
+                      unlabeledAnnotators += 1
+                      return [
+                        mid,
+                        {
+                          id: `annotator:${unlabeledAnnotators}`,
+                          name: `Annotator ${unlabeledAnnotators}`,
+                        },
+                      ]
+                    }
+                    return [
+                      mid,
+                      { id: mid, name: taskModelData.model_names[mid] || mid },
+                    ]
+                  }),
+                )
+                const fileLabel = (mid: string) => fileLabels.get(mid)!
 
                 if (format === 'json') {
                   const exportData = {
                     metric: metricName,
                     models: displayModels.map((mid) => ({
-                      id: mid,
-                      name: taskModelData.model_names[mid] || mid,
+                      id: fileLabel(mid).id,
+                      name: fileLabel(mid).name,
                     })),
                     tasks: taskModelData.tasks.map((task) => ({
                       task_id: task.task_id,
                       preview: task.task_preview,
                       scores: Object.fromEntries(
                         displayModels.map((mid) => [
-                          taskModelData.model_names[mid] || mid,
+                          fileLabel(mid).name,
                           task.scores[mid] ?? null,
                         ]),
                       ),
@@ -1197,7 +1225,7 @@ export function EvaluationResults({
                   URL.revokeObjectURL(url)
                 } else {
                   const modelHeaders = displayModels.map(
-                    (mid) => taskModelData.model_names[mid] || mid,
+                    (mid) => fileLabel(mid).name,
                   )
                   const header = ['task_id', 'preview', ...modelHeaders].join(
                     ',',

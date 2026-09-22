@@ -507,8 +507,11 @@ class TestAnnotatorAttribution:
 
         result = _resolve_per_model_metrics(test_db, [er.id])
 
-        # test_user.name == "Generation Test User" (no pseudonym set).
-        expected_annotator_key = f"annotator:{test_user.name}"
+        # test_user has no pseudonym: the key is the neutral label built from
+        # the account id, never "Generation Test User". The result is stored
+        # in a report that can be public.
+        expected_annotator_key = f"annotator:User {test_user.id[:8]}"
+        assert f"annotator:{test_user.name}" not in result
         assert set(result.keys()) == {"model-a", expected_annotator_key}
         assert result["model-a"]["accuracy"] == 0.5
         assert result[expected_annotator_key]["accuracy"] == 0.9
@@ -543,8 +546,10 @@ class TestAnnotatorAttribution:
         assert "annotator:Real Name" not in result
         assert result["annotator:Anonymous-Grader-7"]["accuracy"] == 0.77
 
-    def test_annotator_falls_back_to_name_when_pseudonym_off(self, test_db: Session):
-        """use_pseudonym=False -> display = name even if a pseudonym exists."""
+    def test_annotator_keeps_the_pseudonym_even_when_switched_off(self, test_db: Session):
+        """use_pseudonym=False decides what the person shows on SCREEN. The
+        report is a stored, publishable document, so it still says the
+        pseudonym; this used to fall back to the real name."""
         from report_service import _resolve_per_model_metrics
 
         u = User(
@@ -568,8 +573,9 @@ class TestAnnotatorAttribution:
 
         result = _resolve_per_model_metrics(test_db, [er.id])
 
-        assert set(result.keys()) == {"annotator:Visible Name"}
-        assert result["annotator:Visible Name"]["accuracy"] == 0.33
+        assert set(result.keys()) == {"annotator:Hidden-Pseudo"}
+        assert "annotator:Visible Name" not in result
+        assert result["annotator:Hidden-Pseudo"]["accuracy"] == 0.33
 
 
 # ===========================================================================
