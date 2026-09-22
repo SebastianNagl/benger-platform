@@ -6,20 +6,16 @@
  */
 
 import {
-  clearLastOrgSlug,
   getBaseDomain,
   getBaseDomainFromHost,
   getCookieDomain,
   getCookieDomainFromHost,
-  getLastOrgSlug,
-  getOrgUrl,
   getPrivateUrl,
   getSisterHostUrl,
   isDemoHost,
   isStudentLockedHost,
   parseSubdomain,
   parseSubdomainFromHost,
-  setLastOrgSlug,
 } from '../subdomain'
 
 describe('getSisterHostUrl (benger <-> vertretbar cross-link)', () => {
@@ -312,21 +308,6 @@ describe('parseSubdomain', () => {
   })
 })
 
-describe('getOrgUrl', () => {
-  it('builds URL with org subdomain and custom path', () => {
-    // getOrgUrl reads window.location internally
-    const url = getOrgUrl('myorg', '/projects')
-    expect(url).toContain('myorg.')
-    expect(url).toContain('/projects')
-  })
-
-  it('uses current path when no path specified', () => {
-    const url = getOrgUrl('tum')
-    expect(url).toContain('tum.')
-    expect(url).toContain('/')
-  })
-})
-
 describe('getPrivateUrl', () => {
   it('builds URL without org subdomain', () => {
     const url = getPrivateUrl('/dashboard')
@@ -347,38 +328,4 @@ describe('getCookieDomain', () => {
     expect(typeof domain).toBe('string')
     expect(domain.startsWith('.')).toBe(true)
   })
-})
-
-describe('cookie helpers', () => {
-  beforeEach(() => {
-    // Clear all cookies
-    document.cookie.split(';').forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, '')
-        .replace(/=.*/, '=;expires=Thu, 01 Jan 1970 00:00:00 GMT')
-    })
-  })
-
-  it('getLastOrgSlug returns null when no cookie set', () => {
-    expect(getLastOrgSlug()).toBeNull()
-  })
-
-  it('setLastOrgSlug sets and getLastOrgSlug reads cookie', () => {
-    setLastOrgSlug('myorg')
-    expect(getLastOrgSlug()).toBe('myorg')
-  })
-
-  it('clearLastOrgSlug removes cookie', () => {
-    setLastOrgSlug('myorg')
-    expect(getLastOrgSlug()).toBe('myorg')
-    clearLastOrgSlug()
-    expect(getLastOrgSlug()).toBeNull()
-  })
-
-  it('handles encoded slug values', () => {
-    setLastOrgSlug('my org')
-    expect(getLastOrgSlug()).toBe('my org')
-  })
-
-  // SSR cases live in subdomain.ssr.test.ts (node env).
 })

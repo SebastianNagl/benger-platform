@@ -116,8 +116,11 @@ describe('ApiClient', () => {
   })
 
   describe('Configuration Methods', () => {
-    it('should have setOrganizationContextProvider method', () => {
-      expect(typeof apiClient.setOrganizationContextProvider).toBe('function')
+    it('has no organization context setter any more (core 2.22)', () => {
+      expect(
+        (apiClient as unknown as Record<string, unknown>)
+          .setOrganizationContextProvider,
+      ).toBeUndefined()
     })
 
     it('should have setAuthFailureHandler method', () => {
@@ -358,10 +361,6 @@ describe('ApiClient', () => {
   })
 
   describe('Integration Points', () => {
-    it('should have organization context configuration method', () => {
-      expect(typeof apiClient.setOrganizationContextProvider).toBe('function')
-    })
-
     it('should have auth failure handler configuration method', () => {
       expect(typeof apiClient.setAuthFailureHandler).toBe('function')
     })
@@ -380,18 +379,6 @@ describe('ApiClient', () => {
       expect(() => createApiClient({})).not.toThrow()
     })
 
-    it('should thread the org context provider at construction time', async () => {
-      const { createApiClient } = await import('../index')
-      const spy = jest.spyOn(
-        ApiClient.prototype,
-        'setOrganizationContextProvider',
-      )
-      const orgContextProvider = () => 'org-123'
-      createApiClient({ orgContextProvider })
-      expect(spy).toHaveBeenCalledWith(orgContextProvider)
-      spy.mockRestore()
-    })
-
     it('should thread the auth failure handler at construction time', async () => {
       const { createApiClient } = await import('../index')
       const spy = jest.spyOn(ApiClient.prototype, 'setAuthFailureHandler')
@@ -401,17 +388,11 @@ describe('ApiClient', () => {
       spy.mockRestore()
     })
 
-    it('should not call setters when config fields are omitted', async () => {
+    it('should not call the setter when the config field is omitted', async () => {
       const { createApiClient } = await import('../index')
-      const orgSpy = jest.spyOn(
-        ApiClient.prototype,
-        'setOrganizationContextProvider',
-      )
       const authSpy = jest.spyOn(ApiClient.prototype, 'setAuthFailureHandler')
       createApiClient()
-      expect(orgSpy).not.toHaveBeenCalled()
       expect(authSpy).not.toHaveBeenCalled()
-      orgSpy.mockRestore()
       authSpy.mockRestore()
     })
   })

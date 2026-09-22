@@ -241,38 +241,34 @@ describe('AuthButton', () => {
     expect(screen.queryByText('Feature Flags')).not.toBeInTheDocument()
   })
 
-  it('shows organization switcher when organizations exist', () => {
-    const setCurrentOrg = jest.fn()
+  it('lists the organizations when memberships exist', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, username: 'alice', is_superadmin: false },
       logout: jest.fn(),
       isLoading: false,
-      currentOrganization: null,
       organizations: [{ id: 1, name: 'TUM' }],
-      setCurrentOrganization: setCurrentOrg,
     })
     mockUseHydration.mockReturnValue(true)
 
     render(<AuthButton />)
     fireEvent.click(screen.getByText('alice'))
-    expect(screen.getByText('Switch Context')).toBeInTheDocument()
-    expect(screen.getByText('TUM')).toBeInTheDocument()
-    expect(screen.getByText('Private')).toBeInTheDocument()
+    expect(screen.getByTestId('account-organizations')).toHaveTextContent('TUM')
+    expect(screen.queryByText('Switch Context')).not.toBeInTheDocument()
+    expect(screen.queryByText('Private')).not.toBeInTheDocument()
   })
 
-  it('shows current organization name in header', () => {
+  it('shows no organization name in the header', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, username: 'alice', is_superadmin: false },
       logout: jest.fn(),
       isLoading: false,
-      currentOrganization: { id: 1, name: 'TUM' },
       organizations: [{ id: 1, name: 'TUM' }],
-      setCurrentOrganization: jest.fn(),
     })
     mockUseHydration.mockReturnValue(true)
 
     render(<AuthButton />)
-    expect(screen.getByText('(TUM)')).toBeInTheDocument()
+    expect(screen.queryByText('(TUM)')).not.toBeInTheDocument()
+    expect(screen.queryByText('TUM')).not.toBeInTheDocument()
   })
 
   it('opens login modal when Sign In is clicked', () => {

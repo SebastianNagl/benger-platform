@@ -62,18 +62,15 @@ export type {
 
 /**
  * Configuration accepted by {@link createApiClient} and the {@link ApiClient}
- * constructor. Both fields are optional so the existing no-arg
+ * constructor. The field is optional so the existing no-arg
  * `new ApiClient()` path (and the global singleton) keep working unchanged.
  *
- * Providing them here threads org-context + auth-failure wiring *at
- * construction time* — the explicit alternative to mutating a shared
- * singleton via `setOrganizationContextProvider` / `setAuthFailureHandler`
- * after the fact. The mutation setters remain available and still work; this
- * is an additive, backward-compatible evolution.
+ * Providing it here threads the auth-failure wiring *at construction time*,
+ * the explicit alternative to mutating a shared singleton via
+ * `setAuthFailureHandler` after the fact. The mutation setter remains
+ * available and still works.
  */
 export interface ApiClientConfig {
-  /** Returns the current organization slug/id for the `X-Organization-Context` header, or null. */
-  orgContextProvider?: () => string | null
   /** Invoked when a request fails auth (401/refresh-exhausted). */
   onAuthFailure?: () => void
 }
@@ -472,12 +469,8 @@ export class ApiClient {
     this.listInvitations = this.getOrganizationInvitations // Alias
 
     // Apply optional construction-time config. This routes through the same
-    // public setters the singleton uses, so behavior/headers/auth semantics
-    // are identical to the post-hoc mutation path — only the *timing* differs
-    // (set once at construction vs. mutated globally later).
-    if (config?.orgContextProvider) {
-      this.setOrganizationContextProvider(config.orgContextProvider)
-    }
+    // public setter the singleton uses, so the auth semantics are identical
+    // to the post-hoc mutation path; only the *timing* differs.
     if (config?.onAuthFailure) {
       this.setAuthFailureHandler(config.onAuthFailure)
     }
@@ -500,20 +493,6 @@ export class ApiClient {
   setUiMode: any
   setExamLayout: any
 
-  // Configuration method for organization context
-  setOrganizationContextProvider(provider: () => string | null) {
-    this.authClient?.setOrganizationContextProvider?.(provider)
-    this.usersClient?.setOrganizationContextProvider?.(provider)
-    this.evaluationsClient?.setOrganizationContextProvider?.(provider)
-    this.organizationsClient?.setOrganizationContextProvider?.(provider)
-    this.notificationsClient?.setOrganizationContextProvider?.(provider)
-    this.invitationsClient?.setOrganizationContextProvider?.(provider)
-    this.featureFlagsClient?.setOrganizationContextProvider?.(provider)
-    // Configure admin-defaults client
-    configureAdminDefaultsClient(undefined, provider)
-    // Note: annotationApiClient doesn't need organization context as it uses the base client
-  }
-
   // Override setAuthFailureHandler to propagate to all clients
   setAuthFailureHandler(handler: () => void) {
     this.authClient?.setAuthFailureHandler?.(handler)
@@ -524,7 +503,7 @@ export class ApiClient {
     this.invitationsClient?.setAuthFailureHandler?.(handler)
     this.featureFlagsClient?.setAuthFailureHandler?.(handler)
     // Configure admin-defaults client
-    configureAdminDefaultsClient(handler, undefined)
+    configureAdminDefaultsClient(handler)
     // Note: annotationApiClient doesn't need auth failure handler as it uses the base client
   }
 
@@ -728,14 +707,13 @@ export class ApiClient {
 }
 
 /**
- * Factory for an {@link ApiClient} with org-context + auth-failure wiring
- * threaded in explicitly at construction time.
+ * Factory for an {@link ApiClient} with the auth-failure wiring threaded in
+ * explicitly at construction time.
  *
  * Prefer this (via {@link ApiClientContext}'s `useApiClient` hook) over
- * importing the global `apiClient` singleton and relying on whoever last
- * called `setOrganizationContextProvider` having set the right provider.
- * Functionally equivalent to `new ApiClient(config)`; exists as a named,
- * intention-revealing entry point and a mockable seam for tests.
+ * importing the global `apiClient` singleton. Functionally equivalent to
+ * `new ApiClient(config)`; exists as a named, intention-revealing entry point
+ * and a mockable seam for tests.
  */
 export function createApiClient(config?: ApiClientConfig): ApiClient {
   return new ApiClient(config)

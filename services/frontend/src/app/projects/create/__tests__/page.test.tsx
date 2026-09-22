@@ -404,9 +404,8 @@ describe('Create Project Page', () => {
 
       render(<CreateProjectPage />)
 
-      expect(canCreateProjects).toHaveBeenCalledWith(mockUser, {
-        isPrivateMode: false,
-      })
+      // The host (apex or org subdomain) no longer plays a part.
+      expect(canCreateProjects).toHaveBeenCalledWith(mockUser)
     })
 
     it('does not call canCreateProjects while loading', () => {

@@ -376,11 +376,6 @@ app.add_middleware(
     expose_headers=["Content-Length"],
 )
 
-# Organization context resolution middleware (resolves X-Organization-Slug to org ID)
-from middleware.org_context import OrgContextMiddleware  # noqa: E402
-
-app.add_middleware(OrgContextMiddleware)
-
 
 # Reject obviously oversized request bodies before they consume backend
 # memory. Legal-corpus imports legitimately need tens of megabytes (the

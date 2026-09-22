@@ -23,7 +23,6 @@ import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
 import { projectIcon } from '@/lib/projectKind'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
 import { canCreateProjects } from '@/utils/permissions'
@@ -126,9 +125,7 @@ export function ProjectListTable({
   const [discoverOpen, setDiscoverOpen] = useState(false)
 
   // Check if user has permissions to create/modify projects
-  const { isPrivateMode } =
-    typeof window !== 'undefined' ? parseSubdomain() : { isPrivateMode: true }
-  const userCanCreateProjects = canCreateProjects(user, { isPrivateMode })
+  const userCanCreateProjects = canCreateProjects(user)
 
   // Clear selections when page changes
   useEffect(() => {

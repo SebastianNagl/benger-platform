@@ -56,7 +56,7 @@
       "goToSignIn": "Go to Sign In",
       "cancel": "Cancel"
     },
-    "switchContext": "Switch Context",
+    "myOrganizations": "My organizations",
     "private": "Private"
   },
   "loginModal": {
@@ -309,7 +309,7 @@
           },
           "assignedOrganizations": "Assigned organizations",
           "assignedOrganizationsHelp": "Pick the organizations whose members can access this project. Independent of the current subdomain.",
-          "orgPreselectedHint": "Preselected because you are working inside {name}. Choose Private if only you should have access.",
+          "orgPreselectedHint": "Preselected: your organization {name}. Choose Private if only you should have access.",
           "noOrganizationsAvailable": "No organizations available.",
           "groupScopeLabel": "Group",
           "groupScopeOrgWide": "Whole organization",
@@ -511,8 +511,9 @@
           "skip": "Skip Data Import",
           "creating": "Creating...",
           "create": "Create Project",
-          "creationTarget": "Created in: {{name}}",
-          "privateTarget": "Private"
+          "creationTarget": "Created in: {name}",
+          "privateTarget": "Private",
+          "publicTarget": "Public"
         },
         "templates": {
           "questionAnswering": {
@@ -2030,6 +2031,7 @@
     "show": "Show",
     "apiSettings": "API settings",
     "apiKeysDescription": "Manage your personal API keys for LLM providers. These keys are encrypted and stored securely.",
+    "orgProvidesKeys": "For projects in {names} the organization provides the API keys. Your own keys apply to private projects.",
     "optionalInfo": "Additional Information",
     "optionalSettings": "additional settings",
     "hideOptionalSettings": "Hide research profile",

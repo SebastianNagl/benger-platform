@@ -122,6 +122,8 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: 'E2E dispatch → leaderboard journey',
             label_config: labelConfig,
           }),

@@ -232,6 +232,9 @@ jest.mock('@/contexts/I18nContext', () => ({
         'projects.creation.wizard.navigation.skip': 'Skip',
         'projects.creation.wizard.navigation.create': 'Create Project',
         'projects.creation.wizard.navigation.creating': 'Creating...',
+        'projects.creation.wizard.navigation.creationTarget': `Created in: ${params?.name}`,
+        'projects.creation.wizard.navigation.privateTarget': 'Private',
+        'projects.creation.wizard.navigation.publicTarget': 'Public',
         // Wizard messages
         'projects.wizard.projectCreatedWithTasks': `Project created with ${params?.count} tasks!`,
         'projects.wizard.projectCreated': 'Project created successfully!',
@@ -256,6 +259,7 @@ jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     importData: jest.fn(),
     update: jest.fn(),
+    updateVisibility: jest.fn().mockResolvedValue({}),
   },
 }))
 
@@ -1171,11 +1175,12 @@ describe('ProjectCreationWizard', () => {
 })
 
 // ─── Organization preselection ─────────────────────────────────────────────
-// A project created from inside an organization must default to it: left
-// private, the worker resolves API keys per user and AI grading fails with
-// "No API key found" although the organization has a key. Both mocks default
-// to today's behaviour (no context, no organizations), so every test above is
-// unaffected; only the tests below switch them on.
+// A user with exactly one organization where they may create projects gets
+// it preselected: left private, the worker resolves API keys per user and AI
+// grading fails with "No API key found" although the organization has a key.
+// Anyone with several such organizations chooses explicitly. Both mocks
+// default to today's behaviour (no memberships, no organizations), so every
+// test above is unaffected; only the tests below switch them on.
 let mockAuthValue: any = null
 let mockOrganizations: any[] = []
 jest.mock('@/contexts/AuthContext', () => ({
@@ -1207,7 +1212,7 @@ describe('ProjectCreationWizard: organization preselection', () => {
     mockOrganizations = []
   })
 
-  it('stays private outside an organization context', () => {
+  it('stays private without memberships', () => {
     render(<ProjectCreationWizard />)
     expect(visibilityRadios()[0]).toBeChecked()
     expect(
@@ -1215,8 +1220,8 @@ describe('ProjectCreationWizard: organization preselection', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('preselects the organization the user works inside, and says why', async () => {
-    mockAuthValue = { currentOrganization: LMU }
+  it('preselects the only organization the user may create in, and says why', async () => {
+    mockAuthValue = { organizations: [{ ...LMU, role: 'CONTRIBUTOR' }] }
     mockOrganizations = [LMU]
     render(<ProjectCreationWizard />)
     await waitFor(() =>
@@ -1230,8 +1235,88 @@ describe('ProjectCreationWizard: organization preselection', () => {
     ).toBeInTheDocument()
   })
 
+  it('preselects nothing when the user may create in several organizations', () => {
+    const TUM = { id: 'org-tum', name: 'TUM', slug: 'tum' }
+    mockAuthValue = {
+      organizations: [
+        { ...LMU, role: 'ORG_ADMIN' },
+        { ...TUM, role: 'CONTRIBUTOR' },
+      ],
+    }
+    mockOrganizations = [LMU, TUM]
+    render(<ProjectCreationWizard />)
+    expect(visibilityRadios()[0]).toBeChecked()
+  })
+
+  it('ignores organizations where the user is only an annotator', () => {
+    mockAuthValue = { organizations: [{ ...LMU, role: 'ANNOTATOR' }] }
+    mockOrganizations = [LMU]
+    render(<ProjectCreationWizard />)
+    expect(visibilityRadios()[0]).toBeChecked()
+  })
+
+  it('names the organization next to Create and sends it as the creation target', async () => {
+    const user = userEvent.setup()
+    mockAuthValue = { organizations: [{ ...LMU, role: 'CONTRIBUTOR' }] }
+    mockOrganizations = [LMU]
+    mockCreateProject.mockResolvedValue({ id: 'project-lmu' })
+    mockFetchProject.mockResolvedValue({})
+    const { projectsAPI } = require('@/lib/api/projects')
+
+    render(<ProjectCreationWizard />)
+    await waitFor(() => expect(visibilityRadios()[1]).toBeChecked())
+    await user.type(
+      screen.getByTestId('project-create-name-input'),
+      'Klausur LMU',
+    )
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-submit-button'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('project-create-target')).toHaveTextContent('LMU')
+
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockCreateProject).toHaveBeenCalled())
+    const body = mockCreateProject.mock.calls[0][0]
+    // The body names the organization; no header, no is_private flag.
+    expect(body).toMatchObject({
+      title: 'Klausur LMU',
+      organization_id: 'org-lmu',
+      organization_group_id: null,
+    })
+    expect(body.is_private).toBeUndefined()
+    await waitFor(() =>
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith(
+        'project-lmu',
+        expect.objectContaining({
+          is_private: false,
+          organization_attachments: [
+            { organization_id: 'org-lmu', group_id: null },
+          ],
+        }),
+      ),
+    )
+  })
+
+  it('says Private next to Create for a private project', async () => {
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'Mine')
+    await user.click(screen.getByTestId('project-create-next-button'))
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('project-create-submit-button'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.getByTestId('project-create-target')).toHaveTextContent(
+      'Private',
+    )
+  })
+
   it('never re-applies the preselection once the user chose private', async () => {
-    mockAuthValue = { currentOrganization: LMU }
+    mockAuthValue = { organizations: [{ ...LMU, role: 'CONTRIBUTOR' }] }
     mockOrganizations = [LMU]
     const { rerender } = render(<ProjectCreationWizard />)
     await waitFor(() => expect(visibilityRadios()[1]).toBeChecked())
@@ -1239,9 +1324,9 @@ describe('ProjectCreationWizard: organization preselection', () => {
     await userEvent.click(visibilityRadios()[0])
     await waitFor(() => expect(visibilityRadios()[0]).toBeChecked())
 
-    // The organization context arriving again (a new object for the same
+    // The membership list arriving again (a new object for the same
     // organization) must not override the user's decision.
-    mockAuthValue = { currentOrganization: { ...LMU } }
+    mockAuthValue = { organizations: [{ ...LMU, role: 'CONTRIBUTOR' }] }
     rerender(<ProjectCreationWizard />)
     await waitFor(() => expect(visibilityRadios()[0]).toBeChecked())
     expect(

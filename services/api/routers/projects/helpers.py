@@ -1258,13 +1258,13 @@ async def get_accessible_project_ids_async(
 
 
 def get_org_context_from_request(request: Request) -> Optional[str]:
-    """Extract organization context from request.
+    """The client's selected organization (``X-Organization-Context``).
 
-    Checks request.state (set by OrgContextMiddleware) first,
-    falls back to X-Organization-Context header.
+    Informational only since core 2.21: every access decision is taken
+    from the user's memberships, and since 2.22 no endpoint reads the
+    header for anything else. Kept so the pass-through call sites keep
+    their shape.
     """
-    if hasattr(request, "state") and hasattr(request.state, "organization_context"):
-        return request.state.organization_context
     return request.headers.get("X-Organization-Context")
 
 

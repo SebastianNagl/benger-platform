@@ -86,7 +86,6 @@ class MockApiClient {
   patch = patch
 
   setAuthFailureHandler = jest.fn()
-  setOrganizationContextProvider = jest.fn()
 }
 
 // Default export for singleton usage

@@ -79,9 +79,9 @@ export interface WizardData {
   features: WizardFeatures
   visibility: WizardVisibility
   publicRole: WizardPublicRole
-  // Orgs to assign when visibility === 'organization'. Lets the user
-  // override the X-Organization-Context header (e.g. when wizard is opened
-  // on a no-org subdomain and they want to publish into a specific org).
+  // Orgs to assign when visibility === 'organization'. The first one is
+  // the creation target sent with the create request; the rest are
+  // attached right after creation.
   organizationIds: string[]
   // Optional group scope per selected org (org id -> group id, or null for
   // the whole organization). Orgs without an entry default to org-wide.

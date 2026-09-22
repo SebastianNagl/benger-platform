@@ -487,11 +487,14 @@ class TestProjectHelpersCoverage:
 
         assert check_user_can_edit_project(mock_db, user, "proj-1") == False  # noqa: E712
 
-    def test_get_org_context_from_request_state(self):
+    def test_get_org_context_from_request_ignores_state(self):
+        """Only the header is read; the retired middleware's request.state
+        value (core 2.22) plays no part."""
         from routers.projects.helpers import get_org_context_from_request
         request = Mock()
         request.state.organization_context = "org-abc"
-        assert get_org_context_from_request(request) == "org-abc"
+        request.headers = {}
+        assert get_org_context_from_request(request) is None
 
     def test_get_org_context_from_request_header(self):
         from routers.projects.helpers import get_org_context_from_request

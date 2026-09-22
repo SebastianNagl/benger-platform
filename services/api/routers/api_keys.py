@@ -4,9 +4,9 @@ API endpoints for user API key management
 
 import logging
 import sys
-from typing import Dict
+from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -235,16 +235,62 @@ async def test_saved_user_api_key(
         }
 
 
+async def _resolve_model_scope_org(
+    db: AsyncSession, current_user: User, project_id: Optional[str], organization_id: Optional[str]
+) -> Optional[str]:
+    """The organization whose keys a run in this scope would spend.
+
+    ``project_id``: the org a generation or evaluation on that project
+    dispatches with (``org_resolution``, membership-validated), so the
+    picker lists exactly what the worker can run. ``organization_id``: the
+    creation target of the project wizard, an active membership required.
+    Neither: the user's personal keys.
+    """
+    if project_id:
+        from routers.projects.helpers import check_project_accessible_async
+        from org_resolution import resolve_dispatch_org_for_project_async
+
+        if not await check_project_accessible_async(db, current_user, project_id, None):
+            raise HTTPException(status_code=403, detail="Access denied")
+        return await resolve_dispatch_org_for_project_async(db, current_user, project_id)
+    if organization_id:
+        from models import OrganizationMembership
+
+        if not current_user.is_superadmin:
+            member = (
+                await db.execute(
+                    select(OrganizationMembership.id).where(
+                        OrganizationMembership.user_id == str(current_user.id),
+                        OrganizationMembership.organization_id == str(organization_id),
+                        OrganizationMembership.is_active.is_(True),
+                    )
+                )
+            ).first()
+            if member is None:
+                raise HTTPException(
+                    status_code=403, detail="Not a member of this organization"
+                )
+        return str(organization_id)
+    return None
+
+
 @router.get("/available-models")
 async def get_available_models_for_user(
     request: Request,
+    project_id: Optional[str] = Query(
+        None, description="List the models a run on this project can use."
+    ),
+    organization_id: Optional[str] = Query(
+        None, description="List the models a project created in this organization can use."
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Get available models based on user's API keys or org keys"""
-    # Check if org context should override key resolution
-    org_context = request.headers.get("X-Organization-Context")
-    org_id = org_context if org_context and org_context != "private" else None
+    """Models the caller can run in a scope: a project (its dispatch org),
+    an organization (the wizard's creation target) or, without either, the
+    personal keys. The selected organization of the client
+    (``X-Organization-Context``) is not consulted."""
+    org_id = await _resolve_model_scope_org(db, current_user, project_id, organization_id)
 
     if org_id:
         from services.org_api_key_service import org_api_key_service

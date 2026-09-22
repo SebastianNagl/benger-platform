@@ -171,6 +171,15 @@ class ProjectCreate(ProjectBase):
     is_private: bool = Field(
         False, description="Whether this is a private project (not assigned to any organization)"
     )
+    # The organization a new project belongs to. Absent (and not public):
+    # a private project. The caller must hold an active ORG_ADMIN or
+    # CONTRIBUTOR membership there (a superadmin may target any org). The
+    # request header ``X-Organization-Context`` no longer names the target.
+    organization_id: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="Organization to create the project in; omitted = private project.",
+    )
     is_public: bool = Field(
         False,
         description="Whether this project is public (visible/interactable by all authenticated users across all orgs).",

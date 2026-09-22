@@ -630,7 +630,15 @@ export class EvaluationsClient extends BaseApiClient {
     })
   }
 
-  async getAvailableModels(): Promise<
+  /**
+   * The models the caller can run in a scope: on a project (the org a run
+   * there dispatches with), in an organization (the wizard's creation
+   * target) or, without either, with the personal keys.
+   */
+  async getAvailableModels(scope?: {
+    projectId?: string
+    organizationId?: string
+  }): Promise<
     Array<{
       id: string
       name: string
@@ -655,7 +663,14 @@ export class EvaluationsClient extends BaseApiClient {
       created_by?: string | null
     }>
   > {
-    return this.request('/users/api-keys/available-models')
+    const params = new URLSearchParams()
+    if (scope?.projectId) params.set('project_id', scope.projectId)
+    else if (scope?.organizationId)
+      params.set('organization_id', scope.organizationId)
+    const query = params.toString()
+    return this.request(
+      `/users/api-keys/available-models${query ? `?${query}` : ''}`,
+    )
   }
 
   /**

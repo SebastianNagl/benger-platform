@@ -8,7 +8,6 @@
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { ApiClient } from '@/lib/api'
 import { devAuthHelper } from '@/lib/auth/devAuthHelper'
-import { OrganizationManager } from '@/lib/auth/organizationManager'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { act, renderHook, waitFor } from '@testing-library/react'
 
@@ -168,43 +167,6 @@ describe('Authentication Architecture Integration', () => {
     })
   })
 
-  describe('Organization Management Integration', () => {
-    it('should manage organization context and switching', async () => {
-      const orgManager = new OrganizationManager()
-
-      // Set organizations
-      orgManager.setOrganizations(mockOrganizations)
-      orgManager.setCurrentOrganization(mockOrganizations[0])
-
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrganizations[0])
-      expect(orgManager.getOrganizations()).toEqual(mockOrganizations)
-
-      // Get organization context
-      const context = orgManager.getOrganizationContext()
-      expect(context).toBe('org-1')
-
-      // Switch organization
-      orgManager.setCurrentOrganization(mockOrganizations[1])
-      expect(orgManager.getOrganizationContext()).toBe('org-2')
-    })
-
-    it('should maintain organization state in memory', () => {
-      const orgManager = new OrganizationManager()
-
-      // Set organizations and current organization
-      orgManager.setOrganizations(mockOrganizations)
-      orgManager.setCurrentOrganization(mockOrganizations[0])
-
-      // Should maintain state
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrganizations[0])
-      expect(orgManager.getOrganizations()).toEqual(mockOrganizations)
-
-      // Should be able to switch organizations
-      orgManager.setCurrentOrganization(mockOrganizations[1])
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrganizations[1])
-    })
-  })
-
   // Development Auto-Login tests removed - auto-login moved to layout.tsx inline script
 
   describe('AuthContext Integration', () => {
@@ -262,104 +224,59 @@ describe('Authentication Architecture Integration', () => {
   })
 
   describe('Cross-Component Integration', () => {
-    it('should coordinate between session manager and organization manager', async () => {
-      const orgManager = new OrganizationManager()
-
-      // Set up initial state
-      sessionManager.trackUserSession(mockUser)
-      orgManager.setOrganizations(mockOrganizations)
-      orgManager.setCurrentOrganization(mockOrganizations[0])
-
-      // Simulate user switch
-      const newUser = { ...mockUser, id: 'user-456' }
-      sessionManager.handleUserSwitch(mockApiClient, 'user-456', 'user-123')
-
-      // Organization manager should be cleared after user switch
-      // (This would be handled by the AuthContext in real usage)
-      orgManager.clear()
-
-      expect(orgManager.getCurrentOrganization()).toBeNull()
-      expect(orgManager.getOrganizations()).toEqual([])
-    })
-
     it('should handle authentication failure across components', () => {
       // Set up authenticated state
       sessionManager.trackUserSession(mockUser)
-      const orgManager = new OrganizationManager()
-      orgManager.setOrganizations(mockOrganizations)
 
       // Clear session (simulating auth failure)
       sessionManager.clearSession(mockApiClient)
-      orgManager.clear()
 
       // All state should be cleared
       expect(sessionManager.getLastSessionUserId()).toBeNull()
       expect(sessionManager.hasAuthVerification()).toBe(false)
-      expect(orgManager.getCurrentOrganization()).toBeNull()
       expect(mockApiClient.clearCache).toHaveBeenCalled()
     })
 
     it('should maintain consistency during rapid state changes', async () => {
-      const orgManager = new OrganizationManager()
-
       // Rapid sequence of state changes
       sessionManager.trackUserSession(mockUser)
-      orgManager.setOrganizations(mockOrganizations)
-      orgManager.setCurrentOrganization(mockOrganizations[0])
-
-      const newUser = { ...mockUser, id: 'user-456' }
       sessionManager.handleUserSwitch(mockApiClient, 'user-456', 'user-123')
-
-      orgManager.clear()
-      orgManager.setOrganizations(mockOrganizations)
-      orgManager.setCurrentOrganization(mockOrganizations[1])
 
       // Final state should be consistent
       expect(sessionManager.getLastSessionUserId()).toBe('user-456')
-      expect(orgManager.getCurrentOrganization()).toEqual(mockOrganizations[1])
-      expect(orgManager.getOrganizationContext()).toBe('org-2')
     })
   })
 
   describe('Performance and Memory Integration', () => {
     it('should not leak memory during rapid authentication cycles', async () => {
-      const orgManager = new OrganizationManager()
-
       // Simulate rapid auth cycles
       for (let i = 0; i < 100; i++) {
         const user = { ...mockUser, id: `user-${i}` }
         sessionManager.trackUserSession(user)
-        orgManager.setOrganizations(mockOrganizations)
         sessionManager.clearSession(mockApiClient)
-        orgManager.clear()
       }
 
       // Should end in clean state
       expect(sessionManager.getLastSessionUserId()).toBeNull()
-      expect(orgManager.getCurrentOrganization()).toBeNull()
     })
 
     it('should handle concurrent authentication operations', async () => {
-      const orgManager = new OrganizationManager()
-
       // Start multiple concurrent operations
       const operations = Array.from({ length: 10 }, (_, i) => {
         return async () => {
           const user = { ...mockUser, id: `user-${i}` }
           sessionManager.trackUserSession(user)
-          orgManager.setOrganizations(mockOrganizations)
           await new Promise((resolve) =>
             setTimeout(resolve, Math.random() * 100),
           )
           sessionManager.clearSession(mockApiClient)
-          orgManager.clear()
         }
       })
 
       await Promise.all(operations.map((op) => op()))
 
       // Should end in clean state regardless of timing
-      expect(orgManager.getCurrentOrganization()).toBeNull()
+      expect(sessionManager.getLastSessionUserId()).toBeNull()
     })
   })
 })

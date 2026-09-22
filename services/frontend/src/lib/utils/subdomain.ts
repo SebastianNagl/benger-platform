@@ -174,22 +174,6 @@ export function parseSubdomain(): {
 }
 
 /**
- * Build a full URL for an organization subdomain, preserving the current path.
- */
-export function getOrgUrl(slug: string, path?: string): string {
-  const baseDomain = getBaseDomain()
-  const protocol =
-    typeof window !== 'undefined' ? window.location.protocol : 'http:'
-  const port =
-    typeof window !== 'undefined' && window.location.port
-      ? `:${window.location.port}`
-      : ''
-  const targetPath =
-    path || (typeof window !== 'undefined' ? window.location.pathname : '/')
-  return `${protocol}//${slug}.${baseDomain}${port}${targetPath}`
-}
-
-/**
  * Build a full URL for private mode (no subdomain), preserving the current path.
  */
 export function getPrivateUrl(path?: string): string {
@@ -224,30 +208,4 @@ export function getCookieDomainFromHost(host: string): string {
   }
   // For plain localhost, don't set a domain
   return ''
-}
-
-/**
- * Cross-subdomain cookie helpers for persisting the last org slug.
- * Uses a cookie (not localStorage) so it's accessible across subdomains.
- */
-const LAST_ORG_COOKIE = 'last_org_slug'
-
-export function getLastOrgSlug(): string | null {
-  if (typeof document === 'undefined') return null
-  const match = document.cookie.match(
-    new RegExp(`(?:^|; )${LAST_ORG_COOKIE}=([^;]*)`),
-  )
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-export function setLastOrgSlug(slug: string): void {
-  if (typeof document === 'undefined') return
-  const domain = getCookieDomain()
-  document.cookie = `${LAST_ORG_COOKIE}=${encodeURIComponent(slug)}; domain=${domain}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`
-}
-
-export function clearLastOrgSlug(): void {
-  if (typeof document === 'undefined') return
-  const domain = getCookieDomain()
-  document.cookie = `${LAST_ORG_COOKIE}=; domain=${domain}; path=/; max-age=0; SameSite=Lax`
 }

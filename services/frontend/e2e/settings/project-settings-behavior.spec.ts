@@ -329,6 +329,8 @@ test.describe('Project Settings Behavior', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: 'min_annotations completion test',
             label_config: labelConfig,
           }),
@@ -638,6 +640,8 @@ test.describe('Project Settings Behavior', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: `Test project for ${name}`,
             label_config: labelConfig,
             show_skip_button: true,

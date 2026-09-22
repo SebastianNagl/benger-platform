@@ -4,9 +4,7 @@ import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
-import { apiClient } from '@/lib/api/client'
 import { InvitationDetails } from '@/lib/api/invitations'
-import { getOrgUrl } from '@/lib/utils/subdomain'
 import { useNotificationStore } from '@/stores/notificationStore'
 import {
   ArrowPathIcon,
@@ -84,38 +82,16 @@ export default function AcceptInvitationPage({
       // Refresh user data to get new organization membership
       await refreshAuth()
 
-      // Fetch fresh orgs to find the accepted org's slug for redirect
-      const orgId = invitation?.organization_id
-      setTimeout(async () => {
-        try {
-          const orgs = await apiClient.getOrganizations()
-          const acceptedOrg = orgs.find((o: any) => o.id === orgId)
-          if (acceptedOrg?.slug) {
-            const targetUrl = getOrgUrl(acceptedOrg.slug, '/dashboard')
-            // Cross-subdomain redirect — encode the success message on the
-            // URL so the destination's ToastProvider can show it on mount.
-            window.location.href = useNotificationStore
-              .getState()
-              .flashRedirect(
-                targetUrl,
-                t('invitation.accepted', {
-                  organizationName:
-                    acceptedOrg.name ?? invitation?.organization_name ?? '',
-                }),
-                'success',
-              )
-          } else {
-            useNotificationStore.getState().flash(
-              t('invitation.accepted', {
-                organizationName: invitation?.organization_name ?? '',
-              }),
-              'success',
-            )
-            router.push('/dashboard')
-          }
-        } catch {
-          router.push('/dashboard')
-        }
+      // The dashboard already lists the new organization's projects; no
+      // host change is needed.
+      setTimeout(() => {
+        useNotificationStore.getState().flash(
+          t('invitation.accepted', {
+            organizationName: invitation?.organization_name ?? '',
+          }),
+          'success',
+        )
+        router.push('/dashboard')
       }, 2000)
     } catch (err: any) {
       console.error('Failed to accept invitation:', err)

@@ -108,10 +108,10 @@ describe('Permission Utilities', () => {
       expect(canCreateProjects(contributor)).toBe(true)
     })
 
-    it('should deny ANNOTATOR users ability to create projects', () => {
+    it('lets ANNOTATOR users create projects (a private one is always allowed)', () => {
       const annotator = createMockUser({ role: 'ANNOTATOR' })
 
-      expect(canCreateProjects(annotator)).toBe(false)
+      expect(canCreateProjects(annotator)).toBe(true)
     })
 
     it('should deny null users ability to create projects', () => {
@@ -249,7 +249,7 @@ describe('Permission Utilities', () => {
       const permissions = getUserPermissions(annotator)
 
       expect(permissions).toEqual({
-        canCreate: false,
+        canCreate: true,
         canAccessData: false,
         canDelete: false,
         canStartGeneration: false,
@@ -266,7 +266,7 @@ describe('Permission Utilities', () => {
       const permissions = getUserPermissions(userWithoutRole)
 
       expect(permissions).toEqual({
-        canCreate: false,
+        canCreate: true,
         canAccessData: false,
         canDelete: false,
         canStartGeneration: false,
@@ -359,7 +359,8 @@ describe('Permission Utilities', () => {
 
       // Our system should be case-sensitive and only accept exact matches
       expect(canAccessProjectData(userWithMixedCase)).toBe(false)
-      expect(canCreateProjects(userWithMixedCase)).toBe(false)
+      // Creating (a private project) needs no role at all.
+      expect(canCreateProjects(userWithMixedCase)).toBe(true)
     })
 
     it('should handle inactive users correctly', () => {

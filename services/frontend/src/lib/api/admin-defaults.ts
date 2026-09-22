@@ -7,16 +7,10 @@ import { BaseApiClient } from './base'
 // Create a dedicated instance to avoid circular dependencies
 const defaultsClient = new BaseApiClient()
 
-// Export function to configure the client with auth failure handler and organization context
-export function configureAdminDefaultsClient(
-  authFailureHandler?: () => void,
-  organizationContextProvider?: () => string | null,
-) {
+// Export function to configure the client with the auth failure handler
+export function configureAdminDefaultsClient(authFailureHandler?: () => void) {
   if (authFailureHandler) {
     defaultsClient.setAuthFailureHandler(authFailureHandler)
-  }
-  if (organizationContextProvider) {
-    defaultsClient.setOrganizationContextProvider(organizationContextProvider)
   }
 }
 

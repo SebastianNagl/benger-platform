@@ -24,8 +24,9 @@ interface StepProjectInfoProps {
   data: WizardData
   onChange: (partial: Partial<WizardData>) => void
   errors: Record<string, string>
-  /** The organization the wizard preselected because the user is working
-   * inside it, so this step can say why the choice is already made. */
+  /** The organization the wizard preselected (the user's only organization
+   * with project-creation rights), so this step can say why the choice is
+   * already made. */
   preselectedOrganization?: {
     id: string
     name: string
@@ -430,7 +431,7 @@ export function StepProjectInfo({
                 >
                   {t(
                     'projects.creation.wizard.step1.orgPreselectedHint',
-                    'Vorausgewählt, weil Sie in der Organisation {name} arbeiten. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.',
+                    'Vorausgewählt: Ihre Organisation {name}. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.',
                     {
                       name:
                         preselectedOrganization.display_name ||

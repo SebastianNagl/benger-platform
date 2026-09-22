@@ -16,7 +16,6 @@ import {
   BeakerIcon,
   BellIcon,
   BuildingOfficeIcon,
-  CheckIcon,
   ChevronDownIcon,
   ListBulletIcon,
   UserIcon,
@@ -25,15 +24,15 @@ import {
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 
+/** Locale keys of the membership roles shown next to each organization. */
+const ORG_ROLE_LABEL_KEY: Record<string, string> = {
+  ORG_ADMIN: 'profile.roles.orgAdmin',
+  CONTRIBUTOR: 'profile.roles.contributor',
+  ANNOTATOR: 'profile.roles.annotator',
+}
+
 export function AuthButton() {
-  const {
-    user,
-    logout,
-    isLoading,
-    currentOrganization,
-    organizations,
-    setCurrentOrganization,
-  } = useAuth()
+  const { user, logout, isLoading, organizations } = useAuth()
   const { t } = useI18n()
   // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
   const AuthMenuExtended = useSlot('AuthMenuExtended')
@@ -77,21 +76,13 @@ export function AuthButton() {
           className="inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-sm leading-tight font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <span className="hidden sm:block">{getAccountMenuName(user)}</span>
-          <span
-            className="hidden max-w-56 truncate text-xs opacity-70 md:block"
-            title={currentOrganization ? currentOrganization.name : undefined}
-          >
-            (
-            {currentOrganization ? currentOrganization.name : t('auth.private')}
-            )
-          </span>
           <ChevronDownIcon
             className={`h-4 w-4 opacity-70 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}
           />
         </button>
 
         {dropdownOpen && (
-          <div className="absolute right-0 z-50 mt-2 max-h-[calc(100vh-5rem)] w-52 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="absolute right-0 z-50 mt-2 max-h-[calc(100vh-5rem)] w-60 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="py-1">
               {/* Profile Section */}
               <Link
@@ -126,48 +117,42 @@ export function AuthButton() {
                   page hosts registration + management, so no separate
                   dropdown entry. */}
 
-              {/* Org Switcher Section */}
+              {/* The organizations the user belongs to, with their role.
+                  Informational only: nothing is selected here any more,
+                  every page already shows what the user may see through
+                  any membership, and a new project names its organization
+                  in the wizard. */}
               {organizations.length > 0 && (
                 <>
                   <hr className="my-1 border-zinc-200 dark:border-zinc-700" />
                   <div className="px-4 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
-                    {t('auth.switchContext')}
+                    {t('auth.myOrganizations')}
                   </div>
-                  <button
-                    onClick={() => {
-                      setDropdownOpen(false)
-                      setCurrentOrganization(null)
-                    }}
-                    className="flex w-full items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                  >
-                    <UserIcon className="mr-3 h-4 w-4 shrink-0" />
-                    <span className="truncate">{t('auth.private')}</span>
-                    {!currentOrganization && (
-                      <CheckIcon className="ml-auto h-4 w-4 shrink-0 text-amber-600" />
-                    )}
-                  </button>
                   {/* Long org lists scroll here so the entries below
                       (Läufe, admin links, logout) stay reachable. */}
-                  <div className="max-h-60 overflow-y-auto overscroll-contain">
+                  <div
+                    className="max-h-60 overflow-y-auto overscroll-contain"
+                    data-testid="account-organizations"
+                  >
                     {organizations.map((org) => (
-                      <button
+                      <div
                         key={org.id}
-                        onClick={() => {
-                          setDropdownOpen(false)
-                          setCurrentOrganization(org)
-                        }}
-                        className="flex w-full min-w-0 items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                        className="flex w-full min-w-0 items-start px-4 py-1.5 text-sm text-zinc-600 dark:text-zinc-400"
                         title={org.name}
                       >
-                        <BuildingOfficeIcon className="mr-3 h-4 w-4 shrink-0" />
-                        {/* One line only: a long org name is cut with an
-                            ellipsis (full name in the tooltip) so the icon
-                            and the check mark keep their size. */}
-                        <span className="truncate">{org.name}</span>
-                        {currentOrganization?.id === org.id && (
-                          <CheckIcon className="ml-auto h-4 w-4 shrink-0 text-amber-600" />
-                        )}
-                      </button>
+                        <BuildingOfficeIcon className="mt-0.5 mr-3 h-4 w-4 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          {/* One line only: a long org name is cut with an
+                              ellipsis (full name in the tooltip); the role
+                              sits below so it never squeezes the name. */}
+                          <span className="block truncate">{org.name}</span>
+                          {org.role && ORG_ROLE_LABEL_KEY[org.role] && (
+                            <span className="block truncate text-xs text-zinc-400 dark:text-zinc-500">
+                              {t(ORG_ROLE_LABEL_KEY[org.role])}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </>

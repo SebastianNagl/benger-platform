@@ -1,5 +1,6 @@
 /**
- * Additional coverage for APIKeysModal - open/close, org key settings fetch
+ * Additional coverage for APIKeysModal - open/close, the per-organization
+ * key settings fetch and the "organization provides the keys" note.
  */
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
@@ -7,14 +8,26 @@ import { APIKeysModal } from '../APIKeysModal'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
+    // A string second argument is an inline fallback; an object carries
+    // interpolation values (the note's {{names}}), rendered here as the key
+    // plus the names so the text stays assertable.
+    t: (key: string, arg?: unknown) =>
+      typeof arg === 'string'
+        ? arg
+        : arg && typeof arg === 'object' && 'names' in arg
+          ? `${key}: ${String((arg as { names: unknown }).names)}`
+          : key,
     locale: 'en',
   }),
 }))
 
+let mockOrganizations: Array<{ id: string; name: string }> = [
+  { id: 'org-1', name: 'TUM' },
+  { id: 'org-2', name: 'LMU' },
+]
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
-    currentOrganization: { id: 'org-1', name: 'TUM' },
+    organizations: mockOrganizations,
   }),
 }))
 
@@ -88,6 +101,10 @@ describe('APIKeysModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockOrganizations = [
+      { id: 'org-1', name: 'TUM' },
+      { id: 'org-2', name: 'LMU' },
+    ]
     mockGetOrgApiKeySettings.mockResolvedValue({ require_private_keys: true })
   })
 
@@ -130,39 +147,52 @@ describe('APIKeysModal', () => {
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
 
-  it('fetches org API key settings when open with organization', async () => {
+  it('fetches the key settings of every organization the user belongs to', async () => {
     render(<APIKeysModal {...defaultProps} />)
 
     await waitFor(() => {
       expect(mockGetOrgApiKeySettings).toHaveBeenCalledWith('org-1')
+      expect(mockGetOrgApiKeySettings).toHaveBeenCalledWith('org-2')
     })
   })
 
-  it('shows disabled message when org provides keys', async () => {
-    mockGetOrgApiKeySettings.mockResolvedValue({ require_private_keys: false })
+  it('names the organizations that provide their own keys, keys stay editable', async () => {
+    mockGetOrgApiKeySettings.mockImplementation(async (orgId: string) => ({
+      require_private_keys: orgId !== 'org-2',
+    }))
 
     render(<APIKeysModal {...defaultProps} />)
 
-    await waitFor(() => {
-      expect(screen.getByTestId('disabled-msg')).toBeInTheDocument()
-    })
-  })
-
-  it('does not show disabled message when org requires private keys', async () => {
-    mockGetOrgApiKeySettings.mockResolvedValue({ require_private_keys: true })
-
-    render(<APIKeysModal {...defaultProps} />)
-
-    await waitFor(() => {
-      expect(mockGetOrgApiKeySettings).toHaveBeenCalled()
-    })
-
-    // UserApiKeys should not be disabled
+    const note = await screen.findByTestId('api-keys-org-provided-note')
+    expect(note).toHaveTextContent('LMU')
+    expect(note).not.toHaveTextContent('TUM')
+    // The personal keys apply to private projects regardless.
     const apiKeys = screen.getByTestId('user-api-keys')
-    expect(apiKeys).toHaveAttribute('data-disabled', 'false')
+    expect(apiKeys).not.toHaveAttribute('data-disabled', 'true')
+    expect(screen.queryByTestId('disabled-msg')).not.toBeInTheDocument()
   })
 
-  it('handles settings fetch failure gracefully', async () => {
+  it('shows no note when every organization requires private keys', async () => {
+    render(<APIKeysModal {...defaultProps} />)
+
+    await waitFor(() => {
+      expect(mockGetOrgApiKeySettings).toHaveBeenCalledTimes(2)
+    })
+    expect(
+      screen.queryByTestId('api-keys-org-provided-note'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows no note and fetches nothing without memberships', () => {
+    mockOrganizations = []
+    render(<APIKeysModal {...defaultProps} />)
+    expect(mockGetOrgApiKeySettings).not.toHaveBeenCalled()
+    expect(
+      screen.queryByTestId('api-keys-org-provided-note'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('handles a settings fetch failure gracefully', async () => {
     mockGetOrgApiKeySettings.mockRejectedValue(new Error('Network error'))
 
     render(<APIKeysModal {...defaultProps} />)
@@ -170,9 +200,10 @@ describe('APIKeysModal', () => {
     await waitFor(() => {
       expect(mockGetOrgApiKeySettings).toHaveBeenCalled()
     })
-
-    // Should default to not disabled on error
-    const apiKeys = screen.getByTestId('user-api-keys')
-    expect(apiKeys).toHaveAttribute('data-disabled', 'false')
+    await act(async () => {})
+    expect(
+      screen.queryByTestId('api-keys-org-provided-note'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByTestId('user-api-keys')).toBeInTheDocument()
   })
 })

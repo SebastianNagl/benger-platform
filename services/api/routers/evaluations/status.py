@@ -177,15 +177,11 @@ async def get_evaluations(
     db: Session = Depends(get_db),
 ):
     """
-    Get all evaluation results scoped to the user's organization context.
-
-    Users can view evaluations for projects assigned to their organizations.
+    Get all evaluation results of the projects the user may reach through
+    any of their organizations (superadmin: everything).
     """
-    org_context = request.headers.get("X-Organization-Context")
-    # Global cross-project evaluations view; preserve legacy "superadmin sees
-    # everything" semantics. Narrowing only applies to /api/projects.
     accessible_ids = get_accessible_project_ids(
-        db, current_user, org_context, include_all_private=True
+        db, current_user, None, include_all_private=True
     )
 
     # Query evaluations from database, ordered by creation date (newest first)

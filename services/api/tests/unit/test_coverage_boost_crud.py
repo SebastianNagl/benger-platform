@@ -402,8 +402,7 @@ class TestCreateProject:
         with _as_user(annotator), n, d, r:
             resp = await async_test_client.post(
                 "/api/projects/",
-                json={"title": "Annotator Try"},
-                headers={"X-Organization-Context": org.id},
+                json={"title": "Annotator Try", "organization_id": org.id},
             )
         assert resp.status_code == 403
 

@@ -73,23 +73,20 @@ describe('AuthButton fn3', () => {
     expect(screen.getByText('auth.profileSettings')).toBeInTheDocument()
   })
 
-  it('switches to private context', () => {
+  it('offers no private-context entry', () => {
     render(<AuthButton />)
     // Open dropdown
     fireEvent.click(screen.getByText('testuser').closest('button')!)
-    // Click private option
-    fireEvent.click(screen.getByText('auth.private'))
-    expect(mockSetCurrentOrganization).toHaveBeenCalledWith(null)
+    expect(screen.queryByText('auth.private')).not.toBeInTheDocument()
+    expect(screen.queryByText('auth.switchContext')).not.toBeInTheDocument()
   })
 
-  it('switches organization', () => {
+  it('lists the organizations without switching on click', () => {
     render(<AuthButton />)
     fireEvent.click(screen.getByText('testuser').closest('button')!)
     fireEvent.click(screen.getByText('Other Org'))
-    expect(mockSetCurrentOrganization).toHaveBeenCalledWith({
-      id: 'org-2',
-      name: 'Other Org',
-    })
+    expect(mockSetCurrentOrganization).not.toHaveBeenCalled()
+    expect(screen.getByText('Test Org')).toBeInTheDocument()
   })
 
   it('shows feature flags link for superadmin', () => {

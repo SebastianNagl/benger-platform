@@ -16,7 +16,6 @@ import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { remToPx } from '@/lib/remToPx'
-import { parseSubdomain } from '@/lib/utils/subdomain'
 import { bestOrgRole } from '@/utils/permissions'
 import { CloseButton } from '@headlessui/react'
 
@@ -492,56 +491,19 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   // community edition registers nothing and the entry stays hidden).
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
 
-  // Parse current subdomain context
-  const { isPrivateMode, orgSlug } =
-    typeof window !== 'undefined'
-      ? parseSubdomain()
-      : { isPrivateMode: true, orgSlug: null }
-  const currentOrgRole = orgSlug
-    ? organizations.find((o) => o.slug === orgSlug)?.role
-    : null
-
-  // Helper function to check if user has access to specific routes
+  // Helper function to check if user has access to specific routes. The
+  // host (apex or org subdomain) plays no part: the data-management
+  // surfaces need an elevated role in at least one of the user's orgs (the
+  // API resolves access per project across all memberships); the rest is
+  // open to every signed-in user.
   const hasAccessToRoute = (href: string) => {
     if (!user) return true // Allow public routes when not logged in
-
-    // Superadmins see everything regardless of context
     if (user.is_superadmin) return true
-
-    // Private mode: the data-management surfaces need an elevated role in
-    // at least one of the user's orgs (the API resolves access across all
-    // memberships, independent of the selected org); the rest stays open.
-    if (isPrivateMode) {
-      if (['/data', '/generations', '/evaluations', '/runs'].includes(href)) {
-        const best = bestOrgRole(organizations)
-        return best === 'ORG_ADMIN' || best === 'CONTRIBUTOR'
-      }
-      return (
-        ['/dashboard', '/projects', '/reports', '/leaderboards'].includes(
-          href,
-        ) ||
-        href.startsWith('/about') ||
-        href.startsWith('/how-to') ||
-        href === '/models' ||
-        href === '/architecture'
-      )
+    if (['/data', '/generations', '/evaluations', '/runs'].includes(href)) {
+      const best = bestOrgRole(organizations)
+      return best === 'ORG_ADMIN' || best === 'CONTRIBUTOR'
     }
-
-    // Org mode: role-based access
-    switch (href) {
-      case '/data':
-      case '/generations':
-      case '/evaluations':
-      case '/runs':
-        // CONTRIBUTOR and above
-        return (
-          currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'CONTRIBUTOR'
-        )
-      case '/projects':
-        return true // All org members can see projects
-      default:
-        return true
-    }
+    return true
   }
 
   // Build navigation data directly - React will re-render when flags change

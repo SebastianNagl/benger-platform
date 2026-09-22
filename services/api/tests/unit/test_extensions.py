@@ -116,7 +116,10 @@ class TestExtensionLoader:
         # The full per-version log lives in services/shared/core_version.py.
         # 2.21 makes project read access context-free (every membership
         # counts), adds ProjectResponse.can_edit and the per-row roles.
-        assert CORE_API_VERSION == "2.21"
+        # 2.22 retires the selected organization: the creation target and
+        # the model-list scope travel in the request, the org context
+        # middleware is gone.
+        assert CORE_API_VERSION == "2.22"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

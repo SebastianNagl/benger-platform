@@ -460,82 +460,68 @@ async def list_projects(
 @router.post("/", response_model=ProjectResponse)
 async def create_project(
     project: ProjectCreate,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Create a new project.
 
-    When X-Organization-Context is "private" or absent, creates a private project.
-    When X-Organization-Context is an org ID, creates an org-assigned project.
-    When payload.is_public=True, creates a public project (visible to all
-    authenticated users); public_role defaults to ANNOTATOR if omitted.
+    The body decides where the project lives: ``organization_id`` creates an
+    org-assigned project (the caller needs an active ORG_ADMIN or
+    CONTRIBUTOR membership there; a superadmin may target any existing
+    org), ``is_public=True`` a public project (visible to all authenticated
+    users; public_role defaults to ANNOTATOR), otherwise a private one. The
+    selected organization of the client (``X-Organization-Context``) plays
+    no part.
     """
 
     # Generate unique ID
     project_id = str(uuid.uuid4())
 
-    # Read organization context from header
-    org_context = request.headers.get("X-Organization-Context")
-
+    target_org_id = project.organization_id or None
     is_public = bool(project.is_public)
-    if is_public and project.is_private:
+    if is_public and (project.is_private or target_org_id):
         raise HTTPException(
-            status_code=400, detail="A project cannot be both private and public"
+            status_code=400,
+            detail="A public project cannot also be private or belong to an organization",
+        )
+    if target_org_id and project.is_private:
+        raise HTTPException(
+            status_code=400,
+            detail="A project cannot be private and belong to an organization",
         )
     public_role = project.public_role if is_public else None
     if is_public and public_role not in ("ANNOTATOR", "CONTRIBUTOR"):
         public_role = "ANNOTATOR"
 
-    is_private = (
-        not is_public
-        and (not org_context or org_context == "private" or project.is_private)
-    )
+    is_private = not is_public and not target_org_id
 
-    primary_membership = None
-
-    if not is_private and not is_public:
-        # Organization mode: validate org membership and role
+    if target_org_id:
+        # Organization mode: the caller names the org; membership and role
+        # are checked there, never in a selected context.
         user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
         memberships = (
             user_with_memberships.organization_memberships
             if user_with_memberships
             else []
         ) or []
-        if not memberships and not (
-            current_user.is_superadmin and org_context and org_context != "private"
-        ):
-            # Everyone else needs a membership; a SUPERADMIN may create into
-            # an explicit org context without one (admin backfills — the
-            # target-org resolution below already handles this case, but the
-            # blanket 400 here used to fire first and contradict it).
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
-
-        # Find membership for the specified org
-        primary_membership = next(
+        membership = next(
             (
                 m
                 for m in memberships
-                if m.is_active and m.organization_id == org_context
+                if m.is_active and str(m.organization_id) == str(target_org_id)
             ),
             None,
         )
-        if not primary_membership and not current_user.is_superadmin:
-            # Fallback to first active membership
-            primary_membership = next(
-                (m for m in memberships if m.is_active), None
-            )
-        if not primary_membership and not current_user.is_superadmin:
+        if membership is None and not current_user.is_superadmin:
             raise HTTPException(
-                status_code=400, detail="User must have an active organization membership"
+                status_code=403,
+                detail="You are not a member of the target organization",
             )
-
-        # Check if user has permission to create projects
-        if not current_user.is_superadmin and primary_membership:
-            if primary_membership.role not in ["ORG_ADMIN", "CONTRIBUTOR"]:
+        if membership is not None and not current_user.is_superadmin:
+            if membership.role not in ["ORG_ADMIN", "CONTRIBUTOR"]:
                 raise HTTPException(
                     status_code=403,
-                    detail=f"User with role {primary_membership.role} is not authorized to create projects. Only ORG_ADMIN and CONTRIBUTOR roles can create projects.",
+                    detail=f"User with role {membership.role} is not authorized to create projects. Only ORG_ADMIN and CONTRIBUTOR roles can create projects.",
                 )
 
     # Validate label_config if provided (including empty strings)
@@ -573,39 +559,31 @@ async def create_project(
     db.add(db_project)
 
     # Create organization assignment only for org-scoped projects
-    if not is_private and not is_public:
-        target_org_id = (
-            org_context
-            if org_context and org_context != "private"
-            else (primary_membership.organization_id if primary_membership else None)
-        )
-        if target_org_id:
-            # The header org is superadmin-trusted as the TARGET — but it
-            # must exist, or the ProjectOrganization insert dies on the FK
-            # with a 500 (pre-existing hazard for any superadmin sending a
-            # bogus X-Organization-Context).
-            target_org = (
-                await db.execute(
-                    select(Organization.id).where(Organization.id == target_org_id)
-                )
-            ).first()
-            if target_org is None:
-                raise HTTPException(
-                    status_code=404, detail="Target organization not found"
-                )
-            group_id = project.organization_group_id or None
-            if group_id:
-                await _validate_group_attachment(
-                    db, current_user, target_org_id, group_id
-                )
-            project_org = ProjectOrganization(
-                id=str(uuid.uuid4()),
-                project_id=project_id,
-                organization_id=target_org_id,
-                group_id=group_id,
-                assigned_by=current_user.id,
+    if target_org_id:
+        # The org must exist, or the ProjectOrganization insert dies on the
+        # FK with a 500 (a superadmin may name any org id).
+        target_org = (
+            await db.execute(
+                select(Organization.id).where(Organization.id == target_org_id)
             )
-            db.add(project_org)
+        ).first()
+        if target_org is None:
+            raise HTTPException(
+                status_code=404, detail="Target organization not found"
+            )
+        group_id = project.organization_group_id or None
+        if group_id:
+            await _validate_group_attachment(
+                db, current_user, target_org_id, group_id
+            )
+        project_org = ProjectOrganization(
+            id=str(uuid.uuid4()),
+            project_id=project_id,
+            organization_id=target_org_id,
+            group_id=group_id,
+            assigned_by=current_user.id,
+        )
+        db.add(project_org)
 
     await db.commit()
     await db.refresh(db_project)
@@ -639,14 +617,14 @@ async def create_project(
     # Send notification about project creation (only for org projects). The
     # notification path is sync-only (queries + commits); run it on a fresh
     # sync session off the event loop. Failures are swallowed by design.
-    if not is_private and not is_public and primary_membership:
+    if target_org_id:
         try:
             await run_in_threadpool(
                 _notify_project_created_sync,
                 project_id=str(db_project.id),
                 project_title=str(db_project.title),
                 creator_name=str(current_user.name),
-                organization_id=str(primary_membership.organization_id),
+                organization_id=str(target_org_id),
                 creator_id=str(current_user.id),
             )
         except Exception as e:
@@ -659,19 +637,14 @@ async def create_project(
     response = ProjectResponse.from_orm(db_project)
     response.created_by_name = current_user.name
 
-    if not is_private and not is_public and primary_membership:
-        # primary_membership.organization is NOT eager-loaded on the async
-        # memberships fetch, so resolve the org name by id to avoid a
-        # MissingGreenlet lazy load.
+    if target_org_id:
         org_row = (
             await db.execute(
-                select(Organization.name).where(
-                    Organization.id == primary_membership.organization_id
-                )
+                select(Organization.name).where(Organization.id == target_org_id)
             )
         ).scalar_one_or_none()
         org_name = org_row or "Unknown"
-        response.organizations = [{"id": primary_membership.organization_id, "name": org_name}]
+        response.organizations = [{"id": target_org_id, "name": org_name}]
     else:
         response.organizations = []
 

@@ -261,6 +261,8 @@ test.describe('Randomize Task Order', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: `Test project: ${name}`,
           }),
         })
@@ -414,6 +416,8 @@ test.describe('Randomize Task Order', () => {
           credentials: 'include',
           body: JSON.stringify({
             title: name,
+            // The org is the creation target in the body (core 2.22).
+            organization_id: orgId,
             description: `Test project: ${name}`,
           }),
         })

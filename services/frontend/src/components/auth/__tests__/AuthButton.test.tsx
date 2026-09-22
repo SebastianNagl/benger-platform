@@ -161,8 +161,11 @@ describe('AuthButton', () => {
     'auth.profileSettings': 'Profile Settings',
     'auth.notificationSettings': 'Notification Settings',
     'auth.userManagement': 'User Management',
-    'auth.switchContext': 'Switch Context',
+    'auth.myOrganizations': 'My organizations',
     'auth.private': 'Private',
+    'profile.roles.orgAdmin': 'Org admin',
+    'profile.roles.contributor': 'Contributor',
+    'profile.roles.annotator': 'Annotator',
     'navigation.organizations': 'Organizations',
     'admin.usersOrganizations': 'Users & Organizations',
     'admin.defaultConfiguration': 'Default Configuration',
@@ -303,11 +306,12 @@ describe('AuthButton', () => {
       })
     })
 
-    it('shows user dropdown trigger', () => {
+    it('shows user dropdown trigger without a selected organization', () => {
       render(<AuthButton />)
 
       expect(screen.getByText('testuser')).toBeInTheDocument()
-      expect(screen.getByText('(Test Org)')).toBeInTheDocument()
+      // Core 2.22: there is no selected organization to show any more.
+      expect(screen.queryByText('(Test Org)')).not.toBeInTheDocument()
       expect(screen.getByTestId('chevron-down')).toBeInTheDocument()
     })
 
@@ -591,11 +595,10 @@ describe('AuthButton', () => {
       expect(username).toHaveClass('hidden', 'sm:block')
     })
 
-    it('hides organization name on medium screens and below', () => {
+    it('shows no organization name next to the account name', () => {
       render(<AuthButton />)
 
-      const orgName = screen.getByText('(Test Org)')
-      expect(orgName).toHaveClass('hidden', 'text-xs', 'opacity-70', 'md:block')
+      expect(screen.queryByText('(Test Org)')).not.toBeInTheDocument()
     })
   })
 
@@ -631,7 +634,7 @@ describe('AuthButton', () => {
         'absolute',
         'right-0',
         'mt-2',
-        'w-52',
+        'w-60',
         'bg-white',
         'dark:bg-zinc-800',
         'border',
@@ -1088,7 +1091,8 @@ describe('AuthButton', () => {
   })
 
   describe('organization display', () => {
-    it('shows Private context when no current organization', () => {
+    it('lists every membership with its role in the menu, without a switch', async () => {
+      const user = userEvent.setup()
       mockUseAuth.mockReturnValue({
         user: {
           id: '1',
@@ -1098,55 +1102,48 @@ describe('AuthButton', () => {
         },
         logout: mockLogout,
         isLoading: false,
-        currentOrganization: null,
+        organizations: [
+          { id: '1', name: 'My Org', role: 'CONTRIBUTOR' },
+          { id: '2', name: 'Other Org', role: 'ANNOTATOR' },
+        ],
+      })
+
+      render(<AuthButton />)
+      expect(screen.queryByText('(Private)')).not.toBeInTheDocument()
+      expect(screen.queryByText('(My Org)')).not.toBeInTheDocument()
+
+      await user.click(screen.getByText('testuser'))
+
+      const list = screen.getByTestId('account-organizations')
+      expect(list).toHaveTextContent('My Org')
+      expect(list).toHaveTextContent('Other Org')
+      expect(list).toHaveTextContent('Contributor')
+      expect(list).toHaveTextContent('Annotator')
+      // Rows are informational, not buttons that switch a context.
+      expect(list.querySelectorAll('button')).toHaveLength(0)
+      expect(screen.queryByText('Switch Context')).not.toBeInTheDocument()
+    })
+
+    it('shows no organization section for a user without memberships', async () => {
+      const user = userEvent.setup()
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: '1',
+          username: 'testuser',
+          email: 'test@example.com',
+          is_superadmin: false,
+        },
+        logout: mockLogout,
+        isLoading: false,
         organizations: [],
-        setCurrentOrganization: jest.fn(),
       })
 
       render(<AuthButton />)
+      await user.click(screen.getByText('testuser'))
 
-      expect(screen.getByText('(Private)')).toBeInTheDocument()
-    })
-
-    it('shows organization name in parentheses when set', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          username: 'testuser',
-          email: 'test@example.com',
-          is_superadmin: false,
-        },
-        logout: mockLogout,
-        isLoading: false,
-        currentOrganization: { id: '1', name: 'My Org', role: 'MEMBER' },
-        organizations: [{ id: '1', name: 'My Org', role: 'MEMBER' }],
-        setCurrentOrganization: jest.fn(),
-      })
-
-      render(<AuthButton />)
-
-      expect(screen.getByText('(My Org)')).toBeInTheDocument()
-    })
-
-    it('applies correct styling to organization name', () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          username: 'testuser',
-          email: 'test@example.com',
-          is_superadmin: false,
-        },
-        logout: mockLogout,
-        isLoading: false,
-        currentOrganization: { id: '1', name: 'Test Org', role: 'MEMBER' },
-        organizations: [{ id: '1', name: 'Test Org', role: 'MEMBER' }],
-        setCurrentOrganization: jest.fn(),
-      })
-
-      render(<AuthButton />)
-
-      const orgName = screen.getByText('(Test Org)')
-      expect(orgName).toHaveClass('hidden', 'text-xs', 'opacity-70', 'md:block')
+      expect(
+        screen.queryByTestId('account-organizations'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -1294,7 +1291,9 @@ describe('AuthButton', () => {
       ).toBeInTheDocument()
     })
 
-    it('handles organization with very long name', () => {
+    it('keeps a very long organization name on one line in the menu', async () => {
+      const user = userEvent.setup()
+      const name = 'Very Long Organization Name That Might Break Layout'
       mockUseAuth.mockReturnValue({
         user: {
           id: '1',
@@ -1304,31 +1303,19 @@ describe('AuthButton', () => {
         },
         logout: mockLogout,
         isLoading: false,
-        currentOrganization: {
-          id: '1',
-          name: 'Very Long Organization Name That Might Break Layout',
-          role: 'MEMBER',
-        },
-        organizations: [
-          {
-            id: '1',
-            name: 'Very Long Organization Name That Might Break Layout',
-            role: 'MEMBER',
-          },
-        ],
-        setCurrentOrganization: jest.fn(),
+        organizations: [{ id: '1', name, role: 'ORG_ADMIN' }],
       })
 
       render(<AuthButton />)
+      await user.click(screen.getByText('testuser'))
 
-      expect(
-        screen.getByText(
-          '(Very Long Organization Name That Might Break Layout)',
-        ),
-      ).toBeInTheDocument()
+      const row = screen.getByText(name)
+      expect(row).toHaveClass('truncate')
+      expect(row.closest('[title]')).toHaveAttribute('title', name)
     })
 
-    it('handles multiple organizations with same user', () => {
+    it('lists several organizations in order', async () => {
+      const user = userEvent.setup()
       mockUseAuth.mockReturnValue({
         user: {
           id: '1',
@@ -1338,18 +1325,18 @@ describe('AuthButton', () => {
         },
         logout: mockLogout,
         isLoading: false,
-        currentOrganization: { id: '1', name: 'Org 1', role: 'MEMBER' },
         organizations: [
-          { id: '1', name: 'Org 1', role: 'MEMBER' },
+          { id: '1', name: 'Org 1', role: 'ANNOTATOR' },
           { id: '2', name: 'Org 2', role: 'ORG_ADMIN' },
-          { id: '3', name: 'Org 3', role: 'MEMBER' },
+          { id: '3', name: 'Org 3', role: 'CONTRIBUTOR' },
         ],
-        setCurrentOrganization: jest.fn(),
       })
 
       render(<AuthButton />)
+      await user.click(screen.getByText('testuser'))
 
-      expect(screen.getByText('(Org 1)')).toBeInTheDocument()
+      const list = screen.getByTestId('account-organizations')
+      expect(list.textContent).toMatch(/Org 1.*Org 2.*Org 3/)
     })
   })
 

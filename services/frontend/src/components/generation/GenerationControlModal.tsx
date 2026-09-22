@@ -4,6 +4,7 @@ import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
+import { ModelScopeProvider } from '@/contexts/ModelScopeContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import {
@@ -39,7 +40,20 @@ interface GenerationControlModalProps {
   onSuccess?: () => void
 }
 
-export function GenerationControlModal({
+/**
+ * The model list inside the modal is scoped to the project: it shows the
+ * models a run on it can use (the org whose keys the worker dispatches
+ * with), wherever the modal is mounted.
+ */
+export function GenerationControlModal(props: GenerationControlModalProps) {
+  return (
+    <ModelScopeProvider projectId={props.projectId}>
+      <GenerationControlModalBody {...props} />
+    </ModelScopeProvider>
+  )
+}
+
+function GenerationControlModalBody({
   isOpen,
   projectId,
   models,

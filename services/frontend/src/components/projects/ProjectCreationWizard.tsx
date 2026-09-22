@@ -13,6 +13,7 @@ import { Card } from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { ModelScopeProvider } from '@/contexts/ModelScopeContext'
 import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
@@ -52,6 +53,8 @@ import {
 import { WizardKeyWarning } from './wizard/WizardKeyWarning'
 import { WizardStepIndicator } from './wizard/WizardStepIndicator'
 
+const EMPTY_ORGANIZATIONS: never[] = []
+
 export function ProjectCreationWizard() {
   const router = useRouter()
   const { t } = useI18n()
@@ -59,16 +62,25 @@ export function ProjectCreationWizard() {
   const { createProject, fetchProject, loading } = useProjectStore()
 
   const [wizardData, setWizardData] = useState<WizardData>(INITIAL_WIZARD_DATA)
-  // A project created from inside an organization belongs to it by default.
-  // Left private, the worker resolves API keys per user and every AI feature
-  // fails with "No API key found" although the organization has a key.
-  // Private stays one click away. `useOptionalAuth` rather than `useAuth`:
-  // the wizard also mounts without an AuthProvider (tests, embeds).
-  const activeOrganization = useOptionalAuth()?.currentOrganization ?? null
-  // The organization context arrives after the first render. It is applied
-  // when it arrives, once per organization, and never after anyone has made
-  // a visibility choice. Adjusted during render rather than in an effect, so
-  // the preselection costs no extra commit.
+  // There is no selected organization any more: the wizard names the
+  // organization a project belongs to. A user with exactly one organization
+  // where they may create projects gets it preselected (left private, the
+  // worker resolves API keys per user and every AI feature fails with "No
+  // API key found" although the organization has a key); anyone with
+  // several chooses explicitly. Private stays one click away.
+  // `useOptionalAuth` rather than `useAuth`: the wizard also mounts without
+  // an AuthProvider (tests, embeds).
+  const organizations = useOptionalAuth()?.organizations ?? EMPTY_ORGANIZATIONS
+  const activeOrganization = useMemo(() => {
+    const creatable = organizations.filter(
+      (o) => o.role === 'ORG_ADMIN' || o.role === 'CONTRIBUTOR',
+    )
+    return creatable.length === 1 ? creatable[0] : null
+  }, [organizations])
+  // The membership list arrives after the first render. The preselection is
+  // applied when it arrives, once per organization, and never after anyone
+  // has made a visibility choice. Adjusted during render rather than in an
+  // effect, so it costs no extra commit.
   const [visibilityTouched, setVisibilityTouched] = useState(false)
   const [preselectedOrgId, setPreselectedOrgId] = useState<string | null>(null)
   if (
@@ -81,6 +93,26 @@ export function ProjectCreationWizard() {
       preselectActiveOrganization(prev, activeOrganization),
     )
   }
+  // The organization a synthetic generation and the model pickers of this
+  // wizard run against: the first selected organization, else none
+  // (personal keys).
+  const creationOrganizationId =
+    wizardData.visibility === 'organization'
+      ? (wizardData.organizationIds[0] ?? null)
+      : null
+  // What the footer says next to "Create": where the project will live.
+  const creationTargetName = (() => {
+    if (wizardData.visibility === 'public') {
+      return t('projects.creation.wizard.navigation.publicTarget')
+    }
+    if (wizardData.visibility === 'organization') {
+      const names = wizardData.organizationIds.map(
+        (id) => organizations.find((o) => o.id === id)?.name ?? id,
+      )
+      if (names.length > 0) return names.join(', ')
+    }
+    return t('projects.creation.wizard.navigation.privateTarget')
+  })()
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   // Re-entrancy guard for the final "Create Project" action. The global store
@@ -430,6 +462,7 @@ export function ProjectCreationWizard() {
         public_role?: 'ANNOTATOR' | 'CONTRIBUTOR' | null
         kind?: string | null
         icon?: string | null
+        organization_id?: string
         organization_group_id?: string | null
       } = {
         title: wizardData.title.trim(),
@@ -446,17 +479,17 @@ export function ProjectCreationWizard() {
       } else if (wizardData.visibility === 'public') {
         createData.is_public = true
         createData.public_role = wizardData.publicRole
-      } else if (wizardData.organizationIds.length === 1) {
-        // Single-org creation flow: scope the context-created attachment to
-        // the selected group right away (null = org-wide), so there is no
-        // window where the whole org can see a group-scoped project.
+      } else if (wizardData.organizationIds.length > 0) {
+        // The first selected organization is the creation target; the
+        // attachment is scoped to its selected group right away (null =
+        // org-wide), so there is no window where the whole org can see a
+        // group-scoped project. Further organizations are attached by the
+        // visibility PATCH below.
+        const [firstOrgId] = wizardData.organizationIds
+        createData.organization_id = firstOrgId
         createData.organization_group_id =
-          wizardData.organizationGroupIds[wizardData.organizationIds[0]] ?? null
+          wizardData.organizationGroupIds[firstOrgId] ?? null
       }
-      // For 'organization' visibility, create_project honours
-      // X-Organization-Context. We then explicitly PATCH the visibility with
-      // the wizard-selected org ids so the result is independent of the
-      // current subdomain context.
 
       const project = await createProject(createData)
 
@@ -921,7 +954,11 @@ export function ProjectCreationWizard() {
       />
 
       <Card className="mb-8">
-        <div className="p-8">{renderCurrentStep()}</div>
+        {/* Model pickers and the synthetic step list what the creation
+            target can run (its organization key, else personal keys). */}
+        <ModelScopeProvider organizationId={creationOrganizationId}>
+          <div className="p-8">{renderCurrentStep()}</div>
+        </ModelScopeProvider>
       </Card>
 
       {/* Before "Create": say which AI features will lack a provider key.
@@ -950,17 +987,13 @@ export function ProjectCreationWizard() {
 
         <div className="flex items-center gap-3">
           {isLastStep && (
-            // The one place the selected organization still matters: it is
-            // the context a new project (and a synthetic generation) is
-            // created in, so say so next to the button.
+            // Where the project will live, as chosen on the first step.
             <span
               className="text-xs text-zinc-500 dark:text-zinc-400"
               data-testid="project-create-target"
             >
               {t('projects.creation.wizard.navigation.creationTarget', {
-                name:
-                  activeOrganization?.name ??
-                  t('projects.creation.wizard.navigation.privateTarget'),
+                name: creationTargetName,
               })}
             </span>
           )}

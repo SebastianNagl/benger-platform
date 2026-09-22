@@ -160,14 +160,13 @@ describe('BaseApiClient - additional uncovered paths', () => {
       expect(fetchCall.headers['Content-Type']).toBeUndefined()
     })
 
-    it('applies the Bearer token and organization context header', async () => {
+    it('applies the Bearer token and no organization context header', async () => {
       const validToken = `header.${btoa(
         JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),
       )}.signature`
       localStorageMock.getItem.mockImplementation((key) =>
         key === 'access_token' ? validToken : null,
       )
-      client.setOrganizationContextProvider(() => 'org-77')
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -178,7 +177,8 @@ describe('BaseApiClient - additional uncovered paths', () => {
 
       const fetchCall = (global.fetch as jest.Mock).mock.calls[0][1]
       expect(fetchCall.headers.Authorization).toBe(`Bearer ${validToken}`)
-      expect(fetchCall.headers['X-Organization-Context']).toBe('org-77')
+      // Core 2.22: the client no longer names a selected organization.
+      expect(fetchCall.headers['X-Organization-Context']).toBeUndefined()
     })
 
     it('throws an error with the formatted JSON detail on a non-ok response', async () => {

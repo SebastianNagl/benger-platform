@@ -227,7 +227,7 @@ class TestListProjectsHappyPath:
 class TestCreateProjectOrgMode:
     @pytest.mark.asyncio
     async def test_create_project_private_mode(self, async_test_client, async_test_db):
-        """Private (default) path: org context header 'private' => private project."""
+        """Private (default) path: no organization_id => private project."""
         admin = await _make_user(async_test_db, is_superadmin=True)
         await async_test_db.commit()
 
@@ -237,7 +237,6 @@ class TestCreateProjectOrgMode:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Private", "is_private": True},
-                headers={"X-Organization-Context": "private"},
             )
 
         assert resp.status_code in (200, 201)
@@ -252,22 +251,21 @@ class TestCreateProjectOrgMode:
 
     @pytest.mark.asyncio
     async def test_create_project_org_mode_no_membership(self, async_test_client, async_test_db):
-        """Org context but the (non-superadmin) user has no membership => 400."""
+        """Target org named but the (non-superadmin) user has no membership => 403."""
         user = await _make_user(async_test_db, is_superadmin=False)
         await async_test_db.commit()
 
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/projects/",
-                json={"title": "Org Project"},
-                headers={"X-Organization-Context": "org-123"},
+                json={"title": "Org Project", "organization_id": "org-123"},
             )
 
-        assert resp.status_code == 400
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_create_project_org_mode_no_active_membership(self, async_test_client, async_test_db):
-        """User has only an inactive membership => 400."""
+        """User has only an inactive membership => 403."""
         user = await _make_user(async_test_db, is_superadmin=False)
         org = await _make_org(async_test_db)
         await _make_membership(
@@ -282,11 +280,10 @@ class TestCreateProjectOrgMode:
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/projects/",
-                json={"title": "Org Project"},
-                headers={"X-Organization-Context": org.id},
+                json={"title": "Org Project", "organization_id": org.id},
             )
 
-        assert resp.status_code == 400
+        assert resp.status_code == 403
 
     @pytest.mark.asyncio
     async def test_create_project_org_mode_annotator_denied(self, async_test_client, async_test_db):
@@ -305,8 +302,7 @@ class TestCreateProjectOrgMode:
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/projects/",
-                json={"title": "Org Project"},
-                headers={"X-Organization-Context": org.id},
+                json={"title": "Org Project", "organization_id": org.id},
             )
 
         assert resp.status_code == 403

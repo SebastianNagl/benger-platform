@@ -46,7 +46,12 @@ test.describe('Org Role Permissions', () => {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify({ title: name, description }),
+          // The org is the creation target in the body (core 2.22).
+          body: JSON.stringify({
+            title: name,
+            description,
+            organization_id: orgId,
+          }),
         })
         if (!resp.ok) throw new Error(`Create project failed: ${resp.status}`)
         const data = await resp.json()
@@ -152,7 +157,12 @@ test.describe('Org Role Permissions', () => {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify({ title: name, description }),
+          // The org is the creation target in the body (core 2.22).
+          body: JSON.stringify({
+            title: name,
+            description,
+            organization_id: orgId,
+          }),
         })
         if (!resp.ok) throw new Error(`Create project failed: ${resp.status}`)
         return (await resp.json()).id

@@ -117,12 +117,10 @@ async def get_dashboard_stats(
     so the dashboard never shows stale-zero. The existing 5-min Redis TTL
     smooths repeated requests in both cases.
     """
-    org_context = request.headers.get("X-Organization-Context")
-
-    # `v3` bumps invalidate the old in-Python-aggregation cache values when
-    # this deploy lands — see services.aggregate_summaries.read_dashboard_sum
-    # for the new read shape.
-    cache_key = f"dashboard_stats:v3:{current_user.id}:{org_context or 'private'}"
+    # The stats cover every project the user may reach through any of their
+    # organizations; the selected organization of the client plays no part,
+    # so the cache is keyed by user only (`v4`).
+    cache_key = f"dashboard_stats:v4:{current_user.id}"
 
     cached_stats = cache.get(cache_key)
     if cached_stats:
@@ -142,7 +140,7 @@ async def get_dashboard_stats(
         # keyword-only-style arg the run_sync positional callable can't pass.
         accessible_ids = await db.run_sync(
             lambda sync_db: get_accessible_project_ids(
-                sync_db, current_user, org_context, include_all_private=True
+                sync_db, current_user, None, include_all_private=True
             )
         )
 

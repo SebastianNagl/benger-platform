@@ -46,8 +46,8 @@ describe('canCreateProjects', () => {
   it('should return true for superadmin', () => {
     expect(canCreateProjects(superadmin)).toBe(true)
   })
-  it('should return true in private mode for any user', () => {
-    expect(canCreateProjects(annotator, { isPrivateMode: true })).toBe(true)
+  it('should return true for any signed-in user (a private project is always allowed)', () => {
+    expect(canCreateProjects(annotator)).toBe(true)
   })
   it('should return true for ORG_ADMIN', () => {
     expect(canCreateProjects(orgAdmin)).toBe(true)
@@ -55,8 +55,8 @@ describe('canCreateProjects', () => {
   it('should return true for CONTRIBUTOR', () => {
     expect(canCreateProjects(contributor)).toBe(true)
   })
-  it('should return false for ANNOTATOR in org mode', () => {
-    expect(canCreateProjects(annotator)).toBe(false)
+  it('needs no role: the wizard offers the orgs where the user may create', () => {
+    expect(canCreateProjects({ ...annotator, role: undefined })).toBe(true)
   })
 })
 
@@ -147,7 +147,8 @@ describe('getUserPermissions', () => {
   it('should return annotator permissions', () => {
     const p = getUserPermissions(annotator)
     expect(p.isAnnotatorOnly).toBe(true)
-    expect(p.canCreate).toBe(false)
+    // A private project is always allowed.
+    expect(p.canCreate).toBe(true)
     expect(p.role).toBe('ANNOTATOR')
   })
 
