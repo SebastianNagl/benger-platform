@@ -372,7 +372,7 @@ app.add_middleware(
     allow_origin_regex=r"https?://(([a-z0-9-]+\.)?benger\.localhost|([a-z0-9-]+\.)?what-a-benger\.net|localhost(:\d+)?)",
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization", "X-Organization-Context", "X-CSRF-Token", "X-Request-ID"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
     expose_headers=["Content-Length"],
 )
 

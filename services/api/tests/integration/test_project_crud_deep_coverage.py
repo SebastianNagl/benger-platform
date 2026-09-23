@@ -148,7 +148,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -174,7 +173,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -195,7 +193,6 @@ class TestListProjects:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -212,7 +209,6 @@ class TestListProjects:
         with _as_user(annotator):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -232,7 +228,6 @@ class TestGetProject:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -269,7 +264,6 @@ class TestCreateProject:
                     "label_config": '<View><Text name="text" value="$text"/></View>',
                     "organization_id": org.id,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
         body = resp.json()
@@ -295,7 +289,6 @@ class TestCreateProject:
                     "label_config": '<View><Text name="text" value="$text"/></View>',
                     "organization_id": org.id,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -319,7 +312,6 @@ class TestCreateProject:
                     "maximum_annotations": 3,
                     "show_skip_button": True,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -340,7 +332,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"title": "Updated Title"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -358,7 +349,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"maximum_annotations": 5},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -379,7 +369,6 @@ class TestUpdateProject:
                     "label_config": '<View><Text name="text" value="$text"/>'
                     '<TextArea name="note"/></View>'
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -415,7 +404,6 @@ class TestDeleteProject:
         ):
             resp = await async_test_client.delete(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 204)
 
@@ -456,7 +444,6 @@ class TestProjectComprehensiveData:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/comprehensive-data",
-                headers={"X-Organization-Context": org.id},
             )
         # This endpoint may not exist, accept 200 or 404/405
         assert resp.status_code in (200, 404, 405)

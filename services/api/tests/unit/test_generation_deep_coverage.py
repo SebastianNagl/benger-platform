@@ -1469,13 +1469,11 @@ async def test_parse_metrics_no_project_org_scoped(async_test_client, async_test
         async_test_db, parent, run_index=0, parse_status="success",
         parse_metadata={"retry_count": 1}, task=task,
     )
-    org_id = org.id
     await async_test_db.commit()
 
     with _as_user(member):
         resp = await async_test_client.get(
             "/api/generation/parse-metrics",
-            headers={"X-Organization-Context": org_id},
         )
     assert resp.status_code == 200
     body = resp.json()
@@ -1494,7 +1492,6 @@ async def test_parse_metrics_no_project_empty_accessible(async_test_client, asyn
     with _as_user(loner):
         resp = await async_test_client.get(
             "/api/generation/parse-metrics",
-            headers={"X-Organization-Context": "private"},
         )
     assert resp.status_code == 200
     body = resp.json()

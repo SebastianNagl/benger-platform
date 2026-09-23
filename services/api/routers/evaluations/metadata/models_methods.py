@@ -4,7 +4,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 
 @router.get("/projects/{project_id}/evaluated-models")
 async def get_evaluated_models(
-    request: Request,
     project_id: str,
     include_configured: bool = Query(
         False, description="Include all configured models from generation_config"
@@ -36,8 +35,7 @@ async def get_evaluated_models(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Get configured models from generation_config
@@ -354,7 +352,6 @@ async def get_evaluated_models(
 
 @router.get("/projects/{project_id}/configured-methods")
 async def get_configured_methods(
-    request: Request,
     project_id: str,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
@@ -374,8 +371,7 @@ async def get_configured_methods(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not project.evaluation_config:

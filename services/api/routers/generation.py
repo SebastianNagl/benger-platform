@@ -16,7 +16,6 @@ from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
-    Request,
     WebSocket,
     WebSocketDisconnect,
     status,
@@ -41,7 +40,6 @@ from routers.projects.helpers import (
     check_project_accessible,
     check_project_accessible_async,
     get_accessible_project_ids_async,
-    get_org_context_from_request,
 )
 
 
@@ -150,7 +148,6 @@ class GenerateFromConfigResponse(BaseModel):
 @router.get("/status/{generation_id}", response_model=EvaluationStatus)
 async def get_generation_status(
     generation_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -173,9 +170,8 @@ async def get_generation_status(
     task = (
         await db.execute(select(Task).where(Task.id == generation.task_id))
     ).scalar_one_or_none()
-    org_context = get_org_context_from_request(request)
     if task and not await check_project_accessible_async(
-        db, current_user, task.project_id, org_context
+        db, current_user, task.project_id
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -767,7 +763,6 @@ async def delete_generation(
 
 @router.get("/parse-metrics")
 async def get_parse_metrics(
-    request: Request,
     project_id: Optional[str] = None,
     model_id: Optional[str] = None,
     db: AsyncSession = Depends(get_async_db),
@@ -784,9 +779,8 @@ async def get_parse_metrics(
     Can be filtered by project_id and/or model_id.
     """
     # Verify project access if project_id is provided
-    org_context = get_org_context_from_request(request)
     if project_id and not await check_project_accessible_async(
-        db, current_user, project_id, org_context
+        db, current_user, project_id
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -808,7 +802,7 @@ async def get_parse_metrics(
             # Every project the user may reach through any membership;
             # cross-project metrics view, superadmin sees everything.
             accessible_ids = await get_accessible_project_ids_async(
-                db, current_user, None, include_all_private=True
+                db, current_user, include_all_private=True
             )
             if accessible_ids is not None:
                 if not accessible_ids:

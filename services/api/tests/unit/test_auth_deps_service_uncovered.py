@@ -156,7 +156,7 @@ class TestRequireOrgAdminInner:
         user = _make_user(is_superadmin=False)
         request = Mock()
         request.state.organization_context = "org-from-state"
-        request.headers = {"X-Organization-Context": "org-from-header"}
+        request.headers = {}
         db = MagicMock()
         membership = Mock()
         db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
@@ -166,7 +166,7 @@ class TestRequireOrgAdminInner:
         assert exc_info.value.status_code == 400
         db.query.assert_not_called()
 
-    def test_no_org_context_raises_400(self):
+    def test_no_org_raises_400(self):
         """When no org context from any source, raise 400."""
         from auth_module.dependencies import require_org_admin
 
@@ -174,7 +174,7 @@ class TestRequireOrgAdminInner:
         user = _make_user(is_superadmin=False)
         request = Mock()
         request.state = Mock(spec=[])  # no organization_context
-        request.headers = {}  # no X-Organization-Context header
+        request.headers = {}
         db = Mock()
 
         with pytest.raises(HTTPException) as exc_info:
@@ -237,7 +237,7 @@ class TestRequireOrgContributorInner:
         user = _make_user(is_superadmin=False)
         request = Mock()
         request.state.organization_context = "org-from-state"
-        request.headers = {"X-Organization-Context": "org-from-header"}
+        request.headers = {}
         db = MagicMock()
         membership = Mock()
         db.query.return_value.join.return_value.filter.return_value.first.return_value = membership
@@ -247,7 +247,7 @@ class TestRequireOrgContributorInner:
         assert exc_info.value.status_code == 400
         db.query.assert_not_called()
 
-    def test_no_org_context_raises_400(self):
+    def test_no_org_raises_400(self):
         from auth_module.dependencies import require_org_contributor
 
         checker = require_org_contributor()

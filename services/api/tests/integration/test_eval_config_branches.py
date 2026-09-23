@@ -101,7 +101,7 @@ def _make_project(
 
 
 def _org_headers(auth_headers, role, org):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
+    return auth_headers[role]
 
 
 # ---------------------------------------------------------------------------
@@ -411,10 +411,7 @@ class TestUpdateEvaluationConfig:
         resp = client.put(
             f"/api/evaluations/projects/{project.id}/evaluation-config",
             json={"selected_methods": {}},
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
+            headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403
         assert "permission" in resp.json()["detail"].lower()

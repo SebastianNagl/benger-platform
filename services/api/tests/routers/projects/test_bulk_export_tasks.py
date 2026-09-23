@@ -317,7 +317,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(),
+            project_id, request_data,
             current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
@@ -364,7 +364,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(),
+            project_id, request_data,
             current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
@@ -410,7 +410,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(),
+            project_id, request_data,
             current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
@@ -451,7 +451,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            project_id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         csv_reader = csv.reader(io.StringIO(content))
@@ -503,7 +503,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            project_id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         tsv_reader = csv.reader(io.StringIO(content), delimiter="\t")
@@ -551,7 +551,7 @@ class TestBulkExportTasks:
 
         # Call endpoint
         response = bulk_export_tasks(
-            test_project.id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            test_project.id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         export_data = json.loads(content)
@@ -583,7 +583,7 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            project_id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         export_data = json.loads(content)
@@ -632,7 +632,7 @@ class TestBulkExportTasks:
         mock_user.id = test_user.id
 
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            project_id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         export_data = json.loads(content)
@@ -849,7 +849,7 @@ class TestBulkExportTasks:
         mock_user.id = test_user.id
 
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(), current_user=mock_user, db=session,
+            project_id, request_data, current_user=mock_user, db=session,
         )
         content = _collect_stream(response)
         export_data = json.loads(content)
@@ -900,7 +900,7 @@ class TestBulkExportTasks:
         mock_user.id = data["tasks"][0].created_by
 
         response = bulk_export_tasks(
-            project_id, request_data, request=_make_mock_request(),
+            project_id, request_data,
             current_user=mock_user, db=session,
         )
         content = _collect_stream(response)

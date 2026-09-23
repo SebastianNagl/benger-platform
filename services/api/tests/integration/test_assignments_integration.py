@@ -278,7 +278,7 @@ class TestListTaskAssignments:
         project, _ = _setup(test_db, test_users[0], test_org)
         resp = client.get(
             f"/api/projects/{project.id}/tasks/nonexistent/assignments",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
@@ -344,7 +344,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{project.id}/my-tasks",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -361,7 +361,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{project.id}/my-tasks?status=assigned",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -423,7 +423,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{project.id}/my-tasks",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         data = resp.json()
@@ -443,7 +443,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{project.id}/my-tasks",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         ids = [t["id"] for t in resp.json()["tasks"]]
@@ -470,7 +470,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{project.id}/my-tasks?status=assigned",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         ids = [t["id"] for t in resp.json()["tasks"]]

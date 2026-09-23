@@ -171,7 +171,7 @@ class TestDashboardStats:
                 app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
-    async def test_dashboard_stats_with_org_context(self, mock_user):
+    async def test_dashboard_stats_with_org(self, mock_user):
         """Test dashboard stats with org context header."""
         from auth_module.dependencies import require_user
 
@@ -194,7 +194,6 @@ class TestDashboardStats:
                 async with await _async_client() as client:
                     response = await client.get(
                         "/api/dashboard/stats",
-                        headers={"X-Organization-Context": "org-123"},
                     )
                 assert response.status_code == status.HTTP_200_OK
                 data = response.json()

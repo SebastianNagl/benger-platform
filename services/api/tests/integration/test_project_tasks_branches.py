@@ -282,10 +282,6 @@ async def _make_annotation(
     return ann
 
 
-def _ctx(org: Organization):
-    return {"X-Organization-Context": org.id}
-
-
 # ===========================================================================
 # GET /{project_id}/tasks — list_project_tasks
 # ===========================================================================
@@ -299,13 +295,12 @@ class TestListTasksAccessBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}/tasks",
-                headers=_ctx(org),
             )
         assert resp.status_code == 404
         assert resp.json()["detail"] == "Project not found"
 
     @pytest.mark.asyncio
-    async def test_member_allowed_under_an_outsider_org_context(
+    async def test_member_allowed_under_an_outsider_org(
         self, async_test_client, async_test_db, seeded
     ):
         """A member requesting in a wrong (non-member) org context: the
@@ -326,7 +321,6 @@ class TestListTasksAccessBranches:
         with _as_user(users[1]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks",
-                headers={"X-Organization-Context": other_org.id},
             )
         assert resp.status_code == 200, resp.text
         assert resp.json().get("detail") != "Access denied"
@@ -346,7 +340,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?page=1&page_size=2",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -367,7 +360,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?only_labeled=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -386,7 +378,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?only_unlabeled=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -406,7 +397,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?search=unique-term-2",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -428,7 +418,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?date_from=2001-01-01",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -440,7 +429,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp2 = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?date_to=2001-01-01",
-                headers=_ctx(org),
             )
         assert resp2.status_code == 200
         data2 = resp2.json()
@@ -461,7 +449,6 @@ class TestListTasksFilterBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?date_from=not-a-date",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 3
@@ -479,7 +466,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=id&sort_order=desc",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         ids = [t["id"] for t in resp.json()["items"]]
@@ -495,7 +481,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=created&sort_order=asc",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 3
@@ -511,7 +496,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=completed&sort_order=desc",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         # Labeled task sorts first under desc on is_labeled.
@@ -528,7 +512,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=annotations&sort_order=desc",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["items"][0]["id"] == tasks[2].id
@@ -550,7 +533,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=generations&sort_order=desc",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         items = resp.json()["items"]
@@ -573,7 +555,6 @@ class TestListTasksSortBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 4
@@ -593,7 +574,6 @@ class TestListTasksIdsOnlyBranch:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?ids_only=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -614,7 +594,6 @@ class TestListTasksIdsOnlyBranch:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?ids_only=true&ids_limit=2",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -639,7 +618,6 @@ class TestListTasksEnrichmentBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=id",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         by_id = {t["id"]: t for t in resp.json()["items"]}
@@ -679,7 +657,6 @@ class TestListTasksEnrichmentBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?sort_by=id",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         item = resp.json()["items"][0]
@@ -715,7 +692,6 @@ class TestListTasksEnrichmentBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?only_assigned=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -751,7 +727,6 @@ class TestListTasksAnnotatorVisibility:
         with _as_user(annotator):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -774,7 +749,6 @@ class TestListTasksAnnotatorVisibility:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?exclude_my_annotations=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -799,7 +773,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -807,7 +780,7 @@ class TestNextTaskBranches:
         assert body["task"] is None
 
     @pytest.mark.asyncio
-    async def test_member_allowed_under_an_outsider_org_context(self, async_test_client, async_test_db, seeded):
+    async def test_member_allowed_under_an_outsider_org(self, async_test_client, async_test_db, seeded):
         users, org = seeded
         other_org = Organization(
             id=_uid(),
@@ -823,7 +796,6 @@ class TestNextTaskBranches:
         with _as_user(users[1]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers={"X-Organization-Context": other_org.id},
             )
         # A member: the outsider context does not take the project away.
         assert resp.status_code == 200, resp.text
@@ -841,7 +813,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -868,7 +839,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -896,7 +866,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -926,7 +895,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -948,7 +916,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -980,7 +947,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1011,7 +977,6 @@ class TestNextTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1056,7 +1021,7 @@ class TestGetTaskBranches:
         assert resp.json()["detail"] == "Task not found"
 
     @pytest.mark.asyncio
-    async def test_member_allowed_under_an_outsider_org_context(self, async_test_client, async_test_db, seeded):
+    async def test_member_allowed_under_an_outsider_org(self, async_test_client, async_test_db, seeded):
         users, org = seeded
         other_org = Organization(
             id=_uid(),
@@ -1073,7 +1038,6 @@ class TestGetTaskBranches:
         with _as_user(users[1]):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{tasks[0].id}",
-                headers={"X-Organization-Context": other_org.id},
             )
         # A member: the outsider context does not take the project away.
         assert resp.status_code == 200, resp.text
@@ -1096,7 +1060,6 @@ class TestGetTaskBranches:
         with _as_user(users[2]):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{tasks[0].id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 404
         assert resp.json()["detail"] == "Task not found"
@@ -1114,7 +1077,6 @@ class TestGetTaskBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{tasks[0].id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -1226,7 +1188,6 @@ class TestUpdateMetadataBranches:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{task_id}/metadata",
                 json={"priority": "high"},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1255,7 +1216,6 @@ class TestUpdateMetadataBranches:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{task_id}/metadata?merge=false",
                 json={"fresh": "only"},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1284,7 +1244,6 @@ class TestUpdateMetadataBranches:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{task_id}/metadata",
                 json={"new_key": "new_val"},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["meta"]["new_key"] == "new_val"
@@ -1325,7 +1284,6 @@ class TestBulkMetadataBranches:
             resp = await async_test_client.patch(
                 "/api/projects/tasks/bulk-metadata?merge=true",
                 json={"task_ids": target_ids, "metadata": {"batch": "b1"}},
-                headers=_ctx(org),
             )
         if resp.status_code == 422:
             pytest.skip("bulk-metadata body binding shape differs; see uncertainty note")
@@ -1367,7 +1325,6 @@ class TestSkipTaskBranches:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{_uid()}/skip",
                 json={"comment": "x"},
-                headers=_ctx(org),
             )
         assert resp.status_code == 404
         assert resp.json()["detail"] == "Task not found"
@@ -1387,7 +1344,6 @@ class TestSkipTaskBranches:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}/skip",
                 json={},
-                headers=_ctx(org),
             )
         assert resp.status_code == 400
         assert "Comment is required" in resp.json()["detail"]
@@ -1415,7 +1371,6 @@ class TestSkipTaskBranches:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}/skip",
                 json={"comment": "ambiguous case"},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1456,7 +1411,6 @@ class TestTaskFieldsBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{missing}/task-fields",
-                headers=_ctx(org),
             )
         assert resp.status_code == 404
         assert missing in resp.json()["detail"]
@@ -1472,7 +1426,6 @@ class TestTaskFieldsBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/task-fields",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -1504,7 +1457,6 @@ class TestTaskFieldsBranches:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/task-fields",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()

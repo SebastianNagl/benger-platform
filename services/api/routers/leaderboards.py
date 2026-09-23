@@ -8,7 +8,7 @@ Supports filtering by project and time period.
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +18,7 @@ from auth_module.dependencies import get_current_user
 from database import get_async_db
 from models import EvaluationRun, LLMModel, User
 from project_models import Annotation, Project, ProjectOrganization
-from routers.projects.helpers import check_project_accessible, get_org_context_from_request
+from routers.projects.helpers import check_project_accessible
 
 # Temporary trust gate for the LLM leaderboard: only projects assigned to
 # one of these orgs contribute to ranking. Other orgs (TITAN, LTV,
@@ -116,7 +116,6 @@ def _filter_accessible_project_ids(
     db: Session,
     user,
     project_ids: Optional[List[str]],
-    org_context: Optional[str] = None,
     *,
     strict: bool = False,
 ) -> Optional[List[str]]:
@@ -148,7 +147,7 @@ def _filter_accessible_project_ids(
         public_ids = {row[0] for row in rows}
         kept = [pid for pid in project_ids if pid in public_ids]
     else:
-        kept = [pid for pid in project_ids if check_project_accessible(db, user, pid, org_context)]
+        kept = [pid for pid in project_ids if check_project_accessible(db, user, pid)]
     if strict and not kept:
         raise HTTPException(
             status_code=400,
@@ -161,7 +160,6 @@ async def _filter_accessible_project_ids_async(
     db: AsyncSession,
     user,
     project_ids: Optional[List[str]],
-    org_context: Optional[str] = None,
     *,
     strict: bool = False,
 ) -> Optional[List[str]]:
@@ -197,7 +195,7 @@ async def _filter_accessible_project_ids_async(
         return [
             pid
             for pid in project_ids
-            if check_project_accessible(sync_db, user, pid, org_context)
+            if check_project_accessible(sync_db, user, pid)
         ]
 
     kept = await db.run_sync(_keep)
@@ -371,7 +369,6 @@ class LLMLeaderboardResponse(BaseModel):
 
 @router.get("/statistics")
 async def get_leaderboard_statistics(
-    request: Request,
     project_ids: Optional[List[str]] = Query(None),
     period: str = Query("overall", regex="^(overall|monthly|weekly)$"),
     db: AsyncSession = Depends(get_async_db),
@@ -387,9 +384,8 @@ async def get_leaderboard_statistics(
     - average_annotations: Average annotations per annotator
     """
     # Filter project_ids to only include accessible ones
-    org_context = get_org_context_from_request(request)
     project_ids = await _filter_accessible_project_ids_async(
-        db, current_user, project_ids, org_context
+        db, current_user, project_ids
     )
 
     # Build query for annotation counts
@@ -530,7 +526,6 @@ async def _evaluation_types_in_scope_async(
 
 @router.get("/llm-models", response_model=LLMLeaderboardResponse)
 async def get_llm_leaderboard(
-    request: Request,
     project_ids: Optional[List[str]] = Query(
         None, description="Filter by specific projects (empty = all projects)"
     ),
@@ -600,9 +595,8 @@ async def get_llm_leaderboard(
         read_llm_leaderboard_async,
     )
 
-    org_context = get_org_context_from_request(request)
     project_ids = await _filter_accessible_project_ids_async(
-        db, current_user, project_ids, org_context, strict=True,
+        db, current_user, project_ids, strict=True,
     )
     # Apply the leaderboard's trust gate AFTER accessibility filtering so
     # the user gets a clear "no accessible project" 400 first if relevant,
@@ -865,7 +859,6 @@ async def get_llm_leaderboard(
 @router.get("/llm-models/{model_id}")
 async def get_llm_model_details(
     model_id: str,
-    request: Request,
     project_ids: Optional[List[str]] = Query(None),
     period: str = Query("overall", regex="^(overall|monthly|weekly)$"),
     db: AsyncSession = Depends(get_async_db),
@@ -891,9 +884,8 @@ async def get_llm_model_details(
         read_llm_model_aggregate_async,
     )
 
-    org_context = get_org_context_from_request(request)
     project_ids = await _filter_accessible_project_ids_async(
-        db, current_user, project_ids, org_context
+        db, current_user, project_ids
     )
 
     model = (

@@ -1606,7 +1606,7 @@ class TestListEvaluationsBranches:
 
         resp = client.get(
             f"{BASE}/",
-            headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["contributor"],
         )
         assert resp.status_code == 200, resp.text
         ids = {row["id"] for row in resp.json()}
@@ -1627,7 +1627,7 @@ class TestListEvaluationsBranches:
 
         resp = client.get(
             f"{BASE}/",
-            headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["contributor"],
         )
         assert resp.status_code == 200, resp.text
         ids = {row["id"] for row in resp.json()}

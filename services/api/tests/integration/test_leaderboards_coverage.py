@@ -531,7 +531,6 @@ class TestStatisticsComplement:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}&period=monthly",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -586,7 +585,6 @@ class TestStatisticsComplement:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -628,7 +626,6 @@ class TestLLMLeaderboardLivePath:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?metric=bleu&search=gpt-live"
                     "&min_generation_count=0&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -659,7 +656,6 @@ class TestLLMLeaderboardLivePath:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?metric=bleu&search=zzz_no_match"
                     "&min_generation_count=0&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -687,7 +683,6 @@ class TestLLMLeaderboardLivePath:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?metric=bleu&aggregation=sum"
                     "&min_generation_count=0&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -717,7 +712,6 @@ class TestLLMLeaderboardLivePath:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?metric=bleu&evaluation_types=bleu"
                     "&min_generation_count=0&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -755,7 +749,6 @@ class TestLLMLeaderboardLivePath:
                     f"{BASE}/llm-models?metric=bleu"
                     f"&project_ids={p1.id}&project_ids={p2.id}"
                     "&min_generation_count=0&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -1043,7 +1036,6 @@ class TestLLMModelDetailsComplement:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models/gpt-live-detail"
                     f"?project_ids={p1.id}&project_ids={p2.id}",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()

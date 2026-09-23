@@ -19,7 +19,6 @@ from project_models import Annotation, Project, Task
 from routers.projects.helpers import (
     check_project_accessible,
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -259,7 +258,6 @@ __all__ = [
     # routers.projects.helpers
     "check_project_accessible",
     "check_project_accessible_async",
-    "get_org_context_from_request",
     # this module
     "logger",
     "router",

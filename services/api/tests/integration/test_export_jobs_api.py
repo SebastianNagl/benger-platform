@@ -187,7 +187,6 @@ class TestCreateExportJob:
         ) as mock_send:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/exports?format=json",
-                headers={"X-Organization-Context": org.id},
             )
 
         assert resp.status_code == 202, resp.text
@@ -216,7 +215,6 @@ class TestCreateExportJob:
         ):
             resp = await async_test_client.post(
                 f"/api/projects/{_uid()}/exports?format=json",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -226,7 +224,6 @@ class TestCreateExportJob:
         with _as_user(admin):
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/exports?format=bogus",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 422
 
@@ -243,7 +240,6 @@ class TestCreateExportJob:
         ):
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/exports?format=json",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 503
         # The pre-created job must not be left dangling as pending.

@@ -24,7 +24,6 @@ from ._common import (
     StatisticsResponse,
     # Shared infra re-exported for completeness / back-compat patch targets.
     check_project_accessible,
-    get_org_context_from_request,
     logger,
 )
 
@@ -68,6 +67,5 @@ __all__ = [
     "StatisticsResponse",
     # Shared infra
     "check_project_accessible",
-    "get_org_context_from_request",
     "logger",
 ]

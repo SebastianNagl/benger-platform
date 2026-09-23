@@ -103,7 +103,7 @@ def _assign(db, tasks, user_id, admin_id, count=None):
 
 
 def _h(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
+    return auth_headers["admin"]
 
 
 # ===================================================================

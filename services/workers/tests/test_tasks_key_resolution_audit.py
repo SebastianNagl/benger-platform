@@ -207,7 +207,7 @@ class TestKeyResolutionAuditTrail:
         assert "Using API key via org_resolved" in log_text
         assert "from org " not in log_text
 
-    def test_no_org_context_persists_user_key_route(self, caplog):
+    def test_no_org_persists_user_key_route(self, caplog):
         """No org context → route is ``user_key`` and
         ``invocation_organization_id`` is None in the metadata."""
         ai_service = _build_ai_service(

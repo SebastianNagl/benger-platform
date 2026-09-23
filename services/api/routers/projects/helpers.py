@@ -6,7 +6,7 @@ These functions provide common operations used across multiple project endpoints
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from sqlalchemy import case, cast, exists, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -811,31 +811,9 @@ async def get_user_with_memberships_async(db: AsyncSession, user_id: str) -> Use
     return result.unique().scalar_one_or_none()
 
 
-async def get_org_membership_role_async(
-    db: AsyncSession, user, org_context: Optional[str]
-) -> Optional[str]:
-    """Resolve the user's active role within ``org_context`` (async).
-
-    Returns the ``OrganizationRole`` value (e.g. ``"ANNOTATOR"``) for the user's
-    active membership in that org, or ``None`` when there is no org context
-    (private/legacy) or no active membership. Superadmin is not special-cased
-    here — callers needing the bypass should check ``user.is_superadmin`` first.
-    """
-    if not org_context or org_context == "private":
-        return None
-    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
-    if not user_with_memberships or not user_with_memberships.organization_memberships:
-        return None
-    for membership in user_with_memberships.organization_memberships:
-        if membership.organization_id == org_context and membership.is_active:
-            return membership.role
-    return None
-
-
 def get_accessible_project_ids(
     db: Session,
     user,
-    org_context: Optional[str] = None,
     include_all_private: bool = False,
 ) -> Optional[List[str]]:
     """Get the project IDs a user may open with the full tier.
@@ -849,9 +827,6 @@ def get_accessible_project_ids(
     Args:
         db: Database session
         user: Current authenticated user (auth_module User or DB User)
-        org_context: Accepted for call-site symmetry and ignored: the
-                     selected organization is not a read boundary (the
-                     participant and attempted tiers never were either).
         include_all_private: Superadmin-only opt-in. When True, the helper
                      returns None (no filter) so the caller sees every project
                      in the system, including other users' private projects.
@@ -1197,7 +1172,6 @@ async def get_lti_staff_project_ids_async(
 async def get_accessible_project_ids_async(
     db: AsyncSession,
     user,
-    org_context: Optional[str] = None,
     include_all_private: bool = False,
 ) -> Optional[List[str]]:
     """Async equivalent of :func:`get_accessible_project_ids`."""
@@ -1255,17 +1229,6 @@ async def get_accessible_project_ids_async(
     return _dedup_preserve_order(
         own_private + sorted(lti_staff_ids) + org_arm, public_ids
     )
-
-
-def get_org_context_from_request(request: Request) -> Optional[str]:
-    """The client's selected organization (``X-Organization-Context``).
-
-    Informational only since core 2.21: every access decision is taken
-    from the user's memberships, and since 2.22 no endpoint reads the
-    header for anything else. Kept so the pass-through call sites keep
-    their shape.
-    """
-    return request.headers.get("X-Organization-Context")
 
 
 def _org_grants_full_tier(
@@ -1478,7 +1441,6 @@ def check_project_accessible(
     db: Session,
     user,
     project_id: str,
-    org_context: Optional[str] = None,
     project: Optional[Project] = None,
 ) -> bool:
     """Check if a user can access a specific project (sync).
@@ -1486,11 +1448,10 @@ def check_project_accessible(
     Args:
         db: Database session
         user: Current authenticated user
-        project_id: Project to check access for
-        org_context: Accepted for call-site symmetry and ignored: access is
-            decided from every active membership, whatever organization the
-            client has selected (the selected org used to be a read boundary
-            and demoted staff of a started exam to the participant tier).
+        project_id: Project to check access for. Access is decided from
+            every active membership (the selected organization used to be a
+            read boundary and demoted staff of a started exam to the
+            participant tier).
         project: Optional pre-loaded Project object to avoid redundant DB query.
     """
     if user.is_superadmin:
@@ -1561,7 +1522,6 @@ async def check_project_accessible_async(
     db: AsyncSession,
     user,
     project_id: str,
-    org_context: Optional[str] = None,
     project: Optional[Project] = None,
 ) -> bool:
     """Async equivalent of :func:`check_project_accessible`."""
@@ -1714,8 +1674,8 @@ def _build_select_org_exam_participant(user, project_id: str):
     their own review; the read-window enforcement governs the timeline).
     Decks (``flashcard_collection``, included 2026-08-26) have no windows —
     the clause passes on NULL. Without this arm, an org member studying an
-    org deck under a mismatched org context (the vertretbar apex host sends
-    ``X-Organization-Context: private``) had no fallback and got 403.
+    org deck under a mismatched org context (the vertretbar apex host used
+    to select the private context) had no fallback and got 403.
     """
     return (
         select(OrganizationMembership.id)
@@ -2388,7 +2348,6 @@ async def get_project_access_tier_async(
     db: AsyncSession,
     user,
     project_id: str,
-    org_context: Optional[str] = None,
     project: Optional[Project] = None,
 ) -> Optional[str]:
     """Resolve which access tier a user holds on a project.
@@ -2414,7 +2373,7 @@ async def get_project_access_tier_async(
         return None
     if _is_deleted(project) and not user.is_superadmin:
         return None
-    if await check_project_accessible_async(db, user, project_id, org_context, project=project):
+    if await check_project_accessible_async(db, user, project_id, project=project):
         return TIER_FULL
     if getattr(project, "is_archived", False):
         # Archived never grants the narrow tier — but an own submission keeps
@@ -2433,7 +2392,6 @@ def get_project_access_tier(
     db: Session,
     user,
     project_id: str,
-    org_context: Optional[str] = None,
     project: Optional[Project] = None,
 ) -> Optional[str]:
     """Sync twin of :func:`get_project_access_tier_async`."""
@@ -2443,7 +2401,7 @@ def get_project_access_tier(
         return None
     if _is_deleted(project) and not user.is_superadmin:
         return None
-    if check_project_accessible(db, user, project_id, org_context, project=project):
+    if check_project_accessible(db, user, project_id, project=project):
         return TIER_FULL
     if getattr(project, "is_archived", False):
         if user_attempted_project(db, user.id, project_id):

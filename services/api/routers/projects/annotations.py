@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import String, cast, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,6 @@ from routers.projects.helpers import (
     enforce_project_write_window,
     enforce_project_write_window_async,
     get_effective_project_role_async,
-    get_org_context_from_request,
     get_project_access_tier,
     get_project_access_tier_async,
     require_write_tier,
@@ -39,7 +38,6 @@ router = APIRouter()
 async def create_annotation(
     task_id: str,  # Accept string task IDs
     annotation: AnnotationCreate,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -49,14 +47,13 @@ async def create_annotation(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    org_context = get_org_context_from_request(request)
     # Participants (consented share member, entitled/enrolled student,
     # university-org member on an org-shared exam) hold the narrow tier and
     # may ATTEMPT the task even when check_project_accessible refuses. Keeps
     # the submit gate consistent with the read gates (task listing / next).
     # The attempted tier (read access through an own submission) never
     # submits again — coded 403.
-    require_write_tier(get_project_access_tier(db, current_user, task.project_id, org_context))
+    require_write_tier(get_project_access_tier(db, current_user, task.project_id))
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     project = db.query(Project).filter(Project.id == task.project_id).first()
@@ -305,7 +302,6 @@ async def create_annotation(
 @router.get("/tasks/{task_id}/annotations", response_model=List[AnnotationResponse])
 async def list_task_annotations(
     task_id: str,  # Accept string task IDs
-    request: Request,
     all_users: bool = False,
     completed_by_username: Optional[str] = Query(None, description="Filter by annotator username"),
     latest_only: bool = Query(False, description="Return only the latest annotation per annotator"),
@@ -328,8 +324,7 @@ async def list_task_annotations(
     ).scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    org_context = get_org_context_from_request(request)
-    tier = await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+    tier = await get_project_access_tier_async(db, current_user, task.project_id)
     if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
@@ -441,7 +436,6 @@ async def list_task_annotations(
 async def update_annotation(
     annotation_id: str,
     annotation_update: AnnotationCreate,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -454,11 +448,10 @@ async def update_annotation(
     if not db_annotation:
         raise HTTPException(status_code=404, detail="Annotation not found")
 
-    org_context = get_org_context_from_request(request)
     # None -> "Access denied"; attempted -> coded read-only 403 (an edit is a write).
     require_write_tier(
         await get_project_access_tier_async(
-            db, current_user, db_annotation.project_id, org_context
+            db, current_user, db_annotation.project_id
         )
     )
 

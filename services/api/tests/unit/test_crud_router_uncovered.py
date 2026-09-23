@@ -167,7 +167,7 @@ class TestListProjectsHappyPath:
 
         with _as_user(admin):
             resp = await async_test_client.get(
-                "/api/projects/", headers={"X-Organization-Context": "private"}
+                "/api/projects/"
             )
 
         assert resp.status_code == 200

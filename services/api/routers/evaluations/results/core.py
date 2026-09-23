@@ -7,7 +7,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 @router.get("/results/{project_id}", response_model=List[EvaluationResultsResponse])
 async def get_evaluation_results(
     project_id: str,
-    request: Request,
     limit: int = Query(10, ge=1, le=100),
     include_human: bool = Query(True),
     include_automated: bool = Query(True),
@@ -20,7 +19,7 @@ async def get_evaluation_results(
     Returns both automated and human evaluation results.
     """
     # Check project access
-    if not await check_project_accessible_async(db, current_user, project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
@@ -147,7 +146,6 @@ async def get_evaluation_results(
 @router.post("/export/{project_id}")
 async def export_evaluation_results(
     project_id: str,
-    request: Request,
     format: str = Query("json", regex="^(json|csv)$"),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -156,7 +154,7 @@ async def export_evaluation_results(
     Export evaluation results in various formats.
     """
     # Check project access
-    if not await check_project_accessible_async(db, current_user, project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
@@ -166,7 +164,6 @@ async def export_evaluation_results(
         # Get all evaluation data
         results = await get_evaluation_results(
             project_id=project_id,
-            request=request,
             limit=1000,  # Get all results for export
             include_human=True,
             include_automated=True,
@@ -240,7 +237,6 @@ async def export_evaluation_results(
 @router.get("/{evaluation_id}/samples")
 async def get_evaluation_samples(
     evaluation_id: str,
-    request: Request,
     field_name: Optional[str] = Query(None, description="Filter by field name"),
     passed: Optional[bool] = Query(None, description="Filter by pass/fail status"),
     page: int = Query(1, ge=1, description="Page number"),
@@ -269,8 +265,7 @@ async def get_evaluation_samples(
                 detail=f"Evaluation '{evaluation_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, evaluation.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",

@@ -494,7 +494,6 @@ def _next_task_order(project, current_user) -> tuple:
 @router.get("/{project_id}/next")
 async def get_next_task(
     project_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -520,9 +519,8 @@ async def get_next_task(
     if not project:
         return {"detail": "Project not found", "task": None}
 
-    org_context = get_org_context_from_request(request)
     tier = await get_project_access_tier_async(
-        db, current_user, project_id, org_context, project=project
+        db, current_user, project_id, project=project
     )
     if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
@@ -870,7 +868,6 @@ async def get_next_task(
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -882,8 +879,7 @@ async def get_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    org_context = get_org_context_from_request(request)
-    tier = await get_project_access_tier_async(db, current_user, task.project_id, org_context)
+    tier = await get_project_access_tier_async(db, current_user, task.project_id)
     if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
 

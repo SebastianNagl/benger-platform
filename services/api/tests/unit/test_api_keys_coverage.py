@@ -328,7 +328,7 @@ class TestAvailableModels:
         assert data[0]["id"] == "gpt-4"
 
     @pytest.mark.asyncio
-    async def test_org_context(self, async_test_client, async_test_db):
+    async def test_org(self, async_test_client, async_test_db):
         """Org context with no providers yields no models."""
         user = _seed_user(async_test_db)
         _seed_model(async_test_db, "gpt-4", "openai", name="GPT-4")
@@ -341,7 +341,6 @@ class TestAvailableModels:
              ):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": "org-1"},
             )
         assert resp.status_code == 200
         assert resp.json() == []

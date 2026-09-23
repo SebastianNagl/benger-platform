@@ -317,7 +317,7 @@ class TestApiKeysRouter:
         assert isinstance(response.json(), list)
 
     @pytest.mark.asyncio
-    async def test_get_available_models_with_org_context(
+    async def test_get_available_models_with_org(
         self, async_test_client, async_test_db
     ):
         """Test getting available models with org context."""
@@ -331,6 +331,5 @@ class TestApiKeysRouter:
              ):
             response = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": "org-123"},
             )
         assert response.status_code == status.HTTP_200_OK

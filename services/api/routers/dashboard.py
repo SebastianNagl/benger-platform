@@ -140,7 +140,7 @@ async def get_dashboard_stats(
         # keyword-only-style arg the run_sync positional callable can't pass.
         accessible_ids = await db.run_sync(
             lambda sync_db: get_accessible_project_ids(
-                sync_db, current_user, None, include_all_private=True
+                sync_db, current_user, include_all_private=True
             )
         )
 

@@ -635,7 +635,7 @@ class TestUpdateTaskData:
         current_user.email = "user-1@example.com"
         current_user.is_superadmin = True
 
-        access = ProjectAccess(project=project, user=current_user, org_context=None)
+        access = ProjectAccess(project=project, user=current_user)
 
         with pytest.raises(HTTPException) as exc_info:
             await update_task_data(

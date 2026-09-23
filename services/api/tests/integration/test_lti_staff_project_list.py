@@ -380,9 +380,9 @@ async def _ids(db, user, ctx):
     The context never changes the answer (core 2.21), so callers pass it
     only to document the client the case stands for."""
     principal = _principal(user)
-    got_async = await get_accessible_project_ids_async(db, principal, ctx)
+    got_async = await get_accessible_project_ids_async(db, principal)
     got_sync = await db.run_sync(
-        lambda s: get_accessible_project_ids(s, principal, ctx)
+        lambda s: get_accessible_project_ids(s, principal)
     )
     assert got_async == got_sync, f"sync/async drift for {user.id} in {ctx}"
     return set(got_async)
@@ -526,11 +526,11 @@ async def test_lists_match_the_per_project_decider(async_test_db):
                 continue
             for pid in candidates:
                 opens = await check_project_accessible_async(
-                    db, principal, pid, org_context=ctx
+                    db, principal, pid
                 )
                 opens_sync = await db.run_sync(
                     lambda s, u=principal, p=pid, c=ctx: check_project_accessible(
-                        s, u, p, org_context=c
+                        s, u, p
                     )
                 )
                 assert opens is opens_sync
@@ -646,7 +646,6 @@ async def test_list_endpoint_shows_the_linked_exam_to_staff(
         with _as_user(user):
             r = await async_test_client.get(
                 "/api/projects/?page_size=500",
-                headers={"X-Organization-Context": ctx},
             )
         assert r.status_code == 200, r.text
         return {p["id"]: p for p in r.json()["items"]}
@@ -674,7 +673,6 @@ async def test_list_endpoint_shows_the_linked_exam_to_staff(
     with _as_user(w.contributor):
         r = await async_test_client.get(
             "/api/projects/?page_size=500&is_archived=true",
-            headers={"X-Organization-Context": "private"},
         )
     assert r.status_code == 200
     assert w.exam_archived.id in {p["id"] for p in r.json()["items"]}
@@ -683,7 +681,6 @@ async def test_list_endpoint_shows_the_linked_exam_to_staff(
     with _as_user(w.contributor):
         r = await async_test_client.get(
             f"/api/projects/{w.exam_wide.id}",
-            headers={"X-Organization-Context": "private"},
         )
     assert r.status_code == 200, r.text
 
@@ -731,7 +728,7 @@ async def test_edit_check_on_private_projects_equals_access(async_test_db):
     for user in users:
         for project in projects:
             opens = await check_project_accessible_async(
-                db, _principal(user), project.id, org_context=None
+                db, _principal(user), project.id
             )
             assert await _can_edit(db, user, project) is opens, (
                 user.id, _names(w, {project.id}), opens

@@ -6,7 +6,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 def bulk_export_tasks(
     project_id: str,
     data: dict,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -35,8 +34,7 @@ def bulk_export_tasks(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(request)
-    if not check_project_accessible(db, current_user, project_id, org_context):
+    if not check_project_accessible(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
     # The export streams raw ``task.data`` with NO annotator blinding (reference
     # solutions included), so it is only for users who could see the full

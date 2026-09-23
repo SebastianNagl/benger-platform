@@ -4,7 +4,7 @@ Unit tests to increase coverage for miscellaneous API modules.
 Targets:
 - services/user_api_key_service.py (uncovered: exception paths, validate_api_key branches, factory)
 - services/analytics_service.py (uncovered: date_filter branches, IAA with annotators)
-- app/core/authorization.py (uncovered: org_context mode, require_permission decorator, require_superadmin)
+- app/core/authorization.py (uncovered: org membership mode, require_permission decorator, require_superadmin)
 - services/evaluation/config.py (uncovered: metric param functions, normalize methods)
 - services/evaluation/report_service.py (uncovered: _resolve_per_model_metrics, _update_metadata)
 - services/websocket_clustering.py (uncovered: initialize branches, _listen_for_cluster_messages, _send_heartbeat)
@@ -476,7 +476,7 @@ class TestAnalyticsDifficultyAnalysis:
 
 
 class TestAuthorizationOrgContextMode:
-    """Cover lines 119-139: org_context mode with org membership checks."""
+    """Cover lines 119-139: org membership checks."""
 
     def test_membership_outside_the_projects_orgs_denied_in_every_context(self):
         from unittest.mock import patch
@@ -498,10 +498,10 @@ class TestAuthorizationOrgContextMode:
         ), patch.object(svc, "_get_user_org_memberships", return_value=[membership]):
             for ctx in ("org-123", "org-other", "private", None):
                 assert svc.check_project_access(
-                    user, project, Permission.PROJECT_VIEW, db, org_context=ctx
+                    user, project, Permission.PROJECT_VIEW, db
                 ) is False, ctx
 
-    def test_org_context_project_in_org_but_user_not_member(self):
+    def test_org_project_in_org_but_user_not_member(self):
         from app.core.authorization import AuthorizationService, Permission
 
         svc = AuthorizationService()
@@ -515,11 +515,11 @@ class TestAuthorizationOrgContextMode:
         # User has no memberships
         with patch.object(svc, "_get_user_org_memberships", return_value=[]):
             result = svc.check_project_access(
-                user, project, Permission.PROJECT_VIEW, db, org_context="org-123"
+                user, project, Permission.PROJECT_VIEW, db
             )
             assert result is False
 
-    def test_org_context_project_in_org_user_active_member_with_permission(self):
+    def test_org_project_in_org_user_active_member_with_permission(self):
         from app.core.authorization import AuthorizationService, Permission
 
         svc = AuthorizationService()
@@ -534,11 +534,11 @@ class TestAuthorizationOrgContextMode:
         membership = Mock(organization_id="org-123", is_active=True, role="org_admin")
         with patch.object(svc, "_get_user_org_memberships", return_value=[membership]):
             result = svc.check_project_access(
-                user, project, Permission.PROJECT_VIEW, db, org_context="org-123"
+                user, project, Permission.PROJECT_VIEW, db
             )
             assert result is True
 
-    def test_org_context_user_inactive_member_denied(self):
+    def test_org_user_inactive_member_denied(self):
         from app.core.authorization import AuthorizationService, Permission
 
         svc = AuthorizationService()
@@ -552,7 +552,7 @@ class TestAuthorizationOrgContextMode:
         membership = Mock(organization_id="org-123", is_active=False, role="org_admin")
         with patch.object(svc, "_get_user_org_memberships", return_value=[membership]):
             result = svc.check_project_access(
-                user, project, Permission.PROJECT_VIEW, db, org_context="org-123"
+                user, project, Permission.PROJECT_VIEW, db
             )
             assert result is False
 

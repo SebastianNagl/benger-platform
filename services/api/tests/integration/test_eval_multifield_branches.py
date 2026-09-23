@@ -345,7 +345,7 @@ def _make_task_evaluation(db, eval_run, task, *, generation=None, annotation=Non
 
 
 def _h(auth_headers, org, role="admin"):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
+    return auth_headers[role]
 
 
 def _config(metric="bleu", cfg_id="c1", enabled=True):
@@ -384,7 +384,7 @@ class TestRunEvaluation:
         resp = client.post(
             f"{BASE}/run",
             json={"project_id": p.id, "evaluation_configs": [_config()]},
-            headers={**auth_headers["annotator"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403, resp.text
         assert "permission" in resp.json()["detail"]
@@ -611,7 +611,7 @@ class TestCancelAuthBranches:
 
         resp = client.post(
             f"{BASE}/run/{er.id}/cancel",
-            headers={**auth_headers["annotator"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["annotator"],
         )
         assert resp.status_code == 403, resp.text
         assert "permission to cancel" in resp.json()["detail"]
@@ -650,7 +650,7 @@ class TestCancelAuthBranches:
 
         resp = client.post(
             f"{BASE}/run/{er.id}/cancel",
-            headers={**auth_headers["contributor"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["contributor"],
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["cancelled_run_ids"] == [er.id]

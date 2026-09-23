@@ -205,7 +205,7 @@ class TestGetProjectOr403:
         # Outsider (non-superadmin, not creator, no membership) → 403.
         with pytest.raises(HTTPException) as exc_info:
             await get_project_or_403(
-                project.id, auth_outsider, async_test_db, org_context="private"
+                project.id, auth_outsider, async_test_db
             )
         assert exc_info.value.status_code == 403
 
@@ -342,7 +342,6 @@ class TestPromptStructureEndpoints:
         with _as_user(outsider):
             response = await async_test_client.get(
                 f"{BASE}/{project.id}/generation-config/structures/my_struct",
-                headers={"X-Organization-Context": "private"},
             )
         assert response.status_code == status.HTTP_403_FORBIDDEN
 

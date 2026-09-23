@@ -311,7 +311,7 @@ async def get_user_contexts(
             ).all()
         )
 
-        org_contexts = [
+        org_entries = [
             {
                 "id": org.id,
                 "name": org.name,
@@ -361,7 +361,7 @@ async def get_user_contexts(
                 ).all()
             )
 
-        org_contexts = [
+        org_entries = [
             {
                 "id": org.id,
                 "name": org.name,
@@ -378,7 +378,7 @@ async def get_user_contexts(
 
     return {
         "user": user_dict,
-        "organizations": org_contexts,
+        "organizations": org_entries,
         "private_mode_available": True,
     }
 

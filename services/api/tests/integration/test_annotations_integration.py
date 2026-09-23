@@ -194,7 +194,7 @@ class TestCreateAnnotation:
                      "value": {"text": ["Test annotation"]}}
                 ],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -225,7 +225,7 @@ class TestCreateAnnotation:
         test_db.add(task)
         test_db.commit()
 
-        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        hdr = auth_headers["admin"]
         url = f"/api/projects/tasks/{task.id}/annotations"
         r1 = client.post(url, json={
             "result": [{"from_name": "text", "to_name": "text", "type": "textarea",
@@ -264,7 +264,7 @@ class TestCreateAnnotation:
         project updates the row in place (latest content wins) rather than
         inserting a duplicate. "Submitted is submitted."""
         project, tasks = _setup(test_db, test_users[0], test_org)
-        hdr = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        hdr = auth_headers["admin"]
         url = f"/api/projects/tasks/{tasks[0].id}/annotations"
         first = {"result": [{"from_name": "text", "to_name": "text", "type": "textarea",
                              "value": {"text": ["first"]}}]}
@@ -322,7 +322,7 @@ class TestCreateAnnotation:
         resp = client.post(
             "/api/projects/tasks/nonexistent-task/annotations",
             json={"result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["x"]}}]},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
@@ -334,7 +334,7 @@ class TestCreateAnnotation:
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["cancel"]}}],
                 "was_cancelled": True,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["was_cancelled"] == True  # noqa: E712
@@ -350,7 +350,7 @@ class TestCreateAnnotation:
                 "focused_duration_ms": 35000,
                 "tab_switches": 3,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -371,7 +371,7 @@ class TestCreateAnnotation:
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["ai"]}}],
                 "instruction_variant": "variant-1",
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -385,7 +385,7 @@ class TestCreateAnnotation:
             json={
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["done"]}}],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         # Check task is labeled

@@ -136,7 +136,7 @@ class TestPause:
         eval_id = data["eval_run"].id
         resp = client.post(
             f"{BASE}/run/{eval_id}/pause",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -160,7 +160,7 @@ class TestPause:
         data = _seed_run(test_db, test_users[0], test_org, status="pending")
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/pause",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["changed"] is True
@@ -171,7 +171,7 @@ class TestPause:
         data = _seed_run(test_db, test_users[0], test_org, status="completed")
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/pause",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -208,7 +208,7 @@ class TestResume:
             mock_celery.send_task.return_value = fake_task
             resp = client.post(
                 f"{BASE}/run/{eval_id}/resume",
-                headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+                headers=auth_headers["admin"],
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -254,7 +254,7 @@ class TestResume:
             mock_celery.send_task.return_value = fake_task
             resp = client.post(
                 f"{BASE}/run/{data['eval_run'].id}/resume",
-                headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+                headers=auth_headers["admin"],
             )
         assert resp.status_code == 200
         assert resp.json()["changed"] is True
@@ -273,7 +273,7 @@ class TestResume:
         ) as mock_celery:
             resp = client.post(
                 f"{BASE}/run/{data['eval_run'].id}/resume",
-                headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+                headers=auth_headers["admin"],
             )
         assert resp.status_code == 200
         assert resp.json()["changed"] is False
@@ -290,7 +290,7 @@ class TestResume:
         )
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/resume",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 409
         test_db.expire_all()
@@ -320,7 +320,7 @@ class TestRetry:
             mock_celery.send_task.return_value = fake_task
             resp = client.post(
                 f"{BASE}/run/{eval_id}/retry",
-                headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+                headers=auth_headers["admin"],
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -345,7 +345,7 @@ class TestRetry:
         ) as mock_celery:
             resp = client.post(
                 f"{BASE}/run/{data['eval_run'].id}/retry",
-                headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+                headers=auth_headers["admin"],
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -365,7 +365,7 @@ class TestLifecycleAuth:
         data = _seed_run(test_db, admin, test_org, status="running")
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/pause",
-            headers={**auth_headers["annotator"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["annotator"],
         )
         # 403 (forbidden) or 404 (no access path) — both deny; the
         # unacceptable result is a 200 that pauses the admin's run.
@@ -392,7 +392,7 @@ class TestLifecycleAuth:
         )
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/pause",
-            headers={**auth_headers["annotator"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["annotator"],
         )
         assert resp.status_code == 200, resp.text
         assert resp.json()["changed"] is True

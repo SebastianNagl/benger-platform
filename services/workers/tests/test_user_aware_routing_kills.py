@@ -757,7 +757,7 @@ class TestOrgCredentialPrecedence:
         )
         assert service is None
 
-    def test_no_org_context_never_consults_org_key(
+    def test_no_org_never_consults_org_key(
         self, svc, monkeypatch, access_granted, patched_org_seams
     ):
         monkeypatch.setattr(cmcs_mod, "get_credential", lambda db, u, m: None)

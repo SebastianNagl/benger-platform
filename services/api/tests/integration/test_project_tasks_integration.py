@@ -184,10 +184,6 @@ async def seeded(async_test_db):
     return users, org
 
 
-def _ctx(org: Organization):
-    return {"X-Organization-Context": org.id}
-
-
 @pytest.mark.integration
 class TestListTasks:
     """GET /api/projects/{project_id}/tasks"""
@@ -199,7 +195,6 @@ class TestListTasks:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -212,7 +207,6 @@ class TestListTasks:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?page=1&page_size=3",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
 
@@ -227,7 +221,6 @@ class TestListTasks:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?only_labeled=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
 
@@ -241,7 +234,6 @@ class TestListTasks:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks?only_unlabeled=true",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
 
@@ -294,7 +286,6 @@ class TestGetNextTask:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         # 200 with a task, or 404 if no tasks available
         assert resp.status_code in (200, 404)
@@ -312,7 +303,6 @@ class TestGetNextTask:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/next",
-                headers=_ctx(org),
             )
         # Should indicate no tasks available
         assert resp.status_code in (200, 404)
@@ -330,7 +320,6 @@ class TestUpdateTask:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Updated text content"}},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 403)
 
@@ -342,7 +331,6 @@ class TestUpdateTask:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/nonexistent-id",
                 json={"data": {"text": "nope"}},
-                headers=_ctx(org),
             )
         assert resp.status_code in (404, 403)
 
@@ -363,7 +351,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Edited by superadmin"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["data"]["text"] == "Edited by superadmin"
@@ -380,7 +367,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Edited by org admin"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["data"]["text"] == "Edited by org admin"
@@ -395,7 +381,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Contributor attempt"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 403
         assert "organization admins" in resp.json()["detail"]
@@ -410,7 +395,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Annotator attempt"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 403
         assert "organization admins" in resp.json()["detail"]
@@ -440,7 +424,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Should be blocked"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 403
 
@@ -459,7 +442,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Edited by creator"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["data"]["text"] == "Edited by creator"
@@ -508,7 +490,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Outsider attempt"}},
-                headers={"X-Organization-Context": other_org.id},
             )
         # check_project_accessible fires before the edit gate: the project does
         # not belong to the outsider's org, so the request is rejected with 403
@@ -527,7 +508,6 @@ class TestUpdateTaskAuthorization:
         resp = await async_test_client.put(
             f"/api/projects/{project.id}/tasks/{tasks[0].id}",
             json={"data": {"text": "Anonymous attempt"}},
-            headers=_ctx(org),
         )
         assert resp.status_code == 401
 
@@ -542,7 +522,6 @@ class TestUpdateTaskAuthorization:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Merged value"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -605,7 +584,6 @@ class TestBulkDeleteTasks:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/bulk-delete",
                 json={"task_ids": task_ids},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 403)
 
@@ -617,7 +595,6 @@ class TestBulkDeleteTasks:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/bulk-delete",
                 json={"task_ids": []},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 400, 403)
 
@@ -635,7 +612,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{project.id}/tasks/bulk-export",
             json={"task_ids": [t.id for t in tasks]},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 403)
 
@@ -698,7 +675,6 @@ class TestBulkArchiveTasks:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/bulk-archive",
                 json={"task_ids": [t.id for t in tasks[:2]]},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 403)
 
@@ -715,7 +691,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}/skip",
                 json={"reason": "Too ambiguous"},
-                headers=_ctx(org),
             )
         # Endpoint may not exist or may return various statuses
         assert resp.status_code in (200, 404, 405)

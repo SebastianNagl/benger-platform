@@ -137,7 +137,7 @@ def _generations(db, project, tasks, model_id="gpt-4o"):
 
 
 def _h(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
+    return auth_headers["admin"]
 
 
 # ===================================================================

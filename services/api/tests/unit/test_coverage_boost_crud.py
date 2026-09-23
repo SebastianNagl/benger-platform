@@ -242,7 +242,7 @@ class TestListProjects:
         assert data["page_size"] == 2
 
     @pytest.mark.asyncio
-    async def test_list_projects_with_org_context(
+    async def test_list_projects_with_org(
         self, async_test_client, async_test_db
     ):
         admin = await _make_user(async_test_db, is_superadmin=True)
@@ -254,7 +254,7 @@ class TestListProjects:
 
         with _as_user(admin):
             resp = await async_test_client.get(
-                "/api/projects/", headers={"X-Organization-Context": org.id}
+                "/api/projects/"
             )
         assert resp.status_code == 200
 
@@ -270,7 +270,7 @@ class TestListProjects:
 
         with _as_user(admin):
             resp = await async_test_client.get(
-                "/api/projects/", headers={"X-Organization-Context": "private"}
+                "/api/projects/"
             )
         assert resp.status_code == 200
 
@@ -313,7 +313,7 @@ class TestCreateProject:
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_create_project_with_org_context(
+    async def test_create_project_with_org(
         self, async_test_client, async_test_db
     ):
         admin = await _make_user(async_test_db, is_superadmin=True)
@@ -326,7 +326,6 @@ class TestCreateProject:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Org Project Create"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 

@@ -2,16 +2,15 @@
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 
-async def _metadata_write_allowed(db, user, project_id: str, request: Request) -> bool:
-    """Context-aware read gate + write-tier gate for the metadata PATCHes.
+async def _metadata_write_allowed(db, user, project_id: str) -> bool:
+    """Read gate + write-tier gate for the metadata PATCHes.
 
-    The read gate keeps the X-Organization-Context semantics every task
-    endpoint has (wrong / stale context → 403); the write gate is what stops a
+    The read gate is the one every task endpoint has (no access → 403); the
+    write gate is what stops a
     public-project visitor with ``public_role=ANNOTATOR`` from editing
     ``task.meta``.
     """
-    org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, user, project_id, org_context):
+    if not await check_project_accessible_async(db, user, project_id):
         return False
     return await check_project_write_access_async(db, user, project_id)
 
@@ -20,7 +19,6 @@ async def _metadata_write_allowed(db, user, project_id: str, request: Request) -
 async def update_task_metadata(
     task_id: str,
     metadata: dict,
-    request: Request,
     merge: bool = Query(True, description="Merge with existing metadata or replace"),
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -42,7 +40,7 @@ async def update_task_metadata(
     # on a public project) is not enough — require the documented write tier
     # (effective ORG_ADMIN / CONTRIBUTOR; public CONTRIBUTOR visitors keep it,
     # public ANNOTATOR visitors do not).
-    if not await _metadata_write_allowed(db, current_user, task.project_id, request):
+    if not await _metadata_write_allowed(db, current_user, task.project_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Initialize meta if it doesn't exist
@@ -76,7 +74,6 @@ async def update_task_metadata(
 async def bulk_update_task_metadata(
     task_ids: List[str],
     metadata: dict,
-    request: Request,
     merge: bool = Query(True, description="Merge with existing metadata or replace"),
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -99,7 +96,7 @@ async def bulk_update_task_metadata(
     for task in tasks:
         if task.project_id not in checked_projects:
             if not await _metadata_write_allowed(
-                db, current_user, task.project_id, request
+                db, current_user, task.project_id
             ):
                 raise HTTPException(status_code=403, detail="Access denied")
             checked_projects.add(task.project_id)

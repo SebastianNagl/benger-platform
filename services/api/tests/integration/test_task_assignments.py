@@ -1418,7 +1418,6 @@ class TestCrossOrgBoundary:
         with _as_user(p["users"]["org_admin"]):
             resp = await async_test_client.get(
                 f"/api/projects/{project_b.id}/tasks",
-                headers={"X-Organization-Context": org_b.id},
             )
         assert resp.status_code == 403
 
@@ -1461,7 +1460,6 @@ class TestCrossOrgBoundary:
         with _as_user(p["users"]["contributor"]):
             resp = await async_test_client.get(
                 f"/api/projects/{project_b.id}/tasks",
-                headers={"X-Organization-Context": org_b.id},
             )
         assert resp.status_code == 403
 

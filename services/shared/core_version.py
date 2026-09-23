@@ -290,11 +290,22 @@ whenever one is added, renamed or removed):
   ``require_org_contributor`` need an explicit org id; the
   ``OrgContextMiddleware`` (``request.state.organization_context``) is
   gone. ``X-Organization-Context`` is still accepted and ignored.
+
+2.23 (2026-09-23): the inert ``org_context`` parameters are removed.
+  ``check_project_accessible(_async)``, ``get_project_access_tier(_async)``,
+  ``get_accessible_project_ids(_async)``,
+  ``AuthorizationService.check_project_access(_async)`` and
+  ``org_groups.lti_staff_role`` no longer take it, ``ProjectAccess`` drops
+  its ``org_context`` attribute, and ``get_org_context_from_request`` is
+  gone. ``X-Organization-Context`` is no longer in the CORS
+  ``allow_headers``. ``POST /api/projects/project-imports`` takes the target
+  ``organization_id`` in the body (org-less imports are private). Extended
+  callers must stop passing the argument.
 """
 
 import os
 
-CORE_API_VERSION = "2.22"
+CORE_API_VERSION = "2.23"
 
 
 def extended_required() -> bool:

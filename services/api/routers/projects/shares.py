@@ -379,7 +379,6 @@ async def evict_member(
 @router.get("/{project_id}/cohort-leaderboard")
 async def cohort_leaderboard(
     project_id: str,
-    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -392,12 +391,10 @@ async def cohort_leaderboard(
     # Access: full tier (owner/editor/org member) OR any participant (share
     # member, entitled/enrolled student, org-exam participant).
     from routers.projects.helpers import (
-        get_org_context_from_request,
         get_project_access_tier_async,
     )
 
-    org_context = get_org_context_from_request(request)
-    if await get_project_access_tier_async(db, current_user, project_id, org_context) is None:
+    if await get_project_access_tier_async(db, current_user, project_id) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     members = (
@@ -573,7 +570,6 @@ async def discover_shares(
 @router.get("/{project_id}/participation")
 async def get_participation(
     project_id: str,
-    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -589,12 +585,10 @@ async def get_participation(
     """
     from routers.projects.helpers import (
         TIER_ATTEMPTED,
-        get_org_context_from_request,
         get_project_access_tier_async,
     )
 
-    org_context = get_org_context_from_request(request)
-    tier = await get_project_access_tier_async(db, current_user, project_id, org_context)
+    tier = await get_project_access_tier_async(db, current_user, project_id)
     if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
     uid = str(current_user.id)

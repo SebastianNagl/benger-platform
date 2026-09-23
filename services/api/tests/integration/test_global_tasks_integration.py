@@ -147,7 +147,6 @@ class TestGlobalTasksAccessControl:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 "/api/data/",
-                headers={"X-Organization-Context": org_a.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -262,7 +261,6 @@ class TestGlobalTasksAccessControl:
         with _as_user(contributor):
             resp_active = await async_test_client.get(
                 "/api/data/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp_active.status_code == 200
         active_ids = {t["project_id"] for t in resp_active.json().get("items", [])}
@@ -276,7 +274,6 @@ class TestGlobalTasksAccessControl:
         with _as_user(contributor):
             resp_inactive = await async_test_client.get(
                 "/api/data/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp_inactive.status_code == 200
         inactive_ids = {t["project_id"] for t in resp_inactive.json().get("items", [])}

@@ -164,14 +164,14 @@ async def test_access_async_superadmin_always_true(async_test_db):
 
 
 @pytest.mark.asyncio
-async def test_access_async_private_creator_in_org_context(async_test_db):
+async def test_access_async_private_creator_in_org(async_test_db):
     creator = await _make_user(async_test_db)
     project = await _make_project(async_test_db, creator.id, is_private=True)
     await async_test_db.commit()
 
     # Org context set, but the creator of a private project keeps access.
     assert await check_project_accessible_async(
-        async_test_db, creator, project.id, org_context="some-org"
+        async_test_db, creator, project.id
     ) is True
 
 
@@ -183,7 +183,7 @@ async def test_access_async_private_non_owner_denied(async_test_db):
     await async_test_db.commit()
 
     assert await check_project_accessible_async(
-        async_test_db, other, project.id, org_context="private"
+        async_test_db, other, project.id
     ) is False
 
 
@@ -204,15 +204,15 @@ async def test_access_async_org_project_creator_in_private_context(async_test_db
     await async_test_db.commit()
 
     assert await check_project_accessible_async(
-        async_test_db, creator, project.id, org_context="private"
+        async_test_db, creator, project.id
     ) is True
     assert await check_project_accessible_async(
-        async_test_db, other, project.id, org_context="private"
+        async_test_db, other, project.id
     ) is True
     stranger = await _make_user(async_test_db)
     await async_test_db.commit()
     assert await check_project_accessible_async(
-        async_test_db, stranger, project.id, org_context="private"
+        async_test_db, stranger, project.id
     ) is False
 
 
@@ -226,7 +226,7 @@ async def test_access_async_org_member_active(async_test_db):
     await async_test_db.commit()
 
     assert await check_project_accessible_async(
-        async_test_db, member, project.id, org_context=org.id
+        async_test_db, member, project.id
     ) is True
 
 
@@ -242,7 +242,7 @@ async def test_access_async_org_member_inactive_denied(async_test_db):
     await async_test_db.commit()
 
     assert await check_project_accessible_async(
-        async_test_db, member, project.id, org_context=org.id
+        async_test_db, member, project.id
     ) is False
 
 
@@ -255,9 +255,9 @@ async def test_access_async_legacy_org_member(async_test_db):
     await _add_membership(async_test_db, member.id, org.id, role="ANNOTATOR")
     await async_test_db.commit()
 
-    # Legacy mode (org_context=None) — any active membership in a project org.
+    # Any active membership in a project org grants access.
     assert await check_project_accessible_async(
-        async_test_db, member, project.id, org_context=None
+        async_test_db, member, project.id
     ) is True
 
 
@@ -274,7 +274,7 @@ async def test_access_async_archived_annotator_denied(async_test_db):
 
     # Archived project is read-only to annotators → access revoked.
     assert await check_project_accessible_async(
-        async_test_db, member, project.id, org_context=org.id
+        async_test_db, member, project.id
     ) is False
 
 

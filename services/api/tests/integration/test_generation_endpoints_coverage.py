@@ -149,7 +149,6 @@ class TestGetGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -168,7 +167,6 @@ class TestGetGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -192,7 +190,6 @@ class TestGetGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -213,7 +210,6 @@ class TestUpdateGenerationConfig:
             resp = await async_test_client.put(
                 f"/api/projects/{project.id}/generation-config",
                 json=new_config,
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -244,7 +240,6 @@ class TestClearGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.delete(
                 f"/api/projects/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 204
 
@@ -270,7 +265,6 @@ class TestGetGenerationStatus:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/generation-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -285,7 +279,6 @@ class TestGetGenerationStatus:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/generation-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()

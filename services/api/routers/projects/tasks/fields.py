@@ -80,7 +80,6 @@ def extract_fields_from_data(data: Dict[str, Any], prefix: str = "") -> List[Dic
 @router.get("/{project_id}/task-fields")
 async def get_task_data_fields(
     project_id: str,
-    request: Request,
     sample_count: int = Query(default=5, ge=1, le=20),
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -112,8 +111,7 @@ async def get_task_data_fields(
     if not project:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found")
 
-    org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, project_id, org_context):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Timed access window: this returns sample task-data VALUES, so hide it from

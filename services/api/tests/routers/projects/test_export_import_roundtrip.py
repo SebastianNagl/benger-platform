@@ -309,7 +309,7 @@ class TestDataExportImportRoundtrip:
         # body_iterator below; the companion import drives the shared
         # run_nested_import driver directly (see _import).
         response = bulk_export_tasks(
-            project_id, request_data, request=mock_request, current_user=mock_user, db=db_session
+            project_id, request_data, current_user=mock_user, db=db_session
         )
 
         async def _consume() -> bytes:

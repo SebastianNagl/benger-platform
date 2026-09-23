@@ -193,14 +193,13 @@ async def test_accessible_ids_group_matrix_both_lanes(async_test_db):
 
     db = async_test_db
     w = await _world(db)
-    org_id = w["org"].id
 
     async def ids_async(user):
-        return set(await get_accessible_project_ids_async(db, user, org_id) or [])
+        return set(await get_accessible_project_ids_async(db, user) or [])
 
     def ids_sync(user):
         return lambda sync_db: set(
-            get_accessible_project_ids(sync_db, user, org_id) or []
+            get_accessible_project_ids(sync_db, user) or []
         )
 
     expectations = [
@@ -252,12 +251,12 @@ async def test_per_project_deciders_both_modes_and_lanes(async_test_db):
     for user, project, expected in cases:
         for ctx in (org_id, None):  # context mode + legacy mode
             got = await check_project_accessible_async(
-                db, user, project.id, org_context=ctx
+                db, user, project.id
             )
             assert got is expected, (user.id, project.id, ctx, "async")
             got_sync = await db.run_sync(
                 lambda s, u=user, p=project, c=ctx: check_project_accessible(
-                    s, u, p.id, org_context=c
+                    s, u, p.id
                 )
             )
             assert got_sync is expected, (user.id, project.id, ctx, "sync")
@@ -365,20 +364,20 @@ async def test_authorization_duplicate_decider_both_lanes(async_test_db):
 
     for ctx in (org_id, None):
         assert await svc.check_project_access_async(
-            principal(w["contrib_a"]), w["p_a"], Permission.PROJECT_VIEW, db, org_context=ctx
+            principal(w["contrib_a"]), w["p_a"], Permission.PROJECT_VIEW, db
         ) is True
         assert await svc.check_project_access_async(
-            principal(w["loose"]), w["p_a"], Permission.PROJECT_VIEW, db, org_context=ctx
+            principal(w["loose"]), w["p_a"], Permission.PROJECT_VIEW, db
         ) is False
         got_sync = await db.run_sync(
             lambda s, c=ctx: svc.check_project_access(
-                principal(w["loose"]), w["p_a"], Permission.PROJECT_VIEW, s, org_context=c
+                principal(w["loose"]), w["p_a"], Permission.PROJECT_VIEW, s
             )
         )
         assert got_sync is False
     # Group admin gets admin-level permissions on the group project.
     assert await svc.check_project_access_async(
-        principal(w["gadmin_a"]), w["p_a"], Permission.PROJECT_EDIT, db, org_context=org_id
+        principal(w["gadmin_a"]), w["p_a"], Permission.PROJECT_EDIT, db
     ) is True
 
 
@@ -388,25 +387,23 @@ async def test_authorization_duplicate_decider_both_lanes(async_test_db):
 async def test_list_endpoint_and_members_fan_in(async_test_client, async_test_db):
     db = async_test_db
     w = await _world(db)
-    org_id = w["org"].id
-    headers = {"X-Organization-Context": org_id}
 
     with _as_user(w["loose"]):
-        r = await async_test_client.get("/api/projects/", headers=headers)
+        r = await async_test_client.get("/api/projects/")
         assert r.status_code == 200
         ids = {p["id"] for p in r.json()["items"]}
         assert w["p_org"].id in ids
         assert w["p_a"].id not in ids
 
     with _as_user(w["contrib_a"]):
-        r = await async_test_client.get("/api/projects/", headers=headers)
+        r = await async_test_client.get("/api/projects/")
         ids = {p["id"] for p in r.json()["items"]}
         assert w["p_a"].id in ids
 
         # Roster fan-in: group A project lists group A members + org admins,
         # never group B / loose members.
         r = await async_test_client.get(
-            f"/api/projects/{w['p_a'].id}/members", headers=headers
+            f"/api/projects/{w['p_a'].id}/members"
         )
         assert r.status_code == 200
         member_ids = {m["user_id"] for m in r.json()}
@@ -597,7 +594,7 @@ async def test_org_annotator_group_admin_may_list_roster(
         assert r.status_code == 403
 
 
-async def test_superadmin_without_membership_creates_into_org_context(
+async def test_superadmin_without_membership_creates_into_org(
     async_test_client, async_test_db
 ):
     """A superadmin without any membership creates into the org named in

@@ -289,7 +289,7 @@ class TestBulkExport:
         resp = client.post(
             "/api/projects/bulk-export",
             json={"project_ids": [p1.id]},
-            headers={**auth_headers["admin"], "X-Organization-Context": org1.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 

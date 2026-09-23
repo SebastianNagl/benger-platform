@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -13,7 +13,7 @@ from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import ResponseGeneration as DBResponseGeneration
 from project_models import Project
-from routers.projects.helpers import check_project_accessible_async, get_org_context_from_request
+from routers.projects.helpers import check_project_accessible_async
 
 router = APIRouter()
 
@@ -21,7 +21,6 @@ router = APIRouter()
 @router.get("/{project_id}/generation-config", response_model=dict)
 async def get_generation_config(
     project_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: AuthUser = Depends(require_user),
 ):
@@ -36,7 +35,6 @@ async def get_generation_config(
 
     if not await auth_service.check_project_access_async(
         current_user, project, Permission.PROJECT_VIEW, db,
-        org_context=get_org_context_from_request(request),
     ):
         raise HTTPException(
             status_code=403,
@@ -71,7 +69,6 @@ async def get_generation_config(
 async def update_generation_config(
     project_id: str,
     config: Dict[str, Any],
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: AuthUser = Depends(require_user),
 ):
@@ -86,7 +83,6 @@ async def update_generation_config(
 
     if not await auth_service.check_project_access_async(
         current_user, project, Permission.PROJECT_EDIT, db,
-        org_context=get_org_context_from_request(request),
     ):
         raise HTTPException(
             status_code=403, detail="You don't have permission to edit this project"
@@ -113,7 +109,6 @@ async def update_generation_config(
 @router.delete("/{project_id}/generation-config", status_code=204)
 async def clear_generation_config(
     project_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: AuthUser = Depends(require_user),
 ):
@@ -128,7 +123,6 @@ async def clear_generation_config(
 
     if not await auth_service.check_project_access_async(
         current_user, project, Permission.PROJECT_EDIT, db,
-        org_context=get_org_context_from_request(request),
     ):
         raise HTTPException(
             status_code=403, detail="You don't have permission to edit this project"
@@ -143,7 +137,6 @@ async def clear_generation_config(
 @router.get("/{project_id}/generation-status", response_model=dict)
 async def get_project_generation_status(
     project_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: AuthUser = Depends(require_user),
 ):
@@ -155,8 +148,7 @@ async def get_project_generation_status(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Check access
-    org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, project_id, org_context):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     gen_result = await db.execute(

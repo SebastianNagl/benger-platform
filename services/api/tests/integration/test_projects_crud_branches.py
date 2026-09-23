@@ -214,7 +214,6 @@ class TestCreatePublicProject:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Public Branch Project", "is_public": True},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -244,7 +243,6 @@ class TestCreatePublicProject:
                     "is_public": True,
                     "public_role": "CONTRIBUTOR",
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         project_id = resp.json()["id"]
@@ -264,7 +262,6 @@ class TestCreatePublicProject:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Conflict", "is_public": True, "is_private": True},
-                headers={"X-Organization-Context": org.id},
             )
         # The pydantic validator rejects this combination before the handler
         # body runs, so the response is a 422 validation error; if it reaches
@@ -292,7 +289,6 @@ class TestListProjectsArchivedFilter:
         with _as_user(admin):
             r_arch = await async_test_client.get(
                 "/api/projects/?is_archived=true&page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r_arch.status_code == 200
         arch_ids = {p["id"] for p in r_arch.json()["items"]}
@@ -303,7 +299,6 @@ class TestListProjectsArchivedFilter:
         with _as_user(admin):
             r_active = await async_test_client.get(
                 "/api/projects/?is_archived=false&page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r_active.status_code == 200
         active_ids = {p["id"] for p in r_active.json()["items"]}
@@ -338,7 +333,6 @@ class TestListProjectsArchivedAnnotatorHardening:
         with _as_user(annotator):
             r_arch = await async_test_client.get(
                 "/api/projects/?is_archived=true&page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r_arch.status_code == 200
         body = r_arch.json()
@@ -350,7 +344,6 @@ class TestListProjectsArchivedAnnotatorHardening:
         with _as_user(annotator):
             r_all = await async_test_client.get(
                 "/api/projects/?page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r_all.status_code == 200
         all_ids = {p["id"] for p in r_all.json()["items"]}
@@ -374,7 +367,6 @@ class TestListProjectsArchivedAnnotatorHardening:
         with _as_user(contributor):
             r = await async_test_client.get(
                 "/api/projects/?is_archived=true&page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r.status_code == 200
         assert archived.id in {p["id"] for p in r.json()["items"]}
@@ -399,7 +391,6 @@ class TestListProjectsArchivedAnnotatorHardening:
         with _as_user(annotator):
             r = await async_test_client.get(
                 "/api/projects/?is_archived=true&page_size=500",
-                headers={"X-Organization-Context": org.id},
             )
         assert r.status_code == 200
         assert own_archived.id in {p["id"] for p in r.json()["items"]}
@@ -558,7 +549,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -576,7 +566,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
         assert resp.json()["detail"] == "Project not found"
@@ -596,7 +585,6 @@ class TestCompletionStats:
         with _as_user(outsider):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/completion-stats",
-                headers={"X-Organization-Context": other_org.id},
             )
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Access denied"

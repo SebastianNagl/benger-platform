@@ -14,7 +14,7 @@ Platform owns the ``task_rubrics`` persistence, the structure contract
   cloned (response carries ``replaced_rubric_id``).
 - ``POST …/{rubric_id}/activate`` / ``…/archive``.
 
-Reads keep the project-view gate (org-context aware); writes use the
+Reads keep the project-view gate; writes use the
 editor gate (creator / superadmin / org ADMIN+CONTRIBUTOR). The AI
 generation workflow and the Vertretbar exam flows live in benger_extended
 and call the same shared service.
@@ -24,7 +24,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,6 @@ from database import get_async_db
 from project_models import Project, Task, TaskRubric, project_is_deleted
 from routers.projects.helpers import (
     check_user_can_edit_project_async,
-    get_org_context_from_request,
 )
 from rubric_structure import render_structure_text
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES, RubricImportError, parse_rubric_file
@@ -127,7 +126,7 @@ class RubricStatusResponse(BaseModel):
 
 
 async def _get_viewable_project(
-    project_id: str, request: Request, current_user: User, db: AsyncSession
+    project_id: str, current_user: User, db: AsyncSession
 ) -> Project:
     result = await db.execute(select(Project).where(Project.id == project_id))
     project = result.scalar_one_or_none()
@@ -136,9 +135,8 @@ async def _get_viewable_project(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project {project_id} not found",
         )
-    org_context = get_org_context_from_request(request)
     if not await auth_service.check_project_access_async(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_VIEW, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -257,7 +255,6 @@ async def parse_task_rubric_file(
 @router.get("", response_model=List[TaskRubricResponse])
 async def list_task_rubrics(
     project_id: str,
-    request: Request,
     task_id: Optional[str] = Query(None, description="Limit to one task"),
     rubric_status: Optional[str] = Query(
         None, alias="status", description="Filter: candidate | active | archived"
@@ -270,7 +267,7 @@ async def list_task_rubrics(
     ``?task_id=`` scopes to one task; ``?status=active`` yields at most one
     row per task (partial unique index).
     """
-    await _get_viewable_project(project_id, request, current_user, db)
+    await _get_viewable_project(project_id, current_user, db)
 
     stmt = select(TaskRubric).where(TaskRubric.project_id == project_id)
     if task_id:
@@ -287,11 +284,10 @@ async def list_task_rubrics(
 async def get_task_rubric(
     project_id: str,
     rubric_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    await _get_viewable_project(project_id, request, current_user, db)
+    await _get_viewable_project(project_id, current_user, db)
     return await _get_project_rubric(db, project_id, rubric_id)
 
 

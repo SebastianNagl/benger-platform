@@ -5,7 +5,7 @@ Provides API endpoints for retrieving, comparing, and analyzing label_config sch
 """
 
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +16,6 @@ from database import get_async_db
 from services.label_config.version_service import LabelConfigVersionService
 from models import Generation as DBGeneration
 from project_models import Project
-from routers.projects.helpers import get_org_context_from_request
 
 router = APIRouter()
 
@@ -24,7 +23,6 @@ router = APIRouter()
 @router.get("/{project_id}/label-config/versions")
 async def get_label_config_versions(
     project_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
@@ -42,9 +40,8 @@ async def get_label_config_versions(
         )
 
     # Verify user has permission to view project
-    org_context = get_org_context_from_request(request)
     if not await auth_service.check_project_access_async(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_VIEW, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -65,7 +62,6 @@ async def get_label_config_versions(
 async def get_label_config_version(
     project_id: str,
     version: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
@@ -83,9 +79,8 @@ async def get_label_config_version(
         )
 
     # Verify user has permission
-    org_context = get_org_context_from_request(request)
     if not await auth_service.check_project_access_async(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_VIEW, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -113,7 +108,6 @@ async def compare_label_config_versions(
     project_id: str,
     version1: str,
     version2: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
@@ -131,9 +125,8 @@ async def compare_label_config_versions(
         )
 
     # Verify user has permission
-    org_context = get_org_context_from_request(request)
     if not await auth_service.check_project_access_async(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_VIEW, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -151,7 +144,6 @@ async def compare_label_config_versions(
 @router.get("/{project_id}/generations/version-distribution")
 async def get_generation_version_distribution(
     project_id: str,
-    request: Request,
     db: AsyncSession = Depends(get_async_db),
     current_user: User = Depends(require_user),
 ):
@@ -170,9 +162,8 @@ async def get_generation_version_distribution(
         )
 
     # Verify user has permission
-    org_context = get_org_context_from_request(request)
     if not await auth_service.check_project_access_async(
-        current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+        current_user, project, Permission.PROJECT_VIEW, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

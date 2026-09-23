@@ -102,12 +102,10 @@ async def run_evaluation(
         # Extract organization context for API key resolution (Issue #1180)
         organization_id = resolve_user_org_for_project(current_user, project, db)
 
-        # Check access permissions (context-aware read gate first, so a stale
-        # / wrong X-Organization-Context still 403s the way every other
-        # project endpoint does).
-        org_context = get_org_context_from_request(http_request)
+        # Check access permissions (read gate first, so a caller without
+        # access still 403s the way every other project endpoint does).
         if not auth_service.check_project_access(
-            current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+            current_user, project, Permission.PROJECT_VIEW, db
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

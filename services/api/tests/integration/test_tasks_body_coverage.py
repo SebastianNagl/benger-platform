@@ -137,15 +137,15 @@ def _generations(db, project, tasks, model_id="gpt-4o"):
 
 
 def _h(auth_headers, org):
-    return {**auth_headers["admin"], "X-Organization-Context": org.id}
+    return auth_headers["admin"]
 
 
 def _annotator_h(auth_headers, org):
-    return {**auth_headers["annotator"], "X-Organization-Context": org.id}
+    return auth_headers["annotator"]
 
 
 def _contributor_h(auth_headers, org):
-    return {**auth_headers["contributor"], "X-Organization-Context": org.id}
+    return auth_headers["contributor"]
 
 
 # ===================================================================
@@ -329,10 +329,6 @@ async def _skip_async(db, project, tasks, user_id, count=None):
     return skips
 
 
-def _org_ctx(org):
-    return {"X-Organization-Context": org.id}
-
-
 # ===================================================================
 # LIST TASKS: pagination and filters
 # ===================================================================
@@ -350,7 +346,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?page=1&page_size=5",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -369,7 +364,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?page=2&page_size=5",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -385,7 +379,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?page=10&page_size=30",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -401,7 +394,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?only_labeled=true",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 2
@@ -416,7 +408,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?only_unlabeled=true",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 3
@@ -432,7 +423,6 @@ class TestListTasksPagination:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?only_assigned=true",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 2
@@ -457,7 +447,6 @@ class TestListTasksExcludeAnnotations:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?exclude_my_annotations=true",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         # Skipped tasks not excluded when skip_queue=requeue_for_me
@@ -482,7 +471,6 @@ class TestListTasksAnnotatorRole:
         with _as_user(users[2]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 2
@@ -497,7 +485,6 @@ class TestListTasksAnnotatorRole:
         with _as_user(users[2]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["total"] == 5
@@ -518,8 +505,8 @@ class TestListTasksRandomized:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp1 = await async_test_client.get(f"/api/projects/{p.id}/tasks", headers=_org_ctx(org))
-            resp2 = await async_test_client.get(f"/api/projects/{p.id}/tasks", headers=_org_ctx(org))
+            resp1 = await async_test_client.get(f"/api/projects/{p.id}/tasks")
+            resp2 = await async_test_client.get(f"/api/projects/{p.id}/tasks")
         assert resp1.status_code == 200
         ids1 = [t["id"] for t in resp1.json()["items"]]
         ids2 = [t["id"] for t in resp2.json()["items"]]
@@ -542,7 +529,7 @@ class TestListTasksFieldEnrichment:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/tasks", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/tasks")
         assert resp.status_code == 200
         item = resp.json()["items"][0]
         required = ["id", "inner_id", "data", "meta", "is_labeled",
@@ -564,7 +551,7 @@ class TestListTasksFieldEnrichment:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/tasks", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/tasks")
         item = resp.json()["items"][0]
         assert item["tags"] == ["urgent", "review"]
 
@@ -584,7 +571,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         assert data["task"] is not None
@@ -600,7 +587,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         assert data["task"] is not None
@@ -616,7 +603,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"] is None
 
@@ -626,7 +613,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{_uid()}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{_uid()}/next")
         assert resp.status_code == 200
         assert resp.json()["task"] is None
 
@@ -639,7 +626,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         assert data["task"] is not None
@@ -656,7 +643,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         assert data["task"] is not None
@@ -670,7 +657,7 @@ class TestGetNextTaskOpen:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"] is not None
 
@@ -691,7 +678,7 @@ class TestGetNextTaskManual:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"]["id"] == tasks[0].id
 
@@ -703,7 +690,7 @@ class TestGetNextTaskManual:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"] is None
 
@@ -723,7 +710,7 @@ class TestGetNextTaskAuto:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"] is not None
 
@@ -736,7 +723,7 @@ class TestGetNextTaskAuto:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         assert resp.json()["task"]["id"] == tasks[0].id
 
@@ -750,7 +737,7 @@ class TestGetNextTaskAuto:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         # Should skip the fully annotated task
@@ -766,7 +753,7 @@ class TestGetNextTaskAuto:
         await async_test_db.commit()
 
         with _as_user(users[0]):
-            resp = await async_test_client.get(f"/api/projects/{p.id}/next", headers=_org_ctx(org))
+            resp = await async_test_client.get(f"/api/projects/{p.id}/next")
         assert resp.status_code == 200
         data = resp.json()
         if data["task"] is not None:
@@ -790,7 +777,6 @@ class TestGetTask:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{tasks[0].id}",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -807,7 +793,6 @@ class TestGetTask:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{_uid()}",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 404
 
@@ -835,7 +820,6 @@ class TestUpdateTaskMetadata:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{t.id}/metadata?merge=true",
                 json={"new_key": "new_value"},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         meta = resp.json()["meta"]
@@ -858,7 +842,6 @@ class TestUpdateTaskMetadata:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{t.id}/metadata?merge=false",
                 json={"replaced": True},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         meta = resp.json()["meta"]
@@ -881,7 +864,6 @@ class TestUpdateTaskMetadata:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{t.id}/metadata",
                 json={"init": True},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["meta"]["init"] == True  # noqa: E712
@@ -905,7 +887,6 @@ class TestUpdateTaskData:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Updated text"}},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["data"]["text"] == "Updated text"
@@ -921,7 +902,6 @@ class TestUpdateTaskData:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Updated"}},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 403
 
@@ -936,7 +916,6 @@ class TestUpdateTaskData:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}",
                 json={"data": {"text": "Audited change"}},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         meta = resp.json()["meta"]
@@ -955,7 +934,6 @@ class TestUpdateTaskData:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}",
                 json={"data": {}},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 400
 
@@ -969,7 +947,6 @@ class TestUpdateTaskData:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{_uid()}",
                 json={"data": {"text": "x"}},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 404
 
@@ -992,7 +969,6 @@ class TestBulkDelete:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/bulk-delete",
                 json={"task_ids": [tasks[0].id, tasks[1].id]},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["deleted"] == 2
@@ -1006,7 +982,6 @@ class TestBulkDelete:
             resp = await async_test_client.post(
                 f"/api/projects/{_uid()}/tasks/bulk-delete",
                 json={"task_ids": [_uid()]},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 404
 
@@ -1090,7 +1065,6 @@ class TestBulkArchive:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/bulk-archive",
                 json={"task_ids": [tasks[0].id, tasks[1].id]},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["archived"] == 2
@@ -1114,7 +1088,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}/skip",
                 json={"comment": "Too complex"},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["task_id"] == tasks[0].id
@@ -1131,7 +1104,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/{tasks[0].id}/skip",
                 json={},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 400
 
@@ -1145,7 +1117,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/{_uid()}/skip",
                 json={},
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 404
 
@@ -1167,7 +1138,6 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/task-fields",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -1191,7 +1161,6 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/task-fields",
-                headers=_org_ctx(org),
             )
         paths = [f["path"] for f in resp.json()["fields"]]
         assert "$ground_truth" not in paths
@@ -1212,7 +1181,6 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/task-fields",
-                headers=_org_ctx(org),
             )
         paths = [f["path"] for f in resp.json()["fields"]]
         assert "$context.jurisdiction" in paths
@@ -1227,7 +1195,6 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/task-fields",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 200
         assert resp.json()["fields"] == []
@@ -1253,7 +1220,6 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/task-fields",
-                headers=_org_ctx(org),
             )
         fields = {f["path"]: f["data_type"] for f in resp.json()["fields"]}
         assert fields["$text"] == "string"
@@ -1272,6 +1238,5 @@ class TestTaskFields:
         with _as_user(users[0]):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}/task-fields",
-                headers=_org_ctx(org),
             )
         assert resp.status_code == 404

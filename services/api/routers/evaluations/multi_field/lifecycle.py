@@ -31,7 +31,6 @@ from sqlalchemy.orm.attributes import flag_modified
 
 def _get_run_and_authorize(
     db: Session,
-    http_request: Request,
     evaluation_id: str,
     current_user: User,
     action: str,
@@ -58,10 +57,9 @@ def _get_run_and_authorize(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Parent project '{evaluation.project_id}' not found",
         )
-    org_context = get_org_context_from_request(http_request)
     is_owner = evaluation.created_by == current_user.id
     has_edit = auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+        current_user, project, Permission.PROJECT_EDIT, db
     )
     if not (is_owner or has_edit):
         raise HTTPException(
@@ -140,7 +138,6 @@ def _redispatch(db: Session, evaluation: DBEvaluationRun, action: str) -> str:
     response_model=EvaluationLifecycleResponse,
 )
 async def pause_evaluation_run(
-    http_request: Request,
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -148,7 +145,7 @@ async def pause_evaluation_run(
     """Pause an in-flight evaluation run. Partial scores survive; resume
     continues missing-only."""
     evaluation = _get_run_and_authorize(
-        db, http_request, evaluation_id, current_user, "pause"
+        db, evaluation_id, current_user, "pause"
     )
     previous = evaluation.status
     row = db.execute(
@@ -198,7 +195,6 @@ async def pause_evaluation_run(
     response_model=EvaluationLifecycleResponse,
 )
 async def resume_evaluation_run(
-    http_request: Request,
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -206,7 +202,7 @@ async def resume_evaluation_run(
     """Resume a paused (or continue a cancelled) run: same run id, re-dispatch
     missing-only so completed cells are reused."""
     evaluation = _get_run_and_authorize(
-        db, http_request, evaluation_id, current_user, "resume"
+        db, evaluation_id, current_user, "resume"
     )
     previous = evaluation.status
     # Snapshot guard BEFORE flipping state so a snapshot-less run isn't
@@ -261,7 +257,6 @@ async def resume_evaluation_run(
     response_model=EvaluationLifecycleResponse,
 )
 async def retry_evaluation_run(
-    http_request: Request,
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -269,7 +264,7 @@ async def retry_evaluation_run(
     """Retry a failed run: same run id, missing-only re-dispatch, bumps
     retry_count."""
     evaluation = _get_run_and_authorize(
-        db, http_request, evaluation_id, current_user, "retry"
+        db, evaluation_id, current_user, "retry"
     )
     previous = evaluation.status
     _dispatch_snapshot_kwargs(evaluation)  # 409 before any state change

@@ -354,7 +354,7 @@ class TestGetAccessibleProjectIds:
         # When the flag is set the helper short-circuits before any query,
         # so we don't need to mock `db.query` for this path.
         result = get_accessible_project_ids(
-            db, user, org_context="org-1", include_all_private=True
+            db, user, include_all_private=True
         )
         assert result is None
 
@@ -387,7 +387,7 @@ class TestGetAccessibleProjectIds:
         row.update(kw)
         return Mock(**row)
 
-    def _run(self, db, user, memberships, org_context, staff_ids=frozenset(), groups=None):
+    def _run(self, db, user, memberships, staff_ids=frozenset(), groups=None):
         loaded = Mock(organization_memberships=list(memberships)) if memberships is not None else None
         with patch(
             "routers.projects.helpers.get_user_with_memberships", return_value=loaded
@@ -400,18 +400,18 @@ class TestGetAccessibleProjectIds:
         ), patch(
             "routers.projects.helpers._lti_protected_org_ids", return_value=set()
         ):
-            return get_accessible_project_ids(db, user, org_context=org_context)
+            return get_accessible_project_ids(db, user)
 
     def test_private_context_lists_own_private_projects(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = self._union_db(["proj-1", "proj-2"], [])
-        assert self._run(db, user, [], "private") == ["proj-1", "proj-2"]
+        assert self._run(db, user, []) == ["proj-1", "proj-2"]
 
     def test_no_context_appends_lms_staff_exams(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = self._union_db(["proj-1"], [])
         # LMS-linked exams the caller opens as org staff follow the own ones.
-        assert self._run(db, user, [], None, staff_ids={"lti-exam"}) == [
+        assert self._run(db, user, [], staff_ids={"lti-exam"}) == [
             "proj-1",
             "lti-exam",
         ]
@@ -423,26 +423,24 @@ class TestGetAccessibleProjectIds:
             Mock(organization_id="org-2", is_active=True, role="CONTRIBUTOR"),
         ]
         rows = [self._org_row("proj-1", "org-1"), self._org_row("proj-2", "org-2")]
-        # The selected organization is not a read boundary: the same union
-        # under the org's context, another org's context and the private one.
-        for ctx in ("org-1", "org-2", "org-elsewhere", "private", None):
-            db = self._union_db(["own-1"], rows)
-            assert self._run(db, user, memberships, ctx) == ["own-1", "proj-1", "proj-2"], ctx
+        # Every active membership counts: the union over both orgs.
+        db = self._union_db(["own-1"], rows)
+        assert self._run(db, user, memberships) == ["own-1", "proj-1", "proj-2"]
 
     def test_inactive_membership_lists_nothing(self):
         user = Mock(is_superadmin=False, id="user-1")
         memberships = [Mock(organization_id="org-1", is_active=False, role="ORG_ADMIN")]
         db = self._union_db([], [self._org_row("proj-1", "org-1")])
         # No active membership: the org rows query is never issued.
-        assert self._run(db, user, memberships, "org-1") == []
+        assert self._run(db, user, memberships) == []
         db.execute.assert_not_called()
 
     def test_foreign_context_never_raises(self):
         user = Mock(is_superadmin=False, id="user-1")
         db = self._union_db([], [])
-        assert self._run(db, user, None, "org-not-member") == []
+        assert self._run(db, user, None) == []
         db = self._union_db(["own-1"], [])
-        assert self._run(db, user, [], "org-not-member") == ["own-1"]
+        assert self._run(db, user, []) == ["own-1"]
 
 
 class TestPickMemberOrgProjects:
@@ -545,7 +543,7 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(deleted_at=None, is_private=True, created_by="user-1")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context="private") == True  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == True  # noqa: E712
 
     def test_private_context_not_owner(self):
         db = Mock()
@@ -553,9 +551,9 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(deleted_at=None, is_private=True, is_archived=False, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context="private") == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
-    def test_org_context_project_not_in_org(self):
+    def test_org_project_not_in_org(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(deleted_at=None, is_private=False, is_archived=False)
@@ -589,9 +587,9 @@ class TestCheckProjectAccessibleBranches:
             ogm_q,
         ]
 
-        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
-    def test_org_context_user_not_active_member(self):
+    def test_org_user_not_active_member(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(deleted_at=None, is_private=False, is_archived=False)
@@ -621,7 +619,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context="org-1") == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
     def test_legacy_private_project_owner(self):
         db = Mock()
@@ -630,7 +628,7 @@ class TestCheckProjectAccessibleBranches:
         db.query.return_value.filter.return_value.first.return_value = project
 
         # No org context
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == True  # noqa: E712
 
     def test_legacy_private_project_not_owner(self):
         db = Mock()
@@ -638,7 +636,7 @@ class TestCheckProjectAccessibleBranches:
         project = Mock(deleted_at=None, is_private=True, is_archived=False, created_by="user-2")
         db.query.return_value.filter.return_value.first.return_value = project
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
     def test_legacy_no_org_fallback_to_creator(self):
         db = Mock()
@@ -664,7 +662,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == True  # noqa: E712
 
     def test_legacy_user_in_project_org(self):
         db = Mock()
@@ -692,7 +690,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == True  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == True  # noqa: E712
 
     def test_legacy_user_not_in_project_org(self):
         db = Mock()
@@ -720,7 +718,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
     def test_legacy_user_no_memberships(self):
         db = Mock()
@@ -746,7 +744,7 @@ class TestCheckProjectAccessibleBranches:
 
         db.query.side_effect = [proj_q, org_q, user_q, ogm_q]
 
-        assert check_project_accessible(db, user, "proj-1", org_context=None) == False  # noqa: E712
+        assert check_project_accessible(db, user, "proj-1") == False  # noqa: E712
 
 
 # ============= check_task_assigned_to_user =============
@@ -1101,11 +1099,9 @@ class TestRequireProjectAccess:
         dep = require_project_access()
         db = self._async_db(None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
 
         with pytest.raises(HTTPException) as exc_info:
-            await dep(project_id="proj-1", request=request, current_user=user, db=db)
+            await dep(project_id="proj-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -1116,15 +1112,13 @@ class TestRequireProjectAccess:
         project = Mock(deleted_at=None)
         db = self._async_db(project)
         user = Mock(is_superadmin=False)
-        request = Mock()
-        request.state.organization_context = None
 
         with patch(
             "routers.projects.deps.check_project_accessible_async",
             new=AsyncMock(return_value=False),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await dep(project_id="proj-1", request=request, current_user=user, db=db)
+                await dep(project_id="proj-1", current_user=user, db=db)
             assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
@@ -1135,15 +1129,13 @@ class TestRequireProjectAccess:
         project = Mock(id="proj-1")
         db = self._async_db(project)
         user = Mock(is_superadmin=True)
-        request = Mock()
-        request.state.organization_context = None
 
         with patch(
             "routers.projects.deps.check_project_accessible_async",
             new=AsyncMock(return_value=True),
         ):
             result = await dep(
-                project_id="proj-1", request=request, current_user=user, db=db
+                project_id="proj-1", current_user=user, db=db
             )
             assert isinstance(result, ProjectAccess)
             assert result.project == project

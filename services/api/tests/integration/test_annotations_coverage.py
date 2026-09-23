@@ -130,7 +130,7 @@ class TestCreateAnnotation:
                      "type": "choices", "value": {"choices": ["Ja"]}}
                 ],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         body = resp.json()
@@ -148,7 +148,7 @@ class TestCreateAnnotation:
                 ],
                 "lead_time": 45.5,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -156,7 +156,7 @@ class TestCreateAnnotation:
         resp = client.post(
             "/api/projects/tasks/nonexistent-id/annotations",
             json={"result": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 404
 
@@ -165,7 +165,7 @@ class TestCreateAnnotation:
         resp = client.post(
             f"/api/projects/tasks/{task.id}/annotations",
             json={"result": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -178,7 +178,7 @@ class TestCreateAnnotation:
                 "draft": [{"from_name": "answer", "to_name": "text",
                            "type": "choices", "value": {"choices": ["Ja"]}}],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -190,7 +190,7 @@ class TestCreateAnnotation:
                 "result": [],
                 "was_cancelled": True,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -213,7 +213,7 @@ class TestListAnnotations:
 
         resp = client.get(
             f"/api/projects/{project.id}/annotations",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         # May not exist as separate endpoint
         assert resp.status_code in (200, 404, 405)

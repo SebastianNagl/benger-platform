@@ -8,7 +8,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 async def get_metric_distribution(
     evaluation_id: str,
     metric_name: str,
-    request: Request,
     field_name: Optional[str] = Query(None, description="Filter by field name"),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -35,8 +34,7 @@ async def get_metric_distribution(
                 detail=f"Evaluation '{evaluation_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, evaluation.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
@@ -128,7 +126,6 @@ async def get_metric_distribution(
 @router.get("/{evaluation_id}/confusion-matrix")
 async def get_confusion_matrix(
     evaluation_id: str,
-    request: Request,
     field_name: str = Query(..., description="Field name for classification"),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -153,8 +150,7 @@ async def get_confusion_matrix(
                 detail=f"Evaluation '{evaluation_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, evaluation.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",

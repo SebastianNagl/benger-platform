@@ -207,12 +207,11 @@ async def test_get_task_endpoint_enforces_read_window(async_test_db, async_test_
     up = await _make_project(db, owner.id, org, state="upcoming")
     task = await _make_task(db, up.id)
 
-    ctx = {"X-Organization-Context": org.id}
     with _as_user(annot):
-        r = await async_test_client.get(f"/api/projects/tasks/{task.id}", headers=ctx)
+        r = await async_test_client.get(f"/api/projects/tasks/{task.id}")
     assert r.status_code == 403
     assert r.json()["detail"]["code"] == "project_window_upcoming"
 
     with _as_user(owner):
-        r2 = await async_test_client.get(f"/api/projects/tasks/{task.id}", headers=ctx)
+        r2 = await async_test_client.get(f"/api/projects/tasks/{task.id}")
     assert r2.status_code == 200

@@ -79,8 +79,7 @@ class TestBulkExportProjects:
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_json(self, mock_org, mock_access, mock_db):
+    async def test_bulk_export_json(self, mock_access, mock_db):
         """Test bulk export in JSON format."""
         from routers.projects.import_export import bulk_export_projects
 
@@ -109,7 +108,6 @@ class TestBulkExportProjects:
 
         result = await bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "json", "include_data": True},
-            request=_mock_request(),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -126,8 +124,7 @@ class TestBulkExportProjects:
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_csv(self, mock_org, mock_access, mock_db):
+    async def test_bulk_export_csv(self, mock_access, mock_db):
         """Test bulk export in CSV format."""
         from routers.projects.import_export import bulk_export_projects
 
@@ -151,7 +148,6 @@ class TestBulkExportProjects:
 
         result = await bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "csv", "include_data": False},
-            request=_mock_request(),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -161,8 +157,7 @@ class TestBulkExportProjects:
         assert "project_id" in content
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_unsupported_format(self, mock_org, mock_db):
+    async def test_bulk_export_unsupported_format(self, mock_db):
         """Test bulk export with unsupported format raises error."""
         from routers.projects.import_export import bulk_export_projects
 
@@ -171,7 +166,6 @@ class TestBulkExportProjects:
         with pytest.raises(Exception) as exc_info:
             await bulk_export_projects(
                 data={"project_ids": [], "format": "xml"},
-                request=_mock_request(),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -179,8 +173,7 @@ class TestBulkExportProjects:
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=False)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_skips_inaccessible_projects(self, mock_org, mock_access, mock_db):
+    async def test_bulk_export_skips_inaccessible_projects(self, mock_access, mock_db):
         """Test that inaccessible projects are skipped in bulk export."""
         from routers.projects.import_export import bulk_export_projects
 
@@ -189,7 +182,6 @@ class TestBulkExportProjects:
 
         result = await bulk_export_projects(
             data={"project_ids": ["project-123"], "format": "json"},
-            request=_mock_request(),
             current_user=_mock_user(),
             db=mock_db,
         )
@@ -208,15 +200,13 @@ class TestBulkExportFullProjects:
         return MagicMock(spec=Session)
 
     @pytest.mark.asyncio
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_no_project_ids(self, mock_org, mock_db):
+    async def test_bulk_export_full_no_project_ids(self, mock_db):
         """Test error when no project IDs provided."""
         from routers.projects.import_export import bulk_export_full_projects
 
         with pytest.raises(Exception) as exc_info:
             await bulk_export_full_projects(
                 data={"project_ids": []},
-                request=_mock_request(),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -225,8 +215,7 @@ class TestBulkExportFullProjects:
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.stream_comprehensive_project_data_json")
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_success(self, mock_org, mock_access, mock_stream, mock_db):
+    async def test_bulk_export_full_success(self, mock_access, mock_stream, mock_db):
         """Test successful full bulk export produces ZIP.
 
         The handler now streams each project's comprehensive JSON straight
@@ -243,7 +232,6 @@ class TestBulkExportFullProjects:
 
         result = await bulk_export_full_projects(
             data={"project_ids": ["project-123"]},
-            request=_mock_request(),
             current_user=_mock_user(is_superadmin=True),
             db=mock_db,
         )
@@ -261,8 +249,7 @@ class TestBulkExportFullProjects:
 
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_project_not_found(self, mock_org, mock_access, mock_db):
+    async def test_bulk_export_full_project_not_found(self, mock_access, mock_db):
         """Test that non-existent projects result in 404."""
         from routers.projects.import_export import bulk_export_full_projects
 
@@ -271,7 +258,6 @@ class TestBulkExportFullProjects:
         with pytest.raises(Exception) as exc_info:
             await bulk_export_full_projects(
                 data={"project_ids": ["nonexistent"]},
-                request=_mock_request(),
                 current_user=_mock_user(),
                 db=mock_db,
             )
@@ -280,8 +266,7 @@ class TestBulkExportFullProjects:
     @pytest.mark.asyncio
     @patch("routers.projects.import_export.stream_comprehensive_project_data_json", side_effect=Exception("export error"))
     @patch("routers.projects.import_export.check_project_accessible", return_value=True)
-    @patch("routers.projects.import_export.get_org_context_from_request", return_value="org-123")
-    async def test_bulk_export_full_error_handling(self, mock_org, mock_access, mock_stream, mock_db):
+    async def test_bulk_export_full_error_handling(self, mock_access, mock_stream, mock_db):
         """Test that errors in individual project exports are handled gracefully."""
         from routers.projects.import_export import bulk_export_full_projects
 
@@ -294,7 +279,6 @@ class TestBulkExportFullProjects:
         with pytest.raises(Exception) as exc_info:
             await bulk_export_full_projects(
                 data={"project_ids": ["project-123"]},
-                request=_mock_request(),
                 current_user=_mock_user(is_superadmin=True),
                 db=mock_db,
             )

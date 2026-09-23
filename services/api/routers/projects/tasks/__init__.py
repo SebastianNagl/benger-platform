@@ -13,7 +13,6 @@ from ._common import (  # noqa: F401
     check_task_assigned_to_user,
     check_user_can_edit_project,
     check_user_can_edit_task_data,
-    get_org_context_from_request,
     get_user_with_memberships,
 )
 
@@ -56,7 +55,6 @@ __all__ = [
     "check_task_assigned_to_user",
     "check_user_can_edit_project",
     "check_user_can_edit_task_data",
-    "get_org_context_from_request",
     "get_user_with_memberships",
     "list_project_tasks",
     "get_next_task",

@@ -126,7 +126,6 @@ async def _seed_async(db, **kwargs):
 
 async def _post_all(client, org, project):
     """The three import entry points, each with a valid body."""
-    headers = {"X-Organization-Context": org.id}
     result = MagicMock()
     result.id = "celery-1"
     with patch(
@@ -138,17 +137,15 @@ async def _post_all(client, org, project):
         "routers.projects.import_export.send_task_safe", return_value=result
     ) as send:
         upload = await client.post(
-            f"/api/projects/{project.id}/imports/upload-url", headers=headers
+            f"/api/projects/{project.id}/imports/upload-url"
         )
         job = await client.post(
             f"/api/projects/{project.id}/imports",
             json={"object_key": _key(project.id)},
-            headers=headers,
         )
         cloud = await client.post(
             f"/api/projects/{project.id}/cloud-imports",
             json={"connection_id": "missing", "object_keys": ["a.json"]},
-            headers=headers,
         )
     return upload, job, cloud, send
 

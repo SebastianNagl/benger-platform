@@ -159,7 +159,7 @@ def _make_project(db, creator, org=None, *, is_private=False):
 
 
 def _ctx(auth_headers, role, org):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
+    return auth_headers[role]
 
 
 # NOTE: The prompt_structures.py and file_uploads.py routers were migrated to
@@ -253,7 +253,6 @@ class TestDashboardStats:
         with _as_user(annotator):
             resp = await async_test_client.get(
                 "/api/dashboard/stats",
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 200
         stats = resp.json()
@@ -360,10 +359,7 @@ class TestEvaluationListEndpoint:
 
         resp = client.get(
             f"{_EVAL_BASE}/",
-            headers={
-                **auth_headers["admin"],
-                "X-Organization-Context": test_org.id,
-            },
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         ids = {r["id"] for r in resp.json()}
@@ -383,10 +379,7 @@ class TestEvaluationListEndpoint:
 
         resp = client.get(
             f"{_EVAL_BASE}/",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": "private",
-            },
+            headers=auth_headers["annotator"],
         )
         assert resp.status_code == 200
         assert run.id in {r["id"] for r in resp.json()}

@@ -263,7 +263,7 @@ class TestListProjectsDeep:
     """Deep coverage for list_projects handler body."""
 
     @pytest.mark.asyncio
-    async def test_list_with_org_context(self, async_test_client, async_test_db):
+    async def test_list_with_org(self, async_test_client, async_test_db):
         """List projects with org context returns only org projects."""
         admin = await _make_user(async_test_db, is_superadmin=True)
         org = await _make_org(async_test_db)
@@ -274,7 +274,6 @@ class TestListProjectsDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -296,7 +295,6 @@ class TestListProjectsDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?search=UniqueSearchable",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -320,7 +318,6 @@ class TestListProjectsDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?page=1&page_size=2",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -343,7 +340,6 @@ class TestListProjectsDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         items = resp.json()["items"]
@@ -370,12 +366,11 @@ class TestListProjectsDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_list_superadmin_no_org_context(
+    async def test_list_superadmin_no_org(
         self, async_test_client, async_test_db
     ):
         """Superadmin without org context sees all projects."""
@@ -411,7 +406,6 @@ class TestCreateProjectDeep:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "New Org Project", "description": "Test"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
         data = resp.json()
@@ -430,7 +424,6 @@ class TestCreateProjectDeep:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Private Project", "is_private": True},
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code in (200, 201)
 
@@ -450,7 +443,6 @@ class TestCreateProjectDeep:
                     "title": "Labeled Project",
                     "label_config": '<View><Text name="text" value="$text"/></View>',
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -472,7 +464,6 @@ class TestCreateProjectDeep:
                     "title": "Bad Config",
                     "label_config": "not valid xml at all {{{}}}",
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 422
 
@@ -493,7 +484,6 @@ class TestCreateProjectDeep:
                     "expert_instruction": "Please annotate carefully.",
                     "show_instruction": True,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -526,7 +516,6 @@ class TestCreateProjectDeep:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Contributor Project"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -553,7 +542,6 @@ class TestGetProjectDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -590,7 +578,6 @@ class TestGetProjectDeep:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -1012,7 +999,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -1034,7 +1020,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -1070,7 +1055,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()

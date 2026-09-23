@@ -104,7 +104,6 @@ class AuthorizationService:
         user: User,
         project: Project,
         permission: "Permission",
-        org_context: Optional[str],
         project_org_ids: List[str],
         memberships,
         attachment_groups=None,
@@ -126,9 +125,8 @@ class AuthorizationService:
         ``protected_org_ids`` are the linked orgs whose connections stay
         superadmin-run: only their admins count there. On a non-private exam
         the entry points drop such orgs' LMS rows from ``attachment_groups``
-        for everyone else before calling this. ``org_context`` is accepted
-        for call-site symmetry and ignored: every active membership counts,
-        whatever organization the client has selected.
+        for everyone else before calling this. Every active membership
+        counts, whatever organization the client has selected.
 
         The decision applies the exam carve-out of ``helpers._org_grants_full_tier``
         (``org_groups.grants_full_tier``): an ANNOTATOR membership confers no
@@ -148,7 +146,7 @@ class AuthorizationService:
         if getattr(project, "deleted_at", None) is not None:
             return False
 
-        # Public projects: dedicated path that ignores org_context.
+        # Public projects: dedicated path that ignores memberships.
         if getattr(project, 'is_public', False) is True:
             if user.id == project.created_by:
                 return self._check_org_role_permission("ORG_ADMIN", permission)
@@ -245,7 +243,6 @@ class AuthorizationService:
         project: Project,
         permission: Permission,
         db: Session,
-        org_context: "Optional[str]" = None,
     ) -> bool:
         """
         Check if a user has access to a project with specific permission.
@@ -255,9 +252,9 @@ class AuthorizationService:
             project: Project to check access for
             permission: Required permission
             db: Database session
-            org_context: Accepted for call-site symmetry and ignored: every
-                active membership counts, whatever organization the client
-                has selected.
+
+        Every active membership counts, whatever organization the client
+        has selected.
         """
         # Superadmins have all permissions
         if user.is_superadmin:
@@ -324,7 +321,6 @@ class AuthorizationService:
             user,
             project,
             permission,
-            org_context,
             list(attachment_groups.keys()),
             memberships,
             attachment_groups=attachment_groups,
@@ -339,7 +335,6 @@ class AuthorizationService:
         project: Project,
         permission: "Permission",
         db: AsyncSession,
-        org_context: "Optional[str]" = None,
     ) -> bool:
         """Async twin of :meth:`check_project_access`.
 
@@ -398,7 +393,6 @@ class AuthorizationService:
             user,
             project,
             permission,
-            org_context,
             list(attachment_groups.keys()),
             memberships,
             attachment_groups=attachment_groups,

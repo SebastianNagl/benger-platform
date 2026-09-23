@@ -178,7 +178,7 @@ async def _make_session(db, project, evaluator_id, *, session_type="likert",
 
 
 def _h(auth_headers, org, role="admin"):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
+    return auth_headers[role]
 
 
 def _setup_project_sync(db, admin, org, *, num_tasks=2, is_private=False, link_org=True,
