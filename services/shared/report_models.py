@@ -11,20 +11,16 @@ Key Features:
 - Organization-based access control
 """
 
-import os
 
 from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-# Import compatibility for testing environments
-if "sqlite" in os.environ.get("DATABASE_URL", "sqlite:///:memory:").lower():
-    ContentJSONB = JSON
-else:
-    ContentJSONB = JSONB
+from database import DATABASE_URL, Base
 
-from database import Base
+# Same rule as models.py: JSON only on a SQLite test engine.
+ContentJSONB = JSON if DATABASE_URL.startswith("sqlite") else JSONB
 
 
 class ProjectReport(Base):

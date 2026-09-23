@@ -185,8 +185,8 @@ async def list_project_tasks(
         else:
             visible = sorted(visible_top_level_keys(_bound_fields))
             clauses = [func.cast(Task.id, String).ilike(like)]
-            # ->> via .op(): works on both JSONB and the plain-JSON shim the
-            # dev stack runs (.astext only exists on the JSONB comparator).
+            # ->> via .op(): tasks.data is plain json, and .astext only
+            # exists on the JSONB comparator.
             clauses += [Task.data.op('->>')(key).ilike(like) for key in visible]
             query = query.where(or_(*clauses))
 

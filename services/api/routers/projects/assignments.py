@@ -624,7 +624,8 @@ async def get_my_tasks(
         else:
             clauses = [sa_func.cast(Task.id, SAString).ilike(like)]
             clauses += [
-                # ->> via .op(): JSONB and plain-JSON (dev shim) compatible.
+                # ->> via .op(): tasks.data is plain json, and the JSON
+                # comparator has no .astext.
                 Task.data.op('->>')(key).ilike(like)
                 for key in sorted(visible_top_level_keys(bound))
             ]
