@@ -2360,54 +2360,48 @@ def _reconcile_generation_config_models(
 
 def _resolve_owning_organization_id(
     ctx: _FullImportContext, user_with_memberships, organization_id: Optional[str]
-) -> str:
-    """The org that will own the imported project.
+) -> Optional[str]:
+    """The org that will own the imported project, or None for a private one.
 
-    ``organization_id`` is the org context the import was requested in (stored
-    on the job by ``POST /project-imports``). It is re-validated here because
+    ``organization_id`` is the target named in the import request (stored on
+    the job by ``POST /project-imports``). It is re-validated here because
     memberships can change between enqueue and run: the importer must still be
-    an active member, or a superadmin and the org must still exist. Without an
-    org context the first active membership owns the project, as before.
+    an active ORG_ADMIN or CONTRIBUTOR there, or a superadmin and the org must
+    still exist. Without a target the project is the importer's private one.
     """
-    if organization_id:
-        if user_with_memberships is None:
-            raise ImportValidationError(403, "Importing user not found")
-        is_member = any(
-            m.is_active and m.organization_id == organization_id
+    if not organization_id:
+        return None
+    if user_with_memberships is None:
+        raise ImportValidationError(403, "Importing user not found")
+    membership = next(
+        (
+            m
             for m in (user_with_memberships.organization_memberships or [])
-        )
-        if is_member:
-            return organization_id
-        if getattr(user_with_memberships, "is_superadmin", False):
-            org = (
-                ctx.db.query(Organization.id)
-                .filter(
-                    Organization.id == organization_id,
-                    Organization.is_active == True,  # noqa: E712
-                )
-                .first()
-            )
-            if org is not None:
-                return organization_id
-            raise ImportValidationError(404, "Target organization not found")
-        raise ImportValidationError(
-            403, "You are not an active member of the target organization"
-        )
-
-    if not user_with_memberships or not user_with_memberships.organization_memberships:
-        raise ImportValidationError(
-            400, "User must belong to an organization to import projects"
-        )
-
-    # No org context: use the first active organization membership.
-    primary_membership = next(
-        (m for m in user_with_memberships.organization_memberships if m.is_active), None
+            if m.is_active and m.organization_id == organization_id
+        ),
+        None,
     )
-    if not primary_membership:
-        raise ImportValidationError(
-            400, "User must have an active organization membership"
+    if membership is not None and getattr(membership.role, "value", membership.role) in (
+        "ORG_ADMIN",
+        "CONTRIBUTOR",
+    ):
+        return organization_id
+    if getattr(user_with_memberships, "is_superadmin", False):
+        org = (
+            ctx.db.query(Organization.id)
+            .filter(
+                Organization.id == organization_id,
+                Organization.is_active == True,  # noqa: E712
+            )
+            .first()
         )
-    return primary_membership.organization_id
+        if org is not None:
+            return organization_id
+        raise ImportValidationError(404, "Target organization not found")
+    raise ImportValidationError(
+        403,
+        "You are not an active ORG_ADMIN or CONTRIBUTOR of the target organization",
+    )
 
 
 def _create_imported_project(
@@ -2420,9 +2414,8 @@ def _create_imported_project(
 
     Shared by the multi-pass and NDJSON importers. Sets ``ctx.new_project_id``
     and records the old→new project id mapping. The owning org is
-    ``organization_id`` when given (validated, 403/404 otherwise), else the
-    importer's first active membership; ``ImportValidationError`` (400) when
-    the importing user has no active organization to own the project.
+    ``organization_id`` when given (validated, 403/404 otherwise); without one
+    the copy is the importer's private project.
     """
     user_with_memberships = (
         ctx.db.query(User)
@@ -2519,20 +2512,23 @@ def _create_imported_project(
         enable_evaluation=_setting(project_data, "enable_evaluation", True),
         # Deliberately NOT imported: is_private / is_public / public_role /
         # origin. Visibility is reset on import (the importer decides who sees
-        # the copy), and origin marks how the SOURCE project came to exist.
+        # the copy: private unless an org owns it), and origin marks how the
+        # SOURCE project came to exist.
+        is_private=owning_organization_id is None,
     )
 
     ctx.db.add(new_project)
     ctx.db.flush()  # Flush so FK references to project work
 
-    # Create ProjectOrganization entry for the imported project
-    project_org = ProjectOrganization(
-        id=str(uuid.uuid4()),
-        project_id=new_project_id,
-        organization_id=owning_organization_id,
-        assigned_by=ctx.user_id,
-    )
-    ctx.db.add(project_org)
+    if owning_organization_id is not None:
+        ctx.db.add(
+            ProjectOrganization(
+                id=str(uuid.uuid4()),
+                project_id=new_project_id,
+                organization_id=owning_organization_id,
+                assigned_by=ctx.user_id,
+            )
+        )
 
     ctx.new_project_id = new_project_id
 
@@ -2542,8 +2538,9 @@ def _notify_project_imported(ctx: "_FullImportContext", new_title: str) -> None:
 
     Lazy-imports notification_service so a worker that can't import it still
     finishes the import, and swallows every error so a notification failure can
-    never fail an otherwise-successful import. Resolves the creator name and the
-    owning organization (always set by _create_imported_project) to satisfy the
+    never fail an otherwise-successful import. A private import has no owning
+    organization and no org to notify. Resolves the creator name and the
+    owning organization to satisfy the
     notify_project_created(db, project_id, title, creator_name, org_id) signature
     — the previous 2-arg call raised TypeError and silently dropped the notice.
     """

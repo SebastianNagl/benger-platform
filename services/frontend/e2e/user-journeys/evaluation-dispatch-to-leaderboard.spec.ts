@@ -115,7 +115,6 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const response = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -392,14 +391,13 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
     // 5a. API: the seeded models are present in the leaderboard for this project.
     // min thresholds set to 0 so the small seeded dataset isn't filtered out.
     const lbResult = await page.evaluate(
-      async ({ pid, orgId }) => {
+      async ({ pid }) => {
         const params = new URLSearchParams({
           project_ids: pid ?? '',
           min_generation_count: '0',
           min_samples_evaluated: '0',
         })
         const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
         const response = await fetch(
           `/api/leaderboards/llm-models?${params.toString()}`,
           {
@@ -421,7 +419,7 @@ test.describe('Evaluation Dispatch → Leaderboard @extended', () => {
           totalModels: data.total_models ?? board.length,
         }
       },
-      { pid: projectId, orgId: tumOrgId },
+      { pid: projectId },
     )
 
     console.log(`[Step 5] LLM leaderboard models: ${JSON.stringify(lbResult)}`)

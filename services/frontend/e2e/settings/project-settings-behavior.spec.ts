@@ -322,7 +322,6 @@ test.describe('Project Settings Behavior', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -368,15 +367,12 @@ test.describe('Project Settings Behavior', () => {
     // org-context header — same approach as the requeue_for_others test.
     const annotate = async (actorPage: Page, text: string) =>
       actorPage.evaluate(
-        async ({ taskId, orgId, text }) => {
+        async ({ taskId, text }) => {
           const resp = await fetch(
             `/api/projects/tasks/${taskId}/annotations`,
             {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-Organization-Context': orgId,
-              },
+              headers: { 'Content-Type': 'application/json' },
               credentials: 'include',
               body: JSON.stringify({
                 result: [
@@ -393,14 +389,13 @@ test.describe('Project Settings Behavior', () => {
           )
           return { ok: resp.ok, status: resp.status }
         },
-        { taskId, orgId, text },
+        { taskId, text },
       )
 
     const readStatus = async () =>
       adminPage.evaluate(
-        async ({ taskId, orgId }) => {
+        async ({ taskId }) => {
           const response = await fetch(`/api/projects/tasks/${taskId}`, {
-            headers: { 'X-Organization-Context': orgId },
             credentials: 'include',
           })
           if (!response.ok) return { error: response.status }
@@ -410,7 +405,7 @@ test.describe('Project Settings Behavior', () => {
             annotation_count: data.total_annotations || 0,
           }
         },
-        { taskId, orgId },
+        { taskId },
       )
 
     // First annotation — admin.
@@ -633,7 +628,6 @@ test.describe('Project Settings Behavior', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,

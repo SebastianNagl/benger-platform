@@ -42,12 +42,15 @@ test.describe('Task Assignment Workflow', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify({ title: name, description }),
+          body: JSON.stringify({
+            title: name,
+            description,
+            ...(orgId ? { organization_id: orgId } : {}),
+          }),
         })
         if (!resp.ok) throw new Error(`Create project failed: ${resp.status}`)
         const data = await resp.json()
@@ -130,16 +133,15 @@ test.describe('Task Assignment Workflow', () => {
 
     // --- Verify annotator sees assigned tasks via API ---
     const myTasks = await annotatorPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const resp = await fetch(`/api/projects/${projectId}/my-tasks`, {
           credentials: 'include',
-          headers: orgId ? { 'X-Organization-Context': orgId } : {},
         })
         if (!resp.ok) return { count: 0, status: resp.status }
         const data = await resp.json()
         return { count: data.tasks?.length || 0, status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(myTasks.count).toBe(3)
     console.log(`Annotator sees ${myTasks.count} assigned tasks`)
@@ -182,12 +184,15 @@ test.describe('Task Assignment Workflow', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify({ title: name, description }),
+          body: JSON.stringify({
+            title: name,
+            description,
+            ...(orgId ? { organization_id: orgId } : {}),
+          }),
         })
         if (!resp.ok) throw new Error(`Create project failed: ${resp.status}`)
         const data = await resp.json()
@@ -275,34 +280,28 @@ test.describe('Task Assignment Workflow', () => {
 
     // 1. Task listing returns only 3 assigned tasks (not 5)
     const taskListResult = await annotatorPage.evaluate(
-      async ({ projectId, orgId }) => {
-        const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ projectId }) => {
         const resp = await fetch(`/api/projects/${projectId}/tasks`, {
           credentials: 'include',
-          headers,
         })
         if (!resp.ok) return { total: -1, status: resp.status }
         const data = await resp.json()
         return { total: data.total, status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(taskListResult.total).toBe(3)
     console.log(`Task listing shows ${taskListResult.total} tasks (expected 3)`)
 
     // 2. GET unassigned task returns 404 (Label Studio aligned: invisible)
     const getUnassignedResult = await annotatorPage.evaluate(
-      async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ taskId }) => {
         const resp = await fetch(`/api/projects/tasks/${taskId}`, {
           credentials: 'include',
-          headers,
         })
         return { status: resp.status }
       },
-      { taskId: unassignedTaskIds[0], orgId },
+      { taskId: unassignedTaskIds[0] },
     )
     expect(getUnassignedResult.status).toBe(404)
     console.log(
@@ -311,22 +310,18 @@ test.describe('Task Assignment Workflow', () => {
 
     // 3. POST annotation on unassigned task returns 404 (Label Studio aligned: invisible)
     const annotateUnassignedResult = await annotatorPage.evaluate(
-      async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        }
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ taskId }) => {
         const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
           method: 'POST',
           credentials: 'include',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             result: [{ type: 'choices', value: { choices: ['Positive'] } }],
           }),
         })
         return { status: resp.status }
       },
-      { taskId: unassignedTaskIds[0], orgId },
+      { taskId: unassignedTaskIds[0] },
     )
     expect(annotateUnassignedResult.status).toBe(404)
     console.log(
@@ -335,49 +330,39 @@ test.describe('Task Assignment Workflow', () => {
 
     // 4. GET assigned task works
     const getAssignedResult = await annotatorPage.evaluate(
-      async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ taskId }) => {
         const resp = await fetch(`/api/projects/tasks/${taskId}`, {
           credentials: 'include',
-          headers,
         })
         return { status: resp.status }
       },
-      { taskId: assignedTaskIds[0], orgId },
+      { taskId: assignedTaskIds[0] },
     )
     expect(getAssignedResult.status).toBe(200)
 
     // 5. POST annotation on assigned task works
     const annotateAssignedResult = await annotatorPage.evaluate(
-      async ({ taskId, orgId }) => {
-        const headers: Record<string, string> = {
-          'Content-Type': 'application/json',
-        }
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ taskId }) => {
         const resp = await fetch(`/api/projects/tasks/${taskId}/annotations`, {
           method: 'POST',
           credentials: 'include',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             result: [{ type: 'choices', value: { choices: ['Positive'] } }],
           }),
         })
         return { status: resp.status }
       },
-      { taskId: assignedTaskIds[0], orgId },
+      { taskId: assignedTaskIds[0] },
     )
     expect(annotateAssignedResult.status).toBe(200)
     console.log('Annotator can annotate assigned task: 200')
 
     // 6. Next task endpoint returns only assigned tasks
     const nextTaskResult = await annotatorPage.evaluate(
-      async ({ projectId, orgId, assignedIds }) => {
-        const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
+      async ({ projectId, assignedIds }) => {
         const resp = await fetch(`/api/projects/${projectId}/next`, {
           credentials: 'include',
-          headers,
         })
         const data = await resp.json()
         return {
@@ -386,7 +371,7 @@ test.describe('Task Assignment Workflow', () => {
           status: resp.status,
         }
       },
-      { projectId, orgId, assignedIds: assignedTaskIds },
+      { projectId, assignedIds: assignedTaskIds },
     )
     expect(nextTaskResult.taskId).toBeTruthy()
     expect(nextTaskResult.isAssigned).toBe(true)

@@ -1245,7 +1245,10 @@ class TestRoundtripExtensions:
             assert key not in proj, f"visibility/origin key exported: {key}"
 
         result = run_full_project_import(
-            db_session, io.BytesIO(json.dumps(export).encode("utf-8")), user.id
+            db_session,
+            io.BytesIO(json.dumps(export).encode("utf-8")),
+            user.id,
+            organization_id=org.id,
         )
         imported = (
             db_session.query(Project).filter(Project.id == result["project_id"]).one()
@@ -1266,7 +1269,8 @@ class TestRoundtripExtensions:
         assert imported.enable_evaluation is False
         # Unknown model ids are reconciled away like generation_config models.
         assert imported.llm_model_ids == [official_id]
-        # Visibility is reset and origin is not carried over.
+        # Visibility is reset (the org named in the request owns the copy) and
+        # origin is not carried over.
         assert imported.is_private is False
         assert imported.is_public is False
         assert imported.public_role is None

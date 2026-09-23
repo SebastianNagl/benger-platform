@@ -86,7 +86,6 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const response = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -114,11 +113,10 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
     // "open" avoids the manual/auto assignment gate so the admin can grade
     // any item directly.
     const patchResult = await page.evaluate(
-      async ({ pid, orgId }) => {
+      async ({ pid }) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const response = await fetch(`/api/projects/${pid}`, {
           method: 'PATCH',
           headers,
@@ -140,7 +138,7 @@ test.describe('Korrektur Falllösung Grading Workflow @extended', () => {
         const data = await response.json()
         return { success: true, korrekturEnabled: data.korrektur_enabled }
       },
-      { pid: projectId, orgId: tumOrgId },
+      { pid: projectId },
     )
     console.log(`[Step 1] Enable korrektur: ${JSON.stringify(patchResult)}`)
     expect(patchResult.success).toBeTruthy()

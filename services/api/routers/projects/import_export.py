@@ -793,44 +793,51 @@ async def _load_full_import_job_for_read(
 
 
 async def _resolve_import_target_org(
-    db: AsyncSession, current_user: AuthUser, org_context: Optional[str]
+    db: AsyncSession, current_user: AuthUser, organization_id: Optional[str]
 ) -> Optional[str]:
-    """The org a create-new import should land in, from the request org context.
+    """The org a create-new import should land in, as named in the request body.
 
-    ``None`` for no context or ``"private"``: the worker then falls back to the
-    importer's first active membership. A named org requires an ACTIVE
+    ``None`` imports a private project owned by the importer. A named org
+    follows the create-project rule: an ACTIVE ORG_ADMIN or CONTRIBUTOR
     membership (403 otherwise); a superadmin may target any active org (404
     when it doesn't exist). The worker re-checks at project creation time.
     """
-    if not org_context or org_context == "private":
+    if organization_id is None:
         return None
+    if not isinstance(organization_id, str) or not organization_id:
+        raise HTTPException(status_code=400, detail="organization_id must be a string")
     if current_user.is_superadmin:
         org = (
             await db.execute(
                 select(Organization.id).where(
-                    Organization.id == org_context,
+                    Organization.id == organization_id,
                     Organization.is_active == True,  # noqa: E712
                 )
             )
         ).scalar_one_or_none()
         if org is None:
             raise HTTPException(status_code=404, detail="Organization not found")
-        return org_context
-    membership = (
+        return organization_id
+    role = (
         await db.execute(
-            select(OrganizationMembership.id).where(
+            select(OrganizationMembership.role).where(
                 OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.organization_id == org_context,
+                OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.is_active == True,  # noqa: E712
             )
         )
     ).scalar_one_or_none()
-    if membership is None:
+    if role is None:
         raise HTTPException(
             status_code=403,
             detail="You are not a member of the organization to import into",
         )
-    return org_context
+    if getattr(role, "value", role) not in ("ORG_ADMIN", "CONTRIBUTOR"):
+        raise HTTPException(
+            status_code=403,
+            detail="Only ORG_ADMIN and CONTRIBUTOR members may import into this organization",
+        )
+    return organization_id
 
 
 @router.post("/project-imports/upload-url")
@@ -859,16 +866,18 @@ async def create_full_import_upload_url(
 @router.post("/project-imports", status_code=202)
 async def create_full_import_job(
     data: dict,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     """Create a full-project (create-new) import job and enqueue it.
 
-    Body: ``{"object_key": "imports/.../{user_id}/..."}``. The key must live
-    under the import prefix AND be scoped to this user — both checked here so a
-    client can't point the worker at someone else's upload. The job's
-    ``project_id`` is NULL until the worker creates the project. Returns 202.
+    Body: ``{"object_key": "imports/.../{user_id}/...", "organization_id":
+    optional}``. The key must live under the import prefix AND be scoped to
+    this user — both checked here so a client can't point the worker at
+    someone else's upload. ``organization_id`` names the org that will own the
+    new project; without it the project is the importer's private project.
+    The job's ``project_id`` is NULL until the worker creates the project.
+    Returns 202.
     """
     object_key = (data or {}).get("object_key")
     if not isinstance(object_key, str) or not object_key:
@@ -877,7 +886,7 @@ async def create_full_import_job(
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
     organization_id = await _resolve_import_target_org(
-        db, current_user, get_org_context_from_request(request)
+        db, current_user, (data or {}).get("organization_id")
     )
 
     job = ImportJob(

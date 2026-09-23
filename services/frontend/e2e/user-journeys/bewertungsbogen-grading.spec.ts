@@ -158,9 +158,8 @@ async function api<T>(
   body?: unknown,
 ): Promise<ApiResult<T>> {
   const result = await page.evaluate(
-    async ({ method, path, body, orgId }) => {
+    async ({ method, path, body }) => {
       const headers: Record<string, string> = {}
-      if (orgId) headers['X-Organization-Context'] = orgId
       if (body !== undefined) headers['Content-Type'] = 'application/json'
       const response = await fetch(path, {
         method,
@@ -177,7 +176,7 @@ async function api<T>(
       }
       return { status: response.status, body: parsed }
     },
-    { method, path, body, orgId: tumOrgId },
+    { method, path, body },
   )
   return result as ApiResult<T>
 }
@@ -489,7 +488,7 @@ test.describe('Bewertungsbogen grading @extended', () => {
       expect(items[0].data.musterloesung).toBe(TASK.musterloesung)
 
       const parsed = await page.evaluate(
-        async ({ markdown, orgId }) => {
+        async ({ markdown }) => {
           const form = new FormData()
           form.append(
             'file',
@@ -500,11 +499,10 @@ test.describe('Bewertungsbogen grading @extended', () => {
             method: 'POST',
             body: form,
             credentials: 'include',
-            headers: { 'X-Organization-Context': orgId },
           })
           return { status: response.status, body: await response.json() }
         },
-        { markdown: KORREKTURBOGEN_MD, orgId: tumOrgId },
+        { markdown: KORREKTURBOGEN_MD },
       )
       expect(parsed.status, JSON.stringify(parsed.body)).toBe(200)
       const parsedSteps = (parsed.body.structure.nodes as RubricNode[]).filter(

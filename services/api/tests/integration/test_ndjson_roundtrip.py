@@ -376,7 +376,9 @@ class TestNDJSONRoundtrip:
         }
         assert any("Generated answer for" in c for c in contents)
 
-    def test_roundtrip_carries_kind_and_project_settings(self, test_db, full_project):
+    def test_roundtrip_carries_kind_and_project_settings(
+        self, test_db, test_org, full_project
+    ):
         """The NDJSON meta record carries the same project settings as the
         comprehensive JSON; visibility and origin are reset on import."""
         project, admin = full_project
@@ -398,7 +400,10 @@ class TestNDJSONRoundtrip:
         assert "is_private" not in meta["project"]
 
         new_pid = run_full_project_import(
-            test_db, io.BytesIO(ndjson.encode("utf-8")), admin.id
+            test_db,
+            io.BytesIO(ndjson.encode("utf-8")),
+            admin.id,
+            organization_id=test_org.id,
         )["project_id"]
         imported = test_db.query(Project).filter(Project.id == new_pid).one()
         assert imported.kind == "exam"
@@ -1277,8 +1282,8 @@ class TestTaskRubricsInNdjson:
 
 @pytest.mark.integration
 class TestImportOwningOrganization:
-    """``organization_id`` (the job's org context) picks the owning org and is
-    re-validated when the project is created."""
+    """``organization_id`` (the target named in the import request) picks the
+    owning org and is re-validated when the project is created."""
 
     @staticmethod
     def _second_org(test_db, name):
@@ -1337,7 +1342,7 @@ class TestImportOwningOrganization:
             )["project_id"]
             assert self._owner_org(test_db, pid) == target.id
 
-    def test_without_org_context_first_active_membership_owns_it(
+    def test_without_a_target_the_import_is_private(
         self, test_db, test_users, test_org, full_project
     ):
         project, _admin = full_project
@@ -1347,7 +1352,10 @@ class TestImportOwningOrganization:
             io.BytesIO(_export_ndjson(test_db, project).encode("utf-8")),
             contributor.id,
         )["project_id"]
-        assert self._owner_org(test_db, pid) == test_org.id
+        assert self._owner_org(test_db, pid) is None
+        imported = test_db.query(Project).filter(Project.id == pid).one()
+        assert imported.is_private is True
+        assert imported.created_by == contributor.id
 
     def test_non_member_is_rejected_before_anything_is_written(
         self, test_db, test_users, full_project

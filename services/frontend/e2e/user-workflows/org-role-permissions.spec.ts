@@ -41,7 +41,6 @@ test.describe('Org Role Permissions', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -79,11 +78,10 @@ test.describe('Org Role Permissions', () => {
 
     // Contributor CAN update project settings
     const updateResult = await contribPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
           headers,
@@ -92,7 +90,7 @@ test.describe('Org Role Permissions', () => {
         })
         return { status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(updateResult.status).toBe(200)
     console.log(
@@ -101,9 +99,8 @@ test.describe('Org Role Permissions', () => {
 
     // Contributor CANNOT delete project
     const deleteResult = await contribPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/${projectId}`, {
           method: 'DELETE',
           headers,
@@ -111,7 +108,7 @@ test.describe('Org Role Permissions', () => {
         })
         return { status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(deleteResult.status).toBe(403)
     console.log(
@@ -152,7 +149,6 @@ test.describe('Org Role Permissions', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -184,11 +180,10 @@ test.describe('Org Role Permissions', () => {
 
     // Annotator CANNOT update project settings
     const updateResult = await annotatorPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/${projectId}`, {
           method: 'PATCH',
           headers,
@@ -197,7 +192,7 @@ test.describe('Org Role Permissions', () => {
         })
         return { status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(updateResult.status).toBe(403)
     console.log(
@@ -206,11 +201,10 @@ test.describe('Org Role Permissions', () => {
 
     // Annotator CANNOT assign tasks
     const assignResult = await annotatorPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/${projectId}/tasks/assign`, {
           method: 'POST',
           headers,
@@ -223,7 +217,7 @@ test.describe('Org Role Permissions', () => {
         })
         return { status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     // 400 (empty task_ids) or 403 — either way, not 200
     expect([400, 403]).toContain(assignResult.status)
@@ -233,9 +227,8 @@ test.describe('Org Role Permissions', () => {
 
     // Annotator CANNOT delete project
     const deleteResult = await annotatorPage.evaluate(
-      async ({ projectId, orgId }) => {
+      async ({ projectId }) => {
         const headers: Record<string, string> = {}
-        if (orgId) headers['X-Organization-Context'] = orgId
         const resp = await fetch(`/api/projects/${projectId}`, {
           method: 'DELETE',
           headers,
@@ -243,7 +236,7 @@ test.describe('Org Role Permissions', () => {
         })
         return { status: resp.status }
       },
-      { projectId, orgId },
+      { projectId },
     )
     expect(deleteResult.status).toBe(403)
     console.log(

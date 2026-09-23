@@ -676,12 +676,18 @@ export const projectsAPI = {
     })
   },
 
-  /** Create an async FULL-PROJECT import job for an already-uploaded artifact. */
+  /**
+   * Create an async FULL-PROJECT import job for an already-uploaded artifact.
+   * `organizationId` names the org that owns the new project; without it the
+   * project is the importer's private one.
+   */
   createFullImportJob: async (
     objectKey: string,
+    organizationId?: string | null,
   ): Promise<{ job_id: string; status: ImportJobState }> => {
     return apiClient.post('/projects/project-imports', {
       object_key: objectKey,
+      ...(organizationId ? { organization_id: organizationId } : {}),
     })
   },
 
@@ -737,6 +743,7 @@ export const projectsAPI = {
    * Drive a FULL-PROJECT import (create-new) through the async job flow: presign
    * → upload → enqueue → poll. Resolves with the final (completed) job status;
    * the created project id is on `status.project_id` (and `status.result`).
+   * `options.organizationId` is the owning org (none: a private project).
    *
    * Throws an Error if the job fails (message = the worker's error_message), or
    * a DOMException `AbortError` if the caller's signal is aborted while polling.
@@ -744,11 +751,18 @@ export const projectsAPI = {
   runProjectImportJob: async (
     file: File,
     callbacks?: { onStatus?: (status: ImportJobStatus) => void },
-    options?: { pollIntervalMs?: number; signal?: AbortSignal },
+    options?: {
+      pollIntervalMs?: number
+      signal?: AbortSignal
+      organizationId?: string | null
+    },
   ): Promise<ImportJobStatus> => {
     const upload = await projectsAPI.createFullImportUploadUrl(file.name)
     await projectsAPI.uploadToPresignedUrl(upload, file)
-    const { job_id } = await projectsAPI.createFullImportJob(upload.file_key)
+    const { job_id } = await projectsAPI.createFullImportJob(
+      upload.file_key,
+      options?.organizationId,
+    )
 
     let attempt = 0
     for (;;) {

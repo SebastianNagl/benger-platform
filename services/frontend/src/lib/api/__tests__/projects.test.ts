@@ -784,6 +784,20 @@ describe('projectsAPI', () => {
       })
     })
 
+    it('createFullImportJob names the owning organization when given', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-3',
+        status: 'pending',
+      })
+
+      await projectsAPI.createFullImportJob('imports/k.json', 'org-lmu')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
+        object_key: 'imports/k.json',
+        organization_id: 'org-lmu',
+      })
+    })
+
     it('getImportJob / getFullImportJob poll the right status endpoints', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({
         job_id: 'job-1',
