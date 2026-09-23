@@ -14,7 +14,7 @@ the per-run detail page surfaced by this listing.
 from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,6 @@ from models import EvaluationRun, ResponseGeneration
 from project_models import Project
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 
 
@@ -209,7 +208,6 @@ class GenerationRunDetail(BaseModel):
 @router.get("/generations/{generation_id}", response_model=GenerationRunDetail)
 async def get_generation_run(
     generation_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> GenerationRunDetail:
@@ -232,9 +230,8 @@ async def get_generation_run(
             detail=f"Generation '{generation_id}' not found",
         )
 
-    org_context = get_org_context_from_request(request)
     if parent.project_id and not await check_project_accessible_async(
-        db, current_user, parent.project_id, org_context
+        db, current_user, parent.project_id
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -354,7 +351,6 @@ async def get_generation_run(
 
 @router.get("", response_model=PaginatedRunsResponse)
 async def list_runs(
-    request: Request,
     type: Literal["generation", "evaluation"] = Query(
         ...,
         description="Run type to list. The two types have different shapes; pick one tab at a time.",
@@ -375,7 +371,6 @@ async def list_runs(
     Accessible-project filter is applied per-row: the user only sees runs in
     projects they can access. Sorted newest-first by `created_at`.
     """
-    org_context = get_org_context_from_request(request)
 
     if type == "generation":
         model = ResponseGeneration
@@ -406,7 +401,7 @@ async def list_runs(
     # compared to the upstream query.
     accessible_ids = set()
     for pid in {row.project_id for row in rows if row.project_id}:
-        if await check_project_accessible_async(db, current_user, pid, org_context):
+        if await check_project_accessible_async(db, current_user, pid):
             accessible_ids.add(pid)
     rows = [r for r in rows if r.project_id in accessible_ids]
     titles = await _project_titles_map(db, list(accessible_ids))

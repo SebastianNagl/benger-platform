@@ -151,7 +151,7 @@ class TestProjectCrudIntegration:
         assert "total" in data
 
     @pytest.mark.asyncio
-    async def test_list_projects_with_org_context(
+    async def test_list_projects_with_org(
         self, async_test_client, async_test_db
     ):
         """Test listing projects with org context filter."""
@@ -164,7 +164,6 @@ class TestProjectCrudIntegration:
         with _as_user(admin):
             response = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert response.status_code == 200
         data = response.json()
@@ -182,7 +181,6 @@ class TestProjectCrudIntegration:
         with _as_user(admin), n, d, r:
             response = await async_test_client.post(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
                 json={
                     "title": "New Test Project",
                     "description": "A project created via test",
@@ -205,7 +203,6 @@ class TestProjectCrudIntegration:
         with _as_user(admin):
             response = await async_test_client.post(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
                 json={"description": "No title"},
             )
         assert response.status_code == 422

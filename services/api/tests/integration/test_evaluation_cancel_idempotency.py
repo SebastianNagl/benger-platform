@@ -154,7 +154,7 @@ class TestCancelSingle:
 
         resp = client.post(
             f"{BASE}/run/{eval_id}/cancel",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -183,7 +183,7 @@ class TestCancelSingle:
 
         resp = client.post(
             f"{BASE}/run/{data['eval_run'].id}/cancel",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["cancelled_run_ids"] == []
@@ -226,7 +226,7 @@ class TestCancelAll:
 
         resp = client.post(
             f"{BASE}/projects/{project_id}/runs/cancel-all",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -243,7 +243,7 @@ class TestCancelAll:
 
         resp = client.post(
             f"{BASE}/projects/{data['project'].id}/runs/cancel-all",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["cancelled_run_ids"] == []
@@ -264,10 +264,7 @@ class TestCancelAuth:
         # not PROJECT_EDIT. cancel-all requires PROJECT_EDIT strictly.
         resp = client.post(
             f"{BASE}/projects/{data['project'].id}/runs/cancel-all",
-            headers={
-                **auth_headers["annotator"],
-                "X-Organization-Context": test_org.id,
-            },
+            headers=auth_headers["annotator"],
         )
         # 403 (forbidden) or 404 (no access path) — both forbid the
         # bulk-nuke. The unacceptable result would be a 200 with
@@ -344,7 +341,7 @@ class TestDispatchIdempotency:
             ],
             "force_rerun": True,
         }
-        headers = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        headers = auth_headers["admin"]
         r1 = self._post_run(client, headers, payload)
         r2 = self._post_run(client, headers, payload)
         assert r1.status_code == 200, r1.text
@@ -368,7 +365,7 @@ class TestDispatchIdempotency:
     ):
         admin = next(u for u in test_users if u.is_superadmin)
         project = self._make_project_with_generations(test_db, admin, test_org)
-        headers = {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        headers = auth_headers["admin"]
 
         payload_a = {
             "project_id": project.id,

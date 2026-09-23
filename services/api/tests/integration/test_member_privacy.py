@@ -491,20 +491,19 @@ async def test_protected_org_contributor_access_is_unchanged(
     await async_test_db.commit()
     _protect(monkeypatch, lambda db: {w["uni"].id})
 
-    headers = {"X-Organization-Context": "private"}
     for path in ("", "/members"):
         url = f"/api/projects/{exam.id}{path}"
         with _as_user(w["contrib"]):
-            refused = await async_test_client.get(url, headers=headers)
+            refused = await async_test_client.get(url)
         assert refused.status_code == 403, (path, refused.text)
         with _as_user(w["admin"]):
-            allowed = await async_test_client.get(url, headers=headers)
+            allowed = await async_test_client.get(url)
         assert allowed.status_code == 200, (path, allowed.text)
 
     # Without the protection the same contributor is staff of the link.
     _protect(monkeypatch, lambda db: set())
     with _as_user(w["contrib"]):
-        response = await async_test_client.get(f"/api/projects/{exam.id}", headers=headers)
+        response = await async_test_client.get(f"/api/projects/{exam.id}")
     assert response.status_code == 200, response.text
 
 
@@ -1265,7 +1264,6 @@ async def test_project_list_asks_the_name_hook_once_per_page(
             listing = await async_test_client.get(
                 "/api/projects/",
                 params={"page_size": 500},
-                headers={"X-Organization-Context": w["uni"].id},
             )
         assert listing.status_code == 200, listing.text
         return {item["id"]: item["created_by_name"] for item in listing.json()["items"]}

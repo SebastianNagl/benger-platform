@@ -2,9 +2,9 @@
 
 The LMU shape of 2026-09-22: an exam attached to the org through a group,
 with a started window; a CONTRIBUTOR invited into that group; an ANNOTATOR of
-the same group. Whatever ``X-Organization-Context`` the client sends (the
-org's id, another org's id, the literal ``private`` of the apex host, or no
-header), the contributor holds the full tier with the Korrektur-relevant role
+the same group. Whatever organization the client has selected (the org,
+another org, the private context of the apex host, or none), the
+contributor holds the full tier with the Korrektur-relevant role
 and the annotator stays a participant. The project list is the union over
 every membership and never refuses a context.
 """
@@ -218,15 +218,11 @@ def _contexts(w):
     return ("private", w["lmu"].id, w["other"].id, None)
 
 
-def _headers(ctx):
-    return {} if ctx is None else {"X-Organization-Context": ctx}
-
-
 async def _tier_both_lanes(db, user, project, ctx):
     principal = _principal(user)
-    got_async = await get_project_access_tier_async(db, principal, project.id, ctx)
+    got_async = await get_project_access_tier_async(db, principal, project.id)
     got_sync = await db.run_sync(
-        lambda s: get_project_access_tier(s, principal, project.id, ctx)
+        lambda s: get_project_access_tier(s, principal, project.id)
     )
     assert got_async == got_sync, (user.id, ctx, got_async, got_sync)
     return got_async
@@ -241,7 +237,7 @@ async def test_group_contributor_holds_the_full_tier_in_every_context(
         assert await _tier_both_lanes(db, w["contributor"], w["exam"], ctx) == TIER_FULL
         with _as_user(w["contributor"]):
             r = await async_test_client.get(
-                f"/api/projects/{w['exam'].id}", headers=_headers(ctx)
+                f"/api/projects/{w['exam'].id}"
             )
         assert r.status_code == 200, (ctx, r.text)
         body = r.json()
@@ -263,7 +259,7 @@ async def test_group_annotator_stays_a_participant_in_every_context(
         )
         with _as_user(w["annotator"]):
             r = await async_test_client.get(
-                f"/api/projects/{w['exam'].id}", headers=_headers(ctx)
+                f"/api/projects/{w['exam'].id}"
             )
             assert r.status_code == 200, (ctx, r.text)
             body = r.json()
@@ -274,7 +270,6 @@ async def test_group_annotator_stays_a_participant_in_every_context(
             r = await async_test_client.patch(
                 f"/api/projects/{w['exam'].id}",
                 json={"title": "renamed"},
-                headers=_headers(ctx),
             )
             assert r.status_code == 403, (ctx, r.text)
 
@@ -294,7 +289,7 @@ async def test_list_is_the_union_over_every_membership(async_test_client, async_
     async def listed(user, ctx):
         with _as_user(user):
             r = await async_test_client.get(
-                "/api/projects/?page_size=500", headers=_headers(ctx)
+                "/api/projects/?page_size=500"
             )
         assert r.status_code == 200, (ctx, r.text)
         return {p["id"]: p for p in r.json()["items"]}
@@ -329,9 +324,9 @@ async def test_id_helper_ignores_the_context_on_both_lanes(async_test_db):
     principal = _principal(w["two_orgs"])
     expected = None
     for ctx in _contexts(w):
-        got_async = set(await get_accessible_project_ids_async(db, principal, ctx))
+        got_async = set(await get_accessible_project_ids_async(db, principal))
         got_sync = set(
-            await db.run_sync(lambda s, c=ctx: get_accessible_project_ids(s, principal, c))
+            await db.run_sync(lambda s, c=ctx: get_accessible_project_ids(s, principal))
         )
         assert got_async == got_sync, ctx
         assert {w["exam"].id, w["other_project"].id} <= got_async, ctx
@@ -340,7 +335,7 @@ async def test_id_helper_ignores_the_context_on_both_lanes(async_test_db):
         assert got_async == expected, ctx
     # The annotator's org list carries no exam (the participant arm does).
     annotator_ids = set(
-        await get_accessible_project_ids_async(db, _principal(w["annotator"]), None)
+        await get_accessible_project_ids_async(db, _principal(w["annotator"]))
     )
     assert w["exam"].id not in annotator_ids
 
@@ -359,11 +354,11 @@ async def test_creator_holds_org_admin_permissions_without_a_membership(async_te
     for ctx in ("private", org.id, "elsewhere", None):
         for perm in (Permission.TASK_VIEW, Permission.PROJECT_EDIT, Permission.PROJECT_DELETE):
             assert await svc.check_project_access_async(
-                principal, project, perm, db, org_context=ctx
+                principal, project, perm, db
             ) is True, (ctx, perm)
             assert await db.run_sync(
                 lambda s, c=ctx, p=perm: svc.check_project_access(
-                    principal, project, p, s, org_context=c
+                    principal, project, p, s
                 )
             ) is True, (ctx, perm)
 
@@ -378,12 +373,11 @@ async def test_create_project_targets_the_org_named_in_the_body(
 ):
     db = async_test_db
     w = await _world(db)
-    stale = {"X-Organization-Context": w["other"].id}
 
     with _as_user(w["contributor"]):
         # No organization_id: private, whatever the (ignored) header says.
         r = await async_test_client.post(
-            "/api/projects/", json={"title": "mine"}, headers=stale
+            "/api/projects/", json={"title": "mine"}
         )
         assert r.status_code == 200, r.text
         assert r.json()["is_private"] is True and r.json()["organizations"] == []
@@ -392,7 +386,6 @@ async def test_create_project_targets_the_org_named_in_the_body(
         r = await async_test_client.post(
             "/api/projects/",
             json={"title": "for lmu", "organization_id": w["lmu"].id},
-            headers=stale,
         )
         assert r.status_code == 200, r.text
         body = r.json()
@@ -423,7 +416,6 @@ async def test_create_project_targets_the_org_named_in_the_body(
         r = await async_test_client.post(
             "/api/projects/",
             json={"title": "x", "organization_id": w["other"].id},
-            headers={"X-Organization-Context": w["other"].id},
         )
         assert r.status_code == 403
 
@@ -460,7 +452,6 @@ async def test_available_models_scope_comes_from_the_request(
             r = await async_test_client.get(
                 "/api/users/api-keys/available-models",
                 params={"project_id": w["exam"].id},
-                headers={"X-Organization-Context": w["other"].id},
             )
             assert r.status_code == 200, r.text
             assert seen[-1] == w["lmu"].id
@@ -473,7 +464,6 @@ async def test_available_models_scope_comes_from_the_request(
             # Neither: personal keys, whatever the header says.
             r = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": w["lmu"].id},
             )
             assert r.status_code == 200 and seen[-1] is None
             # A foreign org or project is refused.

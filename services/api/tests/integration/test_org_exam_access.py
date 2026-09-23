@@ -191,8 +191,8 @@ class TestCheckProjectAccessibleSync:
         _member(test_db, student, org, OrganizationRole.ANNOTATOR)
         exam = _project(test_db, owner.id, org, kind="exam", is_private=False)
 
-        assert check_project_accessible(test_db, student, exam.id, org.id) is False
-        assert check_project_accessible(test_db, student, exam.id, None) is False
+        assert check_project_accessible(test_db, student, exam.id) is False
+        assert check_project_accessible(test_db, student, exam.id) is False
 
     def test_contributor_keeps_full_tier_on_org_exam(self, test_db):
         org = _org(test_db)
@@ -201,8 +201,8 @@ class TestCheckProjectAccessibleSync:
         _member(test_db, staff, org, OrganizationRole.CONTRIBUTOR)
         exam = _project(test_db, owner.id, org, kind="exam", is_private=False)
 
-        assert check_project_accessible(test_db, staff, exam.id, org.id) is True
-        assert check_project_accessible(test_db, staff, exam.id, None) is True
+        assert check_project_accessible(test_db, staff, exam.id) is True
+        assert check_project_accessible(test_db, staff, exam.id) is True
 
     def test_annotator_keeps_full_tier_on_non_exam_org_project(self, test_db):
         org = _org(test_db)
@@ -211,8 +211,8 @@ class TestCheckProjectAccessibleSync:
         _member(test_db, student, org, OrganizationRole.ANNOTATOR)
         proj = _project(test_db, owner.id, org, kind="korrektur", is_private=False)
 
-        assert check_project_accessible(test_db, student, proj.id, org.id) is True
-        assert check_project_accessible(test_db, student, proj.id, None) is True
+        assert check_project_accessible(test_db, student, proj.id) is True
+        assert check_project_accessible(test_db, student, proj.id) is True
 
     def test_archived_org_exam_denied_to_annotator(self, test_db):
         org = _org(test_db)
@@ -222,7 +222,7 @@ class TestCheckProjectAccessibleSync:
         exam = _project(
             test_db, owner.id, org, kind="exam", is_private=False, is_archived=True
         )
-        assert check_project_accessible(test_db, student, exam.id, org.id) is False
+        assert check_project_accessible(test_db, student, exam.id) is False
 
 
 class TestOrgExamParticipantSource:
@@ -361,7 +361,7 @@ class TestAccessibleProjectIdsAnnotatorFilter:
             title="OXA research",
         )
 
-        ids = get_accessible_project_ids(test_db, student, org_context=org.id)
+        ids = get_accessible_project_ids(test_db, student)
         assert research.id in ids
         assert exam.id not in ids
 
@@ -372,7 +372,7 @@ class TestAccessibleProjectIdsAnnotatorFilter:
         _member(test_db, staff, org, OrganizationRole.CONTRIBUTOR)
         exam = _project(test_db, owner.id, org, kind="exam", is_private=False)
 
-        ids = get_accessible_project_ids(test_db, staff, org_context=org.id)
+        ids = get_accessible_project_ids(test_db, staff)
         assert exam.id in ids
 
 

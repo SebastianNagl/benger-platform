@@ -4,7 +4,7 @@ import random
 import uuid
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -27,7 +27,6 @@ from project_models import (
 from services.member_privacy import project_name_mask
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
     get_project_access_tier,
     get_user_with_memberships,
 )
@@ -403,7 +402,6 @@ async def assign_tasks(
 async def list_task_assignments(
     project_id: str,
     task_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -419,8 +417,7 @@ async def list_task_assignments(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found in project")
 
-    org_context = get_org_context_from_request(request)
-    if not await check_project_accessible_async(db, current_user, project_id, org_context):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(status_code=403, detail="Access denied")
 
     assignments = (
@@ -554,7 +551,6 @@ async def remove_task_assignment(
 @router.get("/{project_id}/my-tasks")
 async def get_my_tasks(
     project_id: str,
-    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
     status: Optional[str] = Query(None, pattern="^(assigned|in_progress|completed|skipped)$"),
@@ -571,8 +567,7 @@ async def get_my_tasks(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(request)
-    if get_project_access_tier(db, current_user, project_id, org_context, project=project) is None:
+    if get_project_access_tier(db, current_user, project_id, project=project) is None:
         raise HTTPException(status_code=403, detail="Access denied")
 
     from sqlalchemy import exists as sa_exists, or_ as sa_or

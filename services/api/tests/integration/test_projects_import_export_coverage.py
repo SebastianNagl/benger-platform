@@ -275,7 +275,6 @@ class TestSubsetExportValidation:
         ):
             resp = await async_test_client.post(
                 f"/api/projects/{private.id}/exports?format=json",
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 403, resp.text
 
@@ -552,7 +551,7 @@ class TestBulkExport:
         resp = client.post(
             "/api/projects/bulk-export",
             json={"project_ids": [p1.id, p2.id], "format": "json"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         assert resp.headers["content-type"].startswith("application/json")
@@ -594,7 +593,7 @@ class TestBulkExport:
                 "format": "json",
                 "include_data": False,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         payload = json.loads(resp.content)
@@ -625,7 +624,7 @@ class TestBulkExport:
         resp = client.post(
             "/api/projects/bulk-export",
             json={"project_ids": [p.id], "format": "csv"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         assert resp.headers["content-type"].startswith("text/csv")
@@ -651,7 +650,7 @@ class TestBulkExport:
         resp = client.post(
             "/api/projects/bulk-export",
             json={"project_ids": [project_row.id], "format": "xml"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 400, resp.text
         assert "format" in resp.json()["detail"].lower()
@@ -673,10 +672,7 @@ class TestBulkExport:
             "/api/projects/bulk-export",
             json={"project_ids": [_uid(), private.id], "format": "json"},
             # contributor: not a superadmin, not the creator, private context
-            headers={
-                **auth_headers["contributor"],
-                "X-Organization-Context": "private",
-            },
+            headers=auth_headers["contributor"],
         )
         assert resp.status_code == 200, resp.text
         payload = json.loads(resp.content)
@@ -694,7 +690,7 @@ class TestBulkExportFull:
         resp = client.post(
             "/api/projects/bulk-export-full",
             json={"project_ids": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 400, resp.text
         assert "no project" in resp.json()["detail"].lower()
@@ -721,7 +717,7 @@ class TestBulkExportFull:
         resp = client.post(
             "/api/projects/bulk-export-full",
             json={"project_ids": [p.id]},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
         assert resp.headers["content-type"].startswith("application/zip")
@@ -752,10 +748,7 @@ class TestBulkExportFull:
         resp = client.post(
             "/api/projects/bulk-export-full",
             json={"project_ids": [_uid(), private.id]},
-            headers={
-                **auth_headers["contributor"],
-                "X-Organization-Context": "private",
-            },
+            headers=auth_headers["contributor"],
         )
         assert resp.status_code == 404, resp.text
         assert "no projects" in resp.json()["detail"].lower()

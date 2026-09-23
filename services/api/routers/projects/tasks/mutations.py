@@ -283,7 +283,6 @@ async def skip_task(
     project_id: str,
     task_id: str,
     skip_request: SkipTaskRequest,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -310,9 +309,8 @@ async def skip_task(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(request)
     tier = await get_project_access_tier_async(
-        db, current_user, project_id, org_context, project=project
+        db, current_user, project_id, project=project
     )
     # None -> "Access denied"; attempted -> coded read-only 403 (a skip is a write).
     require_write_tier(tier)

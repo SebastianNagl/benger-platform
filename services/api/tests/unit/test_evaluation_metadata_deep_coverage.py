@@ -42,7 +42,7 @@ def _uid() -> str:
 
 def _mock_request(headers=None):
     mock = Mock()
-    mock.headers = headers or {"X-Organization-Context": "private"}
+    mock.headers = headers or {}
     mock.state = Mock(spec=[])
     return mock
 
@@ -227,7 +227,6 @@ class TestEvaluatedModelsDeep:
         )
 
         result = await get_evaluated_models(
-            request=_mock_request(),
             project_id=proj.id,
             include_configured=True,
             db=async_test_db,
@@ -247,7 +246,6 @@ class TestEvaluatedModelsDeep:
         await async_test_db.commit()
 
         result = await get_evaluated_models(
-            request=_mock_request(),
             project_id=proj.id,
             include_configured=False,
             db=async_test_db,
@@ -264,7 +262,6 @@ class TestEvaluatedModelsDeep:
 
         with pytest.raises(HTTPException) as exc:
             await get_evaluated_models(
-                request=_mock_request(),
                 project_id="missing",
                 include_configured=False,
                 db=async_test_db,
@@ -286,7 +283,6 @@ class TestEvaluatedModelsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_evaluated_models(
-                    request=_mock_request(),
                     project_id=proj.id,
                     include_configured=False,
                     db=async_test_db,
@@ -310,7 +306,6 @@ class TestEvaluatedModelsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_evaluated_models(
-                    request=_mock_request(),
                     project_id=proj.id,
                     include_configured=False,
                     db=async_test_db,
@@ -332,7 +327,6 @@ class TestEvaluatedModelsDeep:
         )
 
         result = await get_evaluated_models(
-            request=_mock_request(),
             project_id=proj.id,
             include_configured=False,
             db=async_test_db,
@@ -360,7 +354,6 @@ class TestConfiguredMethodsDeep:
         await async_test_db.commit()
 
         result = await get_configured_methods(
-            request=_mock_request(),
             project_id=proj.id,
             db=async_test_db,
             current_user=_auth_user(user),
@@ -380,7 +373,6 @@ class TestConfiguredMethodsDeep:
         await async_test_db.commit()
 
         result = await get_configured_methods(
-            request=_mock_request(),
             project_id=proj.id,
             db=async_test_db,
             current_user=_auth_user(user),
@@ -462,7 +454,6 @@ class TestConfiguredMethodsDeep:
         await async_test_db.commit()
 
         result = await get_configured_methods(
-            request=_mock_request(),
             project_id=proj.id,
             db=async_test_db,
             current_user=_auth_user(user),
@@ -488,7 +479,6 @@ class TestConfiguredMethodsDeep:
 
         with pytest.raises(HTTPException) as exc:
             await get_configured_methods(
-                request=_mock_request(),
                 project_id="missing",
                 db=async_test_db,
                 current_user=_auth_user(user),
@@ -509,7 +499,6 @@ class TestConfiguredMethodsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_configured_methods(
-                    request=_mock_request(),
                     project_id=proj.id,
                     db=async_test_db,
                     current_user=_auth_user(user),
@@ -530,7 +519,6 @@ class TestConfiguredMethodsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_configured_methods(
-                    request=_mock_request(),
                     project_id=proj.id,
                     db=async_test_db,
                     current_user=_auth_user(user),
@@ -560,7 +548,6 @@ class TestEvaluationHistoryDeep:
 
         with pytest.raises(HTTPException) as exc:
             await get_evaluation_history(
-                request=_mock_request(),
                 project_id="missing",
                 model_ids=["gpt-4"],
                 metrics=["bleu"],
@@ -586,7 +573,6 @@ class TestEvaluationHistoryDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_evaluation_history(
-                    request=_mock_request(),
                     project_id=proj.id,
                     model_ids=["gpt-4"],
                     metrics=["bleu"],
@@ -612,7 +598,6 @@ class TestEvaluationHistoryDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_evaluation_history(
-                    request=_mock_request(),
                     project_id=proj.id,
                     model_ids=["gpt-4"],
                     metrics=["bleu"],
@@ -640,7 +625,6 @@ class TestSignificanceTestsDeep:
 
         with pytest.raises(HTTPException) as exc:
             await get_significance_tests(
-                request=_mock_request(),
                 project_id="missing",
                 model_ids=["a", "b"],
                 metrics=["bleu"],
@@ -663,7 +647,6 @@ class TestSignificanceTestsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_significance_tests(
-                    request=_mock_request(),
                     project_id=proj.id,
                     model_ids=["a", "b"],
                     metrics=["bleu"],
@@ -682,7 +665,6 @@ class TestSignificanceTestsDeep:
 
         with patch("routers.leaderboards.STATS_AVAILABLE", False):
             result = await get_significance_tests(
-                request=_mock_request(),
                 project_id=proj.id,
                 model_ids=["a", "b"],
                 metrics=["bleu"],
@@ -709,7 +691,6 @@ class TestSignificanceTestsDeep:
         )
 
         result = await get_significance_tests(
-            request=_mock_request(),
             project_id=proj.id,
             model_ids=["model-a", "model-b"],
             metrics=["bleu"],
@@ -736,7 +717,6 @@ class TestSignificanceTestsDeep:
         )
 
         result = await get_significance_tests(
-            request=_mock_request(),
             project_id=proj.id,
             model_ids=["model-a", "model-b"],
             metrics=["bleu"],
@@ -762,7 +742,6 @@ class TestSignificanceTestsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await get_significance_tests(
-                    request=_mock_request(),
                     project_id=proj.id,
                     model_ids=["a", "b"],
                     metrics=["bleu"],
@@ -787,7 +766,6 @@ class TestComputeStatisticsDeep:
 
         with pytest.raises(HTTPException) as exc:
             await compute_project_statistics(
-                http_request=_mock_request(),
                 project_id="missing",
                 request=StatisticsRequest(metrics=["bleu"], aggregation="model"),
                 db=async_test_db,
@@ -809,7 +787,6 @@ class TestComputeStatisticsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await compute_project_statistics(
-                    http_request=_mock_request(),
                     project_id=proj.id,
                     request=StatisticsRequest(metrics=["bleu"], aggregation="model"),
                     db=async_test_db,
@@ -827,7 +804,6 @@ class TestComputeStatisticsDeep:
 
         with pytest.raises(HTTPException) as exc:
             await compute_project_statistics(
-                http_request=_mock_request(),
                 project_id=proj.id,
                 request=StatisticsRequest(metrics=["bleu"], aggregation="model"),
                 db=async_test_db,
@@ -849,7 +825,6 @@ class TestComputeStatisticsDeep:
         )
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(metrics=["bleu"], aggregation="model", methods=["ci"]),
             db=async_test_db,
@@ -881,7 +856,6 @@ class TestComputeStatisticsDeep:
         )
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(metrics=["bleu"], aggregation="field", methods=["ci"]),
             db=async_test_db,
@@ -906,7 +880,6 @@ class TestComputeStatisticsDeep:
         )
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(metrics=["bleu"], aggregation="sample", methods=["ci"]),
             db=async_test_db,
@@ -931,7 +904,6 @@ class TestComputeStatisticsDeep:
         )
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(
                 metrics=["bleu"],
@@ -963,7 +935,6 @@ class TestComputeStatisticsDeep:
         )
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(
                 metrics=["bleu"],
@@ -1033,7 +1004,6 @@ class TestComputeStatisticsDeep:
         await async_test_db.commit()
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(
                 metrics=["bleu", "rouge"],
@@ -1066,7 +1036,6 @@ class TestComputeStatisticsDeep:
         await async_test_db.commit()
 
         result = await compute_project_statistics(
-            http_request=_mock_request(),
             project_id=proj.id,
             request=StatisticsRequest(metrics=["bleu"], aggregation="model", methods=["ci"]),
             db=async_test_db,
@@ -1092,7 +1061,6 @@ class TestComputeStatisticsDeep:
         ):
             with pytest.raises(HTTPException) as exc:
                 await compute_project_statistics(
-                    http_request=_mock_request(),
                     project_id=proj.id,
                     request=StatisticsRequest(metrics=["bleu"], aggregation="model"),
                     db=async_test_db,

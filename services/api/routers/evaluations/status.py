@@ -27,7 +27,6 @@ from routers.projects.helpers import (
     check_project_accessible,
     check_project_accessible_async,
     get_accessible_project_ids,
-    get_org_context_from_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,6 @@ router = APIRouter()
 @router.get("/evaluation/status/{evaluation_id}", response_model=EvaluationStatus)
 async def get_evaluation_status(
     evaluation_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -57,7 +55,7 @@ async def get_evaluation_status(
         )
 
     # Check project access
-    if not await check_project_accessible_async(db, current_user, evaluation.project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, evaluation.project_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this evaluation's project",
@@ -73,7 +71,6 @@ async def get_evaluation_status(
 @router.get("/stream/{evaluation_id}")
 async def stream_evaluation_status(
     evaluation_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
 ):
     """
@@ -98,11 +95,10 @@ async def stream_evaluation_status(
     polls and drain the pool — see 2026-05-18 postmortem.
     """
     # One-shot session for the up-front access check.
-    org_context = get_org_context_from_request(request)
     db = next(get_db())
     try:
         evaluation = db.query(DBEvaluationRun).filter(DBEvaluationRun.id == evaluation_id).first()
-        if evaluation and not check_project_accessible(db, current_user, evaluation.project_id, org_context):
+        if evaluation and not check_project_accessible(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this evaluation's project",
@@ -181,7 +177,7 @@ async def get_evaluations(
     any of their organizations (superadmin: everything).
     """
     accessible_ids = get_accessible_project_ids(
-        db, current_user, None, include_all_private=True
+        db, current_user, include_all_private=True
     )
 
     # Query evaluations from database, ordered by creation date (newest first)

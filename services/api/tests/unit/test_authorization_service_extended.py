@@ -172,7 +172,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=True, created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context="private"
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_private_context_non_creator_denied(self):
@@ -180,7 +180,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=True, created_by="user-2")
         db = Mock()
         assert not self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context="private"
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_private_context_org_project_creator_keeps_access(self):
@@ -191,7 +191,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=False, created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context="private"
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_org_project_stranger_denied_in_every_context(self):
@@ -205,7 +205,7 @@ class TestCheckProjectAccessSimple:
         ), patch.object(self.service, "_get_user_org_memberships", return_value=[]):
             for ctx in ("private", "org-a", "org-elsewhere", None):
                 assert not self.service.check_project_access(
-                    user, project, Permission.PROJECT_VIEW, db, org_context=ctx
+                    user, project, Permission.PROJECT_VIEW, db
                 ), ctx
 
     def test_legacy_mode_private_project_creator(self):
@@ -213,7 +213,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=True, created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context=None
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_legacy_mode_private_project_non_creator(self):
@@ -221,7 +221,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=True, created_by="user-2")
         db = Mock()
         assert not self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context=None
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_legacy_mode_creator_view(self):
@@ -229,7 +229,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=False, id="proj-1", created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_VIEW, db, org_context=None
+            user, project, Permission.PROJECT_VIEW, db
         )
 
     def test_legacy_mode_creator_edit(self):
@@ -237,7 +237,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=False, id="proj-1", created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_EDIT, db, org_context=None
+            user, project, Permission.PROJECT_EDIT, db
         )
 
     def test_legacy_mode_creator_delete(self):
@@ -245,7 +245,7 @@ class TestCheckProjectAccessSimple:
         project = Mock(deleted_at=None, is_private=False, id="proj-1", created_by="user-1")
         db = Mock()
         assert self.service.check_project_access(
-            user, project, Permission.PROJECT_DELETE, db, org_context=None
+            user, project, Permission.PROJECT_DELETE, db
         )
 
 

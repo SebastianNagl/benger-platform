@@ -66,7 +66,7 @@ STORED = {
 @pytest.mark.integration
 class TestEvaluationConfigMerge:
     def _headers(self, auth_headers, test_org):
-        return {**auth_headers["admin"], "X-Organization-Context": test_org.id}
+        return auth_headers["admin"]
 
     def test_put_merges_body_into_stored_config(
         self, client, test_db, test_users, auth_headers, test_org

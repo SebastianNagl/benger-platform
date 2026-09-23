@@ -29,7 +29,7 @@ Access model recap (routers/projects/helpers.check_project_accessible_async):
     and auth as them; access returns True natively).
   * a PRIVATE project's creator is the only non-superadmin allowed; a private
     project created by a contributor and hit by an annotator (neither superadmin
-    nor creator) -> deterministic 403 whatever ``X-Organization-Context`` says.
+    nor creator) -> deterministic 403 whatever organization is selected.
     ``check_project_accessible_async`` short-circuits private projects to
     ``user.id == project.created_by`` -> False -> 403. The 403 tests exercise the
     REAL async access logic (no patch).
@@ -306,7 +306,6 @@ class TestAccessDenied:
         )
         return project, annotator
 
-    _PRIVATE_HEADERS = {"X-Organization-Context": "private"}
 
     @pytest.mark.asyncio
     async def test_evaluated_models_403(self, async_test_client, async_test_db):
@@ -314,7 +313,6 @@ class TestAccessDenied:
         with _as_user(annotator):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{project.id}/evaluated-models",
-                headers=self._PRIVATE_HEADERS,
             )
         assert resp.status_code == 403, resp.text
         assert resp.json()["detail"] == "Access denied"
@@ -325,7 +323,6 @@ class TestAccessDenied:
         with _as_user(annotator):
             resp = await async_test_client.get(
                 f"{BASE}/projects/{project.id}/configured-methods",
-                headers=self._PRIVATE_HEADERS,
             )
         assert resp.status_code == 403, resp.text
         assert resp.json()["detail"] == "Access denied"
@@ -337,7 +334,6 @@ class TestAccessDenied:
             resp = await async_test_client.get(
                 f"{BASE}/projects/{project.id}/evaluation-history"
                 "?model_ids=gpt-4o&metrics=accuracy",
-                headers=self._PRIVATE_HEADERS,
             )
         assert resp.status_code == 403, resp.text
         assert resp.json()["detail"] == "Access denied"
@@ -349,7 +345,6 @@ class TestAccessDenied:
             resp = await async_test_client.get(
                 f"{BASE}/significance/{project.id}"
                 "?model_ids=gpt-4o&model_ids=claude-3-sonnet&metrics=accuracy",
-                headers=self._PRIVATE_HEADERS,
             )
         assert resp.status_code == 403, resp.text
         assert resp.json()["detail"] == "Access denied"
@@ -361,7 +356,6 @@ class TestAccessDenied:
             resp = await async_test_client.post(
                 f"{BASE}/projects/{project.id}/statistics",
                 json={"metrics": ["accuracy"], "aggregation": "model"},
-                headers=self._PRIVATE_HEADERS,
             )
         assert resp.status_code == 403, resp.text
         assert resp.json()["detail"] == "Access denied"

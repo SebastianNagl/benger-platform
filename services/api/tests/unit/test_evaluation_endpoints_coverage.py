@@ -91,7 +91,6 @@ class TestGetEvaluationStatus:
         with pytest.raises(HTTPException) as exc_info:
             await get_evaluation_status(
                 evaluation_id="eval-1",
-                request=_make_request(),
                 current_user=user,
                 db=async_test_db,
             )
@@ -113,7 +112,6 @@ class TestGetEvaluationStatus:
             with pytest.raises(HTTPException) as exc_info:
                 await get_evaluation_status(
                     evaluation_id=run.id,
-                    request=_make_request(),
                     current_user=user,
                     db=async_test_db,
                 )
@@ -130,7 +128,6 @@ class TestGetEvaluationStatus:
         # Superadmin owner short-circuits the access check.
         result = await get_evaluation_status(
             evaluation_id=run.id,
-            request=_make_request(),
             current_user=owner,
             db=async_test_db,
         )
@@ -150,7 +147,6 @@ class TestGetEvaluationStatus:
         await async_test_db.commit()
         result = await get_evaluation_status(
             evaluation_id=run.id,
-            request=_make_request(),
             current_user=owner,
             db=async_test_db,
         )
@@ -177,7 +173,7 @@ class TestStreamEvaluationStatus:
         with patch("routers.evaluations.status.get_db", return_value=iter([mock_db])), \
              patch("routers.evaluations.status.check_project_accessible", return_value=False):
             with pytest.raises(HTTPException) as exc_info:
-                await stream_evaluation_status(evaluation_id="eval-1", request=request, current_user=user)
+                await stream_evaluation_status(evaluation_id="eval-1", current_user=user)
             assert exc_info.value.status_code == 403
 
 
@@ -194,7 +190,6 @@ class TestValidateEvaluationConfig:
         with pytest.raises(HTTPException) as exc_info:
             await validate_evaluation_config(
                 project_id="proj-1",
-                request=_make_request(),
                 current_user=user,
                 db=async_test_db,
             )
@@ -215,7 +210,6 @@ class TestValidateEvaluationConfig:
             with pytest.raises(HTTPException) as exc_info:
                 await validate_evaluation_config(
                     project_id=project.id,
-                    request=_make_request(),
                     current_user=user,
                     db=async_test_db,
                 )
@@ -235,7 +229,6 @@ class TestValidateEvaluationConfig:
         await async_test_db.commit()
         result = await validate_evaluation_config(
             project_id=project.id,
-            request=_make_request(),
             current_user=owner,
             db=async_test_db,
         )
@@ -255,7 +248,6 @@ class TestValidateEvaluationConfig:
         await async_test_db.commit()
         result = await validate_evaluation_config(
             project_id=project.id,
-            request=_make_request(),
             current_user=owner,
             db=async_test_db,
         )
@@ -272,7 +264,6 @@ class TestValidateEvaluationConfig:
         await async_test_db.commit()
         result = await validate_evaluation_config(
             project_id=project.id,
-            request=_make_request(),
             current_user=owner,
             db=async_test_db,
         )
@@ -291,7 +282,6 @@ class TestGetEvaluatedModels:
         await async_test_db.commit()
         with pytest.raises(HTTPException) as exc_info:
             await get_evaluated_models(
-                request=_make_request(),
                 project_id="proj-1",
                 include_configured=False,
                 db=async_test_db,
@@ -313,7 +303,6 @@ class TestGetEvaluatedModels:
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_evaluated_models(
-                    request=_make_request(),
                     project_id=project.id,
                     include_configured=False,
                     db=async_test_db,
@@ -335,7 +324,6 @@ class TestGetProjectEvaluationConfig:
         with pytest.raises(HTTPException) as exc_info:
             await get_project_evaluation_config(
                 project_id="proj-1",
-                request=_make_request(),
                 current_user=user,
                 db=async_test_db,
             )
@@ -352,7 +340,6 @@ class TestDetectAnswerTypes:
         with pytest.raises(HTTPException) as exc_info:
             await detect_answer_types(
                 project_id="proj-1",
-                request=_make_request(),
                 current_user=user,
                 db=async_test_db,
             )
@@ -369,7 +356,6 @@ class TestGetFieldTypesForLlmJudge:
         with pytest.raises(HTTPException) as exc_info:
             await get_field_types_for_llm_judge(
                 project_id="proj-1",
-                request=_make_request(),
                 current_user=user,
                 db=async_test_db,
             )

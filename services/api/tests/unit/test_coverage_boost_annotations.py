@@ -193,7 +193,7 @@ class TestCreateAnnotation:
             json={
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["hello"]}}],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -208,7 +208,7 @@ class TestCreateAnnotation:
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["x"]}}],
                 "was_cancelled": True,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["was_cancelled"] == True  # noqa: E712
@@ -232,7 +232,7 @@ class TestCreateAnnotation:
                 "focused_duration_ms": 35000,
                 "tab_switches": 2,
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -256,7 +256,7 @@ class TestCreateAnnotation:
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["z"]}}],
                 "instruction_variant": "variant-2",
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -278,7 +278,7 @@ class TestCreateAnnotation:
                 "result": [{"from_name": "text", "to_name": "text", "type": "textarea", "value": {"text": ["w"]}}],
                 "instruction_variant": "variant-1",
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         assert resp.json()["ai_assisted"] == False  # noqa: E712
@@ -288,7 +288,7 @@ class TestCreateAnnotation:
         resp = client.post(
             f"/api/projects/tasks/{t.id}/annotations",
             json={"result": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -312,7 +312,6 @@ class TestListAnnotations:
         with _as_user(user):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{t.id}/annotations",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert len(resp.json()) >= 1
@@ -341,7 +340,6 @@ class TestListAnnotations:
         with _as_user(owner):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{t.id}/annotations?all_users=true",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert len(resp.json()) >= 2
@@ -375,7 +373,6 @@ class TestUpdateAnnotation:
             resp = await async_test_client.patch(
                 f"/api/projects/annotations/{ann.id}",
                 json={"result": [{"from_name": "text", "type": "textarea", "value": {"text": ["new"]}}]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -400,7 +397,6 @@ class TestUpdateAnnotation:
                     "result": [{"from_name": "text", "type": "textarea", "value": {"text": ["cancel"]}}],
                     "was_cancelled": True,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["was_cancelled"] == True  # noqa: E712
@@ -427,7 +423,6 @@ class TestUpdateAnnotation:
                     "result": [{"from_name": "text", "type": "textarea", "value": {"text": ["uncancel"]}}],
                     "was_cancelled": False,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["was_cancelled"] == False  # noqa: E712
@@ -467,7 +462,6 @@ class TestUpdateAnnotation:
             resp = await async_test_client.patch(
                 f"/api/projects/annotations/{ann.id}",
                 json={"result": [{"from_name": "text", "type": "textarea", "value": {"text": ["stolen"]}}]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
@@ -492,6 +486,5 @@ class TestUpdateAnnotation:
                     "result": [{"from_name": "text", "type": "textarea", "value": {"text": ["time"]}}],
                     "lead_time": 25.5,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200

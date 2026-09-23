@@ -250,7 +250,7 @@ async def _resolve_model_scope_org(
         from routers.projects.helpers import check_project_accessible_async
         from org_resolution import resolve_dispatch_org_for_project_async
 
-        if not await check_project_accessible_async(db, current_user, project_id, None):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
         return await resolve_dispatch_org_for_project_async(db, current_user, project_id)
     if organization_id:
@@ -288,8 +288,7 @@ async def get_available_models_for_user(
 ):
     """Models the caller can run in a scope: a project (its dispatch org),
     an organization (the wizard's creation target) or, without either, the
-    personal keys. The selected organization of the client
-    (``X-Organization-Context``) is not consulted."""
+    personal keys."""
     org_id = await _resolve_model_scope_org(db, current_user, project_id, organization_id)
 
     if org_id:

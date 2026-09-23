@@ -264,7 +264,7 @@ class TestGetProjectWithPermissions:
         await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            await get_project_with_permissions("proj-missing", auth, async_test_db, None)
+            await get_project_with_permissions("proj-missing", auth, async_test_db)
         assert exc.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -281,7 +281,7 @@ class TestGetProjectWithPermissions:
         )
         await async_test_db.commit()
 
-        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        result = await get_project_with_permissions(pid, auth, async_test_db)
         assert result.id == pid
 
     @pytest.mark.asyncio
@@ -299,7 +299,7 @@ class TestGetProjectWithPermissions:
         )
         await async_test_db.commit()
 
-        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        result = await get_project_with_permissions(pid, auth, async_test_db)
         assert result.id == pid
 
     @pytest.mark.asyncio
@@ -319,7 +319,7 @@ class TestGetProjectWithPermissions:
         await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            await get_project_with_permissions(pid, auth, async_test_db, None)
+            await get_project_with_permissions(pid, auth, async_test_db)
         assert exc.value.status_code == 403
 
     @pytest.mark.asyncio
@@ -340,7 +340,7 @@ class TestGetProjectWithPermissions:
         )
         await async_test_db.commit()
 
-        result = await get_project_with_permissions(pid, auth, async_test_db, None)
+        result = await get_project_with_permissions(pid, auth, async_test_db)
         assert result.id == pid
 
     @pytest.mark.asyncio
@@ -364,7 +364,7 @@ class TestGetProjectWithPermissions:
         await async_test_db.commit()
 
         with pytest.raises(HTTPException) as exc:
-            await get_project_with_permissions(pid, auth, async_test_db, None)
+            await get_project_with_permissions(pid, auth, async_test_db)
         assert exc.value.status_code == 403
 
 
@@ -867,11 +867,11 @@ class TestStartGeneration:
         assert resp.json()["tasks_queued"] == 1
 
     @pytest.mark.asyncio
-    async def test_org_context_resolved_from_single_linked_org(
+    async def test_org_resolved_from_single_linked_org(
         self, async_test_client, async_test_db
     ):
-        """When X-Organization-Context is absent/'private' and the project has
-        exactly one linked org, that org_id is stamped onto the created rows."""
+        """When the project has exactly one linked org, that org_id is
+        stamped onto the created rows."""
         admin = await _seed_user(async_test_db, is_superadmin=True)
         org = await _seed_org(async_test_db)
         project = await _seed_project(
@@ -888,7 +888,6 @@ class TestStartGeneration:
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{pid}/generate",
                 json={"mode": "all"},
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 200
         assert resp.json()["tasks_queued"] == 1

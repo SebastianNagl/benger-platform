@@ -116,7 +116,6 @@ def _cancel_runs(
     response_model=CancelEvaluationResponse,
 )
 async def cancel_evaluation_run(
-    http_request: Request,
     evaluation_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -140,7 +139,6 @@ async def cancel_evaluation_run(
             detail=f"Parent project '{evaluation.project_id}' not found",
         )
 
-    org_context = get_org_context_from_request(http_request)
     # Single-run cancel: allow the user who triggered the run to cancel
     # it, OR anyone with project EDIT permission. PROJECT_VIEW is too
     # permissive here (an annotator could cancel an admin's 6940-cell
@@ -149,7 +147,7 @@ async def cancel_evaluation_run(
     # cancel what I started."
     is_owner = evaluation.created_by == current_user.id
     has_edit = auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+        current_user, project, Permission.PROJECT_EDIT, db
     )
     if not (is_owner or has_edit):
         raise HTTPException(
@@ -178,7 +176,6 @@ async def cancel_evaluation_run(
     response_model=CancelEvaluationResponse,
 )
 async def cancel_all_project_evaluations(
-    http_request: Request,
     project_id: str,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -196,12 +193,11 @@ async def cancel_all_project_evaluations(
             detail=f"Project '{project_id}' not found",
         )
 
-    org_context = get_org_context_from_request(http_request)
     # Bulk cancel is strictly PROJECT_EDIT — it nukes every in-flight
     # run on the project regardless of who triggered them, so a
     # read-only viewer must not be able to fire it.
     if not auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+        current_user, project, Permission.PROJECT_EDIT, db
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any, Dict
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
@@ -14,7 +14,6 @@ from project_models import Project, TaskDraft, TaskDraftCheckpoint
 from routers.projects.helpers import (
     check_task_assigned_to_user,
     get_project_access_tier,
-    get_org_context_from_request,
     require_write_tier,
 )
 
@@ -27,7 +26,6 @@ router = APIRouter()
 async def save_draft(
     project_id: str,
     task_id: str,
-    request: Request,
     body: Dict[str, Any] = Body(...),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -37,9 +35,8 @@ async def save_draft(
     Called periodically by the frontend (every 30s) when annotations change.
     Upserts into task_drafts table for crash recovery.
     """
-    org_context = get_org_context_from_request(request)
     # A draft is a write: the attempted (read-only) tier gets the coded 403.
-    require_write_tier(get_project_access_tier(db, current_user, project_id, org_context))
+    require_write_tier(get_project_access_tier(db, current_user, project_id))
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
@@ -109,14 +106,13 @@ def _draft_has_content(draft_result: Any) -> bool:
     return False
 
 
-def _require_task_access(db, request, current_user, project_id, task_id, *, write=False):
+def _require_task_access(db, current_user, project_id, task_id, *, write=False):
     """Shared access guard (mirrors save_draft); returns the Project or raises.
 
     ``write=True`` (checkpoint append) additionally refuses the read-only
     attempted tier; the checkpoint reads stay open to it (own rows only).
     """
-    org_context = get_org_context_from_request(request)
-    tier = get_project_access_tier(db, current_user, project_id, org_context)
+    tier = get_project_access_tier(db, current_user, project_id)
     if write:
         require_write_tier(tier)
     elif tier is None:
@@ -131,7 +127,6 @@ def _require_task_access(db, request, current_user, project_id, task_id, *, writ
 async def save_checkpoint(
     project_id: str,
     task_id: str,
-    request: Request,
     body: Dict[str, Any] = Body(...),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -144,7 +139,7 @@ async def save_checkpoint(
     history is capped at ``CHECKPOINT_RETENTION`` per (task, user).
     """
     project = _require_task_access(
-        db, request, current_user, project_id, task_id, write=True
+        db, current_user, project_id, task_id, write=True
     )
 
     if not (project and project.restorable_checkpoints_enabled):
@@ -197,7 +192,6 @@ async def save_checkpoint(
 async def list_checkpoints(
     project_id: str,
     task_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -205,7 +199,7 @@ async def list_checkpoints(
 
     Metadata only — the full snapshot is fetched via the by-id endpoint.
     """
-    _require_task_access(db, request, current_user, project_id, task_id)
+    _require_task_access(db, current_user, project_id, task_id)
 
     rows = (
         db.query(TaskDraftCheckpoint)
@@ -233,12 +227,11 @@ async def get_checkpoint(
     project_id: str,
     task_id: str,
     checkpoint_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     """Fetch a single checkpoint's full snapshot (scoped to the current user)."""
-    _require_task_access(db, request, current_user, project_id, task_id)
+    _require_task_access(db, current_user, project_id, task_id)
 
     checkpoint = (
         db.query(TaskDraftCheckpoint)

@@ -1579,12 +1579,11 @@ class TestDashboardEndpoints:
         self, async_test_client, async_test_db
     ):
         admin = await _make_user(async_test_db, is_superadmin=True, prefix="admin")
-        org = await _make_org_async(async_test_db)
+        await _make_org_async(async_test_db)
         await async_test_db.commit()
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/dashboard/stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -1685,7 +1684,6 @@ class TestDashboardEndpoints:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/dashboard/stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         body = resp.json()

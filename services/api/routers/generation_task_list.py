@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy import String, case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,6 @@ from routers.projects.helpers import (
     check_project_accessible_async,
     check_project_write_access_async,
     enforce_project_write_window_async,
-    get_org_context_from_request,
 )
 
 
@@ -206,7 +205,6 @@ async def get_project_with_permissions(
     project_id: str,
     current_user: User,
     db: AsyncSession,
-    request: Optional[Request] = None,
 ) -> Project:
     """Get project and verify user permissions using centralized access check."""
 
@@ -219,9 +217,8 @@ async def get_project_with_permissions(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Project {project_id} not found"
         )
 
-    org_context = get_org_context_from_request(request) if request else None
     if not await check_project_accessible_async(
-        db, current_user, project_id, org_context, project=project
+        db, current_user, project_id, project=project
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -378,7 +375,6 @@ def get_single_task_generation_status(
 @router.get("/projects/{project_id}/task-status", response_model=PaginatedTaskGenerationResponse)
 async def get_task_generation_status(
     project_id: str,
-    request: Request,
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=200, description="Items per page"),
     search: Optional[str] = Query(None, description="Search in task data"),
@@ -399,7 +395,7 @@ async def get_task_generation_status(
     """
 
     # Get project and verify permissions
-    project = await get_project_with_permissions(project_id, current_user, db, request)
+    project = await get_project_with_permissions(project_id, current_user, db)
 
     # Get configured models and structures for this project
     generation_config = project.generation_config or {}
@@ -605,7 +601,6 @@ async def get_task_generation_status(
 async def start_generation(
     project_id: str,
     request: GenerationRequest,
-    raw_request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -624,7 +619,7 @@ async def start_generation(
 
     # Get project and verify permissions
     project = await get_project_with_permissions(
-        project_id, current_user, db, raw_request
+        project_id, current_user, db
     )
 
     # Starting generation is a contribute-level action — block public-tier
@@ -1109,7 +1104,6 @@ async def start_generation(
 
 @router.get("/generation-result", response_model=MultipleGenerationResultsResponse)
 async def get_generation_result(
-    request: Request,
     task_id: str = Query(..., description="Task ID"),
     model_id: str = Query(..., description="Model ID"),
     structure_key: Optional[str] = Query(None, description="Structure key (optional)"),
@@ -1136,7 +1130,7 @@ async def get_generation_result(
         )
 
     # Verify user has access to the project
-    await get_project_with_permissions(task.project_id, current_user, db, request)
+    await get_project_with_permissions(task.project_id, current_user, db)
 
     # Get generation records for this task-model combination
     gen_stmt = select(DBResponseGeneration).where(

@@ -56,7 +56,6 @@ from routers.projects.helpers import (
     get_accessible_project_ids_async,
     get_attempted_project_ids_async,
     get_effective_project_role_async,
-    get_org_context_from_request,
     get_participant_project_ids_async,
     get_project_access_tier_async,
     PARTICIPANT_EFFECTIVE_ROLE,
@@ -237,11 +236,11 @@ async def list_projects(
     """
     List every project the caller may open, through any of their orgs.
 
-    The selected organization (``X-Organization-Context``) is not a read
-    boundary: the list is the union of the caller's own private projects,
-    the projects each active org membership lists, the LMS-linked exams
-    they open as staff, the public projects, and the rows reached only
-    through the participant or attempted tier. Every row carries the
+    The selected organization is not a read boundary: the list is the
+    union of the caller's own private projects, the projects each active
+    org membership lists, the LMS-linked exams they open as staff, the
+    public projects, and the rows reached only through the participant or
+    attempted tier. Every row carries the
     caller's ``access_tier``, ``effective_role`` and ``can_edit``.
 
     Superadmins see every org's projects plus their own private ones by
@@ -469,9 +468,7 @@ async def create_project(
     org-assigned project (the caller needs an active ORG_ADMIN or
     CONTRIBUTOR membership there; a superadmin may target any existing
     org), ``is_public=True`` a public project (visible to all authenticated
-    users; public_role defaults to ANNOTATOR), otherwise a private one. The
-    selected organization of the client (``X-Organization-Context``) plays
-    no part.
+    users; public_role defaults to ANNOTATOR), otherwise a private one.
     """
 
     # Generate unique ID
@@ -731,7 +728,6 @@ def _masked_creator_name(project, creator_masks: dict):
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -764,9 +760,8 @@ async def get_project(
     if project.deleted_at is not None and not current_user.is_superadmin:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(request)
     tier = await get_project_access_tier_async(
-        db, current_user, project_id, org_context, project=project
+        db, current_user, project_id, project=project
     )
     if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")

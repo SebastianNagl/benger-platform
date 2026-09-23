@@ -414,7 +414,6 @@ class TestPublicProjectVisibleAcrossOrgs:
         with _as_user(visitor):
             resp = await async_test_client.get(
                 "/api/projects/?page=1&page_size=100",
-                headers={"X-Organization-Context": other_org.id},
             )
         assert resp.status_code == 200, resp.text
         items = resp.json().get("items", [])

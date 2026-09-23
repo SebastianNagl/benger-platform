@@ -4,7 +4,7 @@ Evaluation configuration validation endpoints.
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,7 +13,6 @@ from database import get_async_db
 from project_models import Project
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +23,6 @@ router = APIRouter()
 @router.post("/validate-config")
 async def validate_evaluation_config(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -45,8 +43,7 @@ async def validate_evaluation_config(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         errors = []

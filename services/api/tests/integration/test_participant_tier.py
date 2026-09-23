@@ -571,14 +571,14 @@ async def test_participant_skip_blocked_on_global_skip_queue(async_test_client, 
         assert r.status_code in (200, 201), r.text
 
 
-async def test_stale_org_context_falls_back_to_participant_list(async_test_client, async_test_db):
+async def test_stale_org_falls_back_to_participant_list(async_test_client, async_test_db):
     db = async_test_db
     owner, member = await _user(db), await _user(db)
     p = await _project(db, owner)
     await _share_member(db, p, owner, member)
     with _as_user(member):
         r = await async_test_client.get(
-            "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
+            "/api/projects/"
         )
         assert r.status_code == 200, r.text
         rows = {x["id"]: x for x in r.json()["items"]}
@@ -589,7 +589,7 @@ async def test_stale_org_context_falls_back_to_participant_list(async_test_clien
     stranger = await _user(db)
     with _as_user(stranger):
         r = await async_test_client.get(
-            "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
+            "/api/projects/"
         )
         assert r.status_code == 200, r.text
         assert p.id not in {x["id"] for x in r.json()["items"]}

@@ -4,7 +4,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 
 @router.get("/projects/{project_id}/evaluation-history")
 async def get_evaluation_history(
-    request: Request,
     project_id: str,
     model_ids: List[str] = Query(..., description="List of model IDs to get history for"),
     metrics: List[str] = Query(..., description="One or more metric names. Pass repeatedly: ?metrics=bleu&metrics=rouge_l"),
@@ -61,8 +60,7 @@ async def get_evaluation_history(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         # Build the project's evaluation_config lookup once so per-series

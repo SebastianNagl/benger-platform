@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import delete as sa_delete
 from sqlalchemy import select
@@ -24,7 +24,6 @@ from project_models import Project, Task
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -468,7 +467,6 @@ async def get_human_evaluation_progress(
 @router.get("/human/sessions/{project_id}")
 async def get_human_evaluation_sessions(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -476,7 +474,7 @@ async def get_human_evaluation_sessions(
     Get all human evaluation sessions for a project.
     """
     # Check project access
-    if not await check_project_accessible_async(db, current_user, project_id, get_org_context_from_request(request)):
+    if not await check_project_accessible_async(db, current_user, project_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have access to this project",
@@ -515,7 +513,6 @@ async def get_human_evaluation_sessions(
 @router.get("/human/config/{project_id}")
 async def get_human_evaluation_config(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -535,9 +532,8 @@ async def get_human_evaluation_config(
             )
 
         # Check access permissions
-        org_context = get_org_context_from_request(request)
         if not await auth_service.check_project_access_async(
-            current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+            current_user, project, Permission.PROJECT_VIEW, db
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

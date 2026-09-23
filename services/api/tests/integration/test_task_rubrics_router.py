@@ -624,28 +624,24 @@ class TestReadAccessOnOrgExams:
 
         list_path = f"/api/projects/{project.id}/task-rubrics"
         get_path = f"{list_path}/{rubric.id}"
-        with_org = {"X-Organization-Context": org.id}
 
-        # The org student gets neither the list nor the single sheet, with
-        # the org context header (the leak) or without it (legacy mode).
+        # The org student gets neither the list nor the single sheet.
         with _as_user(student):
-            for headers in (with_org, {}):
-                for path in (list_path, get_path):
-                    resp = await async_test_client.get(path, headers=headers)
-                    assert resp.status_code == 403, (path, headers, resp.text[:200])
-                    assert "criteria" not in resp.text
+            for path in (list_path, get_path):
+                resp = await async_test_client.get(path)
+                assert resp.status_code == 403, (path, resp.text[:200])
+                assert "criteria" not in resp.text
 
-        # Author and org colleague read the sheet in both modes.
+        # Author and org colleague read the sheet.
         for reader in (owner, colleague):
             with _as_user(reader):
-                for headers in (with_org, {}):
-                    listed = await async_test_client.get(list_path, headers=headers)
-                    assert listed.status_code == 200, listed.text
-                    assert [row["id"] for row in listed.json()] == [rubric.id]
-                    assert listed.json()[0]["criteria"]
-                    single = await async_test_client.get(get_path, headers=headers)
-                    assert single.status_code == 200, single.text
-                    assert single.json()["id"] == rubric.id
+                listed = await async_test_client.get(list_path)
+                assert listed.status_code == 200, listed.text
+                assert [row["id"] for row in listed.json()] == [rubric.id]
+                assert listed.json()[0]["criteria"]
+                single = await async_test_client.get(get_path)
+                assert single.status_code == 200, single.text
+                assert single.json()["id"] == rubric.id
 
     @pytest.mark.asyncio
     async def test_org_annotator_cannot_read_exam_evaluation_config(self, async_test_client, async_test_db):
@@ -658,11 +654,8 @@ class TestReadAccessOnOrgExams:
 
         path = f"/api/evaluations/projects/{project.id}/evaluation-config"
         with _as_user(student):
-            for headers in ({"X-Organization-Context": org.id}, {}):
-                resp = await async_test_client.get(path, headers=headers)
-                assert resp.status_code == 403, (headers, resp.text[:200])
+            resp = await async_test_client.get(path)
+            assert resp.status_code == 403, resp.text[:200]
         with _as_user(owner):
-            resp = await async_test_client.get(
-                path, headers={"X-Organization-Context": org.id}
-            )
+            resp = await async_test_client.get(path)
         assert resp.status_code == 200, resp.text

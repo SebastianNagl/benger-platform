@@ -524,7 +524,7 @@ class TestEvalConfig:
         resp = client.put(
             f"{BASE}/projects/{project.id}/evaluation-config",
             json={"metrics": ["accuracy"], "evaluation_mode": "automated"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 422), resp.text
 
@@ -563,7 +563,7 @@ class TestEvalStatus:
         test_db.commit()
         resp = client.get(
             f"{BASE}/",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200, resp.text
 
@@ -687,6 +687,6 @@ class TestHumanEval:
         resp = client.post(
             f"{BASE}/human/session/start",
             json={"project_id": project.id, "evaluation_type": "likert"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 201, 400, 403, 422), resp.text

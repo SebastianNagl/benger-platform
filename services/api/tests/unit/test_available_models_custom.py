@@ -260,7 +260,7 @@ class TestAvailableModelsOrgCredentialSource:
         assert entry["credential_source"] == "user"
 
     @pytest.mark.asyncio
-    async def test_no_org_context_source_is_user_or_none(
+    async def test_no_org_source_is_user_or_none(
         self, async_test_client, async_test_db
     ):
         # Without an org header the field still exists; org key is irrelevant.
@@ -445,7 +445,7 @@ class TestAvailableModelsNonMemberOrgSuppressed:
         return org_a, model
 
     @pytest.mark.asyncio
-    async def test_non_member_org_context_is_suppressed(
+    async def test_non_member_org_is_suppressed(
         self, async_test_client, async_test_db
     ):
         org_a, model = await self._seed_public_model_with_org_cred(async_test_db)
@@ -468,7 +468,7 @@ class TestAvailableModelsNonMemberOrgSuppressed:
         assert entry["has_credential"] is False
 
     @pytest.mark.asyncio
-    async def test_active_member_org_context_is_honored(
+    async def test_active_member_org_is_honored(
         self, async_test_client, async_test_db
     ):
         # Contrast: an ACTIVE member of the SAME org, same public model + org

@@ -20,7 +20,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,7 +36,6 @@ from project_models import (
 )
 
 from routers.projects.helpers import (
-    get_org_context_from_request,
     get_project_access_tier_async,
 )
 
@@ -54,7 +53,6 @@ ROLLOVER_TZ = "Europe/Berlin"
 
 async def _require_deck_read_access(
     project_id: str,
-    request: Request,
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Project:
@@ -73,10 +71,9 @@ async def _require_deck_read_access(
     ).scalar_one_or_none()
     if not project:
         raise HTTPException(status_code=404, detail="Deck not found")
-    org_context = get_org_context_from_request(request)
     if (
         await get_project_access_tier_async(
-            db, current_user, project_id, org_context, project=project
+            db, current_user, project_id, project=project
         )
         is None
     ):

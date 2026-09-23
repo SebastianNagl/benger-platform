@@ -227,7 +227,7 @@ class TestListProjects:
     """Cover list_projects handler body."""
 
     @pytest.mark.asyncio
-    async def test_list_projects_with_org_context(self, async_test_client, async_test_db):
+    async def test_list_projects_with_org(self, async_test_client, async_test_db):
         """List projects with organization context header."""
         admin, org = await _seed_admin_org(async_test_db)
         p = await _project(async_test_db, admin, org, title="List Test 1")
@@ -237,7 +237,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -255,7 +254,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?search=UniqueSearchableTitle99",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -273,7 +271,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?page=1&page_size=2",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -289,7 +286,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?is_archived=false",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -302,7 +298,6 @@ class TestListProjects:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 200
 
@@ -316,7 +311,7 @@ class TestCreateProject:
     """Cover create_project handler body."""
 
     @pytest.mark.asyncio
-    async def test_create_project_with_org_context(self, async_test_client, async_test_db):
+    async def test_create_project_with_org(self, async_test_client, async_test_db):
         """Create a project assigned to an organization."""
         admin, org = await _seed_admin_org(async_test_db)
         await async_test_db.commit()
@@ -330,7 +325,6 @@ class TestCreateProject:
                     "description": "Integration test project",
                     "label_config": '<View><Text name="text" value="$text"/></View>',
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -350,7 +344,6 @@ class TestCreateProject:
                     "title": "Private Project Test",
                     "is_private": True,
                 },
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -377,7 +370,6 @@ class TestCreateProject:
                     "show_skip_button": True,
                     "enable_empty_annotation": False,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -397,7 +389,6 @@ class TestCreateProject:
                     "title": "Bad Config Project",
                     "label_config": "<Invalid>Not valid XML",
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (422, 400)
 
@@ -438,7 +429,6 @@ class TestGetProject:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -454,7 +444,6 @@ class TestGetProject:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -484,7 +473,7 @@ class TestGetProject:
 
         with _as_user(admin):
             resp = await async_test_client.get(
-                f"/api/projects/{p.id}", headers={"X-Organization-Context": org.id}
+                f"/api/projects/{p.id}"
             )
         assert resp.status_code == 200
 
@@ -508,7 +497,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"title": "New Title"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["title"] == "New Title"
@@ -524,7 +512,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"description": "Updated description"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["description"] == "Updated description"
@@ -545,7 +532,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"label_config": new_config},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -560,7 +546,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"instructions": "New instructions for annotators"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["expert_instruction"] == "New instructions for annotators"
@@ -576,7 +561,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"generation_config": {"selected_configuration": {"models": ["gpt-4o"]}}},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -591,7 +575,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"evaluation_config": {"metrics": ["accuracy"]}},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -605,7 +588,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{_uid()}",
                 json={"title": "nope"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -620,7 +602,6 @@ class TestUpdateProject:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}",
                 json={"show_skip_button": True, "enable_empty_annotation": True},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -646,7 +627,6 @@ class TestDeleteProject:
         ):
             resp = await async_test_client.delete(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -659,7 +639,6 @@ class TestDeleteProject:
         with _as_user(admin):
             resp = await async_test_client.delete(
                 f"/api/projects/{_uid()}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -675,7 +654,6 @@ class TestDeleteProject:
         with _as_user(annotator):
             resp = await async_test_client.delete(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
@@ -693,7 +671,6 @@ class TestDeleteProject:
         ):
             resp = await async_test_client.delete(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -717,7 +694,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": True, "owner_user_id": admin.id},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -738,7 +714,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": False, "organization_ids": [org.id]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -752,7 +727,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{_uid()}/visibility",
                 json={"is_private": True},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -767,7 +741,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": False, "organization_ids": []},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
@@ -784,7 +757,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": True},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
@@ -799,7 +771,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": True, "owner_user_id": _uid()},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -814,7 +785,6 @@ class TestUpdateVisibility:
             resp = await async_test_client.patch(
                 f"/api/projects/{p.id}/visibility",
                 json={"is_private": False, "organization_ids": [_uid()]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -839,7 +809,6 @@ class TestRecalculateStats:
         with _as_current_user(admin):
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/recalculate-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -854,7 +823,6 @@ class TestRecalculateStats:
         with _as_current_user(admin):
             resp = await async_test_client.post(
                 f"/api/projects/{_uid()}/recalculate-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -870,7 +838,6 @@ class TestRecalculateStats:
         with _as_current_user(annotator):
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/recalculate-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
@@ -895,7 +862,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -908,7 +874,6 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{_uid()}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -922,6 +887,5 @@ class TestCompletionStats:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200

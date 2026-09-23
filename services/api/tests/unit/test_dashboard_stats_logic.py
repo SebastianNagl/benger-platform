@@ -10,20 +10,20 @@ class TestDashboardStatsLogic:
 
     def test_cache_key_format_with_org(self):
         user_id = "user-1"
-        org_context = "org-123"
-        cache_key = f"dashboard_stats:{user_id}:{org_context or 'private'}"
+        org_id = "org-123"
+        cache_key = f"dashboard_stats:{user_id}:{org_id or 'private'}"
         assert cache_key == "dashboard_stats:user-1:org-123"
 
     def test_cache_key_format_private(self):
         user_id = "user-1"
-        org_context = None
-        cache_key = f"dashboard_stats:{user_id}:{org_context or 'private'}"
+        org_id = None
+        cache_key = f"dashboard_stats:{user_id}:{org_id or 'private'}"
         assert cache_key == "dashboard_stats:user-1:private"
 
     def test_cache_key_empty_org(self):
         user_id = "user-2"
-        org_context = ""
-        cache_key = f"dashboard_stats:{user_id}:{org_context or 'private'}"
+        org_id = ""
+        cache_key = f"dashboard_stats:{user_id}:{org_id or 'private'}"
         assert cache_key == "dashboard_stats:user-2:private"
 
     def test_stats_default_on_error(self):

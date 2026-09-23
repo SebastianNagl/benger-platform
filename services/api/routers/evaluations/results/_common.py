@@ -29,7 +29,6 @@ from routers.evaluations.helpers import EvaluationResultsResponse  # noqa: F401
 from routers.projects.helpers import (  # noqa: F401
     check_project_accessible,
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 
 logger = logging.getLogger(__name__)
@@ -204,7 +203,6 @@ __all__ = [
     "EvaluationResultsResponse",
     "check_project_accessible",
     "check_project_accessible_async",
-    "get_org_context_from_request",
     # this module
     "logger",
     "router",

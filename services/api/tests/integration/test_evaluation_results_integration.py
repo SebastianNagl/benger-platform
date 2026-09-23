@@ -478,7 +478,7 @@ class TestEvaluationStatus:
         _setup_project_sync(test_db, test_users[0], test_org)
         resp = client.get(
             f"{BASE}/",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -554,7 +554,7 @@ class TestEvaluationConfig:
                 "metrics": ["accuracy", "f1"],
                 "evaluation_mode": "automated",
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 422)
 
@@ -695,7 +695,7 @@ class TestHumanEvaluation:
         resp = client.post(
             f"{BASE}/human/session/start",
             json={"project_id": p.id, "evaluation_type": "likert"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 201, 400, 403, 422)
 

@@ -1089,7 +1089,7 @@ class TestGetEvaluations:
 
         resp = client.get(
             "/api/evaluations/",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
         data = resp.json()
@@ -1098,7 +1098,7 @@ class TestGetEvaluations:
     def test_list_evaluations_empty(self, client, test_db, test_users, auth_headers, test_org):
         resp = client.get(
             "/api/evaluations/",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 

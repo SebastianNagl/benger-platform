@@ -33,12 +33,6 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _make_request(org_context="org-1"):
-    request = Mock()
-    request.state.organization_context = org_context
-    return request
-
-
 def _mock_user(is_superadmin=False):
     user = Mock()
     user.is_superadmin = is_superadmin
@@ -320,7 +314,6 @@ class TestGetEvaluationResults:
         from routers.evaluations.results import get_evaluation_results
 
         user = _mock_user()
-        request = _make_request("org-1")
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -329,7 +322,6 @@ class TestGetEvaluationResults:
             with pytest.raises(HTTPException) as exc_info:
                 await get_evaluation_results(
                     project_id="proj-1",
-                    request=request,
                     limit=10,
                     include_human=True,
                     include_automated=True,
@@ -348,7 +340,6 @@ class TestGetEvaluationResults:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -356,7 +347,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=request,
                 limit=10,
                 include_human=False,
                 include_automated=True,
@@ -393,7 +383,6 @@ class TestGetEvaluationResults:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -401,7 +390,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=request,
                 limit=10,
                 include_human=True,
                 include_automated=True,
@@ -452,7 +440,6 @@ class TestGetEvaluationResults:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -460,7 +447,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=request,
                 limit=10,
                 include_human=True,
                 include_automated=True,
@@ -481,12 +467,10 @@ class TestGetEvaluationSamples:
         from routers.evaluations.results import get_evaluation_samples
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_evaluation_samples(
                 evaluation_id=_uid(),
-                request=request,
                 field_name=None,
                 passed=None,
                 page=1,
@@ -506,7 +490,6 @@ class TestGetEvaluationSamples:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -515,7 +498,6 @@ class TestGetEvaluationSamples:
             with pytest.raises(HTTPException) as exc_info:
                 await get_evaluation_samples(
                     evaluation_id=eval_run.id,
-                    request=request,
                     field_name=None,
                     passed=None,
                     page=1,
@@ -534,13 +516,11 @@ class TestGetMetricDistribution:
         from routers.evaluations.results import get_metric_distribution
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_metric_distribution(
                 evaluation_id=_uid(),
                 metric_name="accuracy",
-                request=request,
                 field_name=None,
                 current_user=user,
                 db=async_test_db,
@@ -557,7 +537,6 @@ class TestGetMetricDistribution:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.distributions.check_project_accessible_async",
@@ -567,7 +546,6 @@ class TestGetMetricDistribution:
                 await get_metric_distribution(
                     evaluation_id=eval_run.id,
                     metric_name="accuracy",
-                    request=request,
                     field_name=None,
                     current_user=user,
                     db=async_test_db,
@@ -583,12 +561,10 @@ class TestGetConfusionMatrix:
         from routers.evaluations.results import get_confusion_matrix
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_confusion_matrix(
                 evaluation_id=_uid(),
-                request=request,
                 field_name="answer",
                 current_user=user,
                 db=async_test_db,
@@ -605,7 +581,6 @@ class TestGetConfusionMatrix:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.distributions.check_project_accessible_async",
@@ -614,7 +589,6 @@ class TestGetConfusionMatrix:
             with pytest.raises(HTTPException) as exc_info:
                 await get_confusion_matrix(
                     evaluation_id=eval_run.id,
-                    request=request,
                     field_name="answer",
                     current_user=user,
                     db=async_test_db,
@@ -630,12 +604,10 @@ class TestGetResultsByTaskModel:
         from routers.evaluations.results import get_results_by_task_model
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_results_by_task_model(
                 evaluation_id=_uid(),
-                request=request,
                 current_user=user,
                 db=async_test_db,
             )
@@ -651,7 +623,6 @@ class TestGetResultsByTaskModel:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.by_task_model.check_project_accessible_async",
@@ -660,7 +631,6 @@ class TestGetResultsByTaskModel:
             with pytest.raises(HTTPException) as exc_info:
                 await get_results_by_task_model(
                     evaluation_id=eval_run.id,
-                    request=request,
                     current_user=user,
                     db=async_test_db,
                 )
@@ -675,11 +645,9 @@ class TestGetSampleResultByTaskModel:
         from routers.evaluations.results import get_sample_result_by_task_model
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_sample_result_by_task_model(
-                request=request,
                 task_id=_uid(),
                 model_id="gpt-4",
                 current_user=user,
@@ -697,7 +665,6 @@ class TestGetSampleResultByTaskModel:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.by_task_model.check_project_accessible_async",
@@ -705,7 +672,6 @@ class TestGetSampleResultByTaskModel:
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await get_sample_result_by_task_model(
-                    request=request,
                     task_id=task.id,
                     model_id="gpt-4",
                     current_user=user,
@@ -722,7 +688,6 @@ class TestExportEvaluationResults:
         from routers.evaluations.results import export_evaluation_results
 
         user = _mock_user()
-        request = _make_request("org-1")
 
         with patch(
             "routers.evaluations.results.core.check_project_accessible_async",
@@ -731,7 +696,6 @@ class TestExportEvaluationResults:
             with pytest.raises(HTTPException) as exc_info:
                 await export_evaluation_results(
                     project_id="proj-1",
-                    request=request,
                     format="json",
                     current_user=user,
                     db=async_test_db,
@@ -747,12 +711,10 @@ class TestGetProjectResultsByTaskModel:
         from routers.evaluations.results import get_project_results_by_task_model
 
         user = _mock_user()
-        request = _make_request(None)
 
         with pytest.raises(HTTPException) as exc_info:
             await get_project_results_by_task_model(
                 project_id=_uid(),
-                request=request,
                 current_user=user,
                 db=async_test_db,
             )
@@ -767,7 +729,6 @@ class TestGetProjectResultsByTaskModel:
         await async_test_db.commit()
 
         user = _mock_user()
-        request = _make_request(None)
 
         with patch(
             "routers.evaluations.results.by_task_model.check_project_accessible_async",
@@ -776,7 +737,6 @@ class TestGetProjectResultsByTaskModel:
             with pytest.raises(HTTPException) as exc_info:
                 await get_project_results_by_task_model(
                     project_id=project.id,
-                    request=request,
                     current_user=user,
                     db=async_test_db,
                 )

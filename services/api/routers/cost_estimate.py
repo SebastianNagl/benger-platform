@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +26,6 @@ from models import LLMModel, User
 from project_models import Project
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
@@ -641,7 +640,6 @@ def _count_cells_to_generate(
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
 async def estimate_cost(
     request: CostEstimateRequest,
-    raw_request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> CostEstimateResponse:
@@ -665,9 +663,8 @@ async def estimate_cost(
     if project_exists is None:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(raw_request)
     if not await check_project_accessible_async(
-        db, current_user, request.project_id, org_context
+        db, current_user, request.project_id
     ):
         raise HTTPException(status_code=403, detail="Access denied")
 

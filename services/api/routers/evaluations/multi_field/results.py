@@ -75,7 +75,6 @@ async def _resolve_scope_block(
 @router.get("/run/results/project/{project_id}")
 async def get_project_evaluation_results(
     project_id: str,
-    request: Request,
     latest_only: bool = Query(True, description="Return only the most recent evaluation"),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -103,9 +102,8 @@ async def get_project_evaluation_results(
             )
 
         # Check access permissions
-        org_context = get_org_context_from_request(request)
         if not await auth_service.check_project_access_async(
-            current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+            current_user, project, Permission.PROJECT_VIEW, db
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -303,7 +301,6 @@ async def get_project_evaluation_results(
 @router.get("/run/results/{evaluation_id}")
 async def get_evaluation_run_results(
     evaluation_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -324,8 +321,7 @@ async def get_evaluation_run_results(
             )
 
         # Check project access
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, evaluation.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You don't have access to this evaluation's project",

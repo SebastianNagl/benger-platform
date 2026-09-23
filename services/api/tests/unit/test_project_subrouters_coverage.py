@@ -45,10 +45,8 @@ class TestListProjectTasks:
         dep = require_project_access()
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await dep(project_id="proj-1", request=request, current_user=user, db=db)
+            await dep(project_id="proj-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -58,14 +56,12 @@ class TestListProjectTasks:
         project = Mock()
         db = _async_db_returning(scalar=project)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with patch(
             "routers.projects.deps.check_project_accessible_async",
             new=AsyncMock(return_value=False),
         ):
             with pytest.raises(HTTPException) as exc_info:
-                await dep(project_id="proj-1", request=request, current_user=user, db=db)
+                await dep(project_id="proj-1", current_user=user, db=db)
             assert exc_info.value.status_code == 403
 
 
@@ -76,11 +72,8 @@ class TestSkipTask:
         from project_schemas import SkipTaskRequest
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await skip_task(project_id="proj-1", task_id="task-1",
-                           request=request, skip_request=SkipTaskRequest(),  # noqa: E128
+            await skip_task(project_id="proj-1", task_id="task-1", skip_request=SkipTaskRequest(),  # noqa: E128
                            current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
@@ -108,11 +101,8 @@ class TestListTaskAssignments:
         from routers.projects.assignments import list_task_assignments
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await list_task_assignments(project_id="proj-1", task_id="task-1",
-                                       request=request, current_user=user, db=db)  # noqa: E128
+            await list_task_assignments(project_id="proj-1", task_id="task-1", current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 
 
@@ -140,10 +130,8 @@ class TestGetMyTasks:
         db = Mock()
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await get_my_tasks(project_id="proj-1", request=request,
+            await get_my_tasks(project_id="proj-1",
                              page=1, page_size=30, status=None,  # noqa: E128
                              current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
@@ -160,10 +148,8 @@ class TestListProjectMembers:
         dep = require_project_access()
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await dep(project_id="proj-1", request=request, current_user=user, db=db)
+            await dep(project_id="proj-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -175,10 +161,8 @@ class TestGetProjectAnnotators:
         dep = require_project_access()
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
-            await dep(project_id="proj-1", request=request, current_user=user, db=db)
+            await dep(project_id="proj-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -194,11 +178,9 @@ class TestListQuestionnaireResponses:
         from routers.projects.deps import require_project_access
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         dependency = require_project_access(min_role="edit")
         with pytest.raises(HTTPException) as exc_info:
-            await dependency(project_id="proj-1", request=request, current_user=user, db=db)
+            await dependency(project_id="proj-1", current_user=user, db=db)
         assert exc_info.value.status_code == 404
 
 
@@ -211,11 +193,9 @@ class TestGetLabelConfigVersions:
         from routers.projects.label_config_versions import get_label_config_versions
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await get_label_config_versions(
-                project_id="proj-1", request=request,
+                project_id="proj-1",
                 current_user=user, db=db,
             )
         assert exc_info.value.status_code == 404
@@ -227,12 +207,9 @@ class TestGetLabelConfigVersion:
         from routers.projects.label_config_versions import get_label_config_version
         db = _async_db_returning(scalar=None)
         user = Mock()
-        request = Mock()
-        request.state.organization_context = None
         with pytest.raises(HTTPException) as exc_info:
             await get_label_config_version(
-                project_id="proj-1", version=1,
-                request=request, current_user=user, db=db,
+                project_id="proj-1", version=1, current_user=user, db=db,
             )
         assert exc_info.value.status_code == 404
 

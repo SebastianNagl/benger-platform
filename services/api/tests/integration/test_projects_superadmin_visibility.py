@@ -165,8 +165,8 @@ class TestSuperadminVisibilityDefault:
     async def test_default_view_is_org_agnostic(
         self, async_test_client, async_test_db
     ):
-        """A superadmin sees projects from every org regardless of the
-        X-Organization-Context header — even orgs they aren't a member of."""
+        """A superadmin sees projects from every org, even orgs they aren't a
+        member of."""
         s = await _seed_project_set(async_test_db)
         superadmin_a = s["superadmin_a"]
         # Org A's project, scoped via ProjectOrganization. Superadmin A is NOT
@@ -198,7 +198,6 @@ class TestSuperadminVisibilityDefault:
         with _as_user(superadmin_a):
             response = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": "private"},
             )
         assert response.status_code == 200
         ids = {item["id"] for item in response.json()["items"]}

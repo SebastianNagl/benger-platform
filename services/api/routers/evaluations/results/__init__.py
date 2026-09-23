@@ -21,7 +21,6 @@ from ._common import (  # noqa: F401
     router,
     logger,
     check_project_accessible,
-    get_org_context_from_request,
     _METRIC_METADATA_SUFFIXES,
     _coerce_metric_value,
     _extract_primary_score,

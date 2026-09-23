@@ -172,7 +172,7 @@ def _ungraded_metrics():
 
 
 def _headers(auth_headers, test_org, role="admin"):
-    return {**auth_headers[role], "X-Organization-Context": test_org.id}
+    return auth_headers[role]
 
 
 def _reload(test_db, record_id):

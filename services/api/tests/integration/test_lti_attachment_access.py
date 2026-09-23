@@ -303,39 +303,39 @@ async def _full_tier_everywhere(db, user, project, contexts):
     for ctx in contexts:
         answers.append(
             ("accessible/async", ctx,
-             await check_project_accessible_async(db, principal, project.id, org_context=ctx))
+             await check_project_accessible_async(db, principal, project.id))
         )
         answers.append(
             ("accessible/sync", ctx,
              await db.run_sync(
                  lambda s, c=ctx: check_project_accessible(
-                     s, principal, project.id, org_context=c
+                     s, principal, project.id
                  )
              ))
         )
         answers.append(
             ("tier/async", ctx,
-             await get_project_access_tier_async(db, principal, project.id, org_context=ctx) == FULL)
+             await get_project_access_tier_async(db, principal, project.id) == FULL)
         )
         answers.append(
             ("tier/sync", ctx,
              await db.run_sync(
                  lambda s, c=ctx: get_project_access_tier(
-                     s, principal, project.id, org_context=c
+                     s, principal, project.id
                  )
              ) == FULL)
         )
         answers.append(
             ("authz/async", ctx,
              await svc.check_project_access_async(
-                 principal, project, Permission.PROJECT_VIEW, db, org_context=ctx
+                 principal, project, Permission.PROJECT_VIEW, db
              ))
         )
         answers.append(
             ("authz/sync", ctx,
              await db.run_sync(
                  lambda s, c=ctx: svc.check_project_access(
-                     principal, project, Permission.PROJECT_VIEW, s, org_context=c
+                     principal, project, Permission.PROJECT_VIEW, s
                  )
              ))
         )
@@ -425,11 +425,11 @@ async def test_permissions_follow_the_staff_role(async_test_db):
     async def allowed(user, permission, project=w.exam_wide, ctx="private"):
         principal = _principal(user)
         got_async = await svc.check_project_access_async(
-            principal, project, permission, db, org_context=ctx
+            principal, project, permission, db
         )
         got_sync = await db.run_sync(
             lambda s: svc.check_project_access(
-                principal, project, permission, s, org_context=ctx
+                principal, project, permission, s
             )
         )
         assert got_async is got_sync, (user.id, permission, ctx)
@@ -475,7 +475,7 @@ async def test_non_private_linked_exam_keeps_the_generic_rules(async_test_db):
     # Org students keep the participant tier on the org-visible exam (D13).
     for ctx in _contexts(w):
         assert await get_project_access_tier_async(
-            db, _principal(w.annotator), w.exam_open.id, org_context=ctx
+            db, _principal(w.annotator), w.exam_open.id
         ) == PARTICIPANT
     tagged = await get_participant_project_ids_async(db, w.annotator.id)
     assert tagged.get(w.exam_open.id) == "org_exam"
@@ -490,11 +490,11 @@ async def test_participant_tier_unchanged_for_org_annotators_on_private_exams(
     for exam in (w.exam_wide, w.exam_grouped):
         for ctx in _contexts(w):
             assert await get_project_access_tier_async(
-                db, principal, exam.id, org_context=ctx
+                db, principal, exam.id
             ) is None
             assert await db.run_sync(
                 lambda s, e=exam, c=ctx: get_project_access_tier(
-                    s, principal, e.id, org_context=c
+                    s, principal, e.id
                 )
             ) is None
     tagged = await get_participant_project_ids_async(db, w.annotator.id)
@@ -513,11 +513,11 @@ async def test_participant_tier_unchanged_for_org_annotators_on_private_exams(
     await db.commit()
     for ctx in _contexts(w):
         assert await get_project_access_tier_async(
-            db, principal, w.exam_wide.id, org_context=ctx
+            db, principal, w.exam_wide.id
         ) == PARTICIPANT
         assert await db.run_sync(
             lambda s, c=ctx: get_project_access_tier(
-                s, principal, w.exam_wide.id, org_context=c
+                s, principal, w.exam_wide.id
             )
         ) == PARTICIPANT
     tagged = await get_participant_project_ids_async(db, w.annotator.id)
@@ -644,7 +644,7 @@ async def test_protected_org_grants_only_its_admins(async_test_db, monkeypatch):
     svc = AuthorizationService()
     principal = _principal(w.contributor)
     assert await svc.check_project_access_async(
-        principal, w.exam_wide, Permission.TASK_VIEW, db, org_context=w.uni.id
+        principal, w.exam_wide, Permission.TASK_VIEW, db
     ) is False
 
 
@@ -725,7 +725,7 @@ def test_lti_staff_role_matrix():
     assert lti_staff_role("exam", None, lti) is None
     for ctx in (None, "private", "uni", "elsewhere"):
         assert lti_staff_role(
-            "exam", [_M("uni", "CONTRIBUTOR")], lti, org_context=ctx
+            "exam", [_M("uni", "CONTRIBUTOR")], lti
         ) == "CONTRIBUTOR"
 
 
@@ -773,7 +773,6 @@ def _as_user(db_user):
         app.dependency_overrides.pop(require_user, None)
 
 
-PRIVATE_CONTEXT = {"X-Organization-Context": "private"}
 
 
 async def test_staff_open_the_linked_exam_from_the_apex_host(
@@ -784,11 +783,11 @@ async def test_staff_open_the_linked_exam_from_the_apex_host(
     url = f"/api/projects/{w.exam_wide.id}"
     for user in (w.org_admin, w.contributor, w.creator):
         with _as_user(user):
-            response = await async_test_client.get(url, headers=PRIVATE_CONTEXT)
+            response = await async_test_client.get(url)
         assert response.status_code == 200, (user.id, response.text)
     for user in (w.annotator, w.foreign_admin, w.stranger):
         with _as_user(user):
-            response = await async_test_client.get(url, headers=PRIVATE_CONTEXT)
+            response = await async_test_client.get(url)
         assert response.status_code == 403, (user.id, response.text)
 
 
@@ -800,18 +799,18 @@ async def test_creator_keeps_share_links_on_a_linked_exam(
     url = f"/api/projects/{w.exam_wide.id}"
 
     with _as_user(w.creator):
-        detail = await async_test_client.get(url, headers=PRIVATE_CONTEXT)
+        detail = await async_test_client.get(url)
         created = await async_test_client.post(
-            f"{url}/shares", json={"password": "abcdefgh"}, headers=PRIVATE_CONTEXT
+            f"{url}/shares", json={"password": "abcdefgh"}
         )
     assert detail.json()["can_manage_shares"] is True
     assert created.status_code == 201, created.text
 
     # Staff below org admin see the exam but cannot let outsiders in.
     with _as_user(w.contributor):
-        detail = await async_test_client.get(url, headers=PRIVATE_CONTEXT)
+        detail = await async_test_client.get(url)
         refused = await async_test_client.post(
-            f"{url}/shares", json={"password": "abcdefgh"}, headers=PRIVATE_CONTEXT
+            f"{url}/shares", json={"password": "abcdefgh"}
         )
     assert detail.status_code == 200
     assert detail.json()["can_manage_shares"] is False
@@ -820,7 +819,7 @@ async def test_creator_keeps_share_links_on_a_linked_exam(
 
     with _as_user(w.org_admin):
         created = await async_test_client.post(
-            f"{url}/shares", json={"password": "abcdefgh"}, headers=PRIVATE_CONTEXT
+            f"{url}/shares", json={"password": "abcdefgh"}
         )
     assert created.status_code == 201, created.text
 
@@ -861,7 +860,7 @@ async def _roles(db, user, project):
 
 
 async def _listed(db, user, org):
-    ids = await get_accessible_project_ids_async(db, _principal(user), org_context=org.id)
+    ids = await get_accessible_project_ids_async(db, _principal(user))
     return set(ids or ())
 
 
@@ -905,7 +904,7 @@ async def test_protected_org_counts_only_admins_on_non_private_exams(
         ) is not None
         assert w.exam_open.id not in await _listed(db, user, w.uni)
         assert await AuthorizationService().check_project_access_async(
-            _principal(user), w.exam_open, Permission.TASK_VIEW, db, org_context=w.uni.id
+            _principal(user), w.exam_open, Permission.TASK_VIEW, db
         ) is False
     await _assert_full(db, w.contributor_in_group, open_grouped, False, contexts)
     assert (await _roles(db, w.contributor_in_group, open_grouped))[1] is False
@@ -930,7 +929,7 @@ async def test_protected_org_counts_only_admins_on_non_private_exams(
 
     # Org students keep the participant tier on the org-visible exam (D13).
     assert await get_project_access_tier_async(
-        db, _principal(w.annotator), w.exam_open.id, org_context=w.uni.id
+        db, _principal(w.annotator), w.exam_open.id
     ) == PARTICIPANT
     # The creator keeps the exam.
     assert await _roles(db, w.creator, w.exam_open) == ("ORG_ADMIN", True, True)
@@ -970,7 +969,6 @@ async def test_visibility_patch_keeps_the_protected_rule(
         response = await async_test_client.patch(
             url,
             json={"is_private": False, "organization_ids": [w.foreign.id]},
-            headers=PRIVATE_CONTEXT,
         )
     assert response.status_code == 200, response.text
     from sqlalchemy import select
@@ -1076,16 +1074,14 @@ async def test_protected_contributor_with_an_lms_grant_is_a_blinded_participant(
         ).scalar_one()
         with _as_user(w.contributor):
             task = await async_test_client.get(
-                f"/api/projects/tasks/{task_id}", headers=PRIVATE_CONTEXT
+                f"/api/projects/tasks/{task_id}"
             )
             upload = await async_test_client.post(
                 f"/api/projects/{project.id}/imports/upload-url",
-                headers=PRIVATE_CONTEXT,
             )
             job = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": f"imports/x/{project.id}/a.json"},
-                headers=PRIVATE_CONTEXT,
             )
         assert task.status_code == 200, task.text
         assert "musterloesung" not in task.json()["data"]
@@ -1098,7 +1094,7 @@ async def test_protected_contributor_with_an_lms_grant_is_a_blinded_participant(
     ).scalar_one()
     with _as_user(w.org_admin):
         task = await async_test_client.get(
-            f"/api/projects/tasks/{task_id}", headers=PRIVATE_CONTEXT
+            f"/api/projects/tasks/{task_id}"
         )
     assert task.status_code == 200, task.text
     assert task.json()["data"]["musterloesung"] == "GEHEIM"
@@ -1133,7 +1129,7 @@ async def test_linked_org_staff_reach_an_open_exam_from_the_private_context(
     for user in (w.annotator, w.foreign_contributor, w.inactive_contributor, w.stranger):
         await _assert_full(db, user, exam, False, private)
     assert await get_project_access_tier_async(
-        db, _principal(w.annotator), exam.id, org_context="private"
+        db, _principal(w.annotator), exam.id
     ) == PARTICIPANT
 
 
@@ -1184,11 +1180,11 @@ async def test_private_context_permissions_follow_the_staff_role(async_test_db):
     async def allowed(user, permission):
         principal = _principal(user)
         got_async = await svc.check_project_access_async(
-            principal, exam, permission, db, org_context="private"
+            principal, exam, permission, db
         )
         got_sync = await db.run_sync(
             lambda s: svc.check_project_access(
-                principal, exam, permission, s, org_context="private"
+                principal, exam, permission, s
             )
         )
         assert got_async is got_sync, (user.id, permission)
@@ -1205,28 +1201,27 @@ async def test_teacher_view_calls_work_with_the_private_header(
     async_test_client, async_test_db
 ):
     """What the Korrektur page and the exam page load, sent the way the LMS
-    landing page sends it (``X-Organization-Context: private``)."""
+    landing page sends it (no organization selected)."""
     from tests.integration.test_group_visibility import _as_user
 
     db = async_test_db
     w = await _world(db)
     exam = await _open_exam_linked_through(db, w, via="manual")
-    headers = {"X-Organization-Context": "private"}
     client = async_test_client
 
     with _as_user(w.contributor):
-        project = await client.get(f"/api/projects/{exam.id}", headers=headers)
+        project = await client.get(f"/api/projects/{exam.id}")
         config = await client.get(
-            f"/api/evaluations/projects/{exam.id}/evaluation-config", headers=headers
+            f"/api/evaluations/projects/{exam.id}/evaluation-config"
         )
     assert project.status_code == 200, project.text
     assert project.json()["access_tier"] == FULL
     assert config.status_code == 200, config.text
 
     with _as_user(w.annotator):
-        project = await client.get(f"/api/projects/{exam.id}", headers=headers)
+        project = await client.get(f"/api/projects/{exam.id}")
         config = await client.get(
-            f"/api/evaluations/projects/{exam.id}/evaluation-config", headers=headers
+            f"/api/evaluations/projects/{exam.id}/evaluation-config"
         )
     assert project.status_code == 200, project.text
     assert project.json()["access_tier"] == PARTICIPANT

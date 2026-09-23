@@ -103,7 +103,6 @@ def lti_staff_role(
     memberships,
     lti_attachments: Optional[Dict[str, Optional[str]]],
     user_groups: Optional[Dict[str, bool]] = None,
-    org_context: Optional[str] = None,
     protected_org_ids: Optional[Iterable[str]] = None,
 ) -> Optional[str]:
     """The staff role an LMS attachment grants on a PRIVATE exam, or None.
@@ -124,17 +123,13 @@ def lti_staff_role(
     there, so only its org admins and the attachment group's admins count;
     its contributors get nothing from the attachment.
 
-    ``org_context`` is accepted for call-site symmetry with the deciders and
-    deliberately ignored: the apex host always sends ``private`` and a
-    teacher's last-org subdomain may send another org, so the grant cannot
-    depend on it (legacy mode already grants through any membership).
-    Callers handle the creator and superadmins. On private projects the
+    The grant does not depend on the organization the client has selected
+    (every active membership counts). Callers handle the creator and superadmins. On private projects the
     input is :func:`get_lti_attachment_map`. Non-private exams keep the
     generic rules (every membership counts, whatever the client's context),
     except that an LMS attachment of a protected org is first dropped for
     everyone but its admins (:func:`drop_protected_lti_attachments`).
     """
-    del org_context  # see docstring
     if project_kind != "exam" or not lti_attachments:
         return None
     protected = {str(org_id) for org_id in (protected_org_ids or ()) if org_id}

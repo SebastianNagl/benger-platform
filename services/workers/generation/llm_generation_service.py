@@ -468,7 +468,7 @@ def generate_llm_responses_impl(
                 )
                 tasks.logger.info(
                     f"Using API key via {route} "
-                    f"(org_context={organization_id}, user={user_id}) for {model.provider}"
+                    f"(org={organization_id}, user={user_id}) for {model.provider}"
                 )
             except Exception as e:
                 error_msg = str(e)

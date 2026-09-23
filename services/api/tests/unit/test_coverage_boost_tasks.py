@@ -416,7 +416,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{p.id}/tasks/bulk-export",
             json={"task_ids": task_ids},
-            headers={**auth_headers["admin"], "X-Organization-Context": org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 

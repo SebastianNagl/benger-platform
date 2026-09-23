@@ -102,14 +102,12 @@ async def _seed_generation(db, project, *, model_id="gpt-4o", status="completed"
 class TestListRunsPermissionFilter:
     @pytest.mark.asyncio
     @patch("routers.runs.check_project_accessible_async")
-    @patch("routers.runs.get_org_context_from_request")
     async def test_evaluation_tab_filters_inaccessible_projects(
-        self, mock_org_ctx, mock_access, async_test_db
+        self, mock_access, async_test_db
     ):
         """Non-superadmin must not see runs from projects they can't access."""
         from routers.runs import list_runs
 
-        mock_org_ctx.return_value = "private"
 
         from models import EvaluationRun
 
@@ -142,13 +140,12 @@ class TestListRunsPermissionFilter:
         await async_test_db.commit()
 
         # User can access proj_a; proj_b is forbidden.
-        async def _access(db, user, pid, ctx):
+        async def _access(db, user, pid):
             return pid == proj_a.id
 
         mock_access.side_effect = _access
 
         resp = await list_runs(
-            request=_make_request(),
             type="evaluation",
             project_id=None,
             status_filter=None,
@@ -164,13 +161,11 @@ class TestListRunsPermissionFilter:
 
     @pytest.mark.asyncio
     @patch("routers.runs.check_project_accessible_async")
-    @patch("routers.runs.get_org_context_from_request")
     async def test_generation_tab_filters_inaccessible_projects(
-        self, mock_org_ctx, mock_access, async_test_db
+        self, mock_access, async_test_db
     ):
         from routers.runs import list_runs
 
-        mock_org_ctx.return_value = "private"
 
         creator = await _seed_user(async_test_db)
         proj_a = await _seed_project(async_test_db, creator)
@@ -179,13 +174,12 @@ class TestListRunsPermissionFilter:
         gen_b = await _seed_generation(async_test_db, proj_b)
         await async_test_db.commit()
 
-        async def _access(db, user, pid, ctx):
+        async def _access(db, user, pid):
             return pid == proj_a.id
 
         mock_access.side_effect = _access
 
         resp = await list_runs(
-            request=_make_request(),
             type="generation",
             project_id=None,
             status_filter=None,
@@ -208,9 +202,8 @@ class TestListRunsPermissionFilter:
 class TestGetGenerationRunPermission:
     @pytest.mark.asyncio
     @patch("routers.runs.check_project_accessible_async", return_value=False)
-    @patch("routers.runs.get_org_context_from_request", return_value="private")
     async def test_returns_403_when_project_inaccessible(
-        self, _mock_ctx, _mock_access, async_test_db
+        self, _mock_access, async_test_db
     ):
         from fastapi import HTTPException
 
@@ -224,7 +217,6 @@ class TestGetGenerationRunPermission:
         with pytest.raises(HTTPException) as exc:
             await get_generation_run(
                 generation_id=rg.id,
-                request=_make_request(),
                 current_user=_auth_user(is_superadmin=False),
                 db=async_test_db,
             )
@@ -239,7 +231,6 @@ class TestGetGenerationRunPermission:
         with pytest.raises(HTTPException) as exc:
             await get_generation_run(
                 generation_id="missing-" + _uid(),
-                request=_make_request(),
                 current_user=_auth_user(),
                 db=async_test_db,
             )

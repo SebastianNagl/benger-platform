@@ -4,7 +4,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 
 @router.post("/projects/{project_id}/statistics", response_model=StatisticsResponse)
 async def compute_project_statistics(
-    http_request: Request,
     project_id: str,
     request: StatisticsRequest,
     db: AsyncSession = Depends(get_async_db),
@@ -68,8 +67,7 @@ async def compute_project_statistics(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(http_request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         warnings: List[str] = []

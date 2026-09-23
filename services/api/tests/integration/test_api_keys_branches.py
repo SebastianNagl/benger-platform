@@ -483,10 +483,10 @@ class TestUserAvailableModelsBehavioral:
         assert isinstance(resp.json(), list)
 
     @pytest.mark.asyncio
-    async def test_available_models_org_context_branch(
+    async def test_available_models_org_branch(
         self, async_test_client, async_test_db
     ):
-        """X-Organization-Context routes resolution through org_api_key_service."""
+        """An organization scope routes resolution through org_api_key_service."""
         org_admin = _seed_user(
             async_test_db, user_id="org-admin-test-id", is_superadmin=False
         )
@@ -500,7 +500,6 @@ class TestUserAvailableModelsBehavioral:
         ):
             resp = await async_test_client.get(
                 "/api/users/api-keys/available-models",
-                headers={"X-Organization-Context": "test-org-id"},
             )
         assert resp.status_code == status.HTTP_200_OK
         assert isinstance(resp.json(), list)

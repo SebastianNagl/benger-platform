@@ -4,8 +4,7 @@ resolver (2026-08-31).
 An org that pays (``require_private_keys`` False) pays for its ACTIVE members
 and superadmins only; everyone else degrades to their personal key. Covers
 both ``resolve_api_key`` twins (api + shared/worker) and
-``org_resolution.resolve_dispatch_org_for_project`` /
-``validate_org_context_header``.
+``org_resolution.resolve_dispatch_org_for_project``.
 """
 
 import pytest
@@ -254,25 +253,6 @@ class TestDispatchOrgResolver:
         test_db.commit()
 
         assert resolve_dispatch_org_for_project(test_db, user, project) is None
-
-    def test_header_validation(self, test_db, paying_org):
-        from org_resolution import validate_org_context_header
-
-        member = _mk_user(test_db, "hdr-member")
-        _mk_member(test_db, member, paying_org)
-        outsider = _mk_user(test_db, "hdr-outsider")
-        admin = _mk_user(test_db, "hdr-admin", superadmin=True)
-
-        assert (
-            validate_org_context_header(test_db, member, paying_org.id)
-            == paying_org.id
-        )
-        assert validate_org_context_header(test_db, outsider, paying_org.id) is None
-        assert (
-            validate_org_context_header(test_db, admin, paying_org.id)
-            == paying_org.id
-        )
-        assert validate_org_context_header(test_db, member, None) is None
 
 
 @pytest.mark.unit

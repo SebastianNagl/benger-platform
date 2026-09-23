@@ -194,7 +194,6 @@ class TestCreateImportUploadUrl:
         ) as mock_url:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports/upload-url?filename=import.json",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         assert resp.json()["file_key"] == _valid_key(project.id)
@@ -211,7 +210,6 @@ class TestCreateImportUploadUrl:
         ):
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports/upload-url",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
 
@@ -223,7 +221,6 @@ class TestCreateImportUploadUrl:
         ):
             resp = await async_test_client.post(
                 f"/api/projects/{_uid()}/imports/upload-url",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 404
 
@@ -246,7 +243,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": key},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 202
         body = resp.json()
@@ -274,7 +270,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
@@ -291,7 +286,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": f"exports/2026/06/{project.id}/leak.json"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
@@ -307,7 +301,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(_uid())},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
 
@@ -320,7 +313,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(project.id)},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 403
         mock_send.assert_not_called()
@@ -339,7 +331,6 @@ class TestCreateImportJob:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/imports",
                 json={"object_key": _valid_key(project.id)},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 503
         job = (
@@ -553,7 +544,7 @@ class TestCreateFullImportJobTarget:
         await async_test_db.commit()
 
         resp, _ = await self._post(
-            async_test_client, user, headers={"X-Organization-Context": org.id}
+            async_test_client, user
         )
         assert resp.status_code == 202, resp.text
         job = await _get_job(async_test_db, resp.json()["job_id"])

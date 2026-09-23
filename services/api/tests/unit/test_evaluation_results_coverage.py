@@ -44,19 +44,6 @@ def _uid() -> str:
     return str(uuid.uuid4())
 
 
-def _make_request(org_context="org-123"):
-    """A plain request whose state carries the org context.
-
-    ``get_org_context_from_request`` is a sync helper that reads
-    ``request.state.organization_context`` — we don't patch it, we just feed
-    it a real-looking request.
-    """
-    r = Mock()
-    r.headers = {}
-    r.state.organization_context = org_context
-    return r
-
-
 def _mock_user(user_id="user-123", is_superadmin=False):
     user = Mock()
     user.id = user_id
@@ -304,7 +291,6 @@ class TestGetEvaluationResults:
             with pytest.raises(Exception) as exc_info:
                 await get_evaluation_results(
                     project_id="proj-1",
-                    request=_make_request(),
                     limit=10,
                     include_human=True,
                     include_automated=True,
@@ -330,7 +316,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=_make_request(),
                 limit=10,
                 include_human=False,
                 include_automated=True,
@@ -371,7 +356,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=_make_request(),
                 limit=10,
                 include_human=True,
                 include_automated=False,
@@ -423,7 +407,6 @@ class TestGetEvaluationResults:
         ):
             result = await get_evaluation_results(
                 project_id=project.id,
-                request=_make_request(),
                 limit=10,
                 include_human=True,
                 include_automated=False,
@@ -450,7 +433,6 @@ class TestGetEvaluationSamples:
         with pytest.raises(Exception) as exc_info:
             await get_evaluation_samples(
                 evaluation_id="nonexistent",
-                request=_make_request(),
                 current_user=_mock_user(),
                 db=async_test_db,
             )
@@ -472,7 +454,6 @@ class TestGetEvaluationSamples:
             with pytest.raises(Exception) as exc_info:
                 await get_evaluation_samples(
                     evaluation_id=eval_run.id,
-                    request=_make_request(),
                     current_user=_mock_user(),
                     db=async_test_db,
                 )
@@ -493,7 +474,6 @@ class TestGetMetricDistribution:
             await get_metric_distribution(
                 evaluation_id="nonexistent",
                 metric_name="accuracy",
-                request=_make_request(),
                 current_user=_mock_user(),
                 db=async_test_db,
             )
@@ -517,7 +497,6 @@ class TestGetMetricDistribution:
                 await get_metric_distribution(
                     evaluation_id=eval_run.id,
                     metric_name="accuracy",
-                    request=_make_request(),
                     field_name=None,
                     current_user=_mock_user(),
                     db=async_test_db,
@@ -546,7 +525,6 @@ class TestGetMetricDistribution:
                 await get_metric_distribution(
                     evaluation_id=eval_run.id,
                     metric_name="accuracy",
-                    request=_make_request(),
                     field_name=None,
                     current_user=_mock_user(),
                     db=async_test_db,
@@ -576,7 +554,6 @@ class TestGetMetricDistribution:
             result = await get_metric_distribution(
                 evaluation_id=eval_run.id,
                 metric_name="accuracy",
-                request=_make_request(),
                 field_name=None,
                 current_user=_mock_user(),
                 db=async_test_db,
@@ -601,7 +578,6 @@ class TestGetConfusionMatrix:
         with pytest.raises(Exception) as exc_info:
             await get_confusion_matrix(
                 evaluation_id="nonexistent",
-                request=_make_request(),
                 field_name="label",
                 current_user=_mock_user(),
                 db=async_test_db,
@@ -625,7 +601,6 @@ class TestGetConfusionMatrix:
             with pytest.raises(Exception) as exc_info:
                 await get_confusion_matrix(
                     evaluation_id=eval_run.id,
-                    request=_make_request(),
                     field_name="label",
                     current_user=_mock_user(),
                     db=async_test_db,
@@ -664,7 +639,6 @@ class TestGetConfusionMatrix:
         ):
             result = await get_confusion_matrix(
                 evaluation_id=eval_run.id,
-                request=_make_request(),
                 field_name="label",
                 current_user=_mock_user(),
                 db=async_test_db,
@@ -711,7 +685,6 @@ class TestGetConfusionMatrix:
             with pytest.raises(Exception) as exc_info:
                 await get_confusion_matrix(
                     evaluation_id=eval_run.id,
-                    request=_make_request(),
                     field_name="label",
                     current_user=_mock_user(),
                     db=async_test_db,
@@ -732,7 +705,6 @@ class TestGetResultsByTaskModel:
         with pytest.raises(Exception) as exc_info:
             await get_results_by_task_model(
                 evaluation_id="nonexistent",
-                request=_make_request(),
                 current_user=_mock_user(),
                 db=async_test_db,
             )
@@ -754,7 +726,6 @@ class TestGetResultsByTaskModel:
         ):
             result = await get_results_by_task_model(
                 evaluation_id=eval_run.id,
-                request=_make_request(),
                 current_user=_mock_user(),
                 db=async_test_db,
             )
@@ -772,7 +743,6 @@ class TestGetSampleResultByTaskModel:
 
         with pytest.raises(Exception) as exc_info:
             await get_sample_result_by_task_model(
-                request=_make_request(),
                 task_id="nonexistent",
                 model_id="gpt-4",
                 current_user=_mock_user(),
@@ -795,7 +765,6 @@ class TestGetSampleResultByTaskModel:
         ):
             with pytest.raises(Exception) as exc_info:
                 await get_sample_result_by_task_model(
-                    request=_make_request(),
                     task_id=task.id,
                     model_id="gpt-4",
                     current_user=_mock_user(),
@@ -819,7 +788,6 @@ class TestGetSampleResultByTaskModel:
             new=AsyncMock(return_value=True),
         ):
             result = await get_sample_result_by_task_model(
-                request=_make_request(),
                 task_id=task.id,
                 model_id="gpt-4",
                 include_history=True,
@@ -847,7 +815,6 @@ class TestGetSampleResultByTaskModel:
             new=AsyncMock(return_value=True),
         ):
             result = await get_sample_result_by_task_model(
-                request=_make_request(),
                 task_id=task.id,
                 model_id="annotator:nobody",
                 current_user=_mock_user(),

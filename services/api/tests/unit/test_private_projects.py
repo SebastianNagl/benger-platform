@@ -126,7 +126,7 @@ class TestPrivateProjectCreation:
         return user
 
     def test_private_context_sets_is_private(self):
-        """When X-Organization-Context is 'private', project.is_private should be True."""
+        """A private create request carries is_private=True."""
         from project_schemas import ProjectCreate
 
         project_data = ProjectCreate(
@@ -169,23 +169,6 @@ class TestSlugLookup:
         assert not re.match(pattern, "org.name")  # dot
         assert not re.match(pattern, "")  # empty
         assert not re.match(pattern, "org/path")  # slash
-
-
-class TestContextAwareProjectListing:
-    """Test X-Organization-Context header handling logic."""
-
-    def test_private_context_values(self):
-        """Both 'private' and absent context should trigger private mode."""
-        # Simulates the condition in list_projects
-        for org_context in [None, "private"]:
-            is_private_mode = not org_context or org_context == "private"
-            assert is_private_mode is True
-
-    def test_org_context_value(self):
-        """A valid org ID should trigger org mode."""
-        org_context = str(uuid.uuid4())
-        is_private_mode = not org_context or org_context == "private"
-        assert is_private_mode is False
 
 
 class TestProjectVisibilityEndpoint:

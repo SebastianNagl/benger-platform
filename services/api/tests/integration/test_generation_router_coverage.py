@@ -255,13 +255,11 @@ class TestParseMetricsOrgScoped:
             async_test_db, gen, task, model_id="gpt-4o",
             parse_status="failed", parse_error="bad json", run_index=1,
         )
-        org_id = org.id
         await async_test_db.commit()
 
         with _as_user(contributor):
             resp = await async_test_client.get(
                 "/api/generation/parse-metrics",
-                headers={"X-Organization-Context": org_id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -303,8 +301,8 @@ class TestParseMetricsOrgScoped:
         )
         await async_test_db.commit()
 
-        # No X-Organization-Context header → defaults to "private"; the annotator
-        # owns no private projects, so accessible_ids == [].
+        # The annotator owns no private projects and holds no membership that
+        # lists this one, so accessible_ids == [].
         with _as_user(annotator):
             resp = await async_test_client.get("/api/generation/parse-metrics")
         assert resp.status_code == 200, resp.text

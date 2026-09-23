@@ -37,7 +37,6 @@ from routers.projects.helpers import (
     check_project_write_access,
     check_user_can_edit_project,
     enforce_project_write_window,
-    get_org_context_from_request,
 )
 from services.evaluation.human_eval_runs import (
     get_or_create_human_eval_run,
@@ -197,7 +196,6 @@ __all__ = [
     "check_project_write_access",
     "check_user_can_edit_project",
     "enforce_project_write_window",
-    "get_org_context_from_request",
     # services.evaluation.human_eval_runs
     "get_or_create_human_eval_run",
     "get_or_create_human_eval_run_async",

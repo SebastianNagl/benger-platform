@@ -173,7 +173,6 @@ class TestProjectGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE_PROJECT}/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -186,7 +185,6 @@ class TestProjectGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE_PROJECT}/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -198,7 +196,6 @@ class TestProjectGenerationConfig:
             resp = await async_test_client.put(
                 f"{BASE_PROJECT}/{project.id}/generation-config",
                 json={"selected_configuration": {"models": ["gpt-4o"], "temperature": 0.7}},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -212,7 +209,6 @@ class TestProjectGenerationConfig:
         with _as_user(admin):
             resp = await async_test_client.delete(
                 f"{BASE_PROJECT}/{project.id}/generation-config",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 204
 
@@ -238,7 +234,6 @@ class TestGenerationStatus:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE_PROJECT}/{project.id}/generation-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -252,7 +247,6 @@ class TestGenerationStatus:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE_PROJECT}/{project.id}/generation-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -290,7 +284,6 @@ class TestGenerationRouter:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/generation-tasks/projects/{project.id}/task-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 403, 404)
 
@@ -326,7 +319,6 @@ class TestGenerationRouter:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/generation-tasks/projects/{project.id}/task-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -386,7 +378,6 @@ class TestGenerationRouter:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/generation-tasks/projects/{project.id}/task-status",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -434,7 +425,6 @@ class TestGenerationRouter:
             resp = await async_test_client.get(
                 f"/api/generation-tasks/projects/{project.id}/task-status",
                 params={"structure_key": "lexam-open"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -463,7 +453,6 @@ class TestGenerationRouter:
             resp = await async_test_client.get(
                 f"/api/generation-tasks/projects/{project.id}/task-status",
                 params={"structure_key": "ghost-structure"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400
         assert "ghost-structure" in resp.json()["detail"]

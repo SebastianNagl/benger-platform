@@ -143,7 +143,7 @@ class TestListProjectsEndpoint:
 
         with _as_user(admin):
             resp = await async_test_client.get(
-                "/api/projects/", headers={"X-Organization-Context": "private"}
+                "/api/projects/"
             )
 
         assert resp.status_code == 200
@@ -289,7 +289,7 @@ class TestProjectHelpersCoverage:
         mock_db = MagicMock()
         # Only the explicit opt-in returns the "see everything" None sentinel.
         result = get_accessible_project_ids(
-            mock_db, user, None, include_all_private=True
+            mock_db, user, include_all_private=True
         )
         assert result is None
 
@@ -300,11 +300,11 @@ class TestProjectHelpersCoverage:
         user.id = "super-1"
         mock_db = MagicMock()
         # Default superadmin view returns every project that isn't another
-        # user's private one — across every org, regardless of org_context.
+        # user's private one, across every org.
         mock_db.query.return_value.filter.return_value.all.return_value = [
             Mock(id="org-a-proj"), Mock(id="org-b-proj"), Mock(id="own-private"),
         ]
-        result = get_accessible_project_ids(mock_db, user, "some-org")
+        result = get_accessible_project_ids(mock_db, user)
         assert result == ["org-a-proj", "org-b-proj", "own-private"]
 
     def test_get_accessible_project_ids_private(self):
@@ -316,7 +316,7 @@ class TestProjectHelpersCoverage:
         mock_db.query.return_value.filter.return_value.all.return_value = [
             Mock(id="p1"), Mock(id="p2"),
         ]
-        result = get_accessible_project_ids(mock_db, user, "private")
+        result = get_accessible_project_ids(mock_db, user)
         assert result == ["p1", "p2"]
 
     def test_get_accessible_project_ids_foreign_context_no_403(self):
@@ -341,12 +341,12 @@ class TestProjectHelpersCoverage:
         ), patch("routers.projects.helpers.get_user_group_context", return_value={}), patch(
             "routers.projects.helpers._lti_protected_org_ids", return_value=set()
         ):
-            assert get_accessible_project_ids(mock_db, user, "org-999") == ["p-other"]
+            assert get_accessible_project_ids(mock_db, user) == ["p-other"]
 
     def test_get_accessible_project_ids_superadmin_foreign_org_no_403(self):
         # Regression: a superadmin switching to an org they don't formally
         # belong to must NOT get "You are not a member of this organization".
-        # They get the full org-agnostic view regardless of org_context.
+        # They get the full org-agnostic view.
         from routers.projects.helpers import get_accessible_project_ids
         user = Mock()
         user.is_superadmin = True
@@ -356,7 +356,7 @@ class TestProjectHelpersCoverage:
             Mock(id="p1"),
         ]
 
-        result = get_accessible_project_ids(mock_db, user, "org-not-mine")
+        result = get_accessible_project_ids(mock_db, user)
         assert result == ["p1"]
 
     def test_check_project_accessible_superadmin(self):
@@ -384,7 +384,7 @@ class TestProjectHelpersCoverage:
         project.created_by = "u1"
         project.deleted_at = None
         mock_db.query.return_value.filter.return_value.first.return_value = project
-        assert check_project_accessible(mock_db, user, "proj-1", "private") == True  # noqa: E712
+        assert check_project_accessible(mock_db, user, "proj-1") == True  # noqa: E712
 
     def test_check_project_accessible_private_context_not_owner(self):
         from routers.projects.helpers import check_project_accessible
@@ -396,7 +396,7 @@ class TestProjectHelpersCoverage:
         project.is_private = True
         project.created_by = "u2"
         mock_db.query.return_value.filter.return_value.first.return_value = project
-        assert check_project_accessible(mock_db, user, "proj-1", "private") == False  # noqa: E712
+        assert check_project_accessible(mock_db, user, "proj-1") == False  # noqa: E712
 
     def test_check_project_accessible_org_not_in_project(self):
         from routers.projects.helpers import check_project_accessible
@@ -420,7 +420,7 @@ class TestProjectHelpersCoverage:
             return q
         mock_db.query.side_effect = query_side_effect
 
-        assert check_project_accessible(mock_db, user, "proj-1", "org-1") == False  # noqa: E712
+        assert check_project_accessible(mock_db, user, "proj-1") == False  # noqa: E712
 
     def test_check_task_assigned_to_user_open_mode(self):
         from routers.projects.helpers import check_task_assigned_to_user
@@ -487,21 +487,6 @@ class TestProjectHelpersCoverage:
 
         assert check_user_can_edit_project(mock_db, user, "proj-1") == False  # noqa: E712
 
-    def test_get_org_context_from_request_ignores_state(self):
-        """Only the header is read; the retired middleware's request.state
-        value (core 2.22) plays no part."""
-        from routers.projects.helpers import get_org_context_from_request
-        request = Mock()
-        request.state.organization_context = "org-abc"
-        request.headers = {}
-        assert get_org_context_from_request(request) is None
-
-    def test_get_org_context_from_request_header(self):
-        from routers.projects.helpers import get_org_context_from_request
-        request = Mock(spec=[])  # No .state attribute
-        request.headers = {"X-Organization-Context": "org-def"}
-        assert get_org_context_from_request(request) == "org-def"
-
     def test_get_project_organizations(self):
         from routers.projects.helpers import get_project_organizations
         mock_db = MagicMock()
@@ -532,8 +517,8 @@ class TestProjectHelpersLegacyAccess:
         project.created_by = "u1"
         project.deleted_at = None
         mock_db.query.return_value.filter.return_value.first.return_value = project
-        # org_context=None -> legacy mode
-        assert check_project_accessible(mock_db, user, "proj-1", None) == True  # noqa: E712
+        # no org membership needed: the creator owns the private project
+        assert check_project_accessible(mock_db, user, "proj-1") == True  # noqa: E712
 
     def test_legacy_private_project_not_owner(self):
         from routers.projects.helpers import check_project_accessible
@@ -545,7 +530,7 @@ class TestProjectHelpersLegacyAccess:
         project.is_private = True
         project.created_by = "u2"
         mock_db.query.return_value.filter.return_value.first.return_value = project
-        assert check_project_accessible(mock_db, user, "proj-1", None) == False  # noqa: E712
+        assert check_project_accessible(mock_db, user, "proj-1") == False  # noqa: E712
 
     def test_legacy_no_orgs_is_creator(self):
         from routers.projects.helpers import check_project_accessible
@@ -570,4 +555,4 @@ class TestProjectHelpersLegacyAccess:
             return q
         mock_db.query.side_effect = query_side_effect
 
-        assert check_project_accessible(mock_db, user, "proj-1", None) == True  # noqa: E712
+        assert check_project_accessible(mock_db, user, "proj-1") == True  # noqa: E712

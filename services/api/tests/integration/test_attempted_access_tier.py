@@ -164,16 +164,16 @@ async def _add_all(db, *rows):
     await db.commit()
 
 
-async def _tier_both(db, user, project_id, org_context=None):
+async def _tier_both(db, user, project_id):
     """Resolve the tier on both lanes and assert they agree."""
     from routers.projects.helpers import (
         get_project_access_tier,
         get_project_access_tier_async,
     )
 
-    got_async = await get_project_access_tier_async(db, user, project_id, org_context)
+    got_async = await get_project_access_tier_async(db, user, project_id)
     got_sync = await db.run_sync(
-        lambda s: get_project_access_tier(s, user, project_id, org_context)
+        lambda s: get_project_access_tier(s, user, project_id)
     )
     assert got_async == got_sync, (got_async, got_sync)
     return got_async
@@ -602,7 +602,6 @@ async def test_project_list_carries_attempted_rows(async_test_client, async_test
         r = await async_test_client.get(
             "/api/projects/",
             params={"page_size": 100, "is_archived": "true"},
-            headers={"X-Organization-Context": org.id},
         )
         assert r.status_code == 200, r.text
         rows = {p["id"]: p for p in r.json()["items"]}
@@ -610,7 +609,7 @@ async def test_project_list_carries_attempted_rows(async_test_client, async_test
 
         # A stale org context still lists the attempted project (no 403).
         r = await async_test_client.get(
-            "/api/projects/", headers={"X-Organization-Context": "org-i-never-joined"}
+            "/api/projects/"
         )
         assert r.status_code == 200, r.text
         assert {p["id"] for p in r.json()["items"]} >= {evicted.id}

@@ -15,7 +15,6 @@ from user_display import masked_name
 @router.get("/{evaluation_id}/results/by-task-model")
 async def get_results_by_task_model(
     evaluation_id: str,
-    request: Request,
     include_history: bool = Query(
         False,
         description=(
@@ -51,8 +50,7 @@ async def get_results_by_task_model(
                 detail=f"Evaluation '{evaluation_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, evaluation.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, evaluation.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
@@ -587,7 +585,6 @@ async def _build_all_tasks_response(db, project_id: str) -> list:
 @router.get("/projects/{project_id}/results/by-task-model")
 async def get_project_results_by_task_model(
     project_id: str,
-    request: Request,
     evaluation_ids: Optional[str] = Query(None, description="Comma-separated evaluation run IDs to filter by"),
     metric: Optional[str] = Query(
         None,
@@ -650,8 +647,7 @@ async def get_project_results_by_task_model(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
@@ -1154,7 +1150,6 @@ async def get_project_results_by_task_model(
 
 @router.get("/sample-result")
 async def get_sample_result_by_task_model(
-    request: Request,
     task_id: str = Query(..., description="Task ID"),
     model_id: str = Query(..., description="Model ID"),
     include_history: bool = Query(True, description="Include all historical results. When false, deduplicate to latest per field_name."),
@@ -1191,8 +1186,7 @@ async def get_sample_result_by_task_model(
                 detail=f"Task '{task_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, task.project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, task.project_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",

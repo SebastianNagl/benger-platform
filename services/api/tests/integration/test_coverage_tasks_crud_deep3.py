@@ -293,7 +293,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -312,7 +311,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?page=1&page_size=3",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -333,7 +331,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?only_labeled=true",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -350,7 +347,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?only_unlabeled=true",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -370,7 +366,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks?exclude_my_annotations=true",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -398,7 +393,6 @@ class TestTaskListing:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -422,7 +416,6 @@ class TestTaskOperations:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{t.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -438,7 +431,6 @@ class TestTaskOperations:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/tasks/nonexistent",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (404, 500)
 
@@ -456,7 +448,6 @@ class TestTaskOperations:
             resp = await async_test_client.put(
                 f"/api/projects/{p.id}/tasks/{t.id}",
                 json={"data": {"text": "Updated text"}},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 404)
 
@@ -474,7 +465,6 @@ class TestTaskOperations:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{t.id}/metadata",
                 json={"meta": {"source": "updated", "extra": "data"}, "merge": True},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 404)
 
@@ -491,7 +481,6 @@ class TestTaskOperations:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/bulk-delete",
                 json={"task_ids": [t.id for t in tasks[:2]]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 404)
 
@@ -508,7 +497,6 @@ class TestTaskOperations:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/{t.id}/skip",
                 json={"comment": "Too difficult"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201, 404)
 
@@ -526,7 +514,6 @@ class TestTaskOperations:
             resp = await async_test_client.post(
                 f"/api/projects/{p.id}/tasks/bulk-archive",
                 json={"task_ids": [t1.id, t2.id]},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 404)
 
@@ -548,7 +535,6 @@ class TestProjectCRUD:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -565,7 +551,6 @@ class TestProjectCRUD:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/?search=Legal",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -579,7 +564,6 @@ class TestProjectCRUD:
         with _as_user(admin):
             resp = await async_test_client.get(
                 "/api/projects/",
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code == 200
 
@@ -595,7 +579,6 @@ class TestProjectCRUD:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Test Create Project", "description": "desc"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
         data = resp.json()
@@ -618,7 +601,6 @@ class TestProjectCRUD:
                     "title": "With Config",
                     "label_config": '<View><Text name="text" value="$text"/></View>',
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201)
 
@@ -636,7 +618,6 @@ class TestProjectCRUD:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Bad Config", "label_config": "not valid xml<<<"},
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 201, 422)
 
@@ -650,7 +631,6 @@ class TestProjectCRUD:
             resp = await async_test_client.post(
                 "/api/projects/",
                 json={"title": "Private Project", "is_private": True},
-                headers={"X-Organization-Context": "private"},
             )
         assert resp.status_code in (200, 201)
 
@@ -665,7 +645,6 @@ class TestProjectCRUD:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -765,7 +744,6 @@ class TestProjectCRUD:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/completion-stats",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -873,7 +851,6 @@ class TestProjectMembers:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/members",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -897,7 +874,6 @@ class TestProjectMembers:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/annotators",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
         data = resp.json()
@@ -932,7 +908,7 @@ class TestAnnotations:
                     }
                 ],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 201)
 
@@ -949,7 +925,6 @@ class TestAnnotations:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{t.id}/annotations",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -971,7 +946,6 @@ class TestAnnotations:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/tasks/{t.id}/annotations?all_users=true",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -998,7 +972,6 @@ class TestAnnotations:
                         }
                     ]
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -1026,7 +999,6 @@ class TestAnnotations:
                     ],
                     "was_cancelled": True,
                 },
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200
 
@@ -1098,7 +1070,6 @@ class TestAssignments:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{p.id}/tasks/{t.id}/assignments",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code in (200, 404)
 
@@ -1113,13 +1084,13 @@ class TestHelpers:
         from routers.projects.helpers import get_accessible_project_ids
         # Superadmin returns None only with the include_all_private opt-in.
         result = get_accessible_project_ids(
-            test_db, test_users[0], test_org.id, include_all_private=True
+            test_db, test_users[0], include_all_private=True
         )
         assert result is None
 
     def test_get_accessible_project_ids_private(self, test_db, test_users, test_org):
         from routers.projects.helpers import get_accessible_project_ids
-        result = get_accessible_project_ids(test_db, test_users[1], "private")
+        result = get_accessible_project_ids(test_db, test_users[1])
         assert isinstance(result, list)
 
     def test_check_project_accessible_superadmin(self, test_db, test_users, test_org):
@@ -1136,7 +1107,7 @@ class TestHelpers:
         from routers.projects.helpers import check_project_accessible
         p = _sync_project(test_db, test_users[0], None, is_private=True)
         test_db.commit()
-        assert check_project_accessible(test_db, test_users[0], p.id, "private") == True  # noqa: E712
+        assert check_project_accessible(test_db, test_users[0], p.id) == True  # noqa: E712
 
     def test_check_user_can_edit_project_creator(self, test_db, test_users, test_org):
         from routers.projects.helpers import check_user_can_edit_project

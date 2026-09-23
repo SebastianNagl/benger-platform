@@ -5,7 +5,6 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 @router.get("/projects/{project_id}/available-fields", response_model=AvailableFieldsResponse)
 async def get_available_fields(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -30,9 +29,8 @@ async def get_available_fields(
             )
 
         # Verify user has access to the project
-        org_context = get_org_context_from_request(request)
         if not await auth_service.check_project_access_async(
-            current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+            current_user, project, Permission.PROJECT_VIEW, db
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

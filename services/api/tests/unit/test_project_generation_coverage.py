@@ -63,46 +63,39 @@ def _auth_allow(allow=True):
 @pytest.mark.asyncio
 class TestGetGenerationConfig:
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_project_not_found(self, mock_org, async_test_db):
+    async def test_project_not_found(self, async_test_db):
         from routers.projects.generation import get_generation_config
 
         await async_test_db.commit()
-        request = Mock()
         user = Mock()
         with _auth_allow(True):
             with pytest.raises(HTTPException) as exc_info:
-                await get_generation_config("p-missing", request, async_test_db, user)
+                await get_generation_config("p-missing", async_test_db, user)
         assert exc_info.value.status_code == 404
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_no_permission(self, mock_org, async_test_db):
+    async def test_no_permission(self, async_test_db):
         from routers.projects.generation import get_generation_config
 
         user = await _make_user(async_test_db)
         project = await _make_project(async_test_db, created_by=user.id)
         await async_test_db.commit()
-        request = Mock()
         with _auth_allow(False):
             with pytest.raises(HTTPException) as exc_info:
-                await get_generation_config(project.id, request, async_test_db, user)
+                await get_generation_config(project.id, async_test_db, user)
         assert exc_info.value.status_code == 403
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_no_config_returns_defaults(self, mock_org, async_test_db):
+    async def test_no_config_returns_defaults(self, async_test_db):
         from routers.projects.generation import get_generation_config
 
         user = await _make_user(async_test_db)
         project = await _make_project(async_test_db, created_by=user.id, generation_config=None)
         await async_test_db.commit()
-        request = Mock()
         with _auth_allow(True):
-            result = await get_generation_config(project.id, request, async_test_db, user)
+            result = await get_generation_config(project.id, async_test_db, user)
         assert "available_options" in result
         assert "selected_configuration" not in result
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_with_config_returns_selected(self, mock_org, async_test_db):
+    async def test_with_config_returns_selected(self, async_test_db):
         from routers.projects.generation import get_generation_config
 
         user = await _make_user(async_test_db)
@@ -112,48 +105,42 @@ class TestGetGenerationConfig:
             generation_config={"selected_configuration": {"models": ["gpt-4o"]}},
         )
         await async_test_db.commit()
-        request = Mock()
         with _auth_allow(True):
-            result = await get_generation_config(project.id, request, async_test_db, user)
+            result = await get_generation_config(project.id, async_test_db, user)
         assert result["selected_configuration"] == {"models": ["gpt-4o"]}
 
 
 @pytest.mark.asyncio
 class TestUpdateGenerationConfig:
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_success(self, mock_org, async_test_db):
+    async def test_success(self, async_test_db):
         from routers.projects.generation import update_generation_config
 
         user = await _make_user(async_test_db)
         project = await _make_project(async_test_db, created_by=user.id, generation_config={})
         await async_test_db.commit()
-        request = Mock()
         config = {"selected_configuration": {"models": ["gpt-4o"]}}
         with _auth_allow(True):
-            result = await update_generation_config(project.id, config, request, async_test_db, user)
+            result = await update_generation_config(project.id, config, async_test_db, user)
         assert result["message"] == "Generation configuration updated successfully"
         assert project.generation_config == config
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_no_permission(self, mock_org, async_test_db):
+    async def test_no_permission(self, async_test_db):
         from routers.projects.generation import update_generation_config
 
         user = await _make_user(async_test_db)
         project = await _make_project(async_test_db, created_by=user.id)
         await async_test_db.commit()
-        request = Mock()
         with _auth_allow(False):
             with pytest.raises(HTTPException) as exc_info:
-                await update_generation_config(project.id, {}, request, async_test_db, user)
+                await update_generation_config(project.id, {}, async_test_db, user)
         assert exc_info.value.status_code == 403
 
 
 @pytest.mark.asyncio
 class TestClearGenerationConfig:
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_success(self, mock_org, async_test_db):
+    async def test_success(self, async_test_db):
         from routers.projects.generation import clear_generation_config
 
         user = await _make_user(async_test_db)
@@ -161,21 +148,18 @@ class TestClearGenerationConfig:
             async_test_db, created_by=user.id, generation_config={"old": "config"}
         )
         await async_test_db.commit()
-        request = Mock()
         with _auth_allow(True):
-            await clear_generation_config(project.id, request, async_test_db, user)
+            await clear_generation_config(project.id, async_test_db, user)
         assert project.generation_config == None  # noqa: E711
 
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_project_not_found(self, mock_org, async_test_db):
+    async def test_project_not_found(self, async_test_db):
         from routers.projects.generation import clear_generation_config
 
         await async_test_db.commit()
-        request = Mock()
         user = Mock()
         with _auth_allow(True):
             with pytest.raises(HTTPException) as exc_info:
-                await clear_generation_config("p-missing", request, async_test_db, user)
+                await clear_generation_config("p-missing", async_test_db, user)
         assert exc_info.value.status_code == 404
 
 
@@ -183,23 +167,20 @@ class TestClearGenerationConfig:
 class TestGetProjectGenerationStatus:
 
     @patch("routers.projects.generation.check_project_accessible_async", new_callable=AsyncMock)
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_no_generations(self, mock_org, mock_access, async_test_db):
+    async def test_no_generations(self, mock_access, async_test_db):
         from routers.projects.generation import get_project_generation_status
 
         mock_access.return_value = True
         user = await _make_user(async_test_db)
         project = await _make_project(async_test_db, created_by=user.id)
         await async_test_db.commit()
-        request = Mock()
 
-        result = await get_project_generation_status(project.id, request, async_test_db, user)
+        result = await get_project_generation_status(project.id, async_test_db, user)
         assert result["generations"] == []
         assert result["is_running"] == False  # noqa: E712
 
     @patch("routers.projects.generation.check_project_accessible_async", new_callable=AsyncMock)
-    @patch("routers.projects.generation.get_org_context_from_request", return_value=None)
-    async def test_with_running_generation(self, mock_org, mock_access, async_test_db):
+    async def test_with_running_generation(self, mock_access, async_test_db):
         from routers.projects.generation import get_project_generation_status
 
         mock_access.return_value = True
@@ -218,9 +199,8 @@ class TestGetProjectGenerationStatus:
             )
         )
         await async_test_db.commit()
-        request = Mock()
 
-        result = await get_project_generation_status(project.id, request, async_test_db, user)
+        result = await get_project_generation_status(project.id, async_test_db, user)
         assert result["is_running"] == True  # noqa: E712
         assert result["latest_status"] == "running"
         assert len(result["generations"]) == 1

@@ -5,7 +5,7 @@ Evaluation configuration management endpoints.
 import logging
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,7 +27,6 @@ from project_models import Project
 from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
     check_project_accessible_async,
-    get_org_context_from_request,
 )
 from utils.json_merge import deep_merge_dicts
 
@@ -136,7 +135,6 @@ class FieldTypesResponse(BaseModel):
 @router.get("/projects/{project_id}/evaluation-config")
 async def get_project_evaluation_config(
     project_id: str,
-    request: Request,
     force_regenerate: bool = False,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
@@ -159,9 +157,8 @@ async def get_project_evaluation_config(
             )
 
         # Check if user can view this project's evaluation config
-        org_context = get_org_context_from_request(request)
         if not await auth_service.check_project_access_async(
-            current_user, project, Permission.PROJECT_VIEW, db, org_context=org_context
+            current_user, project, Permission.PROJECT_VIEW, db
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -600,7 +597,6 @@ def validate_eval_config_grade_scale(config) -> None:
 async def update_project_evaluation_config(
     project_id: str,
     config: Dict[str, Any],
-    request: Request,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -636,9 +632,8 @@ async def update_project_evaluation_config(
         # visitor of a public project (public_role ANNOTATOR *or* CONTRIBUTOR)
         # cannot rewrite the judge configuration. Read access alone used to
         # suffice here, which let any public visitor mutate it.
-        org_context = get_org_context_from_request(request)
         if not auth_service.check_project_access(
-            current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+            current_user, project, Permission.PROJECT_EDIT, db
         ):
             raise HTTPException(
                 status_code=403,
@@ -805,7 +800,7 @@ async def update_project_evaluation_config(
 
 
 def _project_for_grade_scale_write(
-    project_id: str, request: Request, current_user: User, db: Session
+    project_id: str, current_user: User, db: Session
 ) -> Project:
     """The project a Notenschlüssel recompute acts on, edit-gated.
 
@@ -821,9 +816,8 @@ def _project_for_grade_scale_write(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project '{project_id}' not found",
         )
-    org_context = get_org_context_from_request(request)
     if not auth_service.check_project_access(
-        current_user, project, Permission.PROJECT_EDIT, db, org_context=org_context
+        current_user, project, Permission.PROJECT_EDIT, db
     ):
         raise HTTPException(
             status_code=403,
@@ -840,7 +834,6 @@ def _project_for_grade_scale_write(
 @router.get("/projects/{project_id}/grade-scale/drift")
 def get_grade_scale_drift(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -849,14 +842,13 @@ def get_grade_scale_drift(
     ``{"stale": int, "graded": int, "scale_source": "project"|"rubric"|
     "default"}``. Read-only — the rewrite is the POST below.
     """
-    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    project = _project_for_grade_scale_write(project_id, current_user, db)
     return grade_scale_drift(db, project)
 
 
 @router.post("/projects/{project_id}/grade-scale/recompute")
 def post_grade_scale_recompute(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -869,7 +861,7 @@ def post_grade_scale_recompute(
     ``task_evaluations.updated_at``, so connected learning platforms receive
     the new grades through the extension's reconciliation.
     """
-    project = _project_for_grade_scale_write(project_id, request, current_user, db)
+    project = _project_for_grade_scale_write(project_id, current_user, db)
     try:
         return recompute_grade_scale(db, project)
     except HTTPException:
@@ -885,7 +877,6 @@ def post_grade_scale_recompute(
 @router.get("/projects/{project_id}/detect-answer-types")
 async def detect_answer_types(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -905,8 +896,7 @@ async def detect_answer_types(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not project.label_config:
@@ -941,7 +931,6 @@ async def detect_answer_types(
 @router.get("/projects/{project_id}/field-types", response_model=FieldTypesResponse)
 async def get_field_types_for_llm_judge(
     project_id: str,
-    request: Request,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -965,8 +954,7 @@ async def get_field_types_for_llm_judge(
                 detail=f"Project '{project_id}' not found",
             )
 
-        org_context = get_org_context_from_request(request)
-        if not await check_project_accessible_async(db, current_user, project_id, org_context):
+        if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
 
         if not project.label_config:

@@ -72,7 +72,7 @@ def _uid() -> str:
 
 
 def _h(auth_headers, org, role="admin"):
-    return {**auth_headers[role], "X-Organization-Context": org.id}
+    return auth_headers[role]
 
 
 # ---------------------------------------------------------------------------

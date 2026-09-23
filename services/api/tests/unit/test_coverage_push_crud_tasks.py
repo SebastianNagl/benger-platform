@@ -296,7 +296,7 @@ class TestProjectCrud:
     @pytest.mark.asyncio
     async def test_create_project(self, async_test_client, async_test_db):
         # create_project is async-lane (Depends(get_async_db)). Org-mode create
-        # (X-Organization-Context set) needs an active ORG_ADMIN membership.
+        # (organization_id in the body) needs an active ORG_ADMIN membership.
         admin = await _make_admin(async_test_db)
         org = Organization(
             id=_uid(),
@@ -329,7 +329,6 @@ class TestProjectCrud:
                         "description": "A new test project",
                         "label_config": "<View><Text name='text' value='$text'/></View>",
                     },
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code in [200, 201]
 

@@ -183,10 +183,6 @@ async def admin_org(async_test_db):
     return admin, org
 
 
-def _ctx(org):
-    return {"X-Organization-Context": org.id}
-
-
 @pytest.mark.integration
 class TestBulkExportTasks:
     """POST /api/projects/{project_id}/tasks/bulk-export
@@ -200,7 +196,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{project.id}/tasks/bulk-export",
             json={"task_ids": [t.id for t in tasks[:3]], "format": "json"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -209,7 +205,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{project.id}/tasks/bulk-export",
             json={"task_ids": [t.id for t in tasks[:2]], "format": "csv"},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -218,7 +214,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{project.id}/tasks/bulk-export",
             json={"task_ids": [t.id for t in tasks]},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code == 200
 
@@ -227,7 +223,7 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{project.id}/tasks/bulk-export",
             json={"task_ids": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 400)
 
@@ -246,7 +242,6 @@ class TestBulkArchiveTasks:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/bulk-archive",
                 json={"task_ids": [tasks[0].id]},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 400, 404)
 
@@ -267,7 +262,6 @@ class TestTaskMetadata:
             resp = await async_test_client.patch(
                 f"/api/projects/tasks/{tasks[0].id}/metadata",
                 json={"meta": {"source": "updated", "extra": True}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
 
@@ -280,7 +274,6 @@ class TestTaskMetadata:
             resp = await async_test_client.patch(
                 "/api/projects/tasks/nonexistent-id/metadata",
                 json={"meta": {"key": "val"}},
-                headers=_ctx(org),
             )
         assert resp.status_code == 404
 
@@ -304,7 +297,6 @@ class TestBulkMetadata:
                     "task_ids": [tasks[0].id, tasks[1].id],
                     "metadata": {"batch": "new-batch"},
                 },
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -322,7 +314,6 @@ class TestGetTaskFields:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/task-fields",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -338,7 +329,6 @@ class TestGetTaskFields:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/task-fields",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
 
@@ -357,7 +347,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{tasks[0].id}/skip",
                 json={},
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -375,7 +364,6 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/nonexistent-id/skip",
                 json={},
-                headers=_ctx(org),
             )
         assert resp.status_code in (404,)
 
@@ -391,6 +379,5 @@ class TestSkipTask:
             resp = await async_test_client.post(
                 f"/api/projects/{project.id}/tasks/{tasks[1].id}/skip",
                 json={"comment": "Not relevant"},
-                headers=_ctx(org),
             )
         assert resp.status_code in (200, 422)

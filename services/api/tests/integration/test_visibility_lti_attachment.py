@@ -241,7 +241,7 @@ async def test_make_private_keeps_the_linking_row_and_drops_manual_ones(
     assert (await _fresh(db, exam)).is_private is True
     # The connection's staff keep the private exam, even from the apex host.
     assert await check_project_accessible_async(
-        db, colleague, exam.id, org_context="private"
+        db, colleague, exam.id
     ) is True
 
 
@@ -264,7 +264,7 @@ async def test_make_private_turns_a_linked_orgs_manual_row_into_a_linking_row(
 
     assert await _rows(db, exam) == {uni.id: (manual_row, "lti", None)}
     assert await check_project_accessible_async(
-        db, colleague, exam.id, org_context="private"
+        db, colleague, exam.id
     ) is True
 
 
@@ -513,15 +513,15 @@ async def test_converted_row_takes_the_group_of_the_linking_connection(
     # The grant follows the connection: group-scoped, not org-wide ...
     assert await _rows(db, exam) == {uni.id: (wide_row, "lti", chair.id)}
     assert await check_project_accessible_async(
-        db, colleague, exam.id, org_context="private"
+        db, colleague, exam.id
     ) is True
     assert await check_project_accessible_async(
-        db, outsider, exam.id, org_context="private"
+        db, outsider, exam.id
     ) is False
     # ... and org-wide, not narrowed to the old share's group.
     assert await _rows(db, exam2) == {uni.id: (narrow_row, "lti", None)}
     assert await check_project_accessible_async(
-        db, outsider, exam2.id, org_context="private"
+        db, outsider, exam2.id
     ) is True
 
 
@@ -536,7 +536,7 @@ async def test_linking_row_without_a_live_link_is_dropped(
     await _attach(db, exam, uni, via="lti", group=chair)
     await db.commit()
     assert await check_project_accessible_async(
-        db, colleague, exam.id, org_context="private"
+        db, colleague, exam.id
     ) is False
 
     # Sharing with the org again creates a plain manual row, with no 409.

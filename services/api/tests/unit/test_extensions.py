@@ -119,7 +119,9 @@ class TestExtensionLoader:
         # 2.22 retires the selected organization: the creation target and
         # the model-list scope travel in the request, the org context
         # middleware is gone.
-        assert CORE_API_VERSION == "2.22"
+        # 2.23 removes the inert selected-organization parameter from the
+        # access helpers and its request-header reader.
+        assert CORE_API_VERSION == "2.23"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

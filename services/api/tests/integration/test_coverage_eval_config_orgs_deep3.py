@@ -72,7 +72,7 @@ def _tsk(db, project, admin, *, inner_id=1, data=None):
 # the sync ``test_db`` transaction. Tests hitting migrated endpoints seed via
 # ``async_test_db`` and drive ``async_test_client`` instead, authenticating as a
 # seeded superadmin (the access helpers short-circuit ``is_superadmin`` to True,
-# matching ``X-Organization-Context: <org>`` admin access in the sync flow).
+# matching org admin access in the sync flow).
 # ---------------------------------------------------------------------------
 
 
@@ -194,7 +194,7 @@ class TestEvaluationConfig:
         resp = client.put(
             f"/api/evaluations/projects/{p.id}/evaluation-config",
             json=config,
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 500)
 
@@ -210,7 +210,7 @@ class TestEvaluationConfig:
         resp = client.put(
             f"/api/evaluations/projects/{p.id}/evaluation-config",
             json=config,
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (400, 422, 500)
 
@@ -368,7 +368,7 @@ class TestDraftEndpoints:
         resp = client.put(
             f"/api/projects/{p.id}/tasks/{t.id}/draft",
             json={"result": [{"from_name": "answer", "to_name": "text", "type": "choices", "value": {"choices": ["Ja"]}}]},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 201, 404)
 
@@ -563,7 +563,7 @@ class TestEvaluationRunEndpoint:
                 "model_id": "gpt-4",
                 "evaluation_type_ids": ["accuracy"],
             },
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         # May fail due to celery not being available, but exercises the code path
         assert resp.status_code in (200, 201, 400, 422, 500)
@@ -614,7 +614,7 @@ class TestMyTasks:
 
         resp = client.get(
             f"/api/projects/{p.id}/my-tasks",
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 404)
 
@@ -634,6 +634,6 @@ class TestBulkExportTasks:
         resp = client.post(
             f"/api/projects/{p.id}/tasks/bulk-export",
             json={"task_ids": []},
-            headers={**auth_headers["admin"], "X-Organization-Context": test_org.id},
+            headers=auth_headers["admin"],
         )
         assert resp.status_code in (200, 400, 404)

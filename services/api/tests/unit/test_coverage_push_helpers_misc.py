@@ -249,7 +249,7 @@ class TestProjectHelpers:
         data = _setup_helper_project(test_db, test_users)
         pid = data["project"].id
 
-        result = check_project_accessible(test_db, test_users[0], pid, None)
+        result = check_project_accessible(test_db, test_users[0], pid)
         assert result is True
 
     def test_check_project_accessible_non_member(self, test_db, test_users):
@@ -274,7 +274,7 @@ class TestProjectHelpers:
         test_db.add(outsider)
         test_db.commit()
 
-        result = check_project_accessible(test_db, outsider, pid, None)
+        result = check_project_accessible(test_db, outsider, pid)
         assert result is False
 
     def test_get_user_with_memberships(self, test_db, test_users):
@@ -317,17 +317,16 @@ class TestProjectHelpers:
         _setup_helper_project(test_db, test_users)
 
         # Non-superadmin with no org context -> private projects only
-        ids = get_accessible_project_ids(test_db, test_users[1], org_context="private")
+        ids = get_accessible_project_ids(test_db, test_users[1])
         assert isinstance(ids, list)
 
     def test_get_accessible_project_ids_with_org(self, test_db, test_users):
         from routers.projects.helpers import get_accessible_project_ids
 
-        data = _setup_helper_project(test_db, test_users)
-        org_id = data["org"].id
-
-        # Non-superadmin with org context
-        ids = get_accessible_project_ids(test_db, test_users[1], org_context=org_id)
+        _setup_helper_project(test_db, test_users)
+        # Non-superadmin
+        # Non-superadmin who is a member of the project org
+        ids = get_accessible_project_ids(test_db, test_users[1])
         assert isinstance(ids, list)
 
     def test_calculate_generation_stats(self, test_db, test_users):
@@ -659,17 +658,16 @@ class TestTaskMetadata:
 class TestAuthorization:
     """Test authorization module."""
 
-    def test_check_project_accessible_with_org_context(self, test_db, test_users):
+    def test_check_project_accessible_with_org(self, test_db, test_users):
         from routers.projects.helpers import check_project_accessible
 
         data = _setup_helper_project(test_db, test_users)
         pid = data["project"].id
-        org_id = data["org"].id
 
-        result = check_project_accessible(test_db, test_users[0], pid, org_id)
+        result = check_project_accessible(test_db, test_users[0], pid)
         assert result is True
 
-    def test_check_project_accessible_wrong_org_context(self, test_db, test_users):
+    def test_check_project_accessible_wrong_org(self, test_db, test_users):
         from routers.projects.helpers import check_project_accessible
 
         data = _setup_helper_project(test_db, test_users)
@@ -691,7 +689,7 @@ class TestAuthorization:
         test_db.add(outsider)
         test_db.commit()
 
-        result = check_project_accessible(test_db, outsider, pid, "wrong-org-id")
+        result = check_project_accessible(test_db, outsider, pid)
         assert result is False
 
 

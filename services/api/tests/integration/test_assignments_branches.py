@@ -453,7 +453,6 @@ class TestListAssignments:
         with _as_user(outsider):
             resp = await async_test_client.get(
                 f"/api/projects/{project.id}/tasks/{task.id}/assignments",
-                headers={"X-Organization-Context": other_org.id},
             )
         assert resp.status_code == 403
         assert resp.json()["detail"] == "Access denied"

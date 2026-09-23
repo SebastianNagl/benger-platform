@@ -256,10 +256,6 @@ async def _make_task_evaluation(db, er, task, child_gen):
     return te
 
 
-def _ctx(org):
-    return {"X-Organization-Context": org.id}
-
-
 # ===========================================================================
 # GET /api/runs — list_runs
 # ===========================================================================
@@ -286,7 +282,6 @@ class TestListRunsGeneration:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=generation&project_id={project.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -315,7 +310,6 @@ class TestListRunsGeneration:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=generation&status=completed&project_id={project.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -340,7 +334,6 @@ class TestListRunsGeneration:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=generation&project_id={project_a.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -359,7 +352,6 @@ class TestListRunsGeneration:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=generation&page=5&page_size=10&project_id={project.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -404,7 +396,6 @@ class TestListRunsEvaluation:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=evaluation&project_id={project.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -438,7 +429,6 @@ class TestListRunsEvaluation:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}?type=evaluation&project_id={project.id}",
-                headers=_ctx(org),
             )
         assert resp.status_code == 200
         item = resp.json()["items"][0]
@@ -472,7 +462,6 @@ class TestListRunsAccessibilityFilter:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 f"{BASE}?type=generation&project_id={hidden.id}",
-                headers=_ctx(member_org),
             )
         assert resp.status_code == 200
         body = resp.json()
@@ -515,7 +504,6 @@ class TestGetGenerationRun:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 f"{BASE}/generations/{rg.id}",
-                headers=_ctx(member_org),
             )
         assert resp.status_code == 403
         assert "No access" in resp.json()["detail"]

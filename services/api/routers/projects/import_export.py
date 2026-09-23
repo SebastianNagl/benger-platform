@@ -109,7 +109,6 @@ from routers.projects.helpers import (  # noqa: E402
     check_project_accessible_async,
     check_project_write_access_async,
     enforce_project_read_window_async,
-    get_org_context_from_request,
 )
 
 router = APIRouter()
@@ -178,7 +177,6 @@ async def _load_export_job_for_read(
 @router.post("/{project_id}/exports", status_code=202)
 async def create_export_job(
     project_id: str,
-    request: Request,
     format: str = Query(
         "json",
         pattern="^(json|csv|tsv|txt|label_studio|comprehensive|ndjson|ndjson_gz|anki_csv|anki_apkg)$",
@@ -203,9 +201,8 @@ async def create_export_job(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    org_context = get_org_context_from_request(request)
     if not await check_project_accessible_async(
-        db, current_user, project_id, org_context, project=project
+        db, current_user, project_id, project=project
     ):
         raise HTTPException(status_code=403, detail="Access denied")
     # The export worker streams raw ``task.data`` with NO annotator blinding
@@ -942,7 +939,6 @@ _BULK_EXPORT_TASK_BATCH = 200
 @router.post("/bulk-export")
 async def bulk_export_projects(
     data: dict,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -970,8 +966,6 @@ async def bulk_export_projects(
     if format not in ("json", "csv"):
         raise HTTPException(status_code=400, detail=f"Unsupported format: {format}")
 
-    org_context = get_org_context_from_request(request)
-
     # Light per-project metadata only; tasks never enter this list.
     project_metas = []
     for project_id in project_ids:
@@ -979,8 +973,8 @@ async def bulk_export_projects(
         if not project:
             continue
 
-        # Check access permission via org-context-aware helper
-        if not check_project_accessible(db, current_user, project_id, org_context):
+        # Check access permission via the shared access helper
+        if not check_project_accessible(db, current_user, project_id):
             continue
 
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
@@ -1117,7 +1111,6 @@ async def bulk_export_projects(
 @router.post("/bulk-export-full")
 async def bulk_export_full_projects(
     data: dict,
-    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -1144,8 +1137,6 @@ async def bulk_export_full_projects(
     project_ids = data.get("project_ids", [])
     if not project_ids:
         raise HTTPException(status_code=400, detail="No project IDs provided")
-
-    org_context = get_org_context_from_request(request)
 
     logger.info(
         "bulk-export-full: %d project(s) requested by user %s",
@@ -1182,7 +1173,7 @@ async def bulk_export_full_projects(
                         )
                         continue
 
-                    if not check_project_accessible(db, current_user, project_id, org_context):
+                    if not check_project_accessible(db, current_user, project_id):
                         logger.warning(
                             "bulk-export-full: access denied for project %s, skipping",
                             project_id,

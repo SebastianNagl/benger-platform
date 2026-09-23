@@ -265,7 +265,6 @@ class TestStatistics:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -294,7 +293,6 @@ class TestStatistics:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -316,7 +314,6 @@ class TestStatistics:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -346,7 +343,6 @@ class TestStatistics:
         with _as_user(admin):
             resp = await async_test_client.get(
                 f"{BASE}/statistics?project_ids={p.id}&period=weekly",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -521,7 +517,6 @@ class TestLLMLeaderboardSingleProject:
             with _as_user(admin):
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?metric=accuracy&project_ids={p.id}",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -548,7 +543,6 @@ class TestLLMLeaderboardSingleProject:
             with _as_user(admin):
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?project_ids={p.id}",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 400, resp.text
         assert "trust scope" in resp.json()["detail"]
@@ -572,7 +566,6 @@ class TestLLMLeaderboardSingleProject:
         with _as_user(contributor):
             resp = await async_test_client.get(
                 f"{BASE}/llm-models?project_ids={p.id}",
-                headers={"X-Organization-Context": org.id},
             )
         assert resp.status_code == 400, resp.text
         assert "no accessible project" in resp.json()["detail"]
@@ -599,7 +592,6 @@ class TestLLMLeaderboardSingleProject:
                 resp = await async_test_client.get(
                     f"{BASE}/llm-models?search=zzz-no-such-model&min_generation_count=0"
                     "&min_samples_evaluated=0",
-                    headers={"X-Organization-Context": org.id},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()

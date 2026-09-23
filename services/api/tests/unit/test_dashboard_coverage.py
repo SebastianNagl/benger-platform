@@ -183,7 +183,6 @@ class TestDashboardStats:
                 async with await _client() as client:
                     resp = await client.get(
                         "/api/dashboard/stats",
-                        headers={"X-Organization-Context": "org-1"},
                     )
                 assert resp.status_code == 200
                 assert resp.json()["project_count"] == 3
