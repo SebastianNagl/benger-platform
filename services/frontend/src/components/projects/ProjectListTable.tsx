@@ -3,6 +3,10 @@
  */
 
 import { ProjectBulkActions } from '@/components/projects/ProjectBulkActions'
+import {
+  PRIVATE_IMPORT_TARGET,
+  ProjectImportTargetDialog,
+} from '@/components/projects/ProjectImportTargetDialog'
 import { TableCheckbox } from '@/components/projects/TableCheckbox'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
@@ -46,7 +50,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type SortField =
   'title' | 'organization' | 'created_at' | 'task_count' | 'progress'
@@ -69,7 +73,7 @@ export function ProjectListTable({
   const { startProgress, completeProgress } = useProgress()
   const confirm = useConfirm()
   const { t } = useI18n()
-  const { user } = useAuth()
+  const { user, organizations } = useAuth()
   const {
     projects,
     loading,
@@ -119,6 +123,33 @@ export function ProjectListTable({
     }
   }
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Where a create-new import lands, asked before the file picker opens (the
+  // way the wizard names its target): the orgs the user may create in, plus
+  // private. The only such org is preselected; with none the dialog is skipped.
+  const importTargetOrgs = useMemo(
+    () =>
+      (organizations ?? [])
+        .filter((o) => o.role === 'ORG_ADMIN' || o.role === 'CONTRIBUTOR')
+        .map((o) => ({ id: o.id, name: o.name })),
+    [organizations],
+  )
+  const [importTargetOpen, setImportTargetOpen] = useState(false)
+  const [importTarget, setImportTarget] = useState<string | null>(null)
+  const openImport = () => {
+    if (importTargetOrgs.length === 0) {
+      setImportTarget(PRIVATE_IMPORT_TARGET)
+      fileInputRef.current?.click()
+      return
+    }
+    setImportTarget(
+      importTargetOrgs.length === 1 ? importTargetOrgs[0].id : null,
+    )
+    setImportTargetOpen(true)
+  }
+  const confirmImportTarget = () => {
+    setImportTargetOpen(false)
+    fileInputRef.current?.click()
+  }
   // Extended "Entdecken": browse listed share links / catalog projects you
   // do not have access to yet. Rendered as a modal; absent in community.
   const ProjectDiscoverModal = useSlot('ProjectDiscoverModal')
@@ -364,7 +395,12 @@ export function ProjectListTable({
       // Async job flow: the file uploads straight to object storage via a
       // presigned URL, a worker stream-imports it (creating the project), and we
       // poll to completion. Keeps the multi-GB import off the API request path.
-      const job = await projectsAPI.runProjectImportJob(file)
+      const job = await projectsAPI.runProjectImportJob(file, undefined, {
+        organizationId:
+          importTarget && importTarget !== PRIVATE_IMPORT_TARGET
+            ? importTarget
+            : null,
+      })
       const importTime = ((Date.now() - startTime) / 1000).toFixed(1)
 
       const result = job.result || {}
@@ -680,7 +716,7 @@ export function ProjectListTable({
                             className={`${
                               active ? 'bg-zinc-100 dark:bg-zinc-800' : ''
                             } group flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-zinc-900 dark:text-white`}
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={openImport}
                             data-testid="projects-import-button"
                           >
                             <CloudArrowUpIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
@@ -1203,6 +1239,15 @@ export function ProjectListTable({
           pageSizeOptions={[25, 50, 100, 200]}
         />
       </div>
+
+      <ProjectImportTargetDialog
+        isOpen={importTargetOpen}
+        organizations={importTargetOrgs}
+        value={importTarget}
+        onChange={setImportTarget}
+        onConfirm={confirmImportTarget}
+        onClose={() => setImportTargetOpen(false)}
+      />
 
       {/* Hidden file input for project import */}
       <input

@@ -86,9 +86,13 @@ jest.mock('@/contexts/ProgressContext', () => ({
   }),
 }))
 
-// Mock AuthContext with a user that has permission to create projects
+// Mock AuthContext with a user that has permission to create projects.
+// `mockOrganizations` is the membership list; the import target dialog reads
+// it. Reset to [] after every test.
+let mockOrganizations: Array<{ id: string; name: string; role: string }> = []
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
+    organizations: mockOrganizations,
     user: {
       id: 'test-user-id',
       username: 'testuser',
@@ -2408,6 +2412,115 @@ describe('ProjectListTable', () => {
       fireEvent.click(importButton)
 
       expect(clickSpy).toHaveBeenCalled()
+    })
+  })
+  describe('Import target', () => {
+    const completedJob = {
+      job_id: 'job-t',
+      status: 'completed',
+      project_id: 'imported-t',
+      result: { project_title: 'Target Project', statistics: {} },
+    }
+
+    beforeEach(() => {
+      ;(projectsAPI.runProjectImportJob as jest.Mock).mockResolvedValue(
+        completedJob,
+      )
+      ;(useProjectStore as unknown as jest.Mock).mockReturnValue({
+        ...defaultStoreState,
+        projects: mockProjects,
+      })
+    })
+
+    afterEach(() => {
+      mockOrganizations = []
+    })
+
+    const openImport = () => {
+      fireEvent.click(screen.getByTestId('projects-more-button'))
+      fireEvent.click(screen.getByTestId('projects-import-button'))
+    }
+
+    const uploadFile = async () => {
+      await userEvent.upload(
+        screen.getByTestId('project-import-file-input'),
+        new File(['{}'], 'project.json', { type: 'application/json' }),
+      )
+    }
+
+    it('skips the dialog and imports privately without an org to create in', async () => {
+      mockOrganizations = [
+        { id: 'org-a', name: 'Annotating', role: 'ANNOTATOR' },
+      ]
+      render(<ProjectListTable />)
+
+      openImport()
+      expect(screen.queryByTestId('project-import-target')).toBeNull()
+      await uploadFile()
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalledWith(
+          expect.any(File),
+          undefined,
+          { organizationId: null },
+        )
+      })
+    })
+
+    it('preselects the only org the user may create in', async () => {
+      mockOrganizations = [
+        { id: 'org-lmu', name: 'LMU', role: 'CONTRIBUTOR' },
+        { id: 'org-a', name: 'Annotating', role: 'ANNOTATOR' },
+      ]
+      const clickSpy = jest.spyOn(HTMLInputElement.prototype, 'click')
+      render(<ProjectListTable />)
+
+      openImport()
+      await screen.findByTestId('project-import-target')
+      expect(screen.getByTestId('project-import-target-org-lmu')).toBeChecked()
+      expect(screen.queryByTestId('project-import-target-org-a')).toBeNull()
+      expect(
+        screen.getByTestId('project-import-target-private'),
+      ).not.toBeChecked()
+
+      fireEvent.click(screen.getByTestId('project-import-target-confirm'))
+      expect(clickSpy).toHaveBeenCalled()
+      clickSpy.mockRestore()
+      await uploadFile()
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalledWith(
+          expect.any(File),
+          undefined,
+          { organizationId: 'org-lmu' },
+        )
+      })
+    })
+
+    it('asks for an explicit choice with several orgs and offers private', async () => {
+      mockOrganizations = [
+        { id: 'org-lmu', name: 'LMU', role: 'ORG_ADMIN' },
+        { id: 'org-tum', name: 'TUM', role: 'CONTRIBUTOR' },
+      ]
+      render(<ProjectListTable />)
+
+      openImport()
+      await screen.findByTestId('project-import-target')
+      const confirmButton = screen.getByTestId('project-import-target-confirm')
+      expect(confirmButton).toBeDisabled()
+
+      fireEvent.click(screen.getByTestId('project-import-target-private'))
+      expect(confirmButton).not.toBeDisabled()
+      fireEvent.click(confirmButton)
+      await uploadFile()
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalledWith(
+          expect.any(File),
+          undefined,
+          { organizationId: null },
+        )
+      })
     })
   })
 })
