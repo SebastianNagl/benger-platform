@@ -7,9 +7,10 @@
  *     across a full page reload.
  *   - Superadmin edits task data via the pencil on the global /data page
  *     and the edit persists across a full page reload.
- *   - An annotator sees the task table WITHOUT the edit pencil (the
- *     view eye stays visible) — multi-user flow uses browser.newContext()
- *     per repo convention so each user gets an isolated cookie jar.
+ *   - An annotator is kept out of the project data table (redirected to
+ *     the project page) while the superadmin sees the pencil on the same
+ *     project; multi-user flow uses browser.newContext() per repo
+ *     convention so each user gets an isolated cookie jar.
  *
  * Self-contained: every test creates its own project + task via API and
  * cleans it up afterwards; shared seeded projects are never mutated.
@@ -245,7 +246,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
     }
   })
 
-  test('annotator sees the task table on the project annotation tab without the edit pencil', async ({
+  test('annotator is kept out of the project data table', async ({
     browser,
   }) => {
     test.setTimeout(180000)
@@ -277,7 +278,7 @@ test.describe('Task Data Edit Modal (#159)', () => {
       // Grant the annotator access via the public ANNOTATOR tier (pattern
       // from public-project-visibility.spec.ts): the seeded project has no
       // organization, so a public project is the way an annotator can open
-      // this page in the UI.
+      // the project at all, which makes the redirect target load.
       const flip = await adminPage.evaluate(async (id) => {
         const r = await fetch(`/api/projects/${id}/visibility`, {
           method: 'PATCH',
@@ -309,32 +310,19 @@ test.describe('Task Data Edit Modal (#159)', () => {
       })
       expect(me?.username).toBe('annotator')
 
-      // The table must actually render for the annotator — an access error
-      // or redirect here would prove nothing about the pencil.
+      // The data table is for CONTRIBUTOR and above on every host
+      // (canAccessProjectData decides from the project's effective_role):
+      // an annotator is sent back to the project page and never gets a row.
       await annotatorPage.goto(`${BASE_URL}/projects/${projectId}/data`)
-      const row = annotatorPage
-        .locator('tbody tr')
-        .filter({ hasText: taskText })
-      await row.waitFor({ state: 'visible', timeout: 45000 })
-
-      // The view (eye) affordance is there for everyone...
-      await expect(row.locator(PROJECT_VIEW_EYE)).toBeVisible({
-        timeout: 30000,
-      })
+      await annotatorPage.waitForURL(
+        new RegExp(`/projects/${projectId}\\?error=no-data-access`),
+        { timeout: 45000 },
+      )
       await expect(
-        annotatorPage
-          .locator('thead th')
-          .filter({ hasText: /^(View|Ansicht)$/ }),
-      ).toHaveCount(1)
-
-      // ...but the edit pencil (and its column header) must not be.
-      await expect(annotatorPage.locator(PROJECT_EDIT_PENCIL)).toHaveCount(0)
-      await expect(
-        annotatorPage
-          .locator('thead th')
-          .filter({ hasText: /^(Edit|Bearbeiten)$/ }),
+        annotatorPage.locator('tbody tr').filter({ hasText: taskText }),
       ).toHaveCount(0)
-      console.log('Annotator: table rendered, no edit pencil present')
+      await expect(annotatorPage.locator(PROJECT_EDIT_PENCIL)).toHaveCount(0)
+      console.log('Annotator: redirected away from the data table')
 
       // Control: the same project shows the pencil to the superadmin, so
       // the zero-count above can't pass because of a renamed title.

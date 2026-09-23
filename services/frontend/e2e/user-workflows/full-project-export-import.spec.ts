@@ -741,7 +741,6 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
         const createRes = await fetch('/api/projects', {
           method: 'POST',
           headers,
@@ -750,6 +749,7 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
             title: name,
             description: 'Round-trip data-integrity source',
             label_config: labelConfig,
+            ...(orgId ? { organization_id: orgId } : {}),
           }),
         })
         const project = await createRes.json()
@@ -1010,7 +1010,6 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
 
         // (a) Re-export comprehensive and fetch the raw artifact bytes.
         const startRes = await fetch(
@@ -1086,7 +1085,10 @@ test.describe('Export/Import Data-Integrity Round-Trip @extended', () => {
           method: 'POST',
           headers,
           credentials: 'include',
-          body: JSON.stringify({ object_key: presign.file_key }),
+          body: JSON.stringify({
+            object_key: presign.file_key,
+            ...(orgId ? { organization_id: orgId } : {}),
+          }),
         })
         if (!jobRes.ok)
           return {

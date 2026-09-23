@@ -84,11 +84,10 @@ test.describe('Public project visibility', () => {
       expect(getOne.body?.is_public).toBe(true)
       expect(getOne.body?.public_role).toBe('CONTRIBUTOR')
 
-      // 2. Project appears in the visitor's list under the private context.
+      // 2. Project appears in the visitor's list.
       const listed = await annPage.evaluate(async (id) => {
         const r = await fetch('/api/projects/?page=1&page_size=100', {
           credentials: 'include',
-          headers: { 'X-Organization-Context': 'private' },
         })
         const body = await r.json()
         const items = body.items ?? body.data ?? []

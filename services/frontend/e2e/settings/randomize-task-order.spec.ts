@@ -252,7 +252,6 @@ test.describe('Randomize Task Order', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
 
         // Create project
         const projectResp = await fetch('/api/projects', {
@@ -408,7 +407,6 @@ test.describe('Randomize Task Order', () => {
         const headers: Record<string, string> = {
           'Content-Type': 'application/json',
         }
-        if (orgId) headers['X-Organization-Context'] = orgId
 
         const projectResp = await fetch('/api/projects', {
           method: 'POST',
