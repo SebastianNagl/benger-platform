@@ -48,8 +48,15 @@ jest.mock('@/components/shared', () => ({
 
 // Logged-in viewer (id matches the own-model fixture) so the community
 // section renders and the own/shared split resolves.
+// Stable user object (a fresh object per call would mimic the identity
+// churn the manager must tolerate, but the page itself keys on user.id).
+// `mockAuthUser` is swapped to null for the anonymous-visitor case.
+let mockAuthUser: { id: string; username: string } | null = {
+  id: 'test-user-id',
+  username: 'testuser',
+}
 jest.mock('@/contexts/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'test-user-id', username: 'testuser' } }),
+  useAuth: () => ({ user: mockAuthUser }),
 }))
 
 // Community (BYOM) section: the manager fetches the access-scoped list
@@ -243,6 +250,7 @@ const mockProviderCapabilities = {
 describe('ModelsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockAuthUser = { id: 'test-user-id', username: 'testuser' }
   })
 
   it('should show loading state initially', () => {
@@ -759,6 +767,139 @@ describe('ModelsPage', () => {
       })
       expect(screen.getByTestId('community-models-section')).toBeInTheDocument()
       expect(screen.getByText('My vLLM')).toBeInTheDocument()
+    })
+
+    const primeCatalogFetch = () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({
+          ok: true,
+          json: () => Promise.resolve([]),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockModels),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockProviderCapabilities),
+        }) as any
+    }
+
+    it('renders the community section above the official catalog', async () => {
+      primeCatalogFetch()
+      render(<ModelsPage />)
+      await waitFor(() => {
+        expect(screen.getByText('GPT-4')).toBeInTheDocument()
+        expect(screen.getByText('My vLLM')).toBeInTheDocument()
+      })
+      const community = screen.getByTestId('community-models-section')
+      const official = screen.getByText('GPT-4')
+      expect(
+        community.compareDocumentPosition(official) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      // ...and below the filter bar.
+      expect(
+        screen
+          .getByTestId('filter-toolbar')
+          .compareDocumentPosition(community) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    })
+
+    it('places the register button in the header above the filter bar and opens the modal', async () => {
+      primeCatalogFetch()
+      render(<ModelsPage />)
+      const button = screen.getByTestId('custom-model-register-button')
+      // Exactly one register button: the manager's own one is hidden.
+      expect(
+        screen.getAllByTestId('custom-model-register-button'),
+      ).toHaveLength(1)
+      expect(
+        button.compareDocumentPosition(screen.getByTestId('filter-toolbar')) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+      expect(
+        screen.getByTestId('community-models-section'),
+      ).not.toContainElement(button)
+
+      await waitFor(() =>
+        expect(screen.getByText('My vLLM')).toBeInTheDocument(),
+      )
+      expect(
+        screen.queryByTestId('custom-model-form-modal'),
+      ).not.toBeInTheDocument()
+      fireEvent.click(button)
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('custom-model-form-modal'),
+        ).toBeInTheDocument(),
+      )
+
+      // Closing the modal refreshes the list.
+      const callsBefore = (customModelsAPI.list as jest.Mock).mock.calls.length
+      fireEvent.click(screen.getByTestId('custom-model-form-cancel'))
+      await waitFor(() =>
+        expect(
+          (customModelsAPI.list as jest.Mock).mock.calls.length,
+        ).toBeGreaterThan(callsBefore),
+      )
+      await waitFor(() =>
+        expect(
+          screen.queryByTestId('custom-model-form-modal'),
+        ).not.toBeInTheDocument(),
+      )
+    })
+
+    it('the register button still works under an official-provider filter', async () => {
+      primeCatalogFetch()
+      render(<ModelsPage />)
+      await waitFor(() => expect(screen.getByText('GPT-4')).toBeInTheDocument())
+      fireEvent.change(screen.getByRole('combobox'), {
+        target: { value: 'OpenAI' },
+      })
+      // The community section is hidden, not unmounted.
+      expect(screen.getByTestId('community-models-section')).toHaveClass(
+        'hidden',
+      )
+      fireEvent.click(screen.getByTestId('custom-model-register-button'))
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('custom-model-form-modal'),
+        ).toBeInTheDocument(),
+      )
+    })
+
+    it('shows a compact one-line empty state when no custom model is visible', async () => {
+      ;(customModelsAPI.list as jest.Mock).mockResolvedValue([])
+      primeCatalogFetch()
+      render(<ModelsPage />)
+      await waitFor(() =>
+        expect(screen.getByTestId('custom-models-empty')).toHaveTextContent(
+          'customModels.catalog.communityEmpty',
+        ),
+      )
+      expect(
+        screen.queryByTestId('custom-models-own-section'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('custom-models-shared-section'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('anonymous visitors get neither the register button nor the community section', async () => {
+      mockAuthUser = null
+      primeCatalogFetch()
+      render(<ModelsPage />)
+      await waitFor(() => expect(screen.getByText('GPT-4')).toBeInTheDocument())
+      expect(
+        screen.queryByTestId('custom-model-register-button'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('community-models-section'),
+      ).not.toBeInTheDocument()
+      expect(customModelsAPI.list).not.toHaveBeenCalled()
     })
   })
 })

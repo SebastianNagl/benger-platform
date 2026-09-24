@@ -118,4 +118,62 @@ describe('CustomModelsManager', () => {
     )
     await waitFor(() => expect(onCount).toHaveBeenCalledWith(1))
   })
+
+  it('controlled create mode hides the built-in button and opens the modal from the host', async () => {
+    const onCreateOpenChange = jest.fn()
+    const { rerender } = render(
+      <CustomModelsManager
+        createOpen={false}
+        onCreateOpenChange={onCreateOpenChange}
+      />,
+    )
+    expect(
+      screen.queryByTestId('custom-model-register-button'),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('My vLLM')).toBeInTheDocument())
+    expect(
+      screen.queryByTestId('custom-model-form-modal'),
+    ).not.toBeInTheDocument()
+
+    rerender(
+      <CustomModelsManager
+        createOpen={true}
+        onCreateOpenChange={onCreateOpenChange}
+      />,
+    )
+    await waitFor(() =>
+      expect(screen.getByTestId('custom-model-form-modal')).toBeInTheDocument(),
+    )
+
+    const callsBefore = (customModelsAPI.list as jest.Mock).mock.calls.length
+    fireEvent.click(screen.getByTestId('custom-model-form-cancel'))
+    expect(onCreateOpenChange).toHaveBeenCalledWith(false)
+    await waitFor(() =>
+      expect(
+        (customModelsAPI.list as jest.Mock).mock.calls.length,
+      ).toBeGreaterThan(callsBefore),
+    )
+  })
+
+  it('compactWhenEmpty renders one line instead of the two empty lists', async () => {
+    ;(customModelsAPI.list as jest.Mock).mockResolvedValue([])
+    render(<CustomModelsManager compactWhenEmpty />)
+    await waitFor(() =>
+      expect(screen.getByTestId('custom-models-empty')).toBeInTheDocument(),
+    )
+    expect(
+      screen.queryByTestId('custom-models-own-section'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('without compactWhenEmpty the empty sub-lists still render', async () => {
+    ;(customModelsAPI.list as jest.Mock).mockResolvedValue([])
+    render(<CustomModelsManager />)
+    await waitFor(() =>
+      expect(
+        screen.getByTestId('custom-models-own-section'),
+      ).toBeInTheDocument(),
+    )
+    expect(screen.queryByTestId('custom-models-empty')).not.toBeInTheDocument()
+  })
 })

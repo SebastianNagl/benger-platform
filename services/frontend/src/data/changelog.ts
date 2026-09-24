@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-24',
+    audience: 'benger',
+    text: {
+      de: 'Auf der Modellseite stehen eigene Modelle jetzt ganz oben. Die Schaltfläche „Modell registrieren“ sitzt wie auf den anderen Seiten über der Filterleiste.',
+      en: 'On the Models page, custom models now appear at the top. The “Register model” button sits above the filter bar, like on the other pages.',
+    },
+  },
+  {
     date: '2026-09-19',
     audience: 'both',
     text: {
