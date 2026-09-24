@@ -8,9 +8,9 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import and_, false, func, or_, select
+from sqlalchemy import and_, exists, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.types import String
 
 from auth_module import User as AuthUser
@@ -18,7 +18,7 @@ from auth_module import require_user
 from database import get_async_db
 from models import Organization, OrganizationMembership
 from org_groups import attachment_group_clause
-from project_models import Project, ProjectMember, ProjectOrganization, Task
+from project_models import Project, ProjectMember, ProjectOrganization, Task, TaskAssignment
 from project_schemas import PaginatedResponse
 
 
@@ -45,7 +45,14 @@ router = APIRouter(prefix="/api/data", tags=["data-management"])
 
 
 async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List[str]:
-    """Get list of project IDs that the user has access to."""
+    """The CANDIDATE projects of the cross-project data surface.
+
+    The projects the caller is connected to (org attachments of active
+    memberships, project memberships); every non-deleted project for
+    superadmins. Not an access decision on its own: the endpoints below pass
+    the candidates through :func:`_resolve_data_scope`, which applies the
+    per-project access tiers and task scoping.
+    """
     # Superadmins can access everything
     if user.is_superadmin:
         result = await db.execute(select(Project.id).where(Project.deleted_at.is_(None)))
@@ -98,24 +105,196 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     return list(project_ids)
 
 
-async def _blinding_by_project(
-    db: AsyncSession, user: AuthUser, projects: Iterable[Project]
-) -> Dict[str, Optional[Set[str]]]:
-    """Per-project annotator-blinding decision for the cross-project surface.
+class _DataScope:
+    """The caller's per-request view of the cross-project data surface.
 
-    Reuses the exact decision the per-project serving endpoints apply
-    (routers/projects/tasks/blinding.py): ``None`` = editor tier, full
-    ``task.data``; a set = the label-config-bound fields the caller may see.
+    Computed once per request by :func:`_resolve_data_scope` and reused by
+    every filter, the count, the payload and the export, so the per-project
+    decisions never run per task (or per search):
+
+    - ``project_ids``: the candidate projects the caller may open through the
+      per-project endpoints (the tier of ``get_project_access_tier_async``),
+      minus pre-open windows they cannot read.
+    - ``bound``: per project, ``None`` (editor tier, full ``task.data``) or
+      the label-config-bound fields a blinded caller may see.
+    - ``attempted_only`` / ``assigned_only``: projects whose rows are narrowed
+      like the per-project listing narrows them (own submissions for the
+      attempted tier; open assignments for org ANNOTATORs in manual / auto
+      assignment mode).
     """
-    from routers.projects.tasks.blinding import annotator_bound_fields_or_none_async
 
-    decisions: Dict[str, Optional[Set[str]]] = {}
-    for project in projects:
-        if project.id not in decisions:
-            decisions[project.id] = await annotator_bound_fields_or_none_async(
-                db, user, project
+    __slots__ = ("user_id", "project_ids", "bound", "attempted_only", "assigned_only")
+
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+        self.project_ids: List[str] = []
+        self.bound: Dict[str, Optional[Set[str]]] = {}
+        self.attempted_only: Set[str] = set()
+        self.assigned_only: Set[str] = set()
+
+    def is_blinded(self, project_id: str) -> bool:
+        return self.bound.get(project_id) is not None
+
+    def blinded_ids(self) -> List[str]:
+        return [pid for pid in self.project_ids if self.is_blinded(pid)]
+
+    def editor_ids(self) -> List[str]:
+        return [pid for pid in self.project_ids if not self.is_blinded(pid)]
+
+    def task_clause(self):
+        """SQL condition over ``Task``: the rows the caller may see."""
+        from routers.projects.helpers import own_active_annotation_exists
+
+        narrowed = self.attempted_only | self.assigned_only
+        clauses = []
+        unscoped = [pid for pid in self.project_ids if pid not in narrowed]
+        if unscoped:
+            clauses.append(Task.project_id.in_(unscoped))
+        if self.attempted_only:
+            clauses.append(
+                and_(
+                    Task.project_id.in_(sorted(self.attempted_only)),
+                    own_active_annotation_exists(self.user_id),
+                )
             )
-    return decisions
+        if self.assigned_only:
+            clauses.append(
+                and_(
+                    Task.project_id.in_(sorted(self.assigned_only)),
+                    exists().where(
+                        TaskAssignment.task_id == Task.id,
+                        TaskAssignment.user_id == self.user_id,
+                        # Same as the per-project listing: completed
+                        # assignments drop out of the annotator's list.
+                        TaskAssignment.status != "completed",
+                    ),
+                )
+            )
+        return or_(*clauses) if clauses else false()
+
+
+async def _resolve_data_scope(
+    db: AsyncSession, user: AuthUser, candidate_ids: Iterable[str]
+) -> _DataScope:
+    """Apply the per-project access decision to the candidate projects.
+
+    Mirrors ``require_project_access(allow_participant=True)`` plus the
+    per-project task listing (``routers/projects/tasks/listing.py``), using
+    the batched list helpers the project list stamps its tiers with, so the
+    work is a fixed number of queries per request whatever the org size:
+
+    - tier: full (``get_accessible_project_ids_async``, with the archived
+      carve-out of ``check_project_accessible``) > participant
+      (``get_participant_project_ids_async``) > attempted
+      (``get_attempted_project_ids_async``); no tier = not listed;
+    - read window: pre-open projects are hidden unless the caller can edit
+      them or holds the attempted tier (``enforce_project_read_window``);
+    - task scoping: attempted tier → own submissions; org ANNOTATOR on a
+      manual / auto assignment project → own open assignments;
+    - blinding: the effective role of ``resolve_project_roles_batch_async``
+      through ``bound_fields_for_role`` (same decision as
+      ``annotator_bound_fields_or_none_async``).
+
+    Superadmins keep every candidate unnarrowed and unblinded.
+    """
+    from org_groups import get_user_group_context_async
+    from project_window import project_reads_allowed
+    from routers.projects.helpers import (
+        TIER_ATTEMPTED,
+        TIER_FULL,
+        TIER_PARTICIPANT,
+        _memberships_of,
+        get_accessible_project_ids_async,
+        get_attempted_project_ids_async,
+        get_participant_project_ids_async,
+        get_user_with_memberships_async,
+        resolve_project_roles_batch_async,
+    )
+    from routers.projects.tasks.blinding import bound_fields_for_role
+    from routers.projects.tasks.listing import (
+        annotator_sees_assigned_only,
+        listing_org_role,
+    )
+
+    scope = _DataScope(str(user.id))
+    ids = sorted({str(pid) for pid in candidate_ids})
+    if not ids:
+        return scope
+    if user.is_superadmin:
+        scope.project_ids = ids
+        scope.bound = {pid: None for pid in ids}
+        return scope
+
+    projects = (
+        (
+            await db.execute(
+                select(Project)
+                .options(selectinload(Project.project_organizations))
+                .where(Project.id.in_(ids), Project.deleted_at.is_(None))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not projects:
+        return scope
+
+    uid = str(user.id)
+    full_ids = {str(pid) for pid in (await get_accessible_project_ids_async(db, user) or [])}
+    participant_ids = set(await get_participant_project_ids_async(db, uid))
+    attempted_ids = await get_attempted_project_ids_async(db, uid)
+    memberships = list(_memberships_of(await get_user_with_memberships_async(db, uid)))
+    user_groups = await get_user_group_context_async(db, uid)
+    roles = await resolve_project_roles_batch_async(
+        db, user, projects, memberships=memberships, user_groups=user_groups
+    )
+
+    for project in sorted(projects, key=lambda p: str(p.id)):
+        pid = str(project.id)
+        role, can_edit = roles.get(pid, (None, False))
+        archived = bool(getattr(project, "is_archived", False))
+        if pid in full_ids and not (archived and role == "ANNOTATOR"):
+            tier = TIER_FULL
+        elif pid in participant_ids and not archived:
+            tier = TIER_PARTICIPANT
+        elif pid in attempted_ids:
+            tier = TIER_ATTEMPTED
+        else:
+            continue
+        if not project_reads_allowed(project) and tier != TIER_ATTEMPTED and not can_edit:
+            continue
+        scope.project_ids.append(pid)
+        scope.bound[pid] = bound_fields_for_role(role, project)
+        if tier == TIER_ATTEMPTED:
+            scope.attempted_only.add(pid)
+        elif annotator_sees_assigned_only(
+            listing_org_role(
+                memberships, [po.organization_id for po in project.project_organizations]
+            ),
+            project,
+        ):
+            scope.assigned_only.add(pid)
+    return scope
+
+
+async def _accessible_scope(
+    db: AsyncSession, user: AuthUser, project_ids: Optional[Iterable[str]] = None
+) -> _DataScope:
+    """The request's :class:`_DataScope`, optionally narrowed to ``project_ids``."""
+    candidates = set(await get_user_accessible_projects(db, user))
+    if project_ids:
+        candidates &= set(project_ids)
+    return await _resolve_data_scope(db, user, candidates)
+
+
+def _visible_assignee_id(task: Task, scope: _DataScope) -> Optional[str]:
+    """``task.assigned_to`` as the caller may see it: editors see every
+    assignment, blinded callers only their own (per-project listing rule)."""
+    if not task.assigned_to:
+        return None
+    if scope.is_blinded(task.project_id) and str(task.assigned_to) != scope.user_id:
+        return None
+    return task.assigned_to
 
 
 async def _revealed_ids_by_project(
@@ -166,26 +345,6 @@ async def _require_edit_rights(db: AsyncSession, user: AuthUser, tasks: Iterable
             )
 
 
-async def _upcoming_blocked_project_ids(
-    db: AsyncSession, user: AuthUser, projects: Iterable[Project]
-) -> Set[str]:
-    """Projects whose timed window has not opened and the caller cannot edit.
-
-    Task data of those projects is hidden from the access group until the
-    window opens (editors exempt), same as the per-project read endpoints.
-    """
-    from project_window import project_window_state
-    from routers.projects.helpers import check_user_can_edit_project_async
-
-    blocked: Set[str] = set()
-    for project in {p.id: p for p in projects}.values():
-        if project_window_state(project) == "upcoming" and not (
-            await check_user_can_edit_project_async(db, user, project.id)
-        ):
-            blocked.add(project.id)
-    return blocked
-
-
 @router.get("/", response_model=PaginatedResponse[TaskResponse])
 async def list_all_tasks(
     page: int = Query(1, ge=1, description="Page number"),
@@ -209,37 +368,14 @@ async def list_all_tasks(
     This endpoint provides a global view of all tasks the user has access to,
     with comprehensive filtering and sorting capabilities.
     """
-    from sqlalchemy.orm import selectinload
-
     # No feature flag check needed - page access is controlled by data_page flag
 
-    # Get accessible projects for the user
-    accessible_projects = await get_user_accessible_projects(db, current_user)
-
-    # If project_ids filter is provided, intersect with accessible projects
-    if project_ids:
-        filtered_project_ids = list(set(project_ids) & set(accessible_projects))
-        if not filtered_project_ids:
-            # User doesn't have access to any of the requested projects
-            return PaginatedResponse(items=[], total=0, page=page, page_size=page_size, pages=0)
-    else:
-        filtered_project_ids = accessible_projects
-
-    # Timed access window: drop projects whose window has not opened yet for
-    # callers who cannot edit them (the per-project endpoints 403 them).
-    scope_projects = (
-        (
-            await db.execute(select(Project).where(Project.id.in_(filtered_project_ids)))
-        )
-        .scalars()
-        .all()
-        if filtered_project_ids
-        else []
-    )
-    blocked_pids = await _upcoming_blocked_project_ids(db, current_user, scope_projects)
-    if blocked_pids:
-        scope_projects = [p for p in scope_projects if p.id not in blocked_pids]
-        filtered_project_ids = [pid for pid in filtered_project_ids if pid not in blocked_pids]
+    # The per-project access decision (tier, read window, task scoping,
+    # blinding), resolved once for the whole request.
+    scope = await _accessible_scope(db, current_user, project_ids)
+    if not scope.project_ids:
+        return PaginatedResponse(items=[], total=0, page=page, page_size=page_size, pages=0)
+    visible = scope.task_clause()
 
     # Build base query with project information. Eager-load the relationships
     # the response reads (project / assigned_user / annotations) so the async
@@ -252,13 +388,9 @@ async def list_all_tasks(
             joinedload(Task.assigned_user),
             selectinload(Task.annotations),
         )
-        .where(Task.project_id.in_(filtered_project_ids))
+        .where(visible)
     )
-    count_stmt = (
-        select(func.count())
-        .select_from(Task)
-        .where(Task.project_id.in_(filtered_project_ids))
-    )
+    count_stmt = select(func.count()).select_from(Task).where(visible)
 
     # Apply status filter
     if status and status != 'all':
@@ -267,17 +399,36 @@ async def list_all_tasks(
         elif status == 'incomplete':
             cond = Task.is_labeled == False  # noqa: E712
         elif status == 'in_progress':
-            cond = and_(Task.assigned_to.isnot(None), Task.is_labeled == False)  # noqa: E712
+            # On blinded projects "assigned" means assigned to the caller —
+            # whether someone else holds a task is editor data.
+            assigned_cond = Task.assigned_to.isnot(None)
+            blinded_pids = scope.blinded_ids()
+            if blinded_pids:
+                assigned_cond = or_(
+                    and_(Task.project_id.notin_(blinded_pids), assigned_cond),
+                    Task.assigned_to == scope.user_id,
+                )
+            cond = and_(assigned_cond, Task.is_labeled == False)  # noqa: E712
         else:
             cond = None
         if cond is not None:
             stmt = stmt.where(cond)
             count_stmt = count_stmt.where(cond)
 
-    # Apply assigned user filter
+    # Apply assigned user filter. Other users' assignments are editor data:
+    # on blinded projects the filter only ever matches the caller's own rows,
+    # so it cannot be used to probe who is assigned what.
     if assigned_to:
-        stmt = stmt.where(Task.assigned_to == assigned_to)
-        count_stmt = count_stmt.where(Task.assigned_to == assigned_to)
+        assignee_pids = (
+            scope.project_ids if assigned_to == scope.user_id else scope.editor_ids()
+        )
+        cond = (
+            and_(Task.project_id.in_(assignee_pids), Task.assigned_to == assigned_to)
+            if assignee_pids
+            else false()
+        )
+        stmt = stmt.where(cond)
+        count_stmt = count_stmt.where(cond)
 
     # Apply date range filter
     if date_from:
@@ -295,17 +446,18 @@ async def list_all_tasks(
         # listing: matching against the raw JSON would let the match count
         # reveal content of hidden reference fields.
         from routers.projects.tasks.blinding import (
+            visible_data_keys_by_project_async,
             visible_keys_match,
-            visible_top_level_keys,
         )
 
-        decisions = await _blinding_by_project(db, current_user, scope_projects)
-        full_pids = [pid for pid, bound in decisions.items() if bound is None]
+        full_pids = scope.editor_ids()
+        data_keys = await visible_data_keys_by_project_async(
+            db, {pid: scope.bound[pid] for pid in scope.blinded_ids()}
+        )
         blinded_by_keys: Dict[tuple, List[str]] = {}
-        for pid, bound in decisions.items():
-            if bound is not None:
-                keys = tuple(sorted(visible_top_level_keys(bound)))
-                blinded_by_keys.setdefault(keys, []).append(pid)
+        for pid, keys in data_keys.items():
+            if keys:
+                blinded_by_keys.setdefault(tuple(sorted(keys)), []).append(pid)
 
         data_clauses = []
         if full_pids:
@@ -316,13 +468,12 @@ async def list_all_tasks(
                 )
             )
         for keys, pids in blinded_by_keys.items():
-            if keys:
-                data_clauses.append(
-                    and_(
-                        Task.project_id.in_(pids),
-                        visible_keys_match(Task.data, keys, search_pattern),
-                    )
+            data_clauses.append(
+                and_(
+                    Task.project_id.in_(pids),
+                    visible_keys_match(Task.data, keys, search_pattern),
                 )
+            )
         search_cond = or_(
             *(data_clauses or [false()]),
             func.cast(Task.meta, String).ilike(search_pattern),
@@ -334,8 +485,11 @@ async def list_all_tasks(
     # Get total count before pagination
     total_count = int((await db.execute(count_stmt)).scalar() or 0)
 
-    # Apply sorting
-    if hasattr(Task, sort_by):
+    # Apply sorting. Ordering by the assignee would group rows by other
+    # users' hidden assignments, so blinded callers fall back to the default.
+    if sort_by == "assigned_to" and scope.blinded_ids():
+        stmt = stmt.order_by(Task.created_at.desc())
+    elif hasattr(Task, sort_by):
         order_column = getattr(Task, sort_by)
         if sort_order == "desc":
             stmt = stmt.order_by(order_column.desc())
@@ -370,7 +524,7 @@ async def list_all_tasks(
     # Annotator blinding: reference fields (Musterlösung, ground truth, …)
     # are stripped for non-editor tiers exactly like on the per-project task
     # endpoints; editor tiers keep the full data.
-    page_decisions = await _blinding_by_project(db, current_user, [t.project for t in tasks])
+    page_decisions = scope.bound
     revealed_ids = await _revealed_ids_by_project(db, current_user, tasks, page_decisions)
 
     # Assignee: non-editors only see their OWN assignment (same rule as the
@@ -450,14 +604,10 @@ async def bulk_assign_tasks(
     """
     # No feature flag check needed - page access is controlled by data_page flag
 
-    # Get accessible projects for the user
-    accessible_projects = await get_user_accessible_projects(db, current_user)
-
-    # Get tasks and verify access
+    # Tasks the caller may see (same per-project decision as the listing)
+    scope = await _accessible_scope(db, current_user)
     tasks_result = await db.execute(
-        select(Task).where(
-            and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects))
-        )
+        select(Task).where(and_(Task.id.in_(task_ids), scope.task_clause()))
     )
     tasks = tasks_result.scalars().all()
 
@@ -490,14 +640,10 @@ async def bulk_update_task_status(
     """
     # No feature flag check needed - page access is controlled by data_page flag
 
-    # Get accessible projects for the user
-    accessible_projects = await get_user_accessible_projects(db, current_user)
-
-    # Get tasks and verify access
+    # Tasks the caller may see (same per-project decision as the listing)
+    scope = await _accessible_scope(db, current_user)
     tasks_result = await db.execute(
-        select(Task).where(
-            and_(Task.id.in_(task_ids), Task.project_id.in_(accessible_projects))
-        )
+        select(Task).where(and_(Task.id.in_(task_ids), scope.task_clause()))
     )
     tasks = tasks_result.scalars().all()
 
@@ -535,15 +681,16 @@ async def export_tasks(
     from fastapi.responses import Response
 
     # No feature flag check needed - page access is controlled by data_page flag
-    # Get accessible projects for the user
-    accessible_projects = await get_user_accessible_projects(db, current_user)
+    # The per-project access decision (tier, read window, task scoping,
+    # blinding), resolved once — same scope as the listing.
+    scope = await _accessible_scope(db, current_user)
 
     # Build query — eager-load project so task.project.title doesn't lazy-load.
     stmt = (
         select(Task)
         .join(Project)
         .options(joinedload(Task.project))
-        .where(Task.project_id.in_(accessible_projects))
+        .where(scope.task_clause())
     )
 
     # Filter by specific task IDs if provided
@@ -553,18 +700,8 @@ async def export_tasks(
     tasks_result = await db.execute(stmt)
     tasks = tasks_result.unique().scalars().all()
 
-    # Timed access window: drop tasks whose project has not opened yet, unless
-    # the user can edit that project (owner/admin/contributor exempt). Batched
-    # over the distinct upcoming projects so the edit check runs at most once
-    # each (usually zero). task.project is eager-loaded above.
-    blocked_pids = await _upcoming_blocked_project_ids(
-        db, current_user, [t.project for t in tasks]
-    )
-    if blocked_pids:
-        tasks = [t for t in tasks if t.project_id not in blocked_pids]
-
     # Annotator blinding, same as the listing above.
-    decisions = await _blinding_by_project(db, current_user, [t.project for t in tasks])
+    decisions = scope.bound
     revealed_ids = await _revealed_ids_by_project(db, current_user, tasks, decisions)
 
     if format == "json":
@@ -584,7 +721,7 @@ async def export_tasks(
                     "data": _served_task_data(task, decisions, revealed_ids),
                     "meta": task.meta,
                     "is_labeled": task.is_labeled,
-                    "assigned_to": task.assigned_to,
+                    "assigned_to": _visible_assignee_id(task, scope),
                     "created_at": task.created_at.isoformat() if task.created_at else None,
                     "updated_at": task.updated_at.isoformat() if task.updated_at else None,
                 }
@@ -619,7 +756,7 @@ async def export_tasks(
                     task.project_id,
                     task.project.title,
                     task.is_labeled,
-                    task.assigned_to or "",
+                    _visible_assignee_id(task, scope) or "",
                     task.created_at.isoformat() if task.created_at else "",
                     task.updated_at.isoformat() if task.updated_at else "",
                 ]

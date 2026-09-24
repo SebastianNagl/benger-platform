@@ -4,11 +4,30 @@ from .blinding import (
     annotator_bound_fields_or_none_async,
     blind_task_data,
     revealed_task_ids_async,
+    visible_data_keys_by_project_async,
     visible_keys_match,
-    visible_top_level_keys,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
 from services.member_privacy import NameMask, project_name_mask
+
+
+def listing_org_role(memberships, project_org_ids):
+    """The org role the task listing scopes by: the first active membership
+    in one of the project's organizations (``None`` when there is none)."""
+    org_ids = set(project_org_ids)
+    for membership in memberships or ():
+        if membership.organization_id in org_ids and membership.is_active:
+            return membership.role
+    return None
+
+
+def annotator_sees_assigned_only(user_role, project) -> bool:
+    """Whether the task listing narrows the caller to their open assignments:
+    org ANNOTATORs on projects in manual / auto assignment mode."""
+    return user_role in ["ANNOTATOR", "annotator"] and project.assignment_mode in [
+        "manual",
+        "auto",
+    ]
 
 
 @router.get("/{project_id}/tasks")
@@ -94,11 +113,9 @@ async def list_project_tasks(
             )
         ).all()
         project_org_ids = [org_id[0] for org_id in org_rows]
-
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
+        user_role = listing_org_role(
+            user_with_memberships.organization_memberships, project_org_ids
+        )
 
     query = select(Task).where(Task.project_id == project_id)
 
@@ -107,10 +124,7 @@ async def list_project_tasks(
         # Attempted tier: only the caller's own submissions, whatever the
         # assignment mode — there is no new work to hand out.
         query = query.where(own_active_annotation_exists(current_user.id))
-    elif user_role in ["ANNOTATOR", "annotator"] and project.assignment_mode in [
-        "manual",
-        "auto",
-    ]:
+    elif annotator_sees_assigned_only(user_role, project):
         # Annotators only see tasks assigned to them
         query = query.join(
             TaskAssignment,
@@ -184,10 +198,12 @@ async def list_project_tasks(
                 )
             )
         else:
-            visible = visible_top_level_keys(_bound_fields)
+            data_keys = (
+                await visible_data_keys_by_project_async(db, {project_id: _bound_fields})
+            )[project_id]
             clauses = [func.cast(Task.id, String).ilike(like)]
-            if visible:
-                clauses.append(visible_keys_match(Task.data, visible, like))
+            if data_keys:
+                clauses.append(visible_keys_match(Task.data, data_keys, like))
             query = query.where(or_(*clauses))
 
     # created_at range; tolerate either YYYY-MM-DD or full ISO.
