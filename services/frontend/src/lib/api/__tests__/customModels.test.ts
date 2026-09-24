@@ -15,6 +15,7 @@ jest.mock('@/lib/api', () => ({
     patch: jest.fn(),
     delete: jest.fn(),
     put: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
@@ -57,6 +58,14 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith('/custom-models')
       expect(result).toEqual([mockModel])
+    })
+  })
+
+  describe('invalidateCache', () => {
+    it('drops every cached /custom-models GET', () => {
+      customModelsAPI.invalidateCache()
+
+      expect(apiClient.invalidateCache).toHaveBeenCalledWith('/custom-models')
     })
   })
 
@@ -168,6 +177,26 @@ describe('customModelsAPI', () => {
       expect(apiClient.put).toHaveBeenCalledWith(
         '/custom-models/custom-123/credential',
         { api_key: 'sk-secret' },
+      )
+    })
+
+    it('setCredential sends expected_base_url when given', async () => {
+      ;(apiClient.put as jest.Mock).mockResolvedValue({
+        has_credential: true,
+      })
+
+      await customModelsAPI.setCredential(
+        'custom-123',
+        'sk-secret',
+        'https://api.example.com/v1',
+      )
+
+      expect(apiClient.put).toHaveBeenCalledWith(
+        '/custom-models/custom-123/credential',
+        {
+          api_key: 'sk-secret',
+          expected_base_url: 'https://api.example.com/v1',
+        },
       )
     })
 

@@ -3,6 +3,7 @@
 import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { OfficialBadge, VisibilityBadge } from '@/components/models/ModelBadges'
 import { HeroPattern } from '@/components/shared'
+import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
 import {
   Select,
@@ -13,6 +14,7 @@ import {
 } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { PlusIcon } from '@heroicons/react/24/outline'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -88,6 +90,10 @@ export default function ModelsPage() {
   // visitors. The manager loads the (access-scoped) list itself; the
   // count badge is fed back up from it.
   const [communityCount, setCommunityCount] = useState<number | null>(null)
+  // The register button sits in the page header (like "New project" on
+  // /projects); the manager below owns the modal and the list refresh.
+  const [registerOpen, setRegisterOpen] = useState(false)
+  const showCommunity = providerFilter === 'all' || providerFilter === 'Custom'
 
   const models = modelsQuery.data ?? []
   const providerCapabilities = capabilitiesQuery.data ?? {}
@@ -169,15 +175,31 @@ export default function ModelsPage() {
 
       <div className="container mx-auto max-w-6xl px-4 pt-16 pb-10">
         <div className="mb-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              {t('models.title')}
-            </h1>
-            <OfficialBadge />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+                  {t('models.title')}
+                </h1>
+                <OfficialBadge />
+              </div>
+              <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
+                {t('models.subtitle', { count: models.length })}
+              </p>
+            </div>
+            {user && (
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="filled"
+                  onClick={() => setRegisterOpen(true)}
+                  data-testid="custom-model-register-button"
+                >
+                  <PlusIcon className="h-4 w-4" />
+                  {t('customModels.page.register')}
+                </Button>
+              </div>
+            )}
           </div>
-          <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
-            {t('models.subtitle', { count: models.length })}
-          </p>
         </div>
 
         {/* Filters */}
@@ -220,6 +242,35 @@ export default function ModelsPage() {
             </FilterToolbar.Field>
           </FilterToolbar>
         </div>
+
+        {/* Community (custom) models come FIRST: register, edit/delete
+            (creator or superadmin), per-user keys. Only for logged-in
+            users; anonymous visitors see just the official catalog. The
+            manager stays mounted (hidden) under an official-provider
+            filter so the header's register button can still open its
+            modal. */}
+        {user && (
+          <div
+            className={showCommunity ? 'mb-12' : 'hidden'}
+            data-testid="community-models-section"
+          >
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
+                {t('customModels.catalog.communityTitle')}
+              </h2>
+              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                {t('models.modelCount', { count: communityCount ?? 0 })}
+              </span>
+            </div>
+            <CustomModelsManager
+              filterQuery={searchQuery}
+              onVisibleCountChange={setCommunityCount}
+              compactWhenEmpty
+              createOpen={registerOpen}
+              onCreateOpenChange={setRegisterOpen}
+            />
+          </div>
+        )}
 
         {/* Loading state */}
         {loading && (
@@ -367,27 +418,6 @@ export default function ModelsPage() {
                 </div>
               ))
             )}
-          </div>
-        )}
-
-        {/* Community (custom) models — management lives HERE now (moved
-            from /settings/models): register, edit/delete (creator or
-            superadmin), per-user keys. Only for logged-in users; the
-            anonymous catalog part above stays unchanged. */}
-        {user && (providerFilter === 'all' || providerFilter === 'Custom') && (
-          <div className="mt-12" data-testid="community-models-section">
-            <div className="mb-4 flex flex-wrap items-center gap-3">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
-                {t('customModels.catalog.communityTitle')}
-              </h2>
-              <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-sm text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                {t('models.modelCount', { count: communityCount ?? 0 })}
-              </span>
-            </div>
-            <CustomModelsManager
-              filterQuery={searchQuery}
-              onVisibleCountChange={setCommunityCount}
-            />
           </div>
         )}
       </div>

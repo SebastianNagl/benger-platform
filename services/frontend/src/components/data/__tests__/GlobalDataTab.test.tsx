@@ -203,7 +203,7 @@ describe('GlobalDataTab', () => {
     total: 3,
     page: 1,
     page_size: 25,
-    total_pages: 1,
+    pages: 1,
   }
 
   const mockUser = {
@@ -661,10 +661,10 @@ describe('GlobalDataTab', () => {
 
       // Wait for the POST call
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith('/data/bulk-update-status', {
-          task_ids: ['task-1'],
-          is_labeled: true,
-        })
+        expect(mockPost).toHaveBeenCalledWith(
+          '/data/bulk-update-status?is_labeled=true',
+          ['task-1'],
+        )
       })
 
       // Wait for the toast to be called
@@ -700,10 +700,10 @@ describe('GlobalDataTab', () => {
       await user.click(incompleteButton)
 
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith('/data/bulk-update-status', {
-          task_ids: expect.arrayContaining(['task-1', 'task-2']),
-          is_labeled: false,
-        })
+        expect(mockPost).toHaveBeenCalledWith(
+          '/data/bulk-update-status?is_labeled=false',
+          expect.arrayContaining(['task-1', 'task-2']),
+        )
       })
 
       await waitFor(() => {
@@ -845,7 +845,7 @@ describe('GlobalDataTab', () => {
       const multiPageResponse = {
         ...mockPaginatedResponse,
         total: 100,
-        total_pages: 4,
+        pages: 4,
       }
       mockGet.mockResolvedValue(multiPageResponse)
 
@@ -866,12 +866,40 @@ describe('GlobalDataTab', () => {
       })
     })
 
+    it('renders page numbers from the API `pages` field and stops at the last page', async () => {
+      const user = userEvent.setup()
+      // The real /api/data/ shape (PaginatedResponse): `pages`, not
+      // `total_pages`. Reading the wrong field left the control with no
+      // page numbers and a Next button that never disabled.
+      mockGet.mockResolvedValue({
+        ...mockPaginatedResponse,
+        total: 100,
+        pages: 4,
+      })
+
+      render(<GlobalDataTab />)
+
+      await waitFor(() => {
+        expect(screen.getByText('100 total tasks')).toBeInTheDocument()
+      })
+
+      const nav = screen.getByLabelText('Pagination')
+      expect(within(nav).getByText('4')).toBeInTheDocument()
+      expect(screen.getByLabelText('Next page')).not.toBeDisabled()
+
+      await user.click(within(nav).getByText('4'))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Next page')).toBeDisabled()
+      })
+    })
+
     it('changes page size and resets to first page', async () => {
       const user = userEvent.setup()
       const multiPageResponse = {
         ...mockPaginatedResponse,
         total: 100,
-        total_pages: 4,
+        pages: 4,
       }
       mockGet.mockResolvedValue(multiPageResponse)
 
@@ -1014,7 +1042,7 @@ describe('GlobalDataTab', () => {
         total: 0,
         page: 1,
         page_size: 25,
-        total_pages: 0,
+        pages: 0,
       })
 
       render(<GlobalDataTab />)
@@ -1515,7 +1543,7 @@ describe('GlobalDataTab', () => {
         total: 1,
         page: 1,
         page_size: 25,
-        total_pages: 1,
+        pages: 1,
       })
 
       render(<GlobalDataTab />)
@@ -1556,7 +1584,7 @@ describe('GlobalDataTab', () => {
         total: 1,
         page: 1,
         page_size: 25,
-        total_pages: 1,
+        pages: 1,
       })
 
       render(<GlobalDataTab />)

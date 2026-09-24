@@ -377,6 +377,62 @@ describe('BaseApiClient - additional uncovered paths', () => {
       expect(client.cacheHas('user1-GET-/users/api-keys/status')).toBe(false)
     })
 
+    it('invalidates the global task listing after a data bulk write', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/data/?page=1&page_size=25', { items: [] })
+      client.seedCache('user1-GET-/projects/p1', { id: 'p1' })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(delete204())
+
+      await client.testRequest('/data/bulk-update-status?is_labeled=false', {
+        method: 'POST',
+      })
+
+      expect(client.cacheHas('user1-GET-/data/?page=1&page_size=25')).toBe(
+        false,
+      )
+      expect(client.cacheHas('user1-GET-/projects/p1')).toBe(true)
+    })
+
+    it('invalidates the custom-model lists after a custom-model credential write', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/custom-models', [{ id: 'm1' }])
+      client.seedCache('user1-GET-/custom-models/m1/credential', { x: 1 })
+      client.seedCache('user1-GET-/projects/p1', { id: 'p1' })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(delete204())
+
+      await client.testRequest('/custom-models/m1/credential', {
+        method: 'DELETE',
+      })
+
+      expect(client.cacheHas('user1-GET-/custom-models')).toBe(false)
+      expect(client.cacheHas('user1-GET-/custom-models/m1/credential')).toBe(
+        false,
+      )
+      expect(client.cacheHas('user1-GET-/projects/p1')).toBe(true)
+    })
+
+    it('invalidates the org custom-model list after an org credential write', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/organizations/abc/custom-models', [])
+      client.seedCache('user1-GET-/organizations/xyz/custom-models', [])
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(delete204())
+
+      await client.testRequest(
+        '/organizations/abc/custom-models/m1/credential',
+        {
+          method: 'DELETE',
+        },
+      )
+
+      expect(
+        client.cacheHas('user1-GET-/organizations/abc/custom-models'),
+      ).toBe(false)
+      // Another org's list is left alone.
+      expect(
+        client.cacheHas('user1-GET-/organizations/xyz/custom-models'),
+      ).toBe(true)
+    })
+
     it('invalidates org api-keys after an org api-key mutation', async () => {
       localStorageMock.getItem.mockReturnValue('user1')
       client.seedCache('user1-GET-/organizations/abc/api-keys', { keys: [] })

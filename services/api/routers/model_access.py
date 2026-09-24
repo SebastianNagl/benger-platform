@@ -14,6 +14,7 @@ organizations rather than being scoped to a selected org context.
 
 import logging
 from typing import List, Optional
+from urllib.parse import urlsplit
 
 from fastapi import Depends, HTTPException
 from sqlalchemy import or_, select
@@ -205,3 +206,64 @@ def require_custom_model_access(min_role: str = "view"):
         return CustomModelAccess(model=model, user=current_user)
 
     return _dependency
+
+
+
+# ============= Credential writes: endpoint-changed guard =============
+
+BASE_URL_CHANGED_DETAIL = "The endpoint changed; please review it and try again."
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _comparable_base_url(url: str) -> str:
+    """Normalize a base_url for equality checks, without DNS.
+
+    Mirrors url_guard's normalization (lowercase scheme and host, default
+    port dropped, trailing slashes stripped) so the value the frontend
+    echoes back compares equal to the stored, already-normalized one.
+    """
+    raw = (url or "").strip()
+    try:
+        parts = urlsplit(raw)
+        host = (parts.hostname or "").lower()
+        port = parts.port
+    except ValueError:
+        return raw.rstrip("/")
+    scheme = parts.scheme.lower()
+    if not host:
+        return raw.rstrip("/")
+    host_part = f"[{host}]" if ":" in host else host
+    if port is not None and port != _DEFAULT_PORTS.get(scheme):
+        host_part = f"{host_part}:{port}"
+    return f"{scheme}://{host_part}{parts.path.rstrip('/')}"
+
+
+async def lock_model_and_check_base_url(
+    db: AsyncSession, model_id: str, expected_base_url: Optional[str]
+) -> None:
+    """Row-lock the model and verify the caller saw its current base_url.
+
+    Credential PUTs call this before writing the key, in the same
+    transaction. ``SELECT ... FOR UPDATE`` on the llm_models row serializes
+    the write against a concurrent base_url PATCH: either the PATCH commits
+    first (this read sees the new URL and the request gets a 409), or this
+    request commits first (the PATCH then wipes the fresh credential as part
+    of its key-redirect hardening). Either way a key is never stored for a
+    host the user did not see.
+
+    ``expected_base_url`` is optional for backward compatibility; the
+    frontend always sends the URL it displayed. When omitted, only the lock
+    is taken. Raises 409 on mismatch, 404 if the row vanished.
+    """
+    current = (
+        await db.execute(
+            select(LLMModel.base_url).where(LLMModel.id == model_id).with_for_update()
+        )
+    ).first()
+    if current is None:
+        raise HTTPException(status_code=404, detail="Custom model not found")
+    if expected_base_url is None:
+        return
+    if _comparable_base_url(expected_base_url) != _comparable_base_url(current[0] or ""):
+        raise HTTPException(status_code=409, detail=BASE_URL_CHANGED_DETAIL)

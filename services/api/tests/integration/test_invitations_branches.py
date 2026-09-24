@@ -253,7 +253,9 @@ class TestCreateInvitation:
         assert body["role"] == "CONTRIBUTOR"
         assert body["accepted"] is False
         assert body["organization_name"] == test_org.name
-        assert body["token"]
+        # The token is the acceptance credential; the link goes out by mail
+        # (benger-extended#126), so the creator's response never carries it.
+        assert "token" not in body
 
         row = (
             test_db.query(Invitation)
@@ -493,6 +495,8 @@ class TestListInvitations:
         emails = {inv["email"] for inv in resp.json()}
         assert "pendinglist@example.com" in emails
         assert "acceptedlist@example.com" not in emails
+        # An admin listing invitations must not get the acceptance credential.
+        assert all("token" not in inv for inv in resp.json())
 
     @pytest.mark.asyncio
     async def test_include_expired_toggle(self, async_test_client, async_test_db):
@@ -632,6 +636,8 @@ class TestTokenLookup:
         assert body["organization_name"] == org.name
         assert body["inviter_name"] == inviter.name
         assert body["role"] == "CONTRIBUTOR"
+        # The caller already holds the token, so echoing it leaks nothing.
+        assert body["token"] == token
 
 
 # ---------------------------------------------------------------------------
@@ -680,6 +686,33 @@ class TestAcceptInvitation:
         inv = test_db.query(Invitation).filter(Invitation.token == token).first()
         assert inv.accepted is True
         assert inv.accepted_at is not None
+
+    def test_created_invitation_is_accepted_via_the_mailed_token(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        """benger-extended#126: the create response no longer carries the
+        token, so the only path to it is the mailed link. Accepting with the
+        token from that link must still work end to end."""
+        invitee = _make_user(test_db, f"mailed-{_uid()[:8]}@example.com")
+        with patch("routers.invitations.celery_app") as celery:
+            created = client.post(
+                f"/api/invitations/organizations/{test_org.id}/invitations",
+                json={"email": invitee.email, "role": "ANNOTATOR"},
+                headers=auth_headers["org_admin"],
+            )
+        assert created.status_code == 200
+        assert "token" not in created.json()
+
+        row = test_db.query(Invitation).filter(Invitation.id == created.json()["id"]).one()
+        # The mailed link is where the token lives.
+        celery.send_task.assert_called_once()
+        assert row.token in celery.send_task.call_args.kwargs["args"][4]
+
+        resp = client.post(
+            f"/api/invitations/accept/{row.token}", headers=_bearer(invitee)
+        )
+        assert resp.status_code == 200
+        assert resp.json()["organization_id"] == test_org.id
 
     def test_accept_not_found_404(self, client, test_db, test_users):
         resp = client.post(

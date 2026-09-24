@@ -17,6 +17,16 @@ import type {
 
 export const customModelsAPI = {
   /**
+   * Drop cached GET responses for custom-model reads (list, detail,
+   * credential status). The apiClient caches GETs for 30 s and failed
+   * mutations never invalidate, so a refetch after e.g. a 409 would
+   * otherwise return the stale model (and its old base_url).
+   */
+  invalidateCache: (): void => {
+    apiClient.invalidateCache('/custom-models')
+  },
+
+  /**
    * List all custom models visible to the caller
    * (own + org-shared + public).
    */
@@ -85,14 +95,21 @@ export const customModelsAPI = {
 
   /**
    * Store the calling user's own API key for this model.
+   *
+   * `expectedBaseUrl` is the endpoint the user saw next to the key input.
+   * The API answers 409 if the model's endpoint changed in the meantime, so
+   * a key is never stored for an address the user did not see.
    */
   setCredential: async (
     modelId: string,
     apiKey: string,
+    expectedBaseUrl?: string,
   ): Promise<{ has_credential: boolean; updated_at?: string }> => {
     const response = await apiClient.put(
       `/custom-models/${modelId}/credential`,
-      { api_key: apiKey },
+      expectedBaseUrl !== undefined
+        ? { api_key: apiKey, expected_base_url: expectedBaseUrl }
+        : { api_key: apiKey },
     )
     return response
   },

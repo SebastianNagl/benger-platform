@@ -259,3 +259,111 @@ class TestCredentialAccess:
             )
         ).all()
         assert [r[0] for r in rows] == [other.id]
+
+
+
+class TestExpectedBaseUrl:
+    """PUT carries the base_url the user saw. If the creator changed the
+    endpoint in the meantime, the key must not be stored for the new host."""
+
+    async def _seed(self, async_test_db):
+        user = _make_user()
+        model = _make_custom_model(user.id)
+        async_test_db.add(user)
+        await async_test_db.flush()
+        async_test_db.add(model)
+        await async_test_db.commit()
+        return user, model
+
+    async def _stored(self, async_test_db, model_id):
+        return (
+            await async_test_db.execute(
+                select(CustomModelCredential).where(
+                    CustomModelCredential.model_id == model_id
+                )
+            )
+        ).scalars().all()
+
+    @pytest.mark.asyncio
+    async def test_mismatch_returns_409_and_stores_nothing(
+        self, async_test_client, async_test_db
+    ):
+        user, model = await self._seed(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.put(
+                f"/api/custom-models/{model.id}/credential",
+                json={
+                    "api_key": SECRET,
+                    "expected_base_url": "https://old-host.example.com/v1",
+                },
+            )
+        assert resp.status_code == status.HTTP_409_CONFLICT
+        assert resp.json()["detail"] == (
+            "The endpoint changed; please review it and try again."
+        )
+        assert await self._stored(async_test_db, model.id) == []
+
+    @pytest.mark.asyncio
+    async def test_match_stores_key(self, async_test_client, async_test_db):
+        user, model = await self._seed(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.put(
+                f"/api/custom-models/{model.id}/credential",
+                json={"api_key": SECRET, "expected_base_url": model.base_url},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert len(await self._stored(async_test_db, model.id)) == 1
+
+    @pytest.mark.asyncio
+    async def test_match_is_normalization_tolerant(
+        self, async_test_client, async_test_db
+    ):
+        user, model = await self._seed(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.put(
+                f"/api/custom-models/{model.id}/credential",
+                json={
+                    "api_key": SECRET,
+                    "expected_base_url": "HTTP://10.10.3.7:8000/v1/",
+                },
+            )
+        assert resp.status_code == status.HTTP_200_OK
+
+    @pytest.mark.asyncio
+    async def test_omitted_is_backward_compatible(
+        self, async_test_client, async_test_db
+    ):
+        user, model = await self._seed(async_test_db)
+        with _as_user(user):
+            resp = await async_test_client.put(
+                f"/api/custom-models/{model.id}/credential",
+                json={"api_key": SECRET},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert len(await self._stored(async_test_db, model.id)) == 1
+
+
+    @pytest.mark.asyncio
+    async def test_check_row_locks_the_model(self):
+        """The base_url read takes SELECT ... FOR UPDATE, so a concurrent
+        PATCH of base_url cannot interleave between check and write."""
+        from sqlalchemy.dialects import postgresql
+
+        from routers.model_access import lock_model_and_check_base_url
+
+        captured = []
+
+        class _Result:
+            def first(self):
+                return ("https://api.example.com/v1",)
+
+        class _FakeDb:
+            async def execute(self, stmt):
+                captured.append(stmt)
+                return _Result()
+
+        await lock_model_and_check_base_url(
+            _FakeDb(), "custom-x", "https://api.example.com/v1"
+        )
+        sql = str(captured[0].compile(dialect=postgresql.dialect()))
+        assert "FOR UPDATE" in sql

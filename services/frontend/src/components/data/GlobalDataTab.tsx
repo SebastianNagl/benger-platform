@@ -59,7 +59,7 @@ interface PaginatedResponse<T> {
   total: number
   page: number
   page_size: number
-  total_pages: number
+  pages: number
 }
 
 export function GlobalDataTab() {
@@ -156,7 +156,7 @@ export function GlobalDataTab() {
       )) as PaginatedResponse<GlobalTask>
 
       setTasks(response.items)
-      setTotalPages(response.total_pages)
+      setTotalPages(response.pages)
       setTotalTasks(response.total)
     } catch (error) {
       console.error('Failed to fetch tasks:', error)
@@ -205,10 +205,11 @@ export function GlobalDataTab() {
     if (selectedTasks.size === 0) return
 
     try {
-      await apiClient.post('/data/bulk-update-status', {
-        task_ids: Array.from(selectedTasks),
-        is_labeled: true,
-      })
+      // The endpoint takes the id list as the body, the flag as a query param.
+      await apiClient.post(
+        '/data/bulk-update-status?is_labeled=true',
+        Array.from(selectedTasks),
+      )
       showToast('Tasks marked as completed', 'success')
       fetchTasks()
       setSelectedTasks(new Set())
@@ -221,10 +222,11 @@ export function GlobalDataTab() {
     if (selectedTasks.size === 0) return
 
     try {
-      await apiClient.post('/data/bulk-update-status', {
-        task_ids: Array.from(selectedTasks),
-        is_labeled: false,
-      })
+      // The endpoint takes the id list as the body, the flag as a query param.
+      await apiClient.post(
+        '/data/bulk-update-status?is_labeled=false',
+        Array.from(selectedTasks),
+      )
       showToast('Tasks marked as incomplete', 'success')
       fetchTasks()
       setSelectedTasks(new Set())

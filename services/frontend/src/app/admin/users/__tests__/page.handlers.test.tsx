@@ -141,7 +141,6 @@ const mockInvitations = [
     organization_id: 'org-1',
     email: 'invited@test.com',
     role: 'ANNOTATOR' as const,
-    token: 'tok',
     invited_by: 'admin-1',
     expires_at: '2024-12-31',
     accepted_at: null,

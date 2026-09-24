@@ -75,7 +75,6 @@ jest.mock('@/lib/api/base', () => ({
             organization_id: 'org-123',
             email: body.email,
             role: body.role,
-            token: 'invitation-token-123',
             invited_by: 'user-123',
             expires_at: '2023-12-31T23:59:59Z',
             is_accepted: false,
@@ -264,11 +263,12 @@ describe('OrganizationsClient', () => {
         organization_id: 'org-123',
         email: 'newuser@example.com',
         role: 'org_user',
-        token: 'invitation-token-123',
         is_accepted: false,
         organization_name: 'Test Organization',
         inviter_name: 'Test User',
       })
+      // The acceptance token is mailed, never returned to the creator.
+      expect(invitation).not.toHaveProperty('token')
     })
   })
 

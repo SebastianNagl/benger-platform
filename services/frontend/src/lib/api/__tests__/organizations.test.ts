@@ -124,7 +124,6 @@ jest.mock('../base', () => ({
           organization_id: endpoint.split('/')[3],
           email: data.email,
           role: data.role,
-          token: 'test-token',
           status: 'pending',
           created_at: '2024-01-01T00:00:00Z',
         }
@@ -142,7 +141,6 @@ jest.mock('../base', () => ({
             organization_id: endpoint.split('/')[3],
             email: 'user@example.com',
             role: 'ANNOTATOR',
-            token: 'token-1',
             status: 'pending',
             created_at: '2024-01-01T00:00:00Z',
           },
@@ -153,7 +151,6 @@ jest.mock('../base', () => ({
             organization_id: endpoint.split('/')[3],
             email: 'expired@example.com',
             role: 'ANNOTATOR',
-            token: 'token-2',
             status: 'expired',
             created_at: '2023-12-01T00:00:00Z',
           } as any)
@@ -452,7 +449,6 @@ describe('OrganizationsClient', () => {
         organization_id: 'org-1',
         email: 'newuser@example.com',
         role: 'CONTRIBUTOR',
-        token: 'test-token',
         status: 'pending',
         created_at: '2024-01-01T00:00:00Z',
       })

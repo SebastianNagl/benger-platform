@@ -14,6 +14,7 @@ jest.mock('@/lib/api/customModels', () => ({
     setCredential: jest.fn(),
     deleteCredential: jest.fn(),
     testConnection: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
@@ -88,6 +89,7 @@ describe('CustomModelCredentialRow', () => {
       expect(customModelsAPI.setCredential).toHaveBeenCalledWith(
         'custom-1',
         'sk-test',
+        'https://api.example.com/v1',
       )
     })
     expect(keysChangedListener).toHaveBeenCalled()
@@ -97,6 +99,51 @@ describe('CustomModelCredentialRow', () => {
     expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(
       'customModels.credential.configured',
     )
+
+    window.removeEventListener('apiKeysChanged', keysChangedListener)
+  })
+
+  it('on 409 (endpoint changed) shows the message, keeps the key and refreshes', async () => {
+    const user = userEvent.setup()
+    const keysChangedListener = jest.fn()
+    window.addEventListener('apiKeysChanged', keysChangedListener)
+    const conflict: any = new Error('conflict')
+    conflict.response = {
+      status: 409,
+      data: {
+        detail: 'The endpoint changed; please review it and try again.',
+      },
+    }
+    ;(customModelsAPI.setCredential as jest.Mock).mockRejectedValue(conflict)
+
+    const onChanged = jest.fn()
+    render(<CustomModelCredentialRow {...defaultProps} onChanged={onChanged} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credential-key-input')).toBeInTheDocument()
+    })
+    await user.type(screen.getByTestId('credential-key-input'), 'sk-test')
+    await user.click(screen.getByTestId('credential-save-button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('credential-message')).toHaveTextContent(
+        'customModels.credential.endpointChanged',
+      )
+    })
+    // The parent refetches so the new endpoint is displayed, and the GET
+    // cache is dropped before that so the refetch cannot serve the old one.
+    expect(onChanged).toHaveBeenCalled()
+    expect(customModelsAPI.invalidateCache).toHaveBeenCalledTimes(1)
+    expect(
+      (customModelsAPI.invalidateCache as jest.Mock).mock
+        .invocationCallOrder[0],
+    ).toBeLessThan(onChanged.mock.invocationCallOrder[0])
+    // Not stored: no keys-changed event, pill unchanged, key kept.
+    expect(keysChangedListener).not.toHaveBeenCalled()
+    expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(
+      'customModels.credential.notConfigured',
+    )
+    expect(screen.getByTestId('credential-key-input')).toHaveValue('sk-test')
 
     window.removeEventListener('apiKeysChanged', keysChangedListener)
   })

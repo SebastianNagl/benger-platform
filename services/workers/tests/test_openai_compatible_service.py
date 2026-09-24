@@ -90,17 +90,43 @@ def _openai_response(content="Hallo!", prompt_tokens=100, completion_tokens=50,
     }
 
 
+class _FakeStream:
+    """Stand-in for ``aiohttp.ClientResponse.content`` (a StreamReader).
+
+    The client reads bodies via ``content.iter_chunked`` through the
+    size-capped reader (bounded_http). ``bytes_read`` records how much was
+    actually pulled, so tests can prove an oversized body was abandoned
+    early instead of buffered in full.
+    """
+
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+        self.bytes_read = 0
+
+    async def iter_chunked(self, n):
+        for chunk in self._chunks:
+            self.bytes_read += len(chunk)
+            yield chunk
+
+
 class _FakeResponse:
-    def __init__(self, status=200, json_data=None, text_data=""):
+    def __init__(self, status=200, json_data=None, text_data="", chunks=None):
         self.status = status
-        self._json = json_data if json_data is not None else {}
-        self._text = text_data
+        self.content_length = None
+        if chunks is None:
+            if json_data is not None or not text_data:
+                body = json.dumps(json_data if json_data is not None else {})
+            else:
+                body = text_data
+            chunks = [body.encode("utf-8")]
+        self._raw = b"".join(chunks)
+        self.content = _FakeStream(chunks)
 
     async def json(self):
-        return self._json
+        return json.loads(self._raw)
 
     async def text(self):
-        return self._text
+        return self._raw.decode("utf-8")
 
     async def __aenter__(self):
         return self
@@ -387,6 +413,68 @@ class TestFailureModes:
         assert recorded_sleeps == []
         # ...and the persisted reason is scrubbed of the endpoint host.
         assert "models.example.org" not in result["error"]
+
+
+class TestBodySizeCap:
+    """Response bodies come from a user-controlled server and are read with
+    a hard cap on decompressed bytes (bounded_http), never buffered whole."""
+
+    def test_oversized_success_body_fails_fast_without_retry(
+        self, fake_http, recorded_sleeps
+    ):
+        import bounded_http
+
+        chunk = b"x" * (1024 * 1024)
+        n_chunks = bounded_http.COMPLETION_MAX_BODY_BYTES // len(chunk) + 50
+        resp = _FakeResponse(200, chunks=[chunk] * n_chunks)
+        fake_http.responses = [resp]
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert "too large" in result["error"].lower()
+        # Non-retryable: one attempt, no backoff.
+        assert result["metadata"]["retry_count"] == 1
+        assert recorded_sleeps == []
+        assert fake_http.calls == 1
+        # Reading stopped right after the cap was crossed.
+        assert resp.content.bytes_read <= (
+            bounded_http.COMPLETION_MAX_BODY_BYTES + len(chunk)
+        )
+
+    def test_body_under_cap_parses_normally(self, fake_http):
+        payload = json.dumps(_openai_response(content="Hallo!")).encode()
+        # Split across chunks to exercise reassembly.
+        fake_http.response = _FakeResponse(
+            200, chunks=[payload[:10], payload[10:40], payload[40:]]
+        )
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is True
+        assert result["content"] == "Hallo!"
+
+    def test_declared_oversized_content_length_rejected(self, fake_http):
+        import bounded_http
+
+        resp = _FakeResponse(200, _openai_response())
+        resp.content_length = bounded_http.COMPLETION_MAX_BODY_BYTES + 1
+        fake_http.response = resp
+        result = _service().generate("q", "s", model_name=PK)
+        assert result["success"] is False
+        assert "too large" in result["error"].lower()
+        assert resp.content.bytes_read == 0
+
+    def test_huge_5xx_error_body_is_truncated_and_still_retried(
+        self, fake_http, recorded_sleeps
+    ):
+        import bounded_http
+
+        chunk = b"e" * (1024 * 1024)
+        big = _FakeResponse(503, chunks=[chunk] * 64)
+        fake_http.responses = [big, _FakeResponse(200, _openai_response())]
+        result = _service().generate("q", "s", model_name=PK)
+        # The status (503) still decides: retried, then succeeded.
+        assert result["success"] is True
+        assert result["metadata"]["retry_count"] == 1
+        assert len(recorded_sleeps) == 1
+        assert big.content.bytes_read <= bounded_http.ERROR_BODY_MAX_BYTES + len(chunk)
 
 
 class TestRetryBehavior:

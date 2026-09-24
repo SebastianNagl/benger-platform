@@ -4,6 +4,11 @@
  * Custom-model (BYOM) management: register button + "my models" and
  * "shared & public" lists + the register/edit form modal.
  *
+ * The register button can be hoisted to a page header: pass `createOpen`
+ * + `onCreateOpenChange` and the manager hides its own button and opens
+ * the create modal whenever `createOpen` is true (list refresh on close
+ * stays in here).
+ *
  * Lifted from the former /settings/models page so the catalog page
  * (/models) can host the full management experience next to the official
  * catalog — one place to see, register, edit, and key custom models.
@@ -25,6 +30,9 @@ export function CustomModelsManager({
   onModelsLoaded,
   onVisibleCountChange,
   filterQuery = '',
+  compactWhenEmpty = false,
+  createOpen,
+  onCreateOpenChange,
 }: {
   /** Optional: surfaces the loaded models (e.g. for a count badge). */
   onModelsLoaded?: (models: CustomModel[]) => void
@@ -34,6 +42,14 @@ export function CustomModelsManager({
   /** Optional page-level search: filters both lists by name, id, endpoint
    *  model, owner, or description (case-insensitive). */
   filterQuery?: string
+  /** Render one compact line instead of the two empty sub-lists when no
+   *  model is visible (used when the section sits above other content). */
+  compactWhenEmpty?: boolean
+  /** Optional controlled create modal. When set, the built-in register
+   *  button is hidden; the host renders its own and toggles this. */
+  createOpen?: boolean
+  /** Fires with `false` when the controlled create modal closes. */
+  onCreateOpenChange?: (open: boolean) => void
 }) {
   const { user } = useAuth()
   const { t } = useI18n()
@@ -50,13 +66,20 @@ export function CustomModelsManager({
   const cbRef = useRef({ t, onModelsLoaded })
   cbRef.current = { t, onModelsLoaded }
 
+  // Only the first load swaps the lists for a spinner. Later refreshes
+  // (after a save, a delete, or a 409 on a key save) run in the background
+  // so the rendered rows stay mounted and keep their local state (typed
+  // key, status message, expanded state) while the new data arrives.
+  const hasLoadedRef = useRef(false)
+
   const loadModels = useCallback(async () => {
     try {
-      setLoading(true)
+      if (!hasLoadedRef.current) setLoading(true)
       setError(null)
       const data = await customModelsAPI.list()
       const list = Array.isArray(data) ? data : []
       setModels(list)
+      hasLoadedRef.current = true
       cbRef.current.onModelsLoaded?.(list)
     } catch (err) {
       console.error('Failed to load custom models:', err)
@@ -105,6 +128,9 @@ export function CustomModelsManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visibleModels.length])
 
+  const createControlled = createOpen !== undefined
+  const modalOpen = formOpen || (createControlled && createOpen)
+
   const openCreate = () => {
     setEditTarget(null)
     setFormOpen(true)
@@ -121,14 +147,16 @@ export function CustomModelsManager({
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           {t('customModels.page.subtitle')}
         </p>
-        <Button
-          variant="filled"
-          onClick={openCreate}
-          data-testid="custom-model-register-button"
-        >
-          <PlusIcon className="mr-1.5 h-4 w-4" />
-          {t('customModels.page.register')}
-        </Button>
+        {!createControlled && (
+          <Button
+            variant="filled"
+            onClick={openCreate}
+            data-testid="custom-model-register-button"
+          >
+            <PlusIcon className="mr-1.5 h-4 w-4" />
+            {t('customModels.page.register')}
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -146,6 +174,16 @@ export function CustomModelsManager({
             </span>
           </div>
         </div>
+      ) : compactWhenEmpty && visibleModels.length === 0 ? (
+        // Compact empty state: when the section sits above the official
+        // catalog, two empty sub-lists would push the catalog down for
+        // nothing. One muted line instead.
+        <p
+          className="text-sm text-zinc-500 dark:text-zinc-400"
+          data-testid="custom-models-empty"
+        >
+          {t('customModels.catalog.communityEmpty')}
+        </p>
       ) : (
         <div className="space-y-10">
           {/* Own models */}
@@ -183,11 +221,12 @@ export function CustomModelsManager({
       )}
 
       <CustomModelFormModal
-        isOpen={formOpen}
-        model={editTarget}
+        isOpen={modalOpen}
+        model={formOpen ? editTarget : null}
         onClose={() => {
           setFormOpen(false)
           setEditTarget(null)
+          onCreateOpenChange?.(false)
           loadModels()
         }}
         onSaved={() => {

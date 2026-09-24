@@ -116,6 +116,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'organization.customModelKeys.keySaved': 'Shared key saved for {model}',
         'organization.customModelKeys.saveFailed':
           'Failed to save the shared key',
+        'organization.customModelKeys.endpointChanged':
+          'The endpoint of this model has changed.',
         'organization.customModelKeys.keyRemoved':
           'Shared key removed for {model}',
         'organization.customModelKeys.removeFailed':
@@ -159,6 +161,7 @@ const mockTestSavedOrgApiKey = jest.fn()
 const mockListOrgCustomModels = jest.fn()
 const mockSetOrgCustomModelCredential = jest.fn()
 const mockRemoveOrgCustomModelCredential = jest.fn()
+const mockInvalidateCache = jest.fn()
 
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
@@ -175,6 +178,7 @@ jest.mock('@/lib/api/organizations', () => ({
       mockSetOrgCustomModelCredential(...args),
     removeOrgCustomModelCredential: (...args: any[]) =>
       mockRemoveOrgCustomModelCredential(...args),
+    invalidateCache: (...args: any[]) => mockInvalidateCache(...args),
   },
 }))
 
@@ -195,6 +199,7 @@ describe('OrgApiKeys', () => {
       available_providers: [],
     })
     mockListOrgCustomModels.mockResolvedValue([])
+    mockInvalidateCache.mockReset()
   })
 
   describe('Members-pay mode (default)', () => {
@@ -1292,8 +1297,69 @@ describe('OrgApiKeys', () => {
           'org-1',
           'custom-abc',
           'shared-secret-key',
+          'http://10.0.0.5:8000/v1',
         ),
       )
+    })
+
+    it('on 409 (endpoint changed) shows the message and reloads the models', async () => {
+      // Mimic the apiClient GET cache: the list stays cached (old base_url)
+      // until invalidateCache drops it; only then does the server's new
+      // endpoint come back.
+      let serverBaseUrl = MODEL_UNCONFIGURED.base_url
+      let cached: any[] | null = null
+      mockListOrgCustomModels.mockImplementation(async () => {
+        if (!cached)
+          cached = [{ ...MODEL_UNCONFIGURED, base_url: serverBaseUrl }]
+        return cached
+      })
+      mockInvalidateCache.mockImplementation((pattern: string) => {
+        if ('/organizations/org-1/custom-models'.includes(pattern))
+          cached = null
+      })
+      const conflict: any = new Error('conflict')
+      conflict.response = {
+        status: 409,
+        data: {
+          detail: 'The endpoint changed; please review it and try again.',
+        },
+      }
+      mockSetOrgCustomModelCredential.mockRejectedValue(conflict)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
+
+      await waitFor(() =>
+        expect(screen.getByText('My vLLM')).toBeInTheDocument(),
+      )
+      serverBaseUrl = 'https://new-host.example/v1'
+      const input = screen.getByPlaceholderText('Enter the shared API key')
+      fireEvent.change(input, { target: { value: 'shared-secret-key' } })
+      fireEvent.click(screen.getByText('Save Key'))
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('The endpoint of this model has changed.'),
+        ).toBeInTheDocument(),
+      )
+      expect(mockInvalidateCache).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models',
+      )
+      // The typed key is kept for the retry.
+      expect(
+        screen.getByPlaceholderText('Enter the shared API key'),
+      ).toHaveValue('shared-secret-key')
+      await waitFor(() =>
+        expect(
+          screen.getByText('https://new-host.example/v1'),
+        ).toBeInTheDocument(),
+      )
+      expect(mockListOrgCustomModels).toHaveBeenCalledTimes(2)
     })
 
     it('removes a configured shared key via removeOrgCustomModelCredential', async () => {

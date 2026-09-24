@@ -147,7 +147,6 @@ describe('AdminUsersPage - Organization Data Loading', () => {
       organization_id: 'org-1',
       email: 'invited@example.com',
       role: 'ANNOTATOR' as const,
-      token: 'test-token',
       invited_by: 'user-1',
       expires_at: '2024-12-31',
       accepted_at: null,

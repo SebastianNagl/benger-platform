@@ -29,10 +29,11 @@ the Musterlösung PRE-submit — the exact leak this module closes.
 
 from typing import Dict, Iterable, Optional, Set
 
-from sqlalchemy import select
+from sqlalchemy import case, cast, exists, false, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.types import JSON
 
-from project_models import Annotation, Project
+from project_models import Annotation, Project, Task
 from routers.projects.helpers import get_effective_project_role_async
 
 #: Effective roles that always receive the full task payload.
@@ -50,12 +51,7 @@ async def annotator_bound_fields_or_none_async(
     :func:`revealed_task_ids_async`).
     """
     role = await get_effective_project_role_async(db, user, project)
-    if role in _FULL_DATA_ROLES:
-        return None
-
-    from services.label_config.parser import LabelConfigParser
-
-    return LabelConfigParser.bound_data_fields(project.label_config)
+    return bound_fields_for_role(role, project)
 
 
 def annotator_bound_fields_or_none(db, user, project: Project) -> Optional[Set[str]]:
@@ -63,7 +59,16 @@ def annotator_bound_fields_or_none(db, user, project: Project) -> Optional[Set[s
     legacy-sync my-tasks route)."""
     from routers.projects.helpers import get_effective_project_role
 
-    role = get_effective_project_role(db, user, project)
+    return bound_fields_for_role(get_effective_project_role(db, user, project), project)
+
+
+def bound_fields_for_role(role: Optional[str], project: Project) -> Optional[Set[str]]:
+    """The blinding decision for an already-resolved effective role (pure).
+
+    Shared by the per-project deciders above and the cross-project data
+    surface, which resolves every row's role in one batch
+    (``resolve_project_roles_batch_async``).
+    """
     if role in _FULL_DATA_ROLES:
         return None
 
@@ -120,3 +125,66 @@ def blind_task_data(task_data, bound_fields: Set[str]) -> Dict:
         return {}
     visible = visible_top_level_keys(bound_fields)
     return {k: v for k, v in task_data.items() if k.casefold() in visible}
+
+
+def _object_or_empty(data_column):
+    """``data_column`` as a JSON object; non-object payloads become ``{}``."""
+    data_json = cast(data_column, JSON)
+    return case(
+        (func.json_typeof(data_json) == "object", data_json),
+        else_=cast(literal("{}"), JSON),
+    )
+
+
+async def visible_data_keys_by_project_async(
+    db: AsyncSession, bound_by_project: Dict[str, Set[str]]
+) -> Dict[str, Set[str]]:
+    """The exact top-level ``task.data`` key spellings a blinded caller may
+    see, per project (one query for all given projects).
+
+    A key counts when :func:`blind_task_data` would keep it, i.e. its
+    ``casefold()`` is in :func:`visible_top_level_keys`. Deciding in Python
+    and handing :func:`visible_keys_match` the exact names keeps search and
+    payload in lockstep; comparing Postgres ``lower(key)`` against casefolded
+    names did not (``Maßstab`` casefolds to ``massstab`` but lowers to
+    ``maßstab``, and ``lower`` only folds ASCII under the C collation).
+    Projects without a visible key map to an empty set (fail-closed).
+    """
+    visible = {
+        str(pid): visible_top_level_keys(bound) for pid, bound in bound_by_project.items()
+    }
+    out: Dict[str, Set[str]] = {pid: set() for pid in visible}
+    pids = sorted(pid for pid, keys in visible.items() if keys)
+    if not pids:
+        return out
+    key = func.json_object_keys(_object_or_empty(Task.data)).label("key")
+    rows = await db.execute(
+        select(Task.project_id, key).where(Task.project_id.in_(pids)).distinct()
+    )
+    for pid, name in rows.all():
+        if isinstance(name, str) and name.casefold() in visible[str(pid)]:
+            out[str(pid)].add(name)
+    return out
+
+
+def visible_keys_match(data_column, data_keys: Iterable[str], pattern: str):
+    """SQL condition: a top-level key of ``data_column`` (a task.data JSON
+    column) named exactly one of ``data_keys`` — as produced by
+    :func:`visible_data_keys_by_project_async` — has a text value ILIKE
+    ``pattern``.
+
+    The search counterpart of :func:`blind_task_data`: blinded callers may
+    search only what they may see. The case-insensitive binding resolution
+    happens in Python (the exact spellings passed in), so no SQL case
+    folding can disagree with the payload filter; non-object payloads never
+    match and an empty key set matches nothing.
+    """
+    keys = sorted(data_keys)
+    if not keys:
+        return false()
+    kv = func.json_each_text(_object_or_empty(data_column)).table_valued("key", "value").alias("kv")
+    return exists(
+        select(literal(1))
+        .select_from(kv)
+        .where(kv.c.key.in_(keys), kv.c.value.ilike(pattern))
+    )

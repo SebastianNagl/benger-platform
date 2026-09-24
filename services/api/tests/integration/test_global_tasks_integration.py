@@ -158,10 +158,12 @@ class TestGlobalTasksAccessControl:
             assert task["project_id"] != proj_b.id
 
     @pytest.mark.asyncio
-    async def test_project_member_sees_project_without_org_membership(
+    async def test_project_member_alone_grants_no_data_access(
         self, async_test_client, async_test_db
     ):
-        """User who is a ProjectMember but not in the project's org should see it."""
+        """A ProjectMember row without an org path opens nothing per-project
+        (``check_project_accessible`` ignores it), so /api/data must not list
+        the project either: both surfaces apply the same access decision."""
         admin = await _make_user(async_test_db, is_superadmin=True)
         annotator = await _make_user(async_test_db, is_superadmin=False)
 
@@ -182,11 +184,13 @@ class TestGlobalTasksAccessControl:
 
         with _as_user(annotator):
             resp = await async_test_client.get("/api/data/")
+            per_project = await async_test_client.get(f"/api/projects/{proj.id}/tasks")
         assert resp.status_code == 200
         data = resp.json()
 
         visible_project_ids = {t["project_id"] for t in data.get("items", [])}
-        assert proj.id in visible_project_ids
+        assert per_project.status_code == 403
+        assert proj.id not in visible_project_ids
 
     @pytest.mark.asyncio
     async def test_superadmin_sees_all_projects(

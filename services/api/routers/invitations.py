@@ -56,13 +56,20 @@ class InvitationCreate(BaseModel):
 
 
 class InvitationResponse(BaseModel):
+    """Invitation shape for authenticated callers (create).
+
+    Deliberately carries no ``token``: the token is the whole credential for
+    accepting the invitation, and the invite link reaches the invitee by mail,
+    rendered server-side. Only the by-token lookup echoes it, to a caller who
+    already holds it (see ``InvitationByTokenResponse``).
+    """
+
     id: str
     organization_id: str
     email: str
     role: OrganizationRole
     group_id: Optional[str] = None
     invited_as_group_admin: bool = False
-    token: str
     invited_by: str
     expires_at: datetime
     accepted_at: Optional[datetime]
@@ -75,11 +82,19 @@ class InvitationResponse(BaseModel):
         from_attributes = True
 
 
+class InvitationByTokenResponse(InvitationResponse):
+    """Public by-token lookup. The caller already holds the token."""
+
+    token: str
+
+
 class InvitationAdminResponse(InvitationResponse):
     """Admin list shape: the invitation plus its mail-delivery state.
 
-    Kept separate from ``InvitationResponse`` so the public by-token endpoint
-    cannot leak a provider error message to whoever holds a link.
+    Kept separate from ``InvitationByTokenResponse`` so the public by-token
+    endpoint cannot leak a provider error message to whoever holds a link.
+    Inherits no ``token``: an admin listing pending invitations must not be
+    able to accept one on the invitee's behalf.
     """
 
     # sent | failed | queued | unknown, see invitation_email_status.
@@ -403,7 +418,6 @@ async def create_invitation(
         role=invitation.role,
         group_id=invitation.group_id,
         invited_as_group_admin=invitation.invited_as_group_admin,
-        token=invitation.token,
         invited_by=invitation.invited_by,
         expires_at=invitation.expires_at,
         accepted_at=invitation.accepted_at,
@@ -725,7 +739,7 @@ async def validate_invitation_token(token: str, db: AsyncSession = Depends(get_a
     )
 
 
-@router.get("/token/{token}", response_model=InvitationResponse)
+@router.get("/token/{token}", response_model=InvitationByTokenResponse)
 async def get_invitation_by_token(token: str, db: AsyncSession = Depends(get_async_db)):
     """Get invitation details by token (public endpoint for invitation acceptance)"""
 
@@ -760,7 +774,7 @@ async def get_invitation_by_token(token: str, db: AsyncSession = Depends(get_asy
     invitation_dict["organization_name"] = organization.name
     invitation_dict["inviter_name"] = inviter.name
 
-    return InvitationResponse(**invitation_dict)
+    return InvitationByTokenResponse(**invitation_dict)
 
 
 @router.post("/accept/{token}")
