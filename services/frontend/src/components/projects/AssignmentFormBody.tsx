@@ -66,13 +66,13 @@ interface Props {
   eligibleRoles?: Set<string>
 }
 
+// Member roles are organization roles (the project-only REVIEWER / ADMIN
+// roles went with the project_members table).
 const DEFAULT_ELIGIBLE_ROLES = new Set([
   'ANNOTATOR',
-  'REVIEWER',
   'CONTRIBUTOR',
   'ORG_ADMIN',
   'annotator',
-  'reviewer',
   'contributor',
   'org_admin',
 ])
@@ -80,10 +80,8 @@ const DEFAULT_ELIGIBLE_ROLES = new Set([
 export const KORREKTUR_ELIGIBLE_ROLES = new Set([
   'CONTRIBUTOR',
   'ORG_ADMIN',
-  'ADMIN',
   'contributor',
   'org_admin',
-  'admin',
 ])
 
 function distributionIcon(d: AssignmentDistribution) {

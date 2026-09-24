@@ -567,41 +567,6 @@ class ProjectOrganization(Base):
         return f"<ProjectOrganization(project_id={self.project_id}, org_id={self.organization_id})>"
 
 
-class ProjectMember(Base):
-    """
-    Project-specific member assignments
-    """
-
-    __tablename__ = "project_members"
-
-    id = Column(String, primary_key=True, index=True)
-    project_id = Column(
-        String,
-        ForeignKey("projects.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    role = Column(String(50), nullable=False, default="ANNOTATOR")
-    assigned_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    project = relationship("Project", backref="project_members")
-    user = relationship("User", foreign_keys=[user_id])
-    assigned_by_user = relationship("User", foreign_keys=[assigned_by])
-
-    # Unique constraint
-    __table_args__ = (sa.UniqueConstraint("project_id", "user_id", name="unique_project_member"),)
-
-    def __repr__(self):
-        return f"<ProjectMember(project_id={self.project_id}, user_id={self.user_id}, role={self.role})>"
-
-
 class TaskAssignment(Base):
     """
     Task-level assignment for workload distribution

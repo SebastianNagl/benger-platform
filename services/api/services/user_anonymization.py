@@ -110,7 +110,6 @@ from models import (
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     ProjectShareLink,
     Task,
@@ -753,9 +752,6 @@ def _load_person_scopes(db: Session, people: List[_Person], rows) -> None:
     for p in people:
         p.project_ids |= p.created_project_ids & set(project_ids)
     for stmt in (
-        select(ProjectMember.user_id, ProjectMember.project_id).where(
-            ProjectMember.user_id.in_(ids), ProjectMember.project_id.in_(project_ids)
-        ),
         select(TaskAssignment.user_id, Task.project_id)
         .join(Task, Task.id == TaskAssignment.task_id)
         .where(TaskAssignment.user_id.in_(ids), Task.project_id.in_(project_ids)),

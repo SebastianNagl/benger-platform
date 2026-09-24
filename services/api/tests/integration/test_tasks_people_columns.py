@@ -27,7 +27,6 @@ from models import Generation, Organization, ResponseGeneration, User
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -113,15 +112,6 @@ async def people_columns_project(async_test_db):
             project_id=project.id,
             organization_id=org.id,
             assigned_by=owner.id,
-        )
-    )
-    db.add(
-        ProjectMember(
-            id=_uid(),
-            project_id=project.id,
-            user_id=owner.id,
-            role="admin",
-            is_active=True,
         )
     )
 

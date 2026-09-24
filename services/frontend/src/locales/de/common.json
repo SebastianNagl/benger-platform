@@ -6188,33 +6188,6 @@
       }
     }
   },
-  "members": {
-    "title": "Projektmitglieder",
-    "description": "Organisationen und Mitglieder mit Zugriff auf dieses Projekt verwalten",
-    "searchPlaceholder": "Mitglieder suchen...",
-    "addMember": "Mitglied hinzufügen",
-    "addOrganization": "Organisation hinzufügen",
-    "backToProject": "Zurück zum Projekt",
-    "organizations": "Organisationen",
-    "noMembers": "Noch keine Mitglieder hinzugefügt",
-    "noMembersSearch": "Keine Mitglieder entsprechen Ihrer Suche",
-    "noOrganization": "Keine Organisation",
-    "accessDenied": "Zugriff verweigert",
-    "organizationAccess": "Organisationszugriff",
-    "organizationAccessDescription": "Steuern Sie, welche Organisationen Zugriff auf dieses Projekt haben",
-    "noOrganizationsAssigned": "Diesem Projekt sind noch keine Organisationen zugewiesen",
-    "selectOrganization": "Wählen Sie eine Organisation...",
-    "selectMember": "Wählen Sie ein Mitglied...",
-    "addProjectMember": "Projektmitglied hinzufügen",
-    "remove": "Entfernen",
-    "removeConfirm": "Möchten Sie dieses Mitglied wirklich entfernen?",
-    "removed": "Mitglied erfolgreich entfernt",
-    "removeFailed": "Fehler beim Entfernen des Mitglieds",
-    "added": "Mitglied erfolgreich hinzugefügt",
-    "addFailed": "Fehler beim Hinzufügen des Mitglieds",
-    "orgAdded": "Organisation erfolgreich hinzugefügt",
-    "orgAddFailed": "Fehler beim Hinzufügen der Organisation"
-  },
   "evaluationBuilder": {
     "configured": "{count} konfiguriert",
     "addEvaluation": "Evaluierung hinzufügen",

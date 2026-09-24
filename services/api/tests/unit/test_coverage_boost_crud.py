@@ -36,7 +36,6 @@ from main import app
 from models import Organization, OrganizationMembership, User
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -656,21 +655,12 @@ class TestDeleteProject:
         assert resp.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_delete_project_with_tasks_and_members(
+    async def test_delete_project_with_tasks(
         self, async_test_client, async_test_db
     ):
         admin = await _make_user(async_test_db, is_superadmin=True)
-        member = await _make_user(async_test_db, is_superadmin=False)
         p = await _make_project(async_test_db, admin.id, title="Full Delete")
         await _make_task(async_test_db, p.id)
-        pm = ProjectMember(
-            id=_uid(),
-            project_id=p.id,
-            user_id=member.id,
-            role="ANNOTATOR",
-            assigned_by=admin.id,
-        )
-        async_test_db.add(pm)
         await async_test_db.commit()
 
         with _as_user(admin), patch(

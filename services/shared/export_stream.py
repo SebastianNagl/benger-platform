@@ -56,7 +56,6 @@ from project_models import (
     KorrekturComment,
     PostAnnotationResponse,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -100,7 +99,6 @@ from stream_io.serialization import (
     serialize_likert_scale_evaluation_row,
     serialize_post_annotation_response_row,
     serialize_preference_ranking_row,
-    serialize_project_member_row,
     serialize_response_generation_row,
     serialize_task_assignment_row,
     serialize_user_rows,
@@ -774,22 +772,6 @@ def stream_comprehensive_project_data_json(
         first = False
     yield "],"
 
-    # --- project_members (small) ---
-    members = (
-        db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
-    )
-    yield '"project_members": ['
-    first = True
-    for member in members:
-        if member.user_id:
-            user_ids.add(member.user_id)
-        yield ("" if first else ",") + json.dumps(
-            serialize_project_member_row(member), ensure_ascii=False
-        )
-        first = False
-        stats["total_members"] += 1
-    yield "],"
-
     # --- task_assignments (medium; join through Task) ---
     assignments = (
         db.query(TaskAssignment).join(Task).filter(Task.project_id == project_id).all()
@@ -1093,12 +1075,6 @@ def stream_export_ndjson(
     ):
         if cb:
             user_ids.add(cb)
-    for (uid,) in (
-        db.query(ProjectMember.user_id)
-        .filter(ProjectMember.project_id == project_id)
-    ):
-        if uid:
-            user_ids.add(uid)
     for uid, ab in (
         db.query(TaskAssignment.user_id, TaskAssignment.assigned_by)
         .join(Task)
@@ -1281,13 +1257,6 @@ def stream_export_ndjson(
     ):
         yield _emit("grading_feedback", serialize_grading_feedback(fb))
         stats["total_grading_feedback"] += 1
-
-    # --- project_members (small) ---
-    for member in (
-        db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
-    ):
-        yield _emit("project_member", serialize_project_member_row(member))
-        stats["total_members"] += 1
 
     # --- task_assignments (medium; join through Task) ---
     for a in (

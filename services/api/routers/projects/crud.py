@@ -41,7 +41,7 @@ from org_groups import (
     get_lti_attachment_map_async,
     non_lti_attachment,
 )
-from project_models import Project, ProjectMember, ProjectOrganization, Task
+from project_models import Project, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
 from routers.projects.deps import ProjectAccess, require_project_access
 from routers.projects.helpers import (
@@ -1086,9 +1086,6 @@ async def purge_project(
         ProjectOrganization.__table__.delete().where(
             ProjectOrganization.project_id == project_id
         )
-    )
-    await db.execute(
-        ProjectMember.__table__.delete().where(ProjectMember.project_id == project_id)
     )
     # Annotations cascade from the task/project FKs (001_complete_baseline).
     await db.execute(Task.__table__.delete().where(Task.project_id == project_id))

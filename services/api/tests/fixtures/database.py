@@ -312,6 +312,10 @@ def _create_tables():
                     """
                 )
             )
+            # Migration 108 drops project_members. create_all never drops a
+            # table the models no longer declare, so a long-lived test DB
+            # would keep it (and its FKs to users/projects) forever.
+            conn.execute(text("DROP TABLE IF EXISTS project_members"))
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

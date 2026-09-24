@@ -166,15 +166,6 @@ def upgrade():
         sa.Index('idx_projects_org_public', 'organization_id', 'is_public')
     )
     
-    # Project members junction table
-    op.create_table('project_members',
-        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('project_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('role', sa.String(50), server_default='annotator'),
-        sa.Column('joined_at', sa.DateTime(), server_default=sa.func.now()),
-        sa.UniqueConstraint('project_id', 'user_id', name='uq_project_user')
-    )
     
     # Annotation tasks
     op.create_table('annotation_tasks',
@@ -374,7 +365,7 @@ def downgrade():
         'evaluation_results', 'evaluation_types',
         'generation_results', 'generation_jobs',
         'annotation_labels', 'annotations', 'annotation_tasks',
-        'project_members', 'projects', 'project_types',
+        'projects', 'project_types',
         'organization_members', 'organizations',
         'users'
     ]

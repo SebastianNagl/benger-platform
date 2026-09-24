@@ -19,7 +19,6 @@ from org_groups import group_member_fan_in_clause
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -118,49 +117,26 @@ async def assign_tasks(
             detail=f"Some tasks not found in project. Requested: {task_ids}, Found: {[t.id for t in tasks]}",
         )
 
-    # Verify users exist and are project members (direct or through organization)
-    # Get direct project members
-    direct_members = (
-        db.query(ProjectMember)
+    # Every assignee must reach the project through an attached org. Grouped
+    # attachments narrow eligibility to the group's members + the org's
+    # ORG_ADMINs (same fan-in as the roster).
+    org_members = (
+        db.query(OrganizationMembership)
+        .join(
+            ProjectOrganization,
+            ProjectOrganization.organization_id
+            == OrganizationMembership.organization_id,
+        )
         .filter(
-            ProjectMember.project_id == project_id,
-            ProjectMember.user_id.in_(user_ids),
-            ProjectMember.is_active == True,  # noqa: E712
+            ProjectOrganization.project_id == project_id,
+            OrganizationMembership.user_id.in_(user_ids),
+            OrganizationMembership.is_active == True,  # noqa: E712
+            group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
         )
         .all()
     )
-
-    direct_member_ids = {m.user_id for m in direct_members}
-
-    # Get members through organizations (for users not already direct members)
-    remaining_user_ids = [uid for uid in user_ids if uid not in direct_member_ids]
-
-    if remaining_user_ids:
-        # Grouped attachments narrow assignee eligibility to the group's
-        # members + the org's ORG_ADMINs (same fan-in as the roster).
-        org_members = (
-            db.query(OrganizationMembership)
-            .join(
-                ProjectOrganization,
-                ProjectOrganization.organization_id
-                == OrganizationMembership.organization_id,
-            )
-            .filter(
-                ProjectOrganization.project_id == project_id,
-                OrganizationMembership.user_id.in_(remaining_user_ids),
-                OrganizationMembership.is_active == True,  # noqa: E712
-                group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
-            )
-            .all()
-        )
-    else:
-        org_members = []
-
     org_member_ids = {m.user_id for m in org_members}
-
-    # Check if all users are either direct or organization members
-    all_valid_member_ids = direct_member_ids | org_member_ids
-    invalid_user_ids = [uid for uid in user_ids if uid not in all_valid_member_ids]
+    invalid_user_ids = [uid for uid in user_ids if uid not in org_member_ids]
 
     if invalid_user_ids:
         raise HTTPException(

@@ -19,7 +19,7 @@ The export system captures ALL project data including:
 - ✅ ML model predictions
 - ✅ LLM generations and responses
 - ✅ Evaluation results
-- ✅ Project members and assignments
+- ✅ Task assignments (project membership comes from organizations and is not exported)
 - ✅ User references for mapping
 
 ### Intelligent Import System

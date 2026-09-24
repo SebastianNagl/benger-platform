@@ -41,7 +41,7 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, OrganizationMembership, User
-from project_models import Project, ProjectMember, ProjectOrganization, Task
+from project_models import Project, ProjectOrganization, Task
 
 
 def _uid() -> str:
@@ -173,7 +173,7 @@ class TestBulkDelete:
     async def test_creator_deletes_project_and_children(
         self, async_test_client, async_test_db
     ):
-        """A superadmin deletes their own project: the project, its members, its
+        """A superadmin deletes their own project: the project, its
         org links and its tasks are all removed and the count reflects exactly
         one deletion."""
         admin = await _make_user(async_test_db, is_superadmin=True)
@@ -184,14 +184,6 @@ class TestBulkDelete:
         )
         await _add_task(async_test_db, project, inner_id=1)
         await _add_task(async_test_db, project, inner_id=2)
-        async_test_db.add(
-            ProjectMember(
-                id=_uid(),
-                project_id=project.id,
-                user_id=admin.id,
-                role="ORG_ADMIN",
-            )
-        )
         pid = project.id
         await async_test_db.commit()
 

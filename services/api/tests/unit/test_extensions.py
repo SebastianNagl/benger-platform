@@ -121,7 +121,8 @@ class TestExtensionLoader:
         # middleware is gone.
         # 2.23 removes the inert selected-organization parameter from the
         # access helpers and its request-header reader.
-        assert CORE_API_VERSION == "2.23"
+        # 2.24 drops the project_members table and ProjectMember model.
+        assert CORE_API_VERSION == "2.24"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

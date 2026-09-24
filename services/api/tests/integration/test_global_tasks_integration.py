@@ -22,7 +22,7 @@ from auth_module.dependencies import require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, OrganizationMembership, User
-from project_models import Project, ProjectMember, ProjectOrganization, Task
+from project_models import Project, ProjectOrganization, Task
 
 
 def _uid():
@@ -156,41 +156,6 @@ class TestGlobalTasksAccessControl:
         # Key assertion: org B project tasks must NOT appear.
         for task in data.get("items", []):
             assert task["project_id"] != proj_b.id
-
-    @pytest.mark.asyncio
-    async def test_project_member_alone_grants_no_data_access(
-        self, async_test_client, async_test_db
-    ):
-        """A ProjectMember row without an org path opens nothing per-project
-        (``check_project_accessible`` ignores it), so /api/data must not list
-        the project either: both surfaces apply the same access decision."""
-        admin = await _make_user(async_test_db, is_superadmin=True)
-        annotator = await _make_user(async_test_db, is_superadmin=False)
-
-        other_org = await _make_org(async_test_db, "Other Org", admin.id)
-        proj, tasks = await _make_project_in_org(
-            async_test_db, other_org, admin.id, "Member Project"
-        )
-
-        async_test_db.add(
-            ProjectMember(
-                id=_uid(),
-                project_id=proj.id,
-                user_id=annotator.id,
-                role="ANNOTATOR",
-            )
-        )
-        await async_test_db.commit()
-
-        with _as_user(annotator):
-            resp = await async_test_client.get("/api/data/")
-            per_project = await async_test_client.get(f"/api/projects/{proj.id}/tasks")
-        assert resp.status_code == 200
-        data = resp.json()
-
-        visible_project_ids = {t["project_id"] for t in data.get("items", [])}
-        assert per_project.status_code == 403
-        assert proj.id not in visible_project_ids
 
     @pytest.mark.asyncio
     async def test_superadmin_sees_all_projects(

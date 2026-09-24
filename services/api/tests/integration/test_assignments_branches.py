@@ -32,7 +32,6 @@ from main import app
 from models import Notification, User
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -109,17 +108,8 @@ def assignment_project(test_db: Session, test_users: List[User], test_org):
     )
     test_db.add(project_org)
 
-    roles = ["admin", "contributor", "annotator", "admin"]
-    for i, user in enumerate(test_users[:4]):
-        test_db.add(
-            ProjectMember(
-                id=str(uuid.uuid4()),
-                project_id=project.id,
-                user_id=user.id,
-                role=roles[i],
-                is_active=True,
-            )
-        )
+    # test_org already makes test_users[:4] members, which is what makes
+    # them assignable.
 
     tasks = []
     for i in range(6):

@@ -254,22 +254,39 @@ class TestGetUserAccessibleProjects:
 
     @pytest.mark.asyncio
     async def test_regular_user_scoped(self, async_test_db):
+        from models import Organization, OrganizationMembership
+        from project_models import ProjectOrganization
         from routers.tasks import get_user_accessible_projects
-        from project_models import ProjectMember
 
         user = await _make_user(async_test_db, is_superadmin=False)
-        owner = await _make_user(async_test_db, is_superadmin=True)
         member_proj = await _make_project(async_test_db, title="Member")
-        async_test_db.add(
-            ProjectMember(
-                id=_uid(),
-                project_id=member_proj.id,
-                user_id=user.id,
-                role="ANNOTATOR",
-            )
+        org = Organization(
+            id=_uid(),
+            name=f"gt-org-{_uid()[:8]}",
+            slug=f"gt-org-{_uid()[:8]}",
+            display_name="GT Org",
         )
-        # A project the user is NOT a member of and not in its org.
-        await _make_project(async_test_db, title="Unrelated")
+        async_test_db.add(org)
+        await async_test_db.flush()
+        async_test_db.add_all(
+            [
+                OrganizationMembership(
+                    id=_uid(),
+                    user_id=user.id,
+                    organization_id=org.id,
+                    role="ANNOTATOR",
+                    is_active=True,
+                ),
+                ProjectOrganization(
+                    id=_uid(),
+                    project_id=member_proj.id,
+                    organization_id=org.id,
+                    assigned_by=member_proj.created_by,
+                ),
+            ]
+        )
+        # A project in none of the user's orgs.
+        unrelated = await _make_project(async_test_db, title="Unrelated")
         await async_test_db.commit()
 
         auth = AuthUser(
@@ -285,6 +302,7 @@ class TestGetUserAccessibleProjects:
         result = await get_user_accessible_projects(async_test_db, auth)
         assert isinstance(result, list)
         assert member_proj.id in result
+        assert unrelated.id not in result
 
 
 # ---------------------------------------------------------------------------

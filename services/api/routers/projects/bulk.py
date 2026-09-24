@@ -12,7 +12,7 @@ from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
 from notification_service import notify_project_archived, notify_project_deleted
-from project_models import Project, ProjectMember, ProjectOrganization, Task
+from project_models import Project, ProjectOrganization, Task
 from routers.projects.crud import _can_soft_delete
 from routers.projects.helpers import check_user_can_edit_project_async
 
@@ -196,11 +196,6 @@ async def bulk_purge_projects(
             await db.execute(
                 ProjectOrganization.__table__.delete().where(
                     ProjectOrganization.project_id == project_id
-                )
-            )
-            await db.execute(
-                ProjectMember.__table__.delete().where(
-                    ProjectMember.project_id == project_id
                 )
             )
             await db.execute(Task.__table__.delete().where(Task.project_id == project_id))

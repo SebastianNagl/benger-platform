@@ -5,9 +5,33 @@
  * and the annotator can see them via the my-tasks API.
  * Also tests enforcement: annotators cannot access unassigned tasks in manual mode.
  */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { APISeedingHelper } from '../helpers/api-seeding'
 import { TestHelpers } from '../helpers/test-helpers'
+
+/**
+ * Make the user an ANNOTATOR of the project's org. Project membership comes
+ * from org membership only, so this is what makes the user assignable. The
+ * seeded annotator is usually a TUM member already; the API then answers 400
+ * "already a member", which is fine.
+ */
+async function ensureOrgMember(page: Page, orgId: string, userId: string) {
+  const status = await page.evaluate(
+    async ({ orgId, userId }) => {
+      const resp = await fetch(`/api/organizations/${orgId}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: userId, role: 'ANNOTATOR' }),
+      })
+      return resp.status
+    },
+    { orgId, userId },
+  )
+  if (status !== 200 && status !== 400) {
+    throw new Error(`Adding org member failed: ${status}`)
+  }
+}
 
 test.describe('Task Assignment Workflow', () => {
   test('admin assigns tasks and annotator sees them in my-tasks', async ({
@@ -109,18 +133,9 @@ test.describe('Task Assignment Workflow', () => {
     })
     expect(annotatorUserId).toBeTruthy()
 
-    // Add annotator as project member (from admin context)
-    await adminPage.evaluate(
-      async ({ projectId, userId }) => {
-        await fetch(`/api/projects/${projectId}/members/${userId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ role: 'ANNOTATOR' }),
-        })
-      },
-      { projectId, userId: annotatorUserId },
-    )
+    // Make the annotator a member of the project's org (from admin context)
+    expect(orgId).toBeTruthy()
+    await ensureOrgMember(adminPage, orgId, annotatorUserId)
 
     // Assign tasks to annotator (from admin context)
     const assignResult = await seeder.assignTasks(
@@ -251,18 +266,9 @@ test.describe('Task Assignment Workflow', () => {
     })
     expect(annotatorUserId).toBeTruthy()
 
-    // Add annotator as project member
-    await adminPage.evaluate(
-      async ({ projectId, userId }) => {
-        await fetch(`/api/projects/${projectId}/members/${userId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ role: 'ANNOTATOR' }),
-        })
-      },
-      { projectId, userId: annotatorUserId },
-    )
+    // Make the annotator a member of the project's org (from admin context)
+    expect(orgId).toBeTruthy()
+    await ensureOrgMember(adminPage, orgId, annotatorUserId)
 
     // Assign only first 3 tasks to annotator (tasks 4-5 remain unassigned)
     const assignedTaskIds = tasks.slice(0, 3).map((t) => t.id)

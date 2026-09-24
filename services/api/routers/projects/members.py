@@ -11,7 +11,7 @@ from auth_module.models import User as AuthUser
 from database import get_async_db
 from models import OrganizationMembership, User
 from org_groups import group_member_fan_in_clause
-from project_models import Annotation, ProjectMember, ProjectOrganization
+from project_models import Annotation, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
 from services.member_privacy import lms_account_ids, masked_name, project_name_mask
 from user_display import prefers_pseudonym
@@ -28,6 +28,11 @@ async def list_project_members(
 ):
     """List all members of a project.
 
+    Project membership comes from attached organizations only (grouped
+    attachments narrow it to the group's members plus the org's ORG_ADMINs).
+    ``is_direct_member`` stays in the payload, always ``False``, so the
+    response shape is unchanged for clients.
+
     LMS accounts appear by pseudonym, without email, unless the viewer may
     see that person's real name on this project
     (``project_real_name_user_ids``, D8: people who take part in the linked
@@ -36,14 +41,6 @@ async def list_project_members(
 
     # Project existence + read access enforced by require_project_access
     # (404 "Project not found" / 403 "Access denied").
-
-    # Get direct project members
-    direct_result = await db.execute(
-        select(ProjectMember)
-        .options(joinedload(ProjectMember.user))
-        .where(ProjectMember.project_id == project_id, ProjectMember.is_active == True)  # noqa: E712
-    )
-    direct_members = direct_result.scalars().unique().all()
 
     # Get members from project organizations only. Grouped attachments
     # narrow the fan-in to the group's members + the org's ORG_ADMINs.
@@ -68,7 +65,7 @@ async def list_project_members(
 
     mask = await project_name_mask(
         db,
-        [pm.user for pm in direct_members] + [om.user for om in org_members],
+        [om.user for om in org_members],
         viewer=current_user,
         project_id=project_id,
     )
@@ -84,27 +81,9 @@ async def list_project_members(
             "is_pseudonymized": mask.is_masked(user_id),
         }
 
-    # Combine results
+    # One row per user, even when they reach the project through two orgs.
     members = []
-
-    # Add direct members
-    for pm in direct_members:
-        members.append(
-            {
-                "id": pm.id,
-                "user_id": pm.user_id,
-                **_identity(pm.user),
-                "role": pm.role,
-                "is_direct_member": True,
-                "organization_id": None,
-                "organization_name": None,
-                "added_at": pm.created_at.isoformat() if pm.created_at else None,
-                **_privacy(pm.user_id),
-            }
-        )
-
-    # Add organization members (avoiding duplicates by user_id)
-    seen_user_ids = {pm.user_id for pm in direct_members}
+    seen_user_ids: set = set()
     for om in org_members:
         if om.user_id not in seen_user_ids:
             seen_user_ids.add(om.user_id)
