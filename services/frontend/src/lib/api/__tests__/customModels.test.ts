@@ -15,6 +15,7 @@ jest.mock('@/lib/api', () => ({
     patch: jest.fn(),
     delete: jest.fn(),
     put: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
@@ -57,6 +58,14 @@ describe('customModelsAPI', () => {
 
       expect(apiClient.get).toHaveBeenCalledWith('/custom-models')
       expect(result).toEqual([mockModel])
+    })
+  })
+
+  describe('invalidateCache', () => {
+    it('drops every cached /custom-models GET', () => {
+      customModelsAPI.invalidateCache()
+
+      expect(apiClient.invalidateCache).toHaveBeenCalledWith('/custom-models')
     })
   })
 

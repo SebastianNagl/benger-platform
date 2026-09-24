@@ -14,6 +14,7 @@ jest.mock('@/lib/api/customModels', () => ({
     setCredential: jest.fn(),
     deleteCredential: jest.fn(),
     testConnection: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
@@ -129,8 +130,14 @@ describe('CustomModelCredentialRow', () => {
         'customModels.credential.endpointChanged',
       )
     })
-    // The parent refetches so the new endpoint is displayed.
+    // The parent refetches so the new endpoint is displayed, and the GET
+    // cache is dropped before that so the refetch cannot serve the old one.
     expect(onChanged).toHaveBeenCalled()
+    expect(customModelsAPI.invalidateCache).toHaveBeenCalledTimes(1)
+    expect(
+      (customModelsAPI.invalidateCache as jest.Mock).mock
+        .invocationCallOrder[0],
+    ).toBeLessThan(onChanged.mock.invocationCallOrder[0])
     // Not stored: no keys-changed event, pill unchanged, key kept.
     expect(keysChangedListener).not.toHaveBeenCalled()
     expect(screen.getByTestId('credential-status-pill')).toHaveTextContent(

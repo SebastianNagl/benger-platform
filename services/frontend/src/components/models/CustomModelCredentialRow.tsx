@@ -99,11 +99,14 @@ export function CustomModelCredentialRow({
     } catch (error: any) {
       if (error.response?.status === 409) {
         // The endpoint changed since this row rendered. Keep the typed key,
-        // show why, and refresh so the new endpoint is displayed.
+        // show why, and refresh so the new endpoint is displayed. Drop the
+        // cached list first, or the refetch serves the old base_url and
+        // every retry 409s again until the cache expires.
         setMessage({
           type: 'error',
           message: t('customModels.credential.endpointChanged'),
         })
+        customModelsAPI.invalidateCache()
         onChanged?.()
         return
       }

@@ -161,6 +161,7 @@ const mockTestSavedOrgApiKey = jest.fn()
 const mockListOrgCustomModels = jest.fn()
 const mockSetOrgCustomModelCredential = jest.fn()
 const mockRemoveOrgCustomModelCredential = jest.fn()
+const mockInvalidateCache = jest.fn()
 
 jest.mock('@/lib/api/organizations', () => ({
   organizationsAPI: {
@@ -177,6 +178,7 @@ jest.mock('@/lib/api/organizations', () => ({
       mockSetOrgCustomModelCredential(...args),
     removeOrgCustomModelCredential: (...args: any[]) =>
       mockRemoveOrgCustomModelCredential(...args),
+    invalidateCache: (...args: any[]) => mockInvalidateCache(...args),
   },
 }))
 
@@ -197,6 +199,7 @@ describe('OrgApiKeys', () => {
       available_providers: [],
     })
     mockListOrgCustomModels.mockResolvedValue([])
+    mockInvalidateCache.mockReset()
   })
 
   describe('Members-pay mode (default)', () => {
@@ -1300,11 +1303,20 @@ describe('OrgApiKeys', () => {
     })
 
     it('on 409 (endpoint changed) shows the message and reloads the models', async () => {
-      mockListOrgCustomModels
-        .mockResolvedValueOnce([MODEL_UNCONFIGURED])
-        .mockResolvedValueOnce([
-          { ...MODEL_UNCONFIGURED, base_url: 'https://new-host.example/v1' },
-        ])
+      // Mimic the apiClient GET cache: the list stays cached (old base_url)
+      // until invalidateCache drops it; only then does the server's new
+      // endpoint come back.
+      let serverBaseUrl = MODEL_UNCONFIGURED.base_url
+      let cached: any[] | null = null
+      mockListOrgCustomModels.mockImplementation(async () => {
+        if (!cached)
+          cached = [{ ...MODEL_UNCONFIGURED, base_url: serverBaseUrl }]
+        return cached
+      })
+      mockInvalidateCache.mockImplementation((pattern: string) => {
+        if ('/organizations/org-1/custom-models'.includes(pattern))
+          cached = null
+      })
       const conflict: any = new Error('conflict')
       conflict.response = {
         status: 409,
@@ -1325,6 +1337,7 @@ describe('OrgApiKeys', () => {
       await waitFor(() =>
         expect(screen.getByText('My vLLM')).toBeInTheDocument(),
       )
+      serverBaseUrl = 'https://new-host.example/v1'
       const input = screen.getByPlaceholderText('Enter the shared API key')
       fireEvent.change(input, { target: { value: 'shared-secret-key' } })
       fireEvent.click(screen.getByText('Save Key'))
@@ -1334,6 +1347,13 @@ describe('OrgApiKeys', () => {
           screen.getByText('The endpoint of this model has changed.'),
         ).toBeInTheDocument(),
       )
+      expect(mockInvalidateCache).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models',
+      )
+      // The typed key is kept for the retry.
+      expect(
+        screen.getByPlaceholderText('Enter the shared API key'),
+      ).toHaveValue('shared-secret-key')
       await waitFor(() =>
         expect(
           screen.getByText('https://new-host.example/v1'),
