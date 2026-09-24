@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -38,6 +38,7 @@ from routers.model_access import (
     _get_active_org_ids_async,
     check_user_can_edit_model,
     get_accessible_model_ids_async,
+    lock_model_and_check_base_url,
     require_custom_model_access,
 )
 from services.rate_limiter import rate_limiter
@@ -194,6 +195,10 @@ class ModelVisibilityUpdate(BaseModel):
 
 class CredentialUpdate(BaseModel):
     api_key: str = Field(..., min_length=1)
+    # The base_url the user saw when entering the key. Optional for older
+    # clients; when sent and it no longer matches the model, the PUT is
+    # refused with 409 so a key is never stored for an unseen endpoint.
+    expected_base_url: Optional[str] = Field(None, max_length=500)
 
 
 class EndpointTestRequest(BaseModel):
@@ -697,6 +702,11 @@ async def set_custom_model_credential(
     access: CustomModelAccess = Depends(require_custom_model_access("view")),
     db: AsyncSession = Depends(get_async_db),
 ):
+    # Lock the model row and confirm the endpoint is still the one the user
+    # saw; set_credential_async commits in the same transaction.
+    await lock_model_and_check_base_url(
+        db, access.model.id, body.expected_base_url
+    )
     ok = await set_credential_async(
         db, str(access.user.id), access.model.id, body.api_key
     )
@@ -758,6 +768,11 @@ async def _chat_ping(
     """
     import aiohttp
 
+    from bounded_http import (
+        PROBE_MAX_BODY_BYTES,
+        ResponseTooLargeError,
+        read_capped_json,
+    )
     from url_guard import pinned_connector, resolve_and_validate
 
     headers = {}
@@ -806,8 +821,17 @@ async def _chat_ping(
                         "error_type": "invalid_response",
                         "latency_ms": latency_ms,
                     }
+                # SECURITY: user-controlled body; cap decompressed bytes so a
+                # huge or gzip-bomb reply cannot exhaust the api's memory.
                 try:
-                    await response.json()
+                    await read_capped_json(response, PROBE_MAX_BODY_BYTES)
+                except ResponseTooLargeError:
+                    return {
+                        "status": "error",
+                        "message": "Chat ping failed: response too large",
+                        "error_type": "invalid_response",
+                        "latency_ms": latency_ms,
+                    }
                 except Exception:
                     return {
                         "status": "error",

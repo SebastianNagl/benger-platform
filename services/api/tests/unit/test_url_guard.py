@@ -132,16 +132,112 @@ class TestResolvedAddressRejections:
             "getaddrinfo",
             lambda *a, **kw: _addrinfo(PUBLIC_V4, "10.0.0.5"),
         )
-        with pytest.raises(ValueError, match="10.0.0.5"):
+        with pytest.raises(ValueError) as excinfo:
             validate_custom_model_url("https://api.example.com/v1")
+        assert str(excinfo.value) == url_guard.UNREACHABLE_HOST_MESSAGE
 
     def test_rejects_unresolvable_host(self, monkeypatch):
         def _fail(*args, **kwargs):
             raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
 
         monkeypatch.setattr(url_guard.socket, "getaddrinfo", _fail)
-        with pytest.raises(ValueError, match="could not be resolved"):
+        with pytest.raises(ValueError) as excinfo:
             validate_custom_model_url("https://does-not-exist.example.com/v1")
+        assert str(excinfo.value) == url_guard.UNREACHABLE_HOST_MESSAGE
+
+
+@pytest.mark.unit
+class TestRejectionMessagesDoNotLeakNetworkState:
+    """Unresolvable, private and deny-listed hosts all produce one message,
+    which never names the host or a resolved address. The detail goes to the
+    server log only."""
+
+    @pytest.mark.parametrize(
+        "address",
+        ["10.43.12.7", "127.0.0.1", "169.254.169.254", "fd00::5", "::ffff:10.0.0.1"],
+    )
+    def test_private_resolution_message_is_generic(self, monkeypatch, address):
+        monkeypatch.setattr(
+            url_guard.socket, "getaddrinfo", lambda *a, **kw: _addrinfo(address)
+        )
+        with pytest.raises(ValueError) as excinfo:
+            validate_custom_model_url("http://redis:6379")
+        msg = str(excinfo.value)
+        assert msg == url_guard.UNREACHABLE_HOST_MESSAGE
+        assert address not in msg
+        assert "redis" not in msg
+        assert "private" not in msg.lower()
+
+    def test_unresolvable_and_private_messages_are_identical(self, monkeypatch):
+        def _fail(*args, **kwargs):
+            raise socket.gaierror(socket.EAI_NONAME, "Name or service not known")
+
+        monkeypatch.setattr(url_guard.socket, "getaddrinfo", _fail)
+        with pytest.raises(ValueError) as unresolvable:
+            validate_custom_model_url("http://nope.example.com/v1")
+
+        monkeypatch.setattr(
+            url_guard.socket, "getaddrinfo", lambda *a, **kw: _addrinfo("10.0.0.5")
+        )
+        with pytest.raises(ValueError) as private:
+            validate_custom_model_url("http://benger-postgresql/v1")
+
+        assert str(unresolvable.value) == str(private.value)
+
+    def test_deny_listed_host_message_is_generic(self, no_dns):
+        with pytest.raises(ValueError) as excinfo:
+            validate_custom_model_url("http://metadata.google.internal/")
+        assert str(excinfo.value) == url_guard.UNREACHABLE_HOST_MESSAGE
+
+    def test_detail_is_logged_server_side(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            url_guard.socket, "getaddrinfo", lambda *a, **kw: _addrinfo("10.43.0.9")
+        )
+        with caplog.at_level("WARNING", logger="url_guard"):
+            with pytest.raises(ValueError):
+                validate_custom_model_url("http://redis:6379")
+        assert "10.43.0.9" in caplog.text
+
+    def test_structural_messages_stay_specific(self, no_dns):
+        with pytest.raises(ValueError, match="http:// or https://"):
+            validate_custom_model_url("ftp://api.example.com/v1")
+        with pytest.raises(ValueError, match="credentials"):
+            validate_custom_model_url("https://user:pw@api.example.com/")
+        with pytest.raises(ValueError, match="query string"):
+            validate_custom_model_url("https://api.example.com/v1?key=abc")
+
+
+@pytest.mark.unit
+class TestEmbeddedIPv4Ranges:
+    """NAT64 and IPv4-compatible IPv6 forms can reach an internal IPv4
+    address even though Python reports them as global."""
+
+    @pytest.mark.parametrize(
+        "address",
+        [
+            "64:ff9b::a00:1",  # NAT64 well-known prefix -> 10.0.0.1
+            "64:ff9b::808:808",  # NAT64 of a public v4, still blocked
+            "64:ff9b:1::a00:1",  # local-use NAT64 prefix
+            "::a00:1",  # IPv4-compatible ::10.0.0.1
+            "::a9fe:a9fe",  # IPv4-compatible ::169.254.169.254
+        ],
+    )
+    def test_rejects_embedded_ipv4(self, monkeypatch, address):
+        monkeypatch.setattr(
+            url_guard.socket, "getaddrinfo", lambda *a, **kw: _addrinfo(address)
+        )
+        with pytest.raises(ValueError) as excinfo:
+            validate_custom_model_url("https://api.example.com/v1")
+        assert str(excinfo.value) == url_guard.UNREACHABLE_HOST_MESSAGE
+
+    def test_public_v6_still_accepted(self, monkeypatch):
+        monkeypatch.setattr(
+            url_guard.socket,
+            "getaddrinfo",
+            lambda *a, **kw: _addrinfo("2606:4700:4700::1111"),
+        )
+        _normalized, ips = resolve_and_validate("https://api.example.com/v1")
+        assert ips == ["2606:4700:4700::1111"]
 
 
 @pytest.mark.unit
@@ -158,7 +254,7 @@ class TestHostnameDenyList:
         ],
     )
     def test_rejects_denied_hostnames(self, no_dns, url):
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="not a public address"):
             validate_custom_model_url(url)
 
 
@@ -195,7 +291,7 @@ class TestAllowPrivate:
 
     def test_explicit_false_overrides_env(self, no_dns, monkeypatch):
         monkeypatch.setenv("CUSTOM_MODEL_ALLOW_PRIVATE_URLS", "true")
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="not a public address"):
             validate_custom_model_url("http://localhost:11434", allow_private=False)
 
 

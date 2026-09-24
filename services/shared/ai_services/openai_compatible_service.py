@@ -252,6 +252,12 @@ class OpenAICompatibleService(BaseAIService):
         # (non-retryable); the outer _generate_async converts it to the
         # standard error dict. Import here: url_guard lives at the /shared
         # root, on sys.path in both containers.
+        from bounded_http import (
+            COMPLETION_MAX_BODY_BYTES,
+            ERROR_BODY_MAX_BYTES,
+            read_capped_json,
+            read_capped_text,
+        )
         from url_guard import pinned_connector, resolve_and_validate
 
         _normalized_url, validated_ips = resolve_and_validate(self.base_url)
@@ -299,15 +305,28 @@ class OpenAICompatibleService(BaseAIService):
                     raise Exception(
                         f"HTTP {response.status}: custom model endpoints must not redirect"
                     )
+                # SECURITY: bodies come from a user-controlled server. Both
+                # reads cap the DECOMPRESSED byte count (bounded_http), so a
+                # huge or gzip-bomb body cannot exhaust the worker's memory.
+                # Error bodies are truncated (only the head is kept anyway),
+                # so the status still decides retry vs. fail-fast. An
+                # oversized success body raises ResponseTooLargeError: a
+                # plain (non-retryable) exception with a generic message,
+                # so the attempt fails fast through the usual sanitizing
+                # path.
                 if response.status >= 400:
-                    error_body = await response.text()
+                    error_body = await read_capped_text(
+                        response, ERROR_BODY_MAX_BYTES, truncate=True
+                    )
                     message = f"HTTP {response.status}: {error_body[:500]}"
                     if response.status == 429 or response.status >= 500:
                         raise RetryableUpstreamError(
                             message, status=response.status
                         )
                     raise Exception(message)
-                result = await response.json()
+                result = await read_capped_json(
+                    response, COMPLETION_MAX_BODY_BYTES
+                )
 
         end_time = datetime.now()
         response_time_ms = int((end_time - start_time).total_seconds() * 1000)

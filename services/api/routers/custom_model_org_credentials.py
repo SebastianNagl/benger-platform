@@ -34,6 +34,7 @@ from database import get_async_db
 from models import CustomModelOrgCredential
 from models import LLMModel as DBLLMModel
 from models import ModelOrganization, Organization, OrganizationMembership, OrganizationRole
+from routers.model_access import lock_model_and_check_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +179,13 @@ async def set_org_custom_model_credential(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="api_key is required",
         )
+
+    # Lock the model row and confirm the endpoint is still the one the admin
+    # saw (``expected_base_url``, optional for older clients). The write
+    # below commits in the same transaction.
+    await lock_model_and_check_base_url(
+        db, model_id, request_body.get("expected_base_url")
+    )
 
     ok = await set_org_credential_async(
         db, organization_id, model_id, api_key, created_by=current_user.id

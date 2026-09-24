@@ -476,3 +476,60 @@ class TestVisibilityChangeDropsOrgCredentials:
         remaining = await self._remaining_cred_org_ids(async_test_db, model.id)
         assert org_a.id not in remaining
         assert remaining == {org_b.id}
+
+
+
+class TestOrgExpectedBaseUrl:
+    """Org PUT carries the base_url the admin saw; a changed endpoint 409s."""
+
+    async def _stored(self, async_test_db, model_id):
+        return (
+            await async_test_db.execute(
+                select(CustomModelOrgCredential).where(
+                    CustomModelOrgCredential.model_id == model_id
+                )
+            )
+        ).scalars().all()
+
+    @pytest.mark.asyncio
+    async def test_mismatch_returns_409_and_stores_nothing(
+        self, async_test_client, async_test_db
+    ):
+        admin, org, model = await _seed_shared(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.put(
+                f"/api/organizations/{org.id}/custom-models/{model.id}/credential",
+                json={
+                    "api_key": SECRET,
+                    "expected_base_url": "https://old-host.example.com/v1",
+                },
+            )
+        assert resp.status_code == status.HTTP_409_CONFLICT
+        assert resp.json()["detail"] == (
+            "The endpoint changed; please review it and try again."
+        )
+        assert await self._stored(async_test_db, model.id) == []
+
+    @pytest.mark.asyncio
+    async def test_match_stores_key(self, async_test_client, async_test_db):
+        admin, org, model = await _seed_shared(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.put(
+                f"/api/organizations/{org.id}/custom-models/{model.id}/credential",
+                json={"api_key": SECRET, "expected_base_url": model.base_url},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert len(await self._stored(async_test_db, model.id)) == 1
+
+    @pytest.mark.asyncio
+    async def test_omitted_is_backward_compatible(
+        self, async_test_client, async_test_db
+    ):
+        admin, org, model = await _seed_shared(async_test_db)
+        with _as_user(admin):
+            resp = await async_test_client.put(
+                f"/api/organizations/{org.id}/custom-models/{model.id}/credential",
+                json={"api_key": SECRET},
+            )
+        assert resp.status_code == status.HTTP_200_OK
+        assert len(await self._stored(async_test_db, model.id)) == 1

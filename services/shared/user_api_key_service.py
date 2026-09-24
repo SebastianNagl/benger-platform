@@ -425,6 +425,11 @@ async def validate_openai_compatible_endpoint(
     try:
         import aiohttp
 
+        from bounded_http import (
+            PROBE_MAX_BODY_BYTES,
+            ResponseTooLargeError,
+            read_capped_json,
+        )
         from url_guard import pinned_connector, resolve_and_validate
 
         _normalized_url, validated_ips = resolve_and_validate(base_url)
@@ -465,8 +470,18 @@ async def validate_openai_compatible_endpoint(
                         "Endpoint did not return a valid /models response",
                         "invalid_response",
                     )
+                # SECURITY: the body comes from a user-controlled server, so
+                # read it with a hard cap on decompressed bytes. aiohttp's
+                # .json() would buffer an arbitrarily large (or gzip-bomb)
+                # body in full.
                 try:
-                    await response.json()
+                    await read_capped_json(response, PROBE_MAX_BODY_BYTES)
+                except ResponseTooLargeError:
+                    return (
+                        False,
+                        "Endpoint response was too large",
+                        "invalid_response",
+                    )
                 except Exception:
                     return (
                         False,

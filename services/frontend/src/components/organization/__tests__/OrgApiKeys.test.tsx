@@ -116,6 +116,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         'organization.customModelKeys.keySaved': 'Shared key saved for {model}',
         'organization.customModelKeys.saveFailed':
           'Failed to save the shared key',
+        'organization.customModelKeys.endpointChanged':
+          'The endpoint of this model has changed.',
         'organization.customModelKeys.keyRemoved':
           'Shared key removed for {model}',
         'organization.customModelKeys.removeFailed':
@@ -1292,8 +1294,52 @@ describe('OrgApiKeys', () => {
           'org-1',
           'custom-abc',
           'shared-secret-key',
+          'http://10.0.0.5:8000/v1',
         ),
       )
+    })
+
+    it('on 409 (endpoint changed) shows the message and reloads the models', async () => {
+      mockListOrgCustomModels
+        .mockResolvedValueOnce([MODEL_UNCONFIGURED])
+        .mockResolvedValueOnce([
+          { ...MODEL_UNCONFIGURED, base_url: 'https://new-host.example/v1' },
+        ])
+      const conflict: any = new Error('conflict')
+      conflict.response = {
+        status: 409,
+        data: {
+          detail: 'The endpoint changed; please review it and try again.',
+        },
+      }
+      mockSetOrgCustomModelCredential.mockRejectedValue(conflict)
+      render(
+        <OrgApiKeys
+          organizationId="org-1"
+          isAdmin={true}
+          open={true}
+          onOpenChange={jest.fn()}
+        />,
+      )
+
+      await waitFor(() =>
+        expect(screen.getByText('My vLLM')).toBeInTheDocument(),
+      )
+      const input = screen.getByPlaceholderText('Enter the shared API key')
+      fireEvent.change(input, { target: { value: 'shared-secret-key' } })
+      fireEvent.click(screen.getByText('Save Key'))
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('The endpoint of this model has changed.'),
+        ).toBeInTheDocument(),
+      )
+      await waitFor(() =>
+        expect(
+          screen.getByText('https://new-host.example/v1'),
+        ).toBeInTheDocument(),
+      )
+      expect(mockListOrgCustomModels).toHaveBeenCalledTimes(2)
     })
 
     it('removes a configured shared key via removeOrgCustomModelCredential', async () => {

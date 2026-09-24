@@ -427,7 +427,11 @@ export function OrgApiKeys({
     }
   }
 
-  const setCustomModelKey = async (modelId: string, modelName: string) => {
+  const setCustomModelKey = async (
+    modelId: string,
+    modelName: string,
+    baseUrl?: string | null,
+  ) => {
     const apiKey = newCustomKeys[modelId]
     if (!apiKey || !apiKey.trim()) return
 
@@ -438,6 +442,7 @@ export function OrgApiKeys({
         organizationId,
         modelId,
         apiKey,
+        baseUrl ?? undefined,
       )
       setMessage({
         type: 'success',
@@ -447,6 +452,16 @@ export function OrgApiKeys({
       setShowCustomKeys((prev) => ({ ...prev, [modelId]: false }))
       await fetchCustomModels()
     } catch (error: any) {
+      if (error.response?.status === 409) {
+        // The endpoint changed since the list loaded. Keep the typed key,
+        // explain, and reload so the new endpoint is shown.
+        setMessage({
+          type: 'error',
+          text: t('organization.customModelKeys.endpointChanged'),
+        })
+        await fetchCustomModels()
+        return
+      }
       setMessage({
         type: 'error',
         text:
@@ -966,6 +981,7 @@ export function OrgApiKeys({
                                           setCustomModelKey(
                                             model.id,
                                             model.name,
+                                            model.base_url,
                                           )
                                         }
                                         disabled={isLoading || !newKey}
