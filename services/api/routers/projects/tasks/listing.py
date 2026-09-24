@@ -95,6 +95,9 @@ async def list_project_tasks(
     # window opens (editors exempt, attempted tier exempt). No-op when the
     # project has no window.
     await enforce_project_read_window_async(db, current_user, project, tier=access.tier)
+    await enforce_seb_async(
+        db, current_user, project, request, tier=access.tier, read=True
+    )
 
     # Check user's role and apply visibility rules
     user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
@@ -510,6 +513,7 @@ def _next_task_order(project, current_user) -> tuple:
 @router.get("/{project_id}/next")
 async def get_next_task(
     project_id: str,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -547,6 +551,8 @@ async def get_next_task(
     # Timed access window: no next task to hand out before the window opens
     # (editors exempt).
     await enforce_project_read_window_async(db, current_user, project, tier=tier)
+    # Safe Exam Browser: the next task is by definition unsubmitted content.
+    await enforce_seb_async(db, current_user, project, request, tier=tier)
 
     # Find next task based on assignment mode
     if project.assignment_mode == "manual":
@@ -884,6 +890,7 @@ async def get_next_task(
 @router.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(
     task_id: str,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -917,6 +924,9 @@ async def get_task(
     # window opens (editors exempt, attempted exempt). Serves task.data below.
     if project is not None:
         await enforce_project_read_window_async(db, current_user, project, tier=tier)
+        await enforce_seb_async(
+            db, current_user, project, request, tier=tier, read=True, task_id=task_id
+        )
 
     # Get generation count for this task
     total_generations = (

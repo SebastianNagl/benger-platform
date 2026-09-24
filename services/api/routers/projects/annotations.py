@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import String, cast, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,8 @@ from routers.projects.helpers import (
     enforce_project_read_window_async,
     enforce_project_write_window,
     enforce_project_write_window_async,
+    enforce_seb,
+    enforce_seb_async,
     get_effective_project_role_async,
     get_project_access_tier,
     get_project_access_tier_async,
@@ -38,6 +40,7 @@ router = APIRouter()
 async def create_annotation(
     task_id: str,  # Accept string task IDs
     annotation: AnnotationCreate,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -53,7 +56,8 @@ async def create_annotation(
     # the submit gate consistent with the read gates (task listing / next).
     # The attempted tier (read access through an own submission) never
     # submits again — coded 403.
-    require_write_tier(get_project_access_tier(db, current_user, task.project_id))
+    tier = get_project_access_tier(db, current_user, task.project_id)
+    require_write_tier(tier)
 
     # Enforce task assignment in manual/auto mode (Label Studio aligned: task is invisible)
     project = db.query(Project).filter(Project.id == task.project_id).first()
@@ -66,6 +70,9 @@ async def create_annotation(
     # (both land here); the server-side timer worker is gated separately.
     if project is not None:
         enforce_project_write_window(db, current_user, project)
+        # Safe Exam Browser: client submits (manual and client auto-submit)
+        # must come from SEB; the server-side timer worker never lands here.
+        enforce_seb(db, current_user, project, request, tier=tier)
 
     # ---- Duplicate-submit guard (one active annotation per task+user) -------
     # "Submitted is submitted": a given user has exactly one active annotation
@@ -436,6 +443,7 @@ async def list_task_annotations(
 async def update_annotation(
     annotation_id: str,
     annotation_update: AnnotationCreate,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -449,11 +457,10 @@ async def update_annotation(
         raise HTTPException(status_code=404, detail="Annotation not found")
 
     # None -> "Access denied"; attempted -> coded read-only 403 (an edit is a write).
-    require_write_tier(
-        await get_project_access_tier_async(
-            db, current_user, db_annotation.project_id
-        )
+    tier = await get_project_access_tier_async(
+        db, current_user, db_annotation.project_id
     )
+    require_write_tier(tier)
 
     # Enforce task assignment in manual/auto mode
     project = (
@@ -468,6 +475,7 @@ async def update_annotation(
     # window has closed (immutable after) or before it opens; editors exempt.
     if project is not None:
         await enforce_project_write_window_async(db, current_user, project)
+        await enforce_seb_async(db, current_user, project, request, tier=tier)
 
     # Check if user owns this annotation or has admin rights
     if db_annotation.completed_by != current_user.id and not current_user.is_superadmin:

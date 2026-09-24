@@ -131,7 +131,7 @@ class TestGetMyTasks:
         db.query.return_value.filter.return_value.first.return_value = None
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await get_my_tasks(project_id="proj-1",
+            await get_my_tasks(project_id="proj-1", request=Mock(),
                              page=1, page_size=30, status=None,  # noqa: E128
                              current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404

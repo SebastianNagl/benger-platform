@@ -105,6 +105,11 @@ def build_project_export_data(project, organization_id) -> dict:
         # Timed access window (nullable timestamps) — survive export/import.
         "window_start_at": _iso(project.window_start_at),
         "window_end_at": _iso(project.window_end_at),
+        # Safe Exam Browser settings travel with the exam; the import leaves
+        # the gate off (see import_stream) because the generated Config Key
+        # is bound to the source deployment's host.
+        "seb_required": project.seb_required,
+        "seb_config": project.seb_config,
         # Project kind + per-project settings. Without these a re-imported
         # exam came back as a plain project (kind NULL drops it from student
         # discovery) with its timer / checkpoint / feature toggles reset.

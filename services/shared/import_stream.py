@@ -2449,6 +2449,11 @@ def _create_imported_project(
         # which resets, a window is intrinsic project config worth carrying over).
         window_start_at=_parse_iso(project_data.get("window_start_at")),
         window_end_at=_parse_iso(project_data.get("window_end_at")),
+        # Safe Exam Browser: keep the settings but start with the gate off.
+        # The accepted Config Key is computed over a .seb file whose URLs name
+        # the source host, so a re-enable (which regenerates it) is required.
+        seb_required=False,
+        seb_config=project_data.get("seb_config"),
         # Kind + per-project settings. Older exports lack these keys, so every
         # read falls back to the column default (also for an explicit null on
         # a NOT NULL column).

@@ -55,6 +55,7 @@ from project_window import (
     project_window_state,
     project_writes_allowed,
 )
+import seb
 
 
 # Re-export the noise filter from /shared. Single source of truth lives in
@@ -3011,6 +3012,96 @@ async def enforce_project_write_window_async(db: AsyncSession, user, project) ->
     ):
         return
     raise _window_403(project, project_window_state(project))
+
+
+# ── Safe Exam Browser ────────────────────────────────────────────────────────
+# A project with ``seb_required`` only serves exam content to, and accepts exam
+# writes from, non-editors whose request carries an accepted SEB proof (see
+# /shared/seb.py). Same exemptions as the window guards: anyone who can EDIT
+# the project (so organizers set up and review in a normal browser), and the
+# read-only attempted access to an own submission (grades and corrections
+# stay readable anywhere). Server-side actions (the auto-submit worker) never
+# pass through here.
+
+
+def _seb_403(code: str) -> HTTPException:
+    message = (
+        "This exam must be opened in an approved Safe Exam Browser version."
+        if code == seb.CODE_SEB_VERSION_NOT_ALLOWED
+        else "This exam must be opened in Safe Exam Browser."
+    )
+    return HTTPException(status_code=403, detail={"code": code, "message": message})
+
+
+def _seb_check(request, project) -> None:
+    result = seb.verify_seb_request(
+        request.headers, request.url.path, request.url.query, project.seb_config
+    )
+    if not result.ok:
+        raise _seb_403(result.code)
+
+
+def enforce_seb(
+    db: Session,
+    user,
+    project,
+    request,
+    *,
+    tier: Optional[str] = None,
+    read: bool = False,
+    task_id: Optional[str] = None,
+) -> None:
+    """Sync: raise 403 unless the request may touch this SEB exam.
+
+    No-op when the project does not require SEB, for editors, and for the
+    attempted tier. Reads (``read=True``) of work the user already submitted
+    stay allowed outside SEB, so results and corrections can be viewed
+    anywhere: with ``task_id`` the user must have submitted that task,
+    without it any task of the project. Writes are always checked.
+    """
+    if project is None or not getattr(project, "seb_required", False):
+        return
+    if tier == TIER_ATTEMPTED:
+        return
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return
+    if read and (
+        user_attempted_task(db, user.id, task_id)
+        if task_id is not None
+        else user_attempted_project(db, user.id, project.id)
+    ):
+        return
+    _seb_check(request, project)
+
+
+async def enforce_seb_async(
+    db: AsyncSession,
+    user,
+    project,
+    request,
+    *,
+    tier: Optional[str] = None,
+    read: bool = False,
+    task_id: Optional[str] = None,
+) -> None:
+    """Async twin of :func:`enforce_seb`."""
+    if project is None or not getattr(project, "seb_required", False):
+        return
+    if tier == TIER_ATTEMPTED:
+        return
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return
+    if read and (
+        await user_attempted_task_async(db, user.id, task_id)
+        if task_id is not None
+        else await user_attempted_project_async(db, user.id, project.id)
+    ):
+        return
+    _seb_check(request, project)
 
 
 # NOTE: the canonical project-access dependency is `require_project_access` in

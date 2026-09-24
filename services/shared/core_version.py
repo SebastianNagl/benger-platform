@@ -309,11 +309,19 @@ whenever one is added, renamed or removed):
   rows of older exports (``"project_members": 0`` in the result), and
   ``stream_io.serialize_project_member_row`` is gone. Extended code must not
   import ``ProjectMember``.
+
+2.25 (2026-09-24): Safe Exam Browser support. ``Project.seb_required`` and
+  ``Project.seb_config`` (migration 109), the pure verifier ``/shared/seb.py``
+  and the guards ``enforce_seb`` / ``enforce_seb_async`` in
+  ``routers.projects.helpers`` (called by the platform exam endpoints; the
+  extended timer and student-exam routes call them too).
+  ``ProjectResponse.seb_required`` is exposed read-only; the extended edition
+  owns the settings endpoint that writes both columns.
 """
 
 import os
 
-CORE_API_VERSION = "2.24"
+CORE_API_VERSION = "2.25"
 
 
 def extended_required() -> bool:
