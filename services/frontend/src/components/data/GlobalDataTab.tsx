@@ -59,7 +59,7 @@ interface PaginatedResponse<T> {
   total: number
   page: number
   page_size: number
-  total_pages: number
+  pages: number
 }
 
 export function GlobalDataTab() {
@@ -156,7 +156,7 @@ export function GlobalDataTab() {
       )) as PaginatedResponse<GlobalTask>
 
       setTasks(response.items)
-      setTotalPages(response.total_pages)
+      setTotalPages(response.pages)
       setTotalTasks(response.total)
     } catch (error) {
       console.error('Failed to fetch tasks:', error)

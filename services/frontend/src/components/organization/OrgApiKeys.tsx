@@ -454,11 +454,15 @@ export function OrgApiKeys({
     } catch (error: any) {
       if (error.response?.status === 409) {
         // The endpoint changed since the list loaded. Keep the typed key,
-        // explain, and reload so the new endpoint is shown.
+        // explain, and reload so the new endpoint is shown. Drop the cached
+        // list first, or the reload serves the old base_url for 30 s.
         setMessage({
           type: 'error',
           text: t('organization.customModelKeys.endpointChanged'),
         })
+        organizationsAPI.invalidateCache(
+          `/organizations/${organizationId}/custom-models`,
+        )
         await fetchCustomModels()
         return
       }

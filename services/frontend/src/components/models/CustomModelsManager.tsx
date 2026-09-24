@@ -66,13 +66,20 @@ export function CustomModelsManager({
   const cbRef = useRef({ t, onModelsLoaded })
   cbRef.current = { t, onModelsLoaded }
 
+  // Only the first load swaps the lists for a spinner. Later refreshes
+  // (after a save, a delete, or a 409 on a key save) run in the background
+  // so the rendered rows stay mounted and keep their local state (typed
+  // key, status message, expanded state) while the new data arrives.
+  const hasLoadedRef = useRef(false)
+
   const loadModels = useCallback(async () => {
     try {
-      setLoading(true)
+      if (!hasLoadedRef.current) setLoading(true)
       setError(null)
       const data = await customModelsAPI.list()
       const list = Array.isArray(data) ? data : []
       setModels(list)
+      hasLoadedRef.current = true
       cbRef.current.onModelsLoaded?.(list)
     } catch (err) {
       console.error('Failed to load custom models:', err)

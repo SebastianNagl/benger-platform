@@ -10,8 +10,8 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-24',
     audience: 'benger',
     text: {
-      de: 'In der Datenverwaltung funktionieren „Als abgeschlossen markieren“ und „Als unvollständig markieren“ wieder. Die Tabelle zeigt den neuen Status sofort an.',
-      en: 'In data management, “Mark as complete” and “Mark as incomplete” work again. The table shows the new status right away.',
+      de: 'In der Datenverwaltung funktionieren „Als abgeschlossen markieren“ und „Als unvollständig markieren“ wieder. Die Tabelle zeigt den neuen Status sofort an, und das Blättern zwischen den Seiten klappt wieder.',
+      en: 'In data management, “Mark as complete” and “Mark as incomplete” work again. The table shows the new status right away, and moving between pages works again.',
     },
   },
   {

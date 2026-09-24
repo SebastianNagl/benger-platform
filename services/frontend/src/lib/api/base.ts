@@ -224,6 +224,20 @@ export class BaseApiClient {
       patterns.push('/notifications/unread-count')
     }
 
+    // Custom-model (BYOM) writes: edits, visibility, deletes and credential
+    // changes all show up in the list payloads (base_url, has_credential,
+    // has_org_credential). Without this the post-save refetch served the
+    // old list from the 30s cache.
+    if (mutationEndpoint.startsWith('/custom-models')) {
+      patterns.push('/custom-models')
+    }
+    const orgCustomModelsMatch = mutationEndpoint.match(
+      /^\/organizations\/([^\/]+)\/custom-models/,
+    )
+    if (orgCustomModelsMatch) {
+      patterns.push(`/organizations/${orgCustomModelsMatch[1]}/custom-models`)
+    }
+
     // Global data-page bulk writes change rows of the cross-project task
     // listing; without this the post-mutation refetch served the stale
     // page from the 30s cache.

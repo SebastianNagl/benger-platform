@@ -17,6 +17,16 @@ import type {
 
 export const customModelsAPI = {
   /**
+   * Drop cached GET responses for custom-model reads (list, detail,
+   * credential status). The apiClient caches GETs for 30 s and failed
+   * mutations never invalidate, so a refetch after e.g. a 409 would
+   * otherwise return the stale model (and its old base_url).
+   */
+  invalidateCache: (): void => {
+    apiClient.invalidateCache('/custom-models')
+  },
+
+  /**
    * List all custom models visible to the caller
    * (own + org-shared + public).
    */
