@@ -1,5 +1,6 @@
 """Task data field discovery endpoint + field extraction helper."""
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from .blinding import annotator_bound_fields_or_none_async, blind_task_data
 
 
 SENSITIVE_FIELD_PATTERNS = {
@@ -14,6 +15,44 @@ SENSITIVE_FIELD_PATTERNS = {
     "labels",
     "gold_standard",
 }
+
+#: Defense in depth for BLINDED (non-editor) callers only: any path segment
+#: containing one of these (casefolded) is dropped even when the label config
+#: binds it. Covers the German reference-solution family in every spelling
+#: (Musterlösung / musterloesung / musterlosung, Lösungsskizze, …). Editors
+#: keep seeing these fields — they map them into judge prompts.
+BLINDED_REFERENCE_MARKERS = (
+    "musterl",
+    "lösungsskizze",
+    "loesungsskizze",
+    "lösungshinweis",
+    "loesungshinweis",
+    "reference",
+    "ground_truth",
+    "gold",
+    "correct_answer",
+    "expected_output",
+    "solution",
+)
+
+
+def _is_reference_path(path: str) -> bool:
+    segments = path.lstrip("$").split(".")
+    return any(
+        marker in segment.casefold()
+        for segment in segments
+        for marker in BLINDED_REFERENCE_MARKERS
+    )
+
+
+def _blinded_field_listing(fields: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Field listing for a blinded caller: no reference-like paths, and no
+    sample VALUES at all (only editors configure mappings from samples)."""
+    return [
+        {**field, "sample_value": None}
+        for field in fields
+        if not _is_reference_path(field["path"])
+    ]
 
 
 def extract_fields_from_data(data: Dict[str, Any], prefix: str = "") -> List[Dict[str, Any]]:
@@ -132,6 +171,11 @@ async def get_task_data_fields(
             "sample_task_count": 0,
         }
 
+    # Annotator blinding: non-editor tiers only learn about the fields the
+    # labeling view would show them (label-config-bound keys), and never
+    # receive sample values. Editor tiers are unaffected.
+    bound_fields = await annotator_bound_fields_or_none_async(db, current_user, project)
+
     # Aggregate fields from all sample tasks
     all_fields: Dict[str, Dict[str, Any]] = {}
 
@@ -139,7 +183,12 @@ async def get_task_data_fields(
         if not task.data:
             continue
 
-        task_fields = extract_fields_from_data(task.data)
+        if bound_fields is None:
+            task_fields = extract_fields_from_data(task.data)
+        else:
+            task_fields = _blinded_field_listing(
+                extract_fields_from_data(blind_task_data(task.data, bound_fields))
+            )
 
         for field in task_fields:
             # Keep first sample value encountered

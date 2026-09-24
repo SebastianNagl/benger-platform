@@ -661,10 +661,10 @@ describe('GlobalDataTab', () => {
 
       // Wait for the POST call
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith('/data/bulk-update-status', {
-          task_ids: ['task-1'],
-          is_labeled: true,
-        })
+        expect(mockPost).toHaveBeenCalledWith(
+          '/data/bulk-update-status?is_labeled=true',
+          ['task-1'],
+        )
       })
 
       // Wait for the toast to be called
@@ -700,10 +700,10 @@ describe('GlobalDataTab', () => {
       await user.click(incompleteButton)
 
       await waitFor(() => {
-        expect(mockPost).toHaveBeenCalledWith('/data/bulk-update-status', {
-          task_ids: expect.arrayContaining(['task-1', 'task-2']),
-          is_labeled: false,
-        })
+        expect(mockPost).toHaveBeenCalledWith(
+          '/data/bulk-update-status?is_labeled=false',
+          expect.arrayContaining(['task-1', 'task-2']),
+        )
       })
 
       await waitFor(() => {

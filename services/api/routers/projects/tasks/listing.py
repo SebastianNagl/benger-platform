@@ -4,6 +4,7 @@ from .blinding import (
     annotator_bound_fields_or_none_async,
     blind_task_data,
     revealed_task_ids_async,
+    visible_keys_match,
     visible_top_level_keys,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
@@ -183,11 +184,10 @@ async def list_project_tasks(
                 )
             )
         else:
-            visible = sorted(visible_top_level_keys(_bound_fields))
+            visible = visible_top_level_keys(_bound_fields)
             clauses = [func.cast(Task.id, String).ilike(like)]
-            # ->> via .op(): tasks.data is plain json, and .astext only
-            # exists on the JSONB comparator.
-            clauses += [Task.data.op('->>')(key).ilike(like) for key in visible]
+            if visible:
+                clauses.append(visible_keys_match(Task.data, visible, like))
             query = query.where(or_(*clauses))
 
     # created_at range; tolerate either YYYY-MM-DD or full ISO.

@@ -29,8 +29,9 @@ the Musterlösung PRE-submit — the exact leak this module closes.
 
 from typing import Dict, Iterable, Optional, Set
 
-from sqlalchemy import select
+from sqlalchemy import case, cast, exists, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.types import JSON
 
 from project_models import Annotation, Project
 from routers.projects.helpers import get_effective_project_role_async
@@ -120,3 +121,27 @@ def blind_task_data(task_data, bound_fields: Set[str]) -> Dict:
         return {}
     visible = visible_top_level_keys(bound_fields)
     return {k: v for k, v in task_data.items() if k.casefold() in visible}
+
+
+def visible_keys_match(data_column, visible_keys: Iterable[str], pattern: str):
+    """SQL condition: a top-level key of ``data_column`` (a task.data JSON
+    column) whose casefolded name is in ``visible_keys`` — as produced by
+    :func:`visible_top_level_keys` — has a text value ILIKE ``pattern``.
+
+    The search counterpart of :func:`blind_task_data`: blinded callers may
+    search only what they may see. Key matching is case-insensitive like the
+    labeling UI's binding resolver (a ``$sachverhalt`` binding makes a
+    ``Sachverhalt`` key searchable); non-object payloads never match.
+    """
+    keys = sorted(visible_keys)
+    data_json = cast(data_column, JSON)
+    data_obj = case(
+        (func.json_typeof(data_json) == "object", data_json),
+        else_=cast(literal("{}"), JSON),
+    )
+    kv = func.json_each_text(data_obj).table_valued("key", "value").alias("kv")
+    return exists(
+        select(literal(1))
+        .select_from(kv)
+        .where(func.lower(kv.c.key).in_(keys), kv.c.value.ilike(pattern))
+    )
