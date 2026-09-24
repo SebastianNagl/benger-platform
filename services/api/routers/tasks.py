@@ -4,14 +4,14 @@ Provides endpoints to list, filter, and manage tasks across all projects.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, case, cast, exists, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy.types import String
+from sqlalchemy.types import JSON, String
 
 from auth_module import User as AuthUser
 from auth_module import require_user
@@ -96,6 +96,102 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     return list(project_ids)
 
 
+async def _blinding_by_project(
+    db: AsyncSession, user: AuthUser, projects: Iterable[Project]
+) -> Dict[str, Optional[Set[str]]]:
+    """Per-project annotator-blinding decision for the cross-project surface.
+
+    Reuses the exact decision the per-project serving endpoints apply
+    (routers/projects/tasks/blinding.py): ``None`` = editor tier, full
+    ``task.data``; a set = the label-config-bound fields the caller may see.
+    """
+    from routers.projects.tasks.blinding import annotator_bound_fields_or_none_async
+
+    decisions: Dict[str, Optional[Set[str]]] = {}
+    for project in projects:
+        if project.id not in decisions:
+            decisions[project.id] = await annotator_bound_fields_or_none_async(
+                db, user, project
+            )
+    return decisions
+
+
+async def _revealed_ids_by_project(
+    db: AsyncSession,
+    user: AuthUser,
+    tasks: Iterable[Task],
+    decisions: Dict[str, Optional[Set[str]]],
+) -> Set[str]:
+    """Task ids a blinded caller may see in full via the post-submit reveal."""
+    from routers.projects.tasks.blinding import revealed_task_ids_async
+
+    by_project: Dict[str, List[Task]] = {}
+    for task in tasks:
+        if decisions.get(task.project_id) is not None:
+            by_project.setdefault(task.project_id, []).append(task)
+    revealed: Set[str] = set()
+    for project_tasks in by_project.values():
+        revealed |= await revealed_task_ids_async(
+            db, user, project_tasks[0].project, [t.id for t in project_tasks]
+        )
+    return revealed
+
+
+def _served_task_data(
+    task: Task,
+    decisions: Dict[str, Optional[Set[str]]],
+    revealed_ids: Set[str],
+):
+    """``task.data`` as the caller may see it (full or blinded)."""
+    from routers.projects.tasks.blinding import blind_task_data
+
+    bound = decisions.get(task.project_id)
+    if bound is None or task.id in revealed_ids:
+        return task.data
+    return blind_task_data(task.data, bound)
+
+
+def _visible_keys_match(visible_keys, pattern: str):
+    """SQL condition: a top-level ``task.data`` key in ``visible_keys``
+    (casefolded, as produced by ``visible_top_level_keys``) has a value
+    matching ``pattern``. Key matching is case-insensitive like the labeling
+    UI's binding resolver; non-object payloads never match."""
+    data_json = cast(Task.data, JSON)
+    data_obj = case(
+        (func.json_typeof(data_json) == "object", data_json),
+        else_=cast(literal("{}"), JSON),
+    )
+    kv = func.json_each_text(data_obj).table_valued("key", "value").alias("kv")
+    return exists(
+        select(literal(1))
+        .select_from(kv)
+        .where(
+            func.lower(kv.c.key).in_(list(visible_keys)),
+            kv.c.value.ilike(pattern),
+        )
+    )
+
+
+async def _upcoming_blocked_project_ids(
+    db: AsyncSession, user: AuthUser, projects: Iterable[Project]
+) -> Set[str]:
+    """Projects whose timed window has not opened and the caller cannot edit.
+
+    Task data of those projects is hidden from the access group until the
+    window opens (editors exempt), same as the per-project read endpoints.
+    """
+    from project_window import project_window_state
+    from routers.projects.helpers import check_user_can_edit_project_async
+
+    blocked: Set[str] = set()
+    for project in {p.id: p for p in projects}.values():
+        if project_window_state(project) == "upcoming" and not (
+            await check_user_can_edit_project_async(db, user, project.id)
+        ):
+            blocked.add(project.id)
+    return blocked
+
+
 @router.get("/", response_model=PaginatedResponse[TaskResponse])
 async def list_all_tasks(
     page: int = Query(1, ge=1, description="Page number"),
@@ -134,6 +230,22 @@ async def list_all_tasks(
             return PaginatedResponse(items=[], total=0, page=page, page_size=page_size, pages=0)
     else:
         filtered_project_ids = accessible_projects
+
+    # Timed access window: drop projects whose window has not opened yet for
+    # callers who cannot edit them (the per-project endpoints 403 them).
+    scope_projects = (
+        (
+            await db.execute(select(Project).where(Project.id.in_(filtered_project_ids)))
+        )
+        .scalars()
+        .all()
+        if filtered_project_ids
+        else []
+    )
+    blocked_pids = await _upcoming_blocked_project_ids(db, current_user, scope_projects)
+    if blocked_pids:
+        scope_projects = [p for p in scope_projects if p.id not in blocked_pids]
+        filtered_project_ids = [pid for pid in filtered_project_ids if pid not in blocked_pids]
 
     # Build base query with project information. Eager-load the relationships
     # the response reads (project / assigned_user / annotations) so the async
@@ -184,8 +296,38 @@ async def list_all_tasks(
     # Apply search filter (searches in data and meta fields)
     if search:
         search_pattern = f"%{search}%"
+        # Blinded projects (annotator tier) are searched ONLY over their
+        # visible, config-bound top-level keys, as on the per-project task
+        # listing: matching against the raw JSON would let the match count
+        # reveal content of hidden reference fields.
+        from routers.projects.tasks.blinding import visible_top_level_keys
+
+        decisions = await _blinding_by_project(db, current_user, scope_projects)
+        full_pids = [pid for pid, bound in decisions.items() if bound is None]
+        blinded_by_keys: Dict[tuple, List[str]] = {}
+        for pid, bound in decisions.items():
+            if bound is not None:
+                keys = tuple(sorted(visible_top_level_keys(bound)))
+                blinded_by_keys.setdefault(keys, []).append(pid)
+
+        data_clauses = []
+        if full_pids:
+            data_clauses.append(
+                and_(
+                    Task.project_id.in_(full_pids),
+                    func.cast(Task.data, String).ilike(search_pattern),
+                )
+            )
+        for keys, pids in blinded_by_keys.items():
+            if keys:
+                data_clauses.append(
+                    and_(
+                        Task.project_id.in_(pids),
+                        _visible_keys_match(keys, search_pattern),
+                    )
+                )
         search_cond = or_(
-            func.cast(Task.data, String).ilike(search_pattern),
+            *(data_clauses or [false()]),
             func.cast(Task.meta, String).ilike(search_pattern),
             Task.id.ilike(search_pattern),
         )
@@ -228,6 +370,12 @@ async def list_all_tasks(
             # First org wins, mirroring the prior .first() semantics.
             org_name_by_project.setdefault(pid, name)
 
+    # Annotator blinding: reference fields (Musterlösung, ground truth, …)
+    # are stripped for non-editor tiers exactly like on the per-project task
+    # endpoints; editor tiers keep the full data.
+    page_decisions = await _blinding_by_project(db, current_user, [t.project for t in tasks])
+    revealed_ids = await _revealed_ids_by_project(db, current_user, tasks, page_decisions)
+
     # Format tasks for response
     task_responses = []
     for task in tasks:
@@ -244,7 +392,7 @@ async def list_all_tasks(
                 "title": task.project.title,
                 "organization": org_name,
             },
-            data=task.data,
+            data=_served_task_data(task, page_decisions, revealed_ids),
             meta=task.meta or {},
             is_labeled=task.is_labeled,
             assigned_to=task.assigned_user if task.assigned_to else None,
@@ -384,18 +532,15 @@ async def export_tasks(
     # the user can edit that project (owner/admin/contributor exempt). Batched
     # over the distinct upcoming projects so the edit check runs at most once
     # each (usually zero). task.project is eager-loaded above.
-    from project_window import project_window_state
-    from routers.projects.helpers import check_user_can_edit_project_async
-
-    upcoming_pids = {
-        t.project_id for t in tasks if project_window_state(t.project) == "upcoming"
-    }
-    blocked_pids = set()
-    for pid in upcoming_pids:
-        if not await check_user_can_edit_project_async(db, current_user, pid):
-            blocked_pids.add(pid)
+    blocked_pids = await _upcoming_blocked_project_ids(
+        db, current_user, [t.project for t in tasks]
+    )
     if blocked_pids:
         tasks = [t for t in tasks if t.project_id not in blocked_pids]
+
+    # Annotator blinding, same as the listing above.
+    decisions = await _blinding_by_project(db, current_user, [t.project for t in tasks])
+    revealed_ids = await _revealed_ids_by_project(db, current_user, tasks, decisions)
 
     if format == "json":
         # Export as JSON
@@ -411,7 +556,7 @@ async def export_tasks(
                     "id": task.id,
                     "project_id": task.project_id,
                     "project_title": task.project.title,
-                    "data": task.data,
+                    "data": _served_task_data(task, decisions, revealed_ids),
                     "meta": task.meta,
                     "is_labeled": task.is_labeled,
                     "assigned_to": task.assigned_to,
