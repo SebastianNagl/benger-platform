@@ -90,10 +90,11 @@ services:
   # port mapping) so the host browser can replay them; containers talk to
   # http://test-minio:9000 directly.
   test-minio:
-    # quay.io, not Docker Hub: MinIO stopped serving minio/minio to anonymous
-    # pulls (both tag and digest now 401), which broke every CI job that brings
-    # up this stack. Same digest, so byte-identical content.
-    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    # pgsty/minio: maintained community build of MinIO. Upstream stopped
+    # publishing images (Docker Hub and quay.io both 401 since 2026-09-24).
+    # Data-compatible with the previous RELEASE.2025-09-07 server in both
+    # directions. RELEASE.2026-08-04T00-00-00Z, multi-arch index.
+    image: docker.io/pgsty/minio@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
     hostname: test-minio
     restart: unless-stopped
     ports:
