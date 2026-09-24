@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-24',
     audience: 'benger',
     text: {
+      de: 'In der Datenverwaltung funktionieren „Als abgeschlossen markieren“ und „Als unvollständig markieren“ wieder. Die Tabelle zeigt den neuen Status sofort an.',
+      en: 'In data management, “Mark as complete” and “Mark as incomplete” work again. The table shows the new status right away.',
+    },
+  },
+  {
+    date: '2026-09-24',
+    audience: 'benger',
+    text: {
       de: 'Auf der Modellseite stehen eigene Modelle jetzt ganz oben. Die Schaltfläche „Modell registrieren“ sitzt wie auf den anderen Seiten über der Filterleiste.',
       en: 'On the Models page, custom models now appear at the top. The “Register model” button sits above the filter bar, like on the other pages.',
     },

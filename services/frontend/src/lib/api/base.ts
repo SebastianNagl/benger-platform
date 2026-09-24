@@ -224,6 +224,13 @@ export class BaseApiClient {
       patterns.push('/notifications/unread-count')
     }
 
+    // Global data-page bulk writes change rows of the cross-project task
+    // listing; without this the post-mutation refetch served the stale
+    // page from the 30s cache.
+    if (mutationEndpoint.startsWith('/data/bulk-')) {
+      patterns.push('/data/?')
+    }
+
     // Invalidate each pattern
     patterns.forEach((pattern) => {
       this.invalidateCache(pattern)

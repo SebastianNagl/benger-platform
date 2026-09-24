@@ -377,6 +377,22 @@ describe('BaseApiClient - additional uncovered paths', () => {
       expect(client.cacheHas('user1-GET-/users/api-keys/status')).toBe(false)
     })
 
+    it('invalidates the global task listing after a data bulk write', async () => {
+      localStorageMock.getItem.mockReturnValue('user1')
+      client.seedCache('user1-GET-/data/?page=1&page_size=25', { items: [] })
+      client.seedCache('user1-GET-/projects/p1', { id: 'p1' })
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(delete204())
+
+      await client.testRequest('/data/bulk-update-status?is_labeled=false', {
+        method: 'POST',
+      })
+
+      expect(client.cacheHas('user1-GET-/data/?page=1&page_size=25')).toBe(
+        false,
+      )
+      expect(client.cacheHas('user1-GET-/projects/p1')).toBe(true)
+    })
+
     it('invalidates org api-keys after an org api-key mutation', async () => {
       localStorageMock.getItem.mockReturnValue('user1')
       client.seedCache('user1-GET-/organizations/abc/api-keys', { keys: [] })
