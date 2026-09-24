@@ -199,12 +199,14 @@ export interface OrganizationMember extends MemberPrivacyFlags {
   groups?: Array<{ id: string; name: string; is_group_admin: boolean }>
 }
 
+// No token field: the list and create endpoints never return the acceptance
+// token (the invite link is mailed server-side). Only the public by-token
+// lookup echoes it, and its caller already has it from the URL.
 export interface Invitation {
   id: string
   organization_id: string
   email: string
   role: OrganizationRole
-  token: string
   invited_by: string
   expires_at: string
   accepted_at: string | null

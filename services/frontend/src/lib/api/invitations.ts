@@ -16,12 +16,14 @@ import { OrganizationRole } from './types'
  */
 export type InvitationEmailStatus = 'sent' | 'failed' | 'queued' | 'unknown'
 
+// No token field: the list and create endpoints never return the acceptance
+// token (the invite link is mailed server-side). Only the public by-token
+// lookup echoes it, and its caller already has it from the URL.
 export interface InvitationDetails {
   id: string
   organization_id: string
   email: string
   role: OrganizationRole
-  token: string
   invited_by: string
   expires_at: string
   accepted_at: string | null
