@@ -317,3 +317,164 @@ class TestSearchRobustness:
             async_test_client, world["annotator"], world["project"].id, search="Gebraucht"
         )
         assert [item["id"] for item in body["items"]] == [world["tasks"][0].id]
+
+
+async def _second_org_project(db, world):
+    """A project in another org where the CONTRIBUTOR of ``world`` is only an
+    ANNOTATOR (so a selection spanning both projects is mixed for them)."""
+    org2 = Organization(
+        id=_uid(),
+        name="XBlind Org 2",
+        slug=f"xblind-org2-{_uid()[:8]}",
+        display_name="XBlind Org 2",
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org2)
+    await db.flush()
+    db.add(
+        OrganizationMembership(
+            id=_uid(),
+            user_id=world["contributor"].id,
+            organization_id=org2.id,
+            role=OrganizationRole.ANNOTATOR,
+            is_active=True,
+            joined_at=datetime.now(timezone.utc),
+        )
+    )
+    project2 = Project(
+        id=_uid(),
+        title=f"XBlind Project 2 {_uid()[:6]}",
+        label_config=BOUND_CONFIG,
+        created_by=world["admin"].id,
+        is_published=True,
+        assignment_mode="open",
+    )
+    db.add(project2)
+    await db.flush()
+    db.add(
+        ProjectOrganization(
+            id=_uid(),
+            project_id=project2.id,
+            organization_id=org2.id,
+            assigned_by=world["admin"].id,
+        )
+    )
+    task2 = Task(
+        id=_uid(),
+        project_id=project2.id,
+        inner_id=1,
+        data={"Sachverhalt": "x"},
+        meta={},
+        created_by=world["admin"].id,
+        updated_by=world["admin"].id,
+    )
+    db.add(task2)
+    await db.commit()
+    return task2
+
+
+async def _is_labeled(db, task_ids):
+    from sqlalchemy import select
+
+    rows = await db.execute(select(Task.id, Task.is_labeled).where(Task.id.in_(task_ids)))
+    return {tid: labeled for tid, labeled in rows.all()}
+
+
+class TestBulkWritesRequireEditRights:
+    @pytest.mark.asyncio
+    async def test_annotator_cannot_bulk_update_status(
+        self, async_test_client, async_test_db, world
+    ):
+        ids = [t.id for t in world["tasks"]]
+        with _as_user(world["annotator"]):
+            resp = await async_test_client.post(
+                "/api/data/bulk-update-status?is_labeled=true", json=ids
+            )
+        assert resp.status_code == 403, resp.text
+        async_test_db.expire_all()
+        assert set((await _is_labeled(async_test_db, ids)).values()) == {False}
+
+    @pytest.mark.asyncio
+    async def test_annotator_cannot_bulk_assign(
+        self, async_test_client, async_test_db, world
+    ):
+        ids = [t.id for t in world["tasks"]]
+        with _as_user(world["annotator"]):
+            resp = await async_test_client.post(
+                f"/api/data/bulk-assign?user_id={world['annotator'].id}", json=ids
+            )
+        assert resp.status_code == 403, resp.text
+
+    @pytest.mark.asyncio
+    async def test_editor_bulk_writes_still_work(
+        self, async_test_client, async_test_db, world
+    ):
+        ids = [t.id for t in world["tasks"]]
+        with _as_user(world["contributor"]):
+            status = await async_test_client.post(
+                "/api/data/bulk-update-status?is_labeled=true", json=ids
+            )
+            assign = await async_test_client.post(
+                f"/api/data/bulk-assign?user_id={world['annotator'].id}", json=ids
+            )
+        assert status.status_code == 200, status.text
+        assert assign.status_code == 200, assign.text
+        async_test_db.expire_all()
+        assert set((await _is_labeled(async_test_db, ids)).values()) == {True}
+
+    @pytest.mark.asyncio
+    async def test_mixed_selection_is_rejected_whole(
+        self, async_test_client, async_test_db, world
+    ):
+        task2 = await _second_org_project(async_test_db, world)
+        ids = [world["tasks"][0].id, task2.id]
+        with _as_user(world["contributor"]):
+            resp = await async_test_client.post(
+                "/api/data/bulk-update-status?is_labeled=true", json=ids
+            )
+        assert resp.status_code == 403, resp.text
+        async_test_db.expire_all()
+        # Nothing was written, not even on the editable project.
+        assert set((await _is_labeled(async_test_db, ids)).values()) == {False}
+
+
+class TestGlobalListingAssignee:
+    @pytest.mark.asyncio
+    async def test_other_users_assignment_hidden_from_annotator(
+        self, async_test_client, async_test_db, world
+    ):
+        world["tasks"][0].assigned_to = world["contributor"].id
+        world["tasks"][1].assigned_to = world["annotator"].id
+        await async_test_db.commit()
+
+        anno = await _list(async_test_client, world["annotator"], world["project"].id)
+        by_id = {item["id"]: item["assigned_to"] for item in anno["items"]}
+        assert by_id[world["tasks"][0].id] is None
+        assert world["contributor"].email not in json.dumps(anno)
+        # Their own assignment stays visible.
+        assert by_id[world["tasks"][1].id] == world["annotator"].name
+
+        editor = await _list(async_test_client, world["admin"], world["project"].id)
+        by_id = {item["id"]: item["assigned_to"] for item in editor["items"]}
+        assert by_id[world["tasks"][0].id] == world["contributor"].name
+        assert by_id[world["tasks"][1].id] == world["annotator"].name
+
+
+class TestProjectListingSearch:
+    @pytest.mark.asyncio
+    async def test_blinded_search_matches_bound_key_case_insensitively(
+        self, async_test_client, world
+    ):
+        """``$sachverhalt`` binds the ``Sachverhalt`` key (like the labeling
+        UI), so its content must be searchable for the annotator too."""
+        with _as_user(world["annotator"]):
+            hit = await async_test_client.get(
+                f"/api/projects/{world['project'].id}/tasks", params={"search": "Gebraucht"}
+            )
+            miss = await async_test_client.get(
+                f"/api/projects/{world['project'].id}/tasks", params={"search": "GEHEIME"}
+            )
+        assert hit.status_code == 200, hit.text
+        assert len(hit.json()["items"]) == 2
+        assert miss.status_code == 200, miss.text
+        assert miss.json()["items"] == []

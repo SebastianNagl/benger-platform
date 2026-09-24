@@ -8,10 +8,10 @@ from typing import Any, Dict, Iterable, List, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import and_, case, cast, exists, false, func, literal, or_, select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from sqlalchemy.types import JSON, String
+from sqlalchemy.types import String
 
 from auth_module import User as AuthUser
 from auth_module import require_user
@@ -30,7 +30,9 @@ class TaskResponse(BaseModel):
     data: Any  # Can be Dict, List, or other JSON-serializable type
     meta: Dict[str, Any]
     is_labeled: bool
-    assigned_to: Optional[Dict[str, Any]]
+    # Display label of the assigned user (LMS accounts may appear by
+    # pseudonym); non-editors only ever see their own assignment.
+    assigned_to: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime]
     annotations_count: int
@@ -151,25 +153,17 @@ def _served_task_data(
     return blind_task_data(task.data, bound)
 
 
-def _visible_keys_match(visible_keys, pattern: str):
-    """SQL condition: a top-level ``task.data`` key in ``visible_keys``
-    (casefolded, as produced by ``visible_top_level_keys``) has a value
-    matching ``pattern``. Key matching is case-insensitive like the labeling
-    UI's binding resolver; non-object payloads never match."""
-    data_json = cast(Task.data, JSON)
-    data_obj = case(
-        (func.json_typeof(data_json) == "object", data_json),
-        else_=cast(literal("{}"), JSON),
-    )
-    kv = func.json_each_text(data_obj).table_valued("key", "value").alias("kv")
-    return exists(
-        select(literal(1))
-        .select_from(kv)
-        .where(
-            func.lower(kv.c.key).in_(list(visible_keys)),
-            kv.c.value.ilike(pattern),
-        )
-    )
+async def _require_edit_rights(db: AsyncSession, user: AuthUser, tasks: Iterable[Task]) -> None:
+    """403 unless ``user`` may edit EVERY project the selected tasks belong
+    to. Bulk writes are all-or-nothing: a mixed selection is rejected whole."""
+    from routers.projects.helpers import check_user_can_edit_project_async
+
+    for project_id in sorted({t.project_id for t in tasks}):
+        if not await check_user_can_edit_project_async(db, user, project_id):
+            raise HTTPException(
+                status_code=403,
+                detail="You don't have permission to modify tasks in some of the selected projects",
+            )
 
 
 async def _upcoming_blocked_project_ids(
@@ -300,7 +294,10 @@ async def list_all_tasks(
         # visible, config-bound top-level keys, as on the per-project task
         # listing: matching against the raw JSON would let the match count
         # reveal content of hidden reference fields.
-        from routers.projects.tasks.blinding import visible_top_level_keys
+        from routers.projects.tasks.blinding import (
+            visible_keys_match,
+            visible_top_level_keys,
+        )
 
         decisions = await _blinding_by_project(db, current_user, scope_projects)
         full_pids = [pid for pid, bound in decisions.items() if bound is None]
@@ -323,7 +320,7 @@ async def list_all_tasks(
                 data_clauses.append(
                     and_(
                         Task.project_id.in_(pids),
-                        _visible_keys_match(keys, search_pattern),
+                        visible_keys_match(Task.data, keys, search_pattern),
                     )
                 )
         search_cond = or_(
@@ -376,6 +373,32 @@ async def list_all_tasks(
     page_decisions = await _blinding_by_project(db, current_user, [t.project for t in tasks])
     revealed_ids = await _revealed_ids_by_project(db, current_user, tasks, page_decisions)
 
+    # Assignee: non-editors only see their OWN assignment (same rule as the
+    # per-project listing); other users' identities are editor data. Editors
+    # get the project-scoped name mask (LMS accounts by pseudonym unless the
+    # viewer may see real names), also as on the per-project listing.
+    from services.member_privacy import NameMask, project_name_masks
+
+    visible_assignees: Dict[str, List[Any]] = {}
+    for task in tasks:
+        if task.assigned_to and task.assigned_user is not None:
+            if page_decisions.get(task.project_id) is None:
+                visible_assignees.setdefault(task.project_id, []).append(task.assigned_user)
+    name_masks = (
+        await project_name_masks(db, visible_assignees, viewer=current_user)
+        if visible_assignees
+        else {}
+    )
+
+    def _assignee_label(task: Task) -> Optional[str]:
+        if not task.assigned_to or task.assigned_user is None:
+            return None
+        if page_decisions.get(task.project_id) is not None:
+            if str(task.assigned_to) != str(current_user.id):
+                return None
+            return NameMask().label(task.assigned_user)
+        return name_masks.get(str(task.project_id), NameMask()).label(task.assigned_user)
+
     # Format tasks for response
     task_responses = []
     for task in tasks:
@@ -395,7 +418,7 @@ async def list_all_tasks(
             data=_served_task_data(task, page_decisions, revealed_ids),
             meta=task.meta or {},
             is_labeled=task.is_labeled,
-            assigned_to=task.assigned_user if task.assigned_to else None,
+            assigned_to=_assignee_label(task),
             created_at=task.created_at,
             updated_at=task.updated_at,
             annotations_count=annotation_count,
@@ -442,6 +465,7 @@ async def bulk_assign_tasks(
         raise HTTPException(
             status_code=403, detail="You don't have permission to assign some of the selected tasks"
         )
+    await _require_edit_rights(db, current_user, tasks)
 
     # Update assignments
     for task in tasks:
@@ -481,6 +505,7 @@ async def bulk_update_task_status(
         raise HTTPException(
             status_code=403, detail="You don't have permission to update some of the selected tasks"
         )
+    await _require_edit_rights(db, current_user, tasks)
 
     # Update status
     for task in tasks:
