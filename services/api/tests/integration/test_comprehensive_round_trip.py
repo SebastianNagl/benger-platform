@@ -32,7 +32,6 @@ from models import (  # noqa: E402
 from project_models import (  # noqa: E402
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -158,30 +157,13 @@ class TestComprehensiveRoundTrip:
         )
         session.add(project_org)
 
-        # Create project member
-        project_member = ProjectMember(
-            id=str(uuid.uuid4()),
-            project_id=project.id,
-            user_id=test_user.id,
-            role="admin",
-            is_active=True,
-        )
-        session.add(project_member)
-
-        # The second annotator's org + project memberships, so the round-trip
+        # The second annotator's org membership, so the round-trip
         # export/import carries the user its annotations reference.
         session.add(OrganizationMembership(
             id=str(uuid.uuid4()),
             organization_id=test_org.id,
             user_id=second_user.id,
             role=OrganizationRole.ANNOTATOR,
-            is_active=True,
-        ))
-        session.add(ProjectMember(
-            id=str(uuid.uuid4()),
-            project_id=project.id,
-            user_id=second_user.id,
-            role="annotator",
             is_active=True,
         ))
 
@@ -425,7 +407,6 @@ class TestComprehensiveRoundTrip:
             "human_results": human_results,
             "preference_rankings": preference_rankings,
             "likert_evaluations": likert_evaluations,
-            "project_member": project_member,
             "task_assignments": assignments,
             "user": test_user,
             "organization": test_org,

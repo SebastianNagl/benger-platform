@@ -87,11 +87,10 @@ Organization management for projects:
 - `POST /{project_id}/organizations/{organization_id}` - Add organization
 - `DELETE /{project_id}/organizations/{organization_id}` - Remove organization
 
-### members.py (312 lines)
-Member management for projects:
-- `GET /{project_id}/members` - List project members
-- `POST /{project_id}/members/{user_id}` - Add member
-- `DELETE /{project_id}/members/{user_id}` - Remove member
+### members.py
+Project member listings (read-only; membership comes from attached organizations):
+- `GET /{project_id}/members` - List project members (members of the attached orgs)
+- `GET /{project_id}/annotators` - List users who have annotated the project
 
 ### generation.py (43 lines)
 LLM generation operations:

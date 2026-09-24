@@ -147,18 +147,6 @@ def serialize_response_generation_row(rg) -> dict:
     }
 
 
-def serialize_project_member_row(member) -> dict:
-    return {
-        "id": member.id,
-        "project_id": member.project_id,
-        "user_id": member.user_id,
-        "role": member.role,
-        "is_active": member.is_active,
-        "created_at": _iso(member.created_at),
-        "updated_at": _iso(member.updated_at),
-    }
-
-
 def serialize_task_assignment_row(a) -> dict:
     return {
         "id": a.id,

@@ -57,7 +57,6 @@ from models import (
 from project_models import (
     Annotation,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -186,13 +185,6 @@ async def _create_eval_project_async(
             project_id=project.id,
             organization_id=org.id,
             assigned_by=owner.id,
-        ))
-        db.add(ProjectMember(
-            id=_uid(),
-            project_id=project.id,
-            user_id=owner.id,
-            role="admin",
-            is_active=True,
         ))
         await db.flush()
 
@@ -415,18 +407,6 @@ def _create_evaluation_project(
     )
     test_db.add(project_org)
 
-    for user, role in [
-        (admin, "admin"), (contributor, "contributor"), (annotator, "annotator")
-    ]:
-        test_db.add(
-            ProjectMember(
-                id=str(uuid.uuid4()),
-                project_id=project.id,
-                user_id=user.id,
-                role=role,
-                is_active=True,
-            )
-        )
     test_db.flush()
 
     tasks = []

@@ -301,11 +301,19 @@ whenever one is added, renamed or removed):
   ``allow_headers``. ``POST /api/projects/project-imports`` takes the target
   ``organization_id`` in the body (org-less imports are private). Extended
   callers must stop passing the argument.
+
+2.24 (2026-09-24): the legacy ``project_members`` table is dropped
+  (migration 108) and ``project_models.ProjectMember`` is removed. Project
+  roles come from organization memberships only. Project export no longer
+  writes members (``statistics.total_members`` stays 0), import skips the
+  rows of older exports (``"project_members": 0`` in the result), and
+  ``stream_io.serialize_project_member_row`` is gone. Extended code must not
+  import ``ProjectMember``.
 """
 
 import os
 
-CORE_API_VERSION = "2.23"
+CORE_API_VERSION = "2.24"
 
 
 def extended_required() -> bool:

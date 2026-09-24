@@ -907,7 +907,6 @@ class ComprehensiveProjectExport(BaseModel):
     response_generations: List[Dict[str, Any]] = Field(default=[], description="Generation jobs")
 
     # User and assignment data
-    project_members: List[Dict[str, Any]] = Field(default=[], description="Project memberships")
     task_assignments: List[Dict[str, Any]] = Field(default=[], description="Task assignments")
     users: List[Dict[str, Any]] = Field(default=[], description="User references for import")
 

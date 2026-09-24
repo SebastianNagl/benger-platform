@@ -20,7 +20,6 @@ from main import app
 from models import Organization, OrganizationMembership, User
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -78,8 +77,8 @@ async def _make_assignment_project_async(
 
     Seeds an org, four users with the same org roles the sync ``test_org``
     fixture grants (ORG_ADMIN / CONTRIBUTOR / ANNOTATOR / ORG_ADMIN — the
-    async access checks resolve roles from ``OrganizationMembership``, not
-    ``ProjectMember``), a project linked to that org, project members, and
+    access checks resolve roles from ``OrganizationMembership``), a project
+    linked to that org, and
     ``num_tasks`` tasks. Returns the same dict shape the sync fixture does so
     converted test bodies read identically.
     """
@@ -132,18 +131,6 @@ async def _make_assignment_project_async(
             assigned_by=admin.id,
         )
     )
-
-    member_roles = ["admin", "contributor", "annotator", "admin"]
-    for user, role in zip(users, member_roles):
-        db.add(
-            ProjectMember(
-                id=_uid(),
-                project_id=project.id,
-                user_id=user.id,
-                role=role,
-                is_active=True,
-            )
-        )
 
     tasks = []
     for i in range(num_tasks):
@@ -239,17 +226,7 @@ def assignment_project(test_db: Session, test_users: List[User], test_org):
     )
     test_db.add(project_org)
 
-    # Add all 4 users as project members
-    roles = ["admin", "contributor", "annotator", "admin"]
-    for i, user in enumerate(test_users[:4]):
-        member = ProjectMember(
-            id=str(uuid.uuid4()),
-            project_id=project.id,
-            user_id=user.id,
-            role=roles[i],
-            is_active=True,
-        )
-        test_db.add(member)
+    # test_org makes all 4 users members of the attached org.
 
     # Create 6 tasks
     tasks = []
@@ -1494,17 +1471,7 @@ def auto_assignment_project(test_db: Session, test_users: List[User], test_org):
     )
     test_db.add(project_org)
 
-    # Add all 4 users as project members
-    roles = ["admin", "contributor", "annotator", "admin"]
-    for i, user in enumerate(test_users[:4]):
-        member = ProjectMember(
-            id=str(uuid.uuid4()),
-            project_id=project.id,
-            user_id=user.id,
-            role=roles[i],
-            is_active=True,
-        )
-        test_db.add(member)
+    # test_org makes all 4 users members of the attached org.
 
     # Create 6 tasks
     tasks = []

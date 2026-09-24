@@ -6188,33 +6188,6 @@
       }
     }
   },
-  "members": {
-    "title": "Project Members",
-    "description": "Manage organizations and members with access to this project",
-    "searchPlaceholder": "Search members...",
-    "addMember": "Add Member",
-    "addOrganization": "Add Organization",
-    "backToProject": "Back to Project",
-    "organizations": "Organizations",
-    "noMembers": "No members added yet",
-    "noMembersSearch": "No members match your search",
-    "noOrganization": "No organization",
-    "accessDenied": "Access Denied",
-    "organizationAccess": "Organization Access",
-    "organizationAccessDescription": "Control which organizations have access to this project",
-    "noOrganizationsAssigned": "No organizations assigned to this project yet",
-    "selectOrganization": "Select an organization...",
-    "selectMember": "Select a member...",
-    "addProjectMember": "Add Project Member",
-    "remove": "Remove",
-    "removeConfirm": "Are you sure you want to remove this member?",
-    "removed": "Member removed successfully",
-    "removeFailed": "Failed to remove member",
-    "added": "Member added successfully",
-    "addFailed": "Failed to add member",
-    "orgAdded": "Organization added successfully",
-    "orgAddFailed": "Failed to add organization"
-  },
   "evaluationBuilder": {
     "configured": "{count} configured",
     "addEvaluation": "Add Evaluation",

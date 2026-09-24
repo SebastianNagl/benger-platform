@@ -18,7 +18,7 @@ from auth_module import require_user
 from database import get_async_db
 from models import Organization, OrganizationMembership
 from org_groups import attachment_group_clause
-from project_models import Project, ProjectMember, ProjectOrganization, Task, TaskAssignment
+from project_models import Project, ProjectOrganization, Task, TaskAssignment
 from project_schemas import PaginatedResponse
 
 
@@ -48,7 +48,7 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     """The CANDIDATE projects of the cross-project data surface.
 
     The projects the caller is connected to (org attachments of active
-    memberships, project memberships); every non-deleted project for
+    memberships); every non-deleted project for
     superadmins. Not an access decision on its own: the endpoints below pass
     the candidates through :func:`_resolve_data_scope`, which applies the
     per-project access tiers and task scoping.
@@ -88,19 +88,10 @@ async def get_user_accessible_projects(db: AsyncSession, user: AuthUser) -> List
     # TODO: Add public/private project visibility if needed
     public_projects = []
 
-    # Get projects where user is a member
-    member_result = await db.execute(
-        select(ProjectMember.project_id)
-        .join(Project, Project.id == ProjectMember.project_id)
-        .where(ProjectMember.user_id == user.id, Project.deleted_at.is_(None))
-    )
-    member_projects = member_result.all()
-
     # Combine all accessible project IDs
     project_ids = set()
     project_ids.update([p.id for p in org_projects])
     project_ids.update([p.id for p in public_projects])
-    project_ids.update([p.project_id for p in member_projects])
 
     return list(project_ids)
 

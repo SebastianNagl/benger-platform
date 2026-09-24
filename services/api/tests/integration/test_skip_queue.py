@@ -35,7 +35,6 @@ from main import app
 from models import User
 from project_models import (
     Project,
-    ProjectMember,
     ProjectOrganization,
     SkippedTask,
     Task,
@@ -129,17 +128,20 @@ async def _create_skip_queue_project(
     )
     db.add(project_org)
 
-    # Add users as project members
-    roles = ["admin", "contributor", "annotator"]
+    # Add users as members of the attached org
+    from models import OrganizationMembership
+
+    roles = ["ORG_ADMIN", "CONTRIBUTOR", "ANNOTATOR"]
     for i, user in enumerate(users[:3]):
-        member = ProjectMember(
-            id=_uid(),
-            project_id=project.id,
-            user_id=user.id,
-            role=roles[i],
-            is_active=True,
+        db.add(
+            OrganizationMembership(
+                id=_uid(),
+                user_id=user.id,
+                organization_id=org.id,
+                role=roles[i],
+                is_active=True,
+            )
         )
-        db.add(member)
 
     # Create tasks
     tasks = []

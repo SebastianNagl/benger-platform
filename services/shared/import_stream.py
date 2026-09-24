@@ -72,7 +72,6 @@ from project_models import (
     KorrekturComment,
     PostAnnotationResponse,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
     TaskAssignment,
@@ -1382,7 +1381,6 @@ class _FullImportContext:
             "generations": {},
             "response_generations": {},
             "prompts": {},
-            "project_members": {},
             "task_assignments": {},
             "evaluations": {},
             "judge_runs": {},
@@ -2139,36 +2137,6 @@ def _insert_grading_feedback(ctx: _FullImportContext, fb: dict) -> None:
     ))
 
 
-def _insert_project_member(ctx: _FullImportContext, member_data: dict) -> None:
-    old_member_id = member_data.get("id", str(uuid.uuid4()))
-    new_member_id = str(uuid.uuid4())
-    ctx.id_mappings["project_members"][old_member_id] = new_member_id
-
-    member_user_id = ctx.id_mappings["users"].get(member_data.get("user_id"))
-
-    if member_user_id:  # Only import if user mapping exists
-        # Check if membership already exists
-        existing_member = (
-            ctx.db.query(ProjectMember)
-            .filter(
-                ProjectMember.project_id == ctx.new_project_id,
-                ProjectMember.user_id == member_user_id,
-            )
-            .first()
-        )
-
-        if not existing_member:
-            new_member = ProjectMember(
-                id=new_member_id,
-                project_id=ctx.new_project_id,
-                user_id=member_user_id,
-                role=member_data.get("role", "annotator"),
-                is_active=member_data.get("is_active", True),
-            )
-
-            ctx.db.add(new_member)
-
-
 def _insert_task_assignment(ctx: _FullImportContext, assignment_data: dict) -> None:
     old_assignment_id = assignment_data.get("id", str(uuid.uuid4()))
     new_assignment_id = str(uuid.uuid4())
@@ -2596,7 +2564,10 @@ def _build_full_import_stats(
             "preference_rankings": len(ctx.id_mappings["preference_rankings"]),
             "likert_scale_evaluations": len(ctx.id_mappings["likert_scale_evaluations"]),
             "prompts": len(ctx.id_mappings["prompts"]),
-            "project_members": len(ctx.id_mappings["project_members"]),
+            # project_members was retired (migration 108). Older exports may
+            # still carry the rows; they are skipped, and the key stays for
+            # result-shape stability.
+            "project_members": 0,
             "task_assignments": len(ctx.id_mappings["task_assignments"]),
             "post_annotation_responses": len(ctx.id_mappings["post_annotation_responses"]),
             "grading_feedback": len(ctx.grading_feedback_seen),
@@ -2635,7 +2606,6 @@ _NDJSON_INSERT_DISPATCH = {
     "likert_scale_evaluation": _insert_likert_scale_evaluation,
     "korrektur_comment": _insert_korrektur_comment,
     "grading_feedback": _insert_grading_feedback,
-    "project_member": _insert_project_member,
     "task_assignment": _insert_task_assignment,
     "post_annotation_response": _insert_post_annotation_response,
 }
@@ -3035,8 +3005,8 @@ def run_full_project_import(
     for fb_data in _stream_rows(db, fileobj, "grading_feedback.item"):
         _insert_grading_feedback(ctx, fb_data)
 
-    for member_data in _stream_rows(db, fileobj, "project_members.item"):
-        _insert_project_member(ctx, member_data)
+    # Older exports may still carry a "project_members" array (table retired
+    # in migration 108). It is simply not read.
 
     for assignment_data in _stream_rows(db, fileobj, "task_assignments.item"):
         _insert_task_assignment(ctx, assignment_data)

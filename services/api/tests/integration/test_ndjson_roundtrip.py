@@ -23,6 +23,7 @@ import uuid
 import zlib
 
 import pytest
+from sqlalchemy import text
 
 from models import (
     EvaluationJudgeRun,
@@ -38,7 +39,6 @@ from project_models import (
     KorrekturComment,
     PostAnnotationResponse,
     Project,
-    ProjectMember,
     ProjectOrganization,
     Task,
 )
@@ -88,17 +88,6 @@ def full_project(test_db, test_users, test_org):
             project_id=project.id,
             organization_id=test_org.id,
             assigned_by=admin.id,
-        )
-    )
-
-    # Project member (the contributor) so project_member records round-trip.
-    test_db.add(
-        ProjectMember(
-            id=_uid(),
-            project_id=project.id,
-            user_id=test_users[1].id,
-            role="CONTRIBUTOR",
-            is_active=True,
         )
     )
 
@@ -278,9 +267,6 @@ def _counts(db, project_id):
         "korrektur_comments": db.query(KorrekturComment)
         .filter(KorrekturComment.project_id == project_id)
         .count(),
-        "project_members": db.query(ProjectMember)
-        .filter(ProjectMember.project_id == project_id)
-        .count(),
     }
 
 
@@ -450,6 +436,97 @@ class TestNDJSONRoundtrip:
         test_db.rollback()
         # The partial project row must not have committed.
         assert test_db.query(Project).count() == projects_before
+
+
+def _legacy_member_rows(db, project_id) -> int:
+    """Rows in the retired table for ``project_id``: 0 when the table is gone
+    (a fresh or migrated DB), else a count (a long-lived test DB that still
+    has it must not have gained rows either)."""
+    if db.execute(text("SELECT to_regclass('project_members')")).scalar() is None:
+        return 0
+    return db.execute(
+        text("SELECT count(*) FROM project_members WHERE project_id = :pid"),
+        {"pid": project_id},
+    ).scalar()
+
+
+@pytest.mark.integration
+class TestRetiredProjectMembersStillImport:
+    """``project_members`` was dropped in migration 108. Exports written before
+    that still carry the rows (a ``project_members`` array in the legacy JSON,
+    ``project_member`` records in NDJSON). Such files must import as before,
+    skip those rows, and report ``"project_members": 0``."""
+
+    @staticmethod
+    def _legacy_member(project_id, user_id) -> dict:
+        return {
+            "id": _uid(),
+            "project_id": project_id,
+            "user_id": user_id,
+            "role": "CONTRIBUTOR",
+            "is_active": True,
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "updated_at": None,
+        }
+
+    def test_export_writes_no_members(self, test_db, full_project):
+        project, _ = full_project
+        comprehensive = json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+        assert "project_members" not in comprehensive
+        assert comprehensive["statistics"]["total_members"] == 0
+
+        records = [
+            json.loads(line) for line in _export_ndjson(test_db, project).splitlines()
+        ]
+        assert not [r for r in records if r["_type"] == "project_member"]
+        assert records[-1]["statistics"]["total_members"] == 0
+
+    def test_legacy_json_with_project_members_imports(
+        self, test_db, test_users, full_project
+    ):
+        project, admin = full_project
+        data = json.loads(
+            "".join(stream_comprehensive_project_data_json(test_db, project.id))
+        )
+        data["project_members"] = [
+            self._legacy_member(project.id, test_users[1].id),
+            self._legacy_member(project.id, admin.id),
+        ]
+        data["statistics"]["total_members"] = 2
+
+        result = run_full_project_import(
+            test_db, io.BytesIO(json.dumps(data).encode("utf-8")), admin.id
+        )
+
+        new_pid = result["project_id"]
+        assert new_pid and new_pid != project.id
+        assert result["statistics"]["imported_counts"]["project_members"] == 0
+        assert _counts(test_db, new_pid) == _counts(test_db, project.id)
+        assert _legacy_member_rows(test_db, new_pid) == 0
+
+    def test_ndjson_with_project_member_records_imports(
+        self, test_db, test_users, full_project
+    ):
+        project, admin = full_project
+        lines = _export_ndjson(test_db, project).splitlines()
+        assert json.loads(lines[-1])["_type"] == "end"
+        legacy = [
+            json.dumps({"_type": "project_member", **self._legacy_member(project.id, uid)})
+            for uid in (test_users[1].id, admin.id)
+        ]
+        ndjson = "\n".join(lines[:-1] + legacy + lines[-1:]) + "\n"
+
+        result = run_full_project_import(
+            test_db, io.BytesIO(ndjson.encode("utf-8")), admin.id
+        )
+
+        new_pid = result["project_id"]
+        assert new_pid and new_pid != project.id
+        assert result["statistics"]["imported_counts"]["project_members"] == 0
+        assert _counts(test_db, new_pid) == _counts(test_db, project.id)
+        assert _legacy_member_rows(test_db, new_pid) == 0
 
 
 @pytest.mark.integration
