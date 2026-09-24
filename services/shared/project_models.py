@@ -4,21 +4,18 @@ Database models for BenGER project and task management
 Clean, functional naming without verbose or branded terms.
 """
 
-# Import compatibility
-import os
-
 import sqlalchemy as sa
 from sqlalchemy import BigInteger, JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
-
-if "sqlite" in os.environ.get("DATABASE_URL", "sqlite:///:memory:").lower():
-    from sqlalchemy import JSON as JSONB
-else:
-    from sqlalchemy.dialects.postgresql import JSONB
-
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from database import Base
+from database import DATABASE_URL, Base
+
+# Same rule as models.py: JSON only on a SQLite test engine.
+if DATABASE_URL.startswith("sqlite"):
+    from sqlalchemy import JSON as JSONB
+else:
+    from sqlalchemy.dialects.postgresql import JSONB
 
 
 class Project(Base):
@@ -127,13 +124,13 @@ class Project(Base):
     # control_weights, parsed_label_config
 
     # Generation configuration (Issue #482)
-    generation_config = Column(JSONB, nullable=True)
+    generation_config = Column(JSON, nullable=True)
 
     # LLM Model IDs for generation (Issue #XXX - Model Selection Persistence)
     llm_model_ids = Column(JSON, nullable=True)
 
     # Evaluation configuration (Issue #483)
-    evaluation_config = Column(JSONB, nullable=True)
+    evaluation_config = Column(JSON, nullable=True)
 
     # Visibility
     is_private = Column(Boolean, default=False, nullable=False, index=True)
@@ -245,9 +242,12 @@ class Task(Base):
         index=True,
     )
 
-    # Data fields
-    data = Column(JSONB, nullable=False)  # The actual data to annotate
-    meta = Column(JSONB, nullable=True)  # Optional metadata
+    # Data fields. data/meta (like projects.generation_config/evaluation_config,
+    # comment_authors and data_exports.filters) are plain json in the database,
+    # not jsonb: jsonb would reorder the keys of imported task data. Cast to
+    # JSONB in a query that needs jsonb operators.
+    data = Column(JSON, nullable=False)  # The actual data to annotate
+    meta = Column(JSON, nullable=True)  # Optional metadata
 
     # User tracking
     created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -265,7 +265,7 @@ class Task(Base):
     comment_count = Column(Integer, default=0, nullable=False)
     unresolved_comment_count = Column(Integer, default=0, nullable=False)
     last_comment_updated_at = Column(DateTime(timezone=True), nullable=True)
-    comment_authors = Column(JSONB, nullable=True)
+    comment_authors = Column(JSON, nullable=True)
 
     # Korrektur tracking (formerly "feedback")
     korrektur_count = Column(Integer, default=0, nullable=False)
@@ -466,7 +466,7 @@ class DataExport(Base):
 
     # Export details
     export_format = Column(String, nullable=False)  # json, csv, tsv, coco, conll
-    filters = Column(JSONB, nullable=True)
+    filters = Column(JSON, nullable=True)
     total_items = Column(Integer, nullable=False)
 
     # File info

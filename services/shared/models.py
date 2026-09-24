@@ -2,7 +2,6 @@
 Database models for BenGER API
 """
 
-import os
 import uuid
 from enum import Enum
 
@@ -15,20 +14,15 @@ from sqlalchemy import text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-# Handle SQLite compatibility for testing
-if "sqlite" in os.environ.get("DATABASE_URL", "sqlite:///:memory:").lower():
-    # Use Text for ARRAY columns when using SQLite
-    def ARRAY(column_type):
-        from sqlalchemy import Text
+from database import DATABASE_URL, Base
 
-        return Text
-
-    # Use JSON for JSONB when using SQLite
+# SQLite test engines have no JSONB; key off the URL database.py actually
+# resolved (DATABASE_URL, DATABASE_URI or the POSTGRES_* parts) so deployed
+# containers, which set only DATABASE_URI, map these columns as real JSONB.
+if DATABASE_URL.startswith("sqlite"):
     from sqlalchemy import JSON as JSONB
 else:
     from sqlalchemy.dialects.postgresql import JSONB
-
-from database import Base
 
 # Association tables have been removed - relationships are now stored as JSON arrays in Task model
 
