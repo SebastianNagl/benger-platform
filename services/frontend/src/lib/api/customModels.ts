@@ -85,14 +85,21 @@ export const customModelsAPI = {
 
   /**
    * Store the calling user's own API key for this model.
+   *
+   * `expectedBaseUrl` is the endpoint the user saw next to the key input.
+   * The API answers 409 if the model's endpoint changed in the meantime, so
+   * a key is never stored for an address the user did not see.
    */
   setCredential: async (
     modelId: string,
     apiKey: string,
+    expectedBaseUrl?: string,
   ): Promise<{ has_credential: boolean; updated_at?: string }> => {
     const response = await apiClient.put(
       `/custom-models/${modelId}/credential`,
-      { api_key: apiKey },
+      expectedBaseUrl !== undefined
+        ? { api_key: apiKey, expected_base_url: expectedBaseUrl }
+        : { api_key: apiKey },
     )
     return response
   },

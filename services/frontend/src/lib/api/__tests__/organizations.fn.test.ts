@@ -324,6 +324,23 @@ describe('OrganizationsClient - API Key methods', () => {
       )
     })
 
+    it('setOrgCustomModelCredential sends expected_base_url when given', async () => {
+      const putSpy = jest.spyOn(client as any, 'put')
+      await client.setOrgCustomModelCredential(
+        'org-1',
+        'custom-1',
+        'sk-shared',
+        'https://api.example.com/v1',
+      )
+      expect(putSpy).toHaveBeenCalledWith(
+        '/organizations/org-1/custom-models/custom-1/credential',
+        {
+          api_key: 'sk-shared',
+          expected_base_url: 'https://api.example.com/v1',
+        },
+      )
+    })
+
     it('removeOrgCustomModelCredential DELETEs the right endpoint', async () => {
       const deleteSpy = jest.spyOn(client as any, 'delete')
       const result = await client.removeOrgCustomModelCredential(

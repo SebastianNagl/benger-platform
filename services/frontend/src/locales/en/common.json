@@ -7577,6 +7577,7 @@
       "removing": "Removing...",
       "keySaved": "Shared key saved for {model}",
       "saveFailed": "Failed to save the shared key",
+      "endpointChanged": "The endpoint of this model has changed. Please check the new address and enter the key again.",
       "keyRemoved": "Shared key removed for {model}",
       "removeFailed": "Failed to remove the shared key",
       "encryptedInfo": "Shared keys are encrypted and stored securely.",
@@ -8678,6 +8679,7 @@
       "removing": "Removing...",
       "saveSuccess": "API key saved",
       "saveFailed": "Failed to save API key",
+      "endpointChanged": "The endpoint of this model has changed. Please check the new address and enter your key again.",
       "removeSuccess": "API key removed",
       "removeFailed": "Failed to remove API key",
       "testFailed": "Connection test failed"

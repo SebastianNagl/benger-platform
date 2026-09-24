@@ -497,15 +497,21 @@ export class OrganizationsClient extends BaseApiClient {
 
   /**
    * Set (or replace) the org's shared key for a custom model.
+   *
+   * `expectedBaseUrl` is the endpoint the admin saw; the API answers 409 if
+   * the model's endpoint changed in the meantime.
    */
   async setOrgCustomModelCredential(
     orgId: string,
     modelId: string,
     apiKey: string,
+    expectedBaseUrl?: string,
   ): Promise<{ has_credential: boolean }> {
     return this.put(
       `/organizations/${orgId}/custom-models/${modelId}/credential`,
-      { api_key: apiKey },
+      expectedBaseUrl !== undefined
+        ? { api_key: apiKey, expected_base_url: expectedBaseUrl }
+        : { api_key: apiKey },
     )
   }
 

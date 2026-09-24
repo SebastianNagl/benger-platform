@@ -85,7 +85,7 @@ export function CustomModelCredentialRow({
     setMessage(null)
 
     try {
-      await customModelsAPI.setCredential(modelId, apiKey)
+      await customModelsAPI.setCredential(modelId, apiKey, baseUrl)
       setMessage({
         type: 'success',
         message: t('customModels.credential.saveSuccess'),
@@ -97,6 +97,16 @@ export function CustomModelCredentialRow({
       notifyKeysChanged('add')
       onChanged?.()
     } catch (error: any) {
+      if (error.response?.status === 409) {
+        // The endpoint changed since this row rendered. Keep the typed key,
+        // show why, and refresh so the new endpoint is displayed.
+        setMessage({
+          type: 'error',
+          message: t('customModels.credential.endpointChanged'),
+        })
+        onChanged?.()
+        return
+      }
       const errorMessage =
         error.response?.data?.detail || t('customModels.credential.saveFailed')
       setMessage({ type: 'error', message: errorMessage })

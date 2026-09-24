@@ -21,7 +21,12 @@ Checks (in order):
      RFC1918, link-local (incl. 169.254.169.254 and fe80::/10), CGNAT
      (100.64/10), ULA (fc00::/7), unspecified and reserved ranges.
      IPv4-mapped IPv6 addresses (``::ffff:10.0.0.1``) are unwrapped and
-     the inner IPv4 address validated.
+     the inner IPv4 address validated. NAT64 (``64:ff9b::/96``,
+     ``64:ff9b:1::/48``) and IPv4-compatible (``::/96``) addresses are
+     rejected outright. Every network-state rejection (unresolvable,
+     deny-listed, non-public) raises the same generic message
+     (``UNREACHABLE_HOST_MESSAGE``); the specific reason is logged
+     server-side only so the error cannot be used to probe cluster DNS.
 
 Self-hosters pointing at LAN inference servers (vLLM, Ollama, ...) can
 opt out of checks 2-3 via the ``CUSTOM_MODEL_ALLOW_PRIVATE_URLS`` env
@@ -82,8 +87,27 @@ def _allow_private_from_env() -> bool:
     return os.getenv(_ENV_ALLOW_PRIVATE, "false").strip().lower() in _TRUTHY
 
 
+# Single user-facing message for every network-state rejection (host did
+# not resolve, resolved to a non-public address, is on the deny-list). One
+# string for all of them so the error cannot be used to map which internal
+# names exist or what addresses they resolve to. The specific reason is
+# logged server-side only.
+UNREACHABLE_HOST_MESSAGE = "The endpoint host is not reachable or is not a public address."
+
+# Ranges rejected on top of ``.is_global``. Python treats these as global,
+# but each can smuggle an internal IPv4 address:
+#   * 64:ff9b::/96 and 64:ff9b:1::/48 are NAT64 prefixes. On a NAT64
+#     network, 64:ff9b::a00:1 reaches 10.0.0.1.
+#   * ::/96 is the deprecated IPv4-compatible IPv6 form (::a.b.c.d).
+_EXTRA_BLOCKED_NETWORKS = tuple(
+    ipaddress.ip_network(n) for n in ("64:ff9b::/96", "64:ff9b:1::/48", "::/96")
+)
+
+
 def _describe_non_global(ip) -> str:
-    """Name the address class that made an IP non-global, for error text."""
+    """Name the address class that made an IP non-global, for server logs."""
+    if any(ip.version == net.version and ip in net for net in _EXTRA_BLOCKED_NETWORKS):
+        return "an IPv6 address embedding an IPv4 address (NAT64 / IPv4-compatible)"
     if ip.is_loopback:
         return "a loopback address"
     if ip.is_link_local:
@@ -100,6 +124,24 @@ def _describe_non_global(ip) -> str:
     return "a non-globally-routable address"
 
 
+def _is_public_ip(ip) -> bool:
+    """True when ``ip`` is globally routable and not an embedded-IPv4 form."""
+    if not ip.is_global:
+        return False
+    return not any(ip.version == net.version and ip in net for net in _EXTRA_BLOCKED_NETWORKS)
+
+
+def _reject_host(host: str, reason: str) -> ValueError:
+    """Log the specific rejection reason and return the generic error.
+
+    The detail (host and, where known, the resolved address class) goes to
+    the server log only. The caller-visible message never names an IP or
+    distinguishes "does not resolve" from "resolves somewhere private".
+    """
+    logger.warning("Custom model URL host %r rejected: %s", host, reason)
+    return ValueError(UNREACHABLE_HOST_MESSAGE)
+
+
 def _resolve_and_check_addresses(host: str, port: int) -> List[str]:
     """Resolve host, require every A/AAAA answer to be globally routable,
     and return the validated IP strings (deduped, order-preserving).
@@ -112,9 +154,9 @@ def _resolve_and_check_addresses(host: str, port: int) -> List[str]:
     try:
         addrinfos = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
     except (socket.gaierror, OSError) as exc:
-        raise ValueError(f"Custom model URL host '{host}' could not be resolved") from exc
+        raise _reject_host(host, f"could not be resolved ({type(exc).__name__})") from exc
     if not addrinfos:
-        raise ValueError(f"Custom model URL host '{host}' could not be resolved")
+        raise _reject_host(host, "resolved to no addresses")
 
     validated: List[str] = []
     for _family, _type, _proto, _canonname, sockaddr in addrinfos:
@@ -122,9 +164,7 @@ def _resolve_and_check_addresses(host: str, port: int) -> List[str]:
         try:
             ip = ipaddress.ip_address(raw_addr.split("%")[0])
         except ValueError as exc:
-            raise ValueError(
-                f"Custom model URL host '{host}' resolved to an unparseable address ({raw_addr})"
-            ) from exc
+            raise _reject_host(host, f"resolved to an unparseable address ({raw_addr})") from exc
 
         # Unwrap IPv4-mapped IPv6 (::ffff:10.0.0.1) and validate the inner v4 —
         # otherwise a mapped private address could slip past the v6 checks on
@@ -133,11 +173,8 @@ def _resolve_and_check_addresses(host: str, port: int) -> List[str]:
         if mapped is not None:
             ip = mapped
 
-        if not ip.is_global:
-            raise ValueError(
-                f"Custom model URL host '{host}' resolves to {ip}, "
-                f"which is {_describe_non_global(ip)} and not allowed"
-            )
+        if not _is_public_ip(ip):
+            raise _reject_host(host, f"resolves to {ip}, which is {_describe_non_global(ip)}")
 
         addr_str = str(ip)
         if addr_str not in validated:
@@ -211,7 +248,7 @@ def resolve_and_validate(
         # same name, so strip it for comparison.
         bare_host = host.lower().rstrip(".")
         if bare_host in _DENIED_HOSTNAMES or bare_host.endswith(_DENIED_HOST_SUFFIXES):
-            raise ValueError(f"Custom model URL host '{host}' is not allowed")
+            raise _reject_host(host, "hostname is on the deny-list")
 
         validated_ips = _resolve_and_check_addresses(host, port or _DEFAULT_PORTS[scheme])
 

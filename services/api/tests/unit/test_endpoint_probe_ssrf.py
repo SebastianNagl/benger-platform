@@ -35,15 +35,35 @@ def _fake_pinned_connector(ips):
     return _FakePinned(ips)
 
 
+class _FakeStream:
+    """Stand-in for ``ClientResponse.content``; records bytes pulled."""
+
+    def __init__(self, chunks):
+        self._chunks = list(chunks)
+        self.bytes_read = 0
+
+    async def iter_chunked(self, n):
+        for chunk in self._chunks:
+            self.bytes_read += len(chunk)
+            yield chunk
+
+
 class _FakeResponse:
-    def __init__(self, status):
+    def __init__(self, status, chunks=None):
         self.status = status
+        self.content_length = None
+        if chunks is None:
+            chunks = [b'{"data": []}']
+        self._raw = b"".join(chunks)
+        self.content = _FakeStream(chunks)
 
     async def json(self):
-        return {"data": []}
+        import json
+
+        return json.loads(self._raw)
 
     async def text(self):
-        return ""
+        return self._raw.decode()
 
     async def __aenter__(self):
         return self
@@ -69,13 +89,21 @@ class _RecordingSession:
     async def __aexit__(self, *a):
         return False
 
+    chunks = None
+    last_response = None
+
+    def _respond(self):
+        resp = _FakeResponse(_RecordingSession.status_code, _RecordingSession.chunks)
+        _RecordingSession.last_response = resp
+        return resp
+
     def get(self, url, **kwargs):
         _RecordingSession.last_kwargs = kwargs
-        return _FakeResponse(_RecordingSession.status_code)
+        return self._respond()
 
     def post(self, url, **kwargs):
         _RecordingSession.last_kwargs = kwargs
-        return _FakeResponse(_RecordingSession.status_code)
+        return self._respond()
 
 
 @pytest.fixture()
@@ -94,6 +122,8 @@ def recording_aiohttp(monkeypatch):
     _RecordingSession.last_kwargs = None
     _RecordingSession.last_connector = None
     _RecordingSession.status_code = 302
+    _RecordingSession.chunks = None
+    _RecordingSession.last_response = None
     _FakePinned.last_ips = None
     return _RecordingSession
 
@@ -169,3 +199,61 @@ def test_models_probe_rebinding_rejection_is_generic_unreachable(monkeypatch):
     )
     assert ok is False
     assert error_type == "unreachable"
+
+
+# ---------------------------------------------------------------------------
+# Body size cap: a user-controlled endpoint must not be able to make the api
+# buffer an arbitrarily large (or decompression-bomb) body.
+# ---------------------------------------------------------------------------
+
+_MIB = b"x" * (1024 * 1024)
+
+
+def _oversized_chunks():
+    import bounded_http
+
+    return [_MIB] * (bounded_http.PROBE_MAX_BODY_BYTES // len(_MIB) + 20)
+
+
+def test_models_probe_rejects_oversized_body(recording_aiohttp):
+    import bounded_http
+    from user_api_key_service import validate_openai_compatible_endpoint
+
+    recording_aiohttp.status_code = 200
+    recording_aiohttp.chunks = _oversized_chunks()
+    ok, message, error_type = asyncio.run(
+        validate_openai_compatible_endpoint("https://models.example.org/v1")
+    )
+    assert ok is False
+    assert error_type == "invalid_response"
+    assert "too large" in message
+    # Reading stopped right after crossing the cap.
+    read = recording_aiohttp.last_response.content.bytes_read
+    assert read <= bounded_http.PROBE_MAX_BODY_BYTES + len(_MIB)
+
+
+def test_chat_ping_rejects_oversized_body(recording_aiohttp):
+    import bounded_http
+    from routers.custom_models import _chat_ping
+
+    recording_aiohttp.status_code = 200
+    recording_aiohttp.chunks = _oversized_chunks()
+    result = asyncio.run(
+        _chat_ping("https://models.example.org/v1", "llama-3-8b", "sk-key")
+    )
+    assert result["status"] == "error"
+    assert result["error_type"] == "invalid_response"
+    assert "too large" in result["message"]
+    read = recording_aiohttp.last_response.content.bytes_read
+    assert read <= bounded_http.PROBE_MAX_BODY_BYTES + len(_MIB)
+
+
+def test_chat_ping_under_cap_succeeds(recording_aiohttp):
+    from routers.custom_models import _chat_ping
+
+    recording_aiohttp.status_code = 200
+    recording_aiohttp.chunks = [b'{"choices": [', b'{"message": {"content": "pong"}}]}']
+    result = asyncio.run(
+        _chat_ping("https://models.example.org/v1", "llama-3-8b", "sk-key")
+    )
+    assert result["status"] == "success"

@@ -171,6 +171,26 @@ describe('customModelsAPI', () => {
       )
     })
 
+    it('setCredential sends expected_base_url when given', async () => {
+      ;(apiClient.put as jest.Mock).mockResolvedValue({
+        has_credential: true,
+      })
+
+      await customModelsAPI.setCredential(
+        'custom-123',
+        'sk-secret',
+        'https://api.example.com/v1',
+      )
+
+      expect(apiClient.put).toHaveBeenCalledWith(
+        '/custom-models/custom-123/credential',
+        {
+          api_key: 'sk-secret',
+          expected_base_url: 'https://api.example.com/v1',
+        },
+      )
+    })
+
     it('deleteCredential DELETEs the credential', async () => {
       ;(apiClient.delete as jest.Mock).mockResolvedValue(undefined)
 

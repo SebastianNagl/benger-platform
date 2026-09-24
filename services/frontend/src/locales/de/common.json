@@ -7694,6 +7694,7 @@
       "removing": "Wird entfernt...",
       "keySaved": "Gemeinsamer Schlüssel für {model} gespeichert",
       "saveFailed": "Gemeinsamer Schlüssel konnte nicht gespeichert werden",
+      "endpointChanged": "Der Endpunkt dieses Modells hat sich geändert. Bitte prüfen Sie die neue Adresse und geben Sie den Schlüssel erneut ein.",
       "keyRemoved": "Gemeinsamer Schlüssel für {model} entfernt",
       "removeFailed": "Gemeinsamer Schlüssel konnte nicht entfernt werden",
       "encryptedInfo": "Gemeinsame Schlüssel werden verschlüsselt und sicher gespeichert.",
@@ -8686,6 +8687,7 @@
       "removing": "Wird entfernt...",
       "saveSuccess": "API-Schlüssel gespeichert",
       "saveFailed": "API-Schlüssel konnte nicht gespeichert werden",
+      "endpointChanged": "Der Endpunkt dieses Modells hat sich geändert. Bitte prüfe die neue Adresse und gib deinen Schlüssel erneut ein.",
       "removeSuccess": "API-Schlüssel entfernt",
       "removeFailed": "API-Schlüssel konnte nicht entfernt werden",
       "testFailed": "Verbindungstest fehlgeschlagen"
