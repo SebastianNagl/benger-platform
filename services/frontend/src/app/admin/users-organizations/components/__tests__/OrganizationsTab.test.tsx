@@ -140,7 +140,6 @@ describe('OrganizationsTab', () => {
       organization_id: 'org-1',
       email: 'invited@example.com',
       role: 'ANNOTATOR',
-      token: 'test-token',
       invited_by: 'user-1',
       expires_at: '2024-12-31',
       accepted_at: null,
