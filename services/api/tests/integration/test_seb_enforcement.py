@@ -1,9 +1,12 @@
 """Integration tests for the Safe Exam Browser gate (real PostgreSQL).
 
 Three layers:
-  1. ``enforce_seb_async`` — who is exempt (flag off, editors, superadmin,
-     attempted tier, reads of own submitted work) and who is gated.
-  2. The async endpoints (task read, next, task list, annotation PATCH).
+  1. ``enforce_seb_async`` / ``seb_request_allowed_async`` — who is exempt
+     (flag off, editors, superadmin, attempted tier, reads of own submitted
+     tasks) and who is gated.
+  2. The async endpoints: single-task reads and writes refuse without a
+     proof; task lists (project task list, /api/data) narrow to the user's
+     own submitted tasks.
   3. The sync endpoints (draft, checkpoint, submit, my-tasks) via the sync
      ``client``.
 
@@ -24,7 +27,7 @@ from auth_module.models import User as AuthUser
 from main import app
 from models import Organization, OrganizationMembership, User
 from project_models import Annotation, Project, ProjectOrganization, Task
-from routers.projects.helpers import enforce_seb_async
+from routers.projects.helpers import enforce_seb_async, seb_request_allowed_async
 
 CK = "e" * 64
 BASE = "http://testserver"
@@ -229,32 +232,42 @@ async def test_guard_reads_of_submitted_work_stay_open(async_test_db):
 
     # Task-level: the submitted task is readable, the other one is not.
     assert await _code(
-        enforce_seb_async(db, student, p, bare, read=True, task_id=done.id)
+        enforce_seb_async(db, student, p, bare, read_task_id=done.id)
     ) is None
     assert await _code(
-        enforce_seb_async(db, student, p, bare, read=True, task_id=open_task.id)
+        enforce_seb_async(db, student, p, bare, read_task_id=open_task.id)
     ) == "seb_required"
-    # Project-level reads open once anything was submitted.
-    assert await _code(enforce_seb_async(db, student, p, bare, read=True)) is None
     # Writes never pass without a proof, submitted or not.
     assert await _code(enforce_seb_async(db, student, p, bare)) == "seb_required"
+
+
+@pytest.mark.asyncio
+async def test_request_allowed_for_list_endpoints(async_test_db):
+    db = async_test_db
+    w = await _async_world(db)
+    p, student = w["project"], w["student"]
+    path = "/api/projects/x"
+    bare, proven = _Request(path), _Request(path, _proof(path))
+    assert await seb_request_allowed_async(db, student, p, bare) is False
+    assert await seb_request_allowed_async(db, student, p, proven) is True
+    assert await seb_request_allowed_async(db, w["owner"], p, bare) is True
+    # Attempted tier: own submissions only, so list endpoints narrow.
+    assert await seb_request_allowed_async(db, student, p, proven, tier="attempted") is False
+    off = await _async_world(db, seb_required=False)
+    assert await seb_request_allowed_async(db, off["student"], off["project"], bare) is True
 
 
 # ── 2. async endpoints ──────────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_task_read_endpoints(async_test_db, async_test_client):
+async def test_single_task_reads_are_gated(async_test_db, async_test_client):
     db = async_test_db
     w = await _async_world(db)
     p, task = w["project"], w["tasks"][0]
     client = async_test_client
 
-    reads = [
-        f"/api/projects/tasks/{task.id}",
-        f"/api/projects/{p.id}/next",
-        f"/api/projects/{p.id}/tasks",
-    ]
+    reads = [f"/api/projects/tasks/{task.id}", f"/api/projects/{p.id}/next"]
     with _as_user(w["student"]):
         for path in reads:
             r = await client.get(path)
@@ -265,6 +278,62 @@ async def test_task_read_endpoints(async_test_db, async_test_client):
     with _as_user(w["owner"]):
         for path in reads:
             assert (await client.get(path)).status_code == 200, path
+
+
+@pytest.mark.asyncio
+async def test_task_list_narrows_to_submitted_outside_seb(async_test_db, async_test_client):
+    db = async_test_db
+    w = await _async_world(db)
+    p = w["project"]
+    done = w["tasks"][0]
+    path = f"/api/projects/{p.id}/tasks"
+    client = async_test_client
+
+    with _as_user(w["student"]):
+        r = await client.get(path)
+        assert r.status_code == 200 and r.json()["items"] == []
+        r = await client.get(path, headers=_proof(path))
+        assert r.json()["total"] == 2
+
+        # One submission opens exactly that task, never the others.
+        db.add(_submission(w, done))
+        await db.flush()
+        r = await client.get(path)
+        assert [t["id"] for t in r.json()["items"]] == [done.id]
+    with _as_user(w["owner"]):
+        assert (await client.get(path)).json()["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_next_after_everything_submitted_is_done_not_403(async_test_db, async_test_client):
+    db = async_test_db
+    w = await _async_world(db)
+    for task in w["tasks"]:
+        db.add(_submission(w, task))
+    await db.flush()
+    with _as_user(w["student"]):
+        r = await async_test_client.get(f"/api/projects/{w['project'].id}/next")
+    assert r.status_code == 200
+    assert r.json()["task"] is None
+
+
+@pytest.mark.asyncio
+async def test_data_explorer_shows_only_submitted_tasks(async_test_db, async_test_client):
+    db = async_test_db
+    w = await _async_world(db)
+    p = w["project"]
+    done = w["tasks"][0]
+    client = async_test_client
+    with _as_user(w["student"]):
+        r = await client.get("/api/data/", params={"project_ids": [p.id]})
+        assert r.status_code == 200 and r.json()["items"] == []
+        db.add(_submission(w, done))
+        await db.flush()
+        r = await client.get("/api/data/", params={"project_ids": [p.id]})
+        assert [t["id"] for t in r.json()["items"]] == [done.id]
+    with _as_user(w["owner"]):
+        r = await client.get("/api/data/", params={"project_ids": [p.id]})
+        assert r.json()["total"] == 2
 
 
 @pytest.mark.asyncio
@@ -280,7 +349,7 @@ async def test_submitted_task_is_readable_outside_seb(async_test_db, async_test_
 
 
 @pytest.mark.asyncio
-async def test_annotation_patch_is_gated(async_test_db, async_test_client):
+async def test_annotation_patch_and_skip_are_gated(async_test_db, async_test_client):
     db = async_test_db
     w = await _async_world(db)
     ann = _submission(w, w["tasks"][0])
@@ -288,11 +357,17 @@ async def test_annotation_patch_is_gated(async_test_db, async_test_client):
     await db.flush()
     path = f"/api/projects/annotations/{ann.id}"
     body = {"result": [{"from_name": "x", "to_name": "text", "type": "textarea", "value": {}}]}
+    skip = f"/api/projects/{w['project'].id}/tasks/{w['tasks'][1].id}/skip"
     with _as_user(w["student"]):
         r = await async_test_client.patch(path, json=body)
         assert r.status_code == 403
         assert r.json()["detail"]["code"] == "seb_required"
         r = await async_test_client.patch(path, json=body, headers=_proof(path))
+        assert r.status_code == 200, r.text
+        r = await async_test_client.post(skip, json={})
+        assert r.status_code == 403
+        assert r.json()["detail"]["code"] == "seb_required"
+        r = await async_test_client.post(skip, json={}, headers=_proof(skip))
         assert r.status_code == 200, r.text
 
 
@@ -313,20 +388,24 @@ def test_sync_write_endpoints_are_gated(test_db, client):
             ("put", draft, {"result": result}),
             ("post", checkpoint, {"result": result}),
             ("post", submit, {"result": result}),
-            ("get", my_tasks, None),
         ):
             kwargs = {"json": body} if body is not None else {}
             r = getattr(client, method)(path, **kwargs)
             assert r.status_code == 403, (path, r.text)
             assert r.json()["detail"]["code"] == "seb_required", path
 
+        # Outside SEB "my tasks" lists only submitted work: nothing yet.
+        r = client.get(my_tasks)
+        assert r.status_code == 200 and r.json()["tasks"] == []
+
         assert client.put(draft, json={"result": result}, headers=_proof(draft)).status_code == 200
         r = client.post(checkpoint, json={"result": result}, headers=_proof(checkpoint))
         assert r.status_code == 200, r.text
         r = client.post(submit, json={"result": result}, headers=_proof(submit))
         assert r.status_code == 200, r.text
-        # Submitted: the own task list is readable outside SEB again.
-        assert client.get(my_tasks).status_code == 200
+        # Submitted: that task (and only that one) is listed outside SEB.
+        r = client.get(my_tasks)
+        assert [t["id"] for t in r.json()["tasks"]] == [task.id]
 
     with _as_user(w["owner"]):
         assert client.put(draft, json={"result": result}).status_code == 200

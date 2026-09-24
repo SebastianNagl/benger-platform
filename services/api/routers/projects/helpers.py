@@ -3033,12 +3033,46 @@ def _seb_403(code: str) -> HTTPException:
     return HTTPException(status_code=403, detail={"code": code, "message": message})
 
 
-def _seb_check(request, project) -> None:
-    result = seb.verify_seb_request(
+def _seb_result(request, project) -> "seb.SebCheck":
+    return seb.verify_seb_request(
         request.headers, request.url.path, request.url.query, project.seb_config
     )
-    if not result.ok:
-        raise _seb_403(result.code)
+
+
+def seb_request_allowed(
+    db: Session, user, project, request, *, tier: Optional[str] = None
+) -> bool:
+    """Sync: whether this request may see the project's unsubmitted tasks.
+
+    True when the project does not require SEB, for editors, and when the
+    request carries a valid SEB proof. List endpoints use it to narrow to the
+    caller's own submitted tasks instead of refusing (see :func:`enforce_seb`
+    for single-task reads and writes).
+    """
+    if project is None or not getattr(project, "seb_required", False):
+        return True
+    if tier == TIER_ATTEMPTED:
+        return False
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return True
+    return _seb_result(request, project).ok
+
+
+async def seb_request_allowed_async(
+    db: AsyncSession, user, project, request, *, tier: Optional[str] = None
+) -> bool:
+    """Async twin of :func:`seb_request_allowed`."""
+    if project is None or not getattr(project, "seb_required", False):
+        return True
+    if tier == TIER_ATTEMPTED:
+        return False
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return True
+    return _seb_result(request, project).ok
 
 
 def enforce_seb(
@@ -3048,16 +3082,16 @@ def enforce_seb(
     request,
     *,
     tier: Optional[str] = None,
-    read: bool = False,
-    task_id: Optional[str] = None,
+    read_task_id: Optional[str] = None,
 ) -> None:
     """Sync: raise 403 unless the request may touch this SEB exam.
 
     No-op when the project does not require SEB, for editors, and for the
-    attempted tier. Reads (``read=True``) of work the user already submitted
-    stay allowed outside SEB, so results and corrections can be viewed
-    anywhere: with ``task_id`` the user must have submitted that task,
-    without it any task of the project. Writes are always checked.
+    attempted tier (read-only, own submissions only). ``read_task_id`` marks a
+    read of one task's content: a task the user already submitted stays
+    readable outside SEB, so results and corrections open anywhere. Writes
+    pass ``None`` and are always checked. Lists of tasks use
+    :func:`seb_request_allowed` and narrow instead.
     """
     if project is None or not getattr(project, "seb_required", False):
         return
@@ -3067,13 +3101,11 @@ def enforce_seb(
         db, user, project.id
     ):
         return
-    if read and (
-        user_attempted_task(db, user.id, task_id)
-        if task_id is not None
-        else user_attempted_project(db, user.id, project.id)
-    ):
+    if read_task_id is not None and user_attempted_task(db, user.id, read_task_id):
         return
-    _seb_check(request, project)
+    result = _seb_result(request, project)
+    if not result.ok:
+        raise _seb_403(result.code)
 
 
 async def enforce_seb_async(
@@ -3083,8 +3115,7 @@ async def enforce_seb_async(
     request,
     *,
     tier: Optional[str] = None,
-    read: bool = False,
-    task_id: Optional[str] = None,
+    read_task_id: Optional[str] = None,
 ) -> None:
     """Async twin of :func:`enforce_seb`."""
     if project is None or not getattr(project, "seb_required", False):
@@ -3095,13 +3126,13 @@ async def enforce_seb_async(
         db, user, project.id
     ):
         return
-    if read and (
-        await user_attempted_task_async(db, user.id, task_id)
-        if task_id is not None
-        else await user_attempted_project_async(db, user.id, project.id)
+    if read_task_id is not None and await user_attempted_task_async(
+        db, user.id, read_task_id
     ):
         return
-    _seb_check(request, project)
+    result = _seb_result(request, project)
+    if not result.ok:
+        raise _seb_403(result.code)
 
 
 # NOTE: the canonical project-access dependency is `require_project_access` in

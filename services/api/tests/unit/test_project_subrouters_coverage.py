@@ -73,7 +73,7 @@ class TestSkipTask:
         db = _async_db_returning(scalar=None)
         user = Mock()
         with pytest.raises(HTTPException) as exc_info:
-            await skip_task(project_id="proj-1", task_id="task-1", skip_request=SkipTaskRequest(),  # noqa: E128
+            await skip_task(project_id="proj-1", task_id="task-1", skip_request=SkipTaskRequest(), request=Mock(),  # noqa: E128
                            current_user=user, db=db)  # noqa: E128
         assert exc_info.value.status_code == 404
 

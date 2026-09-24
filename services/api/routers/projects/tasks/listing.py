@@ -95,8 +95,10 @@ async def list_project_tasks(
     # window opens (editors exempt, attempted tier exempt). No-op when the
     # project has no window.
     await enforce_project_read_window_async(db, current_user, project, tier=access.tier)
-    await enforce_seb_async(
-        db, current_user, project, request, tier=access.tier, read=True
+    # Safe Exam Browser: outside SEB a non-editor lists only the tasks they
+    # already submitted (the exam itself is handed out inside SEB).
+    seb_ok = await seb_request_allowed_async(
+        db, current_user, project, request, tier=access.tier
     )
 
     # Check user's role and apply visibility rules
@@ -123,9 +125,9 @@ async def list_project_tasks(
     query = select(Task).where(Task.project_id == project_id)
 
     # Apply role-based filtering
-    if access.tier == TIER_ATTEMPTED:
-        # Attempted tier: only the caller's own submissions, whatever the
-        # assignment mode — there is no new work to hand out.
+    if access.tier == TIER_ATTEMPTED or not seb_ok:
+        # Attempted tier (and SEB exams outside SEB): only the caller's own
+        # submissions, whatever the assignment mode — no new work handed out.
         query = query.where(own_active_annotation_exists(current_user.id))
     elif annotator_sees_assigned_only(user_role, project):
         # Annotators only see tasks assigned to them
@@ -552,7 +554,25 @@ async def get_next_task(
     # (editors exempt).
     await enforce_project_read_window_async(db, current_user, project, tier=tier)
     # Safe Exam Browser: the next task is by definition unsubmitted content.
-    await enforce_seb_async(db, current_user, project, request, tier=tier)
+    # Outside SEB, a user with nothing left to do gets the normal "done"
+    # answer instead of a 403.
+    if not await seb_request_allowed_async(db, current_user, project, request, tier=tier):
+        total = (
+            await db.execute(
+                select(func.count(Task.id)).where(Task.project_id == project_id)
+            )
+        ).scalar() or 0
+        done = (
+            await db.execute(
+                select(func.count(Task.id)).where(
+                    Task.project_id == project_id,
+                    own_active_annotation_exists(current_user.id),
+                )
+            )
+        ).scalar() or 0
+        if total and done >= total:
+            return {"detail": "No tasks available", "task": None}
+        await enforce_seb_async(db, current_user, project, request, tier=tier)
 
     # Find next task based on assignment mode
     if project.assignment_mode == "manual":
@@ -925,7 +945,7 @@ async def get_task(
     if project is not None:
         await enforce_project_read_window_async(db, current_user, project, tier=tier)
         await enforce_seb_async(
-            db, current_user, project, request, tier=tier, read=True, task_id=task_id
+            db, current_user, project, request, tier=tier, read_task_id=task_id
         )
 
     # Get generation count for this task

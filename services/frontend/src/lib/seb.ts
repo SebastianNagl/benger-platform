@@ -35,14 +35,33 @@ function sebApi(): SafeExamBrowserApi | undefined {
   return window.SafeExamBrowser
 }
 
-// SEB 3.0 for macOS / iOS only fills the key variables after updateKeys().
-// Later versions set them on load and may not define the function.
+// SEB 3.0 for macOS / iOS only fills the key variables after updateKeys()
+// calls back. Later versions set them on load and may not define the
+// function. Requests that need the proof await `sebKeysReady()` first.
+let keysReady: Promise<void> = Promise.resolve()
 if (typeof window !== 'undefined') {
-  try {
-    sebApi()?.security?.updateKeys?.(() => {})
-  } catch {
-    // Not in SEB, or an SEB build without the function.
+  const security = sebApi()?.security
+  if (security && typeof security.updateKeys === 'function') {
+    const updateKeys = security.updateKeys.bind(security)
+    keysReady = new Promise<void>((resolve) => {
+      // Never hang the exam page on a build that doesn't call back.
+      const fallback = setTimeout(resolve, 2000)
+      try {
+        updateKeys(() => {
+          clearTimeout(fallback)
+          resolve()
+        })
+      } catch {
+        clearTimeout(fallback)
+        resolve()
+      }
+    })
   }
+}
+
+/** Resolves once SEB has filled its key variables (immediately outside SEB). */
+export function sebKeysReady(): Promise<void> {
+  return keysReady
 }
 
 /** Whether the page runs inside Safe Exam Browser. */

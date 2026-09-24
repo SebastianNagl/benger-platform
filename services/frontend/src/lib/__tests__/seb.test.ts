@@ -89,10 +89,38 @@ describe('sebRequestHeaders', () => {
     })
   })
 
-  it('asks SEB 3.0 to fill the keys on load', () => {
-    const updateKeys = jest.fn()
+  it('asks SEB 3.0 to fill the keys and waits for the callback', async () => {
+    let callback: (() => void) | undefined
+    const updateKeys = jest.fn((cb: () => void) => {
+      callback = cb
+    })
     ;(window as any).SafeExamBrowser = { security: { updateKeys } }
-    loadSeb()
+    const seb = loadSeb()
     expect(updateKeys).toHaveBeenCalledTimes(1)
+    let ready = false
+    void seb.sebKeysReady().then(() => {
+      ready = true
+    })
+    await Promise.resolve()
+    expect(ready).toBe(false)
+    callback!()
+    await seb.sebKeysReady()
+    expect(ready).toBe(true)
+  })
+
+  it('does not wait outside SEB or on builds without updateKeys', async () => {
+    await expect(loadSeb().sebKeysReady()).resolves.toBeUndefined()
+  })
+
+  it('gives up waiting after two seconds', async () => {
+    jest.useFakeTimers()
+    try {
+      ;(window as any).SafeExamBrowser = { security: { updateKeys: jest.fn() } }
+      const ready = loadSeb().sebKeysReady()
+      jest.advanceTimersByTime(2000)
+      await expect(ready).resolves.toBeUndefined()
+    } finally {
+      jest.useRealTimers()
+    }
   })
 })

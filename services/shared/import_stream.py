@@ -2453,7 +2453,16 @@ def _create_imported_project(
         # The accepted Config Key is computed over a .seb file whose URLs name
         # the source host, so a re-enable (which regenerates it) is required.
         seb_required=False,
-        seb_config=project_data.get("seb_config"),
+        # The download token is per project: a copy mints its own on re-enable.
+        seb_config=(
+            {
+                k: v
+                for k, v in project_data["seb_config"].items()
+                if k != "config_token"
+            }
+            if isinstance(project_data.get("seb_config"), dict)
+            else None
+        ),
         # Kind + per-project settings. Older exports lack these keys, so every
         # read falls back to the column default (also for an explicit null on
         # a NOT NULL column).

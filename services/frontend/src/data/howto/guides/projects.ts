@@ -323,7 +323,7 @@ export const PROJECT_GUIDES: HowToGuide[] = [
     steps: {
       de: [
         'Projektseite → **Projekteinstellungen** → **Safe Exam Browser** → **Safe Exam Browser erforderlich** anhaken.',
-        'Optional: Bei Prüfungen aus Moodle oder ILIAS die Kursseite als **Start-URL** eintragen, damit sich Studierende dort in SEB anmelden. Erlaubte Zusatzseiten (z.B. eine Gesetzesdatenbank) unter **Weitere erlaubte Domains** eintragen.',
+        'Bei Prüfungen aus Moodle oder ILIAS die Kursseite als **Start-URL** eintragen (Pflicht), damit sich Studierende dort in SEB anmelden. Erlaubte Zusatzseiten (z.B. eine Gesetzesdatenbank) unter **Weitere erlaubte Domains** eintragen.',
         'Optional: ein **Beenden-Passwort** setzen, das die Aufsicht im Raum nennt.',
         '**Speichern**. Danach stehen der Link zum Starten in SEB, die Konfigurationsdatei und die freigegebenen Domains für die IT zum Kopieren bereit.',
         'Den Studierenden den Link zur Prüfung geben. Wer sie in einem normalen Browser öffnet, sieht eine Anleitung und den Knopf **Prüfung in SEB öffnen**.',
@@ -331,7 +331,7 @@ export const PROJECT_GUIDES: HowToGuide[] = [
       ],
       en: [
         'Project page → **Project settings** → **Safe Exam Browser** → tick **Require Safe Exam Browser**.',
-        'Optional: for exams from Moodle or ILIAS enter the course page as **Start URL**, so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.',
+        'For exams from Moodle or ILIAS enter the course page as **Start URL** (required), so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.',
         'Optional: set a **quit password** that the supervisors announce in the room.',
         '**Save**. The link to start in SEB, the configuration file and the allowed domains for IT are then ready to copy.',
         'Give students the link to the exam. Opened in a normal browser, it shows instructions and the **Open exam in SEB** button.',
