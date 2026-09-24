@@ -108,7 +108,11 @@ def compute_semantic_metric(
                 )
             emb_gt = model.encode(gt_str, convert_to_tensor=True)
             emb_pred = model.encode(pred_str, convert_to_tensor=True)
-            similarity = st_util.cos_sim(emb_gt, emb_pred).item()
+            # Read st_util off the module now: _get_sentence_transformer()
+            # sets it on first load, after the import above bound None.
+            from .. import sample_evaluator
+
+            similarity = sample_evaluator.st_util.cos_sim(emb_gt, emb_pred).item()
             return max(0.0, similarity)
 
     raise ValueError(f"Unknown semantic metric: {metric_name}")

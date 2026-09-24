@@ -339,7 +339,7 @@ class TestComputeSemanticMetric:
         cos.item.return_value = 0.33
         with patch(f"{SE_MOD}.IS_ARM64", False), patch(
             f"{SE_MOD}._get_sentence_transformer", return_value=model
-        ), patch(f"{SE_MOD}.st_util.cos_sim", return_value=cos):
+        ), patch(f"{SE_MOD}.st_util", MagicMock(cos_sim=MagicMock(return_value=cos))):
             val = ev._compute_semantic_metric("semantic_similarity", "ref", "cand", {})
         assert val == pytest.approx(0.33)
 
