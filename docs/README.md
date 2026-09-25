@@ -16,7 +16,8 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 - [**Data Import/Export**](./user-guides/data-import-export.md) - Working with data
 - [**Data Formats**](./user-guides/data-formats.md) - Supported file formats
 - [**Native Annotation System**](./user-guides/native-annotation-system.md) - Full annotation features
-- [**LMS Integration (LTI 1.3)**](./lms-integration.md) - Moodle and ILIAS: registration, grade passback, data protection
+- [**LMS setup guides (German)**](./lms-setup/README.md) - Step by step for org admins, ILIAS and Moodle administrations, and teachers
+- [**LMS Integration (LTI 1.3)**](./lms-integration.md) - Moodle and ILIAS reference: registration, grade passback, data protection
 
 ### Developer Documentation
 - [**Development Setup**](./development/README.md) - Development environment
