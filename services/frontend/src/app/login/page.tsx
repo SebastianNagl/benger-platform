@@ -1,11 +1,10 @@
 'use client'
 
-import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
-import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
+import { AuthPageFrame } from '@/components/layout/AuthPageFrame'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
-import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
+import { getHostBrandName } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -17,17 +16,15 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [nextUrl, setNextUrl] = useState<string | null>(null)
-  // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount so
-  // SSR stays neutral; the brief default is the BenGER name on benger hosts.
+  // Host-aware product name for the subtitle (the frame draws the wordmark).
+  // Resolved after mount so SSR stays neutral.
   const [brandName, setBrandName] = useState('BenGER')
-  const [isVtr, setIsVtr] = useState(false)
   const { user, login } = useAuth()
   const { t } = useI18n()
   const router = useRouter()
 
   useEffect(() => {
     setBrandName(getHostBrandName())
-    setIsVtr(isStudentLockedHost())
   }, [])
 
   // Capture an optional ?next= return path (sanitized to an internal route).
@@ -76,168 +73,117 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-zinc-900">
-      {/* Minimal Header */}
-      <header className="relative z-10">
-        <nav
-          className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
-          aria-label="Global"
-        >
-          <div className="flex lg:flex-1">
-            <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">{brandName}</span>
-              <div className="flex items-center gap-2 text-xl font-bold text-zinc-900 dark:text-white">
-                {isVtr ? (
-                  <VertretbarMarkIcon className="h-7 w-7 text-emerald-500" />
-                ) : (
-                  <span className="text-2xl">🤘</span>
-                )}
-                <span>{brandName}</span>
-              </div>
-            </Link>
-          </div>
+    <AuthPageFrame contentTestId="auth-login-area">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          {t('login.title')}
+        </h1>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          {t('login.subtitle').replace(/BenGER/g, brandName)}{' '}
+          <Link
+            href="/register"
+            className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+            data-testid="auth-login-register-link"
+          >
+            {t('login.register')}
+          </Link>
+        </p>
+      </div>
 
-          {/* Back to Landing + Controls */}
+      {/* Login Form */}
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-6"
+        data-testid="auth-login-form"
+      >
+        {error && (
           <div
-            className="flex items-center gap-4"
-            data-testid="auth-navigation-safe-zone"
+            className="rounded-md bg-red-50 p-4 dark:bg-red-900/20"
+            data-testid="auth-login-error-message"
           >
-            <Link
-              href="/"
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
-            >
-              {t('login.backToLanding')}
-            </Link>
-            <div
-              className="ml-4 flex items-center gap-2"
-              data-testid="auth-ui-controls"
-              data-automation="ignore"
-            >
-              <LanguageSwitcher />
-              <ThemeToggle />
+            <div className="text-sm text-red-700 dark:text-red-400">
+              {error}
             </div>
           </div>
-        </nav>
-      </header>
+        )}
 
-      {/* Main Content */}
-      <main className="flex min-h-[calc(100vh-80px)] items-center justify-center px-6 py-12 lg:px-8">
-        <div
-          className="w-full max-w-md space-y-8"
-          data-testid="auth-login-area"
-        >
-          {/* Header */}
-          <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              {t('login.title')}
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              {t('login.subtitle').replace(/BenGER/g, brandName)}{' '}
-              <Link
-                href="/register"
-                className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                data-testid="auth-login-register-link"
-              >
-                {t('login.register')}
-              </Link>
-            </p>
-          </div>
-
-          {/* Login Form */}
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-6"
-            data-testid="auth-login-form"
+        <div>
+          <label
+            htmlFor="username"
+            className="block text-sm font-medium text-zinc-900 dark:text-white"
           >
-            {error && (
-              <div
-                className="rounded-md bg-red-50 p-4 dark:bg-red-900/20"
-                data-testid="auth-login-error-message"
-              >
-                <div className="text-sm text-red-700 dark:text-red-400">
-                  {error}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-zinc-900 dark:text-white"
-              >
-                {t('login.username')}
-              </label>
-              <div className="mt-1">
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  required
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
-                  placeholder={t('login.usernamePlaceholder')}
-                  data-testid="auth-login-email-input"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-zinc-900 dark:text-white"
-              >
-                {t('login.password')}
-              </label>
-              <div className="mt-1">
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
-                  placeholder={t('login.passwordPlaceholder')}
-                  data-testid="auth-login-password-input"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <Link
-                  href="/reset-password"
-                  className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
-                  data-testid="auth-login-forgot-password-link"
-                >
-                  {t('login.forgotPassword')}
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="w-full bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
-                data-testid="auth-login-submit-button"
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
-                    {t('login.loading')}
-                  </div>
-                ) : (
-                  t('login.button')
-                )}
-              </Button>
-            </div>
-          </form>
+            {t('login.username')}
+          </label>
+          <div className="mt-1">
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
+              placeholder={t('login.usernamePlaceholder')}
+              data-testid="auth-login-email-input"
+            />
+          </div>
         </div>
-      </main>
-    </div>
+
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-zinc-900 dark:text-white"
+          >
+            {t('login.password')}
+          </label>
+          <div className="mt-1">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
+              placeholder={t('login.passwordPlaceholder')}
+              data-testid="auth-login-password-input"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="text-sm">
+            <Link
+              href="/reset-password"
+              className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+              data-testid="auth-login-forgot-password-link"
+            >
+              {t('login.forgotPassword')}
+            </Link>
+          </div>
+        </div>
+
+        <div>
+          <Button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
+            data-testid="auth-login-submit-button"
+          >
+            {isLoading ? (
+              <div className="flex items-center justify-center">
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-b-2 border-white"></div>
+                {t('login.loading')}
+              </div>
+            ) : (
+              t('login.button')
+            )}
+          </Button>
+        </div>
+      </form>
+    </AuthPageFrame>
   )
 }

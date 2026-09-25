@@ -3900,7 +3900,8 @@
       "markdownInstructions": "Verwenden Sie Markdown-Überschriften (# bis ######) mit dem entsprechenden juristischen Präfix.",
       "example": "Beispiel",
       "editOutline": "Gliederung bearbeiten",
-      "createOutline": "Gliederung anlegen"
+      "createOutline": "Gliederung anlegen",
+      "viewOutline": "Gliederung ansehen"
     },
     "legalMarkdown": {
       "savedToDb": "Änderungen in Datenbank gespeichert",
@@ -6374,6 +6375,7 @@
     },
     "loesung": {
       "create": "Lösung anlegen",
+      "view": "Lösung ansehen",
       "edit": "Lösung bearbeiten"
     },
     "checkpoints": {
@@ -6385,6 +6387,7 @@
     "taskLoadedFromUrl": "Aufgabe {taskNumber} aus URL geladen",
     "taskNotFound": "Aufgabe {taskNumber} nicht gefunden (max: {maxTasks}). Erste Aufgabe wird stattdessen geladen.",
     "viewTaskData": "Vollständige Aufgabendaten anzeigen",
+    "readOnlyEmpty": "Nicht bearbeitet",
     "editTaskData": "Aufgabendaten bearbeiten",
     "numberPlaceholder": "Zahl eingeben...",
     "backToProject": "Zurück zum Projekt",
@@ -6623,7 +6626,8 @@
       "label": "Notizen",
       "placeholder": "Eigene Notizen und Anmerkungen...",
       "edit": "Notizen bearbeiten",
-      "create": "Notizen anlegen"
+      "create": "Notizen anlegen",
+      "view": "Notizen ansehen"
     },
     "immediateEvaluation": {
       "evaluating": "Ihre Annotation wird evaluiert...",
@@ -9186,7 +9190,7 @@
         "toolConfigHostChange": "Die Adresse ändern Sie unter „Bearbeiten“.",
         "toolHost": "Adresse für die Lernplattform",
         "toolHostChanged": "Passen Sie danach die Tool-URLs in der Lernplattform an. Bis dahin ruft sie weiter die bisherige Adresse ({host}) auf. Die Starts funktionieren trotzdem, der Verlauf zeigt eine Warnung.",
-        "toolHostIntro": "Unter dieser Adresse ruft die Lernplattform das Tool auf. Sie bestimmt, in welcher Oberfläche die Personen landen.",
+        "toolHostIntro": "Bestimmt, in welcher Oberfläche die Personen landen.",
         "toolHostMain": "BenGER-Adresse",
         "toolHostMainHint": "Studierende arbeiten in der Studierendenoberfläche, Lehrende in der Expertenoberfläche.",
         "toolHostStudent": "Studierenden-Adresse",
@@ -9465,8 +9469,6 @@
         "confirmDisableCta": "Deaktivieren",
         "confirmEnable": "Aktivieren erlaubt sofort wieder Logins, Starts und Notenübertragung für diese Lernplattform. Fortfahren?",
         "confirmEnableCta": "Aktivieren",
-        "connectIntro": "Erstellen Sie einen einmaligen Einladungslink und leiten Sie ihn an die Administration der Lernplattform weiter. Moodle unterstützt diese Einladung (Dynamic Registration), ILIAS ab Version 10.9 mit Einschränkungen. Ältere ILIAS-Versionen registrieren Sie manuell. Nach der Registrierung erscheint die Anbindung oben und ist sofort aktiv.",
-        "connectTitle": "Lernplattform verbinden",
         "deploymentCount": "Deployments: {n}",
         "disable": "Anbindung deaktivieren",
         "empty": "Diese Organisation ist noch mit keiner Lernplattform verbunden.",
@@ -9478,37 +9480,27 @@
         "historyHintGroups": "Mit Einladungslinks und gelöschten Anbindungen Ihrer Gruppen.",
         "historyOpen": "Verlauf aller Anbindungen anzeigen",
         "historyTitle": "Verlauf aller Anbindungen",
-        "inviteActiveNote": "Sobald die Lernplattform den Link einlöst, ist die Anbindung aktiv. Sie können sie hier jederzeit ausschalten.",
-        "inviteAnother": "Weiteren Link erstellen",
         "inviteCreate": "Einladungslink erstellen",
         "inviteCreateError": "Einladungslink konnte nicht erstellt werden.",
         "inviteGroup": "Gruppe (optional)",
-        "inviteGroupAdminHint": "Als Gruppen-Admin erstellen Sie Einladungen nur für Ihre Gruppen.",
-        "inviteGroupHint": "Mit einer Gruppe treten die Personen aus der Lernplattform dieser Gruppe bei.",
         "inviteGroupRequired": "Gruppe",
-        "inviteInstructions": "Anleitung für Moodle-Administrationen: Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools verwalten → Link bei „LTI Advantage hinzufügen“ einfügen. Fragt Moodle nach einem vorhandenen Tool, „Als neues externes Tool registrieren“ wählen. Dann das Tool aktivieren.",
-        "inviteMoodleSettings": "Danach öffnet die Moodle-Administration die Einstellungen des Tools (Symbol „Bearbeiten“) und setzt „Verwendung der Toolkonfiguration“ auf „In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen“, „Standard-Startcontainer“ auf „Neues Fenster“ und „Bewertungen aus dem Tool akzeptieren“ auf „Immer“. Sonst startet das Tool eingebettet, fehlt in der Aktivitätsauswahl, und Aktivitäten erhalten nur mit einem zusätzlichen Haken der Lehrenden eine Bewertung.",
         "inviteLoadError": "Einladungen konnten nicht geladen werden.",
-        "inviteNoGroups": "Sie verwalten keine aktive Gruppe. Einladungen für diese Organisation erstellt ein Org-Admin.",
-        "invitePending": "Offene Einladungen",
+        "inviteNoGroups": "Sie verwalten keine aktive Gruppe. Anbindungen für diese Organisation erstellt ein Org-Admin.",
         "inviteRevoke": "Widerrufen",
         "inviteRevokeError": "Einladung konnte nicht widerrufen werden.",
-        "inviteRow": "Erstellt am {created}, gültig bis {expires}",
         "inviteRowGroup": "Gruppe: {group}",
         "inviteRowHost": "Adresse: {host}",
-        "inviteUrlOnce": "Dieser Link wird nur einmal angezeigt. Kopieren Sie ihn jetzt und leiten Sie ihn an die Administration der Lernplattform weiter:",
         "keys": {
           "enableOrgAdmin": "Einschalten kann das nur ein Org-Admin unter „API-Schlüssel“.",
           "groupScope": "Gruppe {group}",
-          "intro": "KI-Bewertungen aus der Lernplattform bezahlt Ihre Organisation mit ihren API-Schlüsseln. Fehlt ein Schlüssel, schlägt die Bewertung mit einem Hinweis fehl.",
+          "intro": "KI-Bewertungen aus der Lernplattform laufen über die API-Schlüssel Ihrer Organisation.",
           "orgScope": "Ganze Organisation",
-          "ready": "Die KI-Bewertung ist eingerichtet.",
+          "ready": "KI-Bewertung eingerichtet: Sie läuft über die API-Schlüssel Ihrer Organisation.",
           "title": "KI-Bewertung und API-Schlüssel",
           "unknown": "Der Stand der API-Schlüssel ließ sich nicht prüfen."
         },
         "loadError": "Die Anbindungen konnten nicht geladen werden.",
         "missingAgs": "{n} verknüpfte Aktivitäten ohne Notenübertragung. Schalten Sie die Notenübertragung in der Lernplattform ein und öffnen Sie die Aktivität erneut.",
-        "new": "Neue Anbindung",
         "orgWideBadge": "Ganze Organisation",
         "statusActive": "aktiv",
         "statusDisabled": "deaktiviert",
@@ -9519,7 +9511,10 @@
         "switchedOffBadge": "Ausgeschaltet",
         "title": "Lernplattformen von {org}",
         "toggleError": "Statusänderung fehlgeschlagen.",
-        "trigger": "Lernplattform (LTI)"
+        "trigger": "Lernplattform (LTI)",
+        "connect": "Lernplattform verbinden",
+        "invitePendingTitle": "Wartet auf die Lernplattform",
+        "invitePendingText": "Der Einladungslink vom {created} ist noch nicht eingelöst. Gültig bis {expires}."
       },
       "activity": {
         "actionError": "Die Aktion ist fehlgeschlagen.",
@@ -9666,6 +9661,35 @@
       "sessionMismatch": {
         "body": "In diesem Browser wurde inzwischen ein anderes Lernplattform-Konto angemeldet. Damit keine Abgabe im falschen Konto landet, ist diese Seite gesperrt. Bitte die Aktivität in der Lernplattform erneut öffnen, um mit dem richtigen Konto fortzufahren.",
         "title": "Andere LTI-Sitzung aktiv"
+      },
+      "connect": {
+        "title": "Lernplattform verbinden",
+        "chooseLms": "Welche Lernplattform?",
+        "other": "Andere",
+        "step": "Schritt {current} von {total}",
+        "guide": "Ausführliche Anleitung",
+        "moodleIntro": "Sie erstellen einen Einladungslink. Die Moodle-Administration fügt ihn in Moodle ein, erst dann ist die Anbindung da.",
+        "linkOnce": "Link kopieren. Er wird nur jetzt angezeigt.",
+        "inviteLink": "Einladungslink",
+        "moodleInvite1": "In Moodle unter Externes Tool → Tools verwalten bei „LTI Advantage hinzufügen“ einfügen.",
+        "moodleInvite2": "Tool aktivieren und drei Einstellungen ändern (siehe Anleitung).",
+        "iliasInvite1": "In ILIAS im Kurs ein LTI-Konsument-Objekt anlegen und „Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen“ öffnen.",
+        "iliasInvite2": "Link einfügen, hinzufügen, dann in den Provider-Einstellungen Benotungsdienste, Identifikation und Outcome Service setzen.",
+        "inviteDone": "Sobald der Link eingelöst ist, erscheint die Anbindung hier als aktiv.",
+        "iliasUrlsIntro": "Geben Sie diese Werte an die ILIAS-Administration. Sie legt damit einen globalen Provider an.",
+        "iliasSingleCourse": "Nur einen Kurs testen?",
+        "iliasSingleCourseLink": "Einladungslink erstellen",
+        "iliasValuesIntro": "Nach dem Speichern zeigt ILIAS im Provider unter „Hinweise“ Client ID und Deployment ID. Tragen Sie sie hier ein.",
+        "iliasIssuer": "ILIAS-Adresse",
+        "iliasMissing": "Bitte alle drei Werte aus ILIAS eintragen.",
+        "connect": "Verbinden",
+        "iliasDone": "ILIAS ist verbunden.",
+        "iliasNext": "Lehrende legen jetzt im Kurs ein LTI-Konsument-Objekt mit diesem Provider an.",
+        "otherTitle": "Andere Lernplattform",
+        "otherIntro": "Tragen Sie die Werte aus Ihrer Lernplattform ein.",
+        "moodleHint": "Mit Einladungslink",
+        "iliasHint": "Globaler Provider, drei Schritte",
+        "otherHint": "Formular mit allen Feldern"
       }
     }
   },

@@ -363,6 +363,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectSharing = useSlot('project-sharing')
   const ProjectDeckWorkspace = useSlot('project-deck-workspace')
   const ProjectSolverActions = useSlot('project-solver-actions')
+  // Learning-platform (LMS) activities linked to this project, shown under the
+  // quick actions. The slot renders nothing for projects outside an LMS.
+  const ProjectLmsActivities = useSlot('project-lms-activities')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -3086,6 +3089,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               )}
             </div>
           </div>
+
+          {ProjectLmsActivities && (
+            <ProjectLmsActivities projectId={currentProject.id} />
+          )}
 
           {/* Participation: how the user got in, leaving, the cohort. Below
               the actions so the primary action stays first; the card hides

@@ -3901,7 +3901,8 @@
       "markdownInstructions": "Use Markdown headings (# to ######) with the appropriate legal prefix.",
       "example": "Example",
       "editOutline": "Gliederung bearbeiten",
-      "createOutline": "Gliederung anlegen"
+      "createOutline": "Gliederung anlegen",
+      "viewOutline": "View Gliederung"
     },
     "legalMarkdown": {
       "savedToDb": "Changes saved to database",
@@ -6374,6 +6375,7 @@
     },
     "loesung": {
       "create": "Lösung anlegen",
+      "view": "View Lösung",
       "edit": "Lösung bearbeiten"
     },
     "checkpoints": {
@@ -6385,6 +6387,7 @@
     "taskLoadedFromUrl": "Loaded task {taskNumber} from URL",
     "taskNotFound": "Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.",
     "viewTaskData": "View complete task data",
+    "readOnlyEmpty": "Not worked on",
     "editTaskData": "Edit task data",
     "numberPlaceholder": "Enter a number...",
     "backToProject": "Back to Project",
@@ -6623,7 +6626,8 @@
       "label": "Notes (Notizen)",
       "placeholder": "Your notes and comments...",
       "edit": "Edit notes",
-      "create": "Create notes"
+      "create": "Create notes",
+      "view": "View notes"
     },
     "immediateEvaluation": {
       "evaluating": "Evaluating your annotation...",
@@ -9178,7 +9182,7 @@
         "toolConfigHostChange": "You can change the address under “Edit”.",
         "toolHost": "Address for the learning platform",
         "toolHostChanged": "Afterwards, update the tool URLs in the learning platform. Until then it keeps calling the previous address ({host}). Launches still work, and the history shows a warning.",
-        "toolHostIntro": "The learning platform calls the tool at this address. It decides which interface people land in.",
+        "toolHostIntro": "Decides which interface people land in.",
         "toolHostMain": "BenGER address",
         "toolHostMainHint": "Students work in the student interface, teachers in the expert interface.",
         "toolHostStudent": "Student address",
@@ -9457,8 +9461,6 @@
         "confirmDisableCta": "Disable",
         "confirmEnable": "Enabling immediately allows logins, launches, and grade transfer for this learning platform again. Continue?",
         "confirmEnableCta": "Enable",
-        "connectIntro": "Create a one-time invitation link and forward it to the administrators of the learning platform. Moodle supports this invitation (Dynamic Registration), ILIAS from version 10.9 with limitations. Register older ILIAS versions manually. After registration the connection appears above and is active right away.",
-        "connectTitle": "Connect learning platform",
         "deploymentCount": "Deployments: {n}",
         "disable": "Disable connection",
         "empty": "This organization is not connected to any learning platform yet.",
@@ -9470,37 +9472,27 @@
         "historyHintGroups": "Including invitation links and deleted connections of your groups.",
         "historyOpen": "Show the history of all connections",
         "historyTitle": "History of all connections",
-        "inviteActiveNote": "As soon as the learning platform redeems the link, the connection is active. You can switch it off here at any time.",
-        "inviteAnother": "Create another link",
         "inviteCreate": "Create invitation link",
         "inviteCreateError": "Invitation link could not be created.",
         "inviteGroup": "Group (optional)",
-        "inviteGroupAdminHint": "As a group admin you create invitations for your groups only.",
-        "inviteGroupHint": "With a group, the people from the learning platform join this group.",
         "inviteGroupRequired": "Group",
-        "inviteInstructions": "Instructions for Moodle administrators: Site administration → Plugins → Activity modules → External tool → Manage tools → paste the link into “Add LTI Advantage”. If Moodle asks about an existing tool, choose “Register as a new external tool”. Then activate the tool.",
-        "inviteMoodleSettings": "Then the Moodle administration opens the tool settings (the “Edit” icon) and sets “Tool configuration usage” to “Show in activity chooser and as a preconfigured tool”, “Default launch container” to “New window” and “Accept grades from the tool” to “Always”. Otherwise the tool opens embedded, is missing from the activity chooser, and activities get a grade only if teachers tick an extra box.",
         "inviteLoadError": "Invitations could not be loaded.",
-        "inviteNoGroups": "You do not manage an active group. An org admin creates invitations for this organization.",
-        "invitePending": "Pending invitations",
+        "inviteNoGroups": "You manage no active group. An org admin creates connections for this organization.",
         "inviteRevoke": "Revoke",
         "inviteRevokeError": "Invitation could not be revoked.",
-        "inviteRow": "Created on {created}, valid until {expires}",
         "inviteRowGroup": "Group: {group}",
         "inviteRowHost": "Address: {host}",
-        "inviteUrlOnce": "This link is shown only once. Copy it now and forward it to the administrators of the learning platform:",
         "keys": {
           "enableOrgAdmin": "Only an org admin can turn this on under “API keys”.",
           "groupScope": "Group {group}",
-          "intro": "Your organization pays for AI grading from the learning platform with its API keys. Without a key, grading fails with a notice.",
+          "intro": "AI grading from the learning platform runs on your organization’s API keys.",
           "orgScope": "Whole organization",
-          "ready": "AI grading is set up.",
+          "ready": "AI grading is set up: it runs on your organization’s API keys.",
           "title": "AI grading and API keys",
           "unknown": "The state of the API keys could not be checked."
         },
         "loadError": "The connections could not be loaded.",
         "missingAgs": "{n} linked activities without grade transfer. Turn on grade transfer in the learning platform and open the activity again.",
-        "new": "New connection",
         "orgWideBadge": "Whole organization",
         "statusActive": "active",
         "statusDisabled": "disabled",
@@ -9511,7 +9503,10 @@
         "switchedOffBadge": "Switched off",
         "title": "Learning platforms of {org}",
         "toggleError": "Status change failed.",
-        "trigger": "Learning platform (LTI)"
+        "trigger": "Learning platform (LTI)",
+        "connect": "Connect learning platform",
+        "invitePendingTitle": "Waiting for the learning platform",
+        "invitePendingText": "The invitation link from {created} has not been redeemed yet. Valid until {expires}."
       },
       "activity": {
         "actionError": "The action failed.",
@@ -9658,6 +9653,35 @@
       "sessionMismatch": {
         "body": "A different learning platform account has since signed in in this browser. This page is locked so that no submission ends up in the wrong account. Please open the activity in the learning platform again to continue with the right account.",
         "title": "Different LTI session active"
+      },
+      "connect": {
+        "title": "Connect learning platform",
+        "chooseLms": "Which learning platform?",
+        "other": "Other",
+        "step": "Step {current} of {total}",
+        "guide": "Detailed guide",
+        "moodleIntro": "You create an invitation link. The Moodle administration pastes it into Moodle; only then does the connection exist.",
+        "linkOnce": "Copy the link. It is shown only now.",
+        "inviteLink": "Invitation link",
+        "moodleInvite1": "In Moodle, paste it under External tool → Manage tools into “Add LTI Advantage”.",
+        "moodleInvite2": "Activate the tool and change three settings (see the guide).",
+        "iliasInvite1": "In the ILIAS course, add an LTI consumer object and open “Create Own Settings for Tool with Dynamic Registration”.",
+        "iliasInvite2": "Paste the link, add it, then set grading services, user identification and outcome service in the provider settings.",
+        "inviteDone": "Once the link is redeemed, the connection appears here as active.",
+        "iliasUrlsIntro": "Give these values to the ILIAS administration. It creates a global provider with them.",
+        "iliasSingleCourse": "Only testing one course?",
+        "iliasSingleCourseLink": "Create invitation link",
+        "iliasValuesIntro": "After saving, ILIAS shows the Client ID and Deployment ID in the provider under “Hints”. Enter them here.",
+        "iliasIssuer": "ILIAS address",
+        "iliasMissing": "Please enter all three values from ILIAS.",
+        "connect": "Connect",
+        "iliasDone": "ILIAS is connected.",
+        "iliasNext": "Teachers can now add an LTI consumer object with this provider to their course.",
+        "otherTitle": "Other learning platform",
+        "otherIntro": "Enter the values from your learning platform.",
+        "moodleHint": "With an invitation link",
+        "iliasHint": "Global provider, three steps",
+        "otherHint": "Form with all fields"
       }
     }
   },

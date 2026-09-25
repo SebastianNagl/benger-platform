@@ -80,8 +80,8 @@ under NDA. Contact details are in [§12](#12-support-and-contact).
    at once. See [§6](#6-registering-your-lms).
 2. A teacher adds an external tool activity to a course and opens it. On the
    first launch the teacher consents and then picks the exam behind the
-   activity. Later launches open the activity overview with all submissions
-   and grades.
+   activity. Later launches open the exam's page, which links the activity
+   overview with all submissions and grades.
 3. A student opens the activity. On the first launch the student consents.
    Only then is an account created. The student then lands in the exam.
    Returning students go straight to the exam.
@@ -199,7 +199,7 @@ These are properties of ILIAS 10, not of BenGER.
                                             opens the session
         │ 3a. no address that can receive mail (ILIAS, or an LMS that
         │     withholds it): the page asks once for one (skippable)
-        │ 4. teacher: exam picker or activity overview
+        │ 4. teacher: exam picker or the exam's page
         │    student: the exam
         ▼
   submission ─▶ AI grading on the organization's API key
@@ -283,6 +283,20 @@ connections created before the choice existed use it. If you change the
 address later, update the tool URLs in the LMS as well. Until then, launches
 through the old address still work, and the panel's history shows a warning.
 
+**One assistant per LMS.** **Connect learning platform** in the panel first
+asks which LMS you use and then shows only the steps for it:
+
+| Choice | Way | See |
+|---|---|---|
+| Moodle | one-time invite link | [§6a](#6a-one-link-registration-dynamic-registration) |
+| ILIAS | global provider, entered by hand (3 steps) | [§6b](#6b-manual-registration) |
+| ILIAS, one course only | invite link (*Only testing one course?*) | [§6a](#6a-one-link-registration-dynamic-registration) |
+| Other | the full form with all fields | [§6b](#6b-manual-registration) |
+
+An invite link alone connects nothing. Until the LMS redeems it, the panel
+shows it as a card **Waiting for the learning platform**, with its expiry
+date and **Revoke**. Only then does the connection card appear.
+
 **Active at once.** Both ways below create a connection that works
 immediately. It can be switched off in the panel at any time. Because of
 this, the contract with us must be in place before your organization admin
@@ -290,10 +304,13 @@ creates the invite (see [§8.8](#88-compliance-tell-us-what-you-need)).
 
 ### 6a. One-link registration (Dynamic Registration)
 
-1. In the panel, under **Connect learning platform**, choose the address and,
-   if you like, a group. Then click **Create invitation link**. The link is
-   shown once. It works once, is stored only as a SHA-256 hash and is valid
-   for 14 days. Unused links can be revoked under **Pending invitations**.
+1. In the panel, click **Connect learning platform** and choose **Moodle**
+   (for a single ILIAS course: **ILIAS**, then *Only testing one course?
+   Create invitation link*). Choose the address and, if you like, a group.
+   Then click **Create invitation link**. The link is shown once. It works
+   once, is stored only as a SHA-256 hash and is valid for 14 days. Until
+   the LMS redeems it, it stays as a **Waiting for the learning platform**
+   card in the panel, where you can revoke it.
 2. Send the link to the LMS administration.
 3. **Moodle**: Site administration → Plugins → Activity modules → External
    tool → Manage tools (German Moodle: *Website-Administration → Plugins →
@@ -367,18 +384,30 @@ Further rules:
 The LMS issues the client ID only after the tool, including its URLs, is
 saved there. So the order is:
 
-1. In the panel, click **New connection** and choose the address. The form
-   shows the three tool URLs (login, launch and JWKS) before anything is
-   saved.
-2. Send these URLs, or the setup sheet in the appendix, to the LMS
-   administration.
-3. The LMS administration saves the tool and reports the client ID and the
-   deployment ID. On ILIAS the deployment ID is the numeric **Provider ID**.
-   German ILIAS shows both in the saved provider's settings in the box
-   *Hinweise*, in the lines *Client ID* and *Deployment ID*.
-4. Enter the issuer, the endpoints, the client ID and the deployment ID in
-   the form and save. The tool fills in the endpoints from the issuer.
-5. Later, **Tool configuration** on the connection shows the same URLs.
+**ILIAS** (the assistant's three steps):
+
+1. In the panel, click **Connect learning platform** and choose **ILIAS**.
+   Choose the address and, if you like, a group. Step 1 shows the three tool
+   URLs (login, launch and JWKS).
+2. Send these URLs, or the setup sheet in
+   [Appendix A](#appendix-a-ilias-setup-sheet-german), to the ILIAS
+   administration. It creates a global provider (English ILIAS: *Extending
+   ILIAS → LTI → ILIAS as LTI Consumer → Add Global Provider for all Users*;
+   set *Availability* to *For Creating Objects* and *LTI Version* to 1.3,
+   both are preset differently) and reports the client ID
+   and the deployment ID, which is the numeric **Provider ID**. ILIAS shows
+   both in the saved provider, in the box *Hinweise* (*Hints*).
+3. Step 2: enter the ILIAS address, the client ID and the deployment ID and
+   click **Connect**. The tool fills in the endpoints from the address and
+   uses the default settings below. Change them later under **Edit**.
+4. Step 3 confirms the connection. Teachers can now add LTI consumer objects
+   with this provider to their courses.
+
+**Other LMSs** (choice **Other**): the form shows the three tool URLs before
+anything is saved. Once the LMS reports client ID and deployment ID, enter
+the issuer, the endpoints, the client ID and the deployment ID and save.
+
+Later, **Tool configuration** on the connection shows the same URLs.
 
 | Field | Moodle | ILIAS |
 |---|---|---|
@@ -452,15 +481,19 @@ one, until the old account is anonymized.
 6. Click **Link**. Human Korrektur is switched on for the exam. The exam is
    attached to the connection's organization (or group), so its staff can
    open the exam and grade it.
-7. Later launches by the teacher open the **activity overview**. It lists
-   every student who consented, with real name, submission time, AI grade,
-   human grade, what each LMS column received, and the transfer status and
-   error. From there the teacher opens the Korrektur or the exam. A transfer
-   with an error (failed, or waiting after a failed attempt) can be sent
-   again with **Send again**. On the BenGER host the overview is part of the
-   expert interface. **Open grading** always opens the Korrektur in the
-   expert interface, also on the student host.
-8. **Moodle: keep the AI grade out of the course total.** Moodle adds the
+7. After linking, and on every later launch, the teacher lands on the
+   exam's page: the project page on the BenGER host, the exam page in the
+   student interface on the student host. Its card **Learning platform
+   activities** lists every linked activity with participants, submissions
+   and transfer errors, and links its **activity overview**.
+8. The activity overview lists every student who consented, with real name,
+   submission time, AI grade, human grade, what each LMS column received,
+   and the transfer status and error. From there the teacher opens the
+   Korrektur or the exam. A transfer with an error (failed, or waiting after
+   a failed attempt) can be sent again with **Send again**. **Open grading**
+   always opens the Korrektur in the expert interface, also on the student
+   host.
+9. **Moodle: keep the AI grade out of the course total.** Moodle adds the
    "KI-Bewertung" column as a normal manual grade item. Its name is
    "KI-Bewertung: <activity title>", so the columns of several linked
    activities in one course can be told apart. Columns created by earlier
@@ -483,8 +516,8 @@ task.
 The activity overview is open to the course teachers, the organization's
 admins, group admins of a group connection, and the staff who may grade the
 linked exam. Linking and relinking is for the course teachers and the admins.
-The exam's project page also lists its LMS activities under **Settings →
-Individual sharing**.
+The exam's project page lists its LMS activities in the sidebar, below the
+quick actions.
 
 ## 8. Identity, data protection and what is stored
 
@@ -1117,11 +1150,12 @@ we can reply with the documents instead of another round of questions.
 >    Reiter „ILIAS als LTI-Konsument“ → „Globalen Provider für alle Benutzer
 >    hinzufügen“.
 > 2. **Felder ausfüllen.** Die URLs schickt Ihnen Ihr Organisations-Admin.
->    Das Panel zeigt sie beim Anlegen einer **Neuen Anbindung** und später
->    unter **Tool-Konfiguration**.
+>    Das Panel zeigt sie unter **Lernplattform verbinden** → **ILIAS** und später
+>    unter **Tool-Konfiguration**. Zwei Voreinstellungen des Formulars
+>    passen nicht und müssen geändert werden: Verfügbarkeit und LTI-Version.
 >    - „Verfügbarkeit“: **„in neuen und bestehenden Objekten“**. Die
 >      Voreinstellung „nicht verfügbar“ verhindert neue Objekte.
->    - „LTI Version“: **„Version 1.3“**
+>    - „LTI Version“: **„Version 1.3“**. Voreingestellt ist Version 1.1.
 >    - „Login URL“: `https://<tool-host>/api/lti/launch`
 >    - „Initiate Login URL“: `https://<tool-host>/api/lti/login`
 >    - „Redirection URI“: `https://<tool-host>/api/lti/launch`
@@ -1154,7 +1188,9 @@ we can reply with the documents instead of another round of questions.
 >    bestanden). Erst mit dem Haken erscheint der Mastery Score. Setzen Sie
 >    den Wert, bevor Lehrende Objekte anlegen. Jedes Objekt übernimmt ihn
 >    beim Anlegen.
-> 5. Nach dem Speichern zeigt der Provider unter „Hinweise“ die Zeilen
+> 5. Nach dem Speichern führt ILIAS zurück zur Provider-Liste. Öffnen Sie
+>    den Provider erneut über seinen Titel. Unter „Erweiterte
+>    Benotungsdienste“ stehen im Feld „Hinweise“ die Zeilen
 >    **„Client ID“** und **„Deployment ID“**. Die Deployment-ID ist die
 >    numerische Provider-ID. Melden Sie beide Werte an Ihren
 >    **Organisations-Admin**.

@@ -305,9 +305,7 @@ describe('LTI guides: statements users rely on', () => {
       expect(text).toContain(
         label(locale, 'organization.apiKeys.orgProvidesToggle'),
       )
-      expect(text).toContain(
-        label(locale, 'extended.lti.orgPanel.connectTitle'),
-      )
+      expect(text).toContain(label(locale, 'extended.lti.orgPanel.connect'))
       expect(text).toContain(
         label(locale, 'extended.lti.orgPanel.inviteCreate'),
       )
@@ -316,10 +314,11 @@ describe('LTI guides: statements users rely on', () => {
       expect(text).toContain(
         label(locale, 'extended.lti.admin.toolHostStudent'),
       )
-      expect(text).toContain(label(locale, 'extended.lti.orgPanel.new'))
+      expect(text).toContain(label(locale, 'extended.lti.connect.other'))
+      expect(text).toContain(label(locale, 'extended.lti.connect.connect'))
       expect(text).toContain(label(locale, 'extended.lti.admin.toolConfig'))
       expect(text).toContain(
-        label(locale, 'extended.lti.orgPanel.invitePending'),
+        label(locale, 'extended.lti.orgPanel.invitePendingTitle'),
       )
     }
     expect(body('lti-setup', 'de')).toMatch(/sofort aktiv/)
