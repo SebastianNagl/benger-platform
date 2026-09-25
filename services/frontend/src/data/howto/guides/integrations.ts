@@ -414,7 +414,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
     },
     steps: {
       de: [
-        'Öffnen Sie die Aktivität in der Lernplattform. Die Übersicht erreichen Sie auch über **Notenübersicht öffnen** im Panel der Anbindung oder über **Übersicht öffnen** bei den Lernplattform-Aktivitäten der Klausur.',
+        'Öffnen Sie die Aktivität in der Lernplattform. Sie landen auf der Seite der Klausur; dort führt **Übersicht öffnen** bei den **Lernplattform-Aktivitäten** zur Übersicht. Im Panel der Anbindung erreichen Sie sie auch über **Notenübersicht öffnen**.',
         'Die Tabelle **Abgaben und Noten** zeigt je Person den Namen, die Abgabe, die **KI-Note**, die **Korrektur** und was die Aktivitätsspalte und die Spalte KI-Bewertung erhalten haben. Dazu kommt der Status (*Übertragen*, *Wird übertragen*, *Noch keine Note*, *Übersprungen* oder *Fehlgeschlagen*) mit Fehlertext.',
         '**Korrektur öffnen** führt direkt zur Abgabe in der Korrektur. Sie öffnet sich in der Expertenoberfläche, auch mit der Studierenden-Adresse. Ihre Note ersetzt in der Aktivitätsspalte die KI-Note.',
         'Hat eine Übertragung einen Fehler, bietet die Zeile **Erneut senden** an. Das gilt für fehlgeschlagene Übertragungen, für ausstehende nach einem Fehlversuch und für Spalten mit dem Hinweis *Weicht von der Lernplattform ab*. **Erneut senden** schickt die Note sofort noch einmal. **Fehlgeschlagene erneut senden** macht das für alle Übertragungen mit Fehler auf einmal.',
@@ -422,7 +422,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Unter **Spalten in der Lernplattform** sehen Sie, ob die Spalte **KI-Bewertung** aktiv ist. Wurde sie in Moodle gelöscht, legt **Spalte neu anlegen** sie wieder an.',
       ],
       en: [
-        'Open the activity from the learning platform. You also reach the overview through **Open grade overview** in the connection panel, or **Open overview** in the exam’s learning platform activities.',
+        'Open the activity from the learning platform. You land on the exam’s page; there **Open overview** in the **Learning platform activities** leads to the overview. In the connection panel, **Open grade overview** leads there as well.',
         'The table **Submissions and grades** shows for each person the name, the submission, the **AI grade**, the **Human grade** and what the activity column and the KI-Bewertung column received. It also shows the status (*Transferred*, *Being transferred*, *No grade yet*, *Skipped* or *Failed*) with the error text.',
         '**Open grading** takes you straight to the submission in the grading view. It opens in the expert interface, also with the Student address. Your grade replaces the AI grade in the activity column.',
         'If a transfer has an error, the row offers **Send again**. This covers failed transfers, pending ones after a failed attempt and columns marked *Differs from the learning platform*. **Send again** sends the grade once more, right away. **Send failed ones again** does this for all transfers with an error at once.',
