@@ -53,10 +53,7 @@ function LtiErrorFallback() {
   const showStudentHint = actions.some((action) => STAFF_ACTIONS.has(action))
 
   return (
-    <div
-      className="flex min-h-screen items-center justify-center px-4 py-10"
-      data-testid="lti-error-fallback"
-    >
+    <div className="flex justify-center" data-testid="lti-error-fallback">
       <div className="w-full max-w-md space-y-4 text-center">
         <ExclamationTriangleIcon
           aria-hidden="true"
