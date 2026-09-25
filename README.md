@@ -111,6 +111,7 @@ Test ports (isolated from dev): PostgreSQL 5433, Redis 6380, API 8002, Frontend 
 
 - [User Guide](docs/user-guides/README.md)
 - [Admin Guide](docs/user-guides/admin-guide.md)
+- [LMS setup guides (German, step by step)](docs/lms-setup/README.md)
 - [LMS Integration (LTI 1.3 — Moodle, ILIAS)](docs/lms-integration.md)
 - [Developer Authentication](docs/setup/developer-auth.md)
 - [Environment Variables](docs/setup/environment-variables.md)

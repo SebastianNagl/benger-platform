@@ -4,6 +4,11 @@ BenGER connects to a university's learning management system (LMS) as an
 **LTI 1.3 Advantage tool**. Students open an exam from a course activity, and
 grades go back to the LMS gradebook.
 
+**Setting it up?** Start with the short step-by-step guides in
+[`lms-setup/`](lms-setup/README.md) (German): one each for organization
+admins, the ILIAS administration, the Moodle administration and teachers.
+This document is the reference behind them.
+
 This document is for the people who evaluate and run the integration: LMS
 administrators, university IT, organization admins in BenGER and data
 protection officers. It describes what the tool does on the wire, what it
