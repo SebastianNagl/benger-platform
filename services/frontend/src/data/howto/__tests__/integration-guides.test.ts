@@ -34,6 +34,8 @@ type Locale = (typeof LOCALES)[number]
 
 const LTI_GUIDE_IDS = [
   'lti-setup',
+  'lti-setup-moodle',
+  'lti-setup-ilias',
   'lti-manage',
   'lti-teacher',
   'lti-grades',
@@ -136,6 +138,13 @@ function body(id: string, locale: Locale): string {
   return texts(guide(id), locale).join('\n')
 }
 
+// The common entry plus the Moodle and the ILIAS guide, read together.
+function setupBody(locale: Locale): string {
+  return ['lti-setup', 'lti-setup-moodle', 'lti-setup-ilias']
+    .map((id) => body(id, locale))
+    .join('\n')
+}
+
 function stepWith(id: string, locale: Locale, needle: string): string {
   const found = (guide(id).steps?.[locale] ?? []).find((s) =>
     s.includes(needle),
@@ -163,6 +172,8 @@ describe('LTI guides: structure', () => {
   it('keeps the setup, manage, teacher, grades and privacy guides together', () => {
     expect(INTEGRATION_GUIDES.map((g) => g.id)).toEqual([
       'lti-setup',
+      'lti-setup-moodle',
+      'lti-setup-ilias',
       'lti-manage',
       'lti-teacher',
       'lti-grades',
@@ -297,7 +308,7 @@ describe('ts-lti-errors covers every launch error code', () => {
 describe('LTI guides: statements users rely on', () => {
   it('sends org admins to the panel and the API keys first', () => {
     for (const locale of LOCALES) {
-      const text = body('lti-setup', locale)
+      const text = setupBody(locale)
       expect(text).toContain(label(locale, 'admin.organizations.more'))
       expect(text).toContain(
         label(locale, 'admin.organizations.lmsIntegration'),
@@ -453,9 +464,9 @@ describe('LTI guides: statements users rely on', () => {
         )
       }
     }
-    // The setup guide points admins to it as well.
-    expect(body('lti-setup', 'de')).toMatch(/Kursgesamtbewertung/)
-    expect(body('lti-setup', 'en')).toMatch(/course total/)
+    // The Moodle setup guide points admins to it as well.
+    expect(body('lti-setup-moodle', 'de')).toMatch(/Kursgesamtbewertung/)
+    expect(body('lti-setup-moodle', 'en')).toMatch(/course total/)
   })
 
   it('explains the activity overview and both grade columns', () => {
@@ -561,7 +572,7 @@ describe('LTI guides: statements users rely on', () => {
 
   it('names the Moodle grade service by its real labels in the setup guides', () => {
     for (const locale of LOCALES) {
-      for (const id of ['lti-setup', 'lti-manage']) {
+      for (const id of ['lti-setup-moodle', 'lti-manage']) {
         const text = body(id, locale)
         expect(text).toContain(MOODLE.agsField[locale])
         expect(text).toContain(MOODLE.agsColumns[locale])
@@ -601,7 +612,7 @@ describe('LTI guides: the ILIAS identification rule', () => {
     },
   )
 
-  it.each(['lti-setup', 'lti-privacy'])(
+  it.each(['lti-setup-ilias', 'lti-privacy'])(
     '%s recommends the ILIAS user id mode and the full name',
     (id) => {
       for (const locale of LOCALES) {
@@ -641,7 +652,7 @@ describe('LTI guides: the ILIAS identification rule', () => {
     },
   )
 
-  it.each(['lti-setup', 'lti-privacy'])(
+  it.each(['lti-setup-ilias', 'lti-privacy'])(
     '%s says the address step can be skipped and its link activates',
     (id) => {
       expect(body(id, 'de')).toMatch(/Der Schritt lässt sich überspringen/)
@@ -666,16 +677,16 @@ describe('LTI guides: the ILIAS identification rule', () => {
 
   it('asks for the provider settings ILIAS needs for grades', () => {
     for (const locale of LOCALES) {
-      const text = body('lti-setup', locale)
+      const text = body('lti-setup-ilias', locale)
       expect(text).toContain(ILIAS.grading[locale === 'de' ? 'de' : 'en'])
       expect(text).toContain(ILIAS.outcome[locale])
       expect(text).toContain(ILIAS.masteryDefault[locale])
       expect(text).toContain('**22**')
     }
-    expect(body('lti-setup', 'de')).toContain(
+    expect(body('lti-setup-ilias', 'de')).toContain(
       '*Verfügbarkeit* **in neuen und bestehenden Objekten**',
     )
-    expect(body('lti-setup', 'en')).toContain(
+    expect(body('lti-setup-ilias', 'en')).toContain(
       '*Availability* to **For Creating Objects**',
     )
   })

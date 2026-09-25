@@ -1145,8 +1145,6 @@ we can reply with the documents instead of another round of questions.
 
 ## Appendix A: ILIAS setup sheet (German)
 
-*Zum Weiterleiten an die ILIAS-Administration.*
-
 > **Das Tool als LTI-1.3-Tool in ILIAS einbinden**
 >
 > Die Bezeichnungen folgen der deutschen Oberfläche von ILIAS 10.9.
@@ -1218,8 +1216,6 @@ we can reply with the documents instead of another round of questions.
 >    ILIAS-Server aus über Port 443 erreichbar sein.
 
 ## Appendix B: Moodle setup sheet (German)
-
-*Zum Weiterleiten an die Moodle-Administration.*
 
 > **Das Tool als LTI-1.3-Tool in Moodle einbinden**
 >

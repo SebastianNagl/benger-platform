@@ -20,46 +20,30 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
       en: 'How do I connect our organization to Moodle or ILIAS (LTI)?',
     },
     summary: {
-      de: 'Über **LTI 1.3**. Als **Admin Ihrer Organisation** richten Sie die Anbindung selbst ein. **Lernplattform verbinden** führt Sie Schritt für Schritt: Moodle bekommt einen Einladungslink, ILIAS einen globalen Provider, dessen Werte Sie danach eintragen. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.',
-      en: 'Via **LTI 1.3**. As an **admin of your organization** you set up the connection yourself. **Connect learning platform** guides you step by step: Moodle gets an invitation link, ILIAS a global provider whose values you enter afterwards. The connection is **active at once**. Group admins can do this for their groups.',
+      de: 'Über **LTI 1.3**. Als **Admin Ihrer Organisation** bereiten Sie hier die Anbindung vor: API-Schlüssel, Panel, Adresse. Die Schritte in der Lernplattform stehen getrennt in **Moodle anbinden** und **ILIAS anbinden**. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.',
+      en: 'Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle** and **Connecting ILIAS**. The connection is **active at once**. Group admins can do this for their groups.',
     },
     steps: {
       de: [
         '**API-Schlüssel vorbereiten**: [Benutzer & Organisationen](/users-organizations) → Organisation → **API-Schlüssel** → **Organisation stellt API-Schlüssel bereit** einschalten und einen Schlüssel für das Bewertungsmodell hinterlegen. Standard sind Modelle von OpenAI. Ohne Schlüssel gibt es keine KI-Korrektur und keinen Rückfall auf einen anderen Schlüssel.',
         '**Panel öffnen**: [Benutzer & Organisationen](/users-organizations) → Organisation wählen → **Mehr** → **Lernplattform (LTI)**. Oben zeigt **KI-Bewertung und API-Schlüssel**, ob die KI-Korrektur eingerichtet ist.',
-        '**Lernplattform und Adresse wählen**: Klicken Sie auf **Lernplattform verbinden** und wählen Sie **Moodle**, **ILIAS** oder **Andere**. Dann wählen Sie die **Adresse für die Lernplattform**. Mit der **Studierenden-Adresse** arbeiten alle in der Studierendenoberfläche, auch Lehrende. Nur die Korrektur öffnet sich in der Expertenoberfläche. Mit der **BenGER-Adresse** arbeiten Studierende in der Studierendenoberfläche und Lehrende in der Expertenoberfläche. Gibt es nur eine Adresse, entfällt die Auswahl.',
-        '**Moodle: Einladungslink erstellen**: Wählen Sie bei Bedarf eine **Gruppe**. Dann treten die Personen aus der Lernplattform dieser Gruppe bei. Klicken Sie auf **Einladungslink erstellen**, kopieren Sie den Link und schicken Sie ihn an die Moodle-Administration. Der Link wird nur einmal angezeigt, gilt 14 Tage und funktioniert einmal. Bis Moodle ihn einlöst, steht er im Panel als Karte **Wartet auf die Lernplattform**. **ILIAS**: Schritt 1 zeigt die drei Tool-URLs für den globalen Provider. Nach dem Speichern meldet ILIAS Client ID und Deployment ID. Tragen Sie sie in Schritt 2 mit der ILIAS-Adresse ein und klicken Sie auf **Verbinden**.',
-        '**Lernplattform registriert das Tool**: In Moodle fügt die Administration den Link unter *Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools verwalten* bei **LTI Advantage hinzufügen** ein. Fragt Moodle, ob ein vorhandenes Tool aktualisiert werden soll, wählt sie **Als neues externes Tool registrieren**, außer sie ersetzt bewusst eine frühere Anbindung. Dann aktiviert sie das Tool. In ILIAS legt die Administration unter *Administration → ILIAS erweitern → LTI → ILIAS als LTI-Konsument* einen **globalen Provider** mit den drei URLs an und schaltet **Erweiterte Benotungsdienste** ein, sonst kommen keine Noten an. Außerdem stellt sie die Identifikation und den Namen ein (siehe Tipps). Die Anbindung steht im Panel und ist **sofort aktiv**.',
-        '**Tool in Moodle einstellen**: Moodle legt jedes per Link registrierte Tool eingebettet, nur als vorkonfiguriertes Tool und mit an Lehrende delegierten Bewertungen an. Das Tool kann das nicht ändern. Die Moodle-Administration öffnet deshalb die Einstellungen des Tools (Symbol *Bearbeiten* auf der Tool-Karte) und setzt *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**, *Standard-Startcontainer* auf **Neues Fenster** und *Bewertungen aus dem Tool akzeptieren* auf **Immer**.',
+        '**Lernplattform und Adresse wählen**: Klicken Sie auf **Lernplattform verbinden** und wählen Sie **Moodle**, **ILIAS** oder **Andere**. Dann wählen Sie die **Adresse für die Lernplattform**. Mit der **Studierenden-Adresse** arbeiten alle in der Studierendenoberfläche, auch Lehrende. Nur die Korrektur öffnet sich in der Expertenoberfläche. Mit der **BenGER-Adresse** arbeiten Studierende in der Studierendenoberfläche und Lehrende in der Expertenoberfläche. Gibt es nur eine Adresse, entfällt die Auswahl. Weiter geht es in [Moodle anbinden](/how-to#lti-setup-moodle) oder [ILIAS anbinden](/how-to#lti-setup-ilias).',
+        '**Andere Lernplattform**: **Andere** öffnet das vollständige Formular. Es zeigt die drei Tool-URLs schon vor dem Speichern. Nach dem Speichern des Tools meldet die Lernplattform Client-ID und Deployment-ID. Tragen Sie sie mit den URLs der Lernplattform ein. Die Tool-URLs stehen später auch unter **Tool-Konfiguration**.',
         '**Teststart**: Legen Sie in einem Testkurs eine Aktivität mit Bewertung an. Öffnen Sie sie zuerst als Lehrperson: Nach der Zustimmung verknüpfen Sie eine Klausur. Öffnen Sie sie danach als Studierende: Nach der Zustimmung öffnet sich die Klausur. Ist noch keine Klausur verknüpft, sehen Studierende nur den Hinweis `not_linked`.',
       ],
       en: [
         '**Prepare the API keys**: [Users & organizations](/users-organizations) → organization → **API keys** → switch on **Organization provides API keys** and store a key for the grading model. The default models are from OpenAI. Without a key there is no AI grading and no fallback to another key.',
         '**Open the panel**: [Users & organizations](/users-organizations) → pick the organization → **More** → **Learning platform (LTI)**. At the top, **AI grading and API keys** shows whether AI grading is set up.',
-        '**Choose the platform and the address**: click **Connect learning platform** and choose **Moodle**, **ILIAS** or **Other**. Then choose the **Address for the learning platform**. With the **Student address** everyone works in the student interface, teachers included. Only the grading view opens in the expert interface. With the **BenGER address** students work in the student interface and teachers in the expert interface. If there is only one address, there is nothing to choose.',
-        '**Moodle: create the invitation link**: pick a **group** if needed. People from the learning platform then join that group. Click **Create invitation link**, copy the link and send it to the Moodle administration. The link is shown only once, is valid for 14 days and works once. Until Moodle redeems it, the panel shows it as a **Waiting for the learning platform** card. **ILIAS**: step 1 shows the three tool URLs for the global provider. After saving, ILIAS reports the client ID and the deployment ID. Enter them with the ILIAS address in step 2 and click **Connect**.',
-        '**The learning platform registers the tool**: in Moodle the administration pastes the link under *Site administration → Plugins → Activity modules → External tool → Manage tools* into **Add LTI Advantage**. If Moodle asks whether to update an existing tool, they choose **Register as a new external tool**, unless they replace an earlier connection on purpose. Then they activate the tool. In ILIAS the administration creates a **global provider** with the three URLs under *Administration → Extending ILIAS → LTI → ILIAS as LTI Consumer* and switches on **Advanced Grading Services** (German ILIAS: *Erweiterte Benotungsdienste*), or no grades arrive. They also set the identification and the name (see the tips). The connection shows up in the panel and is **active at once**.',
-        '**Adjust the tool in Moodle**: Moodle creates every tool registered by link as embedded, as a preconfigured tool only, and with grades delegated to teachers. The tool cannot change that. So the Moodle administration opens the tool settings (the *Edit* icon on the tool card) and sets *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**, *Default launch container* to **New window** and *Accept grades from the tool* to **Always**.',
+        '**Choose the platform and the address**: click **Connect learning platform** and choose **Moodle**, **ILIAS** or **Other**. Then choose the **Address for the learning platform**. With the **Student address** everyone works in the student interface, teachers included. Only the grading view opens in the expert interface. With the **BenGER address** students work in the student interface and teachers in the expert interface. If there is only one address, there is nothing to choose. Continue with [Connecting Moodle](/how-to#lti-setup-moodle) or [Connecting ILIAS](/how-to#lti-setup-ilias).',
+        '**Other learning platform**: **Other** opens the full form. It shows the three tool URLs before anything is saved. After saving the tool, the learning platform reports the client ID and the deployment ID. Enter them with the learning platform URLs. The tool URLs are also shown later under **Tool configuration**.',
         '**Test launch**: create an activity with a grade in a test course. Open it first as a teacher: after the consent page, link an exam. Then open it as a student: after the consent page, the exam opens. If no exam is linked yet, students only see the `not_linked` notice.',
       ],
     },
     tips: {
       de: [
-        'Nur einen ILIAS-Kurs testen? Im ILIAS-Schritt erstellt **Einladungslink erstellen** einen Link für die dynamische Registrierung eines einzelnen Objekts. Andere Lernplattformen richten Sie mit **Andere** über das vollständige Formular ein. Die Tool-URLs stehen später auch unter **Tool-Konfiguration**.',
-        'Moodle muss Name und E-Mail-Adresse übermitteln. Beide müssen auf **Immer** stehen. Der Einladungslink fordert das an. Prüfen Sie die Einstellung nach der Registrierung in den Tool-Einstellungen.',
-        'ILIAS: Die Administration legt einen globalen Provider an und wählt bei *Verfügbarkeit* **in neuen und bestehenden Objekten**. Unter *Identifikation der Person* wählt sie **ID des ILIAS-Kontos …**. Beim *Anmeldename* wählt sie **Vollständiger Name**. Das gilt auch nach einer Registrierung per Link. ILIAS übermittelt dann den vollen Namen, aber keine E-Mail-Adresse. Es gibt also keine automatische Aktivierungsmail und keine Verknüpfung mit bestehenden Konten. Direkt nach der Zustimmung fragt die Seite deshalb jede Person einmal nach ihrer E-Mail-Adresse. Der Schritt lässt sich überspringen. Der Bestätigungslink an diese Adresse ist zugleich die Aktivierungsmail.',
-        'Für Moodle empfiehlt sich bei *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Dann erhält Moodle neben der Endnote auch eine Spalte **KI-Bewertung**. Der Einladungslink fordert das an. Lehrende nehmen diese Spalte aus der Kursgesamtbewertung heraus, siehe [Noten aus der Lernplattform](/how-to#lti-grades).',
-        'Das Tool muss in einem **neuen Fenster** starten. In Moodle entscheidet das der *Standard-Startcontainer* des Tools, nicht die einzelne Aktivität.',
-        'ILIAS zeigt Noten als Lernfortschritt. Die ILIAS-Administration hakt beim Provider *Provider unterstützt Outcome Service* an und setzt *Voreinstellung Mastery Score* auf **22**, bevor Lehrende Objekte anlegen. Das entspricht 4 von 18 Notenpunkten. Außerdem muss der Lernfortschritt in der ILIAS-Administration eingeschaltet sein.',
         'Gruppen-Admins erstellen Einladungen und Anbindungen nur für ihre Gruppen. **Organisation stellt API-Schlüssel bereit** kann nur ein Org-Admin einschalten.',
       ],
       en: [
-        'Only testing one ILIAS course? In the ILIAS step, **Create invitation link** creates a link for the dynamic registration of a single object. Set up other learning platforms with **Other** in the full form. The tool URLs are also shown later under **Tool configuration**.',
-        'Moodle must send name and email address. Both must be set to **Always**. The invitation link requests this. Check the tool settings after the registration.',
-        'ILIAS: the administration creates a global provider and sets *Availability* to **For Creating Objects** (German ILIAS: *in neuen und bestehenden Objekten*). Under *User identification* they choose **ILIAS user id …** (German ILIAS: *ID des ILIAS-Kontos …*). For the *User name* they choose **Entire name** (German ILIAS: *Vollständiger Name*). This also applies after a registration by link. ILIAS then sends the full name but no email address. So there is no automatic activation mail and no linking to existing accounts. Right after consent the page therefore asks each person once for their email address. The step can be skipped. The confirmation link sent to that address is also the activation mail.',
-        'For Moodle, set *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Moodle then gets a **KI-Bewertung** column next to the final grade. The invitation link requests this. Teachers take this column out of the course total, see [Grades and the learning platform](/how-to#lti-grades).',
-        'The tool must open in a **new window**. In Moodle the tool’s *Default launch container* decides this, not the single activity.',
-        'ILIAS shows grades as learning progress. The ILIAS administration ticks *Provider supports Outcome Service* on the provider and sets the *Default Mastery Score* to **22** before teachers create objects. This equals 4 of 18 grade points. Learning progress must also be switched on in the ILIAS administration.',
         'Group admins create invitations and connections for their groups only. Only an org admin can switch on **Organization provides API keys**.',
       ],
     },
@@ -67,19 +51,27 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
       de: [
         'Die Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließen Sie den Vertrag mit uns vorher ab und erstellen Sie den Link erst danach.',
         'Ein Einladungslink allein verbindet noch nichts. Solange die Karte **Wartet auf die Lernplattform** im Panel steht, hat die Lernplattform ihn nicht eingelöst. Einen Link, den Sie nicht mehr brauchen, entwerten Sie dort mit **Widerrufen**.',
-        'Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur. Nach einer Registrierung per Link ist das in Moodle voreingestellt. Stellen Sie den *Standard-Startcontainer* des Tools auf **Neues Fenster**.',
-        'Haben Moodle-Aktivitäten keine Bewertung, delegiert *Bewertungen aus dem Tool akzeptieren* noch an die Lehrenden. Stellen Sie es auf **Immer**. Sonst müssen Lehrende in jeder Aktivität den Haken *… erlauben, Bewertungen hinzuzufügen* setzen.',
-        'Wählen Sie in ILIAS bei *Identifikation der Person* nicht *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“. Legen Sie den Modus vor dem ersten Start fest und ändern Sie ihn danach nicht mehr.',
       ],
       en: [
         'The connection is active as soon as the learning platform redeems the link. Sign the contract with us first and create the link only after that.',
         'An invitation link alone connects nothing. As long as the **Waiting for the learning platform** card is in the panel, the learning platform has not redeemed it. Revoke a link you no longer need there with **Revoke**.',
-        'If the tool starts embedded in the course (iframe), people land on the login page instead of the exam. After a registration by link, Moodle presets exactly that. Set the tool’s *Default launch container* to **New window**.',
-        'If Moodle activities have no grade, *Accept grades from the tool* still delegates to teachers. Set it to **Always**. Otherwise teachers must tick *Allow … to add grades in the gradebook* in every activity.',
-        'In ILIAS, do not choose *E-Mail Address* (German ILIAS: *E-Mail-Adresse*) under *User identification*. In ILIAS 10.9 every grade transfer fails in this mode with “User not available”. Set the mode before the first launch and do not change it afterwards.',
       ],
     },
     links: [
+      {
+        label: {
+          de: 'Moodle anbinden',
+          en: 'Connecting Moodle',
+        },
+        href: '/how-to#lti-setup-moodle',
+      },
+      {
+        label: {
+          de: 'ILIAS anbinden',
+          en: 'Connecting ILIAS',
+        },
+        href: '/how-to#lti-setup-ilias',
+      },
       {
         label: {
           de: 'Anbindung verwalten',
@@ -117,20 +109,11 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'ILIAS',
         'Lernplattform',
         'Integration',
-        'externes Tool',
         'Anbindung',
         'Registrierung',
-        'Einladungslink',
-        'Dynamic Registration',
         'Studierenden-Adresse',
         'BenGER-Adresse',
-        'Tools verwalten',
-        'Standard-Startcontainer',
-        'Aktivitätsauswahl',
-        'Bewertungen aus dem Tool akzeptieren',
-        'Identifikation der Person',
-        'Mastery Score',
-        'Erweiterte Benotungsdienste',
+        'API-Schlüssel',
       ],
       en: [
         'lti',
@@ -138,19 +121,222 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'ilias',
         'lms',
         'integration',
-        'external tool',
         'registration',
-        'invitation link',
-        'dynamic registration',
         'student address',
         'benger address',
+        'api keys',
+      ],
+    },
+  },
+  {
+    id: 'lti-setup-moodle',
+    category: 'integrations',
+    title: {
+      de: 'Wie binde ich Moodle an?',
+      en: 'How do I connect Moodle?',
+    },
+    summary: {
+      de: 'Mit einem **Einladungslink**: Sie erstellen ihn im Panel, die Moodle-Administration fügt ihn in Moodle ein und ändert drei Einstellungen des Tools. Danach ist die Anbindung **sofort aktiv**.',
+      en: 'With an **invitation link**: you create it in the panel, the Moodle administration pastes it into Moodle and changes three settings of the tool. Then the connection is **active at once**.',
+    },
+    steps: {
+      de: [
+        '**Einladungslink erstellen**: Im Panel **Lernplattform verbinden** → **Moodle**. Adresse und bei Bedarf eine **Gruppe** wählen, dann **Einladungslink erstellen**. Kopieren Sie den Link und schicken Sie ihn an die Moodle-Administration. Er wird nur einmal angezeigt, gilt 14 Tage und funktioniert einmal. Bis Moodle ihn einlöst, steht im Panel die Karte **Wartet auf die Lernplattform**.',
+        '**Moodle registriert das Tool**: Die Administration fügt den Link unter *Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools verwalten* bei **LTI Advantage hinzufügen** ein. Fragt Moodle, ob ein vorhandenes Tool aktualisiert werden soll, wählt sie **Als neues externes Tool registrieren**, außer sie ersetzt bewusst eine frühere Anbindung. Dann aktiviert sie das Tool. Die Anbindung steht im Panel und ist **sofort aktiv**.',
+        '**Tool in Moodle einstellen**: Moodle legt jedes per Link registrierte Tool eingebettet, nur als vorkonfiguriertes Tool und mit an Lehrende delegierten Bewertungen an. Das Tool kann das nicht ändern. Die Moodle-Administration öffnet deshalb die Einstellungen des Tools (Symbol *Bearbeiten* auf der Tool-Karte) und setzt *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**, *Standard-Startcontainer* auf **Neues Fenster** und *Bewertungen aus dem Tool akzeptieren* auf **Immer**.',
+        '**Fertig, wenn** die Karte **Wartet auf die Lernplattform** verschwunden ist und die Anbindung mit **Anbindung aktiv** im Panel steht. Lehrende legen dann im Kurs eine Aktivität an, siehe [Klausur mit einer Aktivität verknüpfen](/how-to#lti-teacher).',
+      ],
+      en: [
+        '**Create the invitation link**: in the panel, **Connect learning platform** → **Moodle**. Choose the address and a **group** if needed, then **Create invitation link**. Copy the link and send it to the Moodle administration. It is shown only once, is valid for 14 days and works once. Until Moodle redeems it, the panel shows a **Waiting for the learning platform** card.',
+        '**Moodle registers the tool**: the administration pastes the link under *Site administration → Plugins → Activity modules → External tool → Manage tools* into **Add LTI Advantage**. If Moodle asks whether to update an existing tool, they choose **Register as a new external tool**, unless they replace an earlier connection on purpose. Then they activate the tool. The connection shows up in the panel and is **active at once**.',
+        '**Adjust the tool in Moodle**: Moodle creates every tool registered by link as embedded, as a preconfigured tool only, and with grades delegated to teachers. The tool cannot change that. So the Moodle administration opens the tool settings (the *Edit* icon on the tool card) and sets *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**, *Default launch container* to **New window** and *Accept grades from the tool* to **Always**.',
+        '**Done when** the **Waiting for the learning platform** card is gone and the connection shows **Connection on** in the panel. Teachers then create an activity in their course, see [Linking an exam to an activity](/how-to#lti-teacher).',
+      ],
+    },
+    tips: {
+      de: [
+        'Moodle muss Name und E-Mail-Adresse übermitteln. Beide müssen auf **Immer** stehen. Der Einladungslink fordert das an. Prüfen Sie die Einstellung nach der Registrierung in den Tool-Einstellungen.',
+        'Für Moodle empfiehlt sich bei *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Dann erhält Moodle neben der Endnote auch eine Spalte **KI-Bewertung**. Der Einladungslink fordert das an. Lehrende nehmen diese Spalte aus der Kursgesamtbewertung heraus, siehe [Noten aus der Lernplattform](/how-to#lti-grades).',
+        'Das Tool muss in einem **neuen Fenster** starten. In Moodle entscheidet das der *Standard-Startcontainer* des Tools, nicht die einzelne Aktivität.',
+      ],
+      en: [
+        'Moodle must send name and email address. Both must be set to **Always**. The invitation link requests this. Check the tool settings after the registration.',
+        'For Moodle, set *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Moodle then gets a **KI-Bewertung** column next to the final grade. The invitation link requests this. Teachers take this column out of the course total, see [Grades and the learning platform](/how-to#lti-grades).',
+        'The tool must open in a **new window**. In Moodle the tool’s *Default launch container* decides this, not the single activity.',
+      ],
+    },
+    pitfalls: {
+      de: [
+        'Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur. Nach einer Registrierung per Link ist das in Moodle voreingestellt. Stellen Sie den *Standard-Startcontainer* des Tools auf **Neues Fenster**.',
+        'Haben Moodle-Aktivitäten keine Bewertung, delegiert *Bewertungen aus dem Tool akzeptieren* noch an die Lehrenden. Stellen Sie es auf **Immer**. Sonst müssen Lehrende in jeder Aktivität den Haken *… erlauben, Bewertungen hinzuzufügen* setzen.',
+      ],
+      en: [
+        'If the tool starts embedded in the course (iframe), people land on the login page instead of the exam. After a registration by link, Moodle presets exactly that. Set the tool’s *Default launch container* to **New window**.',
+        'If Moodle activities have no grade, *Accept grades from the tool* still delegates to teachers. Set it to **Always**. Otherwise teachers must tick *Allow … to add grades in the gradebook* in every activity.',
+      ],
+    },
+    links: [
+      {
+        label: {
+          de: 'Anbindung vorbereiten',
+          en: 'Preparing the connection',
+        },
+        href: '/how-to#lti-setup',
+      },
+      {
+        label: {
+          de: 'Klausur mit einer Aktivität verknüpfen',
+          en: 'Linking an exam to an activity',
+        },
+        href: '/how-to#lti-teacher',
+      },
+      {
+        label: {
+          de: 'Noten aus der Lernplattform',
+          en: 'Grades and the learning platform',
+        },
+        href: '/how-to#lti-grades',
+      },
+      {
+        label: {
+          de: 'Start aus Moodle oder ILIAS schlägt fehl',
+          en: 'Launch from Moodle or ILIAS fails',
+        },
+        href: '/how-to#ts-lti-errors',
+      },
+      TECH_REFERENCE_LINK,
+    ],
+    keywords: {
+      de: [
+        'Moodle',
+        'LTI',
+        'Einladungslink',
+        'Dynamic Registration',
+        'Tools verwalten',
+        'LTI Advantage hinzufügen',
+        'Standard-Startcontainer',
+        'Aktivitätsauswahl',
+        'Bewertungen aus dem Tool akzeptieren',
+        'KI-Bewertung',
+      ],
+      en: [
+        'moodle',
+        'lti',
+        'invitation link',
+        'dynamic registration',
         'manage tools',
+        'add lti advantage',
         'default launch container',
         'activity chooser',
         'accept grades from the tool',
+        'ki-bewertung',
+      ],
+    },
+  },
+  {
+    id: 'lti-setup-ilias',
+    category: 'integrations',
+    title: {
+      de: 'Wie binde ich ILIAS an?',
+      en: 'How do I connect ILIAS?',
+    },
+    summary: {
+      de: 'Mit einem **globalen Provider** in ILIAS: Sie geben der ILIAS-Administration drei URLs, sie legt den Provider an und meldet Client ID und Deployment ID zurück, die Sie im Panel eintragen. Danach ist die Anbindung **sofort aktiv**.',
+      en: 'With a **global provider** in ILIAS: you give the ILIAS administration three URLs, they create the provider and report the client ID and deployment ID back, which you enter in the panel. Then the connection is **active at once**.',
+    },
+    steps: {
+      de: [
+        '**URLs an ILIAS geben**: Im Panel **Lernplattform verbinden** → **ILIAS**. Adresse und bei Bedarf eine **Gruppe** wählen. Schritt 1 zeigt drei URLs. Schicken Sie sie an die ILIAS-Administration.',
+        '**Globalen Provider anlegen**: In ILIAS *Administration → ILIAS erweitern → LTI →* Reiter *ILIAS als LTI-Konsument* → *Globalen Provider für alle Benutzer hinzufügen*. Dort *Verfügbarkeit* **in neuen und bestehenden Objekten** und *LTI Version* **Version 1.3** wählen, beide sind anders voreingestellt. Die drei URLs eintragen, bei *Typ des öffentlichen Schlüssels* **URL (Json Web Token)** mit der JWKS-URL, *Unterstützung für Deep Linking* aus, **Erweiterte Benotungsdienste** an.',
+        '**Datenschutz im Provider**: *Identifikation der Person* auf **ID des ILIAS-Kontos …**, *Anmeldename* auf **Vollständiger Name**. Warum, steht in den Tipps.',
+        'ILIAS zeigt Noten als Lernfortschritt. Die ILIAS-Administration hakt beim Provider *Provider unterstützt Outcome Service* an und setzt *Voreinstellung Mastery Score* auf **22**, bevor Lehrende Objekte anlegen. Das entspricht 4 von 18 Notenpunkten. Außerdem muss der Lernfortschritt in der ILIAS-Administration eingeschaltet sein.',
+        '**Werte zurückmelden**: Nach dem Speichern den Provider über seinen Titel erneut öffnen. Im Feld *Hinweise* stehen **Client ID** und **Deployment ID**. Im Panel **Lernplattform verbinden** → **ILIAS** → **Weiter**, dann ILIAS-Adresse, Client ID und Deployment ID eintragen und **Verbinden** klicken. Die Anbindung ist **sofort aktiv**.',
+        '**Objekt im Kurs**: *Neues Objekt hinzufügen* → *LTI-Konsument* → den Provider wählen → *Online* anhaken, *Optionen für den Start* **Neues Fenster**. Danach weiter wie in [Klausur mit einer Aktivität verknüpfen](/how-to#lti-teacher).',
+      ],
+      en: [
+        '**Give the URLs to ILIAS**: in the panel, **Connect learning platform** → **ILIAS**. Choose the address and a **group** if needed. Step 1 shows three URLs. Send them to the ILIAS administration.',
+        '**Create a global provider**: in ILIAS, *Administration → Extending ILIAS → LTI →* tab *ILIAS as LTI Consumer* → *Add Global Provider for all Users*. There set *Availability* to **For Creating Objects** and *LTI Version* to **Version 1.3**, both are preset differently. Enter the three URLs, set *Public Key Type* to **URL (Json Web Token)** with the JWKS URL, *Support for Deep Linking* off, **Advanced Grading Services** on.',
+        '**Privacy in the provider**: *User identification* to **ILIAS user id …**, *User name* to **Entire name**. The tips say why.',
+        'ILIAS shows grades as learning progress. The ILIAS administration ticks *Provider supports Outcome Service* on the provider and sets the *Default Mastery Score* to **22** before teachers create objects. This equals 4 of 18 grade points. Learning progress must also be switched on in the ILIAS administration.',
+        '**Report the values back**: after saving, open the provider again by its title. The *Hints* box shows the **Client ID** and **Deployment ID**. In the panel, **Connect learning platform** → **ILIAS** → **Next**, enter the ILIAS address, client ID and deployment ID, and click **Connect**. The connection is **active at once**.',
+        '**Object in the course**: *Add New Object* → *LTI Consumer* → pick the provider → tick *Online*, *Options for Launch* **New Window**. Then continue as in [Linking an exam to an activity](/how-to#lti-teacher).',
+      ],
+    },
+    tips: {
+      de: [
+        'ILIAS: Die Administration legt einen globalen Provider an und wählt bei *Verfügbarkeit* **in neuen und bestehenden Objekten**. Unter *Identifikation der Person* wählt sie **ID des ILIAS-Kontos …**. Beim *Anmeldename* wählt sie **Vollständiger Name**. Das gilt auch nach einer Registrierung per Link. ILIAS übermittelt dann den vollen Namen, aber keine E-Mail-Adresse. Es gibt also keine automatische Aktivierungsmail und keine Verknüpfung mit bestehenden Konten. Direkt nach der Zustimmung fragt die Seite deshalb jede Person einmal nach ihrer E-Mail-Adresse. Der Schritt lässt sich überspringen. Der Bestätigungslink an diese Adresse ist zugleich die Aktivierungsmail.',
+        'Nur einen ILIAS-Kurs testen? Im ILIAS-Schritt des Panels erstellt **Einladungslink erstellen** einen Link für die dynamische Registrierung eines einzelnen Objekts. In ILIAS: *LTI-Konsument* anlegen → *Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen (LTI 1.3)* → Link einfügen → *Anlegen*. Vor dem Speichern dieselben Provider-Einstellungen wie oben setzen.',
+      ],
+      en: [
+        'ILIAS: the administration creates a global provider and sets *Availability* to **For Creating Objects** (German ILIAS: *in neuen und bestehenden Objekten*). Under *User identification* they choose **ILIAS user id …** (German ILIAS: *ID des ILIAS-Kontos …*). For the *User name* they choose **Entire name** (German ILIAS: *Vollständiger Name*). This also applies after a registration by link. ILIAS then sends the full name but no email address. So there is no automatic activation mail and no linking to existing accounts. Right after consent the page therefore asks each person once for their email address. The step can be skipped. The confirmation link sent to that address is also the activation mail.',
+        'Only testing one ILIAS course? In the ILIAS step of the panel, **Create invitation link** creates a link for the dynamic registration of a single object. In ILIAS: add an *LTI Consumer* → *Create Own Settings for Tool with Dynamic Registration (LTI 1.3)* → paste the link → *Add*. Before saving, set the same provider settings as above.',
+      ],
+    },
+    pitfalls: {
+      de: [
+        'Wählen Sie in ILIAS bei *Identifikation der Person* nicht *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“. Legen Sie den Modus vor dem ersten Start fest und ändern Sie ihn danach nicht mehr.',
+        'Tragen Sie bei *Typ des öffentlichen Schlüssels* die JWKS-URL ein, keinen RSA-Schlüssel. ILIAS prüft die Signaturen des Tools nur über die URL, sonst scheitert die Notenübertragung.',
+      ],
+      en: [
+        'In ILIAS, do not choose *E-Mail Address* (German ILIAS: *E-Mail-Adresse*) under *User identification*. In ILIAS 10.9 every grade transfer fails in this mode with “User not available”. Set the mode before the first launch and do not change it afterwards.',
+        'Under *Public Key Type* enter the JWKS URL, not an RSA key. ILIAS checks the tool’s signatures only through the URL, otherwise grade transfer fails.',
+      ],
+    },
+    links: [
+      {
+        label: {
+          de: 'Anbindung vorbereiten',
+          en: 'Preparing the connection',
+        },
+        href: '/how-to#lti-setup',
+      },
+      {
+        label: {
+          de: 'Klausur mit einer Aktivität verknüpfen',
+          en: 'Linking an exam to an activity',
+        },
+        href: '/how-to#lti-teacher',
+      },
+      {
+        label: {
+          de: 'Datenschutz bei der Anbindung',
+          en: 'Data protection for the integration',
+        },
+        href: '/how-to#lti-privacy',
+      },
+      {
+        label: {
+          de: 'Start aus Moodle oder ILIAS schlägt fehl',
+          en: 'Launch from Moodle or ILIAS fails',
+        },
+        href: '/how-to#ts-lti-errors',
+      },
+      TECH_REFERENCE_LINK,
+    ],
+    keywords: {
+      de: [
+        'ILIAS',
+        'LTI',
+        'globaler Provider',
+        'LTI-Konsument',
+        'Client ID',
+        'Deployment ID',
+        'Identifikation der Person',
+        'Mastery Score',
+        'Erweiterte Benotungsdienste',
+        'Lernfortschritt',
+      ],
+      en: [
+        'ilias',
+        'lti',
+        'global provider',
+        'lti consumer',
+        'client id',
+        'deployment id',
         'user identification',
         'mastery score',
         'advanced grading services',
+        'learning progress',
       ],
     },
   },
