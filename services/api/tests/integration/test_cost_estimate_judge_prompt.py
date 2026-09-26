@@ -38,9 +38,9 @@ JUDGE = "gpt-5-mini"
 ENC = tiktoken.get_encoding("o200k_base")
 
 TEMPLATE_INSTRUCTIONS = "Bewerte die Bearbeitung Schritt für Schritt anhand des Bogens. " * 40
-SACHVERHALT = "Die Polizei spricht gegen H einen Platzverweis aus. " * 60
-MUSTERLOESUNG = "Die Klage ist zulässig und begründet, weil die Maßnahme rechtswidrig war. " * 150
-ANSWER = "Ich prüfe zunächst die Zulässigkeit der Fortsetzungsfeststellungsklage. " * 90
+SACHVERHALT = "K kauft von V ein gebrauchtes Fahrrad mit Akku. " * 60
+MUSTERLOESUNG = "Der Anspruch ist entstanden und durchsetzbar, weil der Mangel erheblich war. " * 150
+ANSWER = "Ich prüfe zunächst den Rücktritt vom Kaufvertrag wegen eines Sachmangels. " * 90
 STALE_SHEET = "alt"
 
 
