@@ -1454,6 +1454,7 @@ class TestRubricSchemaBudgetAndSnapping:
 # =============================================================================
 
 import json as _json
+import re
 
 
 from ml_evaluation.llm_judge_evaluator import (
@@ -1592,6 +1593,119 @@ class TestVerifyEvidence:
         assert (EVIDENCE_MIN_TOKENS, EVIDENCE_MIN_LONG_FRAGMENT_CHARS, EVIDENCE_MIN_WORD_CHARS) == (
             3, 15, 4
         )
+
+
+class TestVerifyEvidenceAdversarial:
+    """Quotes whose positive part is in the answer but which say something the
+    answer does not: a keyword riding along, a dropped or added negation, a
+    flipped result mark, a changed number. All must fail."""
+
+    REJECTED = [
+        # 1. a keyword glued to a real passage, with a full stop or an ellipsis
+        ("Mangels aufdrängender Sonderzuweisung ist der Verwaltungsrechtsweg nach § 40 VwGO eröffnet.",
+         "Mangels aufdrängender Sonderzuweisung. VwGO."),
+        ("Mangels aufdrängender Sonderzuweisung ist der Verwaltungsrechtsweg nach § 40 VwGO eröffnet.",
+         "Mangels aufdrängender Sonderzuweisung … VwGO"),
+        # 2. a short sentence from another context glued to a real one
+        ("Die Klage ist zulässig. Sie ist auch begründet. Gegen den Bruder des K besteht dagegen "
+         "kein Anspruch, weil er nicht Vertragspartei ist.",
+         "Die Klage ist zulässig. Kein Anspruch."),
+        # 3. the negation of the answer skipped
+        ("Ein Schadensersatzanspruch besteht nicht, da keine Pflichtverletzung vorliegt.",
+         "Ein Schadensersatzanspruch besteht, da keine Pflichtverletzung vorliegt"),
+        # 4. a different number in a sentence long enough for one missed word
+        ("Nach alledem steht fest, dass ein Anspruch des M gegen V auf Rückzahlung von 10 Euro besteht.",
+         "… dass ein Anspruch des M gegen V auf Rückzahlung von 40 Euro besteht"),
+        # 5. a number cut short
+        ("Der Anspruch auf Rückzahlung von 10 Euro besteht.", "Der Anspruch auf Rückzahlung von 1"),
+        ("Der Anspruch auf Rückzahlung von 10.000 Euro besteht.", "Der Anspruch auf Rückzahlung von 10"),
+        ("Der Anspruch auf Rückzahlung von 10.000 Euro besteht.", "Anspruch auf Rückzahlung von 10 Euro"),
+        # 6. a negation added to a stitched quote, short and long
+        ("Der Mangel ist erheblich, weil die Nutzung der Sache eingeschränkt ist. Im Übrigen gilt: "
+         "Die Frist ist abgelaufen.",
+         "Der Mangel ist nicht erheblich. Die Frist ist abgelaufen."),
+        ("Der Mangel ist erheblich, weil die Nutzung der Sache eingeschränkt ist. Im Übrigen gilt: "
+         "Die Frist ist abgelaufen.",
+         "Der Mangel ist nicht erheblich, weil die Nutzung der Sache eingeschränkt ist. Die Frist ist abgelaufen."),
+        # 7. the negation of the answer skipped inside a norm citation
+        ("Der Anspruch ist nicht nach § 327m Abs. 2 S. 1 BGB ausgeschlossen.",
+         "Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen"),
+        # 8. a single keyword riding along
+        ("Der Beklagte ist als Störer verantwortlich, weil er die Gefahr selbst verursacht hat. "
+         "Die Frist ist abgelaufen.",
+         "Störer. Die Frist ist abgelaufen."),
+        # 9. the result mark flipped, in either spelling of the minus
+        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-). Der Verwaltungsrechtsweg ist eröffnet.",
+         "Voraussetzung einer aufdrängenden Sonderzuweisung (+)"),
+        ("Voraussetzung einer aufdrängenden Sonderzuweisung (−). Der Verwaltungsrechtsweg ist eröffnet.",
+         "Voraussetzung einer aufdrängenden Sonderzuweisung (+)"),
+        # 10. a four-digit number that is a prefix of the answer's number
+        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.",
+         "Der Kaufpreis beträgt 1000 Euro und ist sofort fällig"),
+        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.", "Der Kaufpreis beträgt 1000"),
+        # "Ein" inside "Kein", as a substring and with the first word skipped
+        ("Kein Anspruch auf Schadensersatz besteht gegen den Verkäufer.",
+         "Ein Anspruch auf Schadensersatz besteht gegen den Verkäufer"),
+        ("Kein Anspruch auf Schadensersatz aus § 280 Abs. 1 BGB besteht gegen den Verkäufer.",
+         "Ein Anspruch auf Schadensersatz aus § 280 Abs. 1 BGB besteht gegen den Verkäufer"),
+        # a negation dropped at the very end of a long quote
+        ("Der Mangel ist nach den Feststellungen des Gutachters im Ergebnis nicht erheblich.",
+         "Der Mangel ist nach den Feststellungen des Gutachters im Ergebnis erheblich"),
+    ]
+
+    ACCEPTED = [
+        # two real sentences from different places, glued
+        ("Die Klage ist zulässig. Sie ist auch begründet. Die Frist ist abgelaufen.",
+         "Die Klage ist zulässig. Die Frist ist abgelaufen."),
+        # a norm citation with abbreviations, verbatim and glued to another sentence
+        ("Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen.",
+         "Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen"),
+        ("Die Frist ist abgelaufen. Im Übrigen gilt Folgendes. Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB "
+         "ausgeschlossen.",
+         "Die Frist ist abgelaufen. Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen."),
+        # hyphenation splits in the source (compact path)
+        ("Die Nacherfüllung ist fehlge schlagen, weil der Verkäufer zweimal erfolglos nachge bessert hat.",
+         "Die Nacherfüllung ist fehlgeschlagen, weil der Verkäufer zweimal erfolglos nachgebessert hat"),
+        # negations and marks that are in the answer
+        ("Ein Schadensersatzanspruch besteht nicht, da keine Pflichtverletzung vorliegt.",
+         "Ein Schadensersatzanspruch besteht nicht, da keine Pflichtverletzung vorliegt"),
+        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-). Der Verwaltungsrechtsweg ist eröffnet.",
+         "Voraussetzung einer aufdrängenden Sonderzuweisung (−)"),
+        ("Die Zulässigkeit (+). Die Begründetheit (+).", "Die Zulässigkeit (+)"),
+        # a number that matches exactly, also before a full stop
+        ("Der Anspruch auf Rückzahlung von 10.000 Euro besteht.", "Anspruch auf Rückzahlung von 10.000 Euro"),
+        ("M verlangt Rückzahlung von 10. Das ist berechtigt.", "M verlangt Rückzahlung von 10"),
+        # a quote that leaves out a word the answer has, next to no negation
+        ("Der Anspruch des M gegen V auf Rückzahlung der Anzahlung besteht in voller Höhe.",
+         "Der Anspruch des M gegen V auf Rückzahlung der Anzahlung besteht in Höhe"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_the_positive_part_is_in_the_answer(self, answer, evidence):
+        # Each case is a real near miss: some run of three or more of its words verifies.
+        index = EvidenceIndex(answer)
+        pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
+        assert any(
+            _verify_evidence(" ".join(words[i:j]), index)
+            for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
+        ), evidence
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    def test_token_rules(self):
+        from ml_evaluation.llm_judge_evaluator import _tokens_match
+
+        assert not _tokens_match("1000", "10000")
+        assert not _tokens_match("nicht", "nichtig")
+        assert _tokens_match("kein", "keine") and _tokens_match("rechtsweg", "rechtswegs")
+        assert _normalize_evidence_text("Sonderzuweisung (+), Rechtsweg ( − )") == (
+            "sonderzuweisung positiv , rechtsweg negativ")
 
 
 class TestFinalizeRubricScores:

@@ -390,7 +390,9 @@ def _task_korrekturhinweise(task_data: Optional[Dict[str, Any]]) -> str:
 _MD_ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!|>~<\"'])")
 _HTML_TAG_RE = re.compile(r"<[^<>\n]{0,200}>")
 _MARKDOWN_MARKER_RE = re.compile(r"[*_`#>]+")
-_WORD_RE = re.compile(r"\w+")
+# A token is a word, or a whole number with its inner separators ("10.000",
+# "3,5"), so "10" never matches a piece of "10.000".
+_WORD_RE = re.compile(r"\d+(?:[.,]\d+)+|\w+")
 _ELLIPSIS_SPLIT_RE = re.compile(r"\.{3,}")
 # Judges often glue passages from different places into one quote without the
 # ellipsis the rules ask for; such a fragment is checked sentence by sentence.
@@ -398,6 +400,7 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?:;])\s+")
 # Everything but letters and digits, for the spacing-insensitive comparison of
 # long fragments (hyphenation splits like "entrichte ten", "10.000,– €").
 _COMPACT_RE = re.compile(r"[\W_]+")
+_COMPACT_CHAR_RE = re.compile(r"[^\W_]")
 EVIDENCE_MIN_COMPACT_CHARS = 20
 _PUNCT_TRANSLATION = str.maketrans(
     {
@@ -407,19 +410,28 @@ _PUNCT_TRANSLATION = str.maketrans(
         "­": "",
     }
 )
+# The short-hand result marks "(+)" and "(-)" become words, so a quote that
+# turns one into the other no longer matches.
+_POLARITY_MARK_RE = re.compile(r"\(\s*([+-])\s*\)")
+_POLARITY_MARKS = {"+": " positiv ", "-": " negativ "}
+# Tokens that flip what a sentence says: the negations (and every "kein…"
+# form, see _is_polarity) and the normalized result marks. A quote may never
+# drop one, add one, or step over one in the answer.
+_POLARITY_TOKENS = frozenset({"nicht", "nichts", "nie", "niemals", "ohne", "weder", "positiv", "negativ"})
 # Evidence needs this many word characters in total to count at all, so a
 # quote like "(+)" or "der" cannot verify a step.
 EVIDENCE_MIN_WORD_CHARS = 4
 # A fragment (one ellipsis-separated part of the quote) verifies only with
 # at least EVIDENCE_MIN_TOKENS tokens, or with two tokens that together
 # carry at least EVIDENCE_MIN_LONG_FRAGMENT_CHARS word characters. A single
-# token never does: "VwGO", or "Platz" inside "Platzverweis", is a keyword
+# token never does: "VwGO", or "Recht" inside "Rechtsweg", is a keyword
 # the answer happens to contain, not a quote of the step's reasoning.
 EVIDENCE_MIN_TOKENS = 3
 EVIDENCE_MIN_LONG_FRAGMENT_CHARS = 15
 # Fragments with fewer tokens than this must match the answer on word
 # boundaries; longer ones may also match token-wise in order.
 _EVIDENCE_SHORT_FRAGMENT_TOKENS = 4
+_EDGE_PUNCTUATION = " \"'.,;:!?()[]-"
 
 
 def _normalize_evidence_text(text: str) -> str:
@@ -427,24 +439,45 @@ def _normalize_evidence_text(text: str) -> str:
 
     NFKC, markdown escapes (``1\\.``) and emphasis/heading markers removed,
     inline HTML (Word bookmark anchors) dropped, quotes/dashes unified,
-    ellipsis as ``...``, casefolded, whitespace collapsed.
+    ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
+    casefolded, whitespace collapsed.
     """
     t = unicodedata.normalize("NFKC", text or "")
     t = _MD_ESCAPE_RE.sub(r"\1", t)
     t = _HTML_TAG_RE.sub(" ", t)
     t = t.translate(_PUNCT_TRANSLATION).replace("…", "...")
+    t = _POLARITY_MARK_RE.sub(lambda m: _POLARITY_MARKS[m.group(1)], t)
     t = _MARKDOWN_MARKER_RE.sub(" ", t)
     t = t.casefold()
     return re.sub(r"\s+", " ", t).strip()
 
 
+def _is_polarity(token: str) -> bool:
+    """A negation (nicht, nichts, kein…, nie, niemals, ohne, weder) or a
+    normalized result mark (positiv, negativ)."""
+    return token in _POLARITY_TOKENS or token.startswith("kein")
+
+
+def _has_digit(token: str) -> bool:
+    return any(ch.isdigit() for ch in token)
+
+
+def _is_protected(token: str) -> bool:
+    """Tokens a quote may not drop: polarity tokens and numbers."""
+    return _is_polarity(token) or _has_digit(token)
+
+
 def _tokens_match(quoted: str, answer: str) -> bool:
     """Equal tokens, or a small inflection difference on a long word.
 
-    ``platzverweis`` / ``platzverweises`` match; different words do not.
+    ``rechtsweg`` / ``rechtswegs`` match; different words do not. Numbers
+    only match exactly ("1000" is not "10000"), and a polarity token only
+    matches a polarity token ("nichtig" is not "nicht").
     """
     if quoted == answer:
         return True
+    if _has_digit(quoted) or _has_digit(answer) or _is_polarity(quoted) != _is_polarity(answer):
+        return False
     short, long_ = (quoted, answer) if len(quoted) <= len(answer) else (answer, quoted)
     return len(short) >= 4 and len(long_) - len(short) <= 2 and long_.startswith(short)
 
@@ -455,6 +488,13 @@ def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
     Tolerates punctuation and markup differences (tokens ignore them), up to
     two skipped answer words between quoted words, and one unmatched quoted
     word per eight. A paraphrase changes many words and fails.
+
+    Polarity and numbers are exact: a quoted number or polarity token is
+    never missed, neither in the middle nor at the start, and a polarity
+    token of the answer is never stepped over. A quoted word missed where the
+    answer has a polarity token must be followed by a quoted word that lands
+    at or before that token; a quote that ends there, or starts right after
+    one while skipping its own first word, fails.
     """
     n = len(fragment)
     if n == 0:
@@ -463,29 +503,40 @@ def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
     window = n + max(2, n // 4)
     max_step = 3
     for first in range(min(allowed_misses, n - 1) + 1):
+        if any(_is_protected(t) for t in fragment[:first]):
+            break
         for start, token in enumerate(answer):
             if not _tokens_match(fragment[first], token):
+                continue
+            if first and start and _is_polarity(answer[start - 1]):
                 continue
             misses = first
             pos = start + 1
             ok = True
+            blocked = False
             for quoted in fragment[first + 1 :]:
                 found = None
+                stopped = False
                 for p in range(pos, min(pos + max_step, len(answer))):
                     if _tokens_match(quoted, answer[p]):
                         found = p
                         break
+                    if _is_polarity(answer[p]):
+                        stopped = True
+                        break
                 if found is None:
                     misses += 1
-                    if misses > allowed_misses:
+                    if _is_protected(quoted) or misses > allowed_misses:
                         ok = False
                         break
+                    blocked = blocked or stopped
                 else:
                     pos = found + 1
+                    blocked = False
                 if pos - start > window:
                     ok = False
                     break
-            if ok:
+            if ok and not blocked:
                 return True
     return False
 
@@ -496,7 +547,9 @@ class EvidenceIndex:
     def __init__(self, answer: str):
         self.text = _normalize_evidence_text(answer)
         self.tokens = _WORD_RE.findall(self.text)
-        self.compact = _COMPACT_RE.sub("", self.text)
+        # Position in ``text`` of every character of ``compact``.
+        self.compact_pos = [m.start() for m in _COMPACT_CHAR_RE.finditer(self.text)]
+        self.compact = "".join(self.text[i] for i in self.compact_pos)
 
 
 def _fragment_is_quotable(tokens: List[str]) -> bool:
@@ -506,37 +559,109 @@ def _fragment_is_quotable(tokens: List[str]) -> bool:
     return len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
 
 
+def _find_all(haystack: str, needle: str):
+    start = haystack.find(needle)
+    while start != -1:
+        yield start
+        start = haystack.find(needle, start + 1)
+
+
+def _continues_number(text: str, index: int, step: int) -> bool:
+    """Does a number go on at ``index`` (a digit, or ``.``/``,`` then a
+    digit, read in direction ``step``)?"""
+    if not 0 <= index < len(text):
+        return False
+    if text[index].isdigit():
+        return True
+    nxt = index + step
+    return text[index] in ".," and 0 <= nxt < len(text) and text[nxt].isdigit()
+
+
+def _starts_inside_polarity_word(text: str, start: int) -> bool:
+    """Does a match at ``start`` begin inside an answer word that is a
+    polarity token ("ein Anspruch" inside "kein Anspruch")?"""
+    if start == 0 or not (text[start - 1].isalnum() or text[start - 1] == "_"):
+        return False
+    begin = start
+    while begin and (text[begin - 1].isalnum() or text[begin - 1] == "_"):
+        begin -= 1
+    end = start
+    while end < len(text) and (text[end].isalnum() or text[end] == "_"):
+        end += 1
+    return _is_polarity(text[begin:end])
+
+
+def _text_match_ok(text: str, start: int, end: int, part: str) -> bool:
+    """A substring match must not cut a number (digit boundaries) or begin
+    inside a polarity word."""
+    if part[:1].isdigit() and _continues_number(text, start - 1, -1):
+        return False
+    if part[-1:].isdigit() and _continues_number(text, end, 1):
+        return False
+    return not _starts_inside_polarity_word(text, start)
+
+
+def _compact_match_ok(index: EvidenceIndex, start: int, end: int) -> bool:
+    """Digit boundaries in the compact text, and no start inside a polarity word."""
+    compact = index.compact
+    if compact[start].isdigit() and start and compact[start - 1].isdigit():
+        return False
+    if compact[end - 1].isdigit() and end < len(compact) and compact[end].isdigit():
+        return False
+    return not _starts_inside_polarity_word(index.text, index.compact_pos[start])
+
+
 def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> bool:
     """Short fragments must sit on word boundaries ("des Verwaltungsrechtsweg"
     does not match "des Verwaltungsrechtswegs"); longer ones may be a
-    substring or match token-wise in order (see :func:`_tokens_in_order`)."""
+    substring or match token-wise in order (see :func:`_tokens_in_order`).
+    No path lets a number match part of a longer number."""
     if len(tokens) < _EVIDENCE_SHORT_FRAGMENT_TOKENS:
-        return re.search(rf"(?<!\w){re.escape(part)}(?!\w)", index.text) is not None
-    if part in index.text or _tokens_in_order(tokens, index.tokens):
+        return any(
+            _text_match_ok(index.text, m.start(), m.end(), part)
+            for m in re.finditer(rf"(?<!\w){re.escape(part)}(?!\w)", index.text)
+        )
+    if any(_text_match_ok(index.text, s, s + len(part), part) for s in _find_all(index.text, part)):
+        return True
+    if _tokens_in_order(tokens, index.tokens):
         return True
     # Source artifacts (a hyphenation split, spacing inside numbers) break the
     # token match of an otherwise verbatim long quote: compare letters and
     # digits only.
     compact = _COMPACT_RE.sub("", part)
-    return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and compact in index.compact
+    return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and any(
+        _compact_match_ok(index, s, s + len(compact)) for s in _find_all(index.compact, compact)
+    )
 
 
 def _stitched_fragment_in_answer(part: str, index: EvidenceIndex) -> bool:
     """A fragment that is not one passage of the answer may be several
-    passages glued together without an ellipsis. It verifies when every
-    sentence of it is in the answer and at least one sentence is quotable,
-    so an invented sentence still fails the whole quote."""
-    pieces = []
+    passages glued together without an ellipsis. It is split into sentences,
+    and every piece must be quotable on its own and in the answer. A piece
+    too short to be a quote ("VwGO.", "Kein Anspruch.", or "2 S." out of
+    "Abs. 2 S. 1") is glued back to its neighbour, separator included, and
+    the glued text must be in the answer. So a keyword cannot ride along
+    with a real sentence, and an invented sentence fails the whole quote."""
+    pieces: List[str] = []
     for piece in _SENTENCE_SPLIT_RE.split(part):
-        piece = piece.strip(" \"'.,;:!?()[]-")
-        tokens = _WORD_RE.findall(piece)
-        if tokens:
-            pieces.append((piece, tokens))
+        if _WORD_RE.search(piece) or not pieces:
+            pieces.append(piece)
+        else:
+            pieces[-1] = f"{pieces[-1]} {piece}"
+    while len(pieces) > 1:
+        short = next((i for i, p in enumerate(pieces) if not _fragment_is_quotable(_WORD_RE.findall(p))), None)
+        if short is None:
+            break
+        # The previous neighbour; a leading piece goes with the next one.
+        i = short - 1 if short else 0
+        pieces[i : i + 2] = [f"{pieces[i]} {pieces[i + 1]}"]
     if len(pieces) < 2:
         return False
-    return any(_fragment_is_quotable(tokens) for _p, tokens in pieces) and all(
-        _fragment_in_answer(piece, tokens, index) for piece, tokens in pieces
-    )
+    for piece in pieces:
+        piece = piece.strip(_EDGE_PUNCTUATION)
+        if not _fragment_in_answer(piece, _WORD_RE.findall(piece), index):
+            return False
+    return True
 
 
 def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
@@ -545,12 +670,14 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     Fragments are split on ellipses (``…``, ``...``, ``[...]``). Each must be
     quotable (:func:`_fragment_is_quotable`: at least three tokens, or two
     long ones; never a single token) and present in the answer
-    (:func:`_fragment_in_answer`). Empty evidence, or evidence with fewer
-    than :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
+    (:func:`_fragment_in_answer`, or glued passages, see
+    :func:`_stitched_fragment_in_answer`). Negations, result marks and
+    numbers must match exactly. Empty evidence, or evidence with fewer than
+    :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
     """
     fragments = []
     for part in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence)):
-        part = part.strip(" \"'.,;:!?()[]-")
+        part = part.strip(_EDGE_PUNCTUATION)
         tokens = _WORD_RE.findall(part)
         if tokens:
             fragments.append((part, tokens))
