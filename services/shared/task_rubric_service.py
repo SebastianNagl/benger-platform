@@ -14,6 +14,12 @@ Bewertungsbogen PATCH endpoint, the Vertretbar exam create/content PUT):
 - ``activate_task_rubric`` / ``archive_task_rubric``: the one-active-per-task
   invariant (``ux_task_rubrics_one_active`` is non-deferred, so demotion is
   flushed before promotion) plus the ``task.data["bewertungsbogen"]`` mirror.
+- ``remirror_project_rubrics`` (async) / ``remirror_project_rubrics_sync``:
+  the mirror shows the exam's Notenschlüssel, so every writer of
+  ``evaluation_config.grade_scale`` re-renders the mirrors of the project
+  after a key change. Two entry points over one SQL builder: the extended
+  exam router and the project PATCH run on the async lane, the eval-config
+  PUT on the sync one.
 
 Callers own the transaction (``await db.commit()``); every function flushes
 so ids and the unique index are settled when it returns.
@@ -21,22 +27,28 @@ so ids and the unique index are settled when it returns.
 
 from __future__ import annotations
 
+import logging
 import uuid
-from typing import Any, Dict, List, Optional
+from types import SimpleNamespace
+from typing import Any, Dict, List, Optional, Sequence
 
-from sqlalchemy import select, text
+from sqlalchemy import and_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from project_models import Project, TaskRubric
+from project_models import Project, Task, TaskRubric
 from rubric_structure import (
     criteria_from_structure,
     mirror_rubric_into_task_data,
     normalize_grade_scale,
     normalize_structure,
+    rubric_prompt_text,
     total_points_from_structure,
     validate_grade_scale,
     validate_structure,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class _Unset:
@@ -354,3 +366,106 @@ async def archive_task_rubric(db: AsyncSession, rubric: TaskRubric, task) -> Non
     await db.flush()
     if was_active and task is not None:
         mirror_rubric_into_task_data(task, None)
+
+
+# ---------------------------------------------------------------------------
+# Re-mirroring after the exam's Notenschlüssel changed
+# ---------------------------------------------------------------------------
+
+
+def _select_active_rubrics_of_project(project_id: str):
+    """Every task of the project that has an ACTIVE rubric, with that rubric.
+
+    One round trip for the whole project, however many tasks it has. The
+    task comes back as the ORM row (its ``data`` is rewritten; a task the
+    session already holds is the same object). The rubric comes back as the
+    columns the rendering reads, and of ``generation_metadata`` only
+    ``rendered_text``: the metadata of a generated sheet also carries the
+    full generator documents, which a re-render never needs. At most one
+    rubric per task is active (``ux_task_rubrics_one_active``).
+    """
+    return (
+        select(
+            Task,
+            TaskRubric.title,
+            TaskRubric.structure,
+            TaskRubric.criteria,
+            TaskRubric.total_points,
+            TaskRubric.grade_scale,
+            TaskRubric.generation_metadata["rendered_text"].label("rendered_text"),
+        )
+        .join(
+            TaskRubric,
+            and_(TaskRubric.task_id == Task.id, TaskRubric.status == "active"),
+        )
+        .where(Task.project_id == project_id)
+    )
+
+
+def _remirror_rows(rows: Sequence[Any], project_config: Any) -> int:
+    """Re-render the mirror of each ``(task, rubric columns…)`` row.
+
+    Only a task whose mirror text actually differs is written, so a project
+    whose mirrors already show the key costs no UPDATE. Returns the number
+    of tasks rewritten.
+    """
+    # An explicit document, never None: None would let the mirror fall back
+    # to a project the session may hold with the OLD config.
+    config = project_config if isinstance(project_config, dict) else {}
+    changed = 0
+    for row in rows:
+        task = row[0]
+        sheet = SimpleNamespace(
+            title=row.title,
+            structure=row.structure,
+            criteria=row.criteria,
+            total_points=row.total_points,
+            grade_scale=row.grade_scale,
+            generation_metadata={"rendered_text": row.rendered_text},
+        )
+        rendered = rubric_prompt_text(sheet, include_grade_scale=True, project_config=config)
+        if (task.data or {}).get("bewertungsbogen") == rendered:
+            continue
+        mirror_rubric_into_task_data(task, sheet, config)
+        changed += 1
+    return changed
+
+
+async def remirror_project_rubrics(
+    db: AsyncSession, project_id: str, project_config: Any
+) -> int:
+    """Re-render every active rubric's task-data mirror of ``project_id``.
+
+    Call it after the project's Notenschlüssel changed, with the project's
+    NEW ``evaluation_config``: the mirror shows the key that grades the exam
+    (``rubric_structure.resolve_grade_scale``: the exam's key, else the
+    sheet's own, else the standard key), and it is otherwise refreshed only
+    when a sheet is activated or edited. Returns the number of tasks whose
+    mirror changed. Flushes; the caller commits.
+    """
+    rows = (await db.execute(_select_active_rubrics_of_project(project_id))).all()
+    changed = _remirror_rows(rows, project_config)
+    if changed:
+        await db.flush()
+        logger.info(
+            "Notenschlüssel change: re-mirrored %s of %s sheets of project %s",
+            changed,
+            len(rows),
+            project_id,
+        )
+    return changed
+
+
+def remirror_project_rubrics_sync(db: Session, project_id: str, project_config: Any) -> int:
+    """Sync twin of :func:`remirror_project_rubrics` (psycopg2 lane)."""
+    rows = db.execute(_select_active_rubrics_of_project(project_id)).all()
+    changed = _remirror_rows(rows, project_config)
+    if changed:
+        db.flush()
+        logger.info(
+            "Notenschlüssel change: re-mirrored %s of %s sheets of project %s",
+            changed,
+            len(rows),
+            project_id,
+        )
+    return changed
