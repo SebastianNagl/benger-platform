@@ -1525,9 +1525,7 @@ class TestVerifyEvidence:
             "denn G hat gegenüber H angeordnet, das Gelände zu verlassen",
             # small inflection difference on a long word
             "Der Platzverweises ist ein Verwaltungsakt",
-            # three tokens: the norm with its paragraph sign, a hyphenated
-            # compound, a short sentence tail
-            "§ 40 I 1 VwGO",
+            # three tokens: a hyphenated compound, a short sentence tail
             "ist öffentlich-rechtlich",
             "Streitigkeit ist öffentlich-rechtlich",
             # two tokens carry enough characters (>= 15) to be a quote
@@ -1569,6 +1567,9 @@ class TestVerifyEvidence:
             "des Verwaltungsrechtsweg",
             # one keyword fragment poisons an otherwise verbatim quote
             "Mangels aufdrängender Sonderzuweisung … VwGO",
+            # a norm citation alone is not a quote, even when it is verbatim
+            "§ 40 I 1 VwGO",
+            "Art. 35 S. 1 BayVwVfG",
             # glued passages: one real sentence, one invented
             "Die Streitigkeit ist öffentlich-rechtlich. Ein Rehabilitationsinteresse besteht hier offensichtlich nicht.",
         ],
@@ -1706,6 +1707,165 @@ class TestVerifyEvidenceAdversarial:
         assert _tokens_match("kein", "keine") and _tokens_match("rechtsweg", "rechtswegs")
         assert _normalize_evidence_text("Sonderzuweisung (+), Rechtsweg ( − )") == (
             "sonderzuweisung positiv , rechtsweg negativ")
+
+
+class TestVerifyEvidenceStrict:
+    """Review round 3 (all synthetic): word boundaries, protected result and
+    qualifier words, Roman numerals and numbers at the end of a quote, the
+    edges of every fragment, norm-only quotes and typos."""
+
+    REJECTED = [
+        # a match must start on a word boundary: substring and compact paths
+        ("Die Klage ist unzulässig, weil die Klagefrist bereits abgelaufen ist.",
+         "zulässig, weil die Klagefrist bereits abgelaufen ist"),
+        ("B wird als Nichtstörer in Anspruch genommen, weil keine andere Abwehr möglich ist.",
+         "Störer in Anspruch genommen"),
+        ("B ist nach dem Sachverhalt Nichtstörer im Sinne des Polizeige setzes.",
+         "Störer im Sinne des Polizeigesetzes"),
+        # a result or antonym word swapped for another word
+        ("Die Maßnahme war rechtswidrig, weil die Polizei für den Einsatz örtlich nicht zuständig war.",
+         "Die Maßnahme war rechtmäßig, weil die Polizei für den Einsatz örtlich nicht zuständig war"),
+        ("Das Gericht hat die Frage nach dem Vertragsschluss im Ergebnis verneint und die Klage abgewiesen.",
+         "Das Gericht hat die Frage nach dem Vertragsschluss im Ergebnis bejaht und die Klage abgewiesen"),
+        ("Nach alledem ist die Klage des K gegen den Bescheid zulässig und begründet.",
+         "Nach alledem ist die Klage des K gegen den Bescheid unzulässig und begründet"),
+        ("Eine Anhörung war nach den Umständen des Falles entbehrlich, weil Gefahr im Verzug bestand.",
+         "Eine Anhörung war nach den Umständen des Falles erforderlich, weil Gefahr im Verzug bestand"),
+        ("Ein Anspruch auf Schadensersatz fehlt nach alledem in dieser Konstellation.",
+         "Ein Anspruch auf Schadensersatz besteht nach alledem in dieser Konstellation"),
+        ("Eine gegenwärtige Gefahr für die öffentliche Sicherheit ist hier gegeben, weil der Schaden bevorsteht.",
+         "Eine gegenwärtige Gefahr für die öffentliche Sicherheit ist hier entfallen, weil der Schaden bevorsteht"),
+        ("Im Zeitpunkt der Maßnahme war niemand auf dem Gelände anwesend und gefährdet.",
+         "Im Zeitpunkt der Maßnahme war jemand auf dem Gelände anwesend und gefährdet"),
+        ("Der Bescheid ist formell rechtmäßig erlassen worden, weil die Anhörung durchgeführt wurde.",
+         "Der Bescheid ist materiell rechtmäßig erlassen worden, weil die Anhörung durchgeführt wurde"),
+        # a qualifier of the answer stepped over
+        ("Der Anspruch besteht nur teilweise in Höhe der Anzahlung von 500 Euro.",
+         "Der Anspruch besteht in Höhe der Anzahlung von 500 Euro"),
+        ("Eine Gefahr für die öffentliche Sicherheit ist allenfalls entfernt denkbar und reicht nicht aus.",
+         "Eine Gefahr für die öffentliche Sicherheit ist entfernt denkbar"),
+        ("Die Behörde muss stets das mildeste gleich geeignete Mittel wählen.",
+         "Die Behörde muss das mildeste gleich geeignete Mittel wählen"),
+        # a Roman numeral swapped, a number of the answer stepped over
+        ("Die Maßnahme greift in Art. 8 II GG ein, weil die Versammlung unter freiem Himmel stattfindet.",
+         "Die Maßnahme greift in Art. 8 I GG ein, weil die Versammlung unter freiem Himmel stattfindet"),
+        ("Der Anspruch folgt aus § 280 Abs. 1 und 3, § 281 BGB und besteht in voller Höhe.",
+         "Der Anspruch folgt aus § 280 Abs. 1, § 281 BGB und besteht in voller Höhe"),
+        # a quote ending in a number or numeral continues in the answer
+        ("Die Klage richtet sich nach § 80a VwGO und ist fristgebunden.", "Die Klage richtet sich nach § 80"),
+        ("Der Eingriff ist an Art. 8 II GG zu messen.", "Der Eingriff ist an Art. 8 I"),
+        ("Der Vertrag ist nichtig, weil er gegen ein gesetzliches Verbot verstößt.", "Der Vertrag ist nicht"),
+        # a negation or a question word right before the match
+        ("Die Behörde hat nicht rechtmäßig gehandelt, als sie den Platzverweis aussprach.",
+         "rechtmäßig gehandelt, als sie den Platzverweis aussprach"),
+        ("Fraglich ist, ob die Versammlung unter freiem Himmel stattfand.",
+         "die Versammlung unter freiem Himmel stattfand"),
+        ("Wenn die Frist gewahrt ist, ist die Klage zulässig.", "die Frist gewahrt ist"),
+        ("Es besteht kein Anspruch auf Rückzahlung der Kaution gegen den Vermieter.",
+         "Anspruch auf Rückzahlung der Kaution gegen den Vermieter"),
+        # a negation, "(-)" or a condition right after the match
+        ("Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht nicht.",
+         "Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht"),
+        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-)",
+         "Voraussetzung einer aufdrängenden Sonderzuweisung"),
+        ("Die Klage ist begründet, soweit sie sich gegen den Zinsanspruch richtet.", "Die Klage ist begründet"),
+        ("Eine Gefahr liegt vor, wenn ein Schaden für ein Schutzgut droht.", "Eine Gefahr liegt vor"),
+        # the edge rules hold on each side of an ellipsis
+        ("Die Klage ist zulässig. Der Anspruch auf Herausgabe besteht nicht.",
+         "Die Klage ist zulässig … Der Anspruch auf Herausgabe besteht"),
+        # a one-letter change that turns a word into a negation
+        ("Der Schuldner hat seine Pflicht aus dem Vertrag schuldhaft verletzt.",
+         "Der Schuldner hat keine Pflicht aus dem Vertrag schuldhaft verletzt"),
+    ]
+
+    NORM_ONLY = [
+        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.", "§ 42 I VwGO"),
+        ("Der Eingriff ist an Art. 8 Abs. 1 GG zu messen.", "Art. 8 Abs. 1 GG"),
+        ("Der Anspruch folgt aus §§ 280 Abs. 1, 3, 281 BGB i.V.m. Art. 229 § 5 EGBGB.",
+         "§§ 280 Abs. 1, 3, 281 BGB i.V.m. Art. 229 § 5 EGBGB"),
+        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.", "Die Klage ist … § 42 I VwGO"),
+        ("Die Klage ist nach § 42 I VwGO statthaft. Der Kläger ist klagebefugt. Die Frist ist gewahrt.",
+         "§ 42 I VwGO. Die Frist ist gewahrt."),
+    ]
+
+    ACCEPTED = [
+        # the negation stands in another clause or sentence
+        ("Die Anhörung erfolgte nicht; die Maßnahme ist dennoch rechtmäßig.",
+         "die Maßnahme ist dennoch rechtmäßig"),
+        ("Die Klage ist zulässig. Nicht zu prüfen ist die Begründetheit.", "Die Klage ist zulässig"),
+        ("Die Klage ist begründet. Wenn überhaupt, fehlt es an der Frist.", "Die Klage ist begründet"),
+        # a result mark belongs to the text before it
+        ("Zulässigkeit (+) Die Klage ist auch begründet.", "Die Klage ist auch begründet"),
+        # protected words that are in the answer
+        ("Die Klage ist unzulässig, weil die Klagefrist bereits abgelaufen ist.",
+         "Die Klage ist unzulässig, weil die Klagefrist bereits abgelaufen ist"),
+        ("Der Anspruch besteht nur teilweise in Höhe der Anzahlung von 500 Euro.",
+         "Der Anspruch besteht nur teilweise in Höhe der Anzahlung"),
+        # a norm with text around it, a numeral at the end of the quote
+        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.",
+         "nach § 42 I VwGO als Anfechtungsklage statthaft"),
+        ("Der Eingriff ist an Art. 8 I GG zu messen.", "Der Eingriff ist an Art. 8 I"),
+        # a typo in the answer the judge corrected, and one of the judge
+        ("Die Maßnahme war nciht verhältnismäßig, weil ein milderes Mittel zur Verfügung stand.",
+         "Die Maßnahme war nicht verhältnismäßig, weil ein milderes Mittel zur Verfügung stand"),
+        ("Der Beklagte hat die Verkehrssicherungspflicht verlezt, weil er nicht gestreut hat.",
+         "Der Beklagte hat die Verkehrssicherungspflicht verletzt, weil er nicht gestreut hat"),
+        ("Der Beklagte hat die Verkehrssicherungspflicht verletzt, weil er nicht gestreut hat.",
+         "Der Beklagte hat die Verkehrssicherungsplicht verletzt, weil er nicht gestreut hat"),
+        # layout the quote leaves out or copies literally
+        ("Die Frist ist gewahrt.\n\nIX. Rechtsschutzbedürfnis\n\nDas Rechtsschutzbedürfnis besteht.",
+         "Die Frist ist gewahrt.\\n\\nIX. Rechtsschutzbedürfnis\\n\\nDas Rechtsschutzbedürfnis besteht."),
+        ("Kunst ist eine Form des menschlichen Ausdrucks.[4] Zwar geht es im Kern um Meinungen.",
+         "Kunst ist eine Form des menschlichen Ausdrucks. Zwar geht es im Kern um Meinungen"),
+        ("Die Gefahr droht dem Festival unmittelbar.\\\nEine konkrete Gefahr ist daher gegeben.",
+         "Die Gefahr droht dem Festival unmittelbar. Eine konkrete Gefahr ist daher gegeben"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED + NORM_ONLY)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_the_positive_part_is_in_the_answer(self, answer, evidence):
+        # Each case is a real near miss: some run of three or more of its words verifies.
+        index = EvidenceIndex(answer)
+        pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
+        assert any(
+            _verify_evidence(" ".join(words[i:j]), index)
+            for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
+        ), evidence
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    def test_token_rules(self):
+        from ml_evaluation.llm_judge_evaluator import _is_protected, _tokens_match
+
+        for word in ("unzulässig", "unbegründet", "unstreitig", "rechtmässig", "rechtswidrige", "bejahte",
+                     "verneint", "erforderlich", "entbehrlich", "gegeben", "fehlt", "besteht", "niemand",
+                     "jemand", "stets", "nur", "teilweise", "formell", "materiellen", "kaum", "allenfalls",
+                     "insoweit", "ii", "xx", "80a", "keineswegs", "negativ"):
+            assert _is_protected(word), word
+        for word in ("unter", "und", "unsere", "gegebenenfalls", "zulässig", "begründet", "xxi", "klage"):
+            assert not _is_protected(word), word
+        assert not _tokens_match("zulässig", "unzulässig")
+        assert not _tokens_match("rechtmässig", "rechtswidrig")
+        assert not _tokens_match("i", "ii") and not _tokens_match("80", "80a")
+        assert not _tokens_match("keine", "seine") and not _tokens_match("nicht", "licht")
+        assert _tokens_match("nicht", "nciht") and _tokens_match("nciht", "nicht")
+        assert _tokens_match("verletzt", "verlezt") and _tokens_match("dieses", "dieser")
+        assert _tokens_match("bejaht", "bejahte") and _tokens_match("formell", "formelle")
+        assert not _tokens_match("ist", "iss")  # short words need an exact match
+
+    def test_law_abbreviations_keep_their_case(self):
+        from ml_evaluation.llm_judge_evaluator import _fragment_is_quotable
+
+        assert not _fragment_is_quotable(["art", "8", "gg"], ["Art", "8", "GG"])
+        assert not _fragment_is_quotable(["40", "i", "1", "vwgo"], ["40", "I", "1", "VwGO"])
+        assert _fragment_is_quotable(["nach", "40", "vwgo"], ["nach", "40", "VwGO"])
+        # without the cased tokens the abbreviation reads as a word (lenient)
+        assert _fragment_is_quotable(["40", "i", "1", "vwgo"])
 
 
 class TestFinalizeRubricScores:

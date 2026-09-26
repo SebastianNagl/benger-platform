@@ -12,6 +12,8 @@ Now with answer-type-aware evaluation:
 Issue #483: LLM-as-Judge evaluation for research-grade assessment
 """
 
+import bisect
+import functools
 import json
 import logging
 import random
@@ -390,6 +392,13 @@ def _task_korrekturhinweise(task_data: Optional[Dict[str, Any]]) -> str:
 _MD_ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!|>~<\"'])")
 _HTML_TAG_RE = re.compile(r"<[^<>\n]{0,200}>")
 _MARKDOWN_MARKER_RE = re.compile(r"[*_`#>]+")
+# Layout, not text: an escape sequence a judge copied out of JSON literally
+# ("wahren.\n\nIX. Frist"), and a markdown hard line break (a backslash at
+# the end of a line of an uploaded answer).
+_LAYOUT_ESCAPE_RE = re.compile(r"\\[nrt]|\\(?=\s|$)")
+# A footnote reference glued to the text ("erfassen.[4] Zwar …") is layout
+# too; a quote that leaves it out still quotes the sentence.
+_FOOTNOTE_MARK_RE = re.compile(r"(?<=\S)\[\^?\d{1,3}\]")
 # A token is a word, or a whole number with its inner separators ("10.000",
 # "3,5"), so "10" never matches a piece of "10.000".
 _WORD_RE = re.compile(r"\d+(?:[.,]\d+)+|\w+")
@@ -414,10 +423,47 @@ _PUNCT_TRANSLATION = str.maketrans(
 # turns one into the other no longer matches.
 _POLARITY_MARK_RE = re.compile(r"\(\s*([+-])\s*\)")
 _POLARITY_MARKS = {"+": " positiv ", "-": " negativ "}
-# Tokens that flip what a sentence says: the negations (and every "kein…"
-# form, see _is_polarity) and the normalized result marks. A quote may never
-# drop one, add one, or step over one in the answer.
-_POLARITY_TOKENS = frozenset({"nicht", "nichts", "nie", "niemals", "ohne", "weder", "positiv", "negativ"})
+# Negations (and every "kein…" form, see _is_negation). With the normalized
+# result marks they are the polarity tokens.
+_NEGATION_TOKENS = frozenset({"nicht", "nichts", "nie", "niemals", "ohne", "weder"})
+_POLARITY_TOKENS = _NEGATION_TOKENS | {"positiv", "negativ"}
+# Protected tokens beyond polarity and numbers: words that state or qualify a
+# result. A quote may never drop one, add one, swap one for another word, or
+# step over one in the answer. Casefolded, so "ß" is "ss".
+_QUALIFIER_TOKENS = frozenset({
+    "nur", "teilweise", "kaum", "allenfalls", "insoweit", "stets",
+    "jemand", "jemanden", "jemandem", "niemand", "niemanden", "niemandem",
+})
+_RESULT_WORD_RE = re.compile(
+    r"(?:rechtmässig|rechtswidrig|bejah|vernein|erforderlich|entbehrlich|formell|materiell)\w*"
+    r"|gegeben(?:e[mnrs]?)?|fehl(?:t|te|ten|en|end|ende[mnrs]?)"
+    r"|besteh(?:t|en|end|ende[mnrs]?)|bestand(?:en)?"
+)
+# Any "un-" form of an adjective ("unzulässig", "unbegründet", "unstreitig",
+# "unmittelbar") flips a result; words with these beginnings only start
+# with "un" ("unter", "unsere", "Universität").
+_UN_WORD_EXCEPTIONS = ("unser", "unter", "union", "univers", "unfall", "ungarn")
+_ROMAN_NUMERALS = frozenset({
+    "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
+    "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
+})
+# Edge rules. Right before a matched fragment (same clause) no negation and
+# no word that makes the fragment a question or a condition; right after it
+# (same sentence) no negation, "(-)" or condition.
+_EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit"})
+_EDGE_AFTER_WORDS = frozenset({
+    "nicht", "negativ", "wenn", "sofern", "soweit", "falls", "nie", "niemals", "keineswegs", "keinesfalls",
+})
+_CLAUSE_BREAK_RE = re.compile(r"[.,;:!?]")
+_SENTENCE_BREAK_RE = re.compile(r"[.;:!?]")
+# Norm citations: a fragment made only of these (plus digits, Roman numerals
+# and single letters) is a citation, not a quote of the step's reasoning.
+_CITATION_WORDS = frozenset({
+    "art", "artt", "abs", "nr", "nrn", "lit", "satz", "alt", "var", "hs", "halbs", "buchst", "ivm", "ff",
+    "rn", "rdnr",
+})
+# Law abbreviations keep their capitals: VwGO, GG, BGB, BayVwVfG, StPO.
+_LAW_ABBREVIATION_RE = re.compile(r"[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]{1,11}")
 # Evidence needs this many word characters in total to count at all, so a
 # quote like "(+)" or "der" cannot verify a step.
 EVIDENCE_MIN_WORD_CHARS = 4
@@ -428,74 +474,174 @@ EVIDENCE_MIN_WORD_CHARS = 4
 # the answer happens to contain, not a quote of the step's reasoning.
 EVIDENCE_MIN_TOKENS = 3
 EVIDENCE_MIN_LONG_FRAGMENT_CHARS = 15
+# A word this long that is not protected may differ from the answer by one
+# edit (a typo on either side).
+EVIDENCE_TYPO_MIN_CHARS = 5
 # Fragments with fewer tokens than this must match the answer on word
 # boundaries; longer ones may also match token-wise in order.
 _EVIDENCE_SHORT_FRAGMENT_TOKENS = 4
 _EDGE_PUNCTUATION = " \"'.,;:!?()[]-"
 
 
-def _normalize_evidence_text(text: str) -> str:
+def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     """Canonical form for comparing a quote with the answer.
 
-    NFKC, markdown escapes (``1\\.``) and emphasis/heading markers removed,
-    inline HTML (Word bookmark anchors) dropped, quotes/dashes unified,
-    ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
-    casefolded, whitespace collapsed.
+    NFKC, literal ``\\n`` escapes and markdown hard breaks, markdown escapes
+    (``1\\.``), footnote references (``[4]``) and emphasis/heading markers
+    removed, inline HTML (Word bookmark anchors) dropped, quotes/dashes
+    unified, ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
+    casefolded (unless ``casefold`` is False), whitespace collapsed.
     """
     t = unicodedata.normalize("NFKC", text or "")
+    t = _LAYOUT_ESCAPE_RE.sub(" ", t)
     t = _MD_ESCAPE_RE.sub(r"\1", t)
+    t = _FOOTNOTE_MARK_RE.sub("", t)
     t = _HTML_TAG_RE.sub(" ", t)
     t = t.translate(_PUNCT_TRANSLATION).replace("…", "...")
     t = _POLARITY_MARK_RE.sub(lambda m: _POLARITY_MARKS[m.group(1)], t)
     t = _MARKDOWN_MARKER_RE.sub(" ", t)
-    t = t.casefold()
+    if casefold:
+        t = t.casefold()
     return re.sub(r"\s+", " ", t).strip()
 
 
+def _is_negation(token: str) -> bool:
+    """nicht, nichts, nie, niemals, ohne, weder, or any "kein…" form."""
+    return token in _NEGATION_TOKENS or token.startswith("kein")
+
+
 def _is_polarity(token: str) -> bool:
-    """A negation (nicht, nichts, kein…, nie, niemals, ohne, weder) or a
-    normalized result mark (positiv, negativ)."""
-    return token in _POLARITY_TOKENS or token.startswith("kein")
+    """A negation or a normalized result mark (positiv, negativ)."""
+    return _is_negation(token) or token in _POLARITY_TOKENS
 
 
 def _has_digit(token: str) -> bool:
     return any(ch.isdigit() for ch in token)
 
 
+@functools.lru_cache(maxsize=65536)
 def _is_protected(token: str) -> bool:
-    """Tokens a quote may not drop: polarity tokens and numbers."""
-    return _is_polarity(token) or _has_digit(token)
+    """Tokens a quote may not drop, add, swap or step over: polarity, result
+    and antonym words (every "un-" form, rechtmäßig/rechtswidrig, bejaht/
+    verneint, erforderlich/entbehrlich, gegeben/besteht/fehlt, jemand/
+    niemand, stets), qualifiers (nur, teilweise, formell, materiell, kaum,
+    allenfalls, insoweit), Roman numerals I-XX and every token with a digit."""
+    return (
+        _is_polarity(token)
+        or _has_digit(token)
+        or token in _QUALIFIER_TOKENS
+        or token in _ROMAN_NUMERALS
+        or (len(token) >= 6 and token.startswith("un") and not token.startswith(_UN_WORD_EXCEPTIONS))
+        or _RESULT_WORD_RE.fullmatch(token) is not None
+    )
 
 
-def _tokens_match(quoted: str, answer: str) -> bool:
-    """Equal tokens, or a small inflection difference on a long word.
-
-    ``rechtsweg`` / ``rechtswegs`` match; different words do not. Numbers
-    only match exactly ("1000" is not "10000"), and a polarity token only
-    matches a polarity token ("nichtig" is not "nicht").
-    """
-    if quoted == answer:
-        return True
-    if _has_digit(quoted) or _has_digit(answer) or _is_polarity(quoted) != _is_polarity(answer):
-        return False
-    short, long_ = (quoted, answer) if len(quoted) <= len(answer) else (answer, quoted)
+def _is_inflection(a: str, b: str) -> bool:
+    """``rechtsweg`` / ``rechtswegs``: one word at least four characters
+    long, the other the same plus at most two characters."""
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
     return len(short) >= 4 and len(long_) - len(short) <= 2 and long_.startswith(short)
 
 
-def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
+def _is_transposition(a: str, b: str) -> bool:
+    """Equal but for two neighbouring characters swapped ("nciht", "nicht")."""
+    if len(a) != len(b):
+        return False
+    diff = [i for i in range(len(a)) if a[i] != b[i]]
+    return len(diff) == 2 and diff[1] == diff[0] + 1 and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]]
+
+
+def _within_one_edit(a: str, b: str) -> bool:
+    """Levenshtein distance at most 1, or one transposition."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) <= 1 or _is_transposition(a, b)
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    i = next((k for k in range(len(short)) if short[k] != long_[k]), len(short))
+    return short[i:] == long_[i + 1:]
+
+
+def _tokens_match(quoted: str, answer: str) -> bool:
+    """Equal tokens, a small inflection difference on a long word, or a typo.
+
+    ``rechtsweg`` / ``rechtswegs`` match; different words do not. Numbers
+    only match exactly ("1000" is not "10000"). A protected token only
+    matches the same word ("nichtig" is not "nicht", "unzulässig" is not
+    "zulässig"); the one exception is a typo with two letters swapped
+    ("nciht" / "nicht"), which never spells another word. Other words of at
+    least :data:`EVIDENCE_TYPO_MIN_CHARS` characters may differ by one edit.
+    """
+    if quoted == answer:
+        return True
+    if _has_digit(quoted) or _has_digit(answer):
+        return False
+    protected_quote, protected_answer = _is_protected(quoted), _is_protected(answer)
+    if protected_quote != protected_answer:
+        return min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS and _is_transposition(quoted, answer)
+    if _is_inflection(quoted, answer):
+        return True
+    return (
+        not protected_quote
+        and min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS
+        and _within_one_edit(quoted, answer)
+    )
+
+
+class EvidenceIndex:
+    """The normalized answer, built once per judge call."""
+
+    def __init__(self, answer: str):
+        self.text = _normalize_evidence_text(answer)
+        spans = [m.span() for m in _WORD_RE.finditer(self.text)]
+        self.tokens = [self.text[s:e] for s, e in spans]
+        self.starts = [s for s, _e in spans]
+        self.ends = [e for _s, e in spans]
+        # Position in ``text`` of every character of ``compact``.
+        self.compact_pos = [m.start() for m in _COMPACT_CHAR_RE.finditer(self.text)]
+        self.compact = "".join(self.text[i] for i in self.compact_pos)
+
+
+def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
+    """The answer around a match at ``text[start:end]`` does not turn it round.
+
+    Rejected: a negation, "ob", "wenn", "falls", "sofern" or "soweit" right
+    before the match in the same clause ("Fraglich ist, ob [die Klage
+    zulässig ist]", "kein [Anspruch auf …]"), and a negation, "(-)" or a
+    condition right after it in the same sentence ("[Der Anspruch besteht]
+    nicht", "[Die Klage ist begründet], soweit …"). A result mark before the
+    match belongs to the text in front of it and does not count.
+    """
+    i = bisect.bisect_right(index.ends, start) - 1
+    if i >= 0:
+        before = index.tokens[i]
+        if (_is_negation(before) or before in _EDGE_BEFORE_WORDS) and not _CLAUSE_BREAK_RE.search(
+            index.text, index.ends[i], start
+        ):
+            return False
+    j = bisect.bisect_left(index.starts, end)
+    if j < len(index.tokens):
+        if index.tokens[j] in _EDGE_AFTER_WORDS and not _SENTENCE_BREAK_RE.search(index.text, end, index.starts[j]):
+            return False
+    return True
+
+
+def _tokens_in_order(fragment: List[str], index: EvidenceIndex) -> bool:
     """True when the fragment's tokens occur in order in a tight answer window.
 
     Tolerates punctuation and markup differences (tokens ignore them), up to
     two skipped answer words between quoted words, and one unmatched quoted
     word per eight. A paraphrase changes many words and fails.
 
-    Polarity and numbers are exact: a quoted number or polarity token is
-    never missed, neither in the middle nor at the start, and a polarity
-    token of the answer is never stepped over. A quoted word missed where the
-    answer has a polarity token must be followed by a quoted word that lands
-    at or before that token; a quote that ends there, or starts right after
-    one while skipping its own first word, fails.
+    Protected tokens (:func:`_is_protected`) are exact: a quoted one is never
+    missed, neither in the middle nor at the start, and one of the answer is
+    never stepped over. A quoted word missed where the answer has a protected
+    token must be followed by a quoted word that lands at or before that
+    token; a quote that ends there fails, and so does one that skips its own
+    first words where the answer has such a token (or a question word). The
+    match must pass :func:`_edges_ok`.
     """
+    answer = index.tokens
     n = len(fragment)
     if n == 0:
         return False
@@ -508,7 +654,11 @@ def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
         for start, token in enumerate(answer):
             if not _tokens_match(fragment[first], token):
                 continue
-            if first and start and _is_polarity(answer[start - 1]):
+            # A quote that leaves out its own first words stands for the answer
+            # words in front of the match: none of them may be protected or a
+            # question word, and the edge rules apply in front of them.
+            lead = max(0, start - first)
+            if any(_is_protected(t) or t in _EDGE_BEFORE_WORDS for t in answer[lead:start]):
                 continue
             misses = first
             pos = start + 1
@@ -521,7 +671,7 @@ def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
                     if _tokens_match(quoted, answer[p]):
                         found = p
                         break
-                    if _is_polarity(answer[p]):
+                    if _is_protected(answer[p]):
                         stopped = True
                         break
                 if found is None:
@@ -536,27 +686,40 @@ def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
                 if pos - start > window:
                     ok = False
                     break
-            if ok and not blocked:
+            if ok and not blocked and _edges_ok(index, index.starts[lead], index.ends[pos - 1]):
                 return True
     return False
 
 
-class EvidenceIndex:
-    """The normalized answer, built once per judge call."""
-
-    def __init__(self, answer: str):
-        self.text = _normalize_evidence_text(answer)
-        self.tokens = _WORD_RE.findall(self.text)
-        # Position in ``text`` of every character of ``compact``.
-        self.compact_pos = [m.start() for m in _COMPACT_CHAR_RE.finditer(self.text)]
-        self.compact = "".join(self.text[i] for i in self.compact_pos)
-
-
-def _fragment_is_quotable(tokens: List[str]) -> bool:
-    """Long enough to be a quote rather than a keyword (see the constants)."""
-    if len(tokens) >= EVIDENCE_MIN_TOKENS:
+def _is_citation_token(token: str) -> bool:
+    """Part of a norm citation: §-free pieces like "Art", "Abs", "S", "Nr",
+    "lit", digits, Roman numerals, single letters, and law abbreviations
+    (``token`` keeps its case: "VwGO", "GG", "BGB")."""
+    folded = token.casefold()
+    if len(folded) == 1 or _has_digit(folded) or folded in _ROMAN_NUMERALS or folded in _CITATION_WORDS:
         return True
-    return len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
+    if _LAW_ABBREVIATION_RE.fullmatch(token) and sum(ch.isupper() for ch in token) >= 2:
+        return not token.isupper() or len(token) <= 6
+    return False
+
+
+def _fragment_is_quotable(tokens: List[str], cased: Optional[List[str]] = None) -> bool:
+    """Long enough to be a quote rather than a keyword (see the constants),
+    and more than a norm citation: at least one token outside the citation
+    ("nach § 40 I 1 VwGO" is a quote, "§ 40 I 1 VwGO" is not). ``cased`` are
+    the same tokens with their case, for the law abbreviations."""
+    if len(tokens) < EVIDENCE_MIN_TOKENS and not (
+        len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
+    ):
+        return False
+    return not all(_is_citation_token(t) for t in (cased or tokens))
+
+
+def _cased_tokens(cased_text: str, tokens: List[str]) -> Optional[List[str]]:
+    """The tokens of ``cased_text`` when they line up with the casefolded
+    ``tokens`` (casefolding can split a token in rare scripts)."""
+    cased = _WORD_RE.findall(cased_text)
+    return cased if len(cased) == len(tokens) else None
 
 
 def _find_all(haystack: str, needle: str):
@@ -577,79 +740,87 @@ def _continues_number(text: str, index: int, step: int) -> bool:
     return text[index] in ".," and 0 <= nxt < len(text) and text[nxt].isdigit()
 
 
-def _starts_inside_polarity_word(text: str, start: int) -> bool:
-    """Does a match at ``start`` begin inside an answer word that is a
-    polarity token ("ein Anspruch" inside "kein Anspruch")?"""
-    if start == 0 or not (text[start - 1].isalnum() or text[start - 1] == "_"):
+def _ends_protected(part: str, tokens: List[str]) -> bool:
+    """Does ``part`` end with a protected token ("§ 80", "Art. 8 I", "nicht")?"""
+    return bool(tokens) and part.endswith(tokens[-1]) and _is_protected(tokens[-1])
+
+
+def _text_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
+    """A substring match starts on a word boundary ("zulässig" is not in
+    "unzulässig", "Störer" not in "Nichtstörer"), cuts no number, ends on a
+    word boundary when the quote ends with a protected token ("§ 80" is not
+    "§ 80a", "Art. 8 I" not "Art. 8 II", "nicht" not "nichtig"), and passes
+    :func:`_edges_ok`."""
+    text = index.text
+    if start and text[start - 1].isalnum():
         return False
-    begin = start
-    while begin and (text[begin - 1].isalnum() or text[begin - 1] == "_"):
-        begin -= 1
-    end = start
-    while end < len(text) and (text[end].isalnum() or text[end] == "_"):
-        end += 1
-    return _is_polarity(text[begin:end])
-
-
-def _text_match_ok(text: str, start: int, end: int, part: str) -> bool:
-    """A substring match must not cut a number (digit boundaries) or begin
-    inside a polarity word."""
     if part[:1].isdigit() and _continues_number(text, start - 1, -1):
         return False
-    if part[-1:].isdigit() and _continues_number(text, end, 1):
+    if _ends_protected(part, tokens) and end < len(text) and (
+        text[end].isalnum() or _continues_number(text, end, 1)
+    ):
         return False
-    return not _starts_inside_polarity_word(text, start)
+    return _edges_ok(index, start, end)
 
 
-def _compact_match_ok(index: EvidenceIndex, start: int, end: int) -> bool:
-    """Digit boundaries in the compact text, and no start inside a polarity word."""
+def _compact_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
+    """Digit boundaries in the compact text, then the substring rules on the
+    matched span of the answer text."""
     compact = index.compact
     if compact[start].isdigit() and start and compact[start - 1].isdigit():
         return False
     if compact[end - 1].isdigit() and end < len(compact) and compact[end].isdigit():
         return False
-    return not _starts_inside_polarity_word(index.text, index.compact_pos[start])
+    return _text_match_ok(index, index.compact_pos[start], index.compact_pos[end - 1] + 1, part, tokens)
 
 
 def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> bool:
     """Short fragments must sit on word boundaries ("des Verwaltungsrechtsweg"
     does not match "des Verwaltungsrechtswegs"); longer ones may be a
     substring or match token-wise in order (see :func:`_tokens_in_order`).
-    No path lets a number match part of a longer number."""
+    Every path applies the boundary and edge rules of :func:`_text_match_ok`,
+    and none lets a number match part of a longer number."""
     if len(tokens) < _EVIDENCE_SHORT_FRAGMENT_TOKENS:
         return any(
-            _text_match_ok(index.text, m.start(), m.end(), part)
+            _text_match_ok(index, m.start(), m.end(), part, tokens)
             for m in re.finditer(rf"(?<!\w){re.escape(part)}(?!\w)", index.text)
         )
-    if any(_text_match_ok(index.text, s, s + len(part), part) for s in _find_all(index.text, part)):
+    if any(_text_match_ok(index, s, s + len(part), part, tokens) for s in _find_all(index.text, part)):
         return True
-    if _tokens_in_order(tokens, index.tokens):
+    if _tokens_in_order(tokens, index):
         return True
     # Source artifacts (a hyphenation split, spacing inside numbers) break the
     # token match of an otherwise verbatim long quote: compare letters and
     # digits only.
     compact = _COMPACT_RE.sub("", part)
     return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and any(
-        _compact_match_ok(index, s, s + len(compact)) for s in _find_all(index.compact, compact)
+        _compact_match_ok(index, s, s + len(compact), part, tokens) for s in _find_all(index.compact, compact)
     )
 
 
-def _stitched_fragment_in_answer(part: str, index: EvidenceIndex) -> bool:
+def _stitched_fragment_in_answer(cased_part: str, index: EvidenceIndex) -> bool:
     """A fragment that is not one passage of the answer may be several
     passages glued together without an ellipsis. It is split into sentences,
     and every piece must be quotable on its own and in the answer. A piece
-    too short to be a quote ("VwGO.", "Kein Anspruch.", or "2 S." out of
-    "Abs. 2 S. 1") is glued back to its neighbour, separator included, and
-    the glued text must be in the answer. So a keyword cannot ride along
-    with a real sentence, and an invented sentence fails the whole quote."""
+    too short to be a quote ("VwGO.", "Kein Anspruch.", "§ 40 VwGO.", or
+    "2 S." out of "Abs. 2 S. 1") is glued back to its neighbour, separator
+    included, and the glued text must be in the answer. So a keyword cannot
+    ride along with a real sentence, and an invented sentence fails the
+    whole quote. ``cased_part`` is the normalized fragment before
+    casefolding."""
     pieces: List[str] = []
-    for piece in _SENTENCE_SPLIT_RE.split(part):
+    for piece in _SENTENCE_SPLIT_RE.split(cased_part):
         if _WORD_RE.search(piece) or not pieces:
             pieces.append(piece)
         else:
             pieces[-1] = f"{pieces[-1]} {piece}"
+
+    def quotable(piece: str) -> bool:
+        tokens = _WORD_RE.findall(piece.casefold())
+        return _fragment_is_quotable(tokens, _cased_tokens(piece, tokens))
+
     while len(pieces) > 1:
-        short = next((i for i, p in enumerate(pieces) if not _fragment_is_quotable(_WORD_RE.findall(p))), None)
+        short = next((i for i, p in enumerate(pieces) if not quotable(p)), None)
         if short is None:
             break
         # The previous neighbour; a leading piece goes with the next one.
@@ -658,7 +829,7 @@ def _stitched_fragment_in_answer(part: str, index: EvidenceIndex) -> bool:
     if len(pieces) < 2:
         return False
     for piece in pieces:
-        piece = piece.strip(_EDGE_PUNCTUATION)
+        piece = piece.strip(_EDGE_PUNCTUATION).casefold()
         if not _fragment_in_answer(piece, _WORD_RE.findall(piece), index):
             return False
     return True
@@ -669,26 +840,29 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
 
     Fragments are split on ellipses (``…``, ``...``, ``[...]``). Each must be
     quotable (:func:`_fragment_is_quotable`: at least three tokens, or two
-    long ones; never a single token) and present in the answer
-    (:func:`_fragment_in_answer`, or glued passages, see
-    :func:`_stitched_fragment_in_answer`). Negations, result marks and
-    numbers must match exactly. Empty evidence, or evidence with fewer than
+    long ones, never a single token, never only a norm citation) and present
+    in the answer (:func:`_fragment_in_answer`, or glued passages, see
+    :func:`_stitched_fragment_in_answer`) with nothing around it that turns
+    it round (:func:`_edges_ok`). Protected tokens (negations, result marks,
+    result and qualifier words, Roman numerals, numbers) must match exactly.
+    Empty evidence, or evidence with fewer than
     :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
     """
     fragments = []
-    for part in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence)):
-        part = part.strip(_EDGE_PUNCTUATION)
+    for cased in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence, casefold=False)):
+        cased = cased.strip(_EDGE_PUNCTUATION)
+        part = cased.casefold()
         tokens = _WORD_RE.findall(part)
         if tokens:
-            fragments.append((part, tokens))
+            fragments.append((cased, part, tokens))
     if not fragments:
         return False
-    if sum(len(tok) for _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
+    if sum(len(tok) for _cased, _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
         return False
     return all(
-        _fragment_is_quotable(tokens)
-        and (_fragment_in_answer(part, tokens, index) or _stitched_fragment_in_answer(part, index))
-        for part, tokens in fragments
+        _fragment_is_quotable(tokens, _cased_tokens(cased, tokens))
+        and (_fragment_in_answer(part, tokens, index) or _stitched_fragment_in_answer(cased, index))
+        for cased, part, tokens in fragments
     )
 
 
