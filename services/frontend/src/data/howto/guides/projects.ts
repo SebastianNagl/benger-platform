@@ -341,12 +341,14 @@ export const PROJECT_GUIDES: HowToGuide[] = [
     tips: {
       de: [
         'Organisatoren, Admins und Korrigierende brauchen kein SEB. Abgegebene Arbeiten, Noten und Korrekturen sehen Studierende danach auch im normalen Browser.',
-        'Jede Änderung erzeugt eine neue Konfiguration. Wer SEB schon geöffnet hat, startet über den Link neu.',
+        'Jede Änderung erzeugt eine neue Konfiguration. Wer SEB schon geöffnet hat, startet über den Link neu. Schreiben gerade Studierende und würde eine Änderung sie aussperren, fragt BenGER vor dem Speichern nach.',
+        'In SEB bleiben Studierende auf der Prüfung: Andere Seiten der App führen zurück zur Prüfungsseite.',
         'Unter **Erweitert** lassen sich bestimmte SEB-Versionen erzwingen (Browser Exam Keys). Ohne Einträge ist jede SEB-Version mit dieser Konfiguration erlaubt.',
       ],
       en: [
         'Organizers, admins and graders do not need SEB. Submitted work, grades and corrections stay visible to students in a normal browser afterwards.',
-        'Every change creates a new configuration. Anyone who already opened SEB restarts via the link.',
+        'Every change creates a new configuration. Anyone who already opened SEB restarts via the link. If students are writing and a change would lock them out, BenGER asks before saving.',
+        'Inside SEB students stay on the exam: other pages of the app lead back to the exam page.',
         'Under **Advanced** you can require specific SEB versions (Browser Exam Keys). Without entries any SEB version with this configuration is allowed.',
       ],
     },
