@@ -72,11 +72,11 @@ def test_non_dict_criteria_entries_are_skipped():
 STRUCTURE = {
     "version": 1,
     "nodes": [
-        {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": "insgesamt 21 BE"},
-        {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung", "key": "s01_eroeffnung",
+        {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Rücktrittsrecht", "note": "insgesamt 20 BE"},
+        {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Kaufvertrag", "key": "s01_kaufvertrag",
          "max_score": 1, "emphasis": None, "hints": ["Hinweis eins"]},
-        {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Maßnahmerichtung",
-         "key": "s02_massnahmerichtung", "max_score": 10, "emphasis": "schwerpunkt", "hints": []},
+        {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Nutzungsersatz",
+         "key": "s02_nutzungsersatz", "max_score": 10, "emphasis": "schwerpunkt", "hints": []},
     ],
 }
 SCALE = {
@@ -97,8 +97,8 @@ def _structured_row(rendered=None, structure=STRUCTURE, grade_scale=None):
 def test_structure_beats_flat_criteria():
     text = _render_rubric_text(_structured_row())
     assert text.startswith("BEWERTUNGSBOGEN: Klausur (insgesamt 11 BE; halbe BE zulässig)")
-    assert "A. Zulässigkeit (insgesamt 21 BE)" in text
-    assert "  II. Maßnahmerichtung (10 BE) SCHWERPUNKT [Schlüssel: s02_massnahmerichtung]" in text
+    assert "A. Rücktrittsrecht (insgesamt 20 BE)" in text
+    assert "  II. Nutzungsersatz (10 BE) SCHWERPUNKT [Schlüssel: s02_nutzungsersatz]" in text
     assert "– Hinweis: Hinweis eins" in text
     # the flat criteria are NOT rendered when a structure exists
     assert "s01_anspruch_entstanden" not in text
