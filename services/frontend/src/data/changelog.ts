@@ -10,8 +10,8 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-26',
     audience: 'both',
     text: {
-      de: 'Der Bewertungsbogen in den Aufgabendaten nennt jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert.',
-      en: 'The grading sheet in the task data now names the grade key the exam is graded with. Until now it showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited.',
+      de: 'Der Bewertungsbogen in den Aufgabendaten nennt jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert und jetzt auch, sobald sich der Notenschlüssel der Klausur ändert.',
+      en: 'The grading sheet in the task data now names the grade key the exam is graded with. Until now it showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited, and now also whenever the exam’s grade key changes.',
     },
   },
   {
