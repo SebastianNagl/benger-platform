@@ -2121,6 +2121,29 @@ class TestRubricModeSingleCall:
             assert set(entry) == {"score", "max", "reason"}
 
 
+class TestRubricPromptPlacement:
+    """A passage under another heading of the same question counts for the
+    step whose point it treats (parity with the checklist judge)."""
+
+    SENTENCE = (
+        "Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen "
+        "Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt."
+    )
+
+    def test_rule_4_and_its_closing_rule_carry_the_sentence(self):
+        rule_4 = next(line for line in RUBRIC_JUDGE_SYSTEM_PROMPT.splitlines() if line.startswith("4. "))
+        assert self.SENTENCE in rule_4
+        assert rule_4.index("genügt ebenfalls nicht.") < rule_4.index(self.SENTENCE) < rule_4.index("Dieselbe Stelle")
+        closing = next(line for line in RUBRIC_JUDGE_CLOSING_RULES.splitlines() if "anderen Prüfungspunkt" in line)
+        assert closing.endswith(self.SENTENCE)
+
+    def test_no_study_exam_terms_in_the_product_prompts(self):
+        text = (RUBRIC_JUDGE_SYSTEM_PROMPT + RUBRIC_JUDGE_CLOSING_RULES).casefold()
+        for term in ("Zweckveranlasser", "Maßnahmerichtung", "Massnahmerichtung", "Fortsetzungsfeststellung",
+                     "Platzverweis", "Versammlung", "Störer", "Polizei"):
+            assert term.casefold() not in text
+
+
 class TestRubricSchemaEvidenceBudget:
     def test_default_schema_has_no_evidence(self):
         schema = _build_rubric_json_schema(GRUNDPRINZIPIEN_CRITERIA)
