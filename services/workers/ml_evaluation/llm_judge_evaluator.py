@@ -826,6 +826,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # to ai_service.generate() in _evaluate_single_criterion.
         self.seed = seed
         self.rubric_mode = rubric_mode
+        # Checklist scoring (research lane): set by configure_checklist().
+        self.checklist: Optional[Dict[str, Any]] = None
 
         # Merge all criteria: defaults + type-specific + custom
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
@@ -868,6 +870,40 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.custom_criteria = {key: criteria[key] for key in ordered}
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
+
+    def configure_checklist(
+        self,
+        spec: Dict[str, Any],
+        score_unit: str = "bullet",
+        alternatives: str = "branch",
+        total_mode: str = "declared",
+    ) -> None:
+        """Score against a ``checklist_spec`` instead of free step scores.
+
+        Opt-in (research lane, see :mod:`ml_evaluation.checklist_scoring`):
+        the judge marks requirement bullets, scores steps, or rates steps
+        (``score_unit``), and Weichen are scored per path or onto the
+        replaced steps (``alternatives``). Code computes every point. Without
+        a bound rubric the spec's primary path becomes the criteria.
+        """
+        from .checklist_scoring import validate_options
+
+        validate_options(score_unit, alternatives, total_mode)
+        if not isinstance(spec, dict) or not spec.get("order") or not isinstance(spec.get("steps"), dict):
+            raise ValueError("checklist spec needs 'order' and 'steps'")
+        if not self.custom_criteria:
+            self.custom_criteria = {
+                key: {"name": spec["steps"][key].get("name"), "max_score": spec["steps"][key]["max_score"]}
+                for key in spec["order"]
+            }
+            self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
+        self.rubric_mode = True
+        self.checklist = {
+            "spec": spec,
+            "score_unit": score_unit,
+            "alternatives": alternatives,
+            "total_mode": total_mode,
+        }
 
     def get_supported_metrics(self) -> List[str]:
         """Return list of supported LLM-as-Judge metrics."""
@@ -1690,8 +1726,21 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     prompt = f"{prompt.rstrip()}\n\nKORREKTURHINWEISE:\n{hint_block}"
             # Appended after the rendered template, so no stored template
             # can drop the rules.
-            prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-            system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+            if self.checklist:
+                from . import checklist_scoring
+
+                opts = self.checklist
+                key_map = checklist_scoring.expected_output_note(
+                    opts["spec"], opts["score_unit"], opts["alternatives"]
+                )
+                closing = checklist_scoring.closing_rules(opts["score_unit"], opts["alternatives"])
+                prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{closing}"
+                system_prompt = checklist_scoring.system_prompt(
+                    opts["score_unit"], opts["alternatives"]
+                )
+            else:
+                prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
+                system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
                 for value in (field_outputs or {}).values()
@@ -1699,9 +1748,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
             ]
             evidence_index = EvidenceIndex("\n".join(answer_parts))
 
-        json_schema = _build_rubric_json_schema(
-            self.custom_criteria, require_evidence=rubric_mode
-        )
+        if self.checklist:
+            from . import checklist_scoring
+
+            json_schema = checklist_scoring.build_schema(
+                self.checklist["spec"], self.checklist["score_unit"], self.checklist["alternatives"]
+            )
+        else:
+            json_schema = _build_rubric_json_schema(
+                self.custom_criteria, require_evidence=rubric_mode
+            )
         # Sum of max_scores; used to clamp total_score and to give callers
         # a 0..1 normalisation reference.
         total_max = sum(
@@ -1720,8 +1776,12 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "temperature": self.temperature,
             "custom_criteria": self.custom_criteria,
             "field_mappings": self.field_mappings,
-            "mode": "multidim_single_call",
+            "mode": "checklist" if self.checklist else "multidim_single_call",
         }
+        if self.checklist:
+            provenance["checklist"] = {
+                k: v for k, v in self.checklist.items() if k != "spec"
+            }
         # "api_default" says explicitly that no value was sent, so a row
         # graded at the provider's default is not mistaken for one whose
         # value went unrecorded.
@@ -1741,7 +1801,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # verification as a real response.
         import os
 
-        if os.environ.get("E2E_TEST_MODE") == "true":
+        if os.environ.get("E2E_TEST_MODE") == "true" and not self.checklist:
             import hashlib
 
             mock_reason = "Mock evaluation (E2E test mode)"
@@ -1849,6 +1909,45 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
                 content = response.get("content", "")
                 parsed = _parse_multidim_response(content)
+
+                if self.checklist and parsed and isinstance(parsed.get("scores"), dict):
+                    from . import checklist_scoring
+
+                    opts = self.checklist
+                    result = checklist_scoring.finalize(
+                        parsed,
+                        opts["spec"],
+                        opts["score_unit"],
+                        opts["alternatives"],
+                        opts["total_mode"],
+                        lambda quote: _verify_evidence(quote, evidence_index),
+                    )
+                    if not result.get("missing"):
+                        return {
+                            **result,
+                            "_call_metadata": {
+                                **_extract_call_metadata(response),
+                                "judge_retries": judge_retries,
+                            },
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
+                    # A judgment that skips steps is not a judgment: retry.
+                    last_failure = {
+                        "error": True,
+                        "error_message": "judge response lacks scored items: "
+                        + ", ".join(result["missing"][:20]),
+                        "_call_metadata": {
+                            **_extract_call_metadata(response),
+                            "error_type": "parse_error",
+                            "judge_retries": judge_retries,
+                        },
+                        "_raw_output": content,
+                        "_judge_prompts_used": provenance,
+                    }
+                    if attempt < self.max_retries - 1:
+                        time.sleep(1)
+                    continue
 
                 if parsed and isinstance(parsed.get("scores"), dict):
                     clamped, total, zeroed = _finalize_multidim_scores(
