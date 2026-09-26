@@ -238,14 +238,16 @@ if [ -n "$ORG" ] && ! printf '%s\n' "$@" | grep -qx -- '--org'; then
   EXTRA=(--org "$ORG")
 fi
 
-( while sleep "$SYNC_EVERY"; do sync_once; done ) &
+# Background children must not inherit the ledger lock (fd 9): a copier
+# still sleeping after the run would keep the next run out.
+( while sleep "$SYNC_EVERY"; do sync_once; done ) 9>&- &
 SYNC_PID=$!
 
 echo "pilot.sh: run $RUN_ID phase $PHASE; runner $PLATFORM_SHA; mounted platform $PLATFORM_MOUNTED_SHA ($MOUNTED_REPO); extended $EXTENDED_SHA"
 docker exec -i -e PILOT_DRY_RUN="${PILOT_DRY_RUN:-}" -e PILOT_CANARY="${PILOT_CANARY:-}" "$CONTAINER" \
   python - "$PHASE" --work "$CWORK" --run-id "$RUN_ID" \
   --platform-sha "$PLATFORM_SHA" --platform-mounted-sha "$PLATFORM_MOUNTED_SHA" \
-  --extended-sha "$EXTENDED_SHA" --runner-sha256 "$RUNNER_SHA256" "${EXTRA[@]}" "$@" < "$RUNNER" &
+  --extended-sha "$EXTENDED_SHA" --runner-sha256 "$RUNNER_SHA256" "${EXTRA[@]}" "$@" < "$RUNNER" 9>&- &
 RUN_PID=$!
 RC=0
 wait "$RUN_PID" || RC=$?
