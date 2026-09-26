@@ -37,10 +37,12 @@ HERE = Path(__file__).resolve().parent.parent
 PLATFORM = HERE.parent.parent
 sys.path[:0] = [str(PLATFORM / "services" / "shared"), str(PLATFORM / "services" / "api")]
 
-from services.rubric_import import _read_xlsx_grid, parse_rubric_file  # noqa: E402
+from services.rubric_import import _read_xlsx_grid, parse_rubric_file
 
 RAW = HERE / "data" / "raw" / "human" / "heidebach_polr"
 OUT = HERE / "data" / "interim" / "human"
+# P-code key and Martin's prod user id (git-ignored, local only).
+KEY_FILE = RAW / "platform_2026" / "KEY.local.json"
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # Martin's key (identical to the prod project's custom key): BE thresholds
 # for 1..18 Notenpunkte, totals rounded down ("bei 0,5 BE wird abgerundet").
@@ -50,6 +52,20 @@ PASS_GRADE = 4
 
 def scrub(text: str) -> str:
     return EMAIL.sub("[E-Mail entfernt]", text or "")
+
+
+def martin_user_id() -> str:
+    """Martin Heidebach's prod user id, from the git-ignored key file."""
+    try:
+        key = json.loads(KEY_FILE.read_text())
+    except FileNotFoundError:
+        raise SystemExit(f"{KEY_FILE} is missing. It holds Martin's prod user id under 'martin_user_id' "
+                         "(local only, never in git).") from None
+    uid = key.get("martin_user_id") if isinstance(key, dict) else None
+    if not isinstance(uid, str) or not uid.strip():
+        raise SystemExit(f"{KEY_FILE} has no 'martin_user_id'. Add Martin Heidebach's prod user id there "
+                         "(local only, never in git); it tells his Korrektur from other graders'.")
+    return uid.strip()
 
 
 def grade(total_be: float) -> int:
@@ -130,6 +146,7 @@ def stored_scores(details, keys_in_order):
 
 
 def main() -> int:
+    martin = martin_user_id()
     OUT.mkdir(parents=True, exist_ok=True)
     res, steps = sheet_steps()
     keys = [s["key"] for s in steps]
@@ -159,8 +176,9 @@ def main() -> int:
     key_map = dict(zip(prod_keys, keys))  # prod key -> xlsx key (same order, same maxima)
 
     pseudonyms = {a["annotation_id"]: f"P{i:02d}" for i, a in enumerate(annotations, 1)}
-    (RAW / "platform_2026" / "KEY.local.json").write_text(json.dumps(
+    KEY_FILE.write_text(json.dumps(
         {"note": "LOCAL ONLY. P-code -> prod annotation/user id. Never share.",
+         "martin_user_id": martin,
          "codes": {pseudonyms[a["annotation_id"]]: {"annotation_id": a["annotation_id"], "user_id": a["user_id"]}
                    for a in annotations}}, indent=1))
 
@@ -185,7 +203,7 @@ def main() -> int:
                 per_step = {key_map[k]: (v.get("score") or 0.0) for k, v in stored_scores(d, prod_keys).items()}
                 human = {"steps": per_step, "total": d.get("total_score"),
                          "grade_points": d.get("grade_points"), "passed": d.get("passed"),
-                         "grader": "martin_heidebach" if ev.get("created_by") == "<user-id>"
+                         "grader": "martin_heidebach" if ev.get("created_by") == martin
                          else "other", "created_at": ev["created_at"]}
         scripts.append({"script_id": pseudonyms[a["annotation_id"]], "cohort": "D2b", "year_hint": "2026",
                         "source": "platform", "chars": len(text), "text": text,
