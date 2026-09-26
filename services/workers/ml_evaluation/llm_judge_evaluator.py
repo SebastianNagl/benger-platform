@@ -1922,6 +1922,22 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         opts["total_mode"],
                         lambda quote: _verify_evidence(quote, evidence_index),
                     )
+                    if not result.get("missing") and result.get("not_evaluable"):
+                        # Same contract as the second-exam engine: no value,
+                        # an error row with the judge's reasons.
+                        reasons = "; ".join(result["assessment"].get("review_reasons") or [])
+                        return {
+                            "error": True,
+                            "error_message": f"Judge: nicht bewertbar ({reasons})" if reasons else "Judge: nicht bewertbar",
+                            "assessment": result["assessment"],
+                            "_call_metadata": {
+                                **_extract_call_metadata(response),
+                                "error_type": "not_evaluable",
+                                "judge_retries": judge_retries,
+                            },
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
                     if not result.get("missing"):
                         return {
                             **result,

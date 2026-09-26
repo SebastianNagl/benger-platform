@@ -69,6 +69,20 @@ def _judgment(declared="musterloesung"):
         },
         "weichenstellungen": {"W1": {"gefolgter_loesungsweg": declared, "evidence": "als Zweckveranlasser Störer", "reason": "r"}},
         "overall_assessment": "ok",
+        **_diagnosis(),
+    }
+
+
+def _diagnosis(status="scored", products=(("P1 Gutachten", "fulfilled"),), reasons=()):
+    return {
+        "assessment_status": status,
+        "work_products": [{"product": p, "requirement_basis": "Aufgabenstellung", "status": st, "reason": "r"}
+                          for p, st in products],
+        "supplementary_reviews": [{"subject": "Kein Hilfsgutachten verlangt", "requirement_basis": "Bearbeitervermerk",
+                                   "status": "not_required", "assumption": None, "reason": "r"}],
+        "error_chains": [],
+        "review_reasons": list(reasons),
+        "improvements": ["Zulässigkeit knapper"],
     }
 
 
@@ -240,3 +254,67 @@ class TestEvaluatorIntegration:
         ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="m", custom_prompt_template="x")
         with pytest.raises(ValueError):
             ev.configure_checklist(_spec(), "points", "branch")
+
+
+class TestDiagnosisAndSecondExamAlignment:
+    def test_schema_carries_the_second_exam_diagnosis_block(self):
+        props = cs.build_schema(_spec(), "bullet", "branch")["properties"]
+        for key in ("assessment_status", "work_products", "supplementary_reviews", "error_chains",
+                    "review_reasons", "improvements"):
+            assert key in props
+        assert props["assessment_status"]["enum"] == ["scored", "review_required", "not_evaluable"]
+
+    def test_rules_cover_hilfsgutachten_and_folgerichtig(self):
+        prompt = cs.system_prompt("bullet", "branch")
+        assert "Hilfsgutachten" in prompt and "ersetzen nie das Ergebnis der Hauptlösung" in prompt
+        assert "\"folgerichtig\"" in prompt and "error_chains" in prompt
+
+    def test_scored_judgment_keeps_status_and_reports_product_totals(self):
+        out = cs.finalize(_judgment(), _spec(), "bullet", "branch", "declared", _verify)
+        assert out["assessment"]["assessment_status"] == "scored"
+        assert out["assessment"]["aggregation_eligible"] is True
+        assert out["checklist"]["arbeitsprodukte"]["P1"]["points"] == pytest.approx(45.0)
+        assert out["checklist"]["arbeitsprodukte"]["P1"]["max"] == 100.0
+
+    def test_unforeseen_path_needs_review(self):
+        judgment = _judgment()
+        judgment["scores"]["s02_klageart"]["abweichender_weg"] = True
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["assessment"]["assessment_status"] == "review_required"
+        assert out["assessment"]["score_status"] == "provisional"
+        assert any("s02_klageart" in r for r in out["assessment"]["review_reasons"])
+        assert out["total_score"] == 45.0  # the value is kept
+
+    def test_missing_product_with_credited_steps_needs_review(self):
+        judgment = _judgment()
+        judgment.update(_diagnosis(products=(("P1 Gutachten", "missing"),)))
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["assessment"]["assessment_status"] == "review_required"
+        assert any("P1" in w for w in out["assessment"]["validation_warnings"])
+
+    def test_missing_status_defaults_to_review(self):
+        judgment = _judgment()
+        del judgment["assessment_status"]
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["assessment"]["assessment_status"] == "review_required"
+
+    def test_key_map_marks_folgerichtig_and_owed_steps(self):
+        spec = _spec()
+        spec["steps"]["s02_klageart"]["anforderungen"][0]["massstab"] = "folgerichtig"
+        spec["steps"]["s02_klageart"]["hilfsgutachten"] = {"funktion": "praemissenwechsel"}
+        note = cs.expected_output_note(spec, "bullet", "replace")
+        assert "s02_klageart: Klageart (Anforderungen b1 bis b1; folgerichtig: b1; hilfsgutachtlich geschuldet)" in note
+
+    def test_not_evaluable_becomes_an_error_row(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-5.6-luna",
+                               custom_prompt_template="{context}\n{prediction}")
+        ev.configure_checklist(_spec(), "bullet", "branch", "declared")
+        judgment = _judgment()
+        judgment.update(_diagnosis(status="not_evaluable", reasons=("Bearbeitung ist unlesbar",)))
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": json.dumps(judgment), "usage": {}, "metadata": {"finish_reason": "stop"}}
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert result["error"] is True
+        assert result["_call_metadata"]["error_type"] == "not_evaluable"
+        assert "unlesbar" in result["error_message"]
