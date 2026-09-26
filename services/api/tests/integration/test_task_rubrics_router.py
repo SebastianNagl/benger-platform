@@ -18,7 +18,7 @@ from sqlalchemy import select
 from models import EvaluationJudgeRun, EvaluationRun, TaskEvaluation, User
 from project_models import Project, Task, TaskRubric
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES
-from tests.fixtures.rubric_files import colleague_sample_xlsx
+from tests.fixtures.rubric_files import sample_sheet_xlsx
 
 
 @contextmanager
@@ -168,7 +168,7 @@ class TestParse:
         with _as_user(user):
             resp = await async_test_client.post(
                 "/api/task-rubrics/parse",
-                files={"file": ("Korrekturbogen.xlsx", colleague_sample_xlsx(), "application/octet-stream")},
+                files={"file": ("Korrekturbogen.xlsx", sample_sheet_xlsx(), "application/octet-stream")},
             )
         assert resp.status_code == 200, resp.text
         body = resp.json()
