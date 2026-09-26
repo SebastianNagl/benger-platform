@@ -1,17 +1,17 @@
 {
- "note": "Paired normal-approximation MDEs at power 0.8 from proxy spreads; recompute from the new instrument's pilot before pre-registration.",
+ "note": "Paired t-based MDEs at power 0.8 from proxy spreads (exploratory); recompute from the new instrument's pilot data.",
  "C1_repeat_sd": {
   "proxy": "Luna tailored minus Luna holistic repeat SD, 3 passes, 45 picks",
   "n": 45,
   "observed_mean_difference": -0.278,
   "sd_of_differences": 1.87,
   "mde": {
-   "alpha_0.025": 0.86,
-   "alpha_0.05": 0.781
+   "alpha_0.025": 0.884,
+   "alpha_0.05": 0.799
   },
   "mde_5_passes_optimistic": {
-   "alpha_0.025": 0.608,
-   "alpha_0.05": 0.552
+   "alpha_0.025": 0.625,
+   "alpha_0.05": 0.565
   }
  },
  "C2_abs_error_vs_expert": {
@@ -20,13 +20,17 @@
   "observed_mean_difference": 1.567,
   "sd_of_differences": 12.442,
   "mde": {
-   "n_15": {
-    "alpha_0.025": 9.9,
-    "alpha_0.05": 9.0
+   "n_15_d2a": {
+    "alpha_0.025": 10.85,
+    "alpha_0.05": 9.68
    },
-   "n_40": {
-    "alpha_0.025": 6.07,
-    "alpha_0.05": 5.51
+   "n_38_all_distinct": {
+    "alpha_0.025": 6.43,
+    "alpha_0.05": 5.81
+   },
+   "n_37_dependent_pair_once": {
+    "alpha_0.025": 6.53,
+    "alpha_0.05": 5.89
    }
   }
  }
