@@ -236,10 +236,11 @@ def rating_percent_table(grade_scale: Optional[Dict[str, Any]], total_points: fl
 
     ``thr(n)`` is the key's minimum for grade n as a percentage of the sheet
     total, converted like the platform grades (``effective_grade_scale``: a
-    percent key is percent, a BE key is points on ``total_points``). Grade
-    n >= 1 maps to the midpoint of its band [thr(n), thr(n+1)), with
-    thr(19) = 100 %. Grade 0 maps to 0. The key's rounding rule plays no
-    part: it rounds points to a grade, and this maps a grade back to points.
+    percent key is percent, a BE key is points on ``total_points``). Grades
+    1 to 17 map to the midpoint of their band [thr(n), thr(n+1)). Grade 18,
+    the top of the scale, maps to 100 % of the step, and grade 0 to 0. The
+    key's rounding rule plays no part: it rounds points to a grade, and this
+    maps a grade back to points.
     """
     from rubric_structure import GRADE_COUNT, effective_grade_scale, is_percent_scale, validate_grade_scale
 
@@ -250,7 +251,7 @@ def rating_percent_table(grade_scale: Optional[Dict[str, Any]], total_points: fl
         raise ValueError("grade_scale: " + "; ".join(errors))
     thresholds = [float(t) / total * 100.0 for t in effective_grade_scale(key, total)["thresholds"]]
     bounds = thresholds + [100.0]
-    return [0.0] + [(bounds[n - 1] + bounds[n]) / 2 for n in range(1, GRADE_COUNT + 1)]
+    return [0.0] + [(bounds[n - 1] + bounds[n]) / 2 for n in range(1, GRADE_COUNT)] + [100.0]
 
 
 def work_result_of(step: Dict[str, Any]) -> str:

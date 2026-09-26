@@ -370,12 +370,13 @@ class TestFinalize:
         }
         out = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify)
         assert out["scores"]["s02_klageart"]["note"] == 0  # unverified quote
-        # Standard key: grade 18 is the band [97, 100) -> 98.5 %, grade 9 [67, 70) -> 68.5 %.
-        assert out["scores"]["s01_rechtsweg"]["raw_points"] == pytest.approx(20 * 0.985)
+        # Standard key: grade 18, the top of the scale, is the full step; grade 9
+        # is the midpoint of its band [67, 70) -> 68.5 %.
+        assert out["scores"]["s01_rechtsweg"]["raw_points"] == pytest.approx(20.0)
         assert out["scores"]["s03_stoerer"]["raw_points"] == pytest.approx(50 * 0.685)
-        assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(53.95)
-        assert out["checklist"]["totals"]["declared"] == 54.0
-        assert [out["scores"][k]["score"] for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")] == [19.5, 0.0, 34.5]
+        assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(54.25)
+        assert out["checklist"]["totals"]["declared"] == 54.5
+        assert [out["scores"][k]["score"] for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")] == [20.0, 0.0, 34.5]
         # Aggregation (a) is unchanged: the weighted mean of the grades.
         assert out["checklist"]["rating_grade"] == pytest.approx((18 * 20 + 0 * 30 + 9 * 50) / 100)
         assert out["checklist"]["abweichender_weg_steps"] == 1
@@ -400,11 +401,13 @@ class TestGradeKey:
         assert len(table) == 19 and table[0] == 0.0
         assert table[1] == pytest.approx(19.5)   # [13, 26)
         assert table[4] == pytest.approx(52.0)   # [50, 54)
-        assert table[18] == pytest.approx(98.5)  # [97, 100]
+        assert table[17] == pytest.approx(95.5)  # [94, 97)
+        assert table[18] == 100.0                # the top grade is the full step
 
     def test_study_key_and_its_platform_forms_agree(self):
         study = cs.rating_percent_table({"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor", "pass_grade": 4}, 100)
-        assert study[1] == pytest.approx(15.0) and study[4] == pytest.approx(42.0) and study[18] == pytest.approx(98.0)
+        assert study[1] == pytest.approx(15.0) and study[4] == pytest.approx(42.0) and study[17] == pytest.approx(94.0)
+        assert study[18] == 100.0
         assert cs.rating_percent_table({"unit": "BE", "thresholds": STUDY_THRESHOLDS}, 100) == pytest.approx(study)
         assert cs.rating_percent_table({"unit": "percent", "thresholds": STUDY_THRESHOLDS}, 100) == pytest.approx(study)
         assert cs.grade_key({"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor"}) == {
@@ -567,7 +570,7 @@ class TestEvaluatorIntegration:
                                for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")}, **_diagnosis()}
         self._respond(ev, judgment)
         result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
-        assert result["checklist"]["totals_unrounded"]["declared"] == pytest.approx(98.0)
+        assert result["checklist"]["totals_unrounded"]["declared"] == pytest.approx(100.0)
         assert result["_judge_prompts_used"]["checklist"]["grade_scale"]["thresholds"] == STUDY_THRESHOLDS
 
 
