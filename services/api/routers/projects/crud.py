@@ -17,6 +17,11 @@ from auth_module import require_user
 from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
+from grade_scale_history import (
+    GRADE_SCALE_KEY,
+    apply_grade_scale_write,
+    grade_scale_changed,
+)
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
 from services.member_privacy import (
@@ -65,6 +70,7 @@ from routers.projects.helpers import (
     get_user_with_memberships_async,
     resolve_project_roles_batch_async,
 )
+from task_rubric_service import remirror_project_rubrics
 # Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
 # working for existing importers (tests) after the local copy was removed.
 from utils.json_merge import deep_merge_dicts
@@ -823,6 +829,14 @@ async def update_project(
     # Update fields
     update_data = update.dict(exclude_unset=True)
 
+    # The exam's Notenschlüssel lives in evaluation_config, so this deep-merge
+    # is a writer of the key too: the same contract check as the eval-config
+    # PUT, before anything is written.
+    if "evaluation_config" in update_data:
+        from routers.evaluations.config import validate_eval_config_grade_scale
+
+        validate_eval_config_grade_scale(update_data["evaluation_config"])
+
     # Kind is editable on expert projects (the extended student surfaces key
     # discovery off it), but a student-origin project can never be un-flagged
     # back into the public/expert lanes. Only kind CHANGES are rejected, so a
@@ -900,6 +914,7 @@ async def update_project(
             # Remove version_description if present (not a model field)
             update_data.pop("version_description", None)
 
+    grade_scale_moved = False
     for field, value in update_data.items():
         if hasattr(project, field):
             # Special handling for generation_config to preserve nested fields (Issue #818)
@@ -915,12 +930,25 @@ async def update_project(
             elif field == "evaluation_config":
                 current_config = project.evaluation_config or {}
                 merged_config = deep_merge_dicts(current_config, value)
+                # Same audit as the eval-config PUT: the key's trail is
+                # server-owned and every change of the key is appended.
+                merged_config = apply_grade_scale_write(
+                    current_config, merged_config, actor_id=str(current_user.id)
+                )
+                grade_scale_moved = grade_scale_changed(
+                    current_config.get(GRADE_SCALE_KEY), merged_config.get(GRADE_SCALE_KEY)
+                )
                 setattr(project, field, merged_config)
 
                 flag_modified(project, "evaluation_config")
                 logger.info(f"Project {project_id}: Deep merged evaluation_config update")
             else:
                 setattr(project, field, value)
+
+    # The grading sheets' task-data mirrors end in the key that grades the
+    # exam; a key change re-renders them in the same transaction.
+    if grade_scale_moved:
+        await remirror_project_rubrics(db, project.id, project.evaluation_config)
 
     await db.commit()
 

@@ -12,7 +12,9 @@ Pinned here against Postgres:
   ``remirror_project_rubrics_sync``: one query for the whole project, only
   active sheets, only this project, only mirrors that differ;
 - the eval-config PUT (sync lane, ``client`` / ``test_db``) re-mirrors on a
-  key change and leaves the mirrors alone otherwise.
+  key change and leaves the mirrors alone otherwise;
+- the project PATCH (async lane), which deep-merges ``evaluation_config``
+  too: same check, same trail, same re-mirror.
 
 The pure row pass is unit-tested in ``tests/unit/test_task_rubric_remirror.py``.
 """
@@ -21,6 +23,7 @@ from __future__ import annotations
 
 import itertools
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 import pytest
@@ -298,8 +301,31 @@ class TestEvalConfigPut:
 
 
 # ---------------------------------------------------------------------------
-# async lane: the helper
+# async lane: the helper and the project PATCH
 # ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _as_user(db_user):
+    from auth_module.dependencies import require_user
+    from auth_module.models import User as AuthUser
+    from main import app
+
+    auth_user = AuthUser(
+        id=db_user.id,
+        username=db_user.username,
+        email=db_user.email,
+        name=db_user.name,
+        is_superadmin=db_user.is_superadmin,
+        is_active=True,
+        email_verified=True,
+        created_at=db_user.created_at or datetime.now(timezone.utc),
+    )
+    app.dependency_overrides[require_user] = lambda: auth_user
+    try:
+        yield auth_user
+    finally:
+        app.dependency_overrides.pop(require_user, None)
 
 
 async def _make_user(db) -> User:
@@ -393,3 +419,116 @@ class TestRemirrorAsync:
 
         await remirror_project_rubrics(async_test_db, project.id, {"grade_scale": _exam_key()})
         assert _mirror(task).endswith(_key_block(_exam_key()))
+
+
+@pytest.mark.integration
+class TestProjectPatch:
+    """``PATCH /api/projects/{id}`` deep-merges ``evaluation_config`` too, so
+    it is a writer of the key: validated, audited and re-mirrored like the
+    eval-config PUT."""
+
+    @pytest.mark.asyncio
+    async def test_a_key_change_re_mirrors_and_is_recorded(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {"runs_per_task": 1})
+        task = await _make_sheet(async_test_db, project, grade_scale=SHEET_KEY)
+        project_id, task_id, owner_id = project.id, task.id, owner.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={"evaluation_config": {"grade_scale": _exam_key()}},
+            )
+            assert resp.status_code == 200, resp.text
+
+            stored = await _stored_task(async_test_db, task_id)
+            assert _mirror(stored).endswith(_key_block(_exam_key()))
+            config = await _stored_config(async_test_db, project_id)
+            assert config["runs_per_task"] == 1
+            history = config["grade_scale_history"]
+            assert len(history) == 1
+            assert history[0]["from"] is None
+            assert history[0]["to"]["preset"] == "uebungsklausur"
+            assert history[0]["changed_by"] == owner_id
+
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={"evaluation_config": {"grade_scale": None}},
+            )
+        assert resp.status_code == 200, resp.text
+        stored = await _stored_task(async_test_db, task_id)
+        assert _mirror(stored).endswith(_key_block(SHEET_KEY))
+        assert len((await _stored_config(async_test_db, project_id))["grade_scale_history"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_an_unrelated_patch_leaves_mirrors_and_trail_alone(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {"grade_scale": _exam_key()})
+        task = await _make_sheet(async_test_db, project, mirror="SENTINEL")
+        project_id, task_id = project.id, task.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            for body in (
+                {"evaluation_config": {"default_temperature": 0.2}},
+                {"evaluation_config": {"grade_scale": _exam_key()}},
+                {"description": "neu"},
+            ):
+                resp = await async_test_client.patch(f"/api/projects/{project_id}", json=body)
+                assert resp.status_code == 200, resp.text
+
+        assert _mirror(await _stored_task(async_test_db, task_id)) == "SENTINEL"
+        config = await _stored_config(async_test_db, project_id)
+        assert "grade_scale_history" not in config
+        assert config["default_temperature"] == 0.2
+
+    @pytest.mark.asyncio
+    async def test_the_trail_cannot_be_rewritten_through_the_patch(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {})
+        project_id = project.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={
+                    "evaluation_config": {
+                        "grade_scale_history": [
+                            {"changed_at": "1999-01-01T00:00:00+00:00", "changed_by": "x"}
+                        ]
+                    }
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        assert "grade_scale_history" not in (await _stored_config(async_test_db, project_id))
+
+    @pytest.mark.asyncio
+    async def test_an_invalid_key_is_422_before_any_write(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {})
+        task = await _make_sheet(async_test_db, project, mirror="SENTINEL")
+        project_id, task_id = project.id, task.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={
+                    "title": "Umbenannt",
+                    "evaluation_config": {"grade_scale": {**_exam_key(), "thresholds": [1, 2]}},
+                },
+            )
+        assert resp.status_code == 422, resp.text
+        assert resp.json()["detail"].startswith("Invalid Notenschlüssel: ")
+        assert _mirror(await _stored_task(async_test_db, task_id)) == "SENTINEL"
+        assert "grade_scale" not in (await _stored_config(async_test_db, project_id))
