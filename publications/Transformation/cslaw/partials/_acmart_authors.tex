@@ -1,0 +1,26 @@
+%% Author block. Same as the extension's partial, plus \email (acmart
+%% supports it; the extension's partial drops it).
+$for(by-author)$
+  \author{$by-author.name.literal$}
+  $if(by-author.orcid)$\orcid{$by-author.orcid$}$endif$
+  $if(by-author.email)$\email{$by-author.email$}$endif$
+  $if(by-author.affiliations)$
+    $for(by-author.affiliations)$
+      \affiliation{%
+        $if(by-author.affiliations.name)$
+          \institution{$by-author.affiliations.name$}
+        $endif$
+        $if(by-author.affiliations.city)$
+          \city{$by-author.affiliations.city$}
+        $endif$
+        $if(by-author.affiliations.country)$
+          \country{$by-author.affiliations.country$}
+        $endif$
+      }
+    $endfor$
+  $endif$
+$endfor$
+
+$if(acm-metadata.shortauthors)$
+\renewcommand{\shortauthors}{$acm-metadata.shortauthors$}
+$endif$
