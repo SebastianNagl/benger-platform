@@ -23,6 +23,10 @@ analyze:
 	uv run python scripts/analysis/compute_probe_stats.py
 	uv run python scripts/analysis/compute_fewshot_contrasts.py
 	uv run python scripts/analysis/compute_band_mapping_stats.py
+	uv run python scripts/analysis/compute_apportionment_audit.py
+	uv run python scripts/analysis/compute_weight_sensitivity.py --check
+	uv run python scripts/analysis/compute_step_variance.py
+	uv run python scripts/analysis/compute_mde.py
 	uv run python scripts/figures/make_trend_figure.py
 
 # Pulls from the LOCAL dev stack (requires docker + running benger-db-1).

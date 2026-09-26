@@ -338,6 +338,11 @@ publications/Transformation/data/interim/clone_eval_config_backup_*.json
 # Directory-level ignore: nothing under raw/ is publishable, and an excluded
 # directory cannot be re-included by the `!...*.json` rule above.
 publications/Transformation/data/raw/
+# Anything derived from the human expert material (student scripts, per-step
+# human grades, exam text): personal data and third-party exam text. The
+# `!...*.json` rule above would otherwise re-include these; only aggregate
+# statistics in data/processed/ are publishable.
+publications/Transformation/data/interim/human/
 
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git

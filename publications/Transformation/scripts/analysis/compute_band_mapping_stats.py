@@ -53,7 +53,8 @@ def main() -> int:
 
     hin_merge = hin_drop = 0
     merge_re = re.compile(r"Stufen zusammengef")
-    drop_re = re.compile(r"in die Bewertungshinweise übernommen")
+    # As-run notice text; the corrected generator says "entfernt".
+    drop_re = re.compile(r"in die Bewertungshinweise übernommen|entfernt — keine Teilpunkte")
 
     for r in v3:
         gm = r["generation_metadata"]

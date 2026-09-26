@@ -69,6 +69,11 @@ Some inputs are withheld and ship with the dataset release instead:
   `AUDIT_SHEET.csv` would undo the blinding. The de-blinded outcome the paper
   reports is in `data/processed/audit_stats.json`.
 - **Audit and probe account fixtures**, which carry platform credentials.
+- **Human expert material** (`data/raw/human/`, `data/interim/human/`): an
+  expert's exam, grading sheets and student scripts with human and model
+  grades (personal data, used with consent for research), and a second
+  expert's grading sheet. Never published; only aggregate statistics go to
+  `data/processed/`. `scripts/extract_heidebach_pack.py` builds the local pack.
 
 None of these is an input to `make render`: every load in `manuscript.qmd` goes
 through `load_optional()`, so the paper rebuilds from the tracked data alone.
