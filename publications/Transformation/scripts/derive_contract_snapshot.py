@@ -31,7 +31,8 @@ def main() -> int:
     spec.loader.exec_module(mod)
 
     snapshot = {
-        "source": str(CONSTANTS),
+        # Repo-relative, so the tracked snapshot carries no machine path.
+        "source": str(CONSTANTS.relative_to(HERE.parent.parent.parent)),
         "contract_version": mod.CONTRACT_VERSION,
         "bounds": {
             "total_points": mod.TOTAL_POINTS,

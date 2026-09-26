@@ -40,8 +40,8 @@ def main() -> int:
 
     control = {
         "_sources": {
-            "agreement_stats": str((ARR / "agreement_stats.json")),
-            "inter_judge": str((ARR / "benchathon_inter_judge_agreement.json")),
+            "agreement_stats": str((ARR / "agreement_stats.json").relative_to(HERE.parent.parent)),
+            "inter_judge": str((ARR / "benchathon_inter_judge_agreement.json").relative_to(HERE.parent.parent)),
         },
         "inter_judge": {
             "judges": inter_judge.get("judges"),
