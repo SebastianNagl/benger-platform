@@ -76,8 +76,9 @@ D2_MARKER = "heidebach_polr_2026"
 # the same way for both corpora.
 D2_TASK_FIELDS = {"rechtsordnung": "Deutschland", "rechtsstand": "nicht angegeben",
                   "pruefungsniveau": "Universitäre juristische Klausur"}
-PROBE_TYPES = ("empty", "repetition", "offtopic", "musterloesung", "negation_flip", "keyword_salad")
+PROBE_TYPES = ("empty", "repetition", "offtopic", "musterloesung", "negation_flip", "keyword_salad", "result_swap")
 MIN_NEGATION_FLIPS = 3
+MIN_RESULT_SWAPS = 8  # G0' amendment: fewer swapped results make the probe invalid
 SEED_BASE = 42
 ROW_SCHEMA = 2
 SPENDING_PHASES = ("probes", "generate", "checklist", "d2-generate", "d2-judge", "d2-probes")
@@ -347,6 +348,15 @@ def select_rubric(db, task, exam_id: int, ctx: Ctx, actives: dict[str, str]):
     raise SystemExit(f"--rubric: unknown policy {policy!r}")
 
 
+
+def result_swap_probe(musterloesung: str) -> tuple[str | None, dict[str, Any]]:
+    """The G0' amendment probe: every result statement of the Musterlösung swapped."""
+    swapped, n, pairs = L.result_swap(musterloesung)
+    meta = {"swapped_sentences": n, "sha256": L.sha256_text(swapped)}
+    if n < MIN_RESULT_SWAPS:
+        return None, {**meta, "skipped": f"only {n} result sentences swapped (< {MIN_RESULT_SWAPS})"}
+    return swapped, meta
+
 def probe_texts(exam: dict[str, Any], rubric_text: str, step_names: list[str], rubric_id: str):
     """{type: (text or None, meta)}; None means the probe is skipped for this exam."""
     out: dict[str, tuple[str | None, dict[str, Any]]] = {}
@@ -363,6 +373,7 @@ def probe_texts(exam: dict[str, Any], rubric_text: str, step_names: list[str], r
         out["negation_flip"] = (flipped, meta)
     salad, salad_meta = L.keyword_salad(rubric_text, step_names, seed_key=f"{exam['exam_inner_id']}:{rubric_id}")
     out["keyword_salad"] = (salad, salad_meta) if salad else (None, {**salad_meta, "skipped": "no norms or key terms"})
+    out["result_swap"] = result_swap_probe(musterloesung)
     return out
 
 
@@ -804,6 +815,7 @@ def d2_probe_texts(exam: dict[str, Any], offtopic: str, rubric_text: str, step_n
         out["negation_flip"] = (flipped, meta)
     salad, salad_meta = L.keyword_salad(rubric_text, step_names, seed_key=f"D2:{arm_id}")
     out["keyword_salad"] = (salad, salad_meta) if salad else (None, {**salad_meta, "skipped": "no norms or key terms"})
+    out["result_swap"] = result_swap_probe(musterloesung)
     return out
 
 
@@ -987,6 +999,19 @@ def phase_selftest(ctx: Ctx) -> int:
     check("negation flip: deterministic", L.negation_flip(para) == (flipped, sentences, flips))
     ml_flips = L.negation_flip(exam["musterloesung"])[1]
     check("negation flip: Martin's Musterlösung has enough flips", ml_flips >= MIN_NEGATION_FLIPS, str(ml_flips))
+    gutachten = ("# A. Zulässigkeit\nDie Klage ist zulässig, wenn die Sachentscheidungsvoraussetzungen vorliegen. "
+                 "Die Klagefrist ist gewahrt. Die Klage ist zulässig.\n# B. Begründetheit\nDie Maßnahme könnte "
+                 "rechtswidrig sein. Sie ist nicht verhältnismäßig.\n# Ergebnis\nDie Klage ist zulässig und begründet; "
+                 "sie hat daher Erfolg.")
+    swapped, n_swaps, _pairs = L.result_swap(gutachten)
+    check("result swap: section results and the Ergebnis swap, Obersatz and hypothesis stay",
+          "Die Klage ist unzulässig.\n# B." in swapped and "Sie ist verhältnismäßig." in swapped
+          and "unzulässig und unbegründet; sie hat daher keinen Erfolg." in swapped
+          and "zulässig, wenn die Sachentscheidungsvoraussetzungen" in swapped and "könnte rechtswidrig" in swapped,
+          swapped)
+    check("result swap: deterministic", L.result_swap(gutachten)[0] == swapped)
+    ml_swaps = L.result_swap(exam["musterloesung"])[1]
+    check("result swap: Martin's Musterlösung has enough swapped results", ml_swaps >= MIN_RESULT_SWAPS, str(ml_swaps))
 
     # --- keyword salad -------------------------------------------------------
     rubric_text = ("I. Eröffnung des Verwaltungsrechtswegs nach § 40 I 1 VwGO (1 BE)\n"

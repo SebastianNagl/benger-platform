@@ -695,6 +695,98 @@ def negation_flip(text: str) -> tuple[str, int, int]:
     return "".join(out), sentences, flips
 
 
+# --- result swap (G0' amendment, DESIGN.md 2026-09-26) ---
+_PAIRS = [("unzulässig", "zulässig"), ("unbegründet", "begründet"), ("rechtswidrig", "rechtmäßig"),
+          ("unstatthaft", "statthaft"), ("erfolglos", "erfolgreich"), ("unwirksam", "wirksam"),
+          ("unverhältnismäßig", "verhältnismäßig"), ("unanwendbar", "anwendbar")]
+_SWAP = {}
+for neg, pos in _PAIRS:
+    _SWAP[neg] = pos; _SWAP[pos] = neg
+_RESULT_WORDS = sorted(set(_SWAP) | {"gegeben", "erfüllt", "eröffnet", "einschlägig", "anzunehmen", "zu bejahen",
+                                      "zu verneinen", "verletzt", "vorliegend"}, key=len, reverse=True)
+_ENDING = r"(?:e|er|en|em|es)?"
+_NICHT_RESULT = re.compile(r"\bnicht\s+(mehr\s+)?(" + "|".join(map(re.escape, _RESULT_WORDS)) + r")" + _ENDING + r"\b", re.I)
+_WORD = re.compile(r"\b(" + "|".join(map(re.escape, sorted(_SWAP, key=len, reverse=True))) + r")(" + _ENDING + r")\b", re.I)
+_PHRASES = [(re.compile(r"\bkeinen Erfolg\b"), "Erfolg"), (re.compile(r"\b(hat|haben|hätte|wird)((?:\s+\w+){0,2}?)\s+Erfolg\b"), r"\1\2 keinen Erfolg")]
+_BEJAHEN = [(re.compile(r"\bzu bejahen\b"), "zu verneinen"), (re.compile(r"\bzu verneinen\b"), "zu bejahen"),
+            (re.compile(r"\bbejaht\b"), "verneint"), (re.compile(r"\bverneint\b"), "bejaht")]
+_RESULT_START = re.compile(r"^[\s#*>_\-\d.()]*?(?:[IVX]+\.|[a-z]\)|\d+\.)?\s*\**(Somit|Damit|Daher|Folglich|Also|Mithin|Demnach|Deshalb|Insgesamt|Im Ergebnis|Ergebnis|Zwischenergebnis|Gesamtergebnis|Endergebnis)\b")
+_HEADING_LINE = re.compile(r"^\s*(#+\s|\*\*[^*]{1,80}\*\*\s*$|[A-HIVX]+\.\s|\d+\.\s)", re.M)
+
+def _case(src, dst):
+    return dst[0].upper() + dst[1:] if src[:1].isupper() else dst
+
+_NOT_A_RESULT = re.compile(r"\b(wenn|soweit|sofern|falls|ob|könnte|könnten|kommt|kämen?|vertretbar|fraglich|dahinstehen|offenbleiben|offen bleiben|nicht erörtert)\b", re.I)
+
+
+def swap_sentence(s):
+    """Swap every result polarity in the sentence at once (consistent)."""
+    n = 0
+    tokens = {}
+    def protect(val):
+        key = f"\x00{len(tokens)}\x00"; tokens[key] = val; return key
+    def drop_nicht(m):
+        nonlocal n; n += 1
+        return protect(("noch " if m.group(1) else "") + m.group(0)[m.group(0).lower().find(m.group(2).lower()):])
+    out = _NICHT_RESULT.sub(drop_nicht, s)
+    def word(m):
+        nonlocal n; n += 1
+        return protect(_case(m.group(1), _SWAP[m.group(1).lower()]) + m.group(2))
+    out = _WORD.sub(word, out)
+    for pat, rep in _PHRASES + _BEJAHEN:
+        out, k = pat.subn(lambda m, rep=rep: protect(m.expand(rep)), out); n += k
+    k = len(_MARKER_RE.findall(out)); out = _MARKER_RE.sub(lambda m: protect(_MARKERS[m.group(0)]), out); n += k
+    if n == 0:
+        parts = re.split(r"([,;:])", out)
+        for i in range(0, len(parts), 2):
+            parts[i], k = _flip_clause(parts[i]); n += k
+            if k: break
+        out = "".join(parts)
+    for key, val in tokens.items(): out = out.replace(key, val)
+    return out, n
+
+def result_sentences(text):
+    spans = _sentence_spans(text or "")
+    heads = [m.start() for m in _HEADING_LINE.finditer(text or "")] + [len(text or "")]
+    closing = set()
+    for i, (a, b) in enumerate(spans):
+        nxt = spans[i + 1][0] if i + 1 < len(spans) else len(text)
+        if any(b <= h <= nxt for h in heads) and not _HEADING_LINE.match(text[a:b].strip() + "\n"):
+            closing.add(i)
+    return spans, closing
+
+def result_swap(text: str) -> tuple[str, int, list[tuple[str, str]]]:
+    """(text with every result statement swapped, swapped sentences, pairs).
+
+    Deterministic. A result statement is the closing sentence of a section
+    (the sentence before a heading: in Gutachtenstil the section's result),
+    a sentence opening with a result marker (Somit, Damit, Daher, Folglich,
+    Im Ergebnis, Zwischenergebnis …), a sentence under an Ergebnis heading,
+    or one with a "(+)" / "(-)" mark. Obersätze and hypotheses ("wenn",
+    "ob", "könnte", "kommt … in Betracht", "vertretbar") are left alone.
+    Every polarity in a result sentence is swapped at once, consistently:
+    "nicht X" loses its "nicht" ("nicht mehr" becomes "noch"), antonym
+    pairs swap (zulässig/unzulässig, begründet/unbegründet,
+    rechtmäßig/rechtswidrig …), "(keinen) Erfolg", bejahen/verneinen and the
+    marks swap; only a sentence without any of these gets a "nicht" toggle.
+    """
+    spans, closing = result_sentences(text)
+    out, pos, swapped = [], 0, []
+    under = False
+    for i, (a, b) in enumerate(spans):
+        out.append(text[pos:a]); s = text[a:b]
+        m = re.match(r"^\s*#+\s*(.*)", s)
+        if m: under = "ergebnis" in m.group(1).lower()
+        if _NOT_A_RESULT.search(s):
+            pass  # Obersatz, hypothesis or a marked alternative: not a result statement
+        elif i in closing or _RESULT_START.match(s) or under or _MARKER_RE.search(s):
+            new, n = swap_sentence(s)
+            if n and new != s: swapped.append((s, new)); s = new
+        out.append(s); pos = b
+    out.append(text[pos:])
+    return "".join(out), len(swapped), swapped
+
+
 NORM_RE = re.compile(
     r"(?:§§?|Art\.)\s*\d+[a-z]?\b"
     r"(?:\s*(?:Abs\.|Absatz|S\.|Satz|Nr\.|lit\.|Hs\.|Alt\.|Var\.)\s*(?:\d+[a-z]?\b|[a-z]\b)"

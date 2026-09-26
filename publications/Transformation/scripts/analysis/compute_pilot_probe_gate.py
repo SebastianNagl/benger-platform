@@ -47,8 +47,8 @@ HERE = Path(__file__).resolve().parent.parent.parent
 MAIN_DATA = Path("/home/pschorr95/Code/BenGER/benger-platform/publications/Transformation/data")
 PUBLISHED = HERE / "data" / "processed" / "probe_stats.json"
 OUT = HERE / "data" / "processed" / "pilot_probe_gate.json"
-PROBE_TYPES = ("empty", "repetition", "offtopic", "musterloesung", "negation_flip", "keyword_salad")
-NEGATIVE = ("empty", "repetition", "offtopic", "keyword_salad", "negation_flip")
+PROBE_TYPES = ("empty", "repetition", "offtopic", "musterloesung", "negation_flip", "keyword_salad", "result_swap")
+NEGATIVE = ("empty", "repetition", "offtopic", "keyword_salad", "negation_flip", "result_swap")
 CRITERIA = {
     "repetition": ("lt", 5.0),
     "empty": ("eq", 0.0),
@@ -56,7 +56,10 @@ CRITERIA = {
     "musterloesung": ("ge", 70.0),
     "keyword_salad": ("le", 10.0),
     "negation_flip": ("lt_paired", "musterloesung"),
+    # G0' amendment (DESIGN.md): at least RESULT_SWAP_MARGIN below the same pass's Musterlösung.
+    "result_swap": ("le_paired_minus", "musterloesung"),
 }
+RESULT_SWAP_MARGIN = 5.0
 
 
 def violates(ptype: str, score: float) -> bool:
@@ -137,11 +140,13 @@ def main() -> int:
             ok = [r for r in scored if r.get("total") is not None]
             fails, unpaired = [], []
             for r in ok:
-                if probe == "negation_flip":
+                if probe in ("negation_flip", "result_swap"):
                     ref = cells.get((r["exam"], "musterloesung", int(r.get("pass") or 0)))
+                    margin = RESULT_SWAP_MARGIN if probe == "result_swap" else 0.0
                     if not ref or ref.get("total") is None:
                         unpaired.append({"exam": r["exam"], "pass": r.get("pass", 0)})
-                    elif not float(r["total"]) < float(ref["total"]):
+                    elif not (float(r["total"]) < float(ref["total"]) if not margin
+                              else float(r["total"]) <= float(ref["total"]) - margin):
                         fails.append({"exam": r["exam"], "pass": r.get("pass", 0),
                                       "score": r["total"], "musterloesung": ref["total"]})
                 elif violates(probe, float(r["total"])):
