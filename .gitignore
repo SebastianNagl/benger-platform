@@ -343,6 +343,9 @@ publications/Transformation/data/raw/
 # `!...*.json` rule above would otherwise re-include these; only aggregate
 # statistics in data/processed/ are publishable.
 publications/Transformation/data/interim/human/
+# Pilot runs (judge rows with quoted evidence, raw model output, the spend
+# ledger). Directory-level ignore for the same reason as human/ above.
+publications/Transformation/data/interim/pilot/
 
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
