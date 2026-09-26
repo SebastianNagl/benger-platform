@@ -316,6 +316,15 @@ def _create_tables():
             # table the models no longer declare, so a long-lived test DB
             # would keep it (and its FKs to users/projects) forever.
             conn.execute(text("DROP TABLE IF EXISTS project_members"))
+            # Migration 109: Safe Exam Browser settings on projects. Same
+            # create_all drift; every Project select names both columns.
+            conn.execute(
+                text(
+                    "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
+                    "seb_required BOOLEAN NOT NULL DEFAULT false"
+                )
+            )
+            conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS seb_config JSONB"))
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "
