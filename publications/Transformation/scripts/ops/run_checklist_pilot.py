@@ -65,6 +65,7 @@ import argparse
 import contextlib
 import inspect
 import json
+from types import SimpleNamespace
 import os
 import signal
 import sys
@@ -1005,12 +1006,16 @@ def phase_d2_generate(ctx: Ctx) -> None:
     try:
         user_id = research_user_id(db)
         project, task = require_d2(db, exam)
-        install_checklist_prompt(ctx, db, project.id)
+        # Plain values before the install commits: the commit expires every
+        # loaded instance and the session is closed before generation starts.
+        project_id = project.id
+        task_ref = SimpleNamespace(id=task.id, data=dict(task.data or {}))
+        install_checklist_prompt(ctx, db, project_id)
     finally:
         db.close()
     for generator in ctx.args.generators:
         for sample in range(ctx.args.samples):
-            run_generation(ctx, "d2-generate", user_id, project.id, task, generator, sample, prompt)
+            run_generation(ctx, "d2-generate", user_id, project_id, task_ref, generator, sample, prompt)
 
 
 def prepare_arm(ctx: Ctx, db, arm: dict[str, Any], exam: dict[str, Any], task, state: str | None = None
