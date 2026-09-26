@@ -75,6 +75,8 @@ def default_input() -> Path:
 def label(row: dict) -> str:
     if (row.get("lane") or "product") == "product":
         return row["judge"]
+    if row.get("arm"):  # d2-probes: one battery per judge and instrument
+        return f"{row['judge']} [{row['arm']}]"
     return f"{row['judge']} [checklist:{row.get('unit')}]"
 
 

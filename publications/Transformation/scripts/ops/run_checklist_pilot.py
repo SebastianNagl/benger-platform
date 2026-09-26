@@ -80,7 +80,7 @@ PROBE_TYPES = ("empty", "repetition", "offtopic", "musterloesung", "negation_fli
 MIN_NEGATION_FLIPS = 3
 SEED_BASE = 42
 ROW_SCHEMA = 2
-SPENDING_PHASES = ("probes", "generate", "checklist", "d2-generate", "d2-judge")
+SPENDING_PHASES = ("probes", "generate", "checklist", "d2-generate", "d2-judge", "d2-probes")
 PHASES = ("selftest", "ledger", "d2-setup") + SPENDING_PHASES
 
 L: Any = None  # pilot_lib, imported in main() once the work dir is known
@@ -782,6 +782,92 @@ def phase_d2_judge(ctx: Ctx) -> None:
         db.close()
 
 
+D2_OFFTOPIC_EXAM = 1  # a civil-law D1 exam: its Musterlösung is off topic for the police-law case
+
+
+def d2_probe_texts(exam: dict[str, Any], offtopic: str, rubric_text: str, step_names: list[str],
+                   arm_id: str) -> dict[str, tuple[str | None, dict[str, Any]]]:
+    """The six probes of the G0' gate on the D2 exam (DESIGN.md, pre-registration G0')."""
+    musterloesung = exam["musterloesung"]
+    out: dict[str, tuple[str | None, dict[str, Any]]] = {
+        "empty": (" ", {}),
+        "repetition": (exam["sachverhalt"], {"source": "sachverhalt"}),
+        "offtopic": (offtopic, {"source": f"D1 exam {D2_OFFTOPIC_EXAM} musterloesung"}),
+        "musterloesung": (musterloesung, {}),
+    }
+    flipped, sentences, flips = L.negation_flip(musterloesung)
+    meta = {"flipped_sentences": sentences, "flips": flips}
+    if sentences < MIN_NEGATION_FLIPS:
+        meta["skipped"] = f"only {sentences} sentences flipped (< {MIN_NEGATION_FLIPS})"
+        out["negation_flip"] = (None, meta)
+    else:
+        out["negation_flip"] = (flipped, meta)
+    salad, salad_meta = L.keyword_salad(rubric_text, step_names, seed_key=f"D2:{arm_id}")
+    out["keyword_salad"] = (salad, salad_meta) if salad else (None, {**salad_meta, "skipped": "no norms or key terms"})
+    return out
+
+
+def phase_d2_probes(ctx: Ctx) -> None:
+    """G0': the probe battery on the D2 exam, per judge and instrument (arm), on the checklist lane."""
+    args = ctx.args
+    exam = load_input(ctx, "heidebach_exam.json")
+    offtopic = next(e for e in load_input(ctx, "probe_texts.json") if e["exam_inner_id"] == D2_OFFTOPIC_EXAM)
+    offtopic_text = offtopic["probes"]["musterloesung"]
+    arms = [L.parse_arm(a) for a in args.arms]
+    if not arms:
+        raise SystemExit("d2-probes needs --arms")
+    db = open_db()
+    try:
+        user_id = research_user_id(db)
+        task = require_d2_task(db)
+        if dict(task.data or {}) != d2_task_data(exam):
+            raise SystemExit(f"D2 task {task.id} differs from heidebach_exam.json: rerun d2-setup (--force-update)")
+        prepared = []
+        for arm in arms:
+            plan = prepare_arm(ctx, db, arm, exam, task)
+            rubric_text = L.render_sheet_text(exam) if arm["source"] == "martin" else rendered_text(
+                plan["rubric"], arm["alternatives"])[0]
+            names = [plan["spec"]["steps"][k].get("name") for k in plan["spec"]["order"]]
+            plan["texts"] = d2_probe_texts(exam, offtopic_text, rubric_text, names, arm["id"])
+            prepared.append(plan)
+        print(f"d2-probes: {len(args.judges)} judges x {len(prepared)} arms x {len(args.types)} probes x "
+              f"{args.passes} passes", flush=True)
+        judges: dict[str, tuple[Any, list]] = {}
+        for k in range(args.pass_start, args.pass_start + args.passes):
+            for judge_model in args.judges:
+                if judge_model not in judges:
+                    calls: list = []
+                    judges[judge_model] = (make_judge(ctx, db, user_id, judge_model, calls), calls)
+                ev, calls = judges[judge_model]
+                ev.seed = SEED_BASE + k
+                types = args.types_by_judge.get(judge_model, args.types)
+                for plan in prepared:
+                    arm = plan["arm"]
+                    info = prepare_judge(ev, rubric=plan["rubric"], spec=plan["spec"], unit=arm["unit"],
+                                         alternatives=arm["alternatives"], total_mode=args.total_mode,
+                                         grade_scale=plan["grade_scale"])
+                    config = {**plan["config"], "grade_scale_applied": info["grade_scale_applied"]}
+                    for ptype in types:
+                        text, meta = plan["texts"][ptype]
+                        base = {"judge": judge_model, "exam": "D2", "arm": arm["id"], "arm_config": config,
+                                "task_id": task.id, "rubric_id": arm["rubric_id"], "probe": ptype,
+                                "lane": "checklist", "unit": arm["unit"], "pass": k, "probe_meta": meta}
+                        if text is None:
+                            write(ctx, "d2-probes", {"schema": ROW_SCHEMA, "run_id": ctx.run_id, "ts": now(),
+                                                     "phase": "d2-probes", **base, "seed": ev.seed, "skipped": True,
+                                                     "total": None, "error": None, "provenance": ctx.provenance})
+                            print(f"{judge_model} pass {k} {arm['id']} {ptype:13s}: skipped ({meta.get('skipped')})",
+                                  flush=True)
+                            continue
+                        result = judged(ctx, "d2-probes", base, ev, calls, spec=plan["spec"], unit=arm["unit"],
+                                        guard_on=plan["guard_on"], rubric_texts=plan["rubric_texts"],
+                                        context=plan["context"], ground_truth=plan["ground_truth"],
+                                        prediction=text, data=plan["data"])
+                        print_row(ctx, f"{judge_model} pass {k} {arm['id']} {ptype}", result)
+    finally:
+        db.close()
+
+
 # ---------------------------------------------------------------------------
 # selftest
 # ---------------------------------------------------------------------------
@@ -1166,6 +1252,8 @@ def main() -> int:
             phase_d2_generate(ctx)
         elif args.phase == "d2-judge":
             phase_d2_judge(ctx)
+        elif args.phase == "d2-probes":
+            phase_d2_probes(ctx)
     except L.BudgetExceeded as exc:
         status, rc = f"budget stop: {exc}", 3
     except L.ProviderBlocked as exc:

@@ -52,6 +52,7 @@ case "$PHASE" in
   d2-setup)    INPUTS=(interim/human/heidebach_exam.json) ;;
   d2-generate) INPUTS=(interim/human/canary_phrases.json) ;;
   d2-judge)    INPUTS=(interim/human/heidebach_exam.json interim/human/heidebach_scripts.json interim/human/canary_phrases.json) ;;
+  d2-probes)   INPUTS=(interim/human/heidebach_exam.json interim/probes/probe_texts.json interim/human/canary_phrases.json) ;;
   ledger)      INPUTS=() ;;
   *) echo "pilot.sh: unknown phase '$PHASE'" >&2; exit 2 ;;
 esac
