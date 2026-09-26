@@ -1833,10 +1833,9 @@ class TestVerifyEvidenceStrict:
         # layout the quote leaves out or copies literally
         ("Die Frist ist gewahrt.\n\nIX. Rechtsschutzbedürfnis\n\nDas Rechtsschutzbedürfnis besteht.",
          "Die Frist ist gewahrt.\\n\\nIX. Rechtsschutzbedürfnis\\n\\nDas Rechtsschutzbedürfnis besteht."),
-        ("Kunst ist eine Form des menschlichen Ausdrucks.[4] Zwar geht es im Kern um Meinungen.",
-         "Kunst ist eine Form des menschlichen Ausdrucks. Zwar geht es im Kern um Meinungen"),
-        ("Die Gefahr droht dem Festival unmittelbar.\\\nEine konkrete Gefahr ist daher gegeben.",
-         "Die Gefahr droht dem Festival unmittelbar. Eine konkrete Gefahr ist daher gegeben"),
+        ("Der Kaufvertrag ist wirksam[4] geschlossen worden, weil beide Parteien zustimmten.",
+         "Der Kaufvertrag ist wirksam geschlossen worden, weil beide Parteien zustimmten"),
+        ("Nach alledem gilt: Die Frist\\\nist gewahrt.", "Frist ist gewahrt"),
     ]
 
     @pytest.mark.parametrize("answer,evidence", REJECTED + NORM_ONLY)
