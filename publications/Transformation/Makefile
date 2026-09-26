@@ -1,4 +1,4 @@
-.PHONY: derive analyze pull render clean
+.PHONY: derive analyze analyze-cslaw pull render render-cslaw clean
 
 # File-based derivation only — works without the dev stack.
 derive:
@@ -29,6 +29,14 @@ analyze:
 	uv run python scripts/analysis/compute_mde.py
 	uv run python scripts/figures/make_trend_figure.py
 
+# CSLAW full paper (cslaw/): the corrected first-iteration numbers and the
+# extended study's design constants. Reads only tracked files (the outputs of
+# `make analyze` and a few tracked data/interim files), writes
+# data/processed/cslaw/. --check fails on a broken consistency anchor.
+analyze-cslaw:
+	uv run python scripts/analysis/cslaw_first_iteration.py --check
+	uv run python scripts/analysis/cslaw_design.py
+
 # Pulls from the LOCAL dev stack (requires docker + running benger-db-1).
 pull:
 	uv run python scripts/pull_local_sidecar.py
@@ -39,6 +47,11 @@ render:
 	# no keep-tex). `uv run` puts the project venv's python (ipykernel) on
 	# PATH so Quarto can discover the `benger-transformation` jupyter kernel.
 	uv run quarto render manuscript.qmd
+
+# The CSLAW draft (ACM acmsmall, xelatex). Needs the benger-transformation
+# jupyter kernel (see README) and TinyTeX with acmart.
+render-cslaw: analyze-cslaw
+	cd cslaw && uv run quarto render manuscript.qmd
 
 clean:
 	rm -rf .quarto manuscript_files manuscript_executed_files \

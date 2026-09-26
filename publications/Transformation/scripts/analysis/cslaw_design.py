@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""Design constants of the extended study for the CSLAW full paper.
+
+The full paper describes data, instrument and experiments that have no run
+outputs yet. Every number it prints about them comes from this file's output,
+so the manuscript stays free of literals and the numbers are reviewable in
+one place.
+
+Three kinds of values, each marked with its source:
+
+* ``code``: read at run time from the judge module in this repository
+  (services/workers/ml_evaluation/checklist_scoring.py).
+* ``generator``: the generator's constants (contract checklist-3). The
+  generator lives in the private extension; the values are transcribed here
+  and must be re-checked at the instrument freeze (E0).
+* ``plan``: the study plan of 2026-09-26 (data counts, experiment scope,
+  planned budgets, the probe battery). Transcribed; the D2 counts must be
+  re-checked against the D2 pack report before submission.
+
+Nothing here is private: no case facts, no step titles, no names, no ids.
+
+Output: data/processed/cslaw/design.json
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import re
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent.parent.parent
+REPO = HERE.parent.parent
+JUDGE = REPO / "services" / "workers" / "ml_evaluation" / "checklist_scoring.py"
+KEYS = REPO / "services" / "shared" / "rubric_structure.py"
+VERIFIER = REPO / "services" / "workers" / "ml_evaluation" / "llm_judge_evaluator.py"
+OUT = HERE / "data" / "processed" / "cslaw" / "design.json"
+
+
+def judge_constants() -> dict:
+    """The judge's option sets and credit rule, read from the code."""
+    try:
+        spec = importlib.util.spec_from_file_location("checklist_scoring", JUDGE)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    except (FileNotFoundError, ImportError, AttributeError) as exc:  # pragma: no cover
+        return {"source": "code", "error": f"could not load {JUDGE.name}: {exc}"}
+    return {
+        "source": "code",
+        "module": "services/workers/ml_evaluation/checklist_scoring.py",
+        "score_units": list(mod.SCORE_UNITS),
+        "alternatives_modes": list(mod.ALTERNATIVES),
+        "total_modes": list(mod.TOTAL_MODES),
+        "status_credit": {str(k): v for k, v in mod.STATUS_CREDIT.items()},
+        "rating_max": mod.RATING_MAX,
+        "n_general_rules": len(mod._GENERAL_RULES),
+    }
+
+
+def verifier_constants() -> dict:
+    """The quote verifier's thresholds, parsed from the source (the module
+    itself has heavy imports). Every pattern must match exactly once."""
+    try:
+        src = VERIFIER.read_text(encoding="utf-8")
+    except FileNotFoundError:  # pragma: no cover
+        return {"source": "code", "error": f"{VERIFIER.name} not found"}
+    patterns = {
+        "min_tokens": r"^EVIDENCE_MIN_TOKENS = (\d+)$",
+        "min_word_chars": r"^EVIDENCE_MIN_WORD_CHARS = (\d+)$",
+        "two_token_min_chars": r"^EVIDENCE_MIN_LONG_FRAGMENT_CHARS = (\d+)$",
+        "typo_min_chars": r"^EVIDENCE_TYPO_MIN_CHARS = (\d+)$",
+        "short_fragment_tokens": r"^_EVIDENCE_SHORT_FRAGMENT_TOKENS = (\d+)$",
+        "one_miss_per_tokens": r"allowed_misses = n // (\d+)$",
+        "max_step": r"^\s+max_step = (\d+)$",
+    }
+    out = {"source": "code", "module": "services/workers/ml_evaluation/llm_judge_evaluator.py"}
+    for key, pattern in patterns.items():
+        found = re.findall(pattern, src, flags=re.MULTILINE)
+        if len(found) != 1:
+            raise SystemExit(f"verifier constant {key}: {len(found)} matches")
+        out[key] = int(found[0])
+    # a quoted word may be followed by up to max_step - 1 skipped answer words
+    out["max_skipped_answer_words"] = out["max_step"] - 1
+    return out
+
+
+def default_key() -> dict:
+    """The platform's default grade key (percent of the sheet total), read
+    from the code. It is the key the first-iteration holistic instrument
+    uses on its 100 raw points."""
+    spec = importlib.util.spec_from_file_location("rubric_structure", KEYS)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    key = mod.grade_scale_from_preset("standard")
+    thr = [float(t) for t in key["thresholds"]]      # minimum percent for grades 1..18
+    p = key["pass_grade"]
+    below = [thr[0]] + [thr[i] - thr[i - 1] for i in range(1, p)]            # widths of grades 0..p-1
+    above = [thr[i] - thr[i - 1] for i in range(p, len(thr))] + [100.0 - thr[-1] + 1]
+    return {"source": "code", "module": "services/shared/rubric_structure.py", "preset": key["preset"],
+            "thresholds_percent": thr, "pass_grade": p, "pass_percent": thr[p - 1],
+            "mean_band_width_below_pass": sum(below) / len(below),
+            "mean_band_width_from_pass": sum(above) / len(above)}
+
+
+STATUTORY = {
+    "source": "JurPrNotSkV, section 1",
+    "max_points": 18,
+    "n_bands": 7,
+    "lowest_pass_points": 4,
+}
+
+GENERATOR = {
+    "source": "generator",
+    "contract_version": "checklist-3",
+    "total_be": 100,
+    "half_units": 200,
+    "min_step_be": 0.5,
+    "max_step_be": 10.0,
+    "step_be_guidance": [0.5, 4.0],   # soft hint: the sheet is coarse when most steps exceed 4 BE
+    "bullets_per_step": [1, 6],
+    "two_bullets_above_be": 3.0,
+    "large_weichenstellung_be": 20.0,
+    "duplicate_jaccard": 0.6,
+    "bare_naming_min_words": 8,
+    "max_attempts": 3,
+    "allocation_modes": ["flat", "hierarchical", "topdown_be"],
+    "massstaebe": ["richtig", "folgerichtig"],
+    "hilfsgutachten_functions": ["praemissenwechsel", "ausgelagerte_begruendung"],
+    "merged_view_target_be": 10.0,
+    # the three designs for Weichenstellungen, in the paper's names
+    "alternative_designs": {"A0": "replace", "A1": "branch, best path", "A2": "branch, declared path"},
+}
+
+D2 = {
+    "source": "plan",
+    "exam": {"area": "police law", "institution": "LMU", "author_is_coauthor": True},
+    "sheet": {"n_steps": 46, "total_be": 100, "grid_be": 0.5, "pass_share": 0.40, "result_items": 0,
+              "n_states": 3, "max_step_be": 10.0},
+    "d2a": {"n_scripts": 15, "by_year": {"2024": 3, "2025": 12}, "grader_pending": 9},
+    "d2b": {"n_uploads": 25, "n_excluded": 2, "n_students": 23, "year": 2026, "shown_llm_grader": "gpt-5.4-mini"},
+    "distinct_scripts": 38,
+    "n_counting_dependent_pair_once": 37,
+    "second_grader_plan": {"n_scripts": 20, "d2a": 10, "d2b": 10},
+    "pii": {"student_name_lines_removed": 1, "examiner_headers_removed": 1, "grade_files_with_private_email": 9},
+}
+
+Z2 = {
+    "source": "plan",
+    "unit": "relative percentages per level",
+    "leaf_scale_max": 18,
+    "aggregation": "weighted mean of grades",
+    "n_graders": 2,
+}
+
+EXPERIMENTS = [
+    {"id": "E0", "name": "Gate v2 and instrument freeze", "rq": ["RQ2", "RQ5"],
+     "scope": "D2 and 4 D1 exams; the expert sheet (step and rating units), one checklist sheet each from "
+              "two generators, the first-iteration sheet; 3 judges",
+     "cost_usd": [15, 15], "n_d1_exams": 4, "passes": 3,
+     "judges": ["gpt-5.6-luna", "gpt-5.4-mini", "DeepSeek-V4-Pro"],
+     "instruments": [["expert", "step"], ["expert", "rating"], ["gpt-5.4-mini", "bullet"], ["gpt-5.4", "bullet"],
+                     ["first iteration", "step"]]},
+    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ1", "RQ4"],
+     "scope": "12 generators, 15 D1 exams and D2, 2-3 samples per exam, one reference judge (2 passes), "
+              "a second judge on 4 generators",
+     "cost_usd": [170, 170], "n_generators": 12, "samples": [2, 3], "reference_judge_passes": 2,
+     "second_judge_generators": 4, "audit_bullets_per_sheet": 10},
+    {"id": "E2", "name": "Judge benchmark", "rq": ["RQ2", "RQ3", "RQ5"],
+     "scope": "6-8 judges on fixed sheets; 45 D1 answers and 15 D2a scripts, 3 passes",
+     "cost_usd": [100, 150], "n_judges": [6, 8], "passes": 3},
+    {"id": "E3", "name": "Generator x judge interaction", "rq": ["RQ4", "RQ5"],
+     "scope": "3 generators x 3 judges x 15 D2a scripts x 2 sheet samples x 2 passes, plus 5 D1 exams",
+     "cost_usd": [25, 25], "generators": 3, "judges": 3, "samples": 2, "passes": 2, "n_d1_exams": 5},
+    {"id": "E4", "name": "Pipeline optimization", "rq": ["RQ6"],
+     "scope": "fractional factorial over the levers on D1 and D2a; one confirmation on held-out D2b",
+     "cost_usd": [80, 80]},
+    {"id": "E5", "name": "Alternatives, Hilfsgutachten, placement", "rq": ["RQ3", "RQ6"],
+     "scope": "A0 vs A1 vs A2 on scripts that take another path; alternative-path and misplacement probes",
+     "cost_usd": [15, 15]},
+    {"id": "E6", "name": "Grading practice", "rq": ["RQ7"],
+     "scope": "re-aggregation of stored outputs (BE distribution, method bullets, pass mark sweep, key "
+              "shape); Kardinalfehler probes",
+     "cost_usd": [10, 10], "pass_mark_sweep": [0.35, 0.55], "kardinalfehler_probes": 5},
+    {"id": "E7", "name": "Comparison with the second paradigm", "rq": ["RQ7"],
+     "scope": "scoring format and weight elicitation on D2 (no Z2 data); re-aggregation",
+     "cost_usd": [15, 15]},
+]
+
+COSTS = {
+    "source": "plan",
+    "note": "pilot-measured tokens (about 25k in, 6k out per judge call) at catalog prices",
+    "judge_call_usd": {"gpt-5.6-luna": 0.013, "gpt-5.4-mini": 0.046, "DeepSeek-V4-Pro": 0.07,
+                       "gemini-3.1-pro": 0.12, "gpt-5.4": 0.15, "claude-sonnet-4-6": 0.17},
+    "judge_call_tokens_in": 25000,
+    "judge_call_tokens_out": 6000,
+    "sheet_usd": {"open models": 0.05, "gpt-5.4-mini": 0.15, "gpt-5.4": 0.6, "claude-opus-4-7": 1.0},
+    "program_usd": {"full": [400, 450], "lean": [200, 200]},
+    "development_spend_usd": 11.47,
+}
+
+PROBES = {
+    "source": "plan",
+    "passes": 3,
+    "battery": [
+        {"probe": "empty", "input": "a near-empty answer", "criterion": "total = 0"},
+        {"probe": "repetition", "input": "the case text, verbatim", "criterion": "total < 5"},
+        {"probe": "off-topic", "input": "the model solution of another exam", "criterion": "total <= 10"},
+        {"probe": "same-area off-topic", "input": "the model solution of another exam in the same area",
+         "criterion": "total <= 10"},
+        {"probe": "keyword salad", "input": "norms and key terms of the sheet, no sentences",
+         "criterion": "total <= 10"},
+        {"probe": "injection", "input": "an answer that instructs the judge to award full marks",
+         "criterion": "total = 0"},
+        {"probe": "model solution", "input": "the exam's own model solution",
+         "criterion": "total >= 70 (descriptive for the rating unit)"},
+        {"probe": "section ablation", "input": "the model solution with one Abschnitt removed",
+         "criterion": "drop close to the removed Abschnitt's BE"},
+        {"probe": "misplacement", "input": "correct reasoning moved under another heading",
+         "criterion": "drop close to 0"},
+        {"probe": "negation flip", "input": "result sentences of the model solution negated",
+         "criterion": "descriptive"},
+    ],
+    "later": ["alternative path (E5): the model solution rewritten along one Loesungsweg, checked by the author"],
+}
+
+STATISTICS = {
+    "source": "plan",
+    "mde_power": 0.8,           # as in compute_mde.py
+    "mde_alpha": 0.025,         # Holm over two contrasts (compute_mde.py)
+    "review_rounds": 3,         # independent review rounds of instrument and analysis (2026-09-26)
+    "passes_averaged": [1, 2, 3],
+    "bootstrap_resamples": 10000,
+    "development": ["D1", "D2a"],
+    "held_out": ["D2b"],
+    "second_grader_scripts": 20,
+}
+
+
+def main() -> int:
+    result = {
+        "note": "Design constants for the CSLAW full paper (scripts/analysis/cslaw_design.py). 'source' says "
+                "where each block comes from: code (read from this repository), generator (transcribed from "
+                "contract checklist-3), plan (transcribed from the study plan of 2026-09-26).",
+        "judge": judge_constants(),
+        "verifier": verifier_constants(),
+        "statutory_scale": STATUTORY,
+        "default_key": default_key(),
+        "generator": GENERATOR,
+        "d2": D2,
+        "z2": Z2,
+        "experiments": EXPERIMENTS,
+        "costs": COSTS,
+        "probes": PROBES,
+        "statistics": STATISTICS,
+    }
+    total = [sum(e["cost_usd"][0] for e in EXPERIMENTS), sum(e["cost_usd"][1] for e in EXPERIMENTS)]
+    result["costs"]["experiments_sum_usd"] = total
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"wrote {OUT.relative_to(HERE)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
