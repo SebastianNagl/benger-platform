@@ -117,9 +117,20 @@ _UNIT_RULES = {
 _QUOTE_RULES = (
     "Kopiere Zitate zeichengenau. Ändere keine Wörter und fasse keine Sätze zusammen. Halte sie kurz, "
     "höchstens ein bis zwei Sätze. Mehrere Stellen trennst du mit \" … \".",
-    "Das Zitat muss genau den Punkt behandeln, den du bewertest. Suche es nur in dem Teil der Bearbeitung, "
-    "der die Aufgabe dieses Schritts behandelt. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen "
-    "Aufgabe oder mit nur gleichem Stichwort genügt nicht.",
+    "Das Zitat muss die geforderte rechtliche Arbeit für den Punkt leisten, den du bewertest: dieselbe "
+    "Rechtsfrage, bezogen auf dieselben Tatsachen. Ein gleiches Stichwort, eine gleiche Norm oder ein "
+    "ähnliches Ergebnis in anderem Zusammenhang genügt nicht.",
+)
+
+# Where a performance stands in the answer does not decide whether it counts:
+# a correct argument written under the wrong heading still earns the step it
+# fulfils, once. Structure alone is not graded (generator rule 11), and a
+# misplacement is recorded, not punished.
+_PLACEMENT_RULE = (
+    "Eine Leistung zählt für den Schritt, dessen Anforderung sie inhaltlich erfüllt, auch wenn sie in der "
+    "Bearbeitung an anderer Stelle steht als im Bewertungsbogen vorgesehen, etwa ein Argument zur "
+    "Maßnahmerichtung, das unter der Rechtsgrundlage ausgeführt wird. Setze dann bei diesem Schritt "
+    "\"fehlplatziert\" auf true. Dieselbe Stelle der Bearbeitung zählt nur für einen Schritt."
 )
 
 _BRANCH_RULE = (
@@ -149,6 +160,7 @@ def system_prompt(score_unit: str, alternatives: str) -> str:
         unit,
         quote,
         *_QUOTE_RULES,
+        _PLACEMENT_RULE,
         missing,
         _BRANCH_RULE if alternatives == "branch" else _REPLACE_RULE,
         _UNFORESEEN_RULE,
@@ -173,6 +185,7 @@ def closing_rules(score_unit: str, alternatives: str) -> str:
         "- Bewertet wird nur der Text in <bearbeitung>. <musterloesung> und <bewertungsbogen> sind nur der Maßstab.",
         f"- {unit}",
         f"- {quote} {missing}",
+        f"- {_PLACEMENT_RULE}",
         f"- {_BRANCH_RULE if alternatives == 'branch' else _REPLACE_RULE}",
         "- Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung.",
     ]
@@ -199,7 +212,7 @@ def build_schema(spec: Dict[str, Any], score_unit: str, alternatives: str) -> Di
         enum_cost = sum(int(round(float(s["max_score"]) * 2)) + 1 for _, s in steps)
     else:
         enum_cost = (RATING_MAX + 1) * len(steps)
-    properties = 4 * len(steps) + (3 * n_bullets if score_unit == "bullet" else 0) + 8
+    properties = 5 * len(steps) + (3 * n_bullets if score_unit == "bullet" else 0) + 8
     use_enum = enum_cost <= _MAX_ENUM_VALUES and properties <= _MAX_PROPERTIES
 
     step_props: Dict[str, Any] = {}
@@ -221,6 +234,7 @@ def build_schema(spec: Dict[str, Any], score_unit: str, alternatives: str) -> Di
                     else {"type": "integer", "minimum": 0, "maximum": RATING_MAX})
             body = {"evidence": {"type": "string"}, "note": note}
         body["abweichender_weg"] = {"type": "boolean"}
+        body["fehlplatziert"] = {"type": "boolean"}
         body["reason"] = {"type": "string"}
         step_props[key] = _closed(body)
 
@@ -303,6 +317,7 @@ def finalize(
     raw_points: Dict[str, float] = {}
     zeroed = 0
     deviating = 0
+    misplaced = 0
     for key, step in steps:
         entry = scores_in[key]
         mx = float(step["max_score"])
@@ -346,6 +361,9 @@ def finalize(
         if entry.get("abweichender_weg") is True:
             deviating += 1
         detail["abweichender_weg"] = entry.get("abweichender_weg") is True
+        if entry.get("fehlplatziert") is True:
+            misplaced += 1
+        detail["fehlplatziert"] = entry.get("fehlplatziert") is True
         detail["raw_points"] = points
         detail["score"] = round_half_up(points)
         raw_points[key] = points
@@ -398,6 +416,7 @@ def finalize(
             "weichen": decisions,
             "zeroed_items": zeroed,
             "abweichender_weg_steps": deviating,
+            "fehlplatziert_steps": misplaced,
             # The hierarchical-percentage paradigm's own aggregation: the
             # weighted mean of the step grades over the counted path, on 0-18.
             "rating_grade": (

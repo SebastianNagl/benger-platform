@@ -51,7 +51,7 @@ def _spec():
 def _bullets(*statuses_and_quotes):
     return {"anforderungen": {f"b{i}": {"status": st, "evidence": q}
                               for i, (st, q) in enumerate(statuses_and_quotes, start=1)},
-            "abweichender_weg": False, "reason": "r"}
+            "abweichender_weg": False, "fehlplatziert": False, "reason": "r"}
 
 
 def _verify(quote):
@@ -101,6 +101,25 @@ class TestSchema:
         status = cs.build_schema(spec, "bullet", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"][
             "properties"]["anforderungen"]["properties"]["b1"]["properties"]["status"]
         assert status == {"type": "integer", "minimum": 0, "maximum": 2}
+
+
+class TestPlacement:
+    def test_rules_credit_misplaced_work_once_and_ask_for_the_flag(self):
+        prompt = cs.system_prompt("bullet", "branch")
+        assert "an anderer Stelle steht" in prompt and "nur für einen Schritt" in prompt
+        assert "Suche es nur in dem Teil" not in prompt
+        assert "fehlplatziert" in cs.closing_rules("step", "replace")
+
+    def test_flag_is_in_the_schema_and_counted(self):
+        step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"]
+        assert step["properties"]["fehlplatziert"] == {"type": "boolean"}
+        judgment = _judgment()
+        judgment["scores"]["s03_stoerer"]["fehlplatziert"] = True
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["checklist"]["fehlplatziert_steps"] == 1
+        assert out["scores"]["s03_stoerer"]["fehlplatziert"] is True
+        # A misplacement is recorded, not punished.
+        assert out["scores"]["s03_stoerer"]["raw_points"] == pytest.approx(50 * 0.6)
 
 
 class TestFinalize:
