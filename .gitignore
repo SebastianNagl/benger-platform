@@ -349,6 +349,11 @@ publications/Transformation/data/interim/pilot/
 # Working notes (review decisions, manuscript change lists): they quote
 # study-exam terms and stay local.
 publications/Transformation/notes/
+# The pilot probe gate's output is a product-lane check, not evidence: it
+# lives in data/interim/pilot/ (the gate's default output), never here.
+publications/Transformation/data/processed/pilot_probe_gate.json
+# Machine-specific pilot settings (data root, org id); see scripts/local_config.py.
+publications/Transformation/.pilot.local.json
 
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
