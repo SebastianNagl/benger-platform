@@ -1786,6 +1786,44 @@ class TestRubricModeSingleCall:
         assert "legacy" not in ev.all_criteria
         assert set(_STEPS) <= set(ev.all_criteria)
 
+    def test_bind_task_rubric_restores_outline_order(self):
+        # JSONB hands the criteria back by key length; the schema and the
+        # score vector must follow the Bewertungsbogen again.
+        from types import SimpleNamespace
+
+        step = {"name": "n", "rubric": "r", "max_score": 1}
+        jsonb_order = {
+            "s03_ergebnis": step,
+            "s01_rechtsweg_eroeffnet": step,
+            "s02_klageart_und_statthaftigkeit": step,
+        }
+        ev = LLMJudgeEvaluator(
+            ai_service=MagicMock(),
+            judge_model="gpt-5.4-mini",
+            custom_prompt_template=_RUBRIC_TEMPLATE,
+        )
+        ev.bind_task_rubric(SimpleNamespace(id="rub-1", criteria=jsonb_order))
+        assert list(ev.custom_criteria) == [
+            "s01_rechtsweg_eroeffnet",
+            "s02_klageart_und_statthaftigkeit",
+            "s03_ergebnis",
+        ]
+
+        structure = {
+            "version": 1,
+            "nodes": [
+                {"id": "a", "kind": "section", "level": 0, "title": "A"},
+                {"id": "x", "kind": "step", "level": 1, "key": "s03_ergebnis", "max_score": 1},
+                {"id": "y", "kind": "step", "level": 1, "key": "s01_rechtsweg_eroeffnet", "max_score": 1},
+            ],
+        }
+        ev.bind_task_rubric(SimpleNamespace(id="rub-2", criteria=jsonb_order, structure=structure))
+        assert list(ev.custom_criteria) == [
+            "s03_ergebnis",
+            "s01_rechtsweg_eroeffnet",
+            "s02_klageart_und_statthaftigkeit",
+        ]
+
     def test_the_schema_requires_evidence_first(self):
         ev = self._evaluator()
         self._call(ev)

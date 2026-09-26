@@ -855,8 +855,17 @@ class LLMJudgeEvaluator(BaseEvaluator):
         sites call this after construction: the bulk lane resolves the
         rubric per cell, so it cannot be a factory kwarg. Evaluators are
         cell-scoped, so the binding cannot leak across tasks.
+
+        ``criteria`` is a JSONB column, and Postgres returns object keys by
+        length, then bytes, not in outline order. The response schema and the
+        score vector follow the dict order, so the steps are put back into
+        Bewertungsbogen order (structure first, then the ``sNN_`` ordinals).
         """
-        self.custom_criteria = rubric.criteria
+        from rubric_structure import order_criteria_keys
+
+        criteria = rubric.criteria or {}
+        ordered = order_criteria_keys(criteria, getattr(rubric, "structure", None))
+        self.custom_criteria = {key: criteria[key] for key in ordered}
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
 
