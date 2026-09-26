@@ -117,10 +117,57 @@ class TestSchema:
         assert status == {"type": "integer", "minimum": 0, "maximum": 2}
 
 
+_COMBINATIONS = [(unit, alt) for unit in cs.SCORE_UNITS for alt in cs.ALTERNATIVES]
+
+# Terms of the study exam the instrument is validated on. None of them may
+# reach a judge prompt: an example from that exam would tell the judge what
+# its answers are about.
+_LEAKAGE_TERMS = ("Zweckveranlasser", "Maßnahmerichtung", "Massnahmerichtung", "Fortsetzungsfeststellung",
+                  "Platzverweis", "Versammlung", "Störer", "Polizei")
+
+
+class TestPromptRules:
+    @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
+    def test_no_study_exam_terms_in_any_judge_prompt(self, unit, alternatives):
+        text = (cs.system_prompt(unit, alternatives) + "\n" + cs.closing_rules(unit, alternatives)).casefold()
+        assert [t for t in _LEAKAGE_TERMS if t.casefold() in text] == []
+
+    @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
+    def test_general_rules_are_in_the_system_prompt_and_the_closing_rules(self, unit, alternatives):
+        system, closing = cs.system_prompt(unit, alternatives), cs.closing_rules(unit, alternatives)
+        for rule in cs._GENERAL_RULES:
+            assert rule in system and f"- {rule}" in closing
+        assert "keinen Vollständigkeitsbonus" in closing
+        assert "\"Keine Punkte\" eines Schritts" in closing
+
+    def test_bullet_status_definition(self):
+        prompt = cs.system_prompt("bullet", "branch")
+        assert "1 = im Kern erbracht, aber unvollständig oder mit einem Fehler" in prompt
+        assert "Das bloße Nennen eines Stichworts, einer Norm oder eines Ergebnisses ist 0" in prompt
+        assert "teilweise erfüllt" not in prompt
+
+    def test_rating_unit_uses_the_jurprnotskv_anchors(self):
+        prompt = cs.system_prompt("rating", "replace")
+        assert "§ 1 JurPrNotSkV" in prompt
+        for anchor in ("16 bis 18 = sehr gut, eine besonders hervorragende Leistung",
+                       "10 bis 12 = vollbefriedigend",
+                       "1 bis 3 = mangelhaft, eine an erheblichen Mängeln leidende, im Ganzen nicht mehr brauchbare",
+                       "0 = ungenügend, eine völlig unbrauchbare Leistung"):
+            assert anchor in prompt
+
+    def test_branch_rule_needs_a_justified_path(self):
+        prompt = cs.system_prompt("bullet", "branch")
+        assert "ein bloß behauptetes anderes Ergebnis ist kein gefolgter Weg" in prompt
+        assert "Gezählt wird nur ein Weg" in prompt
+        assert "in der Regel 0 Punkte" not in prompt
+
+
 class TestPlacement:
     def test_rules_credit_misplaced_work_once_and_ask_for_the_flag(self):
         prompt = cs.system_prompt("bullet", "branch")
         assert "an anderer Stelle steht" in prompt and "nur für einen Schritt" in prompt
+        assert "innerhalb derselben Fallfrage und desselben Arbeitsergebnisses" in prompt
+        assert "wenn die Bearbeitung dort ausdrücklich auf sie verweist" in prompt
         assert "Suche es nur in dem Teil" not in prompt
         assert "fehlplatziert" in cs.closing_rules("step", "replace")
 
@@ -266,8 +313,10 @@ class TestDiagnosisAndSecondExamAlignment:
 
     def test_rules_cover_hilfsgutachten_and_folgerichtig(self):
         prompt = cs.system_prompt("bullet", "branch")
-        assert "Hilfsgutachten" in prompt and "ersetzen nie das Ergebnis der Hauptlösung" in prompt
+        assert "Hilfsgutachten ersetzt nie das Ergebnis der Hauptlösung" in prompt
+        assert "eine fehlende Kennzeichnung schließt die Bewertung nicht aus" in prompt
         assert "\"folgerichtig\"" in prompt and "error_chains" in prompt
+        assert "rechnest du diesen Fehler nicht ein zweites Mal an" in prompt
 
     def test_scored_judgment_keeps_status_and_reports_product_totals(self):
         out = cs.finalize(_judgment(), _spec(), "bullet", "branch", "declared", _verify)

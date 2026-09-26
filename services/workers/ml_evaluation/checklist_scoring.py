@@ -187,8 +187,10 @@ _ROLES = """Die Eingaben stehen in Tags und haben feste Rollen:
 
 _UNIT_RULES = {
     "bullet": (
-        "Bewerte jede Anforderung eines Schritts einzeln im Feld \"status\": 2 = erfüllt, "
-        "1 = teilweise erfüllt, 0 = nicht erfüllt. Die Punkte rechnet die Maschine aus den Anforderungen aus.",
+        "Bewerte jede Anforderung eines Schritts einzeln im Feld \"status\": 2 = erfüllt; 1 = im Kern "
+        "erbracht, aber unvollständig oder mit einem Fehler; 0 = nicht erfüllt. Das bloße Nennen eines "
+        "Stichworts, einer Norm oder eines Ergebnisses ist 0, wenn die Anforderung mehr verlangt. Die Punkte "
+        "rechnet die Maschine aus den Anforderungen aus.",
         "Zitiere für jede Anforderung mit Status 1 oder 2 im Feld \"evidence\" wörtlich die Stelle der "
         "Bearbeitung, auf die sich der Status stützt.",
         "Gibt es keine solche Stelle, bleibt \"evidence\" leer und die Anforderung erhält den Status 0.",
@@ -202,9 +204,14 @@ _UNIT_RULES = {
         "Gibt es keine solche Stelle, bleibt \"evidence\" leer und der Schritt erhält 0 Punkte.",
     ),
     "rating": (
-        "Bewerte jeden Schritt im Feld \"note\" mit 0 bis 18 Punkten auf der Notenskala der juristischen "
-        "Prüfungen: 0 = keine verwertbare Leistung, 4 = gerade ausreichend, 9 = befriedigend, "
-        "13 = gut, 18 = uneingeschränkt vollständig und richtig. Die Gewichtung der Schritte übernimmt die Maschine.",
+        "Bewerte jeden Schritt im Feld \"note\" mit 0 bis 18 Punkten nach der Notenskala des § 1 JurPrNotSkV: "
+        "16 bis 18 = sehr gut, eine besonders hervorragende Leistung; 13 bis 15 = gut, eine erheblich über den "
+        "durchschnittlichen Anforderungen liegende Leistung; 10 bis 12 = vollbefriedigend, eine über den "
+        "durchschnittlichen Anforderungen liegende Leistung; 7 bis 9 = befriedigend, eine Leistung, die in jeder "
+        "Hinsicht durchschnittlichen Anforderungen entspricht; 4 bis 6 = ausreichend, eine Leistung, die trotz "
+        "ihrer Mängel durchschnittlichen Anforderungen noch entspricht; 1 bis 3 = mangelhaft, eine an erheblichen "
+        "Mängeln leidende, im Ganzen nicht mehr brauchbare Leistung; 0 = ungenügend, eine völlig unbrauchbare "
+        "Leistung. Die Gewichtung der Schritte übernimmt die Maschine.",
         "Zitiere für jeden Schritt mit einer Note über 0 im Feld \"evidence\" wörtlich die Stelle der "
         "Bearbeitung, auf die sich die Note stützt.",
         "Gibt es keine solche Stelle, bleibt \"evidence\" leer und der Schritt erhält die Note 0.",
@@ -219,52 +226,77 @@ _QUOTE_RULES = (
     "ähnliches Ergebnis in anderem Zusammenhang genügt nicht.",
 )
 
-# Where a performance stands in the answer does not decide whether it counts:
-# a correct argument written under the wrong heading still earns the step it
-# fulfils, once. Structure alone is not graded (generator rule 11), and a
-# misplacement is recorded, not punished.
+# Where a performance stands inside one question and one work result does not
+# decide whether it counts: a correct argument written under the wrong
+# heading still earns the step it fulfils, once. Structure alone is not
+# graded (generator rule 11), and a misplacement is recorded, not punished.
 _PLACEMENT_RULE = (
-    "Eine Leistung zählt für den Schritt, dessen Anforderung sie inhaltlich erfüllt, auch wenn sie in der "
-    "Bearbeitung an anderer Stelle steht als im Bewertungsbogen vorgesehen, etwa ein Argument zur "
-    "Maßnahmerichtung, das unter der Rechtsgrundlage ausgeführt wird. Setze dann bei diesem Schritt "
-    "\"fehlplatziert\" auf true. Dieselbe Stelle der Bearbeitung zählt nur für einen Schritt."
+    "Eine Leistung zählt für den Schritt, dessen Anforderung sie inhaltlich erfüllt, auch wenn sie innerhalb "
+    "derselben Fallfrage und desselben Arbeitsergebnisses an anderer Stelle steht als im Bewertungsbogen "
+    "vorgesehen, etwa ein Argument zu einem Tatbestandsmerkmal, das unter einem anderen Merkmal ausgeführt "
+    "wird. Setze dann bei diesem Schritt \"fehlplatziert\" auf true. Das gilt nicht, wenn eine Anforderung "
+    "eine bestimmte Stelle ausdrücklich als rechtlich zwingend verlangt. Ausführungen zu einer anderen "
+    "Fallfrage oder in einem anderen Arbeitsergebnis zählen nur, wenn die Bearbeitung dort ausdrücklich auf "
+    "sie verweist. Eine fehlplatzierte Ausführung zählt nur für einen Schritt. Eine Stelle erfüllt die "
+    "Anforderungen mehrerer Schritte nur, wenn sie jede davon selbst erfüllt."
 )
 
 _BRANCH_RULE = (
-    "An jeder Weichenstellung des Bewertungsbogens stellst du im Feld \"weichenstellungen\" fest, welchem Weg die Bearbeitung "
-    "folgt (\"gefolgter_loesungsweg\": \"musterloesung\" für den Lösungsweg der Musterlösung oder die id des anderen Lösungswegs), "
-    "mit einem wörtlichen Zitat. Bewerte trotzdem die Schritte aller Wege. Die Schritte eines Wegs, dem die "
-    "Bearbeitung nicht folgt, erhalten dabei in der Regel 0 Punkte; ihr Fehlen ist keine Auslassung."
+    "An jeder Weichenstellung des Bewertungsbogens stellst du im Feld \"weichenstellungen\" fest, welchem Weg "
+    "die Bearbeitung folgt (\"gefolgter_loesungsweg\": \"musterloesung\" oder die id des anderen "
+    "Lösungswegs), mit einem wörtlichen Zitat. Ein anderer Lösungsweg gilt nur als gefolgt, wenn die "
+    "Bearbeitung ihn so begründet, wie seine Vertretbarkeitsanforderungen es verlangen; ein bloß behauptetes "
+    "anderes Ergebnis ist kein gefolgter Weg, gib dann \"musterloesung\" an. Bewerte die Schritte jedes Wegs "
+    "danach, was die Bearbeitung zu ihm tatsächlich ausführt, unabhängig davon, welchem Weg sie folgt. "
+    "Gezählt wird nur ein Weg; das Fehlen der Schritte eines nicht gefolgten Wegs ist keine Auslassung."
 )
 _REPLACE_RULE = (
     "Folgt die Bearbeitung an einer Weichenstellung einem anderen vertretbaren Lösungsweg, bewerte die ersetzten Schritte "
     "nach den Anforderungen dieses Lösungswegs. Das Fehlen der dadurch entbehrlich gewordenen Schritte ist keine Auslassung."
 )
 _HILFSGUTACHTEN_RULE = (
-    "Ausführungen in einem Hilfsgutachten bewertest du für die Abschnitte, die der Bewertungsbogen als "
-    "hilfsgutachtlich geschuldet kennzeichnet, wie Ausführungen im Hauptgutachten. Sie ersetzen nie das "
-    "Ergebnis der Hauptlösung."
+    "Hilfsgutachtliche Ausführungen zu Rechtsfragen, die die Bearbeitung durch eine eigene Entscheidung "
+    "abgeschnitten hat, bewertest du für die Schritte des Bogens, die diese Fragen behandeln, wie Ausführungen "
+    "im Hauptgutachten. Der Bogen kennzeichnet solche Teile; eine fehlende Kennzeichnung schließt die "
+    "Bewertung nicht aus. Ein Hilfsgutachten ersetzt nie das Ergebnis der Hauptlösung, und ein richtiges "
+    "Hilfsergebnis korrigiert keine falsche Hauptentscheidung."
 )
 _MASSSTAB_RULE = (
     "Anforderungen mit dem Vermerk \"folgerichtig\" beurteilst du auf der Grundlage der eigenen früheren "
     "Entscheidungen der Bearbeitung: Ist die Folgeprüfung auf dieser Grundlage richtig durchgeführt, ist sie "
-    "erfüllt, auch wenn die frühere Entscheidung falsch war. Alle übrigen Anforderungen beurteilst du nach der "
-    "zutreffenden Rechtslage. Nicht erbrachte Leistungen bringen auch als Folgefehler nichts."
+    "erfüllt, auch wenn die frühere Entscheidung falsch war. Die übrigen Anforderungen beurteilst du nach der "
+    "zutreffenden Rechtslage; beruht ihre Verfehlung jedoch allein auf einem schon bewerteten früheren "
+    "Fehler, rechnest du diesen Fehler nicht ein zweites Mal an, sondern beurteilst die Ausführung nach ihrer "
+    "eigenen Qualität und vermerkst die Kette unter \"error_chains\". Nicht erbrachte Leistungen bringen auch "
+    "als Folgefehler nichts."
 )
 _DIAGNOSIS_RULE = (
     "Fülle den Befund: \"assessment_status\" (\"scored\"; \"review_required\" mit Gründen in "
     "\"review_reasons\", wenn eine menschliche Nachprüfung nötig ist; \"not_evaluable\" nur, wenn die "
     "Eingaben fehlen oder unbrauchbar sind, eine leere Bearbeitung ist bewertbar). \"work_products\": je "
-    "Arbeitsprodukt des Bogens ein Eintrag (id und Name, verlangende Stelle, Status). "
-    "\"supplementary_reviews\": je hilfsgutachtlich geschuldeter Abschnitt ein Eintrag, sonst ein Eintrag "
-    "mit Status \"not_required\". \"error_chains\": je früherer Fehler, dessen Folgen du als Folgefehler "
-    "behandelt hast, Ursprung, betroffene Schritte und Behandlung. \"improvements\": höchstens drei kurze "
-    "Hinweise für die Bearbeitung. Der Befund ändert keine Punkte."
+    "Arbeitsergebnis des Bogens ein Eintrag (id und Name, verlangende Stelle, Status). "
+    "\"supplementary_reviews\": je hilfsgutachtlich geschuldeter Teil des Bogens ein Eintrag, sonst ein "
+    "Eintrag mit Status \"not_required\". \"error_chains\": je früherer Fehler, dessen Folgen du als "
+    "Folgefehler behandelt hast, Ursprung, betroffene Schritte und Behandlung. \"improvements\": höchstens "
+    "drei kurze Hinweise für die Bearbeitung. Der Befund ändert keine Punkte."
 )
 _UNFORESEEN_RULE = (
     "Vertritt die Bearbeitung einen vertretbaren Lösungsweg, den der Bewertungsbogen nicht vorsieht, bewerte "
-    "den funktional entsprechenden Schritt nach dem Sinn seiner Anforderungen und setze bei diesem Schritt "
-    "\"abweichender_weg\" auf true. Begründe das kurz. Ein bloß behauptetes anderes Ergebnis ist kein solcher Weg."
+    "den funktional entsprechenden Schritt danach, ob die Bearbeitung seine Anforderungen auf ihrem Weg mit "
+    "gleicher Begründungstiefe erfüllt, und setze bei diesem Schritt \"abweichender_weg\" auf true. Begründe "
+    "das kurz. Ein bloß behauptetes anderes Ergebnis ist kein solcher Weg."
+)
+# What does not earn points on its own (review round 1). Same wording in the
+# system prompt and in the closing rules.
+_GENERAL_RULES = (
+    "Stehen zu derselben entscheidungserheblichen Frage widersprüchliche Ergebnisse ohne Entscheidung "
+    "nebeneinander, ist eine Anforderung an das Ergebnis nicht erfüllt; bewertet wird nur der Weg, auf den "
+    "die Bearbeitung ihr Ergebnis stützt.",
+    "Unnötige Alternativprüfungen bringen keinen Vollständigkeitsbonus.",
+    "Weder Länge, häufige Normzitate noch aneinandergereihte Stichworte sind für sich genommen eine "
+    "Leistung. Eine knappe, zutreffende Fallanwendung erfüllt eine Anforderung voll.",
+    "Die Zeile \"Keine Punkte\" eines Schritts beschreibt Ausführungen, die für sich keine Anforderung "
+    "erfüllen; sie hebt erfüllte Anforderungen nicht auf.",
 )
 
 
@@ -280,6 +312,7 @@ def system_prompt(score_unit: str, alternatives: str) -> str:
         *_QUOTE_RULES,
         _PLACEMENT_RULE,
         missing,
+        *_GENERAL_RULES,
         _BRANCH_RULE if alternatives == "branch" else _REPLACE_RULE,
         _HILFSGUTACHTEN_RULE,
         _MASSSTAB_RULE,
@@ -307,6 +340,7 @@ def closing_rules(score_unit: str, alternatives: str) -> str:
         f"- {unit}",
         f"- {quote} {missing}",
         f"- {_PLACEMENT_RULE}",
+        *(f"- {rule}" for rule in _GENERAL_RULES),
         f"- {_BRANCH_RULE if alternatives == 'branch' else _REPLACE_RULE}",
         f"- {_HILFSGUTACHTEN_RULE}",
         f"- {_MASSSTAB_RULE}",
