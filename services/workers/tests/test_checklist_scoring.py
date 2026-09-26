@@ -254,6 +254,45 @@ class TestFinalize:
         out = cs.finalize(_judgment("W9-L9"), _spec(), "bullet", "branch", "declared", _verify)
         assert out["checklist"]["weichenstellungen"]["W1"]["declared"] == "musterloesung"
 
+    def test_declared_other_path_needs_a_verified_quote(self):
+        judgment = _judgment("W1-L1")
+        judgment["weichenstellungen"]["W1"]["evidence"] = "erfunden, steht nicht da"
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        decision = out["checklist"]["weichenstellungen"]["W1"]
+        assert decision["declared"] == "musterloesung" and decision["declared_model"] == "W1-L1"
+        assert decision["declared_fallback"] is True and decision["evidence_verified"] is False
+        assert out["checklist"]["totals"]["declared"] == 45.0  # the Musterlösung's path counts
+        verified = cs.finalize(_judgment("W1-L1"), _spec(), "bullet", "branch", "declared", _verify)
+        assert verified["checklist"]["weichenstellungen"]["W1"]["declared_fallback"] is False
+        assert verified["checklist"]["totals"]["declared"] == 40.0
+        # The Musterlösung's own path needs no verified quote.
+        primary = _judgment()
+        primary["weichenstellungen"]["W1"]["evidence"] = ""
+        out = cs.finalize(primary, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["checklist"]["weichenstellungen"]["W1"]["declared_fallback"] is False
+
+    def test_best_mode_subtotals_and_rating_grade_follow_the_counted_path(self):
+        judgment = _judgment()
+        judgment["scores"]["s04_nichtstoerer"] = _bullets((2, "Die Kunstfreiheit ist betroffen"))  # 50 > 30
+        declared = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        best = cs.finalize(judgment, _spec(), "bullet", "branch", "best", _verify)
+        assert declared["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(45.0)
+        assert best["total_score"] == 65.0
+        assert best["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(65.0)
+
+        def rated(note):
+            return {"note": note, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False,
+                    "fehlplatziert": False, "reason": ""}
+        ratings = {"scores": {"s01_rechtsweg": rated(18), "s02_klageart": rated(0), "s03_stoerer": rated(4),
+                              "s04_nichtstoerer": rated(16)},
+                   "weichenstellungen": {"W1": {"gefolgter_loesungsweg": "musterloesung", "evidence": "", "reason": ""}},
+                   **_diagnosis()}
+        declared = cs.finalize(ratings, _spec(), "rating", "branch", "declared", _verify)
+        best = cs.finalize(ratings, _spec(), "rating", "branch", "best", _verify)
+        assert declared["checklist"]["rating_grade"] == pytest.approx((18 * 20 + 4 * 50) / 100)
+        assert best["checklist"]["weichenstellungen"]["W1"]["best"] == "W1-L1"
+        assert best["checklist"]["rating_grade"] == pytest.approx((18 * 20 + 16 * 50) / 100)
+
     def test_replace_mode_counts_the_primary_steps(self):
         def scored(score, quote):
             return {"score": score, "evidence": quote, "abweichender_weg": False, "fehlplatziert": False, "reason": ""}

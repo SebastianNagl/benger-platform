@@ -632,7 +632,10 @@ def finalize(
     ``scores`` (per step: score, max, reason, evidence details, unrounded
     ``raw_points``), ``total_score`` (by ``total_mode``), and ``checklist``
     with every total, rounded and unrounded, the Weichenstellung decisions and
-    the counts the analysis reads. The ``score`` of the steps behind
+    the counts the analysis reads. A declared other path whose quote does not
+    verify falls back to the Musterlösung's path (``declared_fallback``). The
+    work-result subtotals and ``rating_grade`` follow the path behind
+    ``total_score`` (``total_mode``). The ``score`` of the steps behind
     ``total_score`` adds up to it exactly (:func:`distribute_half_points`);
     other steps show their own points rounded half up. ``grade_scale`` is the
     exam's key for the rating unit (:func:`rating_percent_table`; ``None`` is
@@ -739,18 +742,28 @@ def finalize(
         if declared not in path_points:
             declared = PRIMARY
         evidence = decision.get("evidence") if isinstance(decision.get("evidence"), str) else ""
+        evidence_verified = verify(evidence) if evidence.strip() else False
+        # Another path counts only on a verified quote; otherwise the
+        # Musterlösung's path does, and the row says so.
+        declared_model = declared
+        declared_fallback = declared != PRIMARY and not evidence_verified
+        if declared_fallback:
+            declared = PRIMARY
         best = max(path_points, key=lambda z: (path_points[z], z == PRIMARY))
         keys_of = {z["id"]: z.get("step_keys") or [] for z in loesungswege}
         counted_by_mode["declared"] += keys_of[declared]
         counted_by_mode["best"] += keys_of[best]
         decisions[weichenstellung["id"]] = {
-            "declared": declared, "best": best, "path_points": path_points,
-            "evidence": evidence, "evidence_verified": verify(evidence) if evidence.strip() else False,
+            "declared": declared, "declared_model": declared_model, "declared_fallback": declared_fallback,
+            "best": best, "path_points": path_points,
+            "evidence": evidence, "evidence_verified": evidence_verified,
             "reason": str(decision.get("reason") or ""),
         }
     totals_unrounded = {mode: sum(raw_points.get(k, 0.0) for k in keys) for mode, keys in counted_by_mode.items()}
     totals = {mode: round_half_up(value) for mode, value in totals_unrounded.items()}
-    counted = counted_by_mode["declared"]
+    # The path behind total_score: the work-result subtotals, rating_grade
+    # and the review flags follow it.
+    counted = counted_by_mode[total_mode]
 
     # The step scores shown add up to the total shown.
     shown = [k for k in counted_by_mode[total_mode] if k in raw_points]
