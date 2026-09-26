@@ -346,6 +346,9 @@ publications/Transformation/data/interim/human/
 # Pilot runs (judge rows with quoted evidence, raw model output, the spend
 # ledger). Directory-level ignore for the same reason as human/ above.
 publications/Transformation/data/interim/pilot/
+# Working notes (review decisions, manuscript change lists): they quote
+# study-exam terms and stay local.
+publications/Transformation/notes/
 
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
