@@ -53,7 +53,7 @@ SYNC_EVERY="${PILOT_SYNC_SECONDS:-30}"
 STOP_GRACE="${PILOT_STOP_GRACE:-30}"
 
 if [ $# -lt 1 ]; then
-  sed -n '2,43p' "$0" | sed 's/^# \{0,1\}//'
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"
   exit 2
 fi
 PHASE="$1"
