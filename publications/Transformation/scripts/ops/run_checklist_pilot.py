@@ -292,6 +292,8 @@ def spec_for(rubric, unit: str) -> tuple[dict[str, Any], str]:
 
 def closing_text(ev) -> str:
     if ev.checklist:
+        if ev.checklist.get("closing_rules"):  # the judge stores the exact text it sends
+            return ev.checklist["closing_rules"]
         from ml_evaluation import checklist_scoring
 
         return checklist_scoring.closing_rules(ev.checklist["score_unit"], ev.checklist["alternatives"])
@@ -333,16 +335,17 @@ def usage_check(calls: list, meta: dict[str, Any]) -> dict[str, Any] | None:
     """Metered tokens against the judge's own call metadata.
 
     The wrapper meters every provider call the judge makes, retries
-    included. Once the judge sums the usage of all its attempts into the
-    call metadata (stream B), both sides agree; before that the metadata
-    carries the last attempt only and ``match`` is false after a retry.
+    included. The judge sums the usage of all its attempts in
+    ``usage_all_attempts``; both sides agree unless a call went unmetered.
     """
     live = [c for c in calls if not c.get("dry_run")]
     if not live:
         return None
     metered_in = sum(int(c.get("in") or 0) for c in live)
     metered_out = sum(int(c.get("out") or 0) for c in live)
-    judge_in, judge_out = meta.get("input_tokens"), meta.get("output_tokens")
+    summed = meta.get("usage_all_attempts") if isinstance(meta.get("usage_all_attempts"), dict) else {}
+    judge_in = summed.get("input_tokens", meta.get("input_tokens"))
+    judge_out = summed.get("output_tokens", meta.get("output_tokens"))
     return {"metered_calls": len(live), "metered_in": metered_in, "metered_out": metered_out,
             "judge_in": judge_in, "judge_out": judge_out,
             "match": judge_in == metered_in and judge_out == metered_out}

@@ -2,8 +2,8 @@
 """Build the local D2 pack: the exam author's Polizeirecht exam, his 46-step
 Bewertungsbogen, and every human- or model-graded script of that exam.
 
-Two cohorts of the same case (the Hinterwalde festival; only dates and two
-words differ between the yearly versions):
+Two cohorts of the same case (only dates and two words differ between the
+yearly versions):
 
   D2a  15 typed PDF scripts from the 2024/2025 runs (H01-H15), each with
        per-step BE in the matching Korrekturbogen xlsx ("Ihre BE").
@@ -413,8 +413,8 @@ def cited_years(text: str) -> dict[str, int]:
 def case_year_of(created: str | None, cited: dict[str, int]) -> tuple[str | None, bool]:
     """(case year, whether the cited years disagree with it).
 
-    The case year is the PDF's creation year. The case cites the festival
-    year and the end of the ban one year later, so cited years in
+    The case year is the PDF's creation year. The case cites the event
+    year and the end of the measure one year later, so cited years in
     {year, year + 1} agree; any other year that is cited more often than the
     creation year counts as a disagreement.
     """
