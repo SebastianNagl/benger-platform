@@ -10,10 +10,13 @@ purity (the caller's document is never mutated), and the recompute stamp.
 import pytest
 
 from grade_scale_history import (
+    GRADE_SCALE_KEY,
     HISTORY_KEY,
     MAX_HISTORY_ENTRIES,
     append_grade_scale_change,
+    apply_grade_scale_write,
     carry_grade_scale_history,
+    grade_scale_changed,
     latest_grade_scale_change,
     mark_recomputed,
 )
@@ -220,3 +223,81 @@ class TestCarryAcrossARebuild:
     def test_carrying_nothing_leaves_no_empty_list(self):
         rebuilt = carry_grade_scale_history({"evaluation_configs": []}, {})
         assert HISTORY_KEY not in rebuilt
+
+
+class TestGradeScaleChanged:
+    """The one test of "the key moved" the writers gate their follow-ups on
+    (the history entry, the re-rendered task-data mirrors)."""
+
+    def test_same_key_is_no_change(self):
+        assert not grade_scale_changed(_scale(), _scale())
+
+    def test_number_type_and_stray_fields_are_no_change(self):
+        ints = _scale(thresholds=[float(i) for i in range(1, 19)])
+        assert not grade_scale_changed(ints, {**_scale(), "note": "x"})
+
+    def test_no_key_on_both_sides_is_no_change(self):
+        assert not grade_scale_changed(None, None)
+        assert not grade_scale_changed(None, {"thresholds": "broken"})
+
+    @pytest.mark.parametrize(
+        "old,new",
+        [
+            (None, _scale()),
+            (_scale(), None),
+            (_scale(preset="custom"), _scale(preset="standard")),
+            (_scale(pass_grade=4), _scale(pass_grade=5)),
+            (_scale(), _scale(thresholds=list(range(2, 20)))),
+        ],
+    )
+    def test_a_real_change(self, old, new):
+        assert grade_scale_changed(old, new)
+
+
+class TestApplyGradeScaleWrite:
+    """What both platform writers (eval-config PUT, project PATCH) store."""
+
+    def test_a_key_change_is_appended(self):
+        stored = {"runs_per_task": 2}
+        written = {"runs_per_task": 2, GRADE_SCALE_KEY: _scale()}
+        out = apply_grade_scale_write(stored, written, actor_id="u")
+        assert out[GRADE_SCALE_KEY] == _scale()
+        assert len(out[HISTORY_KEY]) == 1
+        assert out[HISTORY_KEY][0]["from"] is None
+        assert out[HISTORY_KEY][0]["changed_by"] == "u"
+
+    def test_an_unrelated_write_adds_nothing(self):
+        stored = append_grade_scale_change(
+            {GRADE_SCALE_KEY: _scale()}, old=None, new=_scale(), actor_id="u"
+        )
+        written = {**stored, "runs_per_task": 3}
+        out = apply_grade_scale_write(stored, written, actor_id="v")
+        assert out[HISTORY_KEY] == stored[HISTORY_KEY]
+        assert out["runs_per_task"] == 3
+
+    def test_the_trail_is_server_owned(self):
+        stored = append_grade_scale_change({}, old=None, new=_scale(), actor_id="u")
+        forged = [{"changed_at": "1999-01-01T00:00:00+00:00", "changed_by": "x"}]
+        out = apply_grade_scale_write(
+            stored, {**stored, HISTORY_KEY: forged}, actor_id="v"
+        )
+        assert out[HISTORY_KEY] == stored[HISTORY_KEY]
+        # A write that deleted the list does not erase it either.
+        dropped = {k: v for k, v in stored.items() if k != HISTORY_KEY}
+        assert apply_grade_scale_write(stored, dropped, actor_id="v")[HISTORY_KEY] == (
+            stored[HISTORY_KEY]
+        )
+
+    def test_a_forged_trail_on_a_project_without_one_is_dropped(self):
+        out = apply_grade_scale_write({}, {HISTORY_KEY: [{"changed_by": "x"}]}, actor_id="v")
+        assert HISTORY_KEY not in out
+
+    def test_inputs_are_not_mutated(self):
+        stored = {GRADE_SCALE_KEY: _scale(preset="custom")}
+        written = {GRADE_SCALE_KEY: _scale()}
+        stored_before, written_before = dict(stored), dict(written)
+        apply_grade_scale_write(stored, written, actor_id="u")
+        assert stored == stored_before and written == written_before
+
+    def test_none_documents_are_accepted(self):
+        assert apply_grade_scale_write(None, None, actor_id="u") == {}
