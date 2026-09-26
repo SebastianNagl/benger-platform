@@ -1,0 +1,120 @@
+{
+ "criteria": {
+  "repetition": [
+   "lt",
+   5.0
+  ],
+  "empty": [
+   "eq",
+   0.0
+  ],
+  "offtopic": [
+   "le",
+   10.0
+  ],
+  "musterloesung": [
+   "ge",
+   70.0
+  ]
+ },
+ "per_judge": {
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "empty": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 0.0,
+    "max": 0.0,
+    "median_model_total": 0.0,
+    "zeroed_steps": 0,
+    "published": {
+     "n_passes": 15,
+     "fails": 0,
+     "median": 0.0
+    }
+   },
+   "musterloesung": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 100.0,
+    "max": 100.0,
+    "median_model_total": 100.0,
+    "zeroed_steps": 3,
+    "published": {
+     "n_passes": 15,
+     "fails": 0,
+     "median": 100.0
+    }
+   },
+   "battery": "pass",
+   "positive_control": "pass"
+  },
+  "gpt-5.6-luna": {
+   "empty": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 0.0,
+    "max": 0.0,
+    "median_model_total": 3.0,
+    "zeroed_steps": 139,
+    "published": {
+     "n_passes": 45,
+     "fails": 26,
+     "median": 89.0
+    }
+   },
+   "musterloesung": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 100.0,
+    "max": 100.0,
+    "median_model_total": 100.0,
+    "zeroed_steps": 2,
+    "published": {
+     "n_passes": 45,
+     "fails": 0,
+     "median": 100.0
+    }
+   },
+   "offtopic": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 0.0,
+    "max": 1.5,
+    "median_model_total": 0.5,
+    "zeroed_steps": 59,
+    "published": {
+     "n_passes": 45,
+     "fails": 0,
+     "median": 0.0
+    }
+   },
+   "repetition": {
+    "n": 15,
+    "errors": 0,
+    "fails": 0,
+    "fail_exams": [],
+    "median": 0.0,
+    "max": 0.0,
+    "median_model_total": 2.0,
+    "zeroed_steps": 102,
+    "published": {
+     "n_passes": 45,
+     "fails": 6,
+     "median": 0.0
+    }
+   },
+   "battery": "pass",
+   "positive_control": "pass"
+  }
+ }
+}
