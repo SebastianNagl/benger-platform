@@ -17,8 +17,8 @@ from auth_module import User, require_user
 from database import get_async_db, get_db
 from grade_scale_history import (
     GRADE_SCALE_KEY,
-    HISTORY_KEY as GRADE_SCALE_HISTORY_KEY,
-    append_grade_scale_change,
+    apply_grade_scale_write,
+    grade_scale_changed,
 )
 from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
@@ -28,6 +28,7 @@ from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
     check_project_accessible_async,
 )
+from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
@@ -731,16 +732,8 @@ async def update_project_evaluation_config(
         # SERVER-OWNED: whatever the body said about `grade_scale_history` is
         # dropped and the stored list restored before the append, so this
         # endpoint cannot be used to rewrite the audit.
-        stored_history = stored_config.get(GRADE_SCALE_HISTORY_KEY)
-        if isinstance(stored_history, list):
-            merged[GRADE_SCALE_HISTORY_KEY] = list(stored_history)
-        else:
-            merged.pop(GRADE_SCALE_HISTORY_KEY, None)
-        merged = append_grade_scale_change(
-            merged,
-            old=stored_config.get(GRADE_SCALE_KEY),
-            new=merged.get(GRADE_SCALE_KEY),
-            actor_id=str(current_user.id),
+        merged = apply_grade_scale_write(
+            stored_config, merged, actor_id=str(current_user.id)
         )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
@@ -759,6 +752,16 @@ async def update_project_evaluation_config(
         from sqlalchemy.orm.attributes import flag_modified
 
         flag_modified(project, "evaluation_config")
+
+        # The task-data mirror of every grading sheet ends in the key that
+        # grades the exam, and is otherwise refreshed only when a sheet is
+        # activated or edited. A key change re-renders them in the same
+        # transaction.
+        if grade_scale_changed(
+            stored_config.get(GRADE_SCALE_KEY),
+            (project.evaluation_config or {}).get(GRADE_SCALE_KEY),
+        ):
+            remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
 
         db.commit()
         db.refresh(project)
