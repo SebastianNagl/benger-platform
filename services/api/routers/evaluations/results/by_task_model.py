@@ -11,14 +11,16 @@ reaches both the handler's direct call and the helper's internal call.
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 from user_display import masked_name
 
-from routers.projects.helpers import check_user_can_edit_project_async
+from routers.projects.helpers import can_read_all_task_content_async
 
 
-async def _require_editor(db, user, project_id: str) -> None:
+async def _require_content_access(db, user, project_id: str) -> None:
     """These views carry every task's content, reference answers and other
-    people's scores. Plain members would bypass blinding, access windows and
-    the SEB gate, and the UI only offers them to people who can edit."""
-    if not await check_user_can_edit_project_async(db, user, project_id):
+    people's scores: contributors only (see can_read_all_task_content)."""
+    project = (
+        await db.execute(select(Project).where(Project.id == project_id))
+    ).scalar_one_or_none()
+    if not await can_read_all_task_content_async(db, user, project):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
 
@@ -65,7 +67,7 @@ async def get_results_by_task_model(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
             )
-        await _require_editor(db, current_user, evaluation.project_id)
+        await _require_content_access(db, current_user, evaluation.project_id)
 
         # `include_history` controls cell aggregation:
         #   off  → cell shows the score of the LATEST generation per (task,
@@ -663,7 +665,7 @@ async def get_project_results_by_task_model(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
             )
-        await _require_editor(db, current_user, project_id)
+        await _require_content_access(db, current_user, project_id)
 
         # Get evaluations for this project (completed + in-flight),
         # optionally filtered by IDs. In-flight runs commit each row as
@@ -1202,7 +1204,7 @@ async def get_sample_result_by_task_model(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
             )
-        await _require_editor(db, current_user, task.project_id)
+        await _require_content_access(db, current_user, task.project_id)
 
         if model_id.startswith("annotator:"):
             # Annotation-based evaluation: the suffix after `annotator:` is the

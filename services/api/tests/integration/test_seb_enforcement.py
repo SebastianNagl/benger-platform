@@ -446,32 +446,78 @@ async def test_js_proof_only_counts_on_this_exams_pages(async_test_db):
     assert await _code(enforce_seb_async(db, student, p, js(f"{BASE}/dashboard"))) == "seb_required"
 
 
+async def _eval_run(db, project):
+    from models import EvaluationRun
+
+    run = EvaluationRun(
+        id=_uid(),
+        project_id=project.id,
+        model_id="gpt-4o",
+        evaluation_type_ids=["exact_match"],
+        metrics={"accuracy": 0.9},
+        eval_metadata={"type": "auto"},
+        status="completed",
+        samples_evaluated=1,
+        has_sample_results=True,
+        created_by=project.created_by,
+    )
+    db.add(run)
+    await db.flush()
+    return run
+
+
+def _content_views(p, task, run):
+    return [
+        (f"/api/generation-tasks/projects/{p.id}/task-status", None),
+        (f"/api/evaluations/projects/{p.id}/results/by-task-model", None),
+        (f"/api/evaluations/{run.id}/results/by-task-model", None),
+        (f"/api/evaluations/{run.id}/samples", None),
+        ("/api/evaluations/sample-result", {"task_id": task.id, "model_id": "m"}),
+    ]
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("seb_required", [True, False])
-async def test_project_wide_content_views_are_for_editors(
+async def test_project_wide_content_views_are_for_contributors(
     async_test_db, async_test_client, seb_required
 ):
-    """Generation and evaluation views carry every task's content and the
-    reference answers. Plain members were let in before (a leak past
-    blinding, windows and the SEB gate); now only editors, SEB or not."""
+    """Generation and evaluation views carry every task's content, the
+    reference answers and other people's work. Plain members were let in
+    before (a leak past blinding, windows and the SEB gate)."""
     db = async_test_db
     w = await _async_world(db, seb_required=seb_required)
     p, task = w["project"], w["tasks"][0]
+    run = await _eval_run(db, p)
     client = async_test_client
-    paths = [
-        f"/api/generation-tasks/projects/{p.id}/task-status",
-        f"/api/evaluations/projects/{p.id}/results/by-task-model",
-    ]
-    sample = ("/api/evaluations/sample-result", {"task_id": task.id, "model_id": "m"})
     with _as_user(w["student"]):
-        for path in paths:
-            r = await client.get(path, headers=_proof(path))
+        for path, params in _content_views(p, task, run):
+            r = await client.get(path, params=params, headers=_proof(path))
             assert r.status_code == 403, (path, r.text)
-        r = await client.get(sample[0], params=sample[1])
-        assert r.status_code == 403, r.text
     with _as_user(w["owner"]):
-        for path in paths:
-            assert (await client.get(path)).status_code == 200, path
+        for path, params in _content_views(p, task, run)[:4]:
+            assert (await client.get(path, params=params)).status_code == 200, path
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seb_required, allowed", [(False, True), (True, False)])
+async def test_public_contributors_see_content_views_except_on_seb_exams(
+    async_test_db, async_test_client, seb_required, allowed
+):
+    """A public project's CONTRIBUTOR visitors may generate and evaluate, so
+    they see these views; a Safe Exam Browser exam keeps them to its editors."""
+    db = async_test_db
+    w = await _async_world(db, seb_required=seb_required)
+    p = w["project"]
+    p.is_public, p.public_role = True, "CONTRIBUTOR"
+    visitor = User(
+        id=_uid(), username=f"v-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com", name="V"
+    )
+    db.add(visitor)
+    await db.flush()
+    path = f"/api/generation-tasks/projects/{p.id}/task-status"
+    with _as_user(visitor):
+        r = await async_test_client.get(path)
+    assert (r.status_code == 200) is allowed, r.text
 
 
 @pytest.mark.asyncio
@@ -497,7 +543,7 @@ async def test_next_done_counts_only_assigned_tasks(async_test_db, async_test_cl
 
 
 @pytest.mark.parametrize("seb_required", [True, False])
-def test_bulk_exports_are_for_editors(test_db, client, seb_required):
+def test_bulk_exports_are_for_contributors(test_db, client, seb_required):
     """Plain members used to get raw task data of any project they could see."""
     w = _sync_world(test_db, seb_required=seb_required)
     p = w["project"]
@@ -511,3 +557,23 @@ def test_bulk_exports_are_for_editors(test_db, client, seb_required):
     with _as_user(w["owner"]):
         r = client.post("/api/projects/bulk-export", json=body)
         assert r.status_code == 200 and p.id in r.text and "t1" in r.text
+
+
+@pytest.mark.asyncio
+async def test_next_done_counts_skipped_tasks(async_test_db, async_test_client):
+    from project_models import SkippedTask
+
+    db = async_test_db
+    w = await _async_world(db)
+    p = w["project"]
+    done, skipped = w["tasks"]
+    db.add(_submission(w, done))
+    db.add(SkippedTask(id=_uid(), task_id=skipped.id, project_id=p.id, skipped_by=w["student"].id))
+    await db.flush()
+    with _as_user(w["student"]):
+        r = await async_test_client.get(f"/api/projects/{p.id}/next")
+        assert r.status_code == 200, r.text
+        assert r.json()["task"] is None
+        # The skipped task itself stays behind the gate.
+        r = await async_test_client.get(f"/api/projects/tasks/{skipped.id}")
+        assert r.status_code == 403

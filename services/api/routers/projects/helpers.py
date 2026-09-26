@@ -3079,6 +3079,31 @@ async def seb_request_allowed_async(
     return _seb_result(request, project).ok
 
 
+def can_read_all_task_content(db: Session, user, project) -> bool:
+    """Sync: whether ``user`` may see every task's content at once.
+
+    For whole-project views (bulk exports, generation and evaluation results
+    with reference answers and other people's work). Contributors may: the
+    project's editors and public CONTRIBUTOR visitors. Plain members and exam
+    participants may not, since that would bypass blinding, access windows and
+    the SEB gate. A Safe Exam Browser exam narrows this to its editors.
+    """
+    if project is None:
+        return False
+    if getattr(project, "seb_required", False):
+        return check_user_can_edit_project(db, user, project.id)
+    return check_project_write_access(db, user, project.id)
+
+
+async def can_read_all_task_content_async(db: AsyncSession, user, project) -> bool:
+    """Async twin of :func:`can_read_all_task_content`."""
+    if project is None:
+        return False
+    if getattr(project, "seb_required", False):
+        return await check_user_can_edit_project_async(db, user, project.id)
+    return await check_project_write_access_async(db, user, project.id)
+
+
 def enforce_seb(
     db: Session,
     user,

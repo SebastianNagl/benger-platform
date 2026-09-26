@@ -36,31 +36,44 @@ function sebApi(): SafeExamBrowserApi | undefined {
 }
 
 // SEB 3.0 for macOS / iOS only fills the key variables after updateKeys()
-// calls back. Later versions set them on load and may not define the
-// function. Requests that need the proof await `sebKeysReady()` first.
+// calls back, for the page URL at that moment. Later versions set them on
+// load and may not define the function. Requests that need the proof await
+// `sebKeysReady()` first, which asks again after client-side navigation.
 let keysReady: Promise<void> = Promise.resolve()
-if (typeof window !== 'undefined') {
+let keysUrl: string | null = null
+
+function refreshKeys(): Promise<void> {
   const security = sebApi()?.security
-  if (security && typeof security.updateKeys === 'function') {
-    const updateKeys = security.updateKeys.bind(security)
-    keysReady = new Promise<void>((resolve) => {
-      // Never hang the exam page on a build that doesn't call back.
-      const fallback = setTimeout(resolve, 2000)
-      try {
-        updateKeys(() => {
-          clearTimeout(fallback)
-          resolve()
-        })
-      } catch {
+  keysUrl = typeof window !== 'undefined' ? window.location.href : null
+  if (!security || typeof security.updateKeys !== 'function') {
+    return Promise.resolve()
+  }
+  const updateKeys = security.updateKeys.bind(security)
+  return new Promise<void>((resolve) => {
+    // Never hang the exam page on a build that doesn't call back.
+    const fallback = setTimeout(resolve, 2000)
+    try {
+      updateKeys(() => {
         clearTimeout(fallback)
         resolve()
-      }
-    })
-  }
+      })
+    } catch {
+      clearTimeout(fallback)
+      resolve()
+    }
+  })
 }
 
-/** Resolves once SEB has filled its key variables (immediately outside SEB). */
+if (typeof window !== 'undefined') keysReady = refreshKeys()
+
+/**
+ * Resolves once SEB has filled its key variables for the current page
+ * (immediately outside SEB).
+ */
 export function sebKeysReady(): Promise<void> {
+  if (typeof window !== 'undefined' && window.location.href !== keysUrl) {
+    keysReady = refreshKeys()
+  }
   return keysReady
 }
 

@@ -34,8 +34,8 @@ def _mock_request(headers=None):
 def _caller_can_edit():
     """These tests stub access with check_project_accessible. The editors-only
     rule of the bulk exports has its own integration test
-    (test_seb_enforcement.py::test_bulk_exports_are_for_editors)."""
-    with patch("routers.projects.import_export.check_user_can_edit_project", return_value=True):
+    (test_seb_enforcement.py::test_bulk_exports_are_for_contributors)."""
+    with patch("routers.projects.import_export.can_read_all_task_content", return_value=True):
         yield
 
 

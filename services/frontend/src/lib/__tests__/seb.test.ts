@@ -108,6 +108,19 @@ describe('sebRequestHeaders', () => {
     expect(ready).toBe(true)
   })
 
+  it('asks again after client-side navigation, not for the same page', async () => {
+    const updateKeys = jest.fn((cb: () => void) => cb())
+    ;(window as any).SafeExamBrowser = { security: { updateKeys } }
+    window.history.replaceState(null, '', '/login')
+    const seb = loadSeb()
+    await seb.sebKeysReady()
+    expect(updateKeys).toHaveBeenCalledTimes(1)
+    window.history.pushState(null, '', '/student/exams/p1')
+    await seb.sebKeysReady()
+    await seb.sebKeysReady()
+    expect(updateKeys).toHaveBeenCalledTimes(2)
+  })
+
   it('does not wait outside SEB or on builds without updateKeys', async () => {
     await expect(loadSeb().sebKeysReady()).resolves.toBeUndefined()
   })

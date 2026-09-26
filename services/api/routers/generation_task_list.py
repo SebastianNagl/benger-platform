@@ -29,7 +29,7 @@ from routers.generation_revoke import (
 from routers.projects.helpers import (
     check_project_accessible_async,
     check_project_write_access_async,
-    check_user_can_edit_project_async,
+    can_read_all_task_content_async,
     enforce_project_write_window_async,
 )
 
@@ -206,14 +206,13 @@ async def get_project_with_permissions(
     project_id: str,
     current_user: User,
     db: AsyncSession,
-    editors_only: bool = False,
+    all_task_content: bool = False,
 ) -> Project:
     """Get project and verify user permissions using centralized access check.
 
-    ``editors_only`` is for views that return every task's content plus the
-    model outputs (task status, generation results): plain members would
-    bypass blinding, access windows and the SEB gate there, and the UI only
-    offers these views to people who can edit the project.
+    ``all_task_content`` is for views that return every task's content plus
+    the model outputs (task status, generation results): only contributors
+    get them (see ``can_read_all_task_content``).
     """
 
     project = (
@@ -233,8 +232,8 @@ async def get_project_with_permissions(
             detail="You don't have access to this project",
         )
 
-    if editors_only and not await check_user_can_edit_project_async(
-        db, current_user, project_id
+    if all_task_content and not await can_read_all_task_content_async(
+        db, current_user, project
     ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -412,7 +411,7 @@ async def get_task_generation_status(
 
     # Get project and verify permissions
     project = await get_project_with_permissions(
-        project_id, current_user, db, editors_only=True
+        project_id, current_user, db, all_task_content=True
     )
 
     # Get configured models and structures for this project
@@ -1148,7 +1147,7 @@ async def get_generation_result(
         )
 
     # Verify user has access to the project
-    await get_project_with_permissions(task.project_id, current_user, db, editors_only=True)
+    await get_project_with_permissions(task.project_id, current_user, db, all_task_content=True)
 
     # Get generation records for this task-model combination
     gen_stmt = select(DBResponseGeneration).where(

@@ -41,7 +41,6 @@ def compute_semantic_metric(
         _get_backend_selector,
         _get_sentence_transformer,
         bert_score_compute,
-        st_util,
     )
 
     if parameters is None:

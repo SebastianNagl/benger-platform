@@ -570,12 +570,16 @@ async def get_next_task(
         total = (
             await db.execute(select(func.count(Task.id)).where(*own_work))
         ).scalar() or 0
+        # Submitted or skipped: nothing left for this user on that task.
+        finished = or_(
+            own_active_annotation_exists(current_user.id),
+            exists().where(
+                SkippedTask.task_id == Task.id,
+                SkippedTask.skipped_by == str(current_user.id),
+            ),
+        )
         done = (
-            await db.execute(
-                select(func.count(Task.id)).where(
-                    *own_work, own_active_annotation_exists(current_user.id)
-                )
-            )
+            await db.execute(select(func.count(Task.id)).where(*own_work, finished))
         ).scalar() or 0
         if total and done >= total:
             return {"detail": "No tasks available", "task": None}
