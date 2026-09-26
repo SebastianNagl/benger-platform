@@ -98,7 +98,7 @@ class TestSchema:
         assert "total_score" not in schema["properties"]  # code sums
 
     def test_replace_schema_has_only_the_primary_path(self):
-        schema = cs.build_schema(_spec(), "bullet", "replace")
+        schema = cs.build_schema(_spec(), "step", "replace")
         assert list(schema["properties"]["scores"]["properties"]) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
         assert "weichenstellungen" not in schema["properties"]
 
@@ -112,9 +112,32 @@ class TestSchema:
         spec = _spec()
         for k in list(spec["steps"]):
             spec["steps"][k]["anforderungen"] = spec["steps"][k]["anforderungen"] * 200
-        status = cs.build_schema(spec, "bullet", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"][
+        status = cs.build_schema(spec, "bullet", "branch")["properties"]["scores"]["properties"]["s01_rechtsweg"][
             "properties"]["anforderungen"]["properties"]["b1"]["properties"]["status"]
         assert status == {"type": "integer", "minimum": 0, "maximum": 2}
+
+    def test_the_enum_budget_counts_the_fixed_enums(self):
+        # 329 bullets (325 here, 4 in the other steps) cost 987 status values:
+        # under the cap on their own, over it with the diagnosis block (13) and
+        # the Weichenstellung ids (2).
+        spec = _spec()
+        spec["steps"]["s01_rechtsweg"]["anforderungen"] = [
+            {"key": f"k{i}", "id": f"S1-{i}", "text": "A", "share": 1 / 325} for i in range(325)]
+        schema = cs.build_schema(spec, "bullet", "branch")
+        enums, _ = cs.schema_budget(schema)
+        assert enums == 2 + 5 + 5 + 3  # only the fixed enums remain
+        status = schema["properties"]["scores"]["properties"]["s01_rechtsweg"]["properties"]["anforderungen"][
+            "properties"]["b1"]["properties"]["status"]
+        assert status == {"type": "integer", "minimum": 0, "maximum": 2}
+        spec["steps"]["s01_rechtsweg"]["anforderungen"] = spec["steps"]["s01_rechtsweg"]["anforderungen"][:320]
+        enums, properties = cs.schema_budget(cs.build_schema(spec, "bullet", "branch"))
+        assert enums == 3 * 324 + 15 and properties < 5000  # 987: enums again
+
+    def test_replace_with_bullets_is_rejected(self):
+        with pytest.raises(ValueError, match="replace"):
+            cs.validate_options("bullet", "replace", "declared")
+        for unit in ("step", "rating"):
+            cs.validate_options(unit, "replace", "declared")
 
 
 _COMBINATIONS = [(unit, alt) for unit in cs.SCORE_UNITS for alt in cs.ALTERNATIVES]
@@ -212,10 +235,11 @@ class TestFinalize:
         assert out["checklist"]["weichenstellungen"]["W1"]["declared"] == "musterloesung"
 
     def test_replace_mode_counts_the_primary_steps(self):
-        judgment = _judgment()
-        del judgment["scores"]["s04_nichtstoerer"]
-        del judgment["weichenstellungen"]
-        out = cs.finalize(judgment, _spec(), "bullet", "replace", "declared", _verify)
+        def scored(score, quote):
+            return {"score": score, "evidence": quote, "abweichender_weg": False, "fehlplatziert": False, "reason": ""}
+        judgment = {"scores": {"s01_rechtsweg": scored(15, "nach § 40 I 1 VwGO"), "s02_klageart": scored(0, ""),
+                               "s03_stoerer": scored(30, "als Zweckveranlasser Störer")}, **_diagnosis()}
+        out = cs.finalize(judgment, _spec(), "step", "replace", "declared", _verify)
         assert out["checklist"]["totals"] == {"declared": 45.0, "best": 45.0}
 
     def test_missing_items_are_reported_for_a_retry(self):
@@ -231,12 +255,45 @@ class TestFinalize:
         spec["steps"]["s01_rechtsweg"]["max_score"] = 0.5
         judgment = _judgment()
         judgment["scores"]["s01_rechtsweg"] = _bullets((2, "nach § 40 I 1 VwGO"), (0, ""))
-        out = cs.finalize(judgment, spec, "bullet", "replace", "declared", _verify)
+        out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
         assert out["scores"]["s01_rechtsweg"]["raw_points"] == 0.25
         assert out["scores"]["s01_rechtsweg"]["score"] == 0.5    # half up, not banker's
+        assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(30.25)
+        assert out["checklist"]["totals"]["declared"] == 30.5
         assert cs.round_half_up(0.25) == 0.5 and cs.round_half_up(0.75) == 1.0
 
-    def test_rating_unit_weights_notes_by_step_maximum(self):
+    def test_rounding_survives_float_noise(self):
+        assert 25 * 0.29 < 7.25  # 7.249999999999999
+        assert cs.round_half_up(25 * 0.29) == 7.5
+        assert cs.round_half_up(7.2) == 7.0 and cs.round_half_up(7.24) == 7.0
+
+    def test_shown_step_scores_add_up_to_the_total(self):
+        # Three steps at 0.25 each: rounding each would show 1.5 against a total of 1.0.
+        spec = {"total_points": 3.0, "order": ["a", "b", "c"],
+                "steps": {k: {"name": k, "max_score": 1.0, "anforderungen": [{"share": 0.25}, {"share": 0.75}]}
+                          for k in ("a", "b", "c")}}
+        judgment = {"scores": {k: _bullets((2, "nach § 40 I 1 VwGO"), (0, "")) for k in ("a", "b", "c")},
+                    **_diagnosis()}
+        out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
+        assert out["total_score"] == 1.0
+        assert [out["scores"][k]["score"] for k in "abc"] == [0.5, 0.5, 0.0]  # ties: sheet order
+        assert [out["scores"][k]["raw_points"] for k in "abc"] == [0.25, 0.25, 0.25]
+
+    def test_distribution_respects_each_step_maximum(self):
+        shown = cs.distribute_half_points({"a": 1.0, "b": 0.2, "c": 0.4}, {"a": 1.0, "b": 0.5, "c": 0.5}, 1.5)
+        assert shown == {"a": 1.0, "b": 0.0, "c": 0.5}
+        shown = cs.distribute_half_points({"a": 2.3, "b": 2.3, "c": 2.3}, {"a": 3, "b": 3, "c": 3}, 7.0)
+        assert shown == {"a": 2.5, "b": 2.5, "c": 2.0} and sum(shown.values()) == 7.0
+        shown = cs.distribute_half_points({"a": 0.0, "b": 0.0}, {"a": 1, "b": 1}, 0.0)
+        assert shown == {"a": 0.0, "b": 0.0}
+
+    def test_best_mode_shows_the_best_path(self):
+        out = cs.finalize(_judgment("W1-L1"), _spec(), "bullet", "branch", "best", _verify)
+        shown = ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
+        assert sum(out["scores"][k]["score"] for k in shown) == out["total_score"] == 45.0
+        assert out["scores"]["s04_nichtstoerer"]["score"] == 25.0  # not counted, rounded on its own
+
+    def test_rating_unit_maps_notes_through_the_grade_key(self):
         judgment = {
             "scores": {
                 "s01_rechtsweg": {"note": 18, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False, "reason": ""},
@@ -247,9 +304,60 @@ class TestFinalize:
         }
         out = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify)
         assert out["scores"]["s02_klageart"]["note"] == 0  # unverified quote
-        assert out["checklist"]["totals"]["declared"] == 45.0   # 20 + 0 + 25
+        # Standard key: grade 18 is the band [97, 100) -> 98.5 %, grade 9 [67, 70) -> 68.5 %.
+        assert out["scores"]["s01_rechtsweg"]["raw_points"] == pytest.approx(20 * 0.985)
+        assert out["scores"]["s03_stoerer"]["raw_points"] == pytest.approx(50 * 0.685)
+        assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(53.95)
+        assert out["checklist"]["totals"]["declared"] == 54.0
+        assert [out["scores"][k]["score"] for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")] == [19.5, 0.0, 34.5]
+        # Aggregation (a) is unchanged: the weighted mean of the grades.
         assert out["checklist"]["rating_grade"] == pytest.approx((18 * 20 + 0 * 30 + 9 * 50) / 100)
         assert out["checklist"]["abweichender_weg_steps"] == 1
+
+    def test_rating_key_of_the_exam_changes_the_points(self):
+        judgment = {"scores": {k: {"note": 4, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False, "reason": ""}
+                               for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")}}
+        study_key = {"thresholds_be": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
+                     "rounding": "floor", "pass_grade": 4}
+        out = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify, grade_scale=study_key)
+        assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(42.0)  # [40, 44) -> 42 %
+        standard = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify)
+        assert standard["checklist"]["totals_unrounded"]["declared"] == pytest.approx(52.0)  # [50, 54)
+
+
+STUDY_THRESHOLDS = [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96]
+
+
+class TestGradeKey:
+    def test_default_is_the_standard_preset(self):
+        table = cs.rating_percent_table(None, 100.0)
+        assert len(table) == 19 and table[0] == 0.0
+        assert table[1] == pytest.approx(19.5)   # [13, 26)
+        assert table[4] == pytest.approx(52.0)   # [50, 54)
+        assert table[18] == pytest.approx(98.5)  # [97, 100]
+
+    def test_study_key_and_its_platform_forms_agree(self):
+        study = cs.rating_percent_table({"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor", "pass_grade": 4}, 100)
+        assert study[1] == pytest.approx(15.0) and study[4] == pytest.approx(42.0) and study[18] == pytest.approx(98.0)
+        assert cs.rating_percent_table({"unit": "BE", "thresholds": STUDY_THRESHOLDS}, 100) == pytest.approx(study)
+        assert cs.rating_percent_table({"unit": "percent", "thresholds": STUDY_THRESHOLDS}, 100) == pytest.approx(study)
+        assert cs.grade_key({"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor"}) == {
+            "unit": "BE", "thresholds": STUDY_THRESHOLDS, "rounding": "floor"}
+
+    def test_a_points_key_is_read_on_the_sheet_total(self):
+        half = [t / 2 for t in STUDY_THRESHOLDS]
+        assert cs.rating_percent_table({"unit": "BE", "thresholds": half}, 50) == pytest.approx(
+            cs.rating_percent_table({"unit": "percent", "thresholds": STUDY_THRESHOLDS}, 50))
+
+    @pytest.mark.parametrize("bad", [
+        {"thresholds_be": [10, 20]},
+        {"unit": "percent", "thresholds": list(reversed(STUDY_THRESHOLDS))},
+        {"unit": "BE", "thresholds": [t * 2 for t in STUDY_THRESHOLDS]},  # above the 100-BE total
+        "standard",
+    ])
+    def test_bad_keys_are_rejected(self, bad):
+        with pytest.raises(ValueError):
+            cs.rating_percent_table(bad, 100)
 
 
 class TestEvaluatorIntegration:
@@ -301,6 +409,25 @@ class TestEvaluatorIntegration:
         ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="m", custom_prompt_template="x")
         with pytest.raises(ValueError):
             ev.configure_checklist(_spec(), "points", "branch")
+        with pytest.raises(ValueError):
+            ev.configure_checklist(_spec(), "bullet", "replace")
+        with pytest.raises(ValueError):
+            ev.configure_checklist(_spec(), "rating", "replace", grade_scale={"thresholds_be": [1, 2, 3]})
+
+    def test_the_exam_key_reaches_the_rating_totals(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-5.6-luna",
+                               custom_prompt_template="{context}\n{prediction}")
+        ev.configure_checklist(_spec(), "rating", "replace", "declared",
+                               grade_scale={"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor", "pass_grade": 4})
+        assert ev.checklist["grade_scale"]["unit"] == "BE"
+        judgment = {"scores": {k: {"note": 18, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False,
+                                   "fehlplatziert": False, "reason": ""}
+                               for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")}, **_diagnosis()}
+        self._respond(ev, judgment)
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert result["checklist"]["totals_unrounded"]["declared"] == pytest.approx(98.0)
+        assert result["_judge_prompts_used"]["checklist"]["grade_scale"]["thresholds"] == STUDY_THRESHOLDS
 
 
 class TestDiagnosisAndSecondExamAlignment:
@@ -322,8 +449,8 @@ class TestDiagnosisAndSecondExamAlignment:
         out = cs.finalize(_judgment(), _spec(), "bullet", "branch", "declared", _verify)
         assert out["assessment"]["assessment_status"] == "scored"
         assert out["assessment"]["aggregation_eligible"] is True
-        assert out["checklist"]["arbeitsprodukte"]["P1"]["points"] == pytest.approx(45.0)
-        assert out["checklist"]["arbeitsprodukte"]["P1"]["max"] == 100.0
+        assert out["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(45.0)
+        assert out["checklist"]["arbeitsergebnisse"]["P1"]["max"] == 100.0
 
     def test_unforeseen_path_needs_review(self):
         judgment = _judgment()
@@ -341,6 +468,22 @@ class TestDiagnosisAndSecondExamAlignment:
         assert out["assessment"]["assessment_status"] == "review_required"
         assert any("P1" in w for w in out["assessment"]["validation_warnings"])
 
+    @pytest.mark.parametrize("key", ["arbeitsergebnis_id", "arbeitsprodukt_id"])
+    def test_work_results_match_exactly(self, key):
+        spec = _spec()
+        spec["steps"]["s02_klageart"][key] = "P10"
+        spec["arbeitsergebnisse" if key == "arbeitsergebnis_id" else "arbeitsprodukte"] = [
+            {"id": "P1", "bezeichnung": "Gutachten"}, {"id": "P10", "bezeichnung": "Urteil"}]
+        judgment = _judgment()
+        judgment.update(_diagnosis(products=(("P1 Gutachten", "fulfilled"), ("P10 Urteil", "missing"))))
+        out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
+        assert out["checklist"]["arbeitsergebnisse"]["P10"] == {"points": 0.0, "max": 30.0}
+        assert out["assessment"]["assessment_status"] == "scored"  # "P10 …" is not P1, whose steps earned points
+        judgment.update(_diagnosis(products=(("Gutachten", "missing"),)))
+        out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
+        assert out["assessment"]["assessment_status"] == "review_required"  # the exact name is P1
+        assert any("Arbeitsergebnis P1" in r for r in out["assessment"]["review_reasons"])
+
     def test_missing_status_defaults_to_review(self):
         judgment = _judgment()
         del judgment["assessment_status"]
@@ -351,7 +494,7 @@ class TestDiagnosisAndSecondExamAlignment:
         spec = _spec()
         spec["steps"]["s02_klageart"]["anforderungen"][0]["massstab"] = "folgerichtig"
         spec["steps"]["s02_klageart"]["hilfsgutachten"] = {"funktion": "praemissenwechsel"}
-        note = cs.expected_output_note(spec, "bullet", "replace")
+        note = cs.expected_output_note(spec, "bullet", "branch")
         assert "s02_klageart: Klageart (Anforderungen b1 bis b1; folgerichtig: b1; hilfsgutachtlich geschuldet)" in note
 
     def test_not_evaluable_becomes_an_error_row(self, monkeypatch):

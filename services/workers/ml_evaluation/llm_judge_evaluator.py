@@ -910,20 +910,30 @@ class LLMJudgeEvaluator(BaseEvaluator):
         score_unit: str = "bullet",
         alternatives: str = "branch",
         total_mode: str = "declared",
+        grade_scale: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Score against a ``checklist_spec`` instead of free step scores.
 
         Opt-in (research lane, see :mod:`ml_evaluation.checklist_scoring`):
         the judge marks requirement bullets, scores steps, or rates steps
         (``score_unit``), and Weichenstellungen are scored per path or onto the
-        replaced steps (``alternatives``). Code computes every point. Without
-        a bound rubric the spec's primary path becomes the criteria.
+        replaced steps (``alternatives``; ``"replace"`` needs the step or
+        rating unit). Code computes every point. Without a bound rubric the
+        spec's primary path becomes the criteria.
+
+        ``grade_scale`` is the exam's Notenschlüssel for the rating unit's
+        BE equivalents: ``None`` for the platform default
+        (``grade_scale_from_preset("standard")``), a platform ``grade_scale``,
+        or ``{"thresholds_be": [...], "rounding": ..., "pass_grade": ...}``
+        (see :func:`checklist_scoring.grade_key` for the conversion).
         """
-        from .checklist_scoring import validate_options
+        from .checklist_scoring import grade_key, rating_percent_table, validate_options
 
         validate_options(score_unit, alternatives, total_mode)
         if not isinstance(spec, dict) or not spec.get("order") or not isinstance(spec.get("steps"), dict):
             raise ValueError("checklist spec needs 'order' and 'steps'")
+        key = grade_key(grade_scale)
+        rating_percent_table(key, float(spec.get("total_points") or 100.0))  # raises on a bad key
         if not self.custom_criteria:
             self.custom_criteria = {
                 key: {"name": spec["steps"][key].get("name"), "max_score": spec["steps"][key]["max_score"]}
@@ -936,6 +946,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "score_unit": score_unit,
             "alternatives": alternatives,
             "total_mode": total_mode,
+            "grade_scale": key,
         }
 
     def get_supported_metrics(self) -> List[str]:
@@ -1954,6 +1965,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         opts["alternatives"],
                         opts["total_mode"],
                         lambda quote: _verify_evidence(quote, evidence_index),
+                        grade_scale=opts.get("grade_scale"),
                     )
                     if not result.get("missing") and result.get("not_evaluable"):
                         # Same contract as the second-exam engine: no value,
