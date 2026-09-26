@@ -1532,6 +1532,8 @@ class TestVerifyEvidence:
             # two tokens carry enough characters (>= 15) to be a quote
             "verbindlich angeordnet",
             "Platzverweis ist",
+            # two passages from different places glued without an ellipsis
+            "Die Streitigkeit ist öffentlich-rechtlich. Der Platzverweis ist ein „Verwaltungsakt“ im Sinne des Art. 35 S. 1 BayVwVfG",
         ],
     )
     def test_quotes_from_the_answer_verify(self, evidence):
@@ -1566,10 +1568,19 @@ class TestVerifyEvidence:
             "des Verwaltungsrechtsweg",
             # one keyword fragment poisons an otherwise verbatim quote
             "Mangels aufdrängender Sonderzuweisung … VwGO",
+            # glued passages: one real sentence, one invented
+            "Die Streitigkeit ist öffentlich-rechtlich. Ein Rehabilitationsinteresse besteht hier offensichtlich nicht.",
         ],
     )
     def test_everything_else_is_rejected(self, evidence):
         assert _verify_evidence(evidence, EvidenceIndex(_ANSWER)) is False
+
+    def test_spacing_artifacts_in_the_source_do_not_break_a_long_quote(self):
+        answer = "S hat etwas erlangt, nämlich Eigentum und Besitz an den entrichte ten 10.000,– € durch Leistung."
+        quote = "Eigentum und Besitz an den entrichteten 10.000,– € durch Leistung"
+        assert _verify_evidence(quote, EvidenceIndex(answer)) is True
+        # still no match for content the answer lacks
+        assert _verify_evidence("Eigentum an dem gestohlenen Fahrrad des K ist übergegangen", EvidenceIndex(answer)) is False
 
     def test_the_thresholds_are_the_documented_ones(self):
         from ml_evaluation.llm_judge_evaluator import (

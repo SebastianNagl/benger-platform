@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-26',
+    audience: 'both',
+    text: {
+      de: 'Die KI-Korrektur mit Bewertungsbogen verwirft korrekte Zitate aus der Bearbeitung nicht mehr, wenn sie mehrere Stellen zusammenfassen oder der Text Silbentrennungen enthält. Bisher bekamen solche Schritte fälschlich 0 Punkte.',
+      en: 'AI grading with a grading sheet no longer rejects correct quotes from the answer when they combine several passages or the text contains hyphenation breaks. Until now such steps wrongly received 0 points.',
+    },
+  },
+  {
     date: '2026-09-24',
     audience: 'benger',
     text: {

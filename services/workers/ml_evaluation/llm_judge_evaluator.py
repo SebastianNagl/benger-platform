@@ -392,6 +392,13 @@ _HTML_TAG_RE = re.compile(r"<[^<>\n]{0,200}>")
 _MARKDOWN_MARKER_RE = re.compile(r"[*_`#>]+")
 _WORD_RE = re.compile(r"\w+")
 _ELLIPSIS_SPLIT_RE = re.compile(r"\.{3,}")
+# Judges often glue passages from different places into one quote without the
+# ellipsis the rules ask for; such a fragment is checked sentence by sentence.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?:;])\s+")
+# Everything but letters and digits, for the spacing-insensitive comparison of
+# long fragments (hyphenation splits like "entrichte ten", "10.000,– €").
+_COMPACT_RE = re.compile(r"[\W_]+")
+EVIDENCE_MIN_COMPACT_CHARS = 20
 _PUNCT_TRANSLATION = str.maketrans(
     {
         "„": '"', "“": '"', "”": '"', "‟": '"', "«": '"', "»": '"',
@@ -489,6 +496,7 @@ class EvidenceIndex:
     def __init__(self, answer: str):
         self.text = _normalize_evidence_text(answer)
         self.tokens = _WORD_RE.findall(self.text)
+        self.compact = _COMPACT_RE.sub("", self.text)
 
 
 def _fragment_is_quotable(tokens: List[str]) -> bool:
@@ -504,7 +512,31 @@ def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> b
     substring or match token-wise in order (see :func:`_tokens_in_order`)."""
     if len(tokens) < _EVIDENCE_SHORT_FRAGMENT_TOKENS:
         return re.search(rf"(?<!\w){re.escape(part)}(?!\w)", index.text) is not None
-    return part in index.text or _tokens_in_order(tokens, index.tokens)
+    if part in index.text or _tokens_in_order(tokens, index.tokens):
+        return True
+    # Source artifacts (a hyphenation split, spacing inside numbers) break the
+    # token match of an otherwise verbatim long quote: compare letters and
+    # digits only.
+    compact = _COMPACT_RE.sub("", part)
+    return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and compact in index.compact
+
+
+def _stitched_fragment_in_answer(part: str, index: EvidenceIndex) -> bool:
+    """A fragment that is not one passage of the answer may be several
+    passages glued together without an ellipsis. It verifies when every
+    sentence of it is in the answer and at least one sentence is quotable,
+    so an invented sentence still fails the whole quote."""
+    pieces = []
+    for piece in _SENTENCE_SPLIT_RE.split(part):
+        piece = piece.strip(" \"'.,;:!?()[]-")
+        tokens = _WORD_RE.findall(piece)
+        if tokens:
+            pieces.append((piece, tokens))
+    if len(pieces) < 2:
+        return False
+    return any(_fragment_is_quotable(tokens) for _p, tokens in pieces) and all(
+        _fragment_in_answer(piece, tokens, index) for piece, tokens in pieces
+    )
 
 
 def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
@@ -527,7 +559,8 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     if sum(len(tok) for _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
         return False
     return all(
-        _fragment_is_quotable(tokens) and _fragment_in_answer(part, tokens, index)
+        _fragment_is_quotable(tokens)
+        and (_fragment_in_answer(part, tokens, index) or _stitched_fragment_in_answer(part, index))
         for part, tokens in fragments
     )
 
