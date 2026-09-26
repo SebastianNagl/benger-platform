@@ -963,65 +963,159 @@ steps and tests step size as a lever.
 
 ## Preliminary results on the expert exam {#sec-prelim}
 
-\pending{this subsection is filled by the lead after the gate v2 (E0) and the generator by judge validity runs on D2a finish}
+```{python}
+#| output: false
+def _load(name):
+    f = PROC / "cslaw" / name
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
 
-Table \ref{tab:prelim} holds the slots. For each judge and instrument we will report the probe gate
-verdict, MAE, bias and $r$ against the reference grades of the `{python} D2["d2a"]["n_scripts"]` D2a
-scripts, repeat SD over `{python} EXP["E0"]["passes"]` passes, and the cost per script. The
-sheet-sample SD across independently generated sheets is \pending{sheet-sample SD per generator on D2a}.
-The total cost of these runs is \pending{cost}.
+
+GATE2 = _load("gate_v2.json")
+GEN2 = _load("d2_generation.json")
+VAL2 = _load("d2_validity.json")
+INSTR = {"expert sheet:step": "Expert sheet (step unit)",
+         "gpt-5.4 sheet 1:bullet": "GPT-5.4 checklist sheet",
+         "gpt-5.4-mini sheet 1:bullet": "GPT-5.4 Mini checklist sheet"}
+JUDGES_ORDER = ["gpt-5.6-luna", "deepseek-ai/DeepSeek-V4-Pro", "gpt-5.4-mini"]
+GG = GEN2["per_generator"] if GEN2 else {}
+```
+
+These runs are a first look at the expert exam, not the benchmark. They use the pipeline of
+@sec-pipeline as it stood for these runs (output specification checklist-3), one sheet per generator from two generators, and up to three judges. The reference
+grades of `{python} D2["d2a"]["n_scripts"]` D2a scripts serve as the yardstick; the exam author has
+yet to confirm who graded nine of them, so we call them reference grades, not expert grades.
+
+*Generation.* Both generators needed retries. GPT-5.4 produced a valid sheet in
+`{python} GG["gpt-5.4"]["valid_sheets"]` of `{python} GG["gpt-5.4"]["chains"]` chains
+(`{python} GG["gpt-5.4"]["valid_sheet_steps"][0]` steps), GPT-5.4 Mini in
+`{python} GG["gpt-5.4-mini"]["valid_sheets"]` of `{python} GG["gpt-5.4-mini"]["chains"]`
+(`{python} GG["gpt-5.4-mini"]["valid_sheet_steps"][0]` steps, flagged as coarse by the validator
+because most steps carry more than 4 BE). Failed attempts most often broke the 10-BE cap: in the
+flat allocation mode a generator states relative weights, not BE, so it cannot see the cap directly.
+A valid sheet cost `{python} usd(GG["gpt-5.4"]["usd_per_valid_sheet"], 2)` with GPT-5.4 and
+`{python} usd(GG["gpt-5.4-mini"]["usd_per_valid_sheet"], 2)` with GPT-5.4 Mini, retries included.
 
 ```{python}
 #| output: asis
-INS = {("expert", "step"): "Expert sheet, step unit", ("expert", "rating"): "Expert sheet, rating unit",
-       ("gpt-5.4-mini", "bullet"): "Checklist sheet by GPT-5.4 Mini", ("gpt-5.4", "bullet"): "Checklist sheet by GPT-5.4",
-       ("first iteration", "step"): "First-iteration step-score sheet"}
-prow = []
-for j in EXP["E0"]["judges"]:
-    prow.append(r"\multicolumn{7}{@{}l}{\emph{Judge: " + NAME[j] + "}}")
-    for ins in EXP["E0"]["instruments"]:
-        prow.append([INS[tuple(ins)]] + [r"\tbd"] * 6)
+grows = []
+for arm in INSTR:
+    per = (GATE2 or {}).get("batteries", {}).get(arm, {})
+    for j in JUDGES_ORDER:
+        x = per.get(j)
+        if not x:
+            continue
+        grows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)), str(x["complete_passes"]), x["battery"],
+                      num(x["battery_max_score"], 1), num(x["model_proposed_median_on_negatives"], 1),
+                      num(x["musterloesung_median"], 1),
+                      f'{num(x["section_ablation_drop"], 1)} / {num(x["section_ablation_expected"], 1)}',
+                      num(x["misplacement_drop"], 1), num(x["negation_flip_drop"], 1)])
 write_table(
-    "tbl_prelim",
-    "Preliminary results on D2a against the reference grades (grader confirmation pending). "
-    "\\pending{all cells: gate v2 and validity runs}",
-    "tab:prelim", ["Instrument", "Gate", "MAE", "Bias", "$r$", "SD\\textsubscript{rep}", "USD/script"], prow,
-    colspec="lrrrrrr", size=r"\footnotesize")
+    "tbl_gate2",
+    "Probe battery on the expert exam. Battery: six degenerate answers (empty, repeated case text, "
+    "off-topic, same-area off-topic, keyword list, injected instruction) must score 0 or near 0 on "
+    "every pass; max is the highest score any of them received. Proposed: the judge's own median "
+    "total on those answers before the evidence rules. ML: the model solution. Ablation: points lost "
+    "when one part of the model solution is removed, observed / expected from the sheet. Misplaced: "
+    "points lost when one correct paragraph is moved under another heading. Flip: points lost when the "
+    "results of the model solution are negated.",
+    "tab:gate2",
+    ["Instrument", "Judge", "Passes", "Battery", "Max", "Proposed", "ML", "Ablation", "Misplaced", "Flip"],
+    grows or [[r"\tbd"] * 10], colspec="llrlrrrrrr", size=r"\footnotesize", wide=True)
 ```
 
-## Generator benchmark (E1; RQ1, RQ4)
+*Probe battery.* Every judge passed the battery on every instrument (Table \ref{tab:gate2}; Luna over
+two passes, DeepSeek over one, its second pass stopped for time): no degenerate answer received points, and the model solution scored near full marks. The new probes
+show that the judges track content, not form. Removing one part of the model solution cost about as
+many points as the sheet assigns to that part, and moving a correct paragraph under another heading
+cost almost nothing, as the placement rule intends. One difference from the first iteration stands
+out. On the expert sheet in the step unit, Luna still proposed half a point for every step of an
+empty or off-topic answer, and only the rule that a credit needs a quote removed them; on the
+checklist sheets it proposed nothing in the first place. The bullet format stops this failure at its
+source; the step format relies on the check.
 
-We will report compliance (first attempt, attempts, failure classes), validator defects, the
-author's spot audit of `{python} EXP["E1"]["audit_bullets_per_sheet"]` bullets per sheet on D2,
-validity against the D1 pool and the D2a reference grades, repeat and sheet-sample SD, structural
-alignment with the expert sheet, and the cost per valid sheet. \pending{E1}
+```{python}
+#| output: asis
+vrows = []
+for arm in INSTR:
+    per = (VAL2 or {}).get("per_arm", {}).get(arm, {})
+    for j in JUDGES_ORDER:
+        x = per.get(j)
+        if not x:
+            continue
+        c = x.get("mae_ci95") or [None, None]
+        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)), str(x["n_scripts"]),
+                      num(x["mae"], 1) + (f' [{num(c[0], 1)}, {num(c[1], 1)}]' if c[0] is not None else ""),
+                      sgn(x["bias"], 1), cor(x["pearson"]) if x["pearson"] is not None else "--",
+                      pct(x["pass_agreement"]), num(x["repeat_sd"], 2) if x.get("repeat_sd") is not None else "--"])
+write_table(
+    "tbl_val2",
+    "Totals on the D2a scripts against the reference grades (grader confirmation pending for nine "
+    "scripts; three scripts of the earliest cohort are judged against the later case text). MAE with "
+    "a script-bootstrap 95\\% interval; bias is judge minus reference; pass agreement at the exam's "
+    "pass mark of 40 BE; SD\\textsubscript{rep} is the mean SD over repeated passes.",
+    "tab:val2",
+    ["Instrument", "Judge", "$n$", "MAE [95\\% CI]", "Bias", "$r$", "Pass agr.", "SD\\textsubscript{rep}"],
+    vrows or [[r"\tbd"] * 8], colspec="llrrrrrr", size=r"\footnotesize", wide=True)
+```
 
-## Judge benchmark (E2; RQ2, RQ3, RQ5)
+```{python}
+#| output: asis
+def _v(arm, judge):
+    return ((VAL2 or {}).get("per_arm", {}).get(arm, {}) or {}).get(judge)
 
-We will report validity against the expert (MAE, bias, ICC(A,1), grades within one point, pass/fail
-$\kappa$), per-step agreement on the expert sheet, repeat SD with each provider's determinism, the
-probe battery, the share of rejected quotes, the gap between model and verified totals, and cost and
-latency. \pending{E2}
+_lx, _mx = _v("expert sheet:step", "gpt-5.6-luna"), _v("expert sheet:step", "gpt-5.4-mini")
+_lg, _lm = _v("gpt-5.4 sheet 1:bullet", "gpt-5.6-luna"), _v("gpt-5.4-mini sheet 1:bullet", "gpt-5.6-luna")
+_dx, _dg = _v("expert sheet:step", "deepseek-ai/DeepSeek-V4-Pro"), _v("gpt-5.4 sheet 1:bullet", "deepseek-ai/DeepSeek-V4-Pro")
+if not (_lx and _mx and _lg and _lm):
+    print(r"*Agreement with the reference grades.* \pending{validity runs}")
+else:
+    parts = [
+        "*Agreement with the reference grades.* On the expert's own sheet, Luna came within "
+        f"{num(_lx['mae'], 1)} points of the reference grades on average (bias {sgn(_lx['bias'], 1)}, "
+        f"$r$ = {cor(_lx['pearson'])}), agreed on pass or fail for {pct(_lx['pass_agreement'])} of the "
+        f"scripts, and moved by {num(_lx['repeat_sd'], 1)} points between two passes "
+        "(Table \\ref{tab:val2}). GPT-5.4 Mini, the platform's current default judge, was "
+        + (("about twice" if 1.75 <= _mx['mae'] / _lx['mae'] <= 2.25 else f"{num(_mx['mae'] / _lx['mae'], 1)} times")
+           + " as far off")
+        + f" on the same sheet (MAE {num(_mx['mae'], 1)}, $r$ = {cor(_mx['pearson'])}).",
+    ]
+    if _dx:
+        parts.append(
+            f"DeepSeek-V4-Pro reached an MAE of {num(_dx['mae'], 1)} on the expert sheet "
+            f"($r$ = {cor(_dx['pearson'])})"
+            + (f" and {num(_dg['mae'], 1)} on the GPT-5.4 sheet." if _dg else "."))
+    parts.append(
+        "With generated sheets, Luna's error grew, to "
+        f"{num(_lg['mae'], 1)} with the GPT-5.4 sheet and {num(_lm['mae'], 1)} with the GPT-5.4 Mini sheet. "
+        f"Most of the growth is leniency (bias {sgn(_lg['bias'], 1)} and {sgn(_lm['bias'], 1)}), while "
+        f"the order of the scripts stayed close to the reference ($r$ = {cor(_lg['pearson'])} and "
+        f"{cor(_lm['pearson'])}).")
+    parts.append(
+        "Two readings follow, both preliminary. First, the judge mattered more than the sheet: the better "
+        "judge on a generated sheet came closer to the reference than the default judge on the expert's own "
+        "sheet, although the intervals overlap. Second, the generated sheets were more lenient than the "
+        "expert's, and the coarser sheet more so; a generated sheet needs a stricter specification or a "
+        "calibration step before its totals can stand in for an examiner's.")
+    print(" ".join(parts))
+```
 
-## Interaction of generator and judge (E3)
+These numbers come from `{python} D2["d2a"]["n_scripts"]` scripts of one exam. With so few
+scripts, differences in absolute error below about
+`{python} num(MDE["C2_abs_error_vs_expert"]["mde"]["n_15_d2a"]["alpha_0.025"], 1)` points are not detectable (Appendix \ref{sec-app-precision}); we read them as a first signal for the
+benchmark design, not as a ranking.
 
-We will report variance components for script, generator, sheet sample, judge, generator by judge
-and pass, and whether generator rankings hold across judges (Kendall's $\tau$). \pending{E3}
+## Benchmark results (E1 to E7)
 
-## Pipeline and held-out confirmation (E4; RQ6)
-
-We will report the Pareto front of error, variance and cost on the development data, the recommended
-configuration, and its one-time confirmation on the blind expert grades of D2b. \pending{E4, after the blind grading of D2b}
-
-## Alternatives, auxiliary opinions and placement (E5)
-
-We will compare designs A0, A1 and A2 on scripts that take a path other than the model solution's,
-and report the alternative-path and misplacement probes. \pending{E5; the author tags the scripts and signs off the tenability of each path}
-
-## Grading practice (E6, E7; RQ7)
-
-We will answer the five questions of @sec-practice from the stored outputs and targeted probes, and
-compare the scoring format and weight elicitation of the two expert paradigms on D2. \pending{E6, E7, and the exam author's answers}
+\pending{E1 to E7}. The generator benchmark (E1) will report compliance, validator defects, the
+author's spot audit of `{python} EXP["E1"]["audit_bullets_per_sheet"]` bullets per sheet, validity on
+D1 and D2a, repeat and sheet-sample SD, alignment with the expert sheet, and the cost per valid sheet.
+The judge benchmark (E2) will report validity against the expert (MAE, bias, ICC(A,1), grades within
+one point, pass/fail $\kappa$), per-step agreement, repeat SD, the probe battery, the share of
+rejected quotes and cost. E3 will estimate variance components and test whether generator rankings
+hold across judges (Kendall's $\tau$). E4 will report the Pareto front of error, variance and cost and
+confirm the recommended configuration once on the blind expert grades of D2b. E5 compares the
+designs for alternative paths; E6 and E7 answer the questions of @sec-practice and compare the two
+expert paradigms on D2.
 
 # Discussion {#sec-discussion}
 
