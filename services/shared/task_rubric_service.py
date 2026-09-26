@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from project_models import TaskRubric
+from project_models import Project, TaskRubric
 from rubric_structure import (
     criteria_from_structure,
     mirror_rubric_into_task_data,
@@ -90,6 +90,15 @@ _REFERENCED_SQL = text(
     LIMIT 1
     """
 )
+
+
+async def _project_evaluation_config(db: AsyncSession, project_id: Optional[str]) -> Any:
+    """The project's ``evaluation_config`` (it holds the exam's Notenschlüssel
+    that the task-data mirror renders)."""
+    if not project_id:
+        return None
+    result = await db.execute(select(Project.evaluation_config).where(Project.id == project_id))
+    return result.scalar_one_or_none()
 
 
 async def rubric_referenced_by_gradings(db: AsyncSession, rubric_id: str, task_id: str) -> bool:
@@ -256,7 +265,9 @@ async def edit_task_rubric(
     if title_changed:
         rubric.title = _clean_title(title)
     if (content_changed or title_changed) and rubric.status == "active" and task is not None:
-        mirror_rubric_into_task_data(task, rubric)
+        mirror_rubric_into_task_data(
+            task, rubric, await _project_evaluation_config(db, rubric.project_id)
+        )
     await db.flush()
     return rubric
 
@@ -331,7 +342,9 @@ async def activate_task_rubric(
     rubric.status = "active"
     await db.flush()
     if task is not None:
-        mirror_rubric_into_task_data(task, rubric)
+        mirror_rubric_into_task_data(
+            task, rubric, await _project_evaluation_config(db, rubric.project_id)
+        )
 
 
 async def archive_task_rubric(db: AsyncSession, rubric: TaskRubric, task) -> None:

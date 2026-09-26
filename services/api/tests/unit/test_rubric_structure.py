@@ -453,6 +453,45 @@ class TestRenderings:
         mirror_rubric_into_task_data(task, None)  # no-op when absent
         assert task.data == {"sachverhalt": "S"}
 
+    def test_mirror_renders_the_key_that_grades(self):
+        """The mirror shows the Notenschlüssel the grading applies: the exam's
+        key, else the rubric's own, else the standard one. A rubric without a
+        key of its own used to show the standard key on every exam."""
+        from project_models import Project, Task
+
+        exam_key = {"unit": "percent", "preset": "custom", "rounding": "floor", "pass_grade": 4,
+                    "thresholds": [5 * i for i in range(1, 19)]}
+        project_config = {"grade_scale": exam_key}
+        sheet_key = {"unit": "BE", "thresholds": [0.5 * i for i in range(1, 19)], "rounding": "floor",
+                     "pass_grade": 4}
+
+        def key_block(scale):
+            return render_grade_scale_text(effective_grade_scale(scale, 11.5))
+
+        def mirrored(grade_scale, config=None, project=None):
+            task = Task(id="t", project_id="p", data={}, inner_id=1)
+            if project is not None:
+                task.project = project
+            row = SimpleNamespace(
+                generation_metadata=None, structure=normalize_structure(SAMPLE), criteria={},
+                total_points=11.5, grade_scale=grade_scale, title="T",
+            )
+            mirror_rubric_into_task_data(task, row, config)
+            return task.data["bewertungsbogen"]
+
+        assert key_block(exam_key) != key_block(None)
+        assert mirrored(None, project_config).endswith(key_block(exam_key))
+        assert mirrored(sheet_key, project_config).endswith(key_block(exam_key))  # the exam's key wins
+        assert mirrored(sheet_key).endswith(key_block(sheet_key))
+        assert mirrored(None).endswith(key_block(None))
+        # Without an explicit config the loaded project supplies it.
+        project = Project(id="p", title="P", evaluation_config=project_config)
+        assert mirrored(None, project=project).endswith(key_block(exam_key))
+        # The judge text never carries a key.
+        row = SimpleNamespace(generation_metadata=None, structure=normalize_structure(SAMPLE), criteria={},
+                              total_points=11.5, grade_scale=None, title="T")
+        assert "NOTENSCHLÜSSEL" not in rubric_prompt_text(row, project_config=project_config)
+
 
 # ---------------------------------------------------------------------------
 # grades
