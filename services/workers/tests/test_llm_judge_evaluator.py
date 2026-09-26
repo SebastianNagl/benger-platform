@@ -1265,6 +1265,24 @@ class TestEvaluateMultidimSingleCall:
         assert retries[0]["attempt"] == 1 and retries[0]["error_type"] == "timeout"
         assert result["_call_metadata"]["finish_reason"] == "stop"
 
+    def test_usage_is_summed_over_every_attempt(self):
+        ev = self._evaluator()
+        limited = self._failure("rate_limit", "429")
+        limited["usage"] = {"prompt_tokens": 40, "completion_tokens": 0, "total_tokens": 40}
+        ok = {
+            "success": True,
+            "content": '{"scores": {"result_correctness": {"score": 38, "max": 40, "reason": "ok"}}}',
+            "usage": {"prompt_tokens": 50, "completion_tokens": 7, "total_tokens": 57},
+            "metadata": {"finish_reason": "stop"},
+        }
+        ev.ai_service.generate_structured.side_effect = [limited, RuntimeError("reset"), ok]
+        result, _delays = self._call(ev)
+        assert not result.get("error")
+        assert result["_call_metadata"]["usage_all_attempts"] == {
+            "attempts": 3, "attempts_without_usage": 1, "input_tokens": 90, "output_tokens": 7,
+            "total_tokens": 97}
+        assert result["_call_metadata"]["input_tokens"] == 50
+
     def test_parse_errors_wait_a_second_between_attempts(self):
         ev = self._evaluator()
         ev.ai_service.generate_structured.return_value = {

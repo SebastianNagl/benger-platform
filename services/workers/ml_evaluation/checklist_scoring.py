@@ -502,6 +502,28 @@ def closing_rules(score_unit: str, alternatives: str, weichenstellungen: bool = 
     return "\n".join(lines)
 
 
+MISSING_KEYS_SHOWN = 40
+
+
+def missing_keys_note(missing: List[str]) -> str:
+    """The retry note after a judgment that lacks keys (``finalize`` returned
+    ``{"missing": [...]}``): the JSON paths that were missing, so the retry
+    is not the identical prompt again."""
+    def path(item: str) -> str:
+        if item.startswith("weichenstellungen."):
+            return item
+        key, _, bullet = item.partition(".")
+        return f"scores.{key}.anforderungen.{bullet}" if bullet else f"scores.{key}"
+
+    shown = ", ".join(path(m) for m in missing[:MISSING_KEYS_SHOWN])
+    if len(missing) > MISSING_KEYS_SHOWN:
+        shown += f" und {len(missing) - MISSING_KEYS_SHOWN} weitere"
+    return (
+        f"Deiner letzten Antwort fehlten Pflichtangaben. Es fehlen die Schlüssel {shown}. "
+        "Gib die vollständige Antwort erneut aus, mit allen Schlüsseln des Schemas."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Response schema
 # ---------------------------------------------------------------------------

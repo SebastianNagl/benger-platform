@@ -2203,11 +2203,51 @@ class LLMJudgeEvaluator(BaseEvaluator):
             }
 
         last_failure: Optional[Dict[str, Any]] = None
-        # One entry per retried provider failure; persisted in _call_metadata
-        # so a row shows how many 429s / timeouts preceded its result.
+        # One entry per retry of this loop (a provider 429 / timeout, or a
+        # checklist judgment with missing keys); persisted in _call_metadata
+        # so a row shows what preceded its result.
         judge_retries: List[Dict[str, Any]] = []
+        # Token usage summed over every attempt of this loop, so metering
+        # sees the retries too. The top-level input/output_tokens stay the
+        # last attempt's.
+        usage_all: Dict[str, int] = {
+            "attempts": 0,
+            "attempts_without_usage": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+        # A checklist retry tells the judge what its last answer lacked.
+        retry_note = ""
+
+        def count_usage(response: Optional[Dict[str, Any]]) -> None:
+            usage_all["attempts"] += 1
+            usage = (response or {}).get("usage") or {}
+            numbers = {
+                key: usage.get(source)
+                for key, source in (("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens"))
+                if isinstance(usage.get(source), (int, float)) and not isinstance(usage.get(source), bool)
+            }
+            total = usage.get("total_tokens")
+            if not isinstance(total, (int, float)) or isinstance(total, bool):
+                total = sum(numbers.values()) if numbers else None
+            if not numbers and total is None:
+                usage_all["attempts_without_usage"] += 1
+                return
+            for key, value in numbers.items():
+                usage_all[key] += int(value)
+            usage_all["total_tokens"] += int(total or 0)
+
+        def call_meta(base: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
+            return {
+                **base,
+                **extra,
+                "judge_retries": judge_retries,
+                "usage_all_attempts": dict(usage_all),
+            }
 
         for attempt in range(self.max_retries):
+            counted = False
             try:
                 extra_kwargs: Dict[str, Any] = {"seed": self.seed}
                 if self.thinking_budget:
@@ -2223,7 +2263,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 # `generate(response_format=...)` directly here would have
                 # blown up on Anthropic / Google judges with an unknown kwarg.
                 response = self.ai_service.generate_structured(
-                    prompt=prompt,
+                    prompt=f"{prompt.rstrip()}\n\n{retry_note}" if retry_note else prompt,
                     system_prompt=provenance["system_prompt"],
                     model_name=self.judge_model,
                     json_schema=json_schema,
@@ -2231,17 +2271,19 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     temperature=self.temperature,
                     **extra_kwargs,
                 )
+                count_usage(response)
+                counted = True
 
                 if not response.get("success"):
-                    call_meta = _extract_call_metadata(response)
+                    base_meta = _extract_call_metadata(response)
                     last_failure = {
                         "error": True,
                         "error_message": response.get("error"),
-                        "_call_metadata": {**call_meta, "judge_retries": judge_retries},
+                        "_call_metadata": call_meta(base_meta),
                         "_raw_output": response.get("content", ""),
                         "_judge_prompts_used": provenance,
                     }
-                    error_type = call_meta.get("error_type")
+                    error_type = base_meta.get("error_type")
                     if (
                         error_type in JUDGE_RETRY_ERROR_TYPES
                         and attempt < self.max_retries - 1
@@ -2286,38 +2328,40 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "error": True,
                             "error_message": f"Judge: nicht bewertbar ({reasons})" if reasons else "Judge: nicht bewertbar",
                             "assessment": result["assessment"],
-                            "_call_metadata": {
-                                **_extract_call_metadata(response),
-                                "error_type": "not_evaluable",
-                                "judge_retries": judge_retries,
-                            },
+                            "_call_metadata": call_meta(
+                                _extract_call_metadata(response), error_type="not_evaluable"
+                            ),
                             "_raw_output": content,
                             "_judge_prompts_used": provenance,
                         }
                     if not result.get("missing"):
                         return {
                             **result,
-                            "_call_metadata": {
-                                **_extract_call_metadata(response),
-                                "judge_retries": judge_retries,
-                            },
+                            "_call_metadata": call_meta(_extract_call_metadata(response)),
                             "_raw_output": content,
                             "_judge_prompts_used": provenance,
                         }
-                    # A judgment that skips steps is not a judgment: retry.
+                    # A judgment that skips steps is not a judgment: retry,
+                    # and say which keys were missing.
                     last_failure = {
                         "error": True,
                         "error_message": "judge response lacks scored items: "
                         + ", ".join(result["missing"][:20]),
-                        "_call_metadata": {
-                            **_extract_call_metadata(response),
-                            "error_type": "parse_error",
-                            "judge_retries": judge_retries,
-                        },
+                        "_call_metadata": call_meta(
+                            _extract_call_metadata(response), error_type="parse_error"
+                        ),
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
                     if attempt < self.max_retries - 1:
+                        retry_note = checklist_scoring.missing_keys_note(result["missing"])
+                        judge_retries.append(
+                            {
+                                "attempt": attempt + 1,
+                                "error_type": "missing_keys",
+                                "missing": len(result["missing"]),
+                            }
+                        )
                         time.sleep(1)
                     continue
 
@@ -2335,16 +2379,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "total_score": float(total),
                         "total_max": float(total_max),
                         "overall_assessment": str(parsed.get("overall_assessment", "") or ""),
-                        "_call_metadata": {
-                            **_extract_call_metadata(response),
-                            "judge_retries": judge_retries,
-                        },
+                        "_call_metadata": call_meta(_extract_call_metadata(response)),
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
 
-                call_meta = _extract_call_metadata(response)
-                if call_meta.get("truncated"):
+                base_meta = _extract_call_metadata(response)
+                if base_meta.get("truncated"):
                     # finish_reason=length: the JSON never completed. Retrying
                     # the identical call burns quota for an identical cut —
                     # fail fast with an actionable message instead.
@@ -2355,11 +2396,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "(finish_reason=length); raise metric_parameters.max_tokens "
                             "for this metric"
                         ),
-                        "_call_metadata": {
-                            **call_meta,
-                            "error_type": "truncated",
-                            "judge_retries": judge_retries,
-                        },
+                        "_call_metadata": call_meta(base_meta, error_type="truncated"),
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
@@ -2367,11 +2404,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 last_failure = {
                     "error": True,
                     "error_message": "judge response missing parseable scores dict",
-                    "_call_metadata": {
-                        **call_meta,
-                        "error_type": "parse_error",
-                        "judge_retries": judge_retries,
-                    },
+                    "_call_metadata": call_meta(base_meta, error_type="parse_error"),
                     "_raw_output": content,
                     "_judge_prompts_used": provenance,
                 }
@@ -2382,6 +2415,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
             except Exception as e:
                 logger.warning(f"Multi-dim attempt {attempt + 1} failed: {e}")
+                if not counted:
+                    count_usage(None)
                 try:
                     from ai_services.base_service import classify_error_type
                     error_type = classify_error_type(e)
@@ -2390,13 +2425,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 last_failure = {
                     "error": True,
                     "error_message": str(e),
-                    "_call_metadata": {"error_type": error_type, "judge_retries": judge_retries},
+                    "_call_metadata": call_meta({"error_type": error_type}),
                     "_raw_output": "",
                     "_judge_prompts_used": provenance,
                 }
                 if attempt < self.max_retries - 1:
                     time.sleep(1 * (attempt + 1))
 
+        if last_failure is not None:
+            # An earlier attempt's failure is returned: give it the final sum.
+            last_failure["_call_metadata"]["usage_all_attempts"] = dict(usage_all)
         return last_failure
 
     def _format_value(self, value: Any) -> str:

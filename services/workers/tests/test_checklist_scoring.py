@@ -198,6 +198,13 @@ class TestPromptRules:
         for slot in ("{context}", "{ground_truth}", "{bewertungsbogen}", "{prediction}"):
             assert slot in cs.USER_TEMPLATE
 
+    def test_missing_keys_note_names_the_json_paths(self):
+        note = cs.missing_keys_note(["s02_klageart", "s01_rechtsweg.b2", "weichenstellungen.W1"])
+        assert note.startswith("Deiner letzten Antwort fehlten Pflichtangaben. Es fehlen die Schlüssel ")
+        assert "scores.s02_klageart, scores.s01_rechtsweg.anforderungen.b2, weichenstellungen.W1." in note
+        many = cs.missing_keys_note([f"s{i:02d}" for i in range(50)])
+        assert "scores.s39" in many and "scores.s40" not in many and "und 10 weitere" in many
+
     def test_branch_rule_needs_a_justified_path(self):
         prompt = cs.system_prompt("bullet", "branch")
         assert "ein bloß behauptetes anderes Ergebnis ist kein gefolgter Weg" in prompt
@@ -458,6 +465,49 @@ class TestEvaluatorIntegration:
         self._respond(ev, incomplete, _judgment())
         result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
         assert not result.get("error") and ev.ai_service.generate_structured.call_count == 2
+
+    def test_the_retry_names_the_missing_keys_and_meters_every_attempt(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+        incomplete = _judgment()
+        del incomplete["scores"]["s02_klageart"]
+        del incomplete["weichenstellungen"]
+        ev.ai_service.generate_structured.side_effect = [
+            {"success": True, "content": json.dumps(incomplete), "metadata": {"finish_reason": "stop"},
+             "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}},
+            {"success": True, "content": json.dumps(_judgment()), "metadata": {"finish_reason": "stop"},
+             "usage": {"prompt_tokens": 110, "completion_tokens": 30, "total_tokens": 140}},
+        ]
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        first, second = (c.kwargs["prompt"] for c in ev.ai_service.generate_structured.call_args_list)
+        assert "Es fehlen die Schlüssel" not in first
+        assert second.startswith(first.rstrip())
+        assert second.endswith("Es fehlen die Schlüssel scores.s02_klageart, weichenstellungen.W1. "
+                               "Gib die vollständige Antwort erneut aus, mit allen Schlüsseln des Schemas.")
+        meta = result["_call_metadata"]
+        assert meta["usage_all_attempts"] == {"attempts": 2, "attempts_without_usage": 0, "input_tokens": 210,
+                                              "output_tokens": 50, "total_tokens": 260}
+        assert meta["input_tokens"] == 110  # the last attempt's own usage stays
+        assert meta["judge_retries"] == [{"attempt": 1, "error_type": "missing_keys", "missing": 2}]
+        assert result["_judge_prompts_used"]["evaluation_prompt"] == first
+
+    def test_a_failed_retry_series_reports_the_summed_usage(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+        incomplete = _judgment()
+        del incomplete["scores"]["s02_klageart"]
+        ev.ai_service.generate_structured.side_effect = [
+            {"success": True, "content": json.dumps(incomplete), "metadata": {"finish_reason": "stop"},
+             "usage": {"prompt_tokens": 100, "completion_tokens": 20}},
+            RuntimeError("socket closed"),
+            {"success": True, "content": json.dumps(incomplete), "metadata": {"finish_reason": "stop"},
+             "usage": {"prompt_tokens": 100, "completion_tokens": 25, "total_tokens": 125}},
+        ]
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert result["error"] is True
+        assert result["_call_metadata"]["usage_all_attempts"] == {
+            "attempts": 3, "attempts_without_usage": 1, "input_tokens": 200, "output_tokens": 45,
+            "total_tokens": 245}
 
     def test_the_checklist_lane_uses_its_own_template(self, monkeypatch):
         monkeypatch.setattr("time.sleep", lambda *_: None)
