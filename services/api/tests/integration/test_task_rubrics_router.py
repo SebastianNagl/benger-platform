@@ -60,7 +60,7 @@ async def _make_user(db, *, superadmin=False) -> User:
     return u
 
 
-async def _make_project(db, owner, *, title="Polizeirecht Übungsklausur") -> Project:
+async def _make_project(db, owner, *, title="Zivilrecht Übungsklausur") -> Project:
     p = Project(
         id=str(uuid.uuid4()),
         title=title,
@@ -90,10 +90,10 @@ def _structure():
     return {
         "version": 1,
         "nodes": [
-            {"id": "x1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": "insgesamt 70 BE"},
-            {"id": "x2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung des Verwaltungsrechtswegs", "max_score": 70, "key": "client-key"},
-            {"id": "x3", "level": 0, "kind": "section", "label": "B.", "title": "Begründetheit"},
-            {"id": "x4", "level": 1, "kind": "step", "label": "I.", "title": "Obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Vergangenheitsform!"]},
+            {"id": "x1", "level": 0, "kind": "section", "label": "A.", "title": "Anspruch entstanden", "note": "insgesamt 70 BE"},
+            {"id": "x2", "level": 1, "kind": "step", "label": "I.", "title": "Wirksamer Kaufvertrag", "max_score": 70, "key": "client-key"},
+            {"id": "x3", "level": 0, "kind": "section", "label": "B.", "title": "Rechtsfolge"},
+            {"id": "x4", "level": 1, "kind": "step", "label": "I.", "title": "Obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Gutachtenstil!"]},
         ],
     }
 
@@ -247,10 +247,10 @@ class TestCreate:
         assert body["created_by"] == owner.id
         steps = [n for n in body["structure"]["nodes"] if n["kind"] == "step"]
         # keys regenerated server-side (client key ignored), ids normalized
-        assert [s["key"] for s in steps] == ["s01_eroeffnung_des_verwaltungsrechtswegs", "s02_obersatz"]
+        assert [s["key"] for s in steps] == ["s01_wirksamer_kaufvertrag", "s02_obersatz"]
         assert [n["id"] for n in body["structure"]["nodes"]] == ["n1", "n2", "n3", "n4"]
         # JSONB does not keep key order (the sNN_ ordinal prefix is the sort key)
-        assert set(body["criteria"]) == {"s01_eroeffnung_des_verwaltungsrechtswegs", "s02_obersatz"}
+        assert set(body["criteria"]) == {"s01_wirksamer_kaufvertrag", "s02_obersatz"}
         assert body["criteria"]["s02_obersatz"]["max_score"] == 2.5
         assert "Schwerpunkt der Klausur" in body["criteria"]["s02_obersatz"]["rubric"]
         assert body["grade_scale"] == SCALE_72
@@ -379,7 +379,7 @@ class TestUpdate:
         assert body["id"] == rubric.id and body["replaced_rubric_id"] is None
         assert body["source"] == "llm_edited"
         assert body["total_points"] == 72.5
-        assert set(body["criteria"]) == {"s01_eroeffnung_des_verwaltungsrechtswegs", "s02_obersatz"}
+        assert set(body["criteria"]) == {"s01_wirksamer_kaufvertrag", "s02_obersatz"}
         assert "rendered_text" not in body["generation_metadata"]
         assert body["generation_metadata"]["rendered_text_invalidated_by_edit"] is True
         assert body["generation_metadata"]["contract_version"] == 3
