@@ -1,4 +1,4 @@
-.PHONY: derive analyze analyze-cslaw pull render render-cslaw clean
+.PHONY: derive analyze analyze-cslaw analyze-d2 pull render render-cslaw clean
 
 # File-based derivation only — works without the dev stack.
 derive:
@@ -50,6 +50,14 @@ render:
 
 # The CSLAW draft (ACM acmsmall, xelatex). Needs the benger-transformation
 # jupyter kernel (see README) and TinyTeX with acmart.
+# D2 summaries: need the git-ignored pilot rows and D2 pack (local data
+# root, scripts/local_config.py); they write aggregates only.
+analyze-d2:
+	uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes || true
+	uv run python scripts/analysis/compute_d2_gate_summary.py
+	uv run python scripts/analysis/compute_d2_generation_summary.py
+	uv run python scripts/analysis/compute_d2_validity.py
+
 render-cslaw: analyze-cslaw
 	cd cslaw && uv run quarto render manuscript.qmd
 
