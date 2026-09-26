@@ -10,8 +10,16 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-26',
     audience: 'both',
     text: {
-      de: 'Die KI-Korrektur mit Bewertungsbogen erkennt korrekte Zitate aus der Bearbeitung jetzt auch an, wenn sie mehrere Stellen zusammenfassen oder der Text Silbentrennungen enthält. Zitate, die eine Verneinung oder eine Zahl der Bearbeitung verändern, verwirft sie. Richtige Ausführungen unter einer anderen Überschrift derselben Aufgabe zählen jetzt für den passenden Schritt.',
-      en: 'AI grading with a grading sheet now accepts correct quotes from the answer that combine several passages or contain hyphenation breaks. It rejects quotes that change a negation or a number of the answer. Correct work under another heading of the same question now counts for the matching step.',
+      de: 'Der Bewertungsbogen in den Aufgabendaten nennt jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert.',
+      en: 'The grading sheet in the task data now names the grade key the exam is graded with. Until now it showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited.',
+    },
+  },
+  {
+    date: '2026-09-26',
+    audience: 'both',
+    text: {
+      de: 'Die KI-Korrektur mit Bewertungsbogen prüft Zitate aus der Bearbeitung strenger auf Verneinungen, gegenteilige Ergebnisse und Zahlen. Zitate, die mehrere Stellen zusammenfassen oder über eine Silbentrennung laufen, erkennt sie jetzt an. Richtige Ausführungen unter einer anderen Überschrift derselben Aufgabe zählen für den passenden Schritt.',
+      en: 'AI grading with a grading sheet checks quotes from the answer more strictly for negations, contrary results and numbers. It now accepts quotes that combine several passages or run across a hyphenation break. Correct work under another heading of the same question counts for the matching step.',
     },
   },
   {
