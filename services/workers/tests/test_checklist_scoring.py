@@ -468,6 +468,29 @@ class TestDiagnosisAndSecondExamAlignment:
         assert out["assessment"]["assessment_status"] == "review_required"
         assert any("P1" in w for w in out["assessment"]["validation_warnings"])
 
+    def test_two_work_results_with_the_renamed_keys(self):
+        # The generator's current spec: arbeitsergebnisse on top, arbeitsergebnis_id
+        # per step, and a step-level Hilfsgutachten marker with its "ebene".
+        spec = _spec()
+        spec["arbeitsergebnisse"] = [
+            {"id": "P1", "bezeichnung": "Gutachten", "art": "gutachten", "step_keys": ["s01_rechtsweg"]},
+            {"id": "P2", "bezeichnung": "Urteil", "art": "urteil", "step_keys": ["s02_klageart", "s03_stoerer"]}]
+        spec["steps"]["s01_rechtsweg"]["arbeitsergebnis_id"] = "P1"
+        for k in ("s02_klageart", "s03_stoerer"):
+            spec["steps"][k]["arbeitsergebnis_id"] = "P2"
+        spec["steps"]["s02_klageart"]["hilfsgutachten"] = {
+            "abschnitt_id": "A2", "ebene": "schritt", "funktion": "praemissenwechsel",
+            "ausloeser": "die Klage bereits unzulässig ist", "ausloeser_step_keys": ["s01_rechtsweg"]}
+        out = cs.finalize(_judgment(), spec, "bullet", "branch", "declared", _verify)
+        results = out["checklist"]["arbeitsergebnisse"]
+        assert results["P1"] == {"points": pytest.approx(15.0), "max": 20.0}
+        # s03 is counted on the declared path; a path's own steps would go to P2 too.
+        assert results["P2"] == {"points": pytest.approx(30.0), "max": 80.0}
+        assert "s02_klageart: Klageart (Anforderungen b1 bis b1; hilfsgutachtlich geschuldet)" in (
+            cs.expected_output_note(spec, "bullet", "branch"))
+        declared_l1 = cs.finalize(_judgment("W1-L1"), spec, "bullet", "branch", "declared", _verify)
+        assert declared_l1["checklist"]["arbeitsergebnisse"]["P2"] == {"points": pytest.approx(25.0), "max": 80.0}
+
     @pytest.mark.parametrize("key", ["arbeitsergebnis_id", "arbeitsprodukt_id"])
     def test_work_results_match_exactly(self, key):
         spec = _spec()
