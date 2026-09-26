@@ -882,7 +882,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
         Opt-in (research lane, see :mod:`ml_evaluation.checklist_scoring`):
         the judge marks requirement bullets, scores steps, or rates steps
-        (``score_unit``), and Weichen are scored per path or onto the
+        (``score_unit``), and Weichenstellungen are scored per path or onto the
         replaced steps (``alternatives``). Code computes every point. Without
         a bound rubric the spec's primary path becomes the criteria.
         """

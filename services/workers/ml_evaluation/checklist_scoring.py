@@ -1,7 +1,7 @@
 """Checklist scoring for the Bewertungsbogen judge (``llm_judge_rubric``).
 
 A checklist rubric carries, next to its flat criteria, a ``checklist_spec``:
-per step the requirement bullets with their shares, and optional Weichen
+per step the requirement bullets with their shares, and optional Weichenstellungen
 (forks where a defensible other solution path replaces some steps with its
 own). This module turns such a spec into the judge's response schema and
 instructions, and turns the judge's answer into points. The judge never
@@ -18,10 +18,10 @@ Score units (what the judge returns per step):
             the step's maximum in code (the hierarchical-percentage
             paradigm of some expert sheets).
 
-Alternatives (how Weichen are scored):
+Alternatives (how Weichenstellungen are scored):
 
 ``branch``   every path's steps are scored; the judge declares the path it
-             followed per Weiche. Two totals come out of one call: the
+             followed per Weichenstellung. Two totals come out of one call: the
              declared path, and the best path.
 ``replace``  only the primary path is scored; the rendered sheet tells the
              judge to put alternative performance onto the replaced steps.
@@ -42,7 +42,7 @@ ALTERNATIVES = ("branch", "replace")
 TOTAL_MODES = ("declared", "best")
 STATUS_CREDIT = {0: 0.0, 1: 0.5, 2: 1.0}
 RATING_MAX = 18
-PRIMARY = "primary"
+PRIMARY = "musterloesung"
 
 # OpenAI strict mode caps a schema at 1,000 enum values and 5,000 properties
 # (mirrors llm_judge_evaluator.RUBRIC_SCHEMA_MAX_*).
@@ -66,14 +66,14 @@ def validate_options(score_unit: str, alternatives: str, total_mode: str) -> Non
 
 def scored_steps(spec: Dict[str, Any], alternatives: str) -> List[Tuple[str, Dict[str, Any]]]:
     """The steps the judge scores, in sheet order: the primary path, then
-    (branch mode) every Zweig's steps in Weiche order."""
+    (branch mode) every Lösungsweg's steps in Weichenstellung order."""
     steps = [(key, spec["steps"][key]) for key in spec.get("order") or []]
     if alternatives == "branch":
-        for weiche in spec.get("weichen") or []:
-            for zweig in weiche.get("zweige") or []:
-                if zweig.get("id") == PRIMARY:
+        for weichenstellung in spec.get("weichenstellungen") or []:
+            for loesungsweg in weichenstellung.get("loesungswege") or []:
+                if loesungsweg.get("id") == PRIMARY:
                     continue
-                steps.extend((key, spec["branch_steps"][key]) for key in zweig.get("step_keys") or [])
+                steps.extend((key, spec["loesungsweg_steps"][key]) for key in loesungsweg.get("step_keys") or [])
     return steps
 
 
@@ -134,14 +134,14 @@ _PLACEMENT_RULE = (
 )
 
 _BRANCH_RULE = (
-    "An jeder Weiche des Bewertungsbogens stellst du im Feld \"weichen\" fest, welchem Weg die Bearbeitung "
-    "folgt (\"gefolgter_zweig\": \"primary\" für den Weg der Musterlösung oder die id des anderen Wegs), "
+    "An jeder Weichenstellung des Bewertungsbogens stellst du im Feld \"weichenstellungen\" fest, welchem Weg die Bearbeitung "
+    "folgt (\"gefolgter_loesungsweg\": \"musterloesung\" für den Lösungsweg der Musterlösung oder die id des anderen Lösungswegs), "
     "mit einem wörtlichen Zitat. Bewerte trotzdem die Schritte aller Wege. Die Schritte eines Wegs, dem die "
     "Bearbeitung nicht folgt, erhalten dabei in der Regel 0 Punkte; ihr Fehlen ist keine Auslassung."
 )
 _REPLACE_RULE = (
-    "Folgt die Bearbeitung an einer Weiche einem anderen vertretbaren Weg, bewerte die ersetzten Schritte "
-    "nach den Anforderungen dieses Wegs. Das Fehlen der dadurch entbehrlich gewordenen Schritte ist keine Auslassung."
+    "Folgt die Bearbeitung an einer Weichenstellung einem anderen vertretbaren Lösungsweg, bewerte die ersetzten Schritte "
+    "nach den Anforderungen dieses Lösungswegs. Das Fehlen der dadurch entbehrlich gewordenen Schritte ist keine Auslassung."
 )
 _UNFORESEEN_RULE = (
     "Vertritt die Bearbeitung einen vertretbaren Lösungsweg, den der Bewertungsbogen nicht vorsieht, bewerte "
@@ -239,16 +239,16 @@ def build_schema(spec: Dict[str, Any], score_unit: str, alternatives: str) -> Di
         step_props[key] = _closed(body)
 
     top: Dict[str, Any] = {"scores": _closed(step_props)}
-    if alternatives == "branch" and spec.get("weichen"):
-        weichen = {}
-        for weiche in spec["weichen"]:
-            ids = [z["id"] for z in weiche.get("zweige") or []]
-            weichen[weiche["id"]] = _closed({
-                "gefolgter_zweig": {"type": "string", "enum": ids},
+    if alternatives == "branch" and spec.get("weichenstellungen"):
+        weichenstellungen = {}
+        for weichenstellung in spec["weichenstellungen"]:
+            ids = [z["id"] for z in weichenstellung.get("loesungswege") or []]
+            weichenstellungen[weichenstellung["id"]] = _closed({
+                "gefolgter_loesungsweg": {"type": "string", "enum": ids},
                 "evidence": {"type": "string"},
                 "reason": {"type": "string"},
             })
-        top["weichen"] = _closed(weichen)
+        top["weichenstellungen"] = _closed(weichenstellungen)
     top["overall_assessment"] = {"type": "string"}
     return _closed(top)
 
@@ -287,10 +287,10 @@ def finalize(
     """Turn a parsed judgment into points.
 
     Returns ``{"missing": [...]}`` when scored steps (or their bullets, or a
-    Weiche declaration) are absent, so the caller can retry. Otherwise:
+    Weichenstellung declaration) are absent, so the caller can retry. Otherwise:
     ``scores`` (per step: score, max, reason, evidence details),
     ``total_score`` (by ``total_mode``), and ``checklist`` with every total,
-    the Weiche decisions and the counts the analysis reads.
+    the Weichenstellung decisions and the counts the analysis reads.
     """
     scores_in = parsed.get("scores") if isinstance(parsed.get("scores"), dict) else {}
     steps = scored_steps(spec, alternatives)
@@ -305,11 +305,11 @@ def finalize(
             for i, _ in enumerate(step.get("anforderungen") or [], start=1):
                 if not isinstance(bullets.get(f"b{i}"), dict):
                     missing.append(f"{key}.b{i}")
-    weichen_in = parsed.get("weichen") if isinstance(parsed.get("weichen"), dict) else {}
+    weichenstellungen_in = parsed.get("weichenstellungen") if isinstance(parsed.get("weichenstellungen"), dict) else {}
     if alternatives == "branch":
-        for weiche in spec.get("weichen") or []:
-            if not isinstance(weichen_in.get(weiche["id"]), dict):
-                missing.append(f"weichen.{weiche['id']}")
+        for weichenstellung in spec.get("weichenstellungen") or []:
+            if not isinstance(weichenstellungen_in.get(weichenstellung["id"]), dict):
+                missing.append(f"weichenstellungen.{weichenstellung['id']}")
     if missing:
         return {"missing": missing}
 
@@ -369,33 +369,33 @@ def finalize(
         raw_points[key] = points
         out[key] = detail
 
-    # Totals: steps outside any Weiche always count; per Weiche either the
+    # Totals: steps outside any Weichenstellung always count; per Weichenstellung either the
     # declared path, the best path, or (replace) the primary steps as scored.
-    in_weiche = {k for w in spec.get("weichen") or [] for z in w.get("zweige") or [] for k in z.get("step_keys") or []}
-    base = sum(p for k, p in raw_points.items() if k not in in_weiche)
+    in_weichenstellung = {k for w in spec.get("weichenstellungen") or [] for z in w.get("loesungswege") or [] for k in z.get("step_keys") or []}
+    base = sum(p for k, p in raw_points.items() if k not in in_weichenstellung)
     declared_total, best_total = base, base
-    counted = [k for k, _ in steps if k not in in_weiche]  # keys behind the declared total
+    counted = [k for k, _ in steps if k not in in_weichenstellung]  # keys behind the declared total
     decisions: Dict[str, Any] = {}
-    for weiche in spec.get("weichen") or []:
-        zweige = weiche.get("zweige") or []
+    for weichenstellung in spec.get("weichenstellungen") or []:
+        loesungswege = weichenstellung.get("loesungswege") or []
         if alternatives == "replace":
-            primary = next(z for z in zweige if z["id"] == PRIMARY)
+            primary = next(z for z in loesungswege if z["id"] == PRIMARY)
             value = sum(raw_points.get(k, 0.0) for k in primary["step_keys"])
             declared_total += value
             best_total += value
             counted += primary["step_keys"]
             continue
-        path_points = {z["id"]: sum(raw_points.get(k, 0.0) for k in z.get("step_keys") or []) for z in zweige}
-        decision = weichen_in[weiche["id"]]
-        declared = decision.get("gefolgter_zweig")
+        path_points = {z["id"]: sum(raw_points.get(k, 0.0) for k in z.get("step_keys") or []) for z in loesungswege}
+        decision = weichenstellungen_in[weichenstellung["id"]]
+        declared = decision.get("gefolgter_loesungsweg")
         if declared not in path_points:
             declared = PRIMARY
         evidence = decision.get("evidence") if isinstance(decision.get("evidence"), str) else ""
         best = max(path_points, key=lambda z: (path_points[z], z == PRIMARY))
         declared_total += path_points[declared]
         best_total += path_points[best]
-        counted += next(z["step_keys"] for z in zweige if z["id"] == declared)
-        decisions[weiche["id"]] = {
+        counted += next(z["step_keys"] for z in loesungswege if z["id"] == declared)
+        decisions[weichenstellung["id"]] = {
             "declared": declared, "best": best, "path_points": path_points,
             "evidence": evidence, "evidence_verified": verify(evidence) if evidence.strip() else False,
             "reason": str(decision.get("reason") or ""),
@@ -413,7 +413,7 @@ def finalize(
             "total_mode": total_mode,
             "totals": totals,
             "totals_unrounded": {"declared": declared_total, "best": best_total},
-            "weichen": decisions,
+            "weichenstellungen": decisions,
             "zeroed_items": zeroed,
             "abweichender_weg_steps": deviating,
             "fehlplatziert_steps": misplaced,

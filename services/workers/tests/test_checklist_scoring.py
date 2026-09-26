@@ -1,7 +1,7 @@
 """Checklist scoring for the Bewertungsbogen judge.
 
 The judge marks requirement bullets (or scores / rates steps) and declares
-the path it followed at each Weiche; code computes every point, verifies
+the path it followed at each Weichenstellung; code computes every point, verifies
 every quote, and sums unrounded values before one half-up rounding.
 """
 
@@ -21,13 +21,13 @@ ANSWER = (
 
 
 def _spec():
-    """Two primary steps outside any Weiche, one replaced step, one branch step."""
-    def step(sid, name, mx, shares, weiche=None):
+    """Two primary steps outside any Weichenstellung, one replaced step, one branch step."""
+    def step(sid, name, mx, shares, weichenstellung=None):
         return {
             "step_id": sid, "name": name, "max_score": mx, "keine_punkte": "nichts",
             "anforderungen": [{"key": f"k_{sid}__b{i}", "id": f"{sid}-{i}", "text": f"A{i}", "share": sh}
                               for i, sh in enumerate(shares, start=1)],
-            "weiche": weiche,
+            "weichenstellung": weichenstellung,
         }
     return {
         "version": 1, "total_points": 100.0,
@@ -35,15 +35,15 @@ def _spec():
         "steps": {
             "s01_rechtsweg": step("S1", "Rechtsweg", 20.0, [0.5, 0.5]),
             "s02_klageart": step("S2", "Klageart", 30.0, [1.0]),
-            "s03_stoerer": step("S3", "Störer", 50.0, [0.6, 0.4], {"weiche_id": "W1", "zweig_id": "primary"}),
+            "s03_stoerer": step("S3", "Störer", 50.0, [0.6, 0.4], {"id": "W1", "loesungsweg": "musterloesung"}),
         },
-        "branch_steps": {
-            "s04_nichtstoerer": step("W1-Z1-S1", "Nichtstörer", 50.0, [1.0], {"weiche_id": "W1", "zweig_id": "W1-Z1"}),
+        "loesungsweg_steps": {
+            "s04_nichtstoerer": step("W1-L1-S1", "Nichtstörer", 50.0, [1.0], {"id": "W1", "loesungsweg": "W1-L1"}),
         },
-        "weichen": [{
+        "weichenstellungen": [{
             "id": "W1", "bezeichnung": "Zweckveranlasser", "budget": 50.0,
-            "zweige": [{"id": "primary", "step_keys": ["s03_stoerer"]},
-                       {"id": "W1-Z1", "step_keys": ["s04_nichtstoerer"]}],
+            "loesungswege": [{"id": "musterloesung", "step_keys": ["s03_stoerer"]},
+                       {"id": "W1-L1", "step_keys": ["s04_nichtstoerer"]}],
         }],
     }
 
@@ -58,7 +58,7 @@ def _verify(quote):
     return bool(quote) and quote in ANSWER
 
 
-def _judgment(declared="primary"):
+def _judgment(declared="musterloesung"):
     return {
         "scores": {
             "s01_rechtsweg": _bullets((2, "Verwaltungsrechtsweg ist nach § 40 I 1 VwGO eröffnet"),
@@ -67,7 +67,7 @@ def _judgment(declared="primary"):
             "s03_stoerer": _bullets((2, "H ist als Zweckveranlasser Störer"), (2, "erfunden, steht nicht da")),
             "s04_nichtstoerer": _bullets((1, "Die Kunstfreiheit ist betroffen")),
         },
-        "weichen": {"W1": {"gefolgter_zweig": declared, "evidence": "als Zweckveranlasser Störer", "reason": "r"}},
+        "weichenstellungen": {"W1": {"gefolgter_loesungsweg": declared, "evidence": "als Zweckveranlasser Störer", "reason": "r"}},
         "overall_assessment": "ok",
     }
 
@@ -79,14 +79,14 @@ class TestSchema:
         assert list(steps) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer", "s04_nichtstoerer"]
         b1 = steps["s01_rechtsweg"]["properties"]["anforderungen"]["properties"]["b1"]
         assert b1["properties"]["status"] == {"type": "integer", "enum": [0, 1, 2]}
-        assert schema["properties"]["weichen"]["properties"]["W1"]["properties"]["gefolgter_zweig"]["enum"] == [
-            "primary", "W1-Z1"]
+        assert schema["properties"]["weichenstellungen"]["properties"]["W1"]["properties"]["gefolgter_loesungsweg"]["enum"] == [
+            "musterloesung", "W1-L1"]
         assert "total_score" not in schema["properties"]  # code sums
 
     def test_replace_schema_has_only_the_primary_path(self):
         schema = cs.build_schema(_spec(), "bullet", "replace")
         assert list(schema["properties"]["scores"]["properties"]) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
-        assert "weichen" not in schema["properties"]
+        assert "weichenstellungen" not in schema["properties"]
 
     def test_step_and_rating_units(self):
         step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"]
@@ -136,24 +136,24 @@ class TestFinalize:
         ck = out["checklist"]
         assert ck["totals"]["declared"] == 45.0          # 15 + 0 + 30
         assert ck["totals"]["best"] == 45.0              # primary 30 beats branch 25
-        assert ck["weichen"]["W1"]["declared"] == "primary"
+        assert ck["weichenstellungen"]["W1"]["declared"] == "musterloesung"
         assert ck["zeroed_items"] == 1
         assert out["total_score"] == 45.0 and out["total_max"] == 100.0
 
     def test_declared_branch_counts_that_path_and_best_can_differ(self):
-        out = cs.finalize(_judgment("W1-Z1"), _spec(), "bullet", "branch", "declared", _verify)
+        out = cs.finalize(_judgment("W1-L1"), _spec(), "bullet", "branch", "declared", _verify)
         assert out["checklist"]["totals"] == {"declared": 40.0, "best": 45.0}
-        best = cs.finalize(_judgment("W1-Z1"), _spec(), "bullet", "branch", "best", _verify)
+        best = cs.finalize(_judgment("W1-L1"), _spec(), "bullet", "branch", "best", _verify)
         assert best["total_score"] == 45.0
 
     def test_unknown_declaration_falls_back_to_primary(self):
-        out = cs.finalize(_judgment("W9-Z9"), _spec(), "bullet", "branch", "declared", _verify)
-        assert out["checklist"]["weichen"]["W1"]["declared"] == "primary"
+        out = cs.finalize(_judgment("W9-L9"), _spec(), "bullet", "branch", "declared", _verify)
+        assert out["checklist"]["weichenstellungen"]["W1"]["declared"] == "musterloesung"
 
     def test_replace_mode_counts_the_primary_steps(self):
         judgment = _judgment()
         del judgment["scores"]["s04_nichtstoerer"]
-        del judgment["weichen"]
+        del judgment["weichenstellungen"]
         out = cs.finalize(judgment, _spec(), "bullet", "replace", "declared", _verify)
         assert out["checklist"]["totals"] == {"declared": 45.0, "best": 45.0}
 
@@ -161,9 +161,9 @@ class TestFinalize:
         judgment = _judgment()
         del judgment["scores"]["s02_klageart"]
         del judgment["scores"]["s01_rechtsweg"]["anforderungen"]["b2"]
-        del judgment["weichen"]
+        del judgment["weichenstellungen"]
         out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
-        assert set(out["missing"]) == {"s02_klageart", "s01_rechtsweg.b2", "weichen.W1"}
+        assert set(out["missing"]) == {"s02_klageart", "s01_rechtsweg.b2", "weichenstellungen.W1"}
 
     def test_totals_round_half_up_once(self):
         spec = _spec()
@@ -218,8 +218,8 @@ class TestEvaluatorIntegration:
         assert result["total_score"] == 45.0
         kwargs = ev.ai_service.generate_structured.call_args.kwargs
         assert "Bewerte jede Anforderung" in kwargs["system_prompt"]
-        assert "gefolgter_zweig" in kwargs["prompt"] and "SCHLÜSSEL FÜR DIE ANTWORT" in kwargs["prompt"]
-        assert "weichen" in kwargs["json_schema"]["properties"]
+        assert "gefolgter_loesungsweg" in kwargs["prompt"] and "SCHLÜSSEL FÜR DIE ANTWORT" in kwargs["prompt"]
+        assert "weichenstellungen" in kwargs["json_schema"]["properties"]
         assert result["_judge_prompts_used"]["mode"] == "checklist"
 
     def test_incomplete_judgment_is_retried(self, monkeypatch):
