@@ -183,3 +183,43 @@ class TestVerifyJavaScriptApi:
         assert seb.verify_seb_request(headers, PATH, "", cfg).code == (
             seb.CODE_SEB_VERSION_NOT_ALLOWED
         )
+
+    def test_exam_page_paths_limit_js_proofs_to_the_exam(self):
+        paths = seb.exam_page_paths("p1")
+        headers = {"x-benger-seb-ck": _h(self.PAGE, CK), "x-benger-seb-url": self.PAGE}
+        assert seb.verify_seb_request(headers, PATH, "", _cfg(), paths).ok
+
+        label = "https://what-a-benger.net/projects/p1/label?task=t1"
+        headers = {"x-benger-seb-ck": _h(label, CK), "x-benger-seb-url": label}
+        assert seb.verify_seb_request(headers, PATH, "", _cfg(), paths).ok
+
+        # A hash taken on any other page, or another exam's page, is no proof.
+        for other in (
+            "https://what-a-benger.net/dashboard",
+            "https://what-a-benger.net/student/exams/p2",
+            "https://what-a-benger.net/projects/p1",
+        ):
+            headers = {"x-benger-seb-ck": _h(other, CK), "x-benger-seb-url": other}
+            result = seb.verify_seb_request(headers, PATH, "", _cfg(), paths)
+            assert result.code == seb.CODE_SEB_REQUIRED, other
+
+
+def test_import_keeps_only_organizer_choices():
+    from import_stream import imported_seb_config
+
+    exported = {
+        "base_url": "https://staging.what-a-benger.net",
+        "settings": {"startURL": "https://staging.what-a-benger.net/x"},
+        "generated_config_key": CK,
+        "config_token": "tok",
+        "extra_hosts": ["lms.example.org"],
+        "browser_exam_keys": [{"key": BEK, "label": "SEB 3.9"}],
+        "allow_virtual_machine": True,
+    }
+    assert imported_seb_config(exported) == {
+        "extra_hosts": ["lms.example.org"],
+        "browser_exam_keys": [{"key": BEK, "label": "SEB 3.9"}],
+        "allow_virtual_machine": True,
+    }
+    assert imported_seb_config(None) is None
+    assert imported_seb_config("x") is None

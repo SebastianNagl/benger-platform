@@ -524,6 +524,38 @@ linked exam. Linking and relinking is for the course teachers and the admins.
 The exam's project page lists its LMS activities in the sidebar, below the
 quick actions.
 
+### Exams in Safe Exam Browser
+
+An exam can require [Safe Exam Browser](https://safeexambrowser.org) (SEB).
+SEB is a locked-down browser for Windows, macOS and iPad. During the exam it
+blocks other apps and websites. The database fields (migration `109`) and the
+server-side check are part of this repository. Generating the SEB
+configuration file and the settings screen are in the commercial edition.
+
+For an exam linked from an LMS:
+
+- **Start URL.** Set the LMS course page as the start URL. SEB keeps its own
+  cookies, and LMS students have no BenGER password. They sign in to the LMS
+  inside SEB and launch the activity from there. Saving the SEB settings
+  without a start URL is refused for linked exams.
+- **URL filter.** The generated configuration allows the BenGER hosts and
+  their subdomains. The start URL's host is added automatically. Add any other
+  host the students need, for example the LMS's single sign-on host.
+- **Launch.** The activity must open in a new window (see [§9](#9-requirements-on-your-lms)).
+  SEB then shows the consent page and the exam in the same kiosk window.
+- **Proof.** Every exam request carries a hash of the SEB configuration.
+  SEB for Windows sends it as HTTP headers. SEB for macOS and iOS exposes it
+  through its JavaScript API, and the BenGER frontend forwards it. Requests
+  without a valid proof get `403` with the code `seb_required`. With pinned
+  SEB versions, other builds get `seb_version_not_allowed`.
+- **After the exam.** A student who submitted a task can read it, the grade
+  and the correction in a normal browser. Grades travel back to the LMS as
+  usual.
+
+SEB raises the bar, but it is not remote proctoring. Anyone holding the
+configuration file can compute the configuration hash. Supervision in the room
+stays necessary. Students on Linux or Chromebooks need a loaner device.
+
 ## 8. Identity, data protection and what is stored
 
 ### 8.1 Accounts and names

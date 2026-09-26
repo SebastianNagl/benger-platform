@@ -3035,7 +3035,11 @@ def _seb_403(code: str) -> HTTPException:
 
 def _seb_result(request, project) -> "seb.SebCheck":
     return seb.verify_seb_request(
-        request.headers, request.url.path, request.url.query, project.seb_config
+        request.headers,
+        request.url.path,
+        request.url.query,
+        project.seb_config,
+        seb.exam_page_paths(str(project.id)),
     )
 
 
@@ -3087,7 +3091,7 @@ def enforce_seb(
     """Sync: raise 403 unless the request may touch this SEB exam.
 
     No-op when the project does not require SEB, for editors, and for the
-    attempted tier (read-only, own submissions only). ``read_task_id`` marks a
+    attempted tier unless it reads a task it never submitted. ``read_task_id`` marks a
     read of one task's content: a task the user already submitted stays
     readable outside SEB, so results and corrections open anywhere. Writes
     pass ``None`` and are always checked. Lists of tasks use
@@ -3095,7 +3099,9 @@ def enforce_seb(
     """
     if project is None or not getattr(project, "seb_required", False):
         return
-    if tier == TIER_ATTEMPTED:
+    # The attempted tier is read-only; a task read still needs an own
+    # submission on that task (leaving and rejoining must not unlock others).
+    if tier == TIER_ATTEMPTED and read_task_id is None:
         return
     if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
         db, user, project.id
@@ -3120,7 +3126,7 @@ async def enforce_seb_async(
     """Async twin of :func:`enforce_seb`."""
     if project is None or not getattr(project, "seb_required", False):
         return
-    if tier == TIER_ATTEMPTED:
+    if tier == TIER_ATTEMPTED and read_task_id is None:
         return
     if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
         db, user, project.id

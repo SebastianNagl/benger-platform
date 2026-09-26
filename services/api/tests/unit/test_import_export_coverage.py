@@ -30,6 +30,15 @@ def _mock_request(headers=None):
     return r
 
 
+@pytest.fixture(autouse=True)
+def _caller_can_edit():
+    """These tests stub access with check_project_accessible. The editors-only
+    rule of the bulk exports has its own integration test
+    (test_seb_enforcement.py::test_bulk_exports_are_for_editors)."""
+    with patch("routers.projects.import_export.check_user_can_edit_project", return_value=True):
+        yield
+
+
 def _mock_user(is_superadmin=False, user_id="user-123"):
     """Create a mock user."""
     user = Mock()

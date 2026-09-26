@@ -8,6 +8,7 @@ from .blinding import (
     visible_keys_match,
 )
 from routers.projects.deps import ProjectAccess, require_project_access
+from sqlalchemy import exists
 from services.member_privacy import NameMask, project_name_mask
 
 
@@ -557,16 +558,22 @@ async def get_next_task(
     # Outside SEB, a user with nothing left to do gets the normal "done"
     # answer instead of a 403.
     if not await seb_request_allowed_async(db, current_user, project, request, tier=tier):
-        total = (
-            await db.execute(
-                select(func.count(Task.id)).where(Task.project_id == project_id)
+        # The user's work: their assignments in manual/auto mode, else all tasks.
+        own_work = [Task.project_id == project_id]
+        if project.assignment_mode in ("manual", "auto"):
+            own_work.append(
+                exists().where(
+                    TaskAssignment.task_id == Task.id,
+                    TaskAssignment.user_id == str(current_user.id),
+                )
             )
+        total = (
+            await db.execute(select(func.count(Task.id)).where(*own_work))
         ).scalar() or 0
         done = (
             await db.execute(
                 select(func.count(Task.id)).where(
-                    Task.project_id == project_id,
-                    own_active_annotation_exists(current_user.id),
+                    *own_work, own_active_annotation_exists(current_user.id)
                 )
             )
         ).scalar() or 0

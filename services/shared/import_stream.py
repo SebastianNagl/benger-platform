@@ -123,6 +123,23 @@ _VALUE_OPENING_EVENTS = frozenset(
     {"start_map", "start_array", "null", "boolean", "number", "string"}
 )
 
+# seb_config keys tied to the exporting deployment (see imported_seb_config).
+_SEB_HOST_BOUND_KEYS = frozenset(
+    {"config_token", "base_url", "settings", "generated_config_key"}
+)
+
+
+def imported_seb_config(value: Any) -> Optional[dict]:
+    """The Safe Exam Browser settings an imported copy starts with.
+
+    Only the organizer's choices carry over. The download token is per
+    project, and the base URL, generated .seb settings and their Config Key
+    name the source host; re-enabling the gate rebuilds them for this one.
+    """
+    if not isinstance(value, dict):
+        return None
+    return {k: v for k, v in value.items() if k not in _SEB_HOST_BOUND_KEYS}
+
 
 def _add_catchall_judge_run(db, evaluation_id: str) -> str:
     """Add one synthetic catch-all judge run for an evaluation run, return its id.
@@ -2453,16 +2470,7 @@ def _create_imported_project(
         # The accepted Config Key is computed over a .seb file whose URLs name
         # the source host, so a re-enable (which regenerates it) is required.
         seb_required=False,
-        # The download token is per project: a copy mints its own on re-enable.
-        seb_config=(
-            {
-                k: v
-                for k, v in project_data["seb_config"].items()
-                if k != "config_token"
-            }
-            if isinstance(project_data.get("seb_config"), dict)
-            else None
-        ),
+        seb_config=imported_seb_config(project_data.get("seb_config")),
         # Kind + per-project settings. Older exports lack these keys, so every
         # read falls back to the column default (also for an explicit null on
         # a NOT NULL column).

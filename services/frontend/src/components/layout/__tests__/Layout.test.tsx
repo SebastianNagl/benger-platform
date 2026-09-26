@@ -36,8 +36,10 @@ jest.mock('framer-motion', () => ({
 }))
 
 // Mock Next.js hooks
+const mockReplace = jest.fn()
 jest.mock('next/navigation', () => ({
   usePathname: jest.fn(),
+  useRouter: () => ({ replace: mockReplace }),
 }))
 
 // Mock hooks
@@ -119,6 +121,32 @@ describe('Layout', () => {
     } else {
       process.env.NEXT_PUBLIC_BENGER_EDITION = originalEdition
     }
+  })
+
+  describe('Safe Exam Browser navigation lock', () => {
+    afterEach(() => {
+      delete (window as any).SafeExamBrowser
+      window.sessionStorage.clear()
+    })
+
+    it('sends an SEB session that leaves its exam back to the exam page', () => {
+      ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+      mockUsePathname.mockReturnValue('/projects/p1/label')
+      const { rerender } = render(<Layout {...defaultProps} />)
+      expect(mockReplace).not.toHaveBeenCalled()
+
+      mockUsePathname.mockReturnValue('/dashboard')
+      rerender(<Layout {...defaultProps} />)
+      expect(mockReplace).toHaveBeenCalledWith('/projects/p1/label')
+    })
+
+    it('never redirects in a normal browser', () => {
+      mockUsePathname.mockReturnValue('/projects/p1/label')
+      const { rerender } = render(<Layout {...defaultProps} />)
+      mockUsePathname.mockReturnValue('/dashboard')
+      rerender(<Layout {...defaultProps} />)
+      expect(mockReplace).not.toHaveBeenCalled()
+    })
   })
 
   describe('Basic Rendering', () => {

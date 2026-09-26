@@ -154,16 +154,31 @@ def public_request_urls(headers: Mapping[str, str], path: str, query: str) -> Li
     return [urlunsplit((scheme, host.lower(), path, query, "")) for scheme in schemes]
 
 
-def page_urls(headers: Mapping[str, str]) -> List[str]:
-    """The page URLs the frontend reported for JS-API hashes, host-checked."""
+def exam_page_paths(project_id: str) -> List[str]:
+    """Paths of the pages a student writes this project's exam on."""
+    return [f"/projects/{project_id}/label", f"/student/exams/{project_id}"]
+
+
+def page_urls(
+    headers: Mapping[str, str], page_paths: Optional[Iterable[str]] = None
+) -> List[str]:
+    """The page URLs the frontend reported for JS-API hashes, host-checked.
+
+    With ``page_paths`` only URLs of those pages count, so a hash taken on
+    any other page of the site is no proof for this exam.
+    """
+    allowed_paths = {p.rstrip("/") for p in page_paths} if page_paths is not None else None
     urls = []
     for name in (HEADER_JS_PAGE_URL, HEADER_JS_LOAD_URL):
         url = (headers.get(name) or "").strip()
         if not url or url in urls:
             continue
         parts = urlsplit(url)
-        if parts.scheme in ("http", "https") and host_allowed(parts.netloc):
-            urls.append(url)
+        if parts.scheme not in ("http", "https") or not host_allowed(parts.netloc):
+            continue
+        if allowed_paths is not None and parts.path.rstrip("/") not in allowed_paths:
+            continue
+        urls.append(url)
     return urls
 
 
@@ -191,10 +206,13 @@ def verify_seb_request(
     path: str,
     query: str,
     seb_config: Optional[Mapping],
+    page_paths: Optional[Iterable[str]] = None,
 ) -> SebCheck:
     """Check the SEB proof on a request against a project's ``seb_config``.
 
     ``headers`` must be case-insensitive or lower-cased (Starlette's are).
+    ``page_paths`` limits JS-API proofs to hashes taken on those pages
+    (:func:`exam_page_paths`); ``None`` accepts any page on an allowed host.
     Returns ``ok`` with the proof channel, ``seb_required`` when no accepted
     Config Key proof is present, or ``seb_version_not_allowed`` when the
     Config Key matches but pinned Browser Exam Keys do not.
@@ -213,7 +231,7 @@ def verify_seb_request(
         ),
         (
             VIA_JS,
-            page_urls(headers),
+            page_urls(headers, page_paths),
             headers.get(HEADER_JS_CONFIG_KEY),
             headers.get(HEADER_JS_BROWSER_EXAM_KEY),
         ),

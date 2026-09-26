@@ -124,3 +124,51 @@ describe('sebRequestHeaders', () => {
     }
   })
 })
+
+describe('sebNavigationTarget', () => {
+  beforeEach(() => window.sessionStorage.clear())
+
+  it('never redirects outside SEB', () => {
+    const seb = loadSeb()
+    expect(seb.sebNavigationTarget('/projects/p1/label')).toBeNull()
+    expect(seb.sebNavigationTarget('/dashboard')).toBeNull()
+  })
+
+  it('stays open inside SEB until an exam page was opened', () => {
+    ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+    expect(loadSeb().sebNavigationTarget('/dashboard')).toBeNull()
+  })
+
+  it('sends other pages back to the first exam page opened in SEB', () => {
+    ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+    const seb = loadSeb()
+    expect(seb.sebNavigationTarget('/student/exams/e1/')).toBeNull()
+    expect(seb.sebNavigationTarget('/projects/p2/label')).toBeNull()
+    expect(seb.sebNavigationTarget('/student/decks')).toBe('/student/exams/e1')
+    expect(seb.sebNavigationTarget('/projects/p1')).toBe('/student/exams/e1')
+  })
+
+  it('keeps sign-in and LMS launch pages reachable', () => {
+    ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+    const seb = loadSeb()
+    seb.sebNavigationTarget('/projects/p1/label')
+    expect(seb.sebNavigationTarget('/login')).toBeNull()
+    expect(seb.sebNavigationTarget('/lti/consent')).toBeNull()
+    expect(seb.sebNavigationTarget('/auth/verify')).toBeNull()
+  })
+
+  it('stays off when session storage is blocked', () => {
+    ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+    const seb = loadSeb()
+    const spy = jest
+      .spyOn(Storage.prototype, 'getItem')
+      .mockImplementation(() => {
+        throw new Error('blocked')
+      })
+    try {
+      expect(seb.sebNavigationTarget('/dashboard')).toBeNull()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})

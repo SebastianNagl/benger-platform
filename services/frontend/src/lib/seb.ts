@@ -111,3 +111,42 @@ export function sebRequestHeaders(): Record<string, string> {
   if (LOAD_URL) headers['X-Benger-SEB-Load-URL'] = LOAD_URL
   return headers
 }
+
+// Navigation lock inside SEB. SEB's URL filter allows the whole site, so the
+// app itself keeps an SEB session on the exam: the first exam page opened in
+// SEB becomes the session's home, and any other page leads back to it.
+// Sign-in and LMS launch pages stay reachable (they come before the exam).
+const EXAM_HOME_KEY = 'benger.seb.examPage'
+const EXAM_PAGE = /^\/(projects\/[^/]+\/label|student\/exams\/[^/]+)\/?$/
+const FREE_PAGE = /^\/(login|lti|auth)(\/|$)/
+
+function readExamHome(): string | null {
+  try {
+    return window.sessionStorage.getItem(EXAM_HOME_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeExamHome(path: string): void {
+  try {
+    window.sessionStorage.setItem(EXAM_HOME_KEY, path)
+  } catch {
+    // Storage blocked: the lock simply stays off.
+  }
+}
+
+/**
+ * Where an SEB session on `pathname` must go instead, or null to stay.
+ * Outside SEB always null. Opening an exam page inside SEB records it as the
+ * session's exam.
+ */
+export function sebNavigationTarget(pathname: string): string | null {
+  if (typeof window === 'undefined' || !isSafeExamBrowser()) return null
+  if (EXAM_PAGE.test(pathname)) {
+    if (!readExamHome()) writeExamHome(pathname.replace(/\/$/, ''))
+    return null
+  }
+  if (FREE_PAGE.test(pathname)) return null
+  return readExamHome()
+}
