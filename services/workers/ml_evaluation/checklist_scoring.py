@@ -416,7 +416,42 @@ _GENERAL_RULES = (
 )
 
 
-def system_prompt(score_unit: str, alternatives: str) -> str:
+def has_weichenstellungen(spec: Optional[Dict[str, Any]]) -> bool:
+    """Does the spec carry at least one Weichenstellung?"""
+    return bool(isinstance(spec, dict) and spec.get("weichenstellungen"))
+
+
+def _alternatives_rule(alternatives: str, weichenstellungen: bool) -> List[str]:
+    """The branch or replace rule, only for a sheet with Weichenstellungen."""
+    if not weichenstellungen:
+        return []
+    return [_BRANCH_RULE if alternatives == "branch" else _REPLACE_RULE]
+
+
+# The user prompt of the checklist lane. The product template asks for points
+# per step and allows half BE; here the judge states no number that code can
+# derive, so the template carries no score wording. The evaluator uses it
+# whenever checklist mode is on (``configure_checklist``), whatever template
+# the caller passed. The key map and the closing rules follow it.
+USER_TEMPLATE = """Bewerte die Bearbeitung anhand des Bewertungsbogens nach den festen Regeln.
+
+SACHVERHALT (Aufgabe):
+{context}
+
+MUSTERLÖSUNG (nur Referenz, nicht die zu bewertende Bearbeitung):
+{ground_truth}
+
+BEWERTUNGSBOGEN:
+{bewertungsbogen}
+
+BEARBEITUNG (die zu bewertende Lösung):
+{prediction}"""
+
+
+def system_prompt(score_unit: str, alternatives: str, weichenstellungen: bool = True) -> str:
+    """The judge's system prompt. ``weichenstellungen`` is False for a sheet
+    without any (see :func:`has_weichenstellungen`): the branch or replace
+    rule is then left out."""
     unit, quote, missing = _UNIT_RULES[score_unit]
     rules = [
         "Punkte gibt es nur für Ausführungen, die in der Bearbeitung selbst stehen. Was nur in der Musterlösung "
@@ -429,7 +464,7 @@ def system_prompt(score_unit: str, alternatives: str) -> str:
         _PLACEMENT_RULE,
         missing,
         *_GENERAL_RULES,
-        _BRANCH_RULE if alternatives == "branch" else _REPLACE_RULE,
+        *_alternatives_rule(alternatives, weichenstellungen),
         _HILFSGUTACHTEN_RULE,
         _MASSSTAB_RULE,
         _UNFORESEEN_RULE,
@@ -448,7 +483,9 @@ def system_prompt(score_unit: str, alternatives: str) -> str:
     )
 
 
-def closing_rules(score_unit: str, alternatives: str) -> str:
+def closing_rules(score_unit: str, alternatives: str, weichenstellungen: bool = True) -> str:
+    """The closing rule block after the user prompt (same ``weichenstellungen``
+    switch as :func:`system_prompt`)."""
     unit, quote, missing = _UNIT_RULES[score_unit]
     lines = [
         "VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelten auch dann, wenn oben etwas anderes steht):",
@@ -457,7 +494,7 @@ def closing_rules(score_unit: str, alternatives: str) -> str:
         f"- {quote} {missing}",
         f"- {_PLACEMENT_RULE}",
         *(f"- {rule}" for rule in _GENERAL_RULES),
-        f"- {_BRANCH_RULE if alternatives == 'branch' else _REPLACE_RULE}",
+        *(f"- {rule}" for rule in _alternatives_rule(alternatives, weichenstellungen)),
         f"- {_HILFSGUTACHTEN_RULE}",
         f"- {_MASSSTAB_RULE}",
         "- Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung.",

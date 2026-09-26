@@ -6,6 +6,7 @@ every quote, and sums unrounded values before one half-up rounding.
 """
 
 import json
+import re
 from unittest.mock import MagicMock
 
 import pytest
@@ -177,6 +178,25 @@ class TestPromptRules:
                        "1 bis 3 = mangelhaft, eine an erheblichen Mängeln leidende, im Ganzen nicht mehr brauchbare",
                        "0 = ungenügend, eine völlig unbrauchbare Leistung"):
             assert anchor in prompt
+
+    @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
+    def test_alternatives_wording_only_with_weichenstellungen(self, unit, alternatives):
+        spec = _spec()
+        with_w = cs.system_prompt(unit, alternatives, cs.has_weichenstellungen(spec))
+        assert (cs._BRANCH_RULE if alternatives == "branch" else cs._REPLACE_RULE) in with_w
+        spec["weichenstellungen"] = []
+        assert not cs.has_weichenstellungen(spec)
+        text = (cs.system_prompt(unit, alternatives, False) + cs.closing_rules(unit, alternatives, False)
+                + json.dumps(cs.build_schema(spec, unit, alternatives), ensure_ascii=False))
+        assert "Weichenstellung" not in text and "weichenstellungen" not in text
+        assert "gefolgter_loesungsweg" not in text
+
+    def test_user_template_has_no_score_wording(self):
+        for word in ("Punkt", "Bewertungseinheit", "halbe", "Halbe", "Maximal"):
+            assert word not in cs.USER_TEMPLATE
+        assert re.search(r"\bBE\b", cs.USER_TEMPLATE) is None
+        for slot in ("{context}", "{ground_truth}", "{bewertungsbogen}", "{prediction}"):
+            assert slot in cs.USER_TEMPLATE
 
     def test_branch_rule_needs_a_justified_path(self):
         prompt = cs.system_prompt("bullet", "branch")
@@ -399,6 +419,38 @@ class TestEvaluatorIntegration:
         self._respond(ev, incomplete, _judgment())
         result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
         assert not result.get("error") and ev.ai_service.generate_structured.call_count == 2
+
+    def test_the_checklist_lane_uses_its_own_template(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        product = ("{context}\n{bewertungsbogen}\n{prediction}\nVergib Punkte je Schritt. "
+                   "Halbe Bewertungseinheiten sind zulässig.")
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-5.6-luna", custom_prompt_template=product)
+        ev.configure_checklist(_spec(), "bullet", "branch", "declared")
+        self._respond(ev, _judgment())
+        ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER,
+                                          task_data={"bewertungsbogen": "BOGEN"})
+        prompt = ev.ai_service.generate_structured.call_args.kwargs["prompt"]
+        assert prompt.startswith("Bewerte die Bearbeitung anhand des Bewertungsbogens nach den festen Regeln.")
+        assert "Halbe Bewertungseinheiten" not in prompt and "Vergib Punkte" not in prompt
+        assert "<bewertungsbogen>\nBOGEN\n</bewertungsbogen>" in prompt
+        assert ev.custom_prompt_template == product  # kept for the product lane
+        assert ev.checklist["user_template"] == cs.USER_TEMPLATE
+        # No template at all: the checklist lane still has one.
+        bare = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-5.6-luna")
+        bare.configure_checklist(_spec(), "bullet", "branch", "declared")
+        self._respond(bare, _judgment())
+        assert not bare._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER).get("error")
+
+    def test_configure_checklist_owns_the_prompts(self):
+        spec = _spec()
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="m", custom_prompt_template="x")
+        ev.configure_checklist(spec, "step", "replace", "declared")
+        assert ev.checklist["system_prompt"] == cs.system_prompt("step", "replace", True)
+        assert ev.checklist["closing_rules"] == cs.closing_rules("step", "replace", True)
+        spec["weichenstellungen"] = []
+        ev.configure_checklist(spec, "step", "replace", "declared")
+        assert cs._REPLACE_RULE not in ev.checklist["system_prompt"]
+        assert cs._REPLACE_RULE not in ev.checklist["closing_rules"]
 
     def test_spec_without_bound_rubric_supplies_the_criteria(self):
         ev = self._evaluator()

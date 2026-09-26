@@ -1227,7 +1227,14 @@ class LLMJudgeEvaluator(BaseEvaluator):
         (``grade_scale_from_preset("standard")``), a platform ``grade_scale``,
         or ``{"thresholds_be": [...], "rounding": ..., "pass_grade": ...}``
         (see :func:`checklist_scoring.grade_key` for the conversion).
+
+        The checklist lane owns its prompts: ``self.checklist`` carries the
+        user template (:data:`checklist_scoring.USER_TEMPLATE`, no score
+        wording), the system prompt and the closing rules. The evaluator uses
+        them while checklist mode is on, whatever ``custom_prompt_template``
+        the caller set; that template is kept for the product lane.
         """
+        from . import checklist_scoring
         from .checklist_scoring import grade_key, rating_percent_table, validate_options
 
         validate_options(score_unit, alternatives, total_mode)
@@ -1242,12 +1249,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
             }
             self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
+        weichenstellungen = checklist_scoring.has_weichenstellungen(spec)
         self.checklist = {
             "spec": spec,
             "score_unit": score_unit,
             "alternatives": alternatives,
             "total_mode": total_mode,
             "grade_scale": key,
+            "user_template": checklist_scoring.USER_TEMPLATE,
+            "system_prompt": checklist_scoring.system_prompt(score_unit, alternatives, weichenstellungen),
+            "closing_rules": checklist_scoring.closing_rules(score_unit, alternatives, weichenstellungen),
         }
 
     def get_supported_metrics(self) -> List[str]:
@@ -1991,7 +2002,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # to spell out the rubric. Fall back to SINGLE_EVALUATION_PROMPT
         # would silently emit a single-score response that fails the
         # multi-dim parser; better to fail loudly.
-        raw_template = self.custom_prompt_template
+        # The checklist lane brings its own template (configure_checklist).
+        raw_template = self.checklist["user_template"] if self.checklist else self.custom_prompt_template
         if not raw_template:
             return {
                 "error": True,
@@ -2078,11 +2090,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 key_map = checklist_scoring.expected_output_note(
                     opts["spec"], opts["score_unit"], opts["alternatives"]
                 )
-                closing = checklist_scoring.closing_rules(opts["score_unit"], opts["alternatives"])
-                prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{closing}"
-                system_prompt = checklist_scoring.system_prompt(
-                    opts["score_unit"], opts["alternatives"]
-                )
+                prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{opts['closing_rules']}"
+                system_prompt = opts["system_prompt"]
             else:
                 prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
                 system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
@@ -2125,7 +2134,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         }
         if self.checklist:
             provenance["checklist"] = {
-                k: v for k, v in self.checklist.items() if k != "spec"
+                k: self.checklist[k]
+                for k in ("score_unit", "alternatives", "total_mode", "grade_scale")
             }
         # "api_default" says explicitly that no value was sent, so a row
         # graded at the provider's default is not mistaken for one whose
