@@ -34,11 +34,19 @@ def call_fingerprint(call: dict[str, Any]) -> tuple:
 
 
 def row_fingerprint(row: dict[str, Any]) -> tuple:
-    """One physical judgment or generation: its calls, else its identity fields."""
+    """One physical judgment or generation: its calls, else its identity fields
+    (which include the rubric and the alternatives setting)."""
     calls = tuple(call_fingerprint(c) for c in row.get("calls") or [])
     ident = tuple(row.get(k) for k in ("run_id", "ts", "phase", "judge", "generator", "exam", "pick", "script_id",
-                                       "arm", "probe", "unit", "pass", "sample", "total"))
+                                       "arm", "rubric_id", "probe", "unit", "pass", "sample", "total"))
+    ident += (alternatives(row),)
     return (ident, calls) if not calls or all(c[1] is None for c in calls) else calls
+
+
+def alternatives(row: dict[str, Any]) -> str | None:
+    """The alternatives setting a judgment ran with (branch | replace), else None
+    (product lane and rows written before arm_config carried it)."""
+    return (row.get("arm_config") or {}).get("alternatives")
 
 
 def distinct_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
