@@ -24,7 +24,8 @@ Phases
                the checklist prompt from the clone's config. Idempotent.
   d2-generate  checklist rubrics for the D2 task (--generators, --samples).
   d2-judge     judges x arms x scripts x passes on the D2 scripts. Arms:
-               martin:<step|rating>[:<alt>], rubric:<id>:<unit>[:<alt>].
+               martin:<step|rating>[:<alt>], rubric:<id>:<unit>[:<alt>], and
+               holistic (the benchmark's Falllösung judge, no sheet).
                Scripts: --scripts ids and/or cohorts (D2a, D2b); default D2a.
                Excluded scripts are never judged.
   d2-probes    the probe battery on the D2 exam per judge and arm.
@@ -388,9 +389,30 @@ def closing_text(ev) -> str:
     return RUBRIC_JUDGE_CLOSING_RULES
 
 
+def holistic_judgment(ev, data: dict[str, Any], musterloesung: str, prediction: str,
+                      grade_scale: dict[str, Any] | None) -> dict[str, Any] | None:
+    """One judgment by the benchmark's Falllösung judge (extended), as the
+    platform's batch evaluation calls it, on the metered provider service."""
+    from benger_extended.workers import get_falloesung_bulk_compute_fn
+
+    sachverhalt = next((v for k, v in data.items() if isinstance(k, str) and k.casefold() == "sachverhalt"), "")
+    result = get_falloesung_bulk_compute_fn()(
+        ai_service=ev.ai_service, judge_model=ev.judge_model, temperature=ev.temperature,
+        max_tokens=ev.max_tokens, sachverhalt=str(sachverhalt or ""), musterloesung=musterloesung,
+        prediction=prediction, thinking_budget=getattr(ev, "thinking_budget", None),
+        reasoning_effort=getattr(ev, "reasoning_effort", None), grade_scale=grade_scale,
+    )
+    if isinstance(result, dict) and not result.get("error"):
+        prompts = result.pop("_judge_prompts_used", None) or {}
+        result["_judge_prompts_used"] = {"system_prompt": prompts.get("system"),
+                                         "evaluation_prompt": prompts.get("user"), "mode": "falloesung"}
+        result["total_score"] = result.get("score")
+    return result
+
+
 def judged(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, *, spec, unit, guard_on: bool,
            rubric_texts: list[str], context: str, ground_truth: str, prediction: str,
-           data: dict[str, Any]) -> dict[str, Any] | None:
+           data: dict[str, Any], holistic_grade_scale: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """One judgment. The row is written in ``finally``, also when the call aborts."""
     calls.clear()
     checks_before = ctx.guard.checked
@@ -402,9 +424,12 @@ def judged(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, *, spec,
     started = time.monotonic()
     result, exc, unmetered = None, None, None
     try:
-        result = ev._evaluate_multidim_single_call(
-            context=context, ground_truth=ground_truth, prediction=prediction, task_data=data,
-        )
+        if unit == "holistic":
+            result = holistic_judgment(ev, data, ground_truth, prediction, holistic_grade_scale)
+        else:
+            result = ev._evaluate_multidim_single_call(
+                context=context, ground_truth=ground_truth, prediction=prediction, task_data=data,
+            )
         ctx.results += 1 if isinstance(result, dict) and not result.get("error") else 0
         unmetered = unmetered_problem(ctx, calls, result, "judge")
         if unmetered:
@@ -498,7 +523,8 @@ def judge_row(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, resul
                 1 for s in (result.get("scores") or {}).values()
                 if isinstance(s, dict) and (s.get("model_score") or 0) > (s.get("score") or 0))
             grade_scale = (ev.checklist or {}).get("grade_scale")
-            row["model_total"] = L.model_total(result, spec, unit, grade_scale=grade_scale)
+            row["model_total"] = (result.get("total_score") if unit == "holistic"
+                                  else L.model_total(result, spec, unit, grade_scale=grade_scale))
             if unit == "rating":
                 row["model_total_mapping"] = L.rating_table(grade_scale, (spec or {}).get("total_points") or 100)[1]
     row.update(calls=list(calls), usage=L.usage_summary(calls), latency_s=seconds, provenance=ctx.provenance)
@@ -1135,6 +1161,14 @@ def prepare_arm(ctx: Ctx, db, arm: dict[str, Any], exam: dict[str, Any], task, s
     from project_models import TaskRubric
 
     unit, alternatives = arm["unit"], arm["alternatives"]
+    if arm["source"] == "holistic":
+        # The no-sheet baseline: the benchmark's Falllösung judge (extended),
+        # the same 10 dimensions for every exam; grades by the exam's key.
+        grade_scale = L.exam_grade_scale(exam["grade_scale"], 100)
+        return {"arm": arm, "rubric": None, "spec": None, "guard_on": True, "text": "", "state": None,
+                "grade_scale": grade_scale, "contexts": {}, "rubric_texts": [],
+                "config": {"source": "holistic", "rubric_id": None, "instrument": "falloesung",
+                           "score_unit": "holistic", "grade_scale": grade_scale}}
     if arm["source"] == "martin":
         if unit == "bullet":
             raise SystemExit("martin arm: the bullet unit waits for the expert's own bullets (decisions, section 5)")
@@ -1220,7 +1254,8 @@ def phase_d2_judge(ctx: Ctx) -> None:
                         result = judged(ctx, "d2-judge", base, ev, calls, spec=plan["spec"], unit=arm["unit"],
                                         guard_on=plan["guard_on"], rubric_texts=plan["rubric_texts"],
                                         context=context, ground_truth=ground_truth,
-                                        prediction=script.get("text") or "", data=data)
+                                        prediction=script.get("text") or "", data=data,
+                                        holistic_grade_scale=plan["grade_scale"])
                         print_row(ctx, f"{judge_model} pass {k} {arm['id']} {script['script_id']}", result)
     finally:
         db.close()
@@ -1305,7 +1340,8 @@ def phase_d2_probes(ctx: Ctx) -> None:
                         text, meta = plan["texts"][ptype]
                         base = {"judge": judge_model, "exam": "D2", "arm": arm["id"], "arm_config": config,
                                 "task_id": task.id, "rubric_id": arm["rubric_id"], "probe": ptype,
-                                "probe_valid": ptype not in INVALID_PROBES, "lane": "checklist",
+                                "probe_valid": ptype not in INVALID_PROBES,
+                                "lane": "holistic" if arm["source"] == "holistic" else "checklist",
                                 "unit": arm["unit"], "pass": k, "probe_meta": meta}
                         if text is None:
                             write(ctx, "d2-probes", skipped_row(ctx, "d2-probes", base, ev.seed))
@@ -1314,7 +1350,8 @@ def phase_d2_probes(ctx: Ctx) -> None:
                             continue
                         result = judged(ctx, "d2-probes", base, ev, calls, spec=plan["spec"], unit=arm["unit"],
                                         guard_on=plan["guard_on"], rubric_texts=plan["rubric_texts"],
-                                        context=context, ground_truth=ground_truth, prediction=text, data=data)
+                                        context=context, ground_truth=ground_truth, prediction=text, data=data,
+                                        holistic_grade_scale=plan["grade_scale"])
                         print_row(ctx, f"{judge_model} pass {k} {arm['id']} {ptype}", result)
     finally:
         db.close()
@@ -1800,6 +1837,9 @@ def phase_selftest(ctx: Ctx) -> int:
     # --- arms ---------------------------------------------------------------
     arm = L.parse_arm("rubric:abc:step:replace")
     check("arms: rubric arm with replace", arm["rubric_id"] == "abc" and arm["alternatives"] == "replace")
+    hol = L.parse_arm("holistic")
+    check("arms: holistic arm has no sheet", hol["source"] == "holistic" and hol["rubric_id"] is None
+          and hol["unit"] == "holistic")
     try:
         L.parse_arm("rubric:abc:bullet:replace")
         check("arms: bullet with replace is rejected", False)

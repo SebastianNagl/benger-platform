@@ -1290,7 +1290,11 @@ ALTERNATIVES = ("branch", "replace")
 
 
 def parse_arm(text: str) -> dict[str, Any]:
-    """``martin:<unit>[:<alternatives>]`` or ``rubric:<id>:<unit>[:<alternatives>]``."""
+    """``martin:<unit>[:<alternatives>]``, ``rubric:<id>:<unit>[:<alternatives>]`` or
+    ``holistic`` (the benchmark's Falllösung judge: the same 10 dimensions for
+    every exam, no sheet)."""
+    if text == "holistic":
+        return {"id": text, "source": "holistic", "rubric_id": None, "unit": "holistic", "alternatives": None}
     parts = text.split(":")
     if parts[0] == "martin" and len(parts) in (2, 3):
         arm = {"id": text, "source": "martin", "rubric_id": None, "unit": parts[1],
@@ -1299,7 +1303,7 @@ def parse_arm(text: str) -> dict[str, Any]:
         arm = {"id": text, "source": "rubric", "rubric_id": parts[1], "unit": parts[2],
                "alternatives": parts[3] if len(parts) == 4 else "branch"}
     else:
-        raise ValueError(f"arm {text!r}: expected martin:<unit>[:<alt>] or rubric:<id>:<unit>[:<alt>]")
+        raise ValueError(f"arm {text!r}: expected martin:<unit>[:<alt>], rubric:<id>:<unit>[:<alt>] or holistic")
     if arm["unit"] not in SCORE_UNITS:
         raise ValueError(f"arm {text!r}: unit must be one of {SCORE_UNITS}")
     if arm["alternatives"] not in ALTERNATIVES:
