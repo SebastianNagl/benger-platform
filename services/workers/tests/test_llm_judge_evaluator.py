@@ -1491,16 +1491,16 @@ from ml_evaluation.llm_judge_evaluator import (
 # quotes, blank lines.
 _ANSWER = (
     "A. Zulässigkeit\n\n"
-    "I\\. Eröffnung des Verwaltungsrechtswegs\n\n"
-    "Mangels aufdrängender Sonderzuweisung richtet sich der Rechtsweg nach **§ 40 I 1 VwGO**. "
-    "Die Streitigkeit ist öffentlich-rechtlich.\n\n"
-    "1\\. Der Platzverweis ist ein „Verwaltungsakt“ im Sinne des Art. 35 S. 1 BayVwVfG, "
-    "denn G hat gegenüber H verbindlich angeordnet, das Gelände zu verlassen."
+    "I\\. Eröffnung des Zivilrechtswegs\n\n"
+    "Mangels abdrängender Sonderzuweisung richtet sich der Rechtsweg nach **§ 13 GVG**. "
+    "Die Streitigkeit ist bürgerlich-rechtlich.\n\n"
+    "1\\. Die Bestellung ist eine „Willenserklärung“ im Sinne des § 130 Abs. 1 S. 1 BGB, "
+    "denn K hat gegenüber V verbindlich erklärt, das Fahrrad zu kaufen."
 )
 
 _STEPS = {
     "s01_rechtsweg": {"name": "Rechtsweg", "rubric": "r", "max_score": 2},
-    "s02_allgemeinverfuegung": {"name": "Allgemeinverfügung", "rubric": "r", "max_score": 1},
+    "s02_anfechtung": {"name": "Anfechtung", "rubric": "r", "max_score": 1},
     "s03_klageart": {"name": "Klageart", "rubric": "r", "max_score": 3},
 }
 
@@ -1526,31 +1526,31 @@ class TestVerifyEvidence:
         "evidence",
         [
             # verbatim sentence
-            "Mangels aufdrängender Sonderzuweisung richtet sich der Rechtsweg nach § 40 I 1 VwGO.",
+            "Mangels abdrängender Sonderzuweisung richtet sich der Rechtsweg nach § 13 GVG.",
             # the answer escapes "I\." and bolds the norm; the quote does not
-            "I. Eröffnung des Verwaltungsrechtswegs",
-            "nach § 40 I 1 VwGO",
+            "I. Eröffnung des Zivilrechtswegs",
+            "nach § 13 GVG",
             # the quote keeps the markdown escape itself
-            "1\\. Der Platzverweis ist ein",
+            "1\\. Die Bestellung ist eine",
             # whitespace and line breaks differ
-            "Die  Streitigkeit\nist öffentlich-rechtlich",
+            "Die  Streitigkeit\nist bürgerlich-rechtlich",
             # plain quotes where the answer has typographic ones
-            'ein "Verwaltungsakt" im Sinne des Art. 35',
+            'eine "Willenserklärung" im Sinne des § 130 Abs. 1',
             # ellipsis-split fragments, both spellings
-            "Mangels aufdrängender Sonderzuweisung … Die Streitigkeit ist öffentlich-rechtlich",
-            "Der Platzverweis ist ein [...] verbindlich angeordnet",
+            "Mangels abdrängender Sonderzuweisung … Die Streitigkeit ist bürgerlich-rechtlich",
+            "Die Bestellung ist eine [...] verbindlich erklärt",
             # one word left out of a long quote
-            "denn G hat gegenüber H angeordnet, das Gelände zu verlassen",
+            "denn K hat gegenüber V erklärt, das Fahrrad zu kaufen",
             # small inflection difference on a long word
-            "Der Platzverweises ist ein Verwaltungsakt",
+            "Die Bestellungen ist eine Willenserklärung",
             # three tokens: a hyphenated compound, a short sentence tail
-            "ist öffentlich-rechtlich",
-            "Streitigkeit ist öffentlich-rechtlich",
+            "ist bürgerlich-rechtlich",
+            "Streitigkeit ist bürgerlich-rechtlich",
             # two tokens carry enough characters (>= 15) to be a quote
-            "verbindlich angeordnet",
-            "Platzverweis ist",
+            "verbindlich erklärt",
+            "Streitigkeit ist",
             # two passages from different places glued without an ellipsis
-            "Die Streitigkeit ist öffentlich-rechtlich. Der Platzverweis ist ein „Verwaltungsakt“ im Sinne des Art. 35 S. 1 BayVwVfG",
+            "Die Streitigkeit ist bürgerlich-rechtlich. Die Bestellung ist eine „Willenserklärung“ im Sinne des § 130 Abs. 1 S. 1 BGB",
         ],
     )
     def test_quotes_from_the_answer_verify(self, evidence):
@@ -1560,11 +1560,11 @@ class TestVerifyEvidence:
         "evidence",
         [
             # paraphrase
-            "Der Rechtsweg bestimmt sich mangels Sonderzuweisung nach § 40 VwGO",
+            "Der Rechtsweg bestimmt sich mangels Sonderzuweisung nach § 13 GVG",
             # content only the reference solution has
-            "Eine Allgemeinverfügung ist hier irrelevant",
+            "Eine Anfechtung ist hier irrelevant",
             # one real fragment, one invented
-            "Mangels aufdrängender Sonderzuweisung … Ein Rehabilitationsinteresse besteht nicht",
+            "Mangels abdrängender Sonderzuweisung … Ein Rücktrittsrecht besteht nicht",
             # empty or content-free
             "",
             "   ",
@@ -1572,24 +1572,24 @@ class TestVerifyEvidence:
             "der",
             "…",
             # a single token is a keyword, not a quote (also inside a word)
-            "VwGO",
-            "Platz",
-            "Verwaltungsrechtswegs",
+            "GVG",
+            "Fahr",
+            "Zivilrechtswegs",
             # two short tokens are not a quote either
             "der Rechtsweg",
-            "ist ein",
-            "Gelände zu",
+            "ist eine",
+            "Fahrrad zu",
             # reordered words of the answer are a paraphrase
-            "öffentlich-rechtliche Streitigkeit",
+            "bürgerlich-rechtliche Streitigkeit",
             # short fragments sit on word boundaries: a cut word does not match
-            "des Verwaltungsrechtsweg",
+            "des Zivilrechtsweg",
             # one keyword fragment poisons an otherwise verbatim quote
-            "Mangels aufdrängender Sonderzuweisung … VwGO",
+            "Mangels abdrängender Sonderzuweisung … GVG",
             # a norm citation alone is not a quote, even when it is verbatim
-            "§ 40 I 1 VwGO",
-            "Art. 35 S. 1 BayVwVfG",
+            "§ 13 GVG",
+            "§ 130 Abs. 1 S. 1 BGB",
             # glued passages: one real sentence, one invented
-            "Die Streitigkeit ist öffentlich-rechtlich. Ein Rehabilitationsinteresse besteht hier offensichtlich nicht.",
+            "Die Streitigkeit ist bürgerlich-rechtlich. Ein Rücktrittsrecht besteht hier offensichtlich nicht.",
         ],
     )
     def test_everything_else_is_rejected(self, evidence):
@@ -1621,10 +1621,10 @@ class TestVerifyEvidenceAdversarial:
 
     REJECTED = [
         # 1. a keyword glued to a real passage, with a full stop or an ellipsis
-        ("Mangels aufdrängender Sonderzuweisung ist der Verwaltungsrechtsweg nach § 40 VwGO eröffnet.",
-         "Mangels aufdrängender Sonderzuweisung. VwGO."),
-        ("Mangels aufdrängender Sonderzuweisung ist der Verwaltungsrechtsweg nach § 40 VwGO eröffnet.",
-         "Mangels aufdrängender Sonderzuweisung … VwGO"),
+        ("Mangels abdrängender Sonderzuweisung ist der Zivilrechtsweg nach § 13 GVG eröffnet.",
+         "Mangels abdrängender Sonderzuweisung. GVG."),
+        ("Mangels abdrängender Sonderzuweisung ist der Zivilrechtsweg nach § 13 GVG eröffnet.",
+         "Mangels abdrängender Sonderzuweisung … GVG"),
         # 2. a short sentence from another context glued to a real one
         ("Die Klage ist zulässig. Sie ist auch begründet. Gegen den Bruder des K besteht dagegen "
          "kein Anspruch, weil er nicht Vertragspartei ist.",
@@ -1650,14 +1650,14 @@ class TestVerifyEvidenceAdversarial:
         ("Der Anspruch ist nicht nach § 327m Abs. 2 S. 1 BGB ausgeschlossen.",
          "Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen"),
         # 8. a single keyword riding along
-        ("Der Beklagte ist als Störer verantwortlich, weil er die Gefahr selbst verursacht hat. "
+        ("Der Beklagte ist als Besitzer verantwortlich, weil er die Sache selbst beschädigt hat. "
          "Die Frist ist abgelaufen.",
-         "Störer. Die Frist ist abgelaufen."),
+         "Besitzer. Die Frist ist abgelaufen."),
         # 9. the result mark flipped, in either spelling of the minus
-        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-). Der Verwaltungsrechtsweg ist eröffnet.",
-         "Voraussetzung einer aufdrängenden Sonderzuweisung (+)"),
-        ("Voraussetzung einer aufdrängenden Sonderzuweisung (−). Der Verwaltungsrechtsweg ist eröffnet.",
-         "Voraussetzung einer aufdrängenden Sonderzuweisung (+)"),
+        ("Voraussetzung einer abdrängenden Sonderzuweisung (-). Der Zivilrechtsweg ist eröffnet.",
+         "Voraussetzung einer abdrängenden Sonderzuweisung (+)"),
+        ("Voraussetzung einer abdrängenden Sonderzuweisung (−). Der Zivilrechtsweg ist eröffnet.",
+         "Voraussetzung einer abdrängenden Sonderzuweisung (+)"),
         # 10. a four-digit number that is a prefix of the answer's number
         ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.",
          "Der Kaufpreis beträgt 1000 Euro und ist sofort fällig"),
@@ -1688,8 +1688,8 @@ class TestVerifyEvidenceAdversarial:
         # negations and marks that are in the answer
         ("Ein Schadensersatzanspruch besteht nicht, da keine Pflichtverletzung vorliegt.",
          "Ein Schadensersatzanspruch besteht nicht, da keine Pflichtverletzung vorliegt"),
-        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-). Der Verwaltungsrechtsweg ist eröffnet.",
-         "Voraussetzung einer aufdrängenden Sonderzuweisung (−)"),
+        ("Voraussetzung einer abdrängenden Sonderzuweisung (-). Der Zivilrechtsweg ist eröffnet.",
+         "Voraussetzung einer abdrängenden Sonderzuweisung (−)"),
         ("Die Zulässigkeit (+). Die Begründetheit (+).", "Die Zulässigkeit (+)"),
         # a number that matches exactly, also before a full stop
         ("Der Anspruch auf Rückzahlung von 10.000 Euro besteht.", "Anspruch auf Rückzahlung von 10.000 Euro"),
@@ -1736,58 +1736,58 @@ class TestVerifyEvidenceStrict:
         # a match must start on a word boundary: substring and compact paths
         ("Die Klage ist unzulässig, weil die Klagefrist bereits abgelaufen ist.",
          "zulässig, weil die Klagefrist bereits abgelaufen ist"),
-        ("B wird als Nichtstörer in Anspruch genommen, weil keine andere Abwehr möglich ist.",
-         "Störer in Anspruch genommen"),
-        ("B ist nach dem Sachverhalt Nichtstörer im Sinne des Polizeige setzes.",
-         "Störer im Sinne des Polizeigesetzes"),
+        ("B hat als Nichtberechtigter über das Fahrrad verfügt, weil ihm das Eigentum fehlte.",
+         "Berechtigter über das Fahrrad verfügt"),
+        ("B ist nach dem Sachverhalt Nichtberechtigter im Sinne des Bürgerlichen Gesetz buchs.",
+         "Berechtigter im Sinne des Bürgerlichen Gesetzbuchs"),
         # a result or antonym word swapped for another word
-        ("Die Maßnahme war rechtswidrig, weil die Polizei für den Einsatz örtlich nicht zuständig war.",
-         "Die Maßnahme war rechtmäßig, weil die Polizei für den Einsatz örtlich nicht zuständig war"),
+        ("Die Wegnahme war rechtswidrig, weil der Täter auf die Sache keinen fälligen Anspruch hatte.",
+         "Die Wegnahme war rechtmäßig, weil der Täter auf die Sache keinen fälligen Anspruch hatte"),
         ("Das Gericht hat die Frage nach dem Vertragsschluss im Ergebnis verneint und die Klage abgewiesen.",
          "Das Gericht hat die Frage nach dem Vertragsschluss im Ergebnis bejaht und die Klage abgewiesen"),
-        ("Nach alledem ist die Klage des K gegen den Bescheid zulässig und begründet.",
-         "Nach alledem ist die Klage des K gegen den Bescheid unzulässig und begründet"),
-        ("Eine Anhörung war nach den Umständen des Falles entbehrlich, weil Gefahr im Verzug bestand.",
-         "Eine Anhörung war nach den Umständen des Falles erforderlich, weil Gefahr im Verzug bestand"),
+        ("Nach alledem ist die Klage des K gegen den Verkäufer zulässig und begründet.",
+         "Nach alledem ist die Klage des K gegen den Verkäufer unzulässig und begründet"),
+        ("Eine Fristsetzung war nach den Umständen des Falles entbehrlich, weil der Verkäufer jede Leistung verweigerte.",
+         "Eine Fristsetzung war nach den Umständen des Falles erforderlich, weil der Verkäufer jede Leistung verweigerte"),
         ("Ein Anspruch auf Schadensersatz fehlt nach alledem in dieser Konstellation.",
          "Ein Anspruch auf Schadensersatz besteht nach alledem in dieser Konstellation"),
-        ("Eine gegenwärtige Gefahr für die öffentliche Sicherheit ist hier gegeben, weil der Schaden bevorsteht.",
-         "Eine gegenwärtige Gefahr für die öffentliche Sicherheit ist hier entfallen, weil der Schaden bevorsteht"),
-        ("Im Zeitpunkt der Maßnahme war niemand auf dem Gelände anwesend und gefährdet.",
-         "Im Zeitpunkt der Maßnahme war jemand auf dem Gelände anwesend und gefährdet"),
-        ("Der Bescheid ist formell rechtmäßig erlassen worden, weil die Anhörung durchgeführt wurde.",
-         "Der Bescheid ist materiell rechtmäßig erlassen worden, weil die Anhörung durchgeführt wurde"),
+        ("Ein gegenwärtiger Angriff auf den Körper des A ist hier gegeben, weil der Schlag unmittelbar bevorsteht.",
+         "Ein gegenwärtiger Angriff auf den Körper des A ist hier entfallen, weil der Schlag unmittelbar bevorsteht"),
+        ("Im Zeitpunkt der Brandlegung war niemand in dem Wohnhaus anwesend und gefährdet.",
+         "Im Zeitpunkt der Brandlegung war jemand in dem Wohnhaus anwesend und gefährdet"),
+        ("Das Urteil ist formell rechtskräftig geworden, weil die Berufungsfrist abgelaufen ist.",
+         "Das Urteil ist materiell rechtskräftig geworden, weil die Berufungsfrist abgelaufen ist"),
         # a qualifier of the answer stepped over
         ("Der Anspruch besteht nur teilweise in Höhe der Anzahlung von 500 Euro.",
          "Der Anspruch besteht in Höhe der Anzahlung von 500 Euro"),
-        ("Eine Gefahr für die öffentliche Sicherheit ist allenfalls entfernt denkbar und reicht nicht aus.",
-         "Eine Gefahr für die öffentliche Sicherheit ist entfernt denkbar"),
-        ("Die Behörde muss stets das mildeste gleich geeignete Mittel wählen.",
-         "Die Behörde muss das mildeste gleich geeignete Mittel wählen"),
+        ("Eine Täuschung des Käufers durch den Verkäufer ist allenfalls entfernt denkbar und reicht nicht aus.",
+         "Eine Täuschung des Käufers durch den Verkäufer ist entfernt denkbar"),
+        ("Der Angegriffene muss stets das mildeste gleich geeignete Mittel wählen.",
+         "Der Angegriffene muss das mildeste gleich geeignete Mittel wählen"),
         # a Roman numeral swapped, a number of the answer stepped over
-        ("Die Maßnahme greift in Art. 8 II GG ein, weil die Versammlung unter freiem Himmel stattfindet.",
-         "Die Maßnahme greift in Art. 8 I GG ein, weil die Versammlung unter freiem Himmel stattfindet"),
+        ("Der Anspruch ergibt sich aus § 823 II BGB, weil der Beklagte ein Schutzgesetz verletzt hat.",
+         "Der Anspruch ergibt sich aus § 823 I BGB, weil der Beklagte ein Schutzgesetz verletzt hat"),
         ("Der Anspruch folgt aus § 280 Abs. 1 und 3, § 281 BGB und besteht in voller Höhe.",
          "Der Anspruch folgt aus § 280 Abs. 1, § 281 BGB und besteht in voller Höhe"),
         # a quote ending in a number or numeral continues in the answer
-        ("Die Klage richtet sich nach § 80a VwGO und ist fristgebunden.", "Die Klage richtet sich nach § 80"),
-        ("Der Eingriff ist an Art. 8 II GG zu messen.", "Der Eingriff ist an Art. 8 I"),
+        ("Die Pflicht richtet sich nach § 312a BGB und gilt für Verbraucherverträge.", "Die Pflicht richtet sich nach § 312"),
+        ("Der Schutz ergibt sich aus § 823 II BGB.", "Der Schutz ergibt sich aus § 823 I"),
         ("Der Vertrag ist nichtig, weil er gegen ein gesetzliches Verbot verstößt.", "Der Vertrag ist nicht"),
         # a negation or a question word right before the match
-        ("Die Behörde hat nicht rechtmäßig gehandelt, als sie den Platzverweis aussprach.",
-         "rechtmäßig gehandelt, als sie den Platzverweis aussprach"),
-        ("Fraglich ist, ob die Versammlung unter freiem Himmel stattfand.",
-         "die Versammlung unter freiem Himmel stattfand"),
+        ("Der Vermieter hat nicht rechtmäßig gehandelt, als er die Wohnung räumen ließ.",
+         "rechtmäßig gehandelt, als er die Wohnung räumen ließ"),
+        ("Fraglich ist, ob die Übergabe der Sache in den Geschäftsräumen stattfand.",
+         "die Übergabe der Sache in den Geschäftsräumen stattfand"),
         ("Wenn die Frist gewahrt ist, ist die Klage zulässig.", "die Frist gewahrt ist"),
         ("Es besteht kein Anspruch auf Rückzahlung der Kaution gegen den Vermieter.",
          "Anspruch auf Rückzahlung der Kaution gegen den Vermieter"),
         # a negation, "(-)" or a condition right after the match
         ("Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht nicht.",
          "Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht"),
-        ("Voraussetzung einer aufdrängenden Sonderzuweisung (-)",
-         "Voraussetzung einer aufdrängenden Sonderzuweisung"),
+        ("Voraussetzung einer abdrängenden Sonderzuweisung (-)",
+         "Voraussetzung einer abdrängenden Sonderzuweisung"),
         ("Die Klage ist begründet, soweit sie sich gegen den Zinsanspruch richtet.", "Die Klage ist begründet"),
-        ("Eine Gefahr liegt vor, wenn ein Schaden für ein Schutzgut droht.", "Eine Gefahr liegt vor"),
+        ("Ein Mangel liegt vor, wenn die Sache nicht die vereinbarte Beschaffenheit hat.", "Ein Mangel liegt vor"),
         # the edge rules hold on each side of an ellipsis
         ("Die Klage ist zulässig. Der Anspruch auf Herausgabe besteht nicht.",
          "Die Klage ist zulässig … Der Anspruch auf Herausgabe besteht"),
@@ -1797,19 +1797,19 @@ class TestVerifyEvidenceStrict:
     ]
 
     NORM_ONLY = [
-        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.", "§ 42 I VwGO"),
-        ("Der Eingriff ist an Art. 8 Abs. 1 GG zu messen.", "Art. 8 Abs. 1 GG"),
+        ("Der Anspruch des K folgt aus § 433 II BGB und ist fällig.", "§ 433 II BGB"),
+        ("Das Eigentum ist durch Art. 14 Abs. 1 GG geschützt.", "Art. 14 Abs. 1 GG"),
         ("Der Anspruch folgt aus §§ 280 Abs. 1, 3, 281 BGB i.V.m. Art. 229 § 5 EGBGB.",
          "§§ 280 Abs. 1, 3, 281 BGB i.V.m. Art. 229 § 5 EGBGB"),
-        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.", "Die Klage ist … § 42 I VwGO"),
-        ("Die Klage ist nach § 42 I VwGO statthaft. Der Kläger ist klagebefugt. Die Frist ist gewahrt.",
-         "§ 42 I VwGO. Die Frist ist gewahrt."),
+        ("Der Anspruch des K folgt aus § 433 II BGB und ist fällig.", "Der Anspruch des K … § 433 II BGB"),
+        ("Der Anspruch folgt aus § 433 II BGB. Er ist fällig. Die Frist ist gewahrt.",
+         "§ 433 II BGB. Die Frist ist gewahrt."),
     ]
 
     ACCEPTED = [
         # the negation stands in another clause or sentence
-        ("Die Anhörung erfolgte nicht; die Maßnahme ist dennoch rechtmäßig.",
-         "die Maßnahme ist dennoch rechtmäßig"),
+        ("Die Mahnung erfolgte nicht; der Verzug ist dennoch eingetreten.",
+         "der Verzug ist dennoch eingetreten"),
         ("Die Klage ist zulässig. Nicht zu prüfen ist die Begründetheit.", "Die Klage ist zulässig"),
         ("Die Klage ist begründet. Wenn überhaupt, fehlt es an der Frist.", "Die Klage ist begründet"),
         # a result mark belongs to the text before it
@@ -1820,12 +1820,11 @@ class TestVerifyEvidenceStrict:
         ("Der Anspruch besteht nur teilweise in Höhe der Anzahlung von 500 Euro.",
          "Der Anspruch besteht nur teilweise in Höhe der Anzahlung"),
         # a norm with text around it, a numeral at the end of the quote
-        ("Die Klage ist nach § 42 I VwGO als Anfechtungsklage statthaft.",
-         "nach § 42 I VwGO als Anfechtungsklage statthaft"),
-        ("Der Eingriff ist an Art. 8 I GG zu messen.", "Der Eingriff ist an Art. 8 I"),
+        ("Der Anspruch des K folgt aus § 433 II BGB und ist fällig.", "aus § 433 II BGB und ist fällig"),
+        ("Der Schutz ergibt sich aus § 823 I BGB.", "Der Schutz ergibt sich aus § 823 I"),
         # a typo in the answer the judge corrected, and one of the judge
-        ("Die Maßnahme war nciht verhältnismäßig, weil ein milderes Mittel zur Verfügung stand.",
-         "Die Maßnahme war nicht verhältnismäßig, weil ein milderes Mittel zur Verfügung stand"),
+        ("Die Verteidigung war nciht geboten, weil ein milderes Mittel zur Verfügung stand.",
+         "Die Verteidigung war nicht geboten, weil ein milderes Mittel zur Verfügung stand"),
         ("Der Beklagte hat die Verkehrssicherungspflicht verlezt, weil er nicht gestreut hat.",
          "Der Beklagte hat die Verkehrssicherungspflicht verletzt, weil er nicht gestreut hat"),
         ("Der Beklagte hat die Verkehrssicherungspflicht verletzt, weil er nicht gestreut hat.",
@@ -1890,13 +1889,13 @@ class TestFinalizeRubricScores:
         return {
             "scores": {
                 "s01_rechtsweg": {
-                    "evidence": "richtet sich der Rechtsweg nach § 40 I 1 VwGO",
+                    "evidence": "richtet sich der Rechtsweg nach § 13 GVG",
                     "score": 2,
                     "max": 2,
                     "reason": "Rechtsweg geprüft.",
                 },
-                "s02_allgemeinverfuegung": {
-                    "evidence": "Eine Allgemeinverfügung ist irrelevant",
+                "s02_anfechtung": {
+                    "evidence": "Eine Anfechtung ist irrelevant",
                     "score": 1,
                     "max": 1,
                     "reason": "angesprochen",
@@ -1914,14 +1913,14 @@ class TestFinalizeRubricScores:
             "score": 2.0,
             "max": 2.0,
             "reason": "Rechtsweg geprüft.",
-            "evidence": "richtet sich der Rechtsweg nach § 40 I 1 VwGO",
+            "evidence": "richtet sich der Rechtsweg nach § 13 GVG",
             "evidence_verified": True,
             "model_score": 2.0,
         }
-        assert scores["s02_allgemeinverfuegung"]["score"] == 0.0
-        assert scores["s02_allgemeinverfuegung"]["model_score"] == 1.0
-        assert scores["s02_allgemeinverfuegung"]["evidence_verified"] is False
-        assert scores["s02_allgemeinverfuegung"]["reason"] == (
+        assert scores["s02_anfechtung"]["score"] == 0.0
+        assert scores["s02_anfechtung"]["model_score"] == 1.0
+        assert scores["s02_anfechtung"]["evidence_verified"] is False
+        assert scores["s02_anfechtung"]["reason"] == (
             f"angesprochen [{EVIDENCE_UNVERIFIED_NOTE}]"
         )
         assert scores["s03_klageart"]["score"] == 0.0
@@ -1952,7 +1951,7 @@ class TestFinalizeRubricScores:
         parsed = {
             "scores": {
                 "s03_klageart": {
-                    "evidence": "Der Platzverweis ist ein „Verwaltungsakt“",
+                    "evidence": "Die Bestellung ist eine „Willenserklärung“",
                     "score": 7.3,
                     "reason": "",
                 }
@@ -1973,8 +1972,8 @@ class TestFinalizeRubricScores:
 
     def test_without_an_index_the_generic_contract_is_unchanged(self):
         scores, total, zeroed = _finalize_multidim_scores(self._parsed(), _STEPS, None)
-        assert set(scores["s02_allgemeinverfuegung"]) == {"score", "max", "reason"}
-        assert scores["s02_allgemeinverfuegung"]["score"] == 1.0
+        assert set(scores["s02_anfechtung"]) == {"score", "max", "reason"}
+        assert scores["s02_anfechtung"]["score"] == 1.0
         # 5.5 is on the grid and equals the sum -> trusted as before.
         assert total == 5.5
         assert zeroed == 0
@@ -2045,7 +2044,7 @@ class TestRubricModeSingleCall:
     def _call(self, ev, prediction=_ANSWER, context="Der Sachverhalt.", **kwargs):
         return ev._evaluate_multidim_single_call(
             context=context,
-            ground_truth="Die Musterlösung erwähnt die Allgemeinverfügung.",
+            ground_truth="Die Musterlösung erwähnt die Anfechtung.",
             prediction=prediction,
             task_data={"bewertungsbogen": "1. Rechtsweg (2 BE)"},
             **kwargs,
@@ -2059,7 +2058,7 @@ class TestRubricModeSingleCall:
         assert kwargs["system_prompt"] == RUBRIC_JUDGE_SYSTEM_PROMPT
         assert "SACHVERHALT:\n<sachverhalt>\nDer Sachverhalt.\n</sachverhalt>" in prompt
         assert (
-            "<musterloesung>\nDie Musterlösung erwähnt die Allgemeinverfügung.\n</musterloesung>"
+            "<musterloesung>\nDie Musterlösung erwähnt die Anfechtung.\n</musterloesung>"
             in prompt
         )
         assert "<bewertungsbogen>\n1. Rechtsweg (2 BE)\n</bewertungsbogen>" in prompt
@@ -2139,8 +2138,8 @@ class TestRubricModeSingleCall:
         result = self._call(self._evaluator())
         assert result["scores"]["s01_rechtsweg"]["score"] == 2.0
         assert result["scores"]["s01_rechtsweg"]["evidence_verified"] is True
-        assert result["scores"]["s02_allgemeinverfuegung"]["score"] == 0.0
-        assert result["scores"]["s02_allgemeinverfuegung"]["model_score"] == 1.0
+        assert result["scores"]["s02_anfechtung"]["score"] == 0.0
+        assert result["scores"]["s02_anfechtung"]["model_score"] == 1.0
         assert result["scores"]["s03_klageart"]["score"] == 0.0
         assert result["total_score"] == 2.0
         assert result["total_max"] == 6.0
@@ -2161,7 +2160,7 @@ class TestRubricModeSingleCall:
         assert "SACHVERHALT:\nNo additional context provided." in kwargs["prompt"]
         step = kwargs["json_schema"]["properties"]["scores"]["properties"]["s01_rechtsweg"]
         assert "evidence" not in step["properties"]
-        assert set(result["scores"]["s02_allgemeinverfuegung"]) == {"score", "max", "reason"}
+        assert set(result["scores"]["s02_anfechtung"]) == {"score", "max", "reason"}
         assert result["total_score"] == 5.5
 
     def test_a_template_without_the_answer_still_shows_it_before_the_rules(self):
@@ -2314,10 +2313,11 @@ class TestRubricPromptPlacement:
         closing = next(line for line in RUBRIC_JUDGE_CLOSING_RULES.splitlines() if "anderen Prüfungspunkt" in line)
         assert closing.endswith(self.SENTENCE)
 
-    def test_no_study_exam_terms_in_the_product_prompts(self):
+    def test_the_product_prompts_name_no_case_facts(self):
+        # The prompts hold for every exam, so they name no area's case terms.
         text = (RUBRIC_JUDGE_SYSTEM_PROMPT + RUBRIC_JUDGE_CLOSING_RULES).casefold()
-        for term in ("Zweckveranlasser", "Maßnahmerichtung", "Massnahmerichtung", "Fortsetzungsfeststellung",
-                     "Platzverweis", "Versammlung", "Störer", "Polizei"):
+        for term in ("Kaufvertrag", "Kaufpreis", "Mietvertrag", "Werkvertrag", "Schadensersatz", "Diebstahl",
+                     "Betrug", "Körperverletzung"):
             assert term.casefold() not in text
 
 
