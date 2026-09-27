@@ -685,8 +685,8 @@ class TestDiagnosisAndSecondExamAlignment:
 
 
 # ---------------------------------------------------------------------------
-# Robustness: a broken spec fails before any call, and the sheet total is
-# never assumed.
+# Robustness: a broken spec fails before any call, a deterministic finalize
+# error is not retried, and the sheet total is never assumed.
 # ---------------------------------------------------------------------------
 
 
@@ -804,3 +804,98 @@ class TestTotalPoints:
     def test_the_rating_table_needs_a_total(self, total):
         with pytest.raises(cs.ChecklistSpecError, match="total_points"):
             cs.rating_percent_table(None, total)
+
+
+class TestAnswerValuesNeverRaise:
+    """finalize coerces every malformed value of the answer, so its errors
+    can only come from the spec or the code (see the evaluator tests)."""
+
+    @pytest.mark.parametrize("value", [float("inf"), float("-inf"), float("nan"), "zwei", [2], None])
+    def test_bullet_status(self, value):
+        judgment = _judgment()
+        judgment["scores"]["s02_kaufvertrag"]["anforderungen"]["b1"] = {"status": value, "evidence": ""}
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["scores"]["s02_kaufvertrag"]["anforderungen"]["b1"]["status"] == 0
+
+    @pytest.mark.parametrize("value", [float("inf"), float("nan"), "viel", {"a": 1}])
+    def test_step_score_and_rating(self, value):
+        def entry(key):
+            return {key: value, "evidence": "bei Übergabe defekt", "abweichender_weg": False, "reason": ""}
+        keys = ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")
+        scored = cs.finalize({"scores": {k: entry("score") for k in keys}}, _spec(), "step", "replace",
+                             "declared", _verify)
+        assert scored["total_score"] == 0.0
+        rated = cs.finalize({"scores": {k: entry("note") for k in keys}}, _spec(), "rating", "replace",
+                            "declared", _verify)
+        assert rated["total_score"] == 0.0
+
+    @pytest.mark.parametrize("declared", [["W1-L1"], {"id": "W1-L1"}, 7, None])
+    def test_an_unusable_declaration_is_the_musterloesung(self, declared):
+        judgment = _judgment()
+        judgment["weichenstellungen"]["W1"]["gefolgter_loesungsweg"] = declared
+        out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
+        assert out["checklist"]["weichenstellungen"]["W1"]["declared"] == "musterloesung"
+
+
+class TestEvaluatorRetries:
+    def _evaluator(self, spec=None, unit="bullet", alternatives="branch"):
+        ev = LLMJudgeEvaluator(ai_service=MagicMock(), judge_model="gpt-5.6-luna",
+                               custom_prompt_template="{context}\n{prediction}")
+        ev.configure_checklist(spec or _spec(), unit, alternatives, "declared")
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": json.dumps(_judgment()), "metadata": {"finish_reason": "stop"},
+            "usage": {"prompt_tokens": 100, "completion_tokens": 20, "total_tokens": 120}}
+        return ev
+
+    def test_a_deterministic_finalize_error_fails_at_once(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+        # A spec changed after configure_checklist: finalize trips over it
+        # on every attempt, so the call is not repeated.
+        del ev.checklist["spec"]["steps"]["s02_kaufvertrag"]["max_score"]
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert ev.ai_service.generate_structured.call_count == 1
+        assert result["error"] is True
+        meta = result["_call_metadata"]
+        assert meta["error_type"] == "checklist_error"
+        assert meta["judge_retries"] == []
+        assert meta["usage_all_attempts"]["attempts"] == 1
+        assert result["error_message"].startswith("checklist scoring failed (KeyError)")
+        assert result["_raw_output"]  # the paid answer is kept
+
+    @pytest.mark.parametrize("error", [KeyError("x"), StopIteration(), OverflowError("x"), ZeroDivisionError()])
+    def test_no_finalize_error_is_retried(self, monkeypatch, error):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+
+        def boom(*_args, **_kwargs):
+            raise error
+
+        monkeypatch.setattr(cs, "finalize", boom)
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert ev.ai_service.generate_structured.call_count == 1
+        assert result["_call_metadata"]["error_type"] == "checklist_error"
+        assert type(error).__name__ in result["error_message"]
+
+    def test_an_unparseable_answer_is_still_retried(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+        ok = {"success": True, "content": json.dumps(_judgment()), "metadata": {"finish_reason": "stop"},
+              "usage": {}}
+        ev.ai_service.generate_structured.return_value = None
+        ev.ai_service.generate_structured.side_effect = [
+            {"success": True, "content": "kein JSON", "metadata": {"finish_reason": "stop"}, "usage": {}}, ok]
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert ev.ai_service.generate_structured.call_count == 2
+        assert not result.get("error") and result["total_score"] == 45.0
+
+    def test_a_non_finite_answer_value_is_scored_not_retried(self, monkeypatch):
+        monkeypatch.setattr("time.sleep", lambda *_: None)
+        ev = self._evaluator()
+        judgment = _judgment()
+        judgment["scores"]["s02_kaufvertrag"]["anforderungen"]["b1"]["status"] = 1e999  # json: Infinity
+        ev.ai_service.generate_structured.return_value = {
+            "success": True, "content": json.dumps(judgment), "metadata": {"finish_reason": "stop"}, "usage": {}}
+        result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
+        assert ev.ai_service.generate_structured.call_count == 1
+        assert not result.get("error") and result["total_score"] == 45.0

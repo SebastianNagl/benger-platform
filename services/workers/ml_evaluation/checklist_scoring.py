@@ -315,7 +315,8 @@ def validate_spec(spec: Any, score_unit: str, alternatives: str) -> None:
     the primary steps in ``order``, every Weichenstellung with its
     Musterlösung path, the other paths' steps (branch mode scores them) and
     the work results. Raises :class:`ChecklistSpecError` naming every
-    problem found.
+    problem found. With a valid spec, an error in :func:`finalize` cannot
+    come from the answer being scored, whose values finalize coerces.
     """
     if not isinstance(spec, dict):
         raise ChecklistSpecError("checklist spec must be an object")
@@ -826,9 +827,13 @@ def expected_output_note(spec: Dict[str, Any], score_unit: str, alternatives: st
 
 
 def _coerce_int(value: Any, lo: int, hi: int) -> int:
+    """A judge's status or grade on its scale; anything unusable is 0.
+
+    NaN and infinity (``json`` parses both) are unusable too, so no value
+    of the answer can make :func:`finalize` raise."""
     try:
         number = int(round(float(value)))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
     return max(lo, min(hi, number))
 
@@ -856,8 +861,13 @@ def finalize(
     ``total_score`` adds up to it exactly (:func:`distribute_half_points`);
     other steps show their own points rounded half up. ``grade_scale`` is the
     exam's key for the rating unit (:func:`rating_percent_table`; ``None`` is
-    the platform default). A spec without ``total_points`` raises
-    :class:`ChecklistSpecError`.
+    the platform default).
+
+    Malformed values of the answer are coerced (to 0, or to the
+    Musterlösung's path), never raised on. An exception from here therefore
+    comes from the spec, the key or the code and repeats for the same
+    input, so the evaluator reports it at once instead of paying for a
+    retry. A spec without ``total_points`` raises :class:`ChecklistSpecError`.
     """
     scores_in = parsed.get("scores") if isinstance(parsed.get("scores"), dict) else {}
     steps = scored_steps(spec, alternatives)
@@ -910,7 +920,7 @@ def finalize(
         elif score_unit == "step":
             try:
                 model_score = max(0.0, min(mx, round_half_up(float(entry.get("score") or 0))))
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 model_score = 0.0
             evidence = entry.get("evidence") if isinstance(entry.get("evidence"), str) else ""
             verified = verify(evidence) if evidence.strip() else False
@@ -955,7 +965,7 @@ def finalize(
         path_points = {z["id"]: sum(raw_points.get(k, 0.0) for k in z.get("step_keys") or []) for z in loesungswege}
         decision = weichenstellungen_in[weichenstellung["id"]]
         declared = decision.get("gefolgter_loesungsweg")
-        if declared not in path_points:
+        if not isinstance(declared, str) or declared not in path_points:
             declared = PRIMARY
         evidence = decision.get("evidence") if isinstance(decision.get("evidence"), str) else ""
         evidence_verified = verify(evidence) if evidence.strip() else False

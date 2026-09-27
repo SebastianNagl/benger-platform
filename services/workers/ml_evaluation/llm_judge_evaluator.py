@@ -2316,15 +2316,36 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     from . import checklist_scoring
 
                     opts = self.checklist
-                    result = checklist_scoring.finalize(
-                        parsed,
-                        opts["spec"],
-                        opts["score_unit"],
-                        opts["alternatives"],
-                        opts["total_mode"],
-                        lambda quote: _verify_evidence(quote, evidence_index),
-                        grade_scale=opts.get("grade_scale"),
-                    )
+                    try:
+                        result = checklist_scoring.finalize(
+                            parsed,
+                            opts["spec"],
+                            opts["score_unit"],
+                            opts["alternatives"],
+                            opts["total_mode"],
+                            lambda quote: _verify_evidence(quote, evidence_index),
+                            grade_scale=opts.get("grade_scale"),
+                        )
+                    except Exception as exc:
+                        # finalize coerces every malformed value of the
+                        # answer, so an error here comes from the spec, the
+                        # key or the code. It repeats for the same answer:
+                        # fail at once instead of paying for retries.
+                        logger.error(
+                            f"Checklist judge ({self.judge_model}): finalize failed "
+                            f"({type(exc).__name__}: {exc}); not retried"
+                        )
+                        return {
+                            "error": True,
+                            "error_message": (
+                                f"checklist scoring failed ({type(exc).__name__}): {exc}"
+                            ),
+                            "_call_metadata": call_meta(
+                                _extract_call_metadata(response), error_type="checklist_error"
+                            ),
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
                     if not result.get("missing") and result.get("not_evaluable"):
                         # Same contract as the second-exam engine: no value,
                         # an error row with the judge's reasons.
