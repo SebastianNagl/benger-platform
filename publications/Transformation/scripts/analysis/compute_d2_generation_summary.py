@@ -8,7 +8,10 @@ the valid sheets, attempts per chain, the number of failed attempts and the
 strict failure categories among them (an attempt can fail on several), the
 categories of the last attempt of each failed chain, the
 cost per chain and per valid sheet, and per valid sheet its step count, the
-attempt it passed on and its soft validator hints by category.
+attempt it passed on and its soft validator hints by category. It also
+copies the spend of the extended study so far (all phases, from the host
+ledger data/interim/pilot/ledger.json) so the paper never carries it as a
+literal.
 Aggregates only; the attempt messages quote no exam content.
 """
 
@@ -31,6 +34,7 @@ from d2_labels import D2_VALIDATOR  # noqa: E402
 DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 ROWS = DATA / "interim" / "human" / "pilot" / "d2-generate.jsonl"
 OUT = HERE / "data" / "processed" / "cslaw" / "d2_generation.json"
+LEDGER = DATA / "interim" / "pilot" / "ledger.json"
 # The prefix of a strict error names its check ("gewicht:", "weichenstellungen:" ...);
 # the text after it can quote exam content, so only the category is kept.
 CATEGORY = re.compile(r"^([a-zäöü_]+):")
@@ -87,6 +91,10 @@ def main() -> int:
                                 "attempt": rb.get("attempts") or res.get("attempts"),
                                 "hints": dict(sorted(hints.items()))})
     out = {"validator_sha256": validator, "per_generator": {}}
+    if LEDGER.exists():
+        ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+        out["study_spend_usd"] = round(float(ledger["spent"]), 2)
+        out["study_calls"] = ledger.get("calls")
     for gen, g in sorted(per.items()):
         usd = sum(g["usd_chains"])
         out["per_generator"][gen] = {

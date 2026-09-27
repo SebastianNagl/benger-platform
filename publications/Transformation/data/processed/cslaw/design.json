@@ -173,14 +173,14 @@
  "experiments": [
   {
    "id": "E0",
-   "name": "Freeze, gate and registration",
+   "name": "Freeze and gate",
    "rq": [
     "RQ1",
     "RQ2",
     "RQ3",
     "RQ4"
    ],
-   "scope": "one frozen code version (checklist-4 generator, one judge build), the probe gate on every judge and instrument over 3 passes, a public pre-registration of the D2b test before any D2b grade exists",
+   "scope": "Freeze one version of the pipeline. Test every judge and sheet with fake answers in 3 runs. Register the D2b test before any D2b grade exists.",
    "cost_usd": [
     10,
     15
@@ -189,11 +189,11 @@
   },
   {
    "id": "E1",
-   "name": "Crossed variance study",
+   "name": "Steadier?",
    "rq": [
     "RQ1"
    ],
-   "scope": "all 38 D2 scripts under no sheet, the expert sheet and generated sheets (2 generators x 5 sheets, step and bullet units); Luna 3 passes, DeepSeek-V4-Pro and GPT-5.4 Mini on a subset; D1 replication with the current Luna (45 answers, 3 passes); variance components, dependability, pass/fail flips, equal-cost comparison with averaging passes",
+   "scope": "Grade all 38 D2 scripts with no sheet, the author's sheet and 10 generated sheets (2 models, 5 each, scored per requirement and per step): Luna 3 runs, DeepSeek-V4-Pro and GPT-5.4 Mini on part of them. Repeat on D1 (45 answers, 3 runs). Split the spread into its sources, count pass/fail flips between runs, compare with averaging runs at equal cost.",
    "cost_usd": [
     60,
     90
@@ -205,11 +205,11 @@
   },
   {
    "id": "E2",
-   "name": "Validity and misclassification",
+   "name": "Close to the examiner?",
    "rq": [
     "RQ2"
    ],
-   "scope": "E1 outputs against the examiner (D2a by reference state; D2b graded blind from exported scripts, the registered test), a second grader (at least 20 scripts, incl. the 9 with an unconfirmed grader), the examiner's blind re-grade of 5 scripts; D1 against the blind pool (primary) and the exam creator (alternative-annotator test); pass-mark sweep",
+   "scope": "Compare the E1 grades with the author (D2a; D2b as the registered test), a second grader (20 scripts, incl. the 9 with an unconfirmed grader) and the author's second grading of 5 scripts. On D1, compare with the blind graders and test whether a model could replace one of them. Count wrong passes and fails at pass marks from 35 to 55%.",
    "cost_usd": [
     0,
     0
@@ -223,11 +223,11 @@
   },
   {
    "id": "E3",
-   "name": "Lean generator and judge benchmark",
+   "name": "Which models?",
    "rq": [
     "RQ3"
    ],
-   "scope": "5 generators x 3 sheets on D2 and 5 D1 exams with a fixed judge; 4 judges (one open-weight, one never used in development) on fixed sheets; cost per valid sheet; the examiner's source-masked audit of generated sheets",
+   "scope": "5 generators with 3 sheets each on D2 and 5 D1 exams, one judge. 4 judges on fixed sheets, one of them an open model and one never used in development. Cost per valid sheet. The author reviews sheets without knowing which model wrote them.",
    "cost_usd": [
     50,
     70
@@ -246,7 +246,7 @@
    "rq": [
     "RQ4"
    ],
-   "scope": "examiner-written probes with expected losses fixed in advance (defensible alternative path, consistent follow-on-error chain, negated decisive results, fluent but wrong subsumption, padding, paraphrase, LLM-written answer, cardinal errors); A0/A1/A2 designs for alternative paths; quote-verifier precision and recall on 200 human-checked quotes",
+   "scope": "Fake answers the author writes, with the expected loss fixed in advance: a defensible other path, a consistent follow-on error, reversed decisive results, fluent but wrong application, padding, paraphrase, an answer written by a model, cardinal errors. Three designs for alternative paths. 200 quotes checked by hand.",
    "cost_usd": [
     15,
     20
@@ -256,12 +256,12 @@
   },
   {
    "id": "E5",
-   "name": "Second exam at sheet level",
+   "name": "Second exam",
    "rq": [
     "RQ3",
     "RQ4"
    ],
-   "scope": "Roth's case and reference solution (no scripts): generated sheets against his sheet (coverage, weights), checked by him",
+   "scope": "Sheets generated for Roth's exam, compared with Roth's sheet (coverage, weights) and checked by Roth. Needs Roth's case and reference solution.",
    "cost_usd": [
     5,
     5
@@ -324,7 +324,7 @@
     "criterion": "total <= 10"
    },
    {
-    "probe": "keyword salad",
+    "probe": "keyword list",
     "input": "norms and key terms of the sheet, no sentences",
     "criterion": "total <= 10"
    },
@@ -336,22 +336,22 @@
    {
     "probe": "reference solution",
     "input": "the exam's own reference solution",
-    "criterion": "total >= 70 (descriptive for the rating unit)"
+    "criterion": "total >= 70"
    },
    {
-    "probe": "section ablation",
-    "input": "the reference solution with one Abschnitt removed",
-    "criterion": "drop close to the removed Abschnitt's BE"
+    "probe": "section removed",
+    "input": "the reference solution with one section removed",
+    "criterion": "drop close to the removed section's BE"
    },
    {
-    "probe": "misplacement",
+    "probe": "paragraph moved",
     "input": "correct reasoning moved under another heading",
     "criterion": "drop close to 0"
    },
    {
-    "probe": "negation flip",
+    "probe": "results reversed",
     "input": "result sentences of the reference solution negated",
-    "criterion": "descriptive"
+    "criterion": "reported, no threshold"
    }
   ],
   "later": [

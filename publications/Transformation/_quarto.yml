@@ -38,6 +38,8 @@ format:
         \usepackage{tikz}
         \usetikzlibrary{positioning,arrows.meta,fit}
         \usepackage{multirow}
+        % Floats stay in their appendix (a barrier before every appendix section).
+        \usepackage{placeins}
         % Visible marker for every number or result that does not exist yet.
         \newcommand{\pending}[1]{\textcolor{red}{[PENDING: #1]}}
         % Short marker for table cells.

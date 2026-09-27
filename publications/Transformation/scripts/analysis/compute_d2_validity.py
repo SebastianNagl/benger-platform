@@ -16,10 +16,17 @@ one pass are compared on single-pass performance:
 - MAE and mean bias (judge - reference), with script-bootstrap 95 % CIs;
 - Pearson r and Spearman rho (average ranks for ties);
 - pass/fail agreement at the exam's pass mark (40 BE) and Cohen's kappa;
+- students passed by the judge whom the reference fails (wrong passes) and
+  the reverse (wrong fails), as a mean count per pass;
+- the error in grade points (0 to 18) under the exam's own key (design.json:
+  10 BE per grade point below the pass mark, 4 from it, grade 18 from 96 BE)
+  and the share of scripts within one grade point;
 - repeat SD (pooled within-script SD over passes: the root of the mean
   variance) and the mean absolute difference between two passes, for
   scripts with >= 2 passes;
 - the MAE of the per-script pass means, for reference;
+- the SD of the per-script means between scripts, the judge's and the
+  reference's, to show whether a judge compresses the range of grades;
 - for the expert-sheet arms: per-step mean absolute difference, over the
   steps both graded, as a share of the step maximum.
 
@@ -62,7 +69,9 @@ DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 ROWS = DATA / "interim" / "human" / "pilot" / "d2-judge.jsonl"
 PACK = DATA / "interim" / "human" / "heidebach_scripts.json"
 OUT = HERE / "data" / "processed" / "cslaw" / "d2_validity.json"
-PASS_MARK = 40.0
+DESIGN = HERE / "data" / "processed" / "cslaw" / "design.json"
+_SHEET = json.loads(DESIGN.read_text(encoding="utf-8"))["d2"]["sheet"]
+PASS_MARK = float(_SHEET["pass_share"] * _SHEET["total_be"])
 LABELS = rubric_labels(DATA / "interim" / "human" / "pilot" / "d2-generate.jsonl")
 SEED = 20260926
 N_BOOT = 4000
@@ -184,6 +193,32 @@ def _rate(j, r):
     return statistics.fmean(a >= PASS_MARK for a in j)
 
 
+def grade(be: float) -> int:
+    """Grade points (0 to 18) of a BE total under the exam's own key."""
+    if be >= _SHEET["key_top_grade_be"]:
+        return 18
+    if be >= PASS_MARK:
+        pass_np = int(PASS_MARK // _SHEET["key_be_per_grade_below_pass"])
+        return pass_np + int((be - PASS_MARK) // _SHEET["key_be_per_grade_from_pass"])
+    return int(be // _SHEET["key_be_per_grade_below_pass"])
+
+
+def _wrong_pass(j, r):
+    return sum(a >= PASS_MARK > b for a, b in zip(j, r))
+
+
+def _wrong_fail(j, r):
+    return sum(b >= PASS_MARK > a for a, b in zip(j, r))
+
+
+def _mae_np(j, r):
+    return statistics.fmean(abs(grade(a) - grade(b)) for a, b in zip(j, r))
+
+
+def _within_one(j, r):
+    return statistics.fmean(abs(grade(a) - grade(b)) <= 1 for a, b in zip(j, r))
+
+
 # Paired contrasts on the same scripts: (judge, arm label) A minus B.
 LUNA, MINI, DS = "gpt-5.6-luna", "gpt-5.4-mini", "deepseek-ai/DeepSeek-V4-Pro"
 EXPERT = "expert sheet:step"
@@ -202,6 +237,14 @@ CONTRASTS = [
     ("sheet for DeepSeek", (DS, "gpt-5.4 sheet 1:bullet"), (DS, EXPERT)),
     ("sheet for GPT-5.4 Mini", (MINI, "gpt-5.4 sheet 1:bullet"), (MINI, EXPERT)),
     ("weak judge vs generated sheet", (MINI, EXPERT), (LUNA, "gpt-5.4 sheet 1:bullet")),
+    # the same unit as the expert sheet, so the sheet alone differs
+    ("sheet for Luna, per step", (LUNA, "gpt-5.4 sheet 1:step"), (LUNA, EXPERT)),
+    ("sheet for Luna, per step", (LUNA, "gpt-5.4-mini sheet 1:step"), (LUNA, EXPERT)),
+    ("sheet for Luna, per step", (LUNA, "gpt-5.4-mini sheet 2:step"), (LUNA, EXPERT)),
+    # the same sheet, per requirement vs per step
+    ("scoring unit", (LUNA, "gpt-5.4 sheet 1:bullet"), (LUNA, "gpt-5.4 sheet 1:step")),
+    ("scoring unit", (LUNA, "gpt-5.4-mini sheet 1:bullet"), (LUNA, "gpt-5.4-mini sheet 1:step")),
+    ("scoring unit", (LUNA, "gpt-5.4-mini sheet 2:bullet"), (LUNA, "gpt-5.4-mini sheet 2:step")),
 ]
 
 
@@ -281,8 +324,19 @@ def main() -> int:
             "pass_kappa": rnd(cell.per_pass(_kappa), 3),
             "judge_pass_rate": rnd(cell.per_pass(_rate), 3),
             "reference_pass_rate": round(statistics.fmean(v >= PASS_MARK for v in cell.ref), 3),
+            "reference_n_pass": sum(v >= PASS_MARK for v in cell.ref),
+            "reference_n_fail": sum(v < PASS_MARK for v in cell.ref),
+            "wrong_pass": rnd(cell.per_pass(_wrong_pass), 2),
+            "wrong_fail": rnd(cell.per_pass(_wrong_fail), 2),
+            "mae_grade_points": rnd(cell.per_pass(_mae_np), 2),
+            "mae_grade_points_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae_np, idx),
+                                             rng_for(judge, label, "mae_np")),
+            "within_one_grade": rnd(cell.per_pass(_within_one), 3),
             "judge_mean_total": round(statistics.fmean(means), 2),
             "reference_mean_total": round(statistics.fmean(cell.ref), 2),
+            # how far the judge spreads the scripts apart, against the reference's spread
+            "judge_sd_between_scripts": round(statistics.stdev(means), 2) if n >= 2 else None,
+            "reference_sd_between_scripts": round(statistics.stdev(cell.ref), 2) if n >= 2 else None,
             "mae_of_pass_means": round(_mae(means, cell.ref), 2),
             # pooled within-script SD (root of the mean variance): far less dependent on the
             # number of passes, unlike a mean of per-script SDs
@@ -375,7 +429,9 @@ def main() -> int:
         for judge, x in per.items():
             print(f"{arm:34.34s} {judge:28.28s} n={x['n_scripts']:2d} p={x['complete_passes']} MAE {x['mae']:5.2f} "
                   f"{x['mae_ci95']} bias {x['bias']:+6.2f} r {x['pearson']} agree {x['pass_agreement']} "
-                  f"k {x['pass_kappa']} rep {x['repeat_sd']} |dp| {x['mean_abs_pass_diff']}")
+                  f"k {x['pass_kappa']} rep {x['repeat_sd']} |dp| {x['mean_abs_pass_diff']} "
+                  f"wrong +{x['wrong_pass']}/-{x['wrong_fail']} NP {x['mae_grade_points']} "
+                  f"<=1NP {x['within_one_grade']}")
     for c in contrasts:
         print(f"{c['a']['judge'][:12]}/{c['a']['arm'][:24]} - {c['b']['judge'][:12]}/{c['b']['arm'][:24]}: "
               f"abs {c['abs_error']} signed {c['signed_error']}")
