@@ -18,8 +18,8 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-26',
     audience: 'both',
     text: {
-      de: 'Die KI-Korrektur mit Bewertungsbogen prüft Zitate aus der Bearbeitung strenger auf Verneinungen, gegenteilige Ergebnisse und Zahlen. Zitate, die mehrere Stellen zusammenfassen oder über eine Silbentrennung laufen, erkennt sie jetzt an. Richtige Ausführungen unter einer anderen Überschrift derselben Aufgabe zählen für den passenden Schritt.',
-      en: 'AI grading with a grading sheet checks quotes from the answer more strictly for negations, contrary results and numbers. It now accepts quotes that combine several passages or run across a hyphenation break. Correct work under another heading of the same question counts for the matching step.',
+      de: 'Die KI-Korrektur mit Bewertungsbogen prüft Zitate aus der Bearbeitung strenger auf Verneinungen, gegenteilige Ergebnisse, Zahlen und bloße Normzitate. Zitate, die mehrere Stellen zusammensetzen oder über eine Silbentrennung laufen, kann sie jetzt häufiger zuordnen. Die KI ist außerdem angewiesen, richtige Ausführungen unter einer anderen Überschrift derselben Aufgabe beim passenden Schritt zu berücksichtigen.',
+      en: 'AI grading with a grading sheet checks quotes from the answer more strictly for negations, contrary results, numbers and bare norm citations. It can now match more quotes that combine several passages or run across a hyphenation break. The AI is also instructed to credit correct work under another heading of the same question to the matching step.',
     },
   },
   {
