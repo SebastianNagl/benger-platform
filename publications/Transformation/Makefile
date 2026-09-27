@@ -1,4 +1,4 @@
-.PHONY: derive analyze analyze-cslaw analyze-d2 pull render clean
+.PHONY: derive analyze analyze-cslaw analyze-local analyze-d2 pull render clean
 
 # File-based derivation only — works without the dev stack.
 derive:
@@ -36,6 +36,14 @@ analyze:
 analyze-cslaw:
 	uv run python scripts/analysis/cslaw_first_iteration.py --check
 	uv run python scripts/analysis/cslaw_design.py
+
+# The first-iteration numbers that analyze-cslaw lists as pending: they need
+# the git-ignored run outputs and rubrics (local data root,
+# scripts/local_config.py) and write aggregates only to
+# data/processed/cslaw/first_iteration_local.json. --check fails when a
+# stored-total recompute no longer reproduces its tracked value.
+analyze-local:
+	uv run python scripts/analysis/cslaw_first_iteration_local.py --check
 
 # Pulls from the LOCAL dev stack (requires docker + running benger-db-1).
 pull:
