@@ -144,28 +144,20 @@ D2 = {
     "pii": {"student_name_lines_removed": 1, "examiner_headers_removed": 1, "grade_files_with_private_email": 9},
 }
 
-Z2 = {
-    "source": "plan",
-    "unit": "relative percentages per level",
-    "leaf_scale_max": 18,
-    "aggregation": "weighted mean of grades",
-    "n_graders": 2,
-}
-
 EXPERIMENTS = [
-    {"id": "E0", "name": "Gate v2 and instrument freeze", "rq": ["RQ2", "RQ5"],
+    {"id": "E0", "name": "Gate v2 and instrument freeze", "rq": ["RQ1", "RQ5"],
      "scope": "D2 and 4 D1 exams; the expert sheet (step and rating units), one checklist sheet each from "
               "two generators, the first-iteration sheet; 3 judges",
      "cost_usd": [15, 15], "n_d1_exams": 4, "passes": 3,
      "judges": ["gpt-5.6-luna", "gpt-5.4-mini", "DeepSeek-V4-Pro"],
      "instruments": [["expert", "step"], ["expert", "rating"], ["gpt-5.4-mini", "bullet"], ["gpt-5.4", "bullet"],
                      ["first iteration", "step"]]},
-    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ1", "RQ4"],
+    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ3", "RQ4"],
      "scope": "12 generators, 15 D1 exams and D2, 2-3 samples per exam, one reference judge (2 passes), "
               "a second judge on 4 generators",
      "cost_usd": [170, 170], "n_generators": 12, "samples": [2, 3], "reference_judge_passes": 2,
      "second_judge_generators": 4, "audit_bullets_per_sheet": 10},
-    {"id": "E2", "name": "Judge benchmark", "rq": ["RQ2", "RQ3", "RQ5"],
+    {"id": "E2", "name": "Judge benchmark", "rq": ["RQ1", "RQ2", "RQ5"],
      "scope": "6-8 judges on fixed sheets; 45 D1 answers and 15 D2a scripts, 3 passes",
      "cost_usd": [100, 150], "n_judges": [6, 8], "passes": 3},
     {"id": "E3", "name": "Generator x judge interaction", "rq": ["RQ4", "RQ5"],
@@ -174,15 +166,15 @@ EXPERIMENTS = [
     {"id": "E4", "name": "Pipeline optimization", "rq": ["RQ6"],
      "scope": "fractional factorial over the levers on D1 and D2a; one confirmation on held-out D2b",
      "cost_usd": [80, 80]},
-    {"id": "E5", "name": "Alternatives, Hilfsgutachten, placement", "rq": ["RQ3", "RQ6"],
+    {"id": "E5", "name": "Alternatives, Hilfsgutachten, placement", "rq": ["RQ2", "RQ6"],
      "scope": "A0 vs A1 vs A2 on scripts that take another path; alternative-path and misplacement probes",
      "cost_usd": [15, 15]},
     {"id": "E6", "name": "Grading practice", "rq": ["RQ7"],
      "scope": "re-aggregation of stored outputs (BE distribution, method bullets, pass mark sweep, key "
               "shape); Kardinalfehler probes",
      "cost_usd": [10, 10], "pass_mark_sweep": [0.35, 0.55], "kardinalfehler_probes": 5},
-    {"id": "E7", "name": "Comparison with the second paradigm", "rq": ["RQ7"],
-     "scope": "scoring format and weight elicitation on D2 (no Z2 data); re-aggregation",
+    {"id": "E7", "name": "Comparison with Roth's paradigm", "rq": ["RQ7"],
+     "scope": "scoring format and weight elicitation on D2 (Z2 has no case or scripts); re-aggregation",
      "cost_usd": [15, 15]},
 ]
 
@@ -247,7 +239,6 @@ def main() -> int:
         "default_key": default_key(),
         "generator": GENERATOR,
         "d2": D2,
-        "z2": Z2,
         "experiments": EXPERIMENTS,
         "costs": COSTS,
         "probes": PROBES,

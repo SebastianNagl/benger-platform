@@ -1,0 +1,5 @@
+/.quarto/
+**/*.quarto_ipynb
+# Written at render time (tables, TikZ) or by `make analyze` (figures).
+/assets/
+comment.cut

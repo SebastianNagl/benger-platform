@@ -1,1434 +1,1644 @@
 ---
-# BLIND-REVIEW SWAPS (currently in CAMERA-READY mode).
-# To switch back to ARR blind mode:
-#   • set _quarto.yml to `review: true, anonymous: true`
-#   • replace the title below with the bare "Exploring …" form (see below)
-#   • comment out the `author:` and `author-tex:` blocks
-#   • restore the blind footnote in the abstract's closing sentence:
-#       ^[Full code and data will be released upon acceptance.]
-#   • comment out the Acknowledgments section (names funders + institutions)
-#
-# Blind title:
-#   title: "Exploring Automated Rubric Generation to Reduce LLM Grading Variance in German Legal Exams"
-
+# Full paper for ACM CSLAW '27 (draft). Single-blind review: authors are visible.
+# The earlier short version of this study was withdrawn before publication;
+# this is the only paper. ORCID ids follow (owner).
 title: "BenGER Transformation: Exploring Automated Rubric Generation to Reduce LLM Grading Variance in German Legal Exams"
+short-title: "Automated Rubric Generation for German Legal Exams"
 author:
   - name: Sebastian Nagl
-    affiliation: Technical University of Munich (TUM)
+    orcid: 0000-0000-0000-0000
     email: sebastian.nagl@tum.de
-    attributes:
-      corresponding: true
+    affiliations:
+      - name: Technical University of Munich (TUM)
+        city: Munich
+        country: Germany
+  - name: Martin Heidebach
+    orcid: 0000-0000-0000-0000
+    affiliations:
+      - name: Ludwig Maximilian University of Munich (LMU)
+        city: Munich
+        country: Germany
   - name: Matthias Grabmair
-    affiliation: Technical University of Munich (TUM)
-author-tex: |
-  \author{
-    Sebastian Nagl\thanks{\,Corresponding author. Correspondence to
-    \texttt{sebastian.nagl@tum.de}.} \quad
-    Matthias Grabmair \\[6pt]
-    \mdseries Technical University of Munich (TUM)
-  }
+    orcid: 0000-0000-0000-0000
+    affiliations:
+      - name: Technical University of Munich (TUM)
+        city: Munich
+        country: Germany
+acm-metadata:
+  final: false
+  acmart-options: acmsmall,screen
+  copyright: none
+  copyright-year: 2027
+  acm-year: 2027
+  doi: XXXXXXX.XXXXXXX
+  conference-acronym: "CSLAW '27"
+  conference-name: "6th ACM Symposium on Computer Science and Law"
+  conference-date: "March 23--25, 2027"
+  conference-location: "Chicago, IL, USA"
+  isbn: "978-x-xxxx-xxxx-x/YYYY/MM"
+  keywords:
+    - LLM-as-a-judge
+    - grading rubrics
+    - legal education
+    - German law examinations
+    - automated assessment
+    - reliability and validity
+  ccs: |
+    \ccsdesc[500]{Applied computing~Law}
+    \ccsdesc[300]{Applied computing~Education}
+    \ccsdesc[300]{Computing methodologies~Natural language processing}
 abstract: |
-  LLM-as-judge grading of free-text legal exam solutions suffers from high score variance across 
-  judges and repeated passes. We auto-generate an exam-specific 100-point step rubric 
-  (Bewertungsbogen) from the case reference solution.
-  Rubrics consist of weighted steps, partial-credit bands, alternative solution, and grading logic. 
-  With this we re-grade a prior study's 45 solutions with the same judges.  As the rubrics improve, 
-  the variance in repeated runs sinks monotonistic, so better rubrics push reliability the right way – though at $n=45$ the reduction is not yet significant, is judge-specific (pooled across five capable judges the 
-  zero-shot effect is null), and trades against human-score agreement. We also found that the gain 
-  disappear below a judge-capability floor: there the detailed rubric leads a weak judge into 
-  fluent confabulation. Second, how plausible an automated audit rates a rubric does not predict 
-  how accurately it grades. We release rubrics, gradings, and telemetry.^[Full code and data are 
-  available at <https://github.com/SebastianNagl/benger-platform>.]
+  LLM judges can grade free-text legal exam solutions at scale, but their scores vary across judges
+  and across repeated runs. Careful examiners reduce such variance with a grading sheet
+  (*Bewertungsbogen*) that splits the expected solution into small steps worth a fixed number of
+  points. We ask whether a sheet generated automatically from the case and its model solution
+  reduces the variance of LLM grading of German law exams, and at what cost to agreement with human
+  graders. In a first iteration, twelve models generated sheets for 15 exams, and judges re-graded
+  45 answers with blind human grades. The sheets did not make capable judges steadier on average:
+  the effect depended on the judge, the sheets cost some agreement with the human graders, and under
+  the sheet several judges gave high scores to empty or copied answers. We then rebuilt the pipeline. The
+  model writes small steps with requirements that must be quoted from the answer, code allocates
+  the points and verifies every quote, and defensible alternative solutions and auxiliary opinions
+  are represented explicitly. We validate it against the author of an exam grading his own
+  students' scripts on his own sheet, benchmark which models generate good sheets and which use them
+  well, and describe how such exams are graded in practice. \pending{results of the full benchmark
+  and the recommended pipeline}
 jupyter: benger-transformation
 ---
 
 ```{python}
-#| echo: false
 #| output: false
 
+# Every number in this paper comes from a JSON file under data/processed,
+# written by scripts/analysis (make analyze, make analyze-cslaw, make analyze-d2). Nothing
+# below is a result literal; the few design constants live in
+# data/processed/cslaw/design.json with their sources.
 import json
+import re
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from collections import Counter
+from IPython.display import Markdown
 
-def load_json(path):
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def load_optional(path):
-    try:
-        return load_json(path)
-    except FileNotFoundError:
-        return None
-
-interim   = Path("data/interim")
-raw       = Path("data/raw")
-processed = Path("data/processed")
-
-# All loads optional so the manuscript renders before any data lands.
-exams            = load_optional(interim / "exams.json")            # 15 Benchathon exams
-contract         = load_optional(processed / "rubric_contract.json")
-rubric_summary   = load_optional(processed / "rubric_run_summary.json")
-rubric_stats     = load_optional(processed / "rubric_stats.json")
-variance_stats   = load_optional(processed / "variance_stats.json")
-prompt_snapshot  = load_optional(interim / "rubric_prompt_snapshot.json")
-local_rubrics    = load_optional(raw / "local" / "task_rubrics.json")
-
-n_exams = len(exams) if exams else 15
-
-# Contract-valid v3 rubrics (the audit / selection pool).
-n_valid_rubrics = (
-    sum(
-        1
-        for r in (local_rubrics or [])
-        if r.get("status") != "archived"
-        and (r.get("generation_metadata") or {}).get("contract_version") == 3
-    )
-    or 170
-)
-
-# Contract constants (fall back to the frozen v3 implementation's values).
-_b = (contract or {}).get("bounds", {})
-TOTAL            = _b.get("total_points", 100)
-MIN_PTS_PER_STEP = _b.get("min_points_per_step", 1)
-CONTRACT_VERSION = (contract or {}).get("contract_version", 3)
-
-control = (variance_stats or {}).get("control_arm") or {}
-tailored_t0   = (variance_stats or {}).get("tailored_arm_temp0") or {}
-tailored_t1   = (variance_stats or {}).get("tailored_arm") or {}
-paired_t0     = (variance_stats or {}).get("paired_contrast_temp0") or {}
-paired_t1     = (variance_stats or {}).get("paired_contrast") or {}
-luna_stats    = load_optional(processed / "luna_primary_stats.json") or {}
-audit_stats   = load_optional(processed / "audit_stats.json") or {}
-judge_stats   = load_optional(processed / "judge_outcomes.json") or {}
-sig           = load_optional(processed / "significance.json") or {}
-# Reviewer-driven additions (2026-08-06): matched same-judge holistic arms,
-# exam-cluster bootstrap CIs, conditions table, probe battery, audit link,
-# lexical rubric screen. All generated by committed scripts/analysis/*.
-matched       = load_optional(processed / "matched_stats.json") or {}
-boots         = load_optional(processed / "bootstrap_cis.json") or {}
-conditions    = load_optional(processed / "reliability_conditions.json") or {}
-probe_stats   = load_optional(processed / "probe_stats.json") or {}
-audit_link    = load_optional(processed / "audit_outcome_link.json") or {}
-rubric_screen = load_optional(processed / "rubric_screen.json") or {}
-# Second-iteration arms (2026-08-08): multi-judge matched replication and
-# few-shot outcome-informed instruments.
-multijudge    = load_optional(processed / "matched_multijudge.json") or {}
-fewshot       = load_optional(processed / "fewshot_stats.json") or {}
-
-def ci(name, nd=2):
-    """Format a bootstrap contrast as 'point (95% CI lo to hi)'."""
-    c = (boots.get("contrasts") or {}).get(name) or {}
-    if c.get("point") is None:
-        return "–"
-    lo, hi = c["ci95"]
-    return (f"${c['point']:+.{nd}f}$ (95% CI ${lo:+.{nd}f}$ to ${hi:+.{nd}f}$)")
-
-def fmt(x, nd=2):
-    # Ints format like floats so table columns carry uniform decimals
-    # (22 -> "22.0", 1 -> "1.00").
-    if x is None:
-        return "–"
-    if isinstance(x, bool):
-        return str(x)
-    if isinstance(x, (int, float)):
-        return f"{x:.{nd}f}"
-    return str(x)
-
-def tex_escape(s):
-    for a, b in (("\\", "\\textbackslash{}"), ("&", "\\&"), ("%", "\\%"),
-                 ("$", "\\$"), ("#", "\\#"), ("_", "\\_"),
-                 ("{", "\\{"), ("}", "\\}"), ("~", "\\textasciitilde{}"),
-                 ("^", "\\textasciicircum{}"), ("§", "\\S{}")):
-        s = s.replace(a, b)
-    return s
-
+PROC = Path("data") / "processed"
+FI = json.loads((PROC / "cslaw" / "first_iteration.json").read_text(encoding="utf-8"))
+DZ = json.loads((PROC / "cslaw" / "design.json").read_text(encoding="utf-8"))
+Z2 = json.loads((PROC / "cslaw" / "z2_sheet.json").read_text(encoding="utf-8"))
 ASSETS = Path("assets")
 ASSETS.mkdir(exist_ok=True)
 
-def write_table(name, caption, label, header, rows, *, span=False,
-                col_spec=None, size=r"\small", fill=False):
-    """Write a captioned booktabs float to assets/<name>.tex.
+MINUS = "−"
 
-    Raw ```{=latex}``` blocks containing \\caption get mangled by Quarto's
-    crossref pass (Benchmark_EMNLP lesson) — an \\input one-liner is inert.
-    span=True emits table* (full text width) for the two-column float.
-    """
-    env = "table*" if span else "table"
-    if span:
-        # Stretch to the full text width (tabular* + \extracolsep{\fill},
-        # Benchmark_EMNLP's fill_width pattern) instead of centering a
-        # natural-width tabular.
-        inner_open = ("\\begin{tabular*}{\\textwidth}"
-                      "{@{\\extracolsep{\\fill}}l"
-                      + "r" * (len(header) - 1) + "@{}}")
-        inner_close = "\\end{tabular*}"
-    elif fill:
-        # Single-column float that stretches to the full column width
-        # (tabular* + \extracolsep{\fill}), like span but bounded by
-        # \columnwidth instead of \textwidth.
-        inner_open = ("\\begin{tabular*}{\\columnwidth}"
-                      "{@{\\extracolsep{\\fill}}l"
-                      + "r" * (len(header) - 1) + "@{}}")
-        inner_close = "\\end{tabular*}"
+
+def _q(x, nd):
+    """Round half up from the value's decimal form (10.85 -> 10.9), not
+    from its binary float (which would give 10.8)."""
+    return Decimal(repr(float(x))).quantize(Decimal(1).scaleb(-nd), rounding=ROUND_HALF_UP)
+
+
+def num(x, nd=2):
+    return f"{_q(x, nd):.{nd}f}".replace("-", MINUS)
+
+
+def sgn(x, nd=2):
+    return f"{_q(x, nd):+.{nd}f}".replace("-", MINUS)
+
+
+def cor(x, nd=2):
+    """Correlations and p-values without the leading zero (.77, -.13)."""
+    s = f"{abs(_q(x, nd)):.{nd}f}"
+    s = s[1:] if s.startswith("0") else s
+    return (MINUS if x < 0 else "") + s
+
+
+def pv(p):
+    return cor(p, 3) if p < 0.01 else cor(p, 2)
+
+
+def pct(x, nd=0):
+    return f"{_q(100 * x, nd):.{nd}f}%"
+
+
+def ci(c, nd=2):
+    return f"95% CI {sgn(c[0], nd)} to {sgn(c[1], nd)}"
+
+
+def rng(a, b, nd=1, sep="–"):
+    return f"{num(a, nd)}{sep}{num(b, nd)}"
+
+
+def usd(x, nd=0):
+    return f"USD {x:,.{nd}f}"
+
+
+NAME = {
+    "gpt-5.6-luna": "GPT-5.6 Luna", "gpt-5.4-mini": "GPT-5.4 Mini", "gpt-5.4": "GPT-5.4",
+    "claude-opus-4-7": "Claude Opus 4.7", "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "claude-opus-5": "Claude Opus 5", "gpt-5.6-terra": "GPT-5.6 Terra",
+    "gemini-3.1-pro-preview": "Gemini 3.1 Pro", "gemini-3.1-pro": "Gemini 3.1 Pro",
+    "gemini-3.1-flash-lite-preview": "Gemini 3.1 Flash-Lite",
+    "deepseek-ai/DeepSeek-V4-Pro": "DeepSeek-V4-Pro", "DeepSeek-V4-Pro": "DeepSeek-V4-Pro",
+    "deepseek-ai/DeepSeek-V4-Flash": "DeepSeek-V4-Flash", "Qwen/Qwen3.5-397B-A17B": "Qwen3.5-397B",
+    "Qwen/Qwen3-235B-A22B-Thinking-2507": "Qwen3-235B-Thinking", "Qwen3-235B-A22B-Thinking-2507": "Qwen3-235B-Thinking",
+    "Qwen/Qwen3.5-122B-A10B": "Qwen3.5-122B", "Qwen/Qwen3.6-35B-A3B": "Qwen3.6-35B",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "Llama-4 Maverick",
+    "claude-sonnet-4-6 ": "Claude Sonnet 4.6", "open models": "open models",
+}
+SHORT = {"gpt-5.6-luna": "Luna", "gpt-5.4-mini": "Mini", "claude-opus-4-7": "Opus 4.7",
+         "claude-sonnet-4-6": "Sonnet", "gemini-3.1-pro-preview": "Gemini",
+         "deepseek-ai/DeepSeek-V4-Pro": "DeepSeek", "Qwen/Qwen3.5-397B-A17B": "Qwen"}
+
+
+def tex_escape(s):
+    for a, b in (("\\", "\\textbackslash{}"), ("&", "\\&"), ("%", "\\%"), ("$", "\\$"),
+                 ("#", "\\#"), ("_", "\\_"), ("{", "\\{"), ("}", "\\}")):
+        s = s.replace(a, b)
+    return s
+
+
+def crit_tex(s):
+    return tex_escape(s).replace(">=", "$\\geq$").replace("<=", "$\\leq$").replace("<", "$<$")
+
+
+def write_table(name, caption, label, header, rows, colspec=None, size=r"\small", wide=False, note=None):
+    """A captioned booktabs table in assets/<name>.tex, included with \\input
+    (raw blocks with \\caption get mangled by Quarto's crossref pass)."""
+    colspec = colspec or ("l" + "r" * (len(header) - 1))
+    esc = lambda t: re.sub(r"(?<!\\)%", r"\\%", str(t))  # a bare % would start a LaTeX comment
+    caption = esc(caption)
+    rows = [r if r == "MIDRULE" else (esc(r) if isinstance(r, str) else [esc(c) for c in r]) for r in rows]
+    lines = [r"\begin{table}[t]", rf"\caption{{{caption}}}", rf"\label{{{label}}}", r"\centering", size]
+    if wide:
+        lines.append(rf"\begin{{tabular*}}{{\textwidth}}{{@{{\extracolsep{{\fill}}}}{colspec}@{{}}}}")
     else:
-        if col_spec is None:
-            col_spec = "@{}l" + "r" * (len(header) - 1) + "@{}"
-        inner_open = f"\\begin{{tabular}}{{{col_spec}}}"
-        inner_close = "\\end{tabular}"
-    lines = [f"\\begin{{{env}}}[t]", "\\centering", size,
-             inner_open, "\\toprule",
-             " & ".join(header) + r" \\", "\\midrule"]
+        lines.append(rf"\begin{{tabular}}{{@{{}}{colspec}@{{}}}}")
+    lines += [r"\toprule", " & ".join(header) + r" \\", r"\midrule"]
     for r in rows:
-        if r == "@MIDRULE@":            # group separator (split rankings)
-            lines.append("\\midrule")
-            continue
-        if isinstance(r, str):          # raw one-cell LaTeX row (group label)
+        if r == "MIDRULE":
+            lines.append(r"\midrule")
+        elif isinstance(r, str):
             lines.append(r + r" \\")
-            continue
-        lines.append(" & ".join(str(c) for c in r) + r" \\")
-    lines += ["\\bottomrule", inner_close,
-              f"\\caption{{{caption}}}", f"\\label{{{label}}}",
-              f"\\end{{{env}}}"]
-    (ASSETS / f"{name}.tex").write_text("\n".join(lines), encoding="utf-8")
+        else:
+            lines.append(" & ".join(str(c) for c in r) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular*}" if wide else r"\end{tabular}"]
+    if note:
+        lines += [r"\par\smallskip", rf"\parbox{{\textwidth}}{{\footnotesize {note}}}"]
+    lines.append(r"\end{table}")
+    (ASSETS / f"{name}.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("```{=latex}\n\\input{assets/" + name + ".tex}\n```\n")
 
-def print_promptbox(text):
-    """Long-line-safe verbatim-look rendering for prompt/contract text.
 
-    Fenced code blocks become non-wrapping verbatim in LaTeX and overflow
-    the ACL column; the promptbox environment (defined in _quarto.yml)
-    wraps. Line structure is preserved with explicit hard breaks (\\) in
-    ONE paragraph — \obeylines turns every line into its own paragraph,
-    which framed then splits into one frame PER PAGE (266-page pdf).
-    Blank source lines become vertical space, not empty \\ pairs (those
-    error). \ttfamily keeps the monospace look and disables the ---
-    em-dash ligature.
-    """
-    print("```{=latex}")
-    print("\\begin{promptbox}\\ttfamily\\raggedright")
-    lines = text.split("\n")
-    chunks = []
-    for ln in lines:
-        chunks.append(tex_escape(ln) if ln.strip() else "\\mbox{}")
-    print("\\\\\n".join(chunks))
-    print("\\end{promptbox}")
-    print("```")
+# ---------------------------------------------------------------- values
+C = FI["corpus"]
+G = FI["generation"]
+AP = FI["apportionment"]
+BM = FI["band_mapping"]
+REL = {r["condition"]: r for r in FI["reliability"]["table"]}
+CO = FI["contrasts"]
+AG = FI["agreement"]
+JU = FI["judges"]
+PR = FI["probes"]
+GE = FI["generators"]
+WS = FI["weights"]
+SS = FI["step_size"]
+MDE = FI["mde"]
+GEN = DZ["generator"]
+JDG = DZ["judge"]
+VER = DZ["verifier"]
+D2 = DZ["d2"]
+KEY = DZ["default_key"]
+STAT = DZ["statutory_scale"]
+EXP = {e["id"]: e for e in DZ["experiments"]}
+COST = DZ["costs"]
+LUNA, MINI = "gpt-5.6-luna", "gpt-5.4-mini"
+per_judge_forest = {f["judge"]: f for f in CO["per_judge"]}
+gpg = G["per_generator"]
+ws_j = WS["per_judge"]
+V = {
+    "n_exams": C["n_exams"], "n_answers": C["n_answers"], "n_ann": C["n_annotation_answers"],
+    "n_gen_answers": C["n_generated_answers"], "pool": C["pool_graders"], "blind": C["n_blind_raters"],
+    "icc": cor(C["human_icc_2_1_raw"]), "spread": num(C["human_spread_raw"], 1),
+    "prior_r": cor(C["prior_judge_r"]), "prior_mae": num(C["prior_judge_mae_raw"], 1),
+    "prior_mae_np": num(C["prior_judge_mae_grade_points"], 1),
+    "n_dims": C["holistic_dimensions"],
+    "n_gens": G["n_generators"], "n_cells": G["n_cells"], "n_valid": G["n_valid"],
+    "n_full": G["n_full_coverage"],
+    "n_judges_fi": JU["n_judges"], "n_matched": JU["n_matched_judges"], "n_fs_gens": JU["n_fewshot_generators"],
+    "R18": STAT["max_points"], "pass_np": STAT["lowest_pass_points"], "bands": STAT["n_bands"],
+}
 ```
 
-# Introduction
+# Introduction {#sec-intro}
 
-LLM-as-judge grading is increasingly the evaluation method of choice for free-text legal benchmarks:
-expert grading does not scale, and surface metrics do not measure legal reasoning. Prior work on
-benchmarking German legal reasoning [@nagl2026bengerdata] showed that an LLM judge with an abstract,
-exam-independent rubric grades case solutions (*Falllösungen*) at human-grader level – but with high
-score variance across judges, passes, and the human reference pool, destabilizing rankings.
+German law students learn and are examined through case solutions (*Falllösungen*). A candidate
+receives a set of facts (*Sachverhalt*) and writes a legal opinion in a prescribed appraisal style
+(*Gutachtenstil*). The state examinations grade such opinions on a statutory scale from 0 to
+`{python} V["R18"]` points [@jurprnotskv1981]. Grading them is hard. Different examiners give the
+same script different grades [@hufeld2024]. To grade consistently, correctors often build a point
+scheme over the expected solution before they grade [@frenzel2011korrektur]. Many do this with a grading sheet
+(*Bewertungsbogen*): the expected solution split into small steps, each worth a number of points
+(*Bewertungseinheiten*, BE), and a key that maps the BE total to a grade.
 
-German legal exams receive a single holistic 0–18 grade under the applicable grading ordinance
-(*Klausur*) [@jurprnotskv1981], and grading objectivity is documented to be poor: identical exams
-span 6.5 grade points across correctors [@hufeld2024]. The informal remedy is analytic: correctors
-privately construct partial-point matrices over the expected solution [@frenzel2011korrektur]. This
-paper formalizes and automates that practice (Figure \ref{fig:pipeline}): for each exam we generate
-a 100-point step rubric (*Bewertungsbogen*) from case facts (*Sachverhalt*) and model solution
-(*Musterlösung*), with scoreable allowances for defensible alternatives ("a.A. vertretbar" – another
-view is tenable), and grade against it. We ask whether heterogeneous generators can produce
-schema-conformant, exam-specific schemes under one strict output specification (*RQ1*); whether
-grading against them stabilizes a judge across repeated passes on identical answers (*RQ2*), and at
-what cost in human-score agreement (*RQ3*); and which generators write the best instruments, if an
-automated audit can tell (*RQ4*). Contributions:
+Large language models (LLMs) can grade such texts at scale. On German case solutions, an LLM judge
+with one rubric for all exams tracks human graders on average, but its scores vary between judges
+and between repeated runs [@nagl2026bengerdata]. This paper studies the obvious remedy: let one
+model write an exam-specific grading sheet from the case and its model solution (*Musterlösung*),
+and let a judge model grade against it. If it works, the sheet becomes an auditable, editable
+artifact between the model solution and the grade, which an examiner can read and correct.
 
-```{=latex}
-\input{assets/fig_pipeline.tex}
+A first iteration tested this remedy with a rich step-score sheet on `{python} V["n_exams"]` exams
+with `{python} V["n_answers"]` answers and blind human grades. The sheets did not make capable judges
+steadier on average, they cost some agreement with the human graders, and under the sheet several
+judges gave high scores to empty or copied answers (@sec-first). We rebuilt the pipeline and ask the
+question again, now also asking *which* models write good sheets and *which* use them well, against
+the strongest yardstick we can get: the author of an exam grading his own students' scripts on his
+own sheet and scale. RQ1 and RQ2 carry the story; the others explain the result.
+
+- **RQ1 Variance.** Does grading against a generated sheet make judges steadier, across repeated
+  passes, across judges and across independently generated sheets for the same exam?
+- **RQ2 Validity.** How close are sheet-based grades to human grades, and to the exam author's grades
+  on his own sheet and scale?
+- **RQ3 Generation.** Do heterogeneous generators produce compliant, legally sound, exam-specific
+  sheets under one output specification?
+- **RQ4 Generator benchmark.** Which generators write the sheets that let a fixed judge grade most
+  validly and reliably, and do cheap signals predict this?
+- **RQ5 Judge benchmark.** Which judges use a fixed sheet best, in validity, stability, robustness to
+  degenerate answers, and cost?
+- **RQ6 Pipeline.** Which combination of design choices gives the lowest error against the expert
+  within a cost limit?
+- **RQ7 Grading practice.** How do examiners distribute points, what do they credit, where do they
+  set the pass mark, how do they map points to grades, and how do they treat cardinal errors
+  (*Kardinalfehler*)?
+
+Our contributions are:
+
+1. A grading-sheet pipeline in which the model specifies and code allocates: half-point BE,
+   requirement bullets with a standard of assessment, structural forks with alternative solution
+   paths, owed auxiliary opinions, and quotes verified by code (@sec-pipeline).
+2. A generator benchmark with `{python} EXP["E1"]["n_generators"]` generators on
+   `{python} V["n_exams"] + 1` exams, measuring sheet-sample variance and validity against human and
+   expert grades (@sec-design).
+3. A judge benchmark with `{python} EXP["E2"]["n_judges"][0]` to `{python} EXP["E2"]["n_judges"][1]`
+   judges on fixed sheets, measuring validity, repeat variance, robustness to probes, and cost.
+4. The interaction of generator and judge, and a recommended pipeline confirmed once on held-out
+   expert grades.
+5. An account of how German law exams are graded, co-written with an exam author (@sec-practice),
+   and the defects of the first-iteration pipeline that the rebuild fixes (@sec-first,
+   Appendix \ref{sec-app-corrections}).
+
+\draftnote{contributions 2 to 4 describe experiments E1 to E4, which have not run yet; see Section 6}
+
+The study is exploratory and was not pre-registered. Every run records the hashes of its code,
+prompts and validator, and we report every run we make.
+
+# Grading practice in German law exams {#sec-practice}
+
+\draftnote{to be co-written with the exam author; every pending item below needs his input or experiment E6/E7}
+
+*The setting.* The statutory scale has `{python} V["bands"]` named bands from 0 to
+`{python} V["R18"]` points; `{python} V["pass_np"]` points (*ausreichend*) is the lowest pass
+grade [@jurprnotskv1981]. Examiners in the state examinations grade holistically. Many first write
+down the expected solution and what each part is worth [@frenzel2011korrektur]. University exams
+often make this explicit: a sheet assigns BE to steps, and a key maps the BE total to the scale. Two
+principles shape every sheet. A tenable solution (*vertretbare Lösung*) that is argued with sound
+reasons must not be marked as wrong [@bverfge84_34]. And a consequential error (*Folgefehler*) is not
+penalised twice: a later step that correctly builds on the candidate's own earlier decision still
+earns credit.
+
+*Two expert paradigms.* We compare two expert sheets with our instrument (Table \ref{tab:paradigms}).
+The exam author's sheet (D2) is a flat list of steps with absolute BE. Gregor Roth's sheet for a
+civil-law exam (Z2) is hierarchical: each node states its share of the parent, and each of the
+`{python} Z2["weighted_leaves"]` leaves is graded from `{python} num(Z2["leaf_grade_range"][0], 0)` to
+`{python} num(Z2["leaf_grade_range"][1], 0)` points. His workbook multiplies the shares down and
+averages the leaf grades with these weights. Consistency is left to the examiner: in
+`{python} Z2["parents_child_shares_not_100"]` of `{python} Z2["weighted_parents"] + len(Z2["parts_pct"])`
+parents the stated shares of the children do not sum to 100%, while the weights the workbook uses do.
+Our instrument keeps the half-point BE of the first paradigm, adds requirement bullets, lets code do
+the arithmetic, and can elicit the weights in the way of either paradigm (@sec-pipeline).
+
+```{python}
+#| output: asis
+sh = D2["sheet"]
+ZW = Z2["workbook"]
+rows = [
+    ["Unit of credit", "absolute BE", "relative share per level", "BE, allocated by code"],
+    ["Total", f"{sh['total_be']} BE", "100\\%", f"{GEN['total_be']} BE"],
+    ["Leaves", f"{sh['n_steps']} steps", f"{Z2['weighted_leaves']} leaves, up to {Z2['weighting_levels_below_part']} levels deep",
+     f"steps with {GEN['bullets_per_step'][0]}--{GEN['bullets_per_step'][1]} bullets"],
+    ["Leaf scoring", f"BE on a {num(sh['grid_be'], 1)} grid",
+     f"grade {num(Z2['leaf_grade_range'][0], 0)}--{num(Z2['leaf_grade_range'][1], 0)}, whole points",
+     "bullet status, step BE, or grade"],
+    ["Largest step", f"{num(sh['max_step_be'], 0)} BE", f"{num(Z2['max_leaf_weight_pct'], 0)}\\% of the grade",
+     f"cap {num(GEN['max_step_be'], 0)} BE"],
+    ["Aggregation", "sum of BE", "weighted mean of grades", "sum of BE (both for grades)"],
+    ["Pass mark", f"{pct(sh['pass_share'])} of BE", f"grade {ZW['pass_from_grade']}", "the exam's key"],
+    ["Adjustment", "\\tbd", "manual bonus or malus", "none"],
+    ["Result items", "none; some titles", "\\tbd", "none; a bullet"],
+    ["Graders per script", "one (see Section 5)", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)", "judge, $k$ passes"],
+    ["Alternatives", "\\tbd", "\\tbd", "bullets or forks"],
+]
+write_table(
+    "tbl_paradigms",
+    "Two expert grading paradigms and our instrument. D2: the exam author's sheet; Z2: Gregor Roth's "
+    "sheet and workbook (we hold no case or scripts). \\tbd{} = to be completed with the examiners. "
+    "\\pending{rows on alternatives and result items, confirmed with both examiners}",
+    "tab:paradigms",
+    ["", "Exam author (D2)", "Roth (Z2)", "Our instrument"],
+    rows, colspec="llll", size=r"\footnotesize")
 ```
 
-\(1) A method for auto-generating exam-specific point schemes under one strict output specification,
-across a 12-generator, `{python} n_exams`-exam study; failures are measured, not repaired. (2)
-Matched same-judge replications under both instruments on identical answers, judges, and human pool,
-plus a probe battery of degenerate submissions and a positive control, showing that *reliability
-depends on the judge–instrument pair*: no average zero-shot change across five capable judges,
-modest gains for the best-matched judge, and – below the execution floor – collapse into fluent
-step-level confabulation by a judge that grades adequately holistically. (3) An outcome ranking of
-rubric generators against an automated audit. We release all rubrics, gradings, and telemetry; human
-re-grading follows (Limitations).
+*Q1: How should the BE be distributed?* The author's sheet spreads `{python} D2["sheet"]["total_be"]`
+BE over `{python} D2["sheet"]["n_steps"]` steps with at most `{python} num(D2["sheet"]["max_step_be"], 0)`
+BE per step. He re-weighted it between runs: the sheet exists in `{python} D2["sheet"]["n_states"]`
+states, and the earliest differs from the later ones in the maxima of several steps
+\pending{exam author to confirm what changed between the states}. We took the step-size guidance of
+our instrument (`{python} num(GEN["step_be_guidance"][0], 1)` to `{python} num(GEN["step_be_guidance"][1], 0)`
+BE per step, at most `{python} num(GEN["max_step_be"], 0)` BE) from the two expert sheets, so step
+size is an input of our design, not a finding. E6 compares the BE distributions of generated sheets
+with both expert sheets. \pending{BE distribution of the expert sheet and of generated sheets (E6)}
 
-# Related Work
+*Q2: What earns credit, including method?* In the author's sheet every step credits an issue
+spotted or an argument made. No step credits a bare result; some step titles state a sub-result
+instead. Our generator follows the same rule: no step may credit only an intermediate or
+final result, and the correctness of a result is a bullet in the last substantive step. Whether
+method (structure, appraisal style, precise language) earns separate credit is open
+\pending{exam author}. The first iteration kept style outside the points as a separate construct.
+E6 compares sheets with and without method bullets.
 
-*Judge reliability.* Direct-scoring LLM judges [@liu2023geval;
-@zheng2023mtbench] correlate with humans on average but are unreliable at the
-instance level: scores drift across runs [@haldar2025rating], flip under
-reordering and prompt changes [@wang2024fair; @shi2024judging], carry
-self-preference [@panickssery2024self], and need per-task human validation
-[@gu2024survey; @bavaresco2025llms]. Existing remedies are judge-side –
-calibration, bias mitigation, panels [@verga2024replacing]; we target the
-instrument.
+*Q3: Where is the pass mark?* The author's key passes a script at
+`{python} pct(D2["sheet"]["pass_share"])` of the BE. The platform's default key, which the
+first-iteration holistic instrument also used, passes at `{python} num(KEY["pass_percent"], 0)`%.
+The pass mark decides pass/fail agreement between a judge and the examiner. E6 sweeps it from
+`{python} pct(EXP["E6"]["pass_mark_sweep"][0])` to `{python} pct(EXP["E6"]["pass_mark_sweep"][1])`
+on stored outputs. \pending{E6}
 
-*Structured evaluation.* Fine-grained decomposition improves reliability –
-skill-wise scoring, rubric-conditioned evaluators, atomic facts, and
-variance-reducing binary checklists that can be LLM-generated per instance
-[@ye2024flask; @kim2024prometheus; @hashemi2024llmrubric; @min2023factscore;
-@wu2023finegrained; @lee2025checkeval; @cook2024ticking; @chen2026holistic] –
-echoing the educational-measurement result that analytic rubrics beat holistic
-scoring at a human rater-time cost [@klein1998analytic; @jonsson2007use;
-@brookhart2018appropriate] that an LLM rater converts into inference cost. LLM
-essay scoring has applied only fixed, exam-independent rubrics
-[@ke2019automated; @mizumoto2023exploring; @stahl2024exploring]; prior
-decompositions carry uniform or binary weights and no partial-credit doctrine
-[@kucia2026llm].
+*Q4: Is the key linear or curved?* \pending{exam author: shape of his key and why} The platform's
+default key is piecewise linear with a kink at the pass mark: below it a grade point spans
+`{python} num(KEY["mean_band_width_below_pass"], 1)` percentage points of the total on average, from
+the pass mark upwards `{python} num(KEY["mean_band_width_from_pass"], 1)`. Roth's paradigm needs no
+key, because it grades each leaf on the statutory scale and averages the grades; a script passes
+from grade `{python} Z2["workbook"]["pass_from_grade"]`, the statutory pass mark. Our rating unit
+supports both views: a leaf grade maps back to BE through the exam's own key, and the weighted mean
+of the leaf grades is reported next to it.
 
-*Grading legal free text.* Legal NLP has moved from LLMs taking exams
-[@choi2023chatgpt; @katz2024gpt4] to LLMs grading them with per-question
-evaluation structure – reasoning guidance, span-level criteria, expert-curated
-or official rubrics, atomic judging [@fan2026lexam; @chlapanis2025greekbarbench;
-@shi2026plawbench; @pires2025automatic; @pires2026magisbench;
-@enguehard2025lemaj; @zubaer2026gradelegal; @cope2026grading] – all assuming an
-expert-written scheme. No prior work *generates* the exam-specific point scheme,
-encodes defensible alternatives ("a.A. vertretbar") as scoreable allowances, or
-evaluates the generated instrument psychometrically.
+*Q5: How are cardinal errors treated?* Some errors are grave enough that examiners limit the grade
+as a whole. \pending{exam author: definition, examples and expected loss} Our instrument has no such
+cap yet. The consequential-error rule and the standard of each bullet decide how far an early error
+propagates (@sec-judge). E6 runs `{python} EXP["E6"]["kardinalfehler_probes"]` probes with the losses
+the author expects.
 
-# Method: Exam-Specific Point Schemes {#sec-method}
+# Related work {#sec-related}
 
-## Overview
+*Judge reliability.* Direct-scoring LLM judges [@liu2023geval; @zheng2023mtbench] correlate with
+humans on average but are unreliable at the instance level: scores drift across runs
+[@haldar2025rating], flip under reordering and prompt changes [@wang2024fair; @shi2024judging],
+show self-preference [@panickssery2024self], and need validation against humans for each task
+[@gu2024survey; @bavaresco2025llms]. Most remedies act on the judge, such as calibration or panels
+[@verga2024replacing]. We act on the instrument.
 
-For each exam, a *generator* model – prompted zero-shot (@sec-appendix-prompt) – turns Sachverhalt
-and Musterlösung into a structured Bewertungsbogen (@sec-appendix-example). Each grading step
-carries four things: the expected legal performance; a relative weight and its weighting class
-(*routine*; *tragend*, load-bearing; *schwerpunkt*, focal), with a justification; ordered
-partial-credit levels; and a provenance label. Provenance is explicit in the Musterlösung, implied
-by it, or drawn from the generator's own legal knowledge – anchored verbatim, or doctrinally
-justified when external. Document-level elements declare *Klausurschwerpunkte* (the exam's focal
-problems), flag material problems, and encode *Vertretbarkeit*: German grading credits defensible
-alternative outcomes reached with sound method [@frenzel2011korrektur], so the specification carries
-explicit alternative paths ("a.A. vertretbar" – another view is tenable) naming the legal question,
-anchoring, doctrine, and required argumentation plus the regular steps they replace, whose derived
-points become their budget – never changing the 100-point frame, with *Folgefehler* (follow-on
-error) rules travelling along.
+*Rubrics and checklists.* Fine-grained decomposition can make evaluation more reliable: skill-wise
+scoring, rubric-conditioned evaluators, atomic facts, and binary checklists that an LLM can generate
+per instance [@ye2024flask; @kim2024prometheus; @hashemi2024llmrubric; @min2023factscore;
+@wu2023finegrained; @lee2025checkeval; @cook2024ticking; @chen2026holistic; @gunjal2025rubrics].
+These systems use binary criteria or categorical importance labels with arithmetic in code; to our
+knowledge none asks the model for an exact point total, which LLMs handle poorly [@baeumel2025lookahead;
+@yang2025numbercookbook]. Educational measurement finds that analytic rubrics are more reliable than
+holistic scoring at a cost in rater time [@klein1998analytic; @jonsson2007use;
+@brookhart2018appropriate]; an LLM rater turns that cost into inference cost. LLM essay scoring has
+used fixed, exam-independent rubrics [@ke2019automated; @mizumoto2023exploring;
+@stahl2024exploring], and prior decompositions carry uniform or binary weights and no doctrine of
+partial credit [@kucia2026llm]. Work on attribution checks whether generated text is supported by
+cited sources [@gao2023alce]; our verifier asks a narrower question, whether a quote stands in the
+answer at all.
 
-The model states no derived number: deterministic arithmetic computes the exact 100-point scheme
-(Figure \ref{fig:pipeline}) – a division of labor that proves necessary (@sec-appendix-arithmetic).
-A judge – model or human – scores a candidate step by step against the exam's active rubric in one
-call: a per-step score vector with justifications, totalling `{python} TOTAL`.
+*Grading legal free text.* Legal NLP has moved from LLMs taking exams [@choi2023chatgpt;
+@katz2024gpt4] to LLMs grading them with per-question structure: reasoning guidance, span-level
+criteria, expert-written or official rubrics, and atomic judging [@fan2026lexam;
+@chlapanis2025greekbarbench; @shi2026plawbench; @pires2025automatic; @pires2026magisbench;
+@enguehard2025lemaj; @zubaer2026gradelegal; @cope2026grading]. All of them assume an
+expert-written scheme. To our knowledge, no prior work generates the exam-specific point scheme,
+turns tenable alternative solutions into scoreable paths, and validates the result against the
+exam's author on his own sheet and scale. Empirical work on German exam grading documents low
+agreement between examiners [@hufeld2024] and describes how examiners should correct
+[@frenzel2011korrektur]; we add a model of the grading sheet that makes these practices explicit.
 
-## The output specification
+# The pipeline {#sec-pipeline}
 
-The rubric-generation *prompt* and the generator are experimental variables; the *output
-specification* is not: every generator receives it verbatim through plain text completion
-(structured-output modes would mask compliance differences), and every response passes the same
-parser and two-tier strict/soft validator (@sec-appendix-schema). On a strict violation, attempts
-two and three receive the model's previous document plus the validator's verbatim messages; nothing
-is silently repaired, and per-model failure and recovery rates are RQ1 outcomes.
+\draftnote{describes the implementation of output specification checklist-3; the instrument is frozen only after the probe gate E0, and this section is updated then}
 
-The specification imposes no step-count bounds (granularity is an RQ1 observable) and produces only
-*fully allocated* schemes: free points would restore the very grader discretion we are studying.
+The pipeline has five stages (Figure \ref{fig:pipeline}). Models do two things only. The generator
+states the content of the sheet and relative weights, and the judge marks requirements and quotes
+the answer. Code does everything that can be computed or checked: validation, allocation, rendering,
+quote verification and aggregation. The first iteration showed why. When an earlier output
+specification asked the model for exact point totals, almost no generator produced a valid sheet
+\pending{yield of the exact-arithmetic specification, from the withheld sweep log}.
 
-# Study Design {#sec-design}
-
-<!-- Figure 2 is anchored HERE, not next to its RQ2 discussion. A [t] float
-can only reach a column top at or after its anchor; anchored in §5.2 it
-renders inside p3's right column, so the earliest top available is p4 —
-where Table 1 already sits, stacking the two floats in one column. Anchored
-in §4 (p3's LEFT column) it reaches the top of p3's right column instead,
-which is also the page its first citation lands on. -->
-```{=latex}
-\begin{figure}[t]
+```{python}
+#| output: asis
+tikz = rf"""\begin{{figure}}[t]
 \centering
-\includegraphics[width=\columnwidth]{assets/fig_trend.pdf}
-\caption{Luna repeat SD by instrument (×3 passes; exam-cluster bootstrap
-95\% CIs); dashed = in-sample floor (post-hoc selection, optimistic
-bound). Per-judge matched effects: Figure~\ref{fig:forest}.}
-\label{fig:trend}
-\end{figure}
+\begin{{tikzpicture}}[
+  node distance=5mm and 4mm,
+  box/.style={{draw, rounded corners=2pt, align=center, font=\scriptsize, minimum height=12mm,
+              text width=27mm, inner sep=2pt}},
+  model/.style={{box, fill=blue!8}}, code/.style={{box, fill=green!10}}, data/.style={{box, fill=black!6}},
+  arr/.style={{-{{Stealth[length=1.8mm]}}, semithick}}]
+\node[data] (case) {{\textbf{{Case}}\\ facts and\\ model solution}};
+\node[model, right=of case] (gen) {{\textbf{{Generator (LLM)}}\\ steps, bullets, shares,\\ forks and paths}};
+\node[code, right=of gen] (val) {{\textbf{{Validator (code)}}\\ strict and soft checks,\\ feedback}};
+\node[code, right=of val] (alloc) {{\textbf{{Allocation (code)}}\\ Hamilton on {GEN['half_units']}\\ half-units}};
+\node[code, below=7mm of alloc] (render) {{\textbf{{Rendering (code)}}\\ fine or merged view}};
+\node[model, left=of render] (judge) {{\textbf{{Judge (LLM)}}\\ status and quote\\ per requirement}};
+\node[code, left=of judge] (ver) {{\textbf{{Verifier (code)}}\\ is each quote\\ in the answer?}};
+\node[code, left=of ver] (agg) {{\textbf{{Aggregation (code)}}\\ BE total, grade\\ via the exam's key}};
+\node[data, below=5mm of judge, minimum height=6mm] (ans) {{\textbf{{Student answer}}}};
+\draw[arr] (case) -- (gen); \draw[arr] (gen) -- (val); \draw[arr] (val) -- (alloc);
+\draw[arr] (val.north) to[bend right=25] node[above, font=\scriptsize] {{violations, at most {GEN['max_attempts']} attempts}} (gen.north);
+\draw[arr] (alloc) -- (render); \draw[arr] (render) -- (judge); \draw[arr] (judge) -- (ver); \draw[arr] (ver) -- (agg);
+\draw[arr] (ans) -- (judge); \draw[arr] (ans.west) -| (ver.south);
+\end{{tikzpicture}}
+\Description{{Flow diagram. Case facts and model solution go to an LLM generator, then to a code validator
+that returns violations to the generator, then to code allocation, code rendering, an LLM judge that also
+receives the student answer, a code verifier that checks the judge's quotes against the answer, and code
+aggregation into a total and a grade.}}
+\caption{{The grading-sheet pipeline. Blue: model steps; green: code. The judge also receives the case facts
+and the model solution as context. Levers per stage are listed in Table~\ref{{tab:levers}}.}}
+\label{{fig:pipeline}}
+\end{{figure}}
+"""
+(ASSETS / "fig_pipeline.tex").write_text(tikz, encoding="utf-8")
+print("```{=latex}\n\\input{assets/fig_pipeline.tex}\n```\n")
 ```
 
-The control arm is the prior study [@nagl2026bengerdata]: 45 solutions – per exam one traditional,
-one AI-assisted (*co-creation*), one model-generated – with 180 human reviews (3 blind + the creator
-per solution), a six-judge panel, and a three-pass repeat protocol. Its judges grade against one
-exam-independent scheme, reused for every exam: the *holistic* instrument.^[Holistic here contrasts
-with *exam-specific*, not with *analytic* scoring [@klein1998analytic]: the baseline does decompose
-into dimensions, but the same ten for every exam (@sec-appendix-grading).] Raw scores (0–100) sum
-ten dimensions; the statutory 0–18 grade follows a fixed table (10.8 raw ≈ 2.7 grade points). Blind
-raters span 23.9 raw points per solution (ICC(2,1) = .63); the prior study's primary judge tracks
-the pool at $r = .76$, MAE 10.8 (single pass). Agreement metrics use the 30 human-authored cells,
-matching that protocol; repeat metrics use all 45.
+## Case preparation
 
-*Main arm.* Twelve systems each attempt one rubric per exam (failures = RQ1 data); one per exam is
-then fixed for all graders by a seeded random draw from the conformant pool, judged by the prior
-study's roster and repeat protocol at control-arm temperatures. The primary judge (GPT-5.4 Mini)
-fails the instrument outright (@sec-results-rq2), so we also judge with GPT-5.6 Luna (same family, a
-fraction of flagship price).
+Each exam provides a case text and a model solution. We clean both: markup escapes and tables of
+contents are removed, footnotes are kept. A script is graded against the case text of its own year.
 
-*Matched replications.* Because the control repeats ran on a since-deprecated judge, five capable
-judges (Luna, Sonnet, Gemini 3.1 Pro, DS-V4-Pro, Qwen3.5) re-grade the identical 45 cells ×3 under
-*both* instruments – every repeat and agreement contrast is within-judge. *Few-shot.* We regenerate
-rubrics with one exemplar from the *next* same-area exam (lowest repeat-SD under a median-MAE cap,
-chosen on donor-exam outcomes only: @sec-appendix-fewshot) and re-judge with Luna and Mini ×3.
-*Probes.* Per exam, three degenerate submissions (verbatim fact pattern; near-empty; another exam's
-model solution) plus the exam's own Musterlösung (positive control) test execution under both
-instruments against thresholds of $<5$, $=0$, $\leq 10$, and $\geq 70$ of 100, each on every pass.
-Draws, thresholds, and endpoints were fixed before any dispatch (released record).
+## Generation: the checklist sheet {#sec-generation}
 
-# Results
+The generator receives the case text, the model solution and a fixed output specification, the same
+for every model, through plain text completion. It returns one JSON document:
 
-## RQ1: Generation – compliance, divergence, screening {#sec-results-rq1}
+- *Sections and steps.* Each step names one expected legal performance and carries a relative
+  weight. Klausurschwerpunkte (the exam's focal problems) are marked groups of steps.
+- *Requirement bullets.* Each step has `{python} GEN["bullets_per_step"][0]` to
+  `{python} GEN["bullets_per_step"][1]` bullets, each with a relative share and a standard
+  (*Maßstab*): *richtig* (judged against the correct law) or *folgerichtig* (judged against the
+  candidate's own earlier decision, the consequential-error principle at bullet level). A bullet
+  describes a performance that stands in the answer and can be quoted. No bullet may be met by an
+  absence, none may be conditional, and none may ask only for a norm, a term or a result to be named.
+  A step above `{python} num(GEN["two_bullets_above_be"], 0)` BE needs at least two bullets.
+- *Forks and solution paths.* A dispute that changes only a result or its reasons stays inside a
+  step as an outcome-neutral bullet. A structural fork (*Weichenstellung*) exists only where another
+  tenable decision drops a step of the model solution's path or adds a step with its own
+  prerequisites. Each alternative path (*Lösungsweg*) carries its own steps, the reasoning that makes
+  it tenable (*Vertretbarkeitsanforderungen*), and the budget of the steps it replaces.
+- *Owed auxiliary opinions.* Steps or sections can be marked as owed even when the candidate's own
+  decision cuts them off (*Hilfsgutachten*), for instance when a contractual claim already fails at
+  formation. The marker names the triggering decision.
+- *Work results.* Each step belongs to an *Arbeitsergebnis*, such as an opinion or a draft judgment.
+
+The model states weights, never points. How it states them is a lever with three settings: flat
+weights over all steps; hierarchical shares, where each level states its share of the parent (Roth's
+paradigm, Z2); and top-down BE, where the model writes section totals first and then the steps inside
+(the D2 paradigm), normalized by code.
+
+## Allocation by code {#sec-allocation}
+
+Code turns weights into BE. It apportions `{python} GEN["half_units"]` half-units
+(`{python} GEN["total_be"]` BE) over the steps by the largest-remainder (Hamilton) method
+[@balinski2001fair], with a floor of `{python} num(GEN["min_step_be"], 1)` BE per step. The floor is
+enforced before the remainders are ranked: steps whose quota falls below the floor are pinned to it,
+and the rest is apportioned again. Every free step then lands within one half-unit of its quota, a
+heavier step never receives less than a lighter one, and weights that already sum to the total pass
+unchanged. A bullet is worth the step's BE times the bullet's share. Budgets of alternative paths
+equal the sum of the steps they replace. A step above `{python} num(GEN["max_step_be"], 0)` BE fails
+validation with a message that asks the model to split the step or lower its weight.
+
+The first iteration's routine floored first and then ranked the remainders of the unfloored quotas.
+An audit of its `{python} AP["n_rubrics"]` sheets found `{python} AP["as_run"]["steps_outside_fair_range"]`
+steps in `{python} AP["affected_rubrics"]` sheets outside their fair range and
+`{python} AP["as_run"]["order_inversion_pairs"]` order inversions in
+`{python} AP["as_run"]["rubrics_with_inversion"]` sheets; `{python} AP["affected_drawn_rubrics"]` of the
+`{python} AP["n_drawn"]` sheets used in the main arm was affected (Appendix \ref{sec-app-apportionment}). The
+corrected routine removes both defects. On the half-point grid it also keeps distinct weights apart:
+the as-run routine gave equal points to `{python} AP["as_run"]["collapsed_distinct_weight_pairs"]`
+pairs of steps with different weights, the half-point routine to
+`{python} AP["hamilton_half"]["collapsed_distinct_weight_pairs"]`.
+
+## Validation and retries {#sec-validation}
+
+A deterministic validator checks every document in two tiers (Appendix \ref{sec-app-validator}). A strict
+violation fails the attempt. The model then receives its previous document and the verbatim
+violation messages, for at most `{python} GEN["max_attempts"]` attempts. Strict checks cover the
+structure and all cross-references, absence and conditional bullets, steps named as a result, big
+steps with a single bullet, forks that replace a whole section, and paths that repeat the steps they
+replace. Soft checks only log hints, for example when most steps exceed
+`{python} num(GEN["step_be_guidance"][1], 0)` BE. Every sheet records content hashes of the
+validator and the prompt. A lexical check cannot see paraphrase, so two steps that say the same
+thing in different words pass.
+
+## Rendering {#sec-rendering}
+
+Code renders the sheet for the judge: sections, steps with their BE, bullets with their share in
+percent and their standard, forks with their paths and tenability requirements, and notes on owed
+auxiliary opinions. A second view merges consecutive steps of a section until a merged step reaches
+about `{python} num(GEN["merged_view_target_be"], 0)` BE, without crossing a focal group, a fork or an
+auxiliary-opinion marker. Totals do not change. The two views isolate step size as a lever.
+
+## Judging {#sec-judge}
+
+The judge receives four tagged inputs with fixed roles: the case, the model solution (a reference,
+not the answer), the rendered sheet and the answer. It returns JSON under a schema derived from the
+sheet. There are `{python} len(JDG["score_units"])` scoring units. In the *bullet* unit the judge marks
+each requirement as met, partly met or not met, which code credits with
+`{python} num(JDG["status_credit"]["2"], 0)`, `{python} num(JDG["status_credit"]["1"], 1)` or
+`{python} num(JDG["status_credit"]["0"], 0)` of the bullet's BE. In the *step* unit it states half-point
+BE per step, as on a classic sheet. In the *rating* unit it grades each step from 0 to
+`{python} JDG["rating_max"]` against the statutory band definitions. Every credit needs a verbatim
+quote from the answer. The judge's rules are fixed:
+
+- *Placement.* Work counts for the step whose requirement it meets, even if it stands elsewhere in
+  the same question and work result; the step is then flagged as misplaced. It counts once, and work
+  on another question counts only if the answer refers to it explicitly.
+- *Consequential errors.* *Folgerichtig* bullets are judged on the answer's own earlier decisions.
+  Other bullets are judged on the correct law, but an error that has already cost credit is not
+  charged again; the judge records the chain.
+- *Auxiliary opinions.* Work on questions that the answer's own decision cut off earns credit like
+  work in the main opinion. It never replaces the main result.
+- *Alternatives.* In design A0 (*replace*) the judge puts the work on another tenable path onto the
+  replaced steps. In the *branch* designs the judge scores every path's steps and declares, with a
+  quote, which path the answer follows; a path counts as followed only if the answer argues it as its
+  tenability requirements demand. A2 counts the declared path (the model solution's path if the quote
+  fails), A1 the best-scoring path; one call yields both.
+- *Unforeseen paths.* If the answer takes a tenable path that the sheet does not foresee, the judge
+  scores the functionally corresponding step at equal depth of reasoning and flags it; such a script
+  goes to human review.
+- *General rules.* Contradictory results without a decision fail the requirement on the result.
+  Unnecessary alternative analyses earn nothing. Length, frequent citations and strings of keywords
+  are not performance, and a short, correct application meets a requirement fully.
+
+Instructions inside the tagged inputs are ignored. A diagnosis block records the assessment status
+(scored, review required, not evaluable), the work results, owed auxiliary opinions, error chains
+and short hints for the candidate; it never changes points.
+
+## Evidence verification and its limits {#sec-verifier}
+
+Code checks every quote against the answer (Appendix \ref{sec-app-verifier}). It normalizes layout and compares
+tokens in order, with small tolerances: up to `{python} VER["max_skipped_answer_words"]` skipped answer
+words between quoted words, one missed quoted word per `{python} VER["one_miss_per_tokens"]`, and an
+inflection or a one-letter typo on longer words. *Protected* tokens must match exactly and may never
+be skipped: negations, result words and their antonyms, qualifiers, Roman numerals and every token
+with a digit. A match fails when a negation or a condition stands right before it in the same
+clause, or right after it in the same sentence. A fragment needs at least `{python} VER["min_tokens"]`
+tokens and more than a norm citation. An unverified quote sets the item to zero; the model's own
+value stays in the output for analysis.
+
+The check has limits. It tests presence, not relevance: a real sentence can be quoted for the wrong
+requirement, and only the judge decides what a sentence proves. Correct work that the judge
+paraphrases instead of quoting earns nothing. A sentence that the answer copied from the case text
+verifies. The edge rules also reject some correct quotes, for instance one cut before a trailing
+condition that does not change the result. The first iteration had no verifier, and the platform
+grades that the D2b students saw ran with an earlier version. Every arm reports its verifier version.
+\pending{regression replays at the freeze: quotes re-checked on D1, D2 and the stored D2b grades, and how many flip}
+
+## Aggregation and grades {#sec-aggregation}
+
+A step's points are the sum of bullet credits times bullet BE (bullet unit), the stated BE (step
+unit), or the BE equivalent of the step grade (rating unit): the midpoint of the grade's band under
+the exam's key, with `{python} JDG["rating_max"]` points worth the full step. Code sums the unrounded
+points and rounds once, half up, to the half-point grid; the step scores shown are distributed from
+that total by largest remainder so that they add up to it. The grade follows from the total via the
+exam's key. For the rating unit we also report the weighted mean of the step grades, Roth's
+aggregation. Passes can be averaged.
 
 ```{python}
-#| echo: false
 #| output: asis
-gens = (rubric_summary or {}).get("generators") or {}
-per_gen = (rubric_stats or {}).get("per_generator") or {}
-conv = (rubric_stats or {}).get("cross_generator_convergence") or {}
-aud = (audit_stats or {}).get("per_generator") or {}
+lev = [
+    ["Generation", "specification, validator, retries", "generator; allocation (flat, hierarchical, top-down)"],
+    ["Rendering", "layout, shares in percent", "view (fine, merged)"],
+    ["Judging", "rules, schema, quote check", "judge; unit (bullet, step, rating); alternatives (A0, A1, A2)"],
+    ["Aggregation", "rounding, grade key", f"passes averaged ({DZ['statistics']['passes_averaged'][0]}--{DZ['statistics']['passes_averaged'][-1]}); two-judge mean"],
+]
+write_table(
+    "tbl_levers", "Levers of the pipeline. Baselines: the first-iteration step-score sheet, the "
+    "holistic instrument, and the exam author's own sheet graded by the same judge.",
+    "tab:levers", ["Stage", "Fixed in code", "Levers"], lev,
+    colspec="lp{0.28\\textwidth}p{0.45\\textwidth}", size=r"\footnotesize")
+```
 
-def short(gid):
-    return (gid.split("/")[-1]
-            .replace("-Instruct-FP8", "").replace("-A22B-Thinking-2507", "-Think")
-            .replace("Maverick-17B-128E", "Maverick").replace("-preview", ""))
+# Data and design {#sec-design}
 
-if gens and per_gen:
-    rows = []
-    for gid, s in sorted(gens.items(), key=lambda kv: (-(kv[1]["rubrics"]), kv[0])):
-        st = (per_gen.get(gid) or {}).get("step_count") or {}
-        au = (aud.get(gid) or {})
-        rows.append((short(gid), f"{s['rubrics']}/15",
-                     f"{100*s.get('first_attempt_rate', 0):.0f}\\%",
-                     fmt(s.get("attempts_per_success", {}).get("mean")),
-                     fmt(st.get("mean"), 1),
-                     fmt(au.get("total_mean"), 1)))
-    print(f"{n_valid_rubrics}/180 "
-          "(generator, exam) cells hold a schema-conformant document "
-          "(strictest reading 167/180: @sec-appendix-compliance). "
-          "Ten generators reached full coverage; Llama-4 failed 3 exams "
-          "and Mini 7, dominated by alternative-path cross-reference "
-          "violations that feedback did not repair. "
-          "First-attempt compliance spans 13–100\\%; "
-          "feedback rounds recover nearly everything else.\n")
-    globals()["_compliance_rows"] = rows
-    scr = rubric_screen or {}
-    if scr:
-        print("\n*Schema-conformant is not substantively valid*: a lexical "
-              "screen against the prompt's own banned vague formulas flags "
-              f"{(scr.get('listed') or {}).get('n_rubrics_hit')}/"
-              f"{scr.get('n_rubrics')} documents "
-              f"({(scr.get('any') or {}).get('n_rubrics_hit')} with "
-              "near-variants), including the showcased example "
-              "(@sec-appendix-example).\n")
-    sc = conv.get("step_count_spread") or {}
-    step_means = [float((per_gen.get(g) or {}).get('step_count', {}).get('mean') or 0)
-                  for g in per_gen]
-    # Weight-sum range recomputed 2026-08-05 from the 170 v3 documents'
-    # full_document regular-step weights (data/raw/local/task_rubrics.json):
-    # min 34, max 179; 43/170 sum to exactly 100.
-    print(f"\nGenerators do *not* converge – mean step counts range "
-          f"{min(step_means):.1f}–{max(step_means):.1f}, stated weight sums "
-          "34–179 – so demanding exact totals would conflate arithmetic "
-          "with rubric quality (@sec-appendix-arithmetic).")
+## D1: the first-iteration corpus {#sec-d1}
+
+D1 holds the `{python} V["n_exams"]` exams of the BenGER corpus [@nagl2026bengerdata], from civil,
+public and criminal law, with `{python} V["n_answers"]` answers: per exam one traditional, one
+co-created and one model-generated solution. The `{python} V["n_ann"]` human-written answers each have
+grades from `{python} V["blind"]` blind raters and the answer's creator; agreement uses the mean of
+these `{python} V["pool"]` grades. The blind raters agree at ICC(2,1) = `{python} V["icc"]` and differ
+by `{python} V["spread"]` raw points per answer on average. The prior study's primary judge tracked
+the pool at $r$ = `{python} V["prior_r"]` with an MAE of `{python} V["prior_mae"]` raw points, or
+`{python} V["prior_mae_np"]` grade points when the MAE is computed on the grade scale. D1 is our only data across many exams,
+and its human reference is noisy.
+
+## D2: the expert exam {#sec-d2}
+
+D2 is one police-law exam from LMU, set in yearly runs from 2024 to 2026. Its author is a co-author
+of this paper. His grading sheet has `{python} D2["sheet"]["n_steps"]` steps and
+`{python} D2["sheet"]["total_be"]` BE on a half-point grid, and his key passes a script at
+`{python} pct(D2["sheet"]["pass_share"])`. The sheet exists in `{python} D2["sheet"]["n_states"]`
+states, one per run.
+
+- *D2a* holds `{python} D2["d2a"]["n_scripts"]` typed scripts from the runs of 2024 (`{python} D2["d2a"]["by_year"]["2024"]`)
+  and 2025 (`{python} D2["d2a"]["by_year"]["2025"]`), each
+  with per-step grades on the sheet state of its year. We call these the *reference grades (grader
+  confirmation pending)*: for `{python} D2["d2a"]["grader_pending"]` scripts the grader is still being
+  confirmed.
+- *D2b* holds `{python} D2["d2b"]["n_uploads"]` submissions from the `{python} D2["d2b"]["year"]` run
+  on our platform. We exclude `{python} D2["d2b"]["n_excluded"]` uploads from the author's own account
+  (a test upload and a copy of a D2a script), leaving `{python} D2["d2b"]["n_students"]` student
+  submissions. The platform graded them at submission time with GPT-5.4 Mini, and the students saw
+  these grades. The author grades the `{python} D2["d2b"]["n_students"]`
+  submissions blind, without access to the model grades. \pending{blind expert grades for D2b}
+
+In total D2 has at most `{python} D2["distinct_scripts"]` distinct scripts,
+`{python} D2["n_counting_dependent_pair_once"]` if one pair with overlapping text counts once. The case
+text changed between runs, at least in its dates. Each script is graded against its own year's text;
+until the texts of 2024 and 2025 arrive, D2a scripts are flagged as graded against another year's
+text. \pending{per-year case texts from the exam author} A second grader will grade
+`{python} D2["second_grader_plan"]["n_scripts"]` scripts blind (`{python} D2["second_grader_plan"]["d2a"]`
+from each part) to give a human-to-human ceiling. \pending{second grader}
+
+Before any research call to a model provider, all D2 texts are pseudonymized and checked for personal
+data. The check found and removed `{python} D2["pii"]["student_name_lines_removed"]` line with a
+student's name and `{python} D2["pii"]["examiner_headers_removed"]` examiner header;
+`{python} D2["pii"]["grade_files_with_private_email"]` grade spreadsheets carried a private e-mail
+address, which no derived file contains. The expert's sheet never reaches a generator or a holistic
+judge. A canary check asserts that no prompt of any other arm contains terms of the expert sheet or
+of the D2 solution.
+
+We also hold Gregor Roth's sheet and grading workbook for a civil-law exam (Z2), without case,
+solution or scripts, and use them only for their scoring format (E7).
+
+## Experiments {#sec-experiments}
+
+The development data are D1 and D2a. D2b is held out and used once, after the author has graded it,
+to confirm the pipeline chosen on the development data. Table \ref{tab:experiments} lists the
+experiments. Each runs on its own budget and only after the owner's approval.
+
+```{python}
+#| output: asis
+erows = []
+for e in DZ["experiments"]:
+    lo, hi = e["cost_usd"]
+    cost = f"{lo}" if lo == hi else f"{lo}--{hi}"
+    erows.append([e["id"], e["name"], ", ".join(e["rq"]), tex_escape(e["scope"]), cost])
+tot = COST["experiments_sum_usd"]
+erows.append("MIDRULE")
+erows.append(["", "Total", "", "", f"{tot[0]}--{tot[1]}"])
+write_table(
+    "tbl_experiments",
+    "Experiments of the extended study, with planned costs in USD at catalog prices and "
+    "pilot-measured token counts. \\pending{actual costs per experiment}",
+    "tab:experiments", ["", "Experiment", "RQ", "Scope", "USD"], erows,
+    colspec="lp{0.2\\textwidth}p{0.09\\textwidth}p{0.44\\textwidth}r", size=r"\footnotesize")
+```
+
+*Measures.* Against the expert we report the mean absolute error (MAE) and the signed bias of the
+total, ICC(A,1) [@mcgraw1996forming], the share of grades within one grade point, and pass/fail
+agreement (Cohen's $\kappa$); on D1 also the concordance correlation [@lin1989concordance] with the
+human pool. Stability is the SD across repeated passes on the same sheet (*repeat SD*) and across
+independently generated sheets for the same exam (*sheet-sample SD*). Robustness is the probe
+battery. Faithfulness is the share of quotes the verifier rejects and the gap between the model's
+total and the verified total. Cost and latency are measured per call.
+
+*Probe battery.* Before any benchmark run, each judge and instrument passes a battery of synthetic
+answers over `{python} DZ["probes"]["passes"]` passes (Appendix \ref{sec-app-probes}): negative probes (an empty
+answer, the case text, another exam's solution, a keyword list, an injected instruction) must score
+near zero; the exam's own model solution must score high; removing one section of the model solution
+must cost about that section's BE; moving correct reasoning under another heading must cost almost
+nothing.
+
+*Estimation.* We estimate rather than test. Intervals are bootstrap CIs clustered by exam (D1) or by
+script (D2); variance components come from mixed models; generator and judge ranks carry bootstrap
+intervals. The data limit what we can see (Appendix \ref{sec-app-precision}). With
+`{python} D2["d2a"]["n_scripts"]` D2a scripts, a paired difference in absolute error below about
+`{python} num(MDE["C2_abs_error_vs_expert"]["mde"]["n_15_d2a"]["alpha_0.025"], 1)` points is not
+detectable (power `{python} cor(DZ["statistics"]["mde_power"], 1)`, $\alpha$ = `{python} cor(DZ["statistics"]["mde_alpha"], 3)`, $t$-based); with all `{python} D2["distinct_scripts"]` scripts
+the bound is about `{python} num(MDE["C2_abs_error_vs_expert"]["mde"]["n_38_all_distinct"]["alpha_0.025"], 1)`
+points. On D1's `{python} MDE["C1_repeat_sd"]["n"]` answers a change in repeat SD below about
+`{python} num(MDE["C1_repeat_sd"]["mde"]["alpha_0.025"], 2)` is not detectable. Each judge runs at the
+platform's grading default temperature; we report each provider's determinism. GPT-5.6 Luna cannot be
+seeded, so its repeat SD mixes sampling noise with instrument effects.
+
+*Development history.* Before the benchmark we ran small development runs to build the instrument:
+a feasibility pilot and two probe gates. They used an earlier template, had gaps in the verifier, and
+one probe was defective. Together with `{python} DZ["statistics"]["review_rounds"]` independent review rounds they shaped the instrument;
+their numbers are not evidence. They cost `{python} usd(COST["development_spend_usd"], 2)`.
+
+# Results {#sec-results}
+
+## First iteration {#sec-first}
+
+```{python}
+#| output: false
+CONTRACT = json.loads((PROC / "rubric_contract.json").read_text(encoding="utf-8"))
+llama = "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+dsf = "deepseek-ai/DeepSeek-V4-Flash"
+opus, sonnet = "claude-opus-4-7", "claude-sonnet-4-6"
+passes = GE["passes"]
+lz, lf, lfz, mz = CO["luna_zs_vs_hol"], CO["luna_fs_vs_hol"], CO["luna_fs_vs_zs"], CO["mini_zs_vs_hol"]
+pooled = CO["pooled_five"]
+son_f, mini_f = per_judge_forest[sonnet], per_judge_forest[MINI]
+shift_max = max(abs(v) for v in CO["step_sum_minus_stored_tailored_mean"].values())
+fs_sd = CO["fewshot_per_generator_repeat_sd"]
+roster = {r["judge"]: r for r in JU["roster"]}
+extra = {r["judge"]: r for r in JU["extra_single_pass"]}
+link = GE["audit_link"]
+gpo = GE["per_generator"]
+sev = PR["severity"]
+fc = PR["fail_counts"]
+npas = PR["n_passes"]
+mini_rank = next(r for r in GE["ranking"]["conditional"] if r["generator"] == MINI)
+ws_s = WS["summary"]
+ss = SS["per_judge"]
+gen_s = G["per_generator"]
+```
+
+The first iteration asked `{python} V["n_gens"]` generators for one step-score
+sheet per exam. Each step carried a weight class, ordered partial-credit levels, provenance and
+consequential-error rules; alternative paths replaced named steps within their budget. A seeded
+random draw fixed one valid sheet per exam for all judges. Judges graded the `{python} V["n_answers"]`
+answers against the drawn sheet and, in matched arms, against the *holistic* instrument of the prior study
+[@nagl2026bengerdata] (the same `{python} V["n_dims"]` dimensions for every exam) over `{python} passes` passes. A few-shot arm
+regenerated sheets with one exemplar from another exam. We report totals as step sums: the first-iteration
+pipeline sometimes stored the model's own total when it lay within half a point of the step sum
+(Appendix \ref{sec-app-corrections}).
+
+*Generation (RQ3).* `{python} V["n_valid"]` of `{python} V["n_cells"]` generator–exam cells hold a
+valid sheet. `{python} V["n_full"]` generators covered every exam; Llama-4 Maverick covered
+`{python} gen_s[llama]["valid"]` and GPT-5.4 Mini `{python} gen_s[MINI]["valid"]`, mostly because
+feedback did not repair broken references of alternative paths. Of `{python} G["series_total"]`
+dispatched series, `{python} G["series_failed"]` failed: `{python} G["failed_by_stage"]["provider"]`
+aborted at the provider (all GPT-5.4 Mini, credit errors), `{python} G["failed_by_stage"]["contract"]`
+failed validation and `{python} G["failed_by_stage"]["parse"]` failed parsing. First-attempt
+compliance over all series that reached the model spans
+`{python} pct(G["first_attempt_range_model_series"][0])` to
+`{python} pct(G["first_attempt_range_model_series"][1])`. Counted over valid sheets only, GPT-5.4 Mini
+looks better than it is: `{python} pct(gen_s[MINI]["first_attempt_rate_valid"])` there, but
+`{python} pct(gen_s[MINI]["first_attempt_rate_model_series"])` over the series that reached the model
+(`{python} gen_s[MINI]["first_attempt_successes"]` of `{python} gen_s[MINI]["model_series"]`) and
+`{python} pct(gen_s[MINI]["first_attempt_rate_all_series"])` over all `{python} gen_s[MINI]["series"]`
+of its series (Table \ref{tab:compliance}). Generators did not converge: mean step counts range from
+`{python} num(G["step_count_mean_range"][0], 1)` to `{python} num(G["step_count_mean_range"][1], 1)`,
+and stated weight sums from `{python} num(G["weight_sums"]["min"], 0)` to
+`{python} num(G["weight_sums"]["max"], 0)`. A lexical screen found vague formulas that the prompt
+itself bans in `{python} G["lexical_screen"]["listed"]` of `{python} G["lexical_screen"]["n_rubrics"]`
+sheets (`{python} G["lexical_screen"]["any"]` with near variants). The generation prompt asked for
+"exactly `{python} CONTRACT["bounds"]["total_points"]` raw points" in its first line, while its
+weighting rule said that no exact sum was needed because code normalizes; we disclose this as an
+ambiguity. The weight class was shown to the judge but played no part in the arithmetic.
+
+```{python}
+#| output: asis
+LBL = {"holistic_luna": "Holistic", "tailored_luna": "Step-score sheet, zero-shot",
+       "fewshot_luna": "Step-score sheet, few-shot", "holistic_mini": "Holistic",
+       "tailored_mini": "Step-score sheet, zero-shot", "fewshot_mini": "Step-score sheet, few-shot"}
+DAG = r"\textsuperscript{\textdagger}"
+
+
+def rel_row(key):
+    r = REL[key]
+    if r["basis"] == "step_sum":
+        return [LBL[key], num(r["repeat_sd"]), cor(r["r"]), num(r["mae"], 1), sgn(r["bias_stored"], 1) + DAG]
+    if r["basis"] == "stored_pending":
+        return [LBL[key], num(r["repeat_sd_stored"]) + DAG, cor(r["r_stored"]) + DAG,
+                num(r["mae_stored"], 1) + DAG, sgn(r["bias_stored"], 1) + DAG]
+    return [LBL[key], num(r["repeat_sd"]), cor(r["r"]), num(r["mae"], 1), sgn(r["bias"], 1)]
+
+
+prs = FI["reliability"]["panel_sd_range"]
+rows = [r"\multicolumn{5}{@{}l}{\emph{Judge: GPT-5.6 Luna}}"]
+rows += [rel_row(k) for k in ("holistic_luna", "tailored_luna", "fewshot_luna")]
+rows += ["MIDRULE", r"\multicolumn{5}{@{}l}{\emph{Judge: GPT-5.4 Mini}}"]
+rows += [rel_row(k) for k in ("holistic_mini", "tailored_mini", "fewshot_mini")]
+write_table(
+    "tbl_reliability",
+    f"First iteration: stability and agreement by instrument. SD\\textsubscript{{rep}}: repeat SD over "
+    f"{passes} passes on {FI['reliability']['repeat_n']} answers. $r$, MAE, bias: first pass against the "
+    f"human pool on {FI['reliability']['agreement_n']} human-written answers; bias is judge minus humans. "
+    f"Step-score totals are step sums. {DAG}Stored total; the step-sum recompute needs withheld run "
+    f"outputs \\pending{{few-shot rows and zero-shot bias on step sums}}. The {FI['reliability']['panel_size']}-judge panel SD ranges "
+    f"from {num(prs[0])} to {num(prs[1])} across the panel definitions.",
+    "tab:reliability", ["Instrument", "SD\\textsubscript{rep}", "$r$", "MAE", "bias"], rows,
+    colspec="lrrrr", size=r"\footnotesize")
+```
+
+*Reliability (RQ1).* For Luna, repeat SD falls from `{python} num(REL["holistic_luna"]["repeat_sd"])`
+(holistic) to `{python} num(REL["tailored_luna"]["repeat_sd"])` (zero-shot sheet) and
+`{python} num(REL["fewshot_luna"]["repeat_sd_stored"])` \pending{few-shot on step sums} (few-shot sheet;
+Table \ref{tab:reliability}). The direction is consistent, but no single step is established:
+few-shot minus holistic is `{python} sgn(lf["point"])` (`{python} ci(lf["ci95"])`; sign test
+$p$ = `{python} pv(lf["sign_p"])`), zero-shot minus holistic `{python} sgn(lz["point"])`
+(`{python} ci(lz["ci95"])`; $p$ = `{python} pv(lz["sign_p"])`), and few-shot minus zero-shot
+`{python} sgn(lfz["point"])` (`{python} ci(lfz["ci95"])`; $p$ = `{python} num(lfz["sign_p"])`). Across
+the `{python} V["n_matched"]` judges with matched arms, the zero-shot effect averages
+`{python} sgn(pooled["point"])` (`{python} ci(pooled["ci95"])`; Table \ref{tab:contrasts}). This is the
+unweighted mean of the per-judge differences, without correction for multiple comparisons. Only
+Sonnet's per-judge interval excludes zero, and it points the adverse way: Claude Sonnet 4.6 is steadier with
+the holistic instrument (`{python} sgn(son_f["delta"])`, `{python} ci(son_f["ci95"])`). Below the
+capability floor the sheet destabilizes the judge: GPT-5.4 Mini's repeat SD rises from
+`{python} num(REL["holistic_mini"]["repeat_sd"])` to `{python} num(REL["tailored_mini"]["repeat_sd"])`
+(`{python} sgn(mini_f["delta"])`, `{python} ci(mini_f["ci95"])`, clustered by exam; cell-level sign
+test $p$ = `{python} pv(mz["sign_p"])`, Wilcoxon $p$ = `{python} pv(mz["wilcoxon_p"])`). The steadiest
+few-shot sheets, a post-hoc subset by generator, reached `{python} num(min(fs_sd.values()))` with
+Luna, and an in-sample floor (the best sheet per exam, chosen after the fact)
+`{python} num(CO["trend_luna"]["in_sample_floor"])`; both are optimistic bounds without intervals.
+These contrasts use stored totals; step sums move the zero-shot means of the matched
+judges by at most `{python} num(shift_max)`.
+
+*Agreement (RQ2).* Agreement with the human pool fell as the sheets tightened. Luna's $r$ moved from
+`{python} cor(AG["luna"]["hol"]["r"])` to `{python} cor(AG["luna"]["zs_step_sum"]["r"])` and
+`{python} cor(AG["luna"]["fs_stored"]["r"])`, and its bias flipped from
+`{python} sgn(AG["luna"]["hol"]["bias"], 1)` to `{python} sgn(AG["luna"]["zs_bias_stored"], 1)` and
+`{python} sgn(AG["luna"]["fs_stored"]["bias"], 1)`; the few-shot exemplars had been chosen for
+stability alone. Its zero-shot MAE rose by `{python} sgn(AG["luna"]["mae_zs_minus_hol"]["point"], 1)`
+(`{python} ci(AG["luna"]["mae_zs_minus_hol"]["ci95"], 1)`). GPT-5.4 Mini graded adequately with the
+holistic instrument ($r$ = `{python} cor(AG["mini"]["hol"]["r"])`, MAE
+`{python} num(AG["mini"]["hol"]["mae"], 1)`) but not with the sheet: $r$ =
+`{python} cor(AG["mini"]["zs_step_sum"]["r"])`, MAE `{python} num(AG["mini"]["zs_step_sum"]["mae"], 1)`,
+an increase of `{python} sgn(AG["mini"]["mae_zs_minus_hol"]["point"], 1)`
+(`{python} ci(AG["mini"]["mae_zs_minus_hol"]["ci95"], 1)`). Few-shot sheets left it there ($r$ =
+`{python} cor(AG["mini"]["fs_stored"]["r"])`, MAE `{python} num(AG["mini"]["fs_stored"]["mae"], 1)`).
+Leave-one-exam-out bias correction shows that the error of the prior study's control judge was
+mostly a level shift (MAE `{python} num(C["legacy_control"]["mae"], 1)` to
+`{python} num(AG["loeo_calibrated_mae"]["holistic_control"], 1)`), whereas Luna's zero-shot error was
+not (`{python} num(AG["luna"]["zs_step_sum"]["mae"], 1)` to
+`{python} num(AG["loeo_calibrated_mae"]["tailored_luna"], 1)`).
+
+*Judges and probes.* The `{python} len(JU["roster"])` roster judges graded all answers against the drawn sheets
+(Table \ref{tab:judges}). Apart from Mini they reached $r$ `{python} cor(JU["capable_r_range"][0])`
+to `{python} cor(JU["capable_r_range"][1])`; Claude Opus 5 and GPT-5.6 Terra, one pass each,
+`{python} cor(extra["claude-opus-5"]["r"])` and `{python} cor(extra["gpt-5.6-terra"]["r"])`. A battery of
+`{python} PR["n_probes_per_type"]` degenerate answers per type (the case text verbatim, a near-empty
+answer, another exam's model solution) and each exam's own model solution as a positive control
+tested execution (Table \ref{tab:probes}). Only `{python} " and ".join(NAME[j] for j in PR["clean_battery"])`
+passed the negative battery on every pass. Luna credited the near-empty answer on
+`{python} fc["tailored"][LUNA]["empty"]` of `{python} npas["tailored"][LUNA]["empty"]` zero-shot passes and
+`{python} fc["fewshot"][LUNA]["empty"]` of `{python} npas["fewshot"][LUNA]["empty"]` few-shot passes, with
+`{python} num(PR["luna_empty_mean_failing"]["tailored"], 1)` and
+`{python} num(PR["luna_empty_mean_failing"]["fewshot"], 1)` points on average when it did
+\pending{median over failing passes}, but on `{python} fc["holistic"][LUNA]["empty"]` holistic passes.
+GPT-5.4 Mini failed `{python} PR["mini_negative_fails"]["tailored"]` of
+`{python} PR["mini_negative_passes"]["tailored"]` negative passes under the sheet and
+`{python} PR["mini_negative_fails"]["holistic"]` under the holistic instrument, but its holistic
+failures were small (median `{python} num(sev["holistic"][MINI]["empty"]["median"], 0)` points on the
+empty answer) and its sheet failures near-total (median
+`{python} num(sev["tailored"][MINI]["empty"]["median"], 0)`). The off-topic answer scored at most
+`{python} num(max(v for j, v in PR["offtopic_max_tailored"].items() if j != MINI), 1)` points with every
+judge except Mini (up to `{python} num(PR["offtopic_max_tailored"][MINI], 0)`). All
+`{python} sum(1 for v in PR["positive_control"]["tailored"].values() if v == "pass")` judges passed the
+positive control under the sheet; Mini failed it holistically on
+`{python} PR["positive_control_fails"]["holistic"][MINI][0]` of
+`{python} PR["positive_control_fails"]["holistic"][MINI][1]` passes. On one answer that only restates
+the case, Mini under the sheet gave `{python} ", ".join(num(v, 0) for v in AG["p01"]["mini_zs"].values())`
+points and Luna `{python} ", ".join(num(v, 0) for v in AG["p01"]["luna_zs"].values())`.
+
+These failures belong to the first-iteration harness. It had no quote verification and a generic
+system prompt. Its response schema listed the steps in storage order (by key length, then bytes),
+not in outline order, and the steps of alternative paths had no response keys, so a judge had to
+move credit for another path onto the replaced steps, where the per-step cap dropped any overflow
+\pending{number of alternative paths affected}. Budget neutrality thus held in the document, not in
+scoring. The new pipeline changes all of this at once. E0 and E2 must therefore measure the
+capability floor again before we claim anything about it, and E4 can separate the levers only in
+part.
+
+*Generators and the audit (RQ4).* A crossed sweep graded each exam's answers under every valid sheet
+of that exam: `{python} GE["n_rubrics"]` sheets and `{python} GE["n_rubric_pick_cells"]` sheet–answer
+cells, Luna, `{python} passes` passes (Table \ref{tab:generators}). An automated audit by GPT-5.4 Mini
+rated each blinded sheet on `{python} GE["audit"]["n_dimensions"]` dimensions from 1 to
+`{python} GE["audit"]["scale_max"]`. Within exams, the audit total shows no linear association with
+grading error ($r$ = `{python} cor(link["mae_centered"]["pearson"])`,
+`{python} ci(link["mae_centered"]["ci95"])`; Spearman `{python} cor(link["mae_centered"]["spearman"])`)
+and a weak one with stability ($r$ = `{python} cor(link["repeat_sd_centered"]["pearson"])`,
+`{python} ci(link["repeat_sd_centered"]["ci95"])`; Spearman
+`{python} cor(link["repeat_sd_centered"]["spearman"])`). It correlates with the *absolute* bias
+($r$ = `{python} cor(link["abs_bias_centered"]["pearson"])`, `{python} ci(link["abs_bias_centered"]["ci95"])`)
+\pending{within-exam correlation with signed bias}. At the generator level
+($n$ = `{python} GE["generator_level_spearman_audit_vs_bias"]["n"]`), higher audit totals go with
+harsher grading (Spearman `{python} cor(GE["generator_level_spearman_audit_vs_bias"]["luna"])` with
+Luna, `{python} cor(GE["generator_level_spearman_audit_vs_bias"]["sonnet"])` with Sonnet): the Claude
+sheets top the audit (`{python} num(gpo[opus]["audit_total"], 1)` and
+`{python} num(gpo[sonnet]["audit_total"], 1)` of `{python} GE["audit"]["n_dimensions"] * GE["audit"]["scale_max"]`)
+and grade harshest (bias `{python} sgn(gpo[opus]["bias"], 1)` and `{python} sgn(gpo[sonnet]["bias"], 1)`).
+DeepSeek-V4-Flash sheets cut agreement ($r$ = `{python} cor(gpo[dsf]["validity_r"])`, the lowest)
+behind a mid-field audit (`{python} num(gpo[dsf]["audit_total"], 1)`). Llama-4 Maverick sheets made
+Luna least stable (repeat SD `{python} num(gpo[llama]["repeat_sd_mean"])`), but the audit ranked them
+lowest (`{python} num(gpo[llama]["audit_total"], 1)`), so this failure was visible. GPT-5.4 Mini, the
+weakest judge and least compliant generator, wrote the best sheets when it wrote any (paired
+$\Delta$MAE `{python} sgn(gpo[MINI]["paired_dmae"], 1)` on `{python} gpo[MINI]["n_rubrics"]` exams), but
+its probability of ranking first is `{python} cor(mini_rank["p_top1"])` and the estimate is conditional
+on survival. The ranking replicates moderately under a Sonnet lens (Spearman
+`{python} cor(GE["lens_spearman"])`; `{python} cor(GE["lens_spearman_full_coverage"])` among
+full-coverage generators). Few-shot generation raised Mini's valid sheets from
+`{python} G["zeroshot_compliance_mini"]["valid"]` to `{python} G["fewshot_compliance"][MINI]["valid"]` of
+`{python} G["fewshot_compliance"][MINI]["total"]`; since the few-shot arm also used its own pool of
+`{python} V["n_fs_gens"]` generators, its effects are confounded with that pool.
+
+*Weights and step size.* The generated weights carry a small, judge-dependent signal
+(Appendix \ref{sec-app-weights}). Re-aggregating the stored per-step scores, Luna keeps most of its agreement with
+class weights alone ($r$ `{python} cor(ws_j[LUNA]["class_only"]["r"], 3)` vs
+`{python} cor(ws_j[LUNA]["actual"]["r"], 3)`) and loses some with uniform weights
+(`{python} cor(ws_j[LUNA]["uniform"]["r"], 3)`). For DeepSeek-V4-Pro, class weights do worse than uniform
+ones (`{python} cor(ws_j["deepseek-ai/DeepSeek-V4-Pro"]["class_only"]["r"], 3)` vs
+`{python} cor(ws_j["deepseek-ai/DeepSeek-V4-Pro"]["uniform"]["r"], 3)`). Uniform weights lowered repeat
+SD for `{python} len(ws_s["uniform_lowers_repeat_sd"])` of `{python} ws_s["n_judges"]` judges, and the
+actual weights beat `{python} num(100 * ws_s["perm_share_range"][0], 0)` to
+`{python} pct(ws_s["perm_share_range"][1])` of within-sheet permutations. The judges saw the actual step
+maxima, so these re-aggregations are conditional on them. Step size matters more than step count
+(Appendix \ref{sec-app-steps}). Steps of `{python} SS["summary"]["bucket"]` points held
+`{python} pct(ss[LUNA]["share_points"])` of the points but a larger share of the summed per-step
+variance for `{python} len(SS["summary"]["disproportionate"])` judges: Luna `{python} pct(ss[LUNA]["share_variance"])`, Gemini
+`{python} pct(ss["gemini-3.1-pro-preview"]["share_variance"])`, Sonnet
+`{python} pct(ss[sonnet]["share_variance"], 1)`, DeepSeek-V4-Pro
+`{python} pct(ss["deepseek-ai/DeepSeek-V4-Pro"]["share_variance"])`, and Opus 4.7
+`{python} pct(ss[opus]["share_variance"])` from `{python} pct(ss[opus]["share_points"])` of its points
+(`{python} ss[opus]["n_step_cells"]` step cells). For Qwen
+(`{python} pct(ss["Qwen/Qwen3.5-397B-A17B"]["share_variance"])`) and Mini
+(`{python} pct(ss[MINI]["share_variance"])`) the share was close to proportional. Across the
+`{python} GE["granularity"]["n_rubrics"]` sheets, step count correlated only weakly with error
+($r$ = `{python} cor(GE["granularity"]["steps_vs_mae_r"])`) and with repeat SD
+(`{python} cor(GE["granularity"]["steps_vs_repeat_sd_r"])`). The new instrument therefore uses small
+steps and tests step size as a lever.
+
+## Preliminary results on the expert exam {#sec-prelim}
+
+```{python}
+#| output: false
+def _load(name):
+    f = PROC / "cslaw" / name
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
+GATE2 = _load("gate_v2.json")
+GEN2 = _load("d2_generation.json")
+VAL2 = _load("d2_validity.json")
+INSTR = {"expert sheet:step": "Expert sheet (step unit)",
+         "gpt-5.4 sheet 1:bullet": "GPT-5.4 checklist sheet",
+         "gpt-5.4-mini sheet 1:bullet": "GPT-5.4 Mini checklist sheet 1",
+         "gpt-5.4-mini sheet 2:bullet": "GPT-5.4 Mini checklist sheet 2"}
+JUDGES_ORDER = ["gpt-5.6-luna", "deepseek-ai/DeepSeek-V4-Pro", "gpt-5.4-mini"]
+GG = GEN2["per_generator"] if GEN2 else {}
+```
+
+These runs are a first look at the expert exam, not the benchmark. They use the pipeline of
+@sec-pipeline as it stood for these runs (output specification checklist-3), one sheet per generator from two generators, and up to three judges. The reference
+grades of `{python} D2["d2a"]["n_scripts"]` D2a scripts serve as the yardstick; the exam author has
+yet to confirm who graded nine of them, so we call them reference grades, not expert grades.
+
+```{python}
+#| output: asis
+def _gen_par():
+    a, b = GG.get("gpt-5.4"), GG.get("gpt-5.4-mini")
+    if not (a and b):
+        return r"*Generation.* \pending{generation summary}"
+    steps = lambda g: " and ".join(str(x) for x in g["valid_sheet_steps"])
+    return (
+        "*Generation.* Both generators needed retries. GPT-5.4 produced a valid sheet in "
+        f"{a['valid_sheets']} of {a['chains']} chains ({steps(a)} steps), GPT-5.4 Mini in "
+        f"{b['valid_sheets']} of {b['chains']} ({steps(b)} steps; the validator flagged its first sheet as "
+        "coarse because most steps carry more than 4 BE). The two failed differently. GPT-5.4 builds "
+        "richer alternative paths, and most of its failed attempts broke the rules on forks "
+        f"({a['failed_attempt_categories'].get('weichenstellungen', 0)} attempts), for instance a later fork "
+        "that depends on an earlier one. GPT-5.4 Mini failed mostly on the 10-BE cap "
+        f"({b['failed_attempt_categories'].get('gewicht (10 BE cap)', 0)} attempts): in the flat allocation "
+        "mode a generator states relative weights, not BE, and cannot see the cap directly. A valid sheet "
+        f"cost {usd(a['usd_per_valid_sheet'], 2)} with GPT-5.4 and {usd(b['usd_per_valid_sheet'], 2)} with "
+        "GPT-5.4 Mini, failed chains included. Stricter checks buy legal coherence at the price of "
+        "compliance; the generator benchmark (E1) has to report both.")
+print(_gen_par())
+```
+
+```{python}
+#| output: asis
+grows = []
+for arm in INSTR:
+    per = (GATE2 or {}).get("batteries", {}).get(arm, {})
+    for j in JUDGES_ORDER:
+        x = per.get(j)
+        if not x:
+            continue
+        grows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)), str(x["complete_passes"]), x["battery"],
+                      num(x["battery_max_score"], 1), num(x["model_proposed_median_on_negatives"], 1),
+                      num(x["musterloesung_median"], 1),
+                      f'{num(x["section_ablation_drop"], 1)} / {num(x["section_ablation_expected"], 1)}',
+                      num(x["misplacement_drop"], 1), num(x["negation_flip_drop"], 1)])
+write_table(
+    "tbl_gate2",
+    "Probe battery on the expert exam. Battery: six degenerate answers (empty, repeated case text, "
+    "off-topic, same-area off-topic, keyword list, injected instruction) must score 0 or near 0 on "
+    "every pass; max is the highest score any of them received. Proposed: the judge's own median "
+    "total on those answers before the evidence rules. ML: the model solution. Ablation: points lost "
+    "when one part of the model solution is removed, observed / expected from the sheet. Misplaced: "
+    "points lost when one correct paragraph is moved under another heading. Flip: points lost when the "
+    "results of the model solution are negated.",
+    "tab:gate2",
+    ["Instrument", "Judge", "Passes", "Battery", "Max", "Proposed", "ML", "Ablation", "Misplaced", "Flip"],
+    grows or [[r"\tbd"] * 10], colspec="llrlrrrrrr", size=r"\footnotesize", wide=True)
+```
+
+*Probe battery.* Every judge passed the battery on every instrument (Table \ref{tab:gate2}; Luna over
+two passes, DeepSeek over one, its second pass stopped for time): no degenerate answer received points, and the model solution scored near full marks. The new probes
+show that the judges track content, not form. Removing one part of the model solution cost about as
+many points as the sheet assigns to that part, and moving a correct paragraph under another heading
+cost almost nothing, as the placement rule intends. One difference from the first iteration stands
+out. On the expert sheet in the step unit, Luna still proposed half a point for every step of an
+empty or off-topic answer, and only the rule that a credit needs a quote removed them; on the
+checklist sheets it proposed nothing in the first place. The bullet format stops this failure at its
+source; the step format relies on the check.
+
+```{python}
+#| output: asis
+vrows = []
+for arm in INSTR:
+    per = (VAL2 or {}).get("per_arm", {}).get(arm, {})
+    for j in JUDGES_ORDER:
+        x = per.get(j)
+        if not x:
+            continue
+        c = x.get("mae_ci95") or [None, None]
+        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)), str(x["n_scripts"]),
+                      num(x["mae"], 1) + (f' [{num(c[0], 1)}, {num(c[1], 1)}]' if c[0] is not None else ""),
+                      sgn(x["bias"], 1), cor(x["pearson"]) if x["pearson"] is not None else "--",
+                      pct(x["pass_agreement"]), num(x["repeat_sd"], 2) if x.get("repeat_sd") is not None else "--"])
+write_table(
+    "tbl_val2",
+    "Totals on the D2a scripts against the reference grades (grader confirmation pending for nine "
+    "scripts; three scripts of the earliest cohort are judged against the later case text). MAE with "
+    "a script-bootstrap 95\\% interval; bias is judge minus reference; pass agreement at the exam's "
+    "pass mark of 40 BE; SD\\textsubscript{rep} is the mean SD over repeated passes.",
+    "tab:val2",
+    ["Instrument", "Judge", "$n$", "MAE [95\\% CI]", "Bias", "$r$", "Pass agr.", "SD\\textsubscript{rep}"],
+    vrows or [[r"\tbd"] * 8], colspec="llrrrrrr", size=r"\footnotesize", wide=True)
+```
+
+```{python}
+#| output: asis
+def _v(arm, judge):
+    return ((VAL2 or {}).get("per_arm", {}).get(arm, {}) or {}).get(judge)
+
+_lx, _mx = _v("expert sheet:step", "gpt-5.6-luna"), _v("expert sheet:step", "gpt-5.4-mini")
+_lg, _lm = _v("gpt-5.4 sheet 1:bullet", "gpt-5.6-luna"), _v("gpt-5.4-mini sheet 1:bullet", "gpt-5.6-luna")
+_dx, _dg = _v("expert sheet:step", "deepseek-ai/DeepSeek-V4-Pro"), _v("gpt-5.4 sheet 1:bullet", "deepseek-ai/DeepSeek-V4-Pro")
+if not (_lx and _mx and _lg and _lm):
+    print(r"*Agreement with the reference grades.* \pending{validity runs}")
 else:
-    print("*(pending: multi-generator rubric sweep)*")
+    parts = [
+        "*Agreement with the reference grades.* On the expert's own sheet, Luna came within "
+        f"{num(_lx['mae'], 1)} points of the reference grades on average (bias {sgn(_lx['bias'], 1)}, "
+        f"$r$ = {cor(_lx['pearson'])}), agreed on pass or fail for {pct(_lx['pass_agreement'])} of the "
+        f"scripts, and moved by {num(_lx['repeat_sd'], 1)} points between two passes "
+        "(Table \\ref{tab:val2}). GPT-5.4 Mini, the platform's current default judge, was "
+        + (("about twice" if 1.75 <= _mx['mae'] / _lx['mae'] <= 2.25 else f"{num(_mx['mae'] / _lx['mae'], 1)} times")
+           + " as far off")
+        + f" on the same sheet (MAE {num(_mx['mae'], 1)}, $r$ = {cor(_mx['pearson'])}).",
+    ]
+    if _dx:
+        parts.append(
+            f"DeepSeek-V4-Pro reached an MAE of {num(_dx['mae'], 1)} on the expert sheet "
+            f"($r$ = {cor(_dx['pearson'])})"
+            + (f" and {num(_dg['mae'], 1)} on the GPT-5.4 sheet." if _dg else "."))
+    parts.append(
+        "With generated sheets, Luna's error grew, to "
+        f"{num(_lg['mae'], 1)} with the GPT-5.4 sheet and {num(_lm['mae'], 1)} with the GPT-5.4 Mini sheet. "
+        f"Most of the growth is leniency (bias {sgn(_lg['bias'], 1)} and {sgn(_lm['bias'], 1)}), while "
+        f"the order of the scripts stayed close to the reference ($r$ = {cor(_lg['pearson'])} and "
+        f"{cor(_lm['pearson'])}).")
+    parts.append(
+        "Two readings follow, both preliminary. First, the judge mattered more than the sheet: the better "
+        "judge on a generated sheet came closer to the reference than the default judge on the expert's own "
+        "sheet, although the intervals overlap. Second, the generated sheets were more lenient than the "
+        "expert's, and the coarser sheet more so; a generated sheet needs a stricter specification or a "
+        "calibration step before its totals can stand in for an examiner's.")
+    _ss = ((VAL2 or {}).get("sheet_sample", {}).get("gpt-5.4-mini:bullet", {}) or {}).get("gpt-5.6-luna")
+    _l2 = _v("gpt-5.4-mini sheet 2:bullet", "gpt-5.6-luna")
+    if _ss and _l2:
+        parts.append(
+            f"A second GPT-5.4 Mini sheet, generated from the same input, gave Luna an MAE of {num(_l2['mae'], 1)} "
+            f"(bias {sgn(_l2['bias'], 1)}). Between the two sheets a script's total moved by "
+            f"{num(_ss['sheet_sample_sd'], 1)} points on average (SD over sheets; up to "
+            f"{num(_ss['max_script_sd'], 1)}), against {num(_lm['repeat_sd'], 1)} between two passes on one sheet. "
+            + ("Which sheet a generator happens to write is a larger source of variance than the judge's own "
+               "noise, so a benchmark has to sample several sheets per generator."
+               if _ss["sheet_sample_sd"] > _lm["repeat_sd"] else
+               "Here the sheet a generator happens to write added no more variance than the judge's own noise; "
+               "with two sheets of one generator this is a first estimate, not a rule."))
+    print(" ".join(parts))
 ```
 
-```{python}
-#| echo: false
-#| output: asis
-ov = (audit_stats or {}).get("overall") or {}
-if ov:
-    print(f"An LLM auditor screened all {(audit_stats or {}).get('n_audited')} "
-          "blinded rubrics on seven expert-audit dimensions "
-          "(@sec-appendix-audit) – a plausibility signal with no "
-          "detectable accuracy information (@sec-results-rq4).")
+These numbers come from `{python} D2["d2a"]["n_scripts"]` scripts of one exam. With so few
+scripts, differences in absolute error below about
+`{python} num(MDE["C2_abs_error_vs_expert"]["mde"]["n_15_d2a"]["alpha_0.025"], 1)` points are not detectable (Appendix \ref{sec-app-precision}); we read them as a first signal for the
+benchmark design, not as a ranking.
 
-# Table 1 is built and anchored here (end of §5.1, mid-p3) so the [t] float
-# lands on p3; it belongs to §5.2 (reviewer round 2: within-judge rows only,
-# one analysis unit — panel SDs and the legacy control live in the caption).
-if conditions:
-    LBL = {"holistic_luna": "Holistic – Luna", "tailored_luna": "Zero-shot – Luna",
-           "fewshot_luna": "Few-shot – Luna", "holistic_mini": "Holistic – Mini",
-           "tailored_mini": "Zero-shot – Mini", "fewshot_mini": "Few-shot – Mini"}
-    cond_by = {r["condition"]: r for r in conditions.get("rows") or []}
-    cond = lambda k, f: cond_by[k][f]
-    def crow(key):
-        r = cond_by[key]
-        # Typeset the sign in math mode: the ASCII hyphen renders visibly
-        # shorter than the '+' and makes the bias column look ragged.
-        return [LBL[key], f"{r['repeat_sd']:.2f}", f"{r['r']:.2f}",
-                f"{r['mae']:.1f}", f"${r['bias']:+.1f}$"]
-    crows = [crow(k) for k in ("holistic_luna", "tailored_luna", "fewshot_luna")]
-    crows.append("@MIDRULE@")
-    crows += [crow(k) for k in ("holistic_mini", "tailored_mini", "fewshot_mini")]
-    write_table(
-        "tbl_reliability",
-        "Within-judge reliability by instrument (Mini sits below the "
-        "execution floor). SD\\textsubscript{rep}: ×3 passes on 45 solutions. "
-        "$r$/MAE/bias: first pass vs the four-grader human pool on 30 "
-        "human-authored cells; bias = mean(judge $-$ human). The two "
-        "holistic MAEs coincide numerically ($r$ differs); six-judge panel "
-        "SD 6.98–8.13 throughout (n.s.).",
-        "tab:reliability",
-        ["Instrument – judge", "SD\\textsubscript{rep}", "$r$", "MAE", "bias"],
-        crows, size=r"\scriptsize")
-```
+## Benchmark results (E1 to E7)
 
-## RQ2: Reliability – repeat dispersion {#sec-results-rq2}
+\pending{E1 to E7}. The generator benchmark (E1) will report compliance, validator defects, the
+author's spot audit of `{python} EXP["E1"]["audit_bullets_per_sheet"]` bullets per sheet, validity on
+D1 and D2a, repeat and sheet-sample SD, alignment with the expert sheet, and the cost per valid sheet.
+The judge benchmark (E2) will report validity against the expert (MAE, bias, ICC(A,1), grades within
+one point, pass/fail $\kappa$), per-step agreement, repeat SD, the probe battery, the share of
+rejected quotes and cost. E3 will estimate variance components and test whether generator rankings
+hold across judges (Kendall's $\tau$). E4 will report the Pareto front of error, variance and cost and
+confirm the recommended configuration once on the blind expert grades of D2b. E5 compares the
+designs for alternative paths; E6 and E7 answer the questions of @sec-practice and compare the two
+expert paradigms on D2.
 
-```{python}
-#| echo: false
-#| output: asis
-pc = paired_t0
-lp = luna_stats
-if pc and lp and conditions:
-    mm_s = sig.get("mini_matched_repeats_sign") or {}
-    mm_w = mm_s.get("wilcoxon") or {}
-    mmb = (boots.get("contrasts") or {}).get("mae_mini_tailored_minus_holistic") or {}
-    fs_t = sig.get("luna_fewshot_repeats") or {}
-    fc = (fewshot.get("repeat_sd_contrasts") or {}).get("luna_fewshot_vs_holistic") or {}
-    pooled = multijudge.get("pooled") or {}
-    print("Contrasts pair the "
-          "identical 45 solutions within judge (exam-cluster CIs; tests: "
-          "@sec-appendix-judges). For the best-matched judge (Luna), repeat "
-          "dispersion falls monotonically as the rubric improves "
-          "(Figure \\ref{fig:trend}): holistic SD "
-          f"{cond('holistic_luna','repeat_sd'):.2f}, "
-          f"a random zero-shot rubric {cond('tailored_luna','repeat_sd'):.2f}, an "
-          "outcome-informed *few-shot* rubric "
-          f"{cond('fewshot_luna','repeat_sd'):.2f} – a reduction of "
-          f"{fc.get('mean_diff', 0):+.2f} vs holistic "
-          f"(95% CI ${fc.get('ci95',[0,0])[0]:+.2f}$ to ${fc.get('ci95',[0,0])[1]:+.2f}$; "
-          f"sign test $p = {fs_t.get('p', 1):.2f}$) – the "
-          "largest observed, yet exploratory and not significant. "
-          "The effect is judge-specific: pooled across the "
-          "five matched capable judges the zero-shot within-judge effect is "
-          f"null ({pooled.get('point', 0):+.2f}, 95% CI "
-          f"${pooled.get('ci95',[0,0])[0]:+.2f}$ to ${pooled.get('ci95',[0,0])[1]:+.2f}$; "
-          "per-judge effects straddle zero, Figure \\ref{fig:forest}; "
-          "Sonnet is *more* stable holistically) – reliability depends "
-          "on both the rubric and the grader. Below the execution floor the "
-          "instrument actively destabilizes: Mini's repeat SD rises "
-          f"{cond('holistic_mini','repeat_sd'):.2f}→{cond('tailored_mini','repeat_sd'):.2f} "
-          f"(sign $p={mm_s.get('p'):.2f}$, Wilcoxon ${mm_w.get('p', 1):.3f}$), and "
-          f"few-shot leaves it there ({cond('fewshot_mini','repeat_sd'):.2f}).")
-else:
-    print("*(pending: re-grading runs)*")
-```
+# Discussion {#sec-discussion}
 
-## RQ3: Agreement with human scores {#sec-results-rq3}
+\draftnote{the answers per research question are written after E1 to E7}
 
-```{python}
-#| echo: false
-#| output: asis
-if pc and lp and conditions:
-    print("Reliability gains are not free (Table \\ref{tab:reliability}). "
-          "For Luna, agreement declines as the instrument tightens ($r$ "
-          f"{cond('holistic_luna','r'):.2f}→{cond('tailored_luna','r'):.2f}→"
-          f"{cond('fewshot_luna','r'):.2f}) and the tailored instruments flip "
-          "the sign of its bias "
-          f"({cond('holistic_luna','bias'):+.1f}→{cond('tailored_luna','bias'):+.1f}) – "
-          "its few-shot exemplars were picked for reliability alone. Below "
-          "the floor the loss is severe: Mini grades adequately holistically "
-          f"($r = {cond('holistic_mini','r'):.2f}$, MAE {cond('holistic_mini','mae'):.1f}) "
-          f"but the tailored rubric collapses it to $r = {cond('tailored_mini','r'):.2f}$, "
-          f"MAE ${mmb.get('point',0):+.1f}$ (95% CI ${mmb.get('ci95',[0,0])[0]:+.1f}$ "
-          f"to ${mmb.get('ci95',[0,0])[1]:+.1f}$), and few-shot leaves it "
-          f"there ($r$ {cond('fewshot_mini','r'):.2f}, MAE "
-          f"{cond('fewshot_mini','mae'):.1f}): the rubric breaks a judge "
-          "that grades fine without it.\n")
-else:
-    print("*(pending: re-grading runs)*")
-```
+*What the first iteration already shows.* First, a generated sheet does not reduce variance by
+itself. Whether it steadies a judge depends on the judge and the sheet together: across the capable
+judges the average effect was null, and one judge was steadier without a sheet. Second, mean
+agreement hides a failure that matters for every grade a student sees. Under detailed sheets, some
+judges gave near-full credit to empty and copied answers, which they scored at or near zero with the
+holistic instrument. A probe
+battery must therefore gate every judge and instrument before use, and code must tie every credit to
+the answer. Third, writing, using and auditing a sheet are different skills. The least compliant
+generator wrote the best sheets when it succeeded, and the automated audit favoured sheets that
+graded harshly. Generator and judge must be chosen together, by outcome.
 
-```{python}
-#| echo: false
-#| output: asis
-pj = (judge_stats or {}).get("per_judge") or {}
-tv = (tailored_t0 or {}).get("judge_vs_human") or {}
-if pj:
-    order = ["gpt-5.6-luna", "Qwen/Qwen3.5-397B-A17B", "gemini-3.1-pro-preview",
-             "claude-opus-5", "gpt-5.6-terra", "claude-sonnet-4-6",
-             "claude-opus-4-7", "deepseek-ai/DeepSeek-V4-Pro", "gpt-5.4-mini"]
-    pb = (probe_stats or {}).get("per_judge") or {}
-    jrows = []
-    for j in order:
-        r = pj.get(j) or {}
-        nm = j.split("/")[-1].replace("-preview", "")
-        rep = fmt(r.get("repeat_sd")) if r.get("repeat_sd") is not None else "–"
-        p01 = "0" if r.get("p01") == 0 else (fmt(r.get("p01"), 0) if r.get("p01") is not None else "–")
-        jrows.append([nm, fmt(r.get("validity_r"), 3), fmt(r.get("mae"), 1),
-                      rep, p01, (pb.get(j) or {}).get("battery", "–")])
-    globals()["_judge_rows"] = jrows
-    pm = tv.get("annotations_panel_mean") or {}
-    # Control-arm per-judge validity recomputed 2026-08-05 from
-    # control_results.jsonl + the blind-human pool (same join as
-    # analyze_judges.py): opus .841, sonnet .852, gemini .868,
-    # deepseek .855, qwen .798 -> .80-.87 for the five with control values.
-    capable_r = [v.get("validity_r") for j, v in pj.items()
-                 if j != "gpt-5.4-mini" and v.get("validity_r") is not None]
-    def _fail(j, t):
-        return ((pb.get(j) or {}).get(t) or {}).get("n_fail_passes", 0)
-    mini_fails = sum(_fail("gpt-5.4-mini", t) for t in ("repetition", "empty", "offtopic"))
-    luna_empty = _fail("gpt-5.6-luna", "empty")
-    clean = [j.split("/")[-1].replace("claude-opus", "Opus").replace("-preview", "")
-             for j, e in pb.items() if e.get("battery") == "pass"]
-    arms_ps = (probe_stats or {}).get("arms") or {}
-    lt_empty = ((arms_ps.get("tailored") or {}).get("gpt-5.6-luna") or {}).get("empty") or {}
-    lh_empty = ((arms_ps.get("holistic") or {}).get("gpt-5.6-luna") or {}).get("empty") or {}
-    n_pos_pass = sum(1 for e in (arms_ps.get("tailored") or {}).values()
-                     if e.get("positive_control") == "pass")
-    print("Two failure modes (severity, both arms: "
-          "@sec-appendix-judges). *Execution failure on ordinary "
-          "submissions* is Mini's: capable judges hold $r$ "
-          f"{min(capable_r):.2f}–{max(capable_r):.2f} under the rubric; "
-          "Mini collapses to .41. *Degenerate-input fragility* is broader: "
-          f"only {' and '.join(sorted(clean))} pass the negative battery "
-          f"clean (fail($N$) = failing passes; Mini {mini_fails}/135), and "
-          f"even Luna credits an *empty* submission on {luna_empty}/45 "
-          f"tailored passes (median {lt_empty.get('median', 0):.0f} points) "
-          f"yet {lh_empty.get('n_fail_passes', 0)}/45 holistically – the "
-          "detailed instrument *induces* this source-attribution failure, "
-          f"invisible to mean agreement. All {n_pos_pass} tailored-arm "
-          "judges pass the "
-          "positive control (own Musterlösung, $\\geq 70$ every pass). "
-          "Within the screened set cheap judges compete (Luna best MAE, "
-          "Sonnet best $r$; Terra and Opus 5 mid-field).")
-else:
-    print("*(pending: judge profiling runs)*")
-```
+*Answers to the research questions.* \pending{one paragraph per research question after E1 to E7}
 
-## RQ4: Ranking the rubric generators {#sec-results-rq4}
+*Implications for practice.* The pipeline is a research instrument. Its sheets make each credit
+auditable: an examiner can see which requirement a quote met and can correct the sheet itself, which
+a holistic score does not allow. Two uses fit the evidence so far. One is formative feedback on
+practice exams, where students already receive LLM grades and quote-backed credit makes that
+feedback checkable. The other is support for examiners who write sheets, where a generated draft is
+edited, not trusted. Grade-bearing assessment needs a human examiner.
+\pending{recommended pipeline and its cost per script}
 
-```{python}
-#| echo: false
-#| output: asis
-go = load_optional(processed / "generator_outcomes.json") or {}
-pg = go.get("per_generator") or {}
-dm = go.get("paired_dmae") or {}
-if pg:
-    print("The crossed sweep (exploratory) grades the picks under *every* "
-          f"schema-conformant rubric of each exam ({sum(v['n_rubrics'] for v in pg.values())} "
-          "rubrics; Luna ×3, post hoc; Table \\ref{tab:generators}): source "
-          "varies within exam, holding difficulty fixed.\n")
-    sl_all = go.get("sonnet_lens") or {}
-    gr = go.get("granularity") or {}
-    rho = go.get("lens_ranking_spearman")
-    rho_full = go.get("lens_ranking_spearman_full_coverage")
-    al = (audit_link or {}).get("audit_total_vs") or {}
-    _mae_c = ((al.get("mae") or {}).get("within_exam_centered") or {})
-    _bias_c = ((al.get("abs_bias") or {}).get("within_exam_centered") or {})
-    _rep_c = ((al.get("repeat_sd") or {}).get("within_exam_centered") or {})
-    rank = (go.get("ranking") or {})
-    mini_rank = next((r for r in rank.get("conditional") or []
-                      if r["generator"] == "gpt-5.4-mini"), {})
-    _mae_ci = _mae_c.get("ci95") or [0, 0]
-    print("\n*The audit shows no detectable linear association with grading "
-          f"accuracy* ($r = {_mae_c.get('pearson', 0):.2f}$ vs $|$error$|$, "
-          f"95% CI ${_mae_ci[0]:+.2f}$ to ${_mae_ci[1]:+.2f}$, within-exam "
-          "centered; @sec-appendix-compliance). It *positively* tracks "
-          f"harshness ($r = {_bias_c.get('pearson', 0):.2f}$ vs bias): the "
-          "best-audited sources (Claude flagships) grade harshest, while "
-          "coarse Flash-Lite is second-best by outcome. Two sources fail "
-          "invisibly – DeepSeek-V4-Flash on agreement, Llama-4 on stability. "
-          "And GPT-5.4 Mini – worst judge, least compliant generator – has "
-          "the best conditional point estimate ($n=8$/15 exams, rank-1 "
-          "prob.\\ 0.47, survivorship-conditional). "
-          "Creating, using, and auditing rubrics are separate skills that "
-          "need not go together. Pick the generator–judge pair by outcome "
-          "on held-out development exams.")
-    fspg = (fewshot or {}).get("per_generator_repeat_sd") or {}
-    fscomp = ((fewshot or {}).get("compliance_fewshot") or {}).get("gpt-5.4-mini") or {}
-    if fspg:
-        best = list(fspg.items())[0]
-        print("\n*Few-shot rubrics sharpen the best case.* The exemplar "
-              f"lifts the least-compliant generator (Mini {fscomp.get('valid')}/"
-              f"{fscomp.get('total')} valid vs 8/15) and yields the most stable "
-              f"rubrics observed (SD {best[1]:.2f} – post-hoc best-source "
-              "subset, 6 cells on 2 exams, no CI at this $n$; "
-              "@sec-results-rq2).")
-else:
-    print("*(pending: crossed rubric-source runs)*")
-```
+# Limitations {#sec-limitations}
 
-# Discussion
+*One expert exam.* D2 is one case in one area of law, graded by its author. D1 spans many exams, but
+its human reference is noisy. Results on D2 may not transfer to other exams, areas or examiners, and
+the second grader gives a human ceiling for one exam only.
 
-*Better rubrics moved reliability for the best-matched judge; the judge sets the ceiling – an
-observed interaction, not a rule.* The Luna trend (Figure \ref{fig:trend}) is exploratory promise,
-the five-judge null (Figure \ref{fig:forest}) the average reality, and the in-sample floor (1.01,
-post hoc) an optimistic bound; held-out selection is the next test. Below the floor even few-shot
-grading collapses into confabulation, so a probe battery should gate any rubric-based judge – the
-failure is invisible to agreement metrics and audit scores. What the instrument buys regardless is
-auditable per-step credit, a representation for budget-neutral defensible alternatives
-(@sec-appendix-example), and an editable artifact, unlike a holistic score.
+*Open data questions.* For `{python} D2["d2a"]["grader_pending"]` D2a scripts the grader is not yet
+confirmed, and until the earlier case texts arrive, D2a scripts are graded against another year's
+text. The D2b students saw LLM grades before the author grades their scripts; he grades without
+seeing them.
 
-# Limitations
+*The exam author is a co-author.* He wrote the exam, grades the scripts, audits generated sheets and
+co-writes this paper, so he knows the study's aims. Blind grading of D2b and the second grader limit
+this, but his spot audit of generated sheets is not independent.
 
-*Deferred human arm.* The human re-grading arm is deferred to the extended version for grader
-availability; this submission claims judge-side effects and agreement with the existing blind human
-pool, not a human inter-rater effect. When the arm runs, repeat exposure is its main threat: graders
-have encountered the same solutions before. Elapsed time and the structurally different instrument
-mitigate carry-over; the rater-level analysis will check whether prior-exposure graders behave
-differently from newly recruited ones.
+*Leakage.* During development, examples in the generator and judge prompts came from the D2 exam.
+We replaced them with neutral examples and added a canary check. The check is lexical and cannot
+rule out that the prompts were shaped while the expert sheet was in hand. The step-size guidance
+comes from the expert sheets by design.
 
-*Scope and power.* All results concern one legal system, one language, and one examination genre
-(German Falllösungen graded in Gutachtenstil, the prescribed appraisal style): `{python} n_exams`
-exams, 45 graded solutions. The study was designed around the within-answer repeat contrast, but at
-15 exam clusters it remains underpowered for modest effects; fine-grained between-model comparisons
-on subsets – the RQ4 observations in particular – are exploratory.
+*Verification.* The verifier checks that a quote exists, not that it supports the credit
+(@sec-verifier). It rejects some correct quotes and cannot catch a real sentence quoted for the
+wrong requirement.
 
-*Audit status.* The rubric audit reported here is automated screening by a roster model (hence the
-self-vs-other split); the expert audit by legally trained co-authors – blinded to generator identity
-but not independent of the project – follows in the extended version on the identical instrument.
-Until then, instrument substance is validated only negatively: the lexical screen (@sec-results-rq1)
-and the example's own defects (@sec-appendix-example) delimit what schema conformance guarantees.
-Instrument and per-rubric annotations are released for re-examination.
+*Models and sampling.* GPT-5.6 Luna cannot be seeded. DeepSeek-V4-Pro at temperature 0 repeats
+itself almost exactly, while another model served at temperature 0 did not, so repeat SD mixes
+model, sampling and serving effects. Providers change and retire models; we record model ids and
+dates. The prior study's repeat baseline ran on a judge that has since been retired; the matched
+arms remove this confound from every contrast we interpret.
 
-*Exemplar selection and power.* The few-shot arm selects exemplars on reliability alone, and
-although the exemplar choice never sees the target exam, donor outcomes were measured with the same
-judge and human pool inside the 15-exam corpus – leave-one-exam-out cross-fitting, not an
-independent held-out set (@sec-appendix-fewshot). Its stability-for-agreement trade-off
-(@sec-results-rq2) should lift under accuracy-aware or expert-curated exemplars – as should an
-open-world guard for unmapped-but-defensible solution paths. The within-judge reduction is
-directionally consistent, monotonic for the best-matched judge, but not significant at 45 solutions
-and absent on average across judges; a larger corpus and a best-generator few-shot pairing are the
-power levers. The RQ1 zero-shot compliance comparison still varies the generator, not the base
-prompt.
+*Exploratory design.* Nothing was pre-registered, many comparisons are reported, and the precision
+limits of @sec-experiments apply. The held-out confirmation on D2b is used once. The first-iteration
+results are exploratory too; several of its arms were added after earlier results were known.
 
-*Judge-family overlap.* Some models act as both generators and judges. The fixed-rubric main arm
-prevents this from confounding reliability estimates; the single Sonnet lens shows no evidence of
-family self-preference (@sec-appendix-compliance), and other judge families remain unmeasured.
-*Judge-facing prompt design.* The tailored arm ran with a generic system prompt and undelimited
-prompt blocks (@sec-appendix-grading); a domain system prompt, explicit delimiters, and an
-audit-facing vs.\ judge-facing rubric rendering are untested levers against the source-attribution
-failure we observe.
+# Ethics {#sec-ethics}
 
-*Post-hoc judge arm.* The Luna arm is post hoc: it was added after the primary judge's failure was
-known, so the substitution was outcome-informed and awaits confirmatory replication on an
-independently drawn rubric set; the matched holistic replication supplies its same-judge baseline.
-An initial execution carried a temperature mismatch against the control arm; all reported numbers
-come from the temperature-matched re-run (@sec-appendix-sensitivity).
+*Consent and personal data.* The students whose D2 scripts we use consented to research use, for the
+`{python} D2["d2a"]["n_scripts"]` scripts of D2a and the `{python} D2["d2b"]["n_uploads"]` platform
+submissions of D2b. The consent does not extend to sending their personal data to model providers.
+All D2 texts are therefore pseudonymized and checked for personal data before any research call
+(@sec-d2). The platform grades that the D2b students saw were produced in the normal use of the
+platform, before this study. \pending{owner to confirm the wording on the platform-side grading and the providers' data terms}
+D1 reuses the prior study's corpus under the consent obtained there, with pseudonymized graders
+[@nagl2026bengerdata].
 
-*Repeat-baseline model version.* The control arm's three-pass repeats were executed by GPT-5 Mini,
-deprecated and replaced between the studies; the control arm ran only this one judge with repeats.
-The matched holistic replications remove this confound from every contrast we interpret – both
-current primaries re-graded all cells under both instruments, so repeat and agreement contrasts are
-within-judge and within-version. Its legacy cross-version figures – repeat SD 3.03, $r$ .84, MAE
-14.9, the MAE dominated by a $+13.7$ leniency bias – are reported here only as context for the prior
-study's protocol, not as a comparison condition.
+*Roles.* The exam author is a co-author, the source of the reference grades and the auditor of
+generated sheets. We report this as a limitation and mitigate it with blind grading and a second
+grader.
 
-<!-- BLIND-REVIEW SWAP: comment out the entire Acknowledgments section
-(heading + paragraph) - it names funders and institutions that identify
-the author group. -->
-# Acknowledgments {.unnumbered}
+*Students who saw LLM grades.* The D2b students received LLM grades as feedback on a practice exam.
+\pending{owner: whether and how students learn the expert grades}
 
+*Use of the instrument.* Generated sheets are studied as a research instrument for evaluating and
+supporting grading. They are not a replacement for human examiners in grade-bearing assessment, where
+legal and pedagogical safeguards apply.
+
+*Roth's sheet.* Gregor Roth agreed to be named and to have his sheet and workbook used. We report
+only their structure, not their content.
+
+# Data and code availability {#sec-availability}
+
+The platform, including the judge, the verifier and the aggregation code, is open source at
+<https://github.com/SebastianNagl/benger-platform>. Its folder `publications/Transformation` holds the
+analysis scripts and every aggregate this paper reports; `make analyze-cslaw` rebuilds the numbers of
+this paper from the tracked aggregates. The generator is part of a proprietary extension of the
+platform. \pending{owner decision: release of the generator prompt, output specification and validator rules}
+For D1 we follow the first study: its exam texts are third-party material and are not
+redistributed, and the generated sheets are withheld with them because they enumerate the model
+solutions. D2 and Roth's sheet are private, and we publish only aggregates
+(Appendix \ref{sec-app-datastatement}).
+
+# AI usage {#sec-ai}
+
+For the first iteration the authors used OpenAI GPT-5.6 Sol to discuss approaches and Anthropic
+Claude Fable 5 for coding and writing assistance. For the extended study, Anthropic Claude Opus 5.5
+was used for coding, for `{python} DZ["statistics"]["review_rounds"]` independent review rounds of the
+instrument and the analysis, which are part of the method record, and for writing assistance,
+including an AI-assisted literature scan. All results were verified by the authors, and all
+citations were checked against their sources. The authors take full responsibility for the paper.
+
+::: {.acks}
 BenGER is generously funded by the Daimler Benz Foundation as part of project TITAN (*Technologische
-Intelligenz zur Transformation, Automatisierung und Nutzerorientierung des Justizsystems*) and by
-the German Federal Ministry of Justice as part of the *Digitalisierungsinitiative des Bundes für die
+Intelligenz zur Transformation, Automatisierung und Nutzerorientierung des Justizsystems*) and by the
+German Federal Ministry of Justice as part of the *Digitalisierungsinitiative des Bundes für die
 Justiz* under the GSJ project (*Generatives Sprachmodell der Justiz*), a collaboration between the
 justice ministries of North Rhine-Westphalia and Bavaria, TU Munich, and the University of Cologne.
+We thank Gregor Roth \pending{affiliation} for sharing his grading sheet and workbook, the second
+grader, and the students who allowed us to use their scripts. \pending{name of the second grader,
+subject to permission}
+:::
 
-# Ethical considerations
-
-The study introduces no new personal data beyond the prior study's corpus. Human solutions and human
-grades are reused under the consent obtained there; grader identities remain pseudonymized under the
-established anonymization protocol, and the mapping key is never released. Human re-grading in the
-tailored-rubric arm (deferred; Limitations) will be performed by consenting members of the original
-grader pool under the same conditions. Exam materials are used with the permissions documented for
-the underlying corpus. LLM generation and grading involve no personal data; per-call provenance
-(models, prompts, parameters) is released for reproducibility. Automated point schemes are studied
-here as a research instrument for benchmark evaluation – not as a replacement for human examiners in
-real, grade-bearing assessment, where legal and pedagogical safeguards apply.
-
-# AI usage
-
-The authors used OpenAI GPT-5.6 Sol to brainstorm and discuss approaches; all final decisions on
-method and experiment design were made by the authors. Anthropic Claude Fable 5 was used for coding
-and writing assistance throughout: AI agents implemented parts of the analysis code, and the authors
-checked the implementations and verified all reported results. Generated text was checked, edited,
-and approved by the authors. The authors take full responsibility for the paper's contents.
+```{=latex}
+\label{main-end}
+\section*{References}
+```
 
 ::: {#refs}
 :::
 
-```{=latex}
-\appendix
+# Appendix
 
-% Unbreakable (minipage) so the block never splits across a column/page
-% boundary; hangindent aligns wrapped titles under the entry text.
-\noindent\begin{minipage}{\columnwidth}
-\section*{Contents of the Appendix}
-\parindent=0pt
-\def\tocline#1#2{\par\hangindent=1.5em\hangafter=1 \ref{#1}\quad #2~\dotfill~\pageref{#1}}
-\tocline{sec-appendix-prompt}{Rubric generation prompt}
-\tocline{sec-appendix-schema}{Rubric output specification and enforcement}
-\tocline{sec-appendix-translation}{English translation of the generation instrument}
-\tocline{sec-appendix-example}{Example Bewertungsbogen}
-\tocline{sec-appendix-grading}{Grading prompts}
-\tocline{sec-appendix-fewshot}{Few-shot generation instrument}
-\tocline{sec-appendix-audit}{Automated audit instrument}
-\tocline{sec-appendix-arithmetic}{Exact-arithmetic output specifications collapse generation yield}
-\tocline{sec-appendix-compliance}{Per-generator compliance and structure}
-\tocline{sec-appendix-judges}{Judge profiles}
-\tocline{sec-appendix-sensitivity}{Sensitivity -- temperature matching and the first judge pass}
-\end{minipage}
-```
+# Defects of the first-iteration pipeline {#sec-app-corrections}
 
-# Rubric generation prompt {#sec-appendix-prompt}
-
-The generation instrument: a system prompt fixing the generator's role, the primacy of the
-Aufgabenstellung (task instruction) and Bearbeitervermerke (candidate instructions), the doctrine
-for supplementing the Musterlösung with the model's own legal knowledge, and
-prompt-injection/no-invented-sources guards; and an instruction template of twelve numbered rule
-blocks (examination scope; Musterlösung vs. own knowledge; defective Musterlösungen; Schwerpunkte;
-step formation; provenance; relative weighting with weighting classes and machine normalization;
-grading guidance and ordered partial-credit levels; defensible alternative paths; dependencies and
-Folgefehler; excluded aspects; a final self-check). The format specification of @sec-appendix-schema
-is appended by the harness; @sec-appendix-translation provides an English translation of all
-components.
+The first iteration's pipeline had the defects below. The rebuilt pipeline removes each of them.
+Where a defect touches a first-iteration number, this paper reports the number without it, for
+instance totals as step sums (Table \ref{tab:corrections}). The numbers come from the file
+`first_iteration.json` in `data/processed/cslaw`, which the script `cslaw_first_iteration.py` in
+`scripts/analysis` builds.
 
 ```{python}
-#| echo: false
 #| output: asis
-if prompt_snapshot:
-    print("System prompt:\n")
-    print_promptbox(str(prompt_snapshot.get("system_prompt", "")).strip())
-    ip = prompt_snapshot.get("instruction_prompt")
-    template = ip.get("template", "") if isinstance(ip, dict) else str(ip or "")
-    print("\nInstruction prompt (per-exam fields interpolate into the placeholders):\n")
-    print_promptbox(template.strip())
-else:
-    print("*(run `make pull` to snapshot the prompt structure)*")
-```
-
-# Rubric output specification and enforcement {#sec-appendix-schema}
-
-Every generator is called through plain text completion – no provider-native structured-output mode
-– with a fixed German format-specification suffix (below) appended to the generation prompt; it
-defines the complete output document as prose rules plus a JSON skeleton, so every model receives
-the identical requirements regardless of provider capabilities.
-
-Responses pass a three-stage JSON parser (direct parse, fenced block, brace matching) with one
-bounded lenient-repair pass for encoding defects (trailing commas, unclosed brackets – content is
-never altered; every use is logged and reported per generator). A two-tier deterministic validator
-then checks the document. *Strict* (fails the attempt): document structure incl. a mandatory
-free-text planning field emitted before all structured content; integer relative weights $\geq 1$;
-globally unique identifiers under the fixed naming scheme; resolving scoring-relevant
-cross-references (Schwerpunkt assignment, replaced steps, mutual-exclusion links) with error
-messages that name the admissible values; provenance rules (explicit/implicit steps carry a
-Musterlösung anchor, externally supplied content carries a doctrinal justification and no anchor);
-declared Schwerpunkte must have at least one member step. *Soft* (logged for the audit, never
-failing): anchor word counts beyond the 20-word guideline, unresolvable references in non-scoring
-fields (logged as ignored but rendered verbatim in the judge-facing text; 53 occurrences), unknown
-warning types (coerced to `sonstiges`). On a strict failure, attempts two and three receive the
-previous document plus the verbatim violation list; a series ends after three attempts. Series
-aborted by provider-side errors (rate/credit limits, truncation – no complete model document) are
-re-dispatched; a cell counts as schema-conformant if any series yields a valid document and is
-otherwise a recorded generation failure with its categories (@sec-appendix-compliance quantifies the
-effect of this rule). Schema conformance is a structural and arithmetic property; it does not
-certify substantive legal quality (@sec-results-rq1, @sec-appendix-example).
-
-Deterministic derivation then computes every number: the `{python} TOTAL` points are apportioned
-over the regular steps proportionally to their weights (largest-remainder method, floor `{python}
-MIN_PTS_PER_STEP`, deterministic tie-break – *approximately* ratio-preserving under integer
-apportionment, and the identity transform whenever the stated weights already sum to `{python}
-TOTAL`, which 43/170 documents do); section and Schwerpunkt totals are sums of their member steps;
-each alternative path's budget is the sum of its replaced steps' derived points, apportioned over
-the alternative's weighted steps; and the ordered partial-credit level descriptions are mapped onto
-contiguous, gapless ranges of each step's point span. Two of these operations are content-bearing
-rather than purely arithmetic, and we quantify both: when a step has more levels than integer
-part-credit points, the weakest surplus levels are concatenated into the lowest band (61 of 2,217
-leveled steps, 2.8%, in 30/170 documents – semantically distinct descriptions then share one point
-value), and at one-point steps the levels are removed from the derived document entirely (11 steps
-in 9 documents; the log notice inaccurately claims carry-over). The remainder of the balanced level
-split widens the *top* bands.
-
-For grading, derived documents are flattened: each regular step becomes a scoring dimension of a
-single judge call (ASCII-slugified key, expected performance, rendered grading guidance including
-its partial-credit bands, derived maximum points), while the full document – Schwerpunkte, warnings,
-alternative paths with their scoring mapping onto replaced steps – reaches the judge as rendered
-text in the grading prompt; the grading prompt template itself is fixed across all exams. The
-judge's response schema is derived from the rubric: one score per step up to the step's maximum,
-plus a per-step justification; the total is the sum over steps. Every rubric and every judgment is
-released with full provenance, so each score is attributable to its generator, prompt, and rubric
-revision.
-
-*Granularity and the fully-allocated design in context.* Documented German practice brackets the
-granularity range the specification leaves free: institutional Bewertungsbögen typically distribute
-weights over four to eight examination stations, while the most differentiated university correction
-sheets itemize into dozens of entries. German raw-point schemes (Rohpunkteschemata) further come in
-two variants – *fully allocated* schemes binding every point to a specific step, and schemes leaving
-part of the budget to the corrector's free allocation (typically style, argumentation, or unforeseen
-content, as in the 20–25% soft-factor blocks of institutional correction guides). The specification
-produces only the first kind; style and structure remain outside the scheme as a separate construct,
-because freely allocatable points reinstate the grader discretion whose variance the study measures.
-
-The fixed format-specification suffix appended to every generation prompt (English translation: @sec-appendix-translation):
-
-```{python}
-#| echo: false
-#| output: asis
-if contract:
-    print_promptbox(contract["format_contract_suffix"].strip())
-    print("\nA fixed suffix to the system prompt additionally enforces "
-          "JSON-only output:\n")
-    print_promptbox(contract["system_prompt_suffix"].strip())
-else:
-    print("*(run `make derive` to snapshot the specification)*")
-```
-
-# English translation of the generation instrument {#sec-appendix-translation}
-
-The instrument was authored, validated, and executed exclusively in German (@sec-appendix-prompt,
-@sec-appendix-schema). This appendix is a post-hoc English translation prepared by the authors
-solely for reader accessibility: it was never shown to any model, and no experiment used it. JSON
-keys and enum values are schema identifiers and remain German; the `{{...}}` placeholders are
-template variables interpolated per exam. Where wording diverges, the German original is
-authoritative.
-
-```{python}
-#| echo: false
-#| output: asis
-TRANSLATIONS = Path("translations")
-
-def load_text_optional(path):
-    try:
-        return path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return None
-
-tr_sys = load_text_optional(TRANSLATIONS / "system_prompt_en.txt")
-tr_ins = load_text_optional(TRANSLATIONS / "instruction_prompt_en.txt")
-tr_con = load_text_optional(TRANSLATIONS / "format_contract_en.txt")
-tr_suf = load_text_optional(TRANSLATIONS / "system_suffix_en.txt")
-if tr_sys and tr_ins and tr_con and tr_suf:
-    print("System prompt (translated):\n")
-    print_promptbox(tr_sys.strip())
-    print("\nInstruction prompt (translated; per-exam fields interpolate "
-          "into the placeholders):\n")
-    print_promptbox(tr_ins.strip())
-    print("\nFormat-specification suffix (translated):\n")
-    print_promptbox(tr_con.strip())
-    print("\nSystem-prompt suffix (translated):\n")
-    print_promptbox(tr_suf.strip())
-else:
-    print("*(translation files pending)*")
-```
-
-# Example Bewertungsbogen {#sec-appendix-example}
-
-```{python}
-#| echo: false
-#| output: asis
-# The example must be one of the paper's 15 PRE-REGISTERED actives. The
-# snapshot's live `status` flags predate the draw (auto-activation
-# leftovers: 13/15 "active" rows are opus-4-7) — resolve via the draw
-# record, never via status.
-EXAMPLE_RUBRIC_ID = "f24f2834-ccb6-41f9-843f-5961fe40b939"
-# ^ claude-opus-4-7: 16 steps, 3 Schwerpunkte, 2 document warnings,
-# dependency/Folgefehler rules, and a structure-changing alternative path
-# whose Folgefehler crediting is cross-referenced from S3 — full feature
-# coverage at moderate length (~20k chars rendered).
-draw = load_optional(interim / "active_rubric_selection.json") or {}
-drawn_ids = {e["rubric_id"] for e in (draw.get("selection") or [])}
-example = None
-if local_rubrics:
-    by_id = {r["id"]: r for r in local_rubrics}
-    example = by_id.get(EXAMPLE_RUBRIC_ID)
-    if example is None:
-        example = next(
-            (by_id[i] for i in sorted(drawn_ids)
-             if i in by_id
-             and (by_id[i].get("generation_metadata") or {}).get("rendered_text")),
-            None)
-rendered = ((example or {}).get("generation_metadata") or {}).get("rendered_text")
-if example and rendered:
-    assert not drawn_ids or example["id"] in drawn_ids
-    print(f"The active rubric of one exam, drawn by the study's seeded rule "
-          f"(@sec-design): generated by `{example.get('generator_model_id')}`, "
-          f"{len(example.get('criteria') or {})} steps, "
-          f"{example.get('total_points')} points. The full document follows, "
-          "exactly as rendered for the judge (German; every point value "
-          "machine-derived): document-level warnings, Klausurschwerpunkte "
-          "with derived totals, per-step expected performance with "
-          "full/partial/zero-credit bands, dependency and Folgefehler "
-          "rules, and a budget-neutral alternative solution path with its "
-          "crediting rule.\n")
-    print("The example also illustrates what schema conformance does *not* "
-          "guarantee (@sec-results-rq1). S7's partial-credit band uses "
-          "\"im Wesentlichen richtig, kleinere Unschärfen\" – a formula on "
-          "the prompt's own banned list (@sec-appendix-prompt, rule 8). "
-          "ALT1 switches the case to the general performance action and "
-          "its own consequence text notes that the preliminary procedure "
-          "and filing deadline lapse – yet it replaces only S3 and S7, "
-          "leaving S5 (Vorverfahren) and S9's Verpflichtungsklage-specific "
-          "framing (§ 113 Abs. 5 VwGO) live for a candidate who follows "
-          "the alternative consistently. And the closing rule \"Keine "
-          "Punkte für Inhalte außerhalb dieses Bogens\" sits in tension "
-          "with the open-world premise that no generated rubric can "
-          "anticipate every defensible path – motivating the "
-          "unmapped-alternative guard named in the Limitations. These "
-          "are exactly the semantic defects a structural validator cannot "
-          "catch; the expert audit (Limitations) will quantify them.\n")
-    print("```{=latex}")
-    print("\\begin{promptbox}\\raggedright")
-    for ln in rendered.split("\n"):
-        stripped = ln.lstrip(" ")
-        if not stripped:
-            print("\\addvspace{4pt}")
-            continue
-        indent = len(ln) - len(stripped)
-        # One paragraph per source line, block-indented by its leading
-        # spaces (promptbox base leftskip is 10pt) so the document
-        # hierarchy survives; wrapped continuations align at the same
-        # indent. Safe without `framed` (plain group breaks anywhere).
-        # The ~60-char slugified score keys are unbreakable tokens that
-        # overflow the column — permit breaks after each underscore.
-        tex_line = tex_escape(stripped).replace("\\_", "\\_\\allowbreak{}")
-        print(f"{{\\leftskip={10 + 4 * indent}pt\\relax " + tex_line + "\\par}")
-    print("\\end{promptbox}")
-    print("```")
-else:
-    print("*(run `make pull` to include a generated example)*")
-```
-
-# Grading prompts {#sec-appendix-grading}
-
-Both grading instruments, verbatim. The *holistic* arm uses the platform's Falllösung instrument: a
-German domain system prompt and a fixed template with ten anchored assessment dimensions (weights
-20/10/10/15/15/10/10/5/3/2), the statutory raw-to-grade conversion, and three labeled blocks –
-Sachverhalt, Musterlösung, candidate solution. The *tailored* arm uses one fixed template across all
-exams and runs, with the rendered Bewertungsbogen bound to the `bewertungsbogen` slot; the judge's
-response schema is derived from the rubric (@sec-appendix-schema).
-
-```{python}
-#| echo: false
-#| output: asis
-fall_snap = load_optional(interim / "falloesung_prompt_snapshot.json") or {}
-cfg_backup = load_optional(interim / "clone_eval_config_backup_2026-08-08.json") or {}
-if fall_snap:
-    print("Holistic system prompt:\n")
-    print_promptbox(str(fall_snap.get("system_prompt", "")).strip())
-    print("\nHolistic grading template (slots: `context` = Sachverhalt, "
-          "`ground_truth` = Musterlösung, `prediction` = candidate "
-          "solution):\n")
-    print_promptbox(str(fall_snap.get("prompt_template", "")).strip())
-else:
-    print("*(run scripts/ops/snapshot_falloesung_prompt.py)*")
-_tail_tpl = None
-_cfg_list = (cfg_backup.get("evaluation_configs") if isinstance(cfg_backup, dict)
-             else cfg_backup) or []
-for _c in _cfg_list:
-    if _c.get("metric") == "llm_judge_rubric":
-        _tail_tpl = (_c.get("metric_parameters") or {}).get("custom_prompt_template")
-        if _tail_tpl:
-            break
-if _tail_tpl:
-    print("\nTailored grading template (identical across all rubric-arm "
-          "configs; the `bewertungsbogen` slot receives the rendered "
-          "instrument of @sec-appendix-example):\n")
-    print_promptbox(_tail_tpl.strip())
-```
-
-Two asymmetries are disclosed rather than tuned away, since they are part of the evaluated design:
-the tailored arm runs under the platform's generic English system prompt ("You are an expert
-evaluator. Respond only with valid JSON."), not a German domain prompt; and in both arms the
-candidate solution is the final, label-introduced block without bracketing tags, while an explicit
-injection guard exists only in the *generation* prompt (@sec-appendix-prompt). A domain system
-prompt, explicit delimiters, and an audit-facing vs.\ judge-facing rubric rendering are untested
-levers against the source-attribution failure of @sec-results-rq2 (Limitations).
-
-# Few-shot generation instrument {#sec-appendix-fewshot}
-
-The few-shot arm differs from the zero-shot instrument (@sec-appendix-prompt) in exactly one factor:
-an exemplar block inserted directly after the Musterlösung block. System prompt and all twelve rule
-blocks are unchanged.
-
-```{python}
-#| echo: false
-#| output: asis
-fs_snap = load_optional(interim / "fewshot" / "prompt_snapshot.json") or {}
-fs_exemplars = load_optional(interim / "fewshot" / "exemplars.json")
-if fs_snap.get("exemplar_block"):
-    print("The inserted template block:\n")
-    print_promptbox(str(fs_snap["exemplar_block"]).strip())
-_first = None
-if isinstance(fs_exemplars, list) and fs_exemplars:
-    _first = fs_exemplars[0]
-elif isinstance(fs_exemplars, dict) and fs_exemplars:
-    _first = next(iter(fs_exemplars.values()))
-if _first and _first.get("exemplar_text"):
-    _framing = _first["exemplar_text"].split("<BEISPIEL_BEWERTUNGSBOGEN>")[0].strip()
-    if _framing:
-        print("\nThe framing preceding the exemplar JSON:\n")
-        print_promptbox(_framing)
-```
-
-*Exemplar selection.* The exemplar is a *different* exam's rubric by construction: exams rotate
-cyclically within their legal area (Zivilrecht, Öffentliches Recht, Strafrecht; five exams each),
-and the donor is the next exam in the ring. Among the donor exam's zero-shot rubrics, the exemplar
-minimizes Luna three-pass repeat SD subject to its MAE not exceeding that exam's cross-source median
-(blocking reliability winners with catastrophic harshness); an exemplar-length guard never
-triggered; ties resolve by stable sort order. The payload is the donor generator's own
-pre-derivation `full_document` JSON – no Sachverhalt, no Musterlösung, and no scores or outcome
-values reach the prompt. Selection uses donor-exam outcomes only – the target exam's data never
-enters – but those outcomes were measured with the same judge and human pool inside the 15-exam
-corpus: leave-one-exam-out cross-fitting, not an independent held-out set. The five few-shot
-generators were chosen on corpus-level zero-shot behaviour (Mini to test compliance recovery, Sonnet
-harshness-taming); the judged rubric per exam is a seeded random draw from the few-shot conformant
-pool.
-
-# Automated audit instrument {#sec-appendix-audit}
-
-All `{python} n_valid_rubrics` schema-conformant rubrics were screened by an LLM auditor (GPT-5.4
-Mini, temperature 0, one pass) on the seven dimensions of the planned expert audit; rubrics were
-blinded (generator identity appears nowhere in the prompt), and the audit is a screening signal only
-– it never fed selection. The prompt (the exam's Sachverhalt, Musterlösung, and the blinded Bogen
-interpolate into the placeholders, followed by the seven dimension definitions):
-
-```{python}
-#| echo: false
-#| output: asis
-_audit_template = """Du bist ein erfahrener juristischer Prüfer und begutachtest einen maschinell
-erstellten Bewertungsbogen (Rohpunkteschema, 100 Punkte) für eine juristische
-Klausuraufgabe. Beurteile ausschließlich den Bogen — nicht die Musterlösung und
-nicht den Sachverhalt.
-
-# Sachverhalt
-{sachverhalt}
-
-# Musterlösung
-{musterlösung}
-
-# Zu begutachtender Bewertungsbogen
-{bogen}
-
-# Bewertungsdimensionen
-Bewerte den Bogen auf jeder der folgenden Dimensionen (Skala 1-5, halbe Punkte
-sind nicht zulässig):
-
-<die sieben Dimensionszeilen, Format: - **key** (Name, 1-5): Beschreibung Skalenanker>
-
-Begründe jede Dimensionsbewertung kurz und konkret mit Bezug auf einzelne
-Prüfungsschritte des Bogens. Schließe mit einer knappen Gesamtwürdigung.
-Antworte ausschließlich im geforderten JSON-Format."""
-print_promptbox(_audit_template)
-_dims = [
-    ("vollstaendigkeit", "Vollständigkeit",
-     "Deckt der Bogen alle wesentlichen Prüfungsschritte der Musterlösung ab?",
-     "5 = keine wesentlichen Schritte fehlen; 1 = zentrale Prüfungsschritte fehlen."),
-    ("treue", "Keine erfundenen Inhalte",
-     "Sind alle Schritte durch Sachverhalt/Musterlösung gedeckt (keine erfundenen Inhalte, Normen oder Zitate)?",
-     "5 = vollständig gedeckt; 1 = erfundene oder sachfremde Inhalte mit Punktgewicht."),
-    ("externe_ergaenzungen", "Externe Ergänzungen",
-     "Sind als 'extern ergänzt' gekennzeichnete Inhalte fachlich zutreffend und begründet? (5, wenn keine vorhanden und keine nötig)",
-     "5 = Ergänzungen korrekt/begründet oder zu Recht keine; 1 = fachlich falsche oder unbegründete Ergänzungen."),
-    ("gewichtung", "Gewichtung",
-     "Ist die Punktverteilung angemessen (Schwerpunkte deutlich gewichtet, Nebenpunkte nicht überbewertet)?",
-     "5 = überzeugende Schwerpunktsetzung; 1 = grobe Fehlgewichtung."),
-    ("alternativen", "Vertretbare Alternativen",
-     "Werden vertretbare abweichende Lösungswege zutreffend erkannt und fair behandelt?",
-     "5 = einschlägige Alternativen erkannt und sachgerecht bepunktbar; 1 = vertretbare Wege fehlen oder werden bestraft."),
-    ("teilpunkte", "Teilpunktstufen",
-     "Sind die Teilpunktstufen brauchbar formuliert (konkret, kumulativ, korrekturtauglich)?",
-     "5 = unmittelbar korrekturtauglich; 1 = Leerformeln oder unbrauchbare Stufen."),
-    ("gesamturteil", "Gesamturteil",
-     "Würde ich nach diesem Bogen eine echte Klausur korrigieren?",
-     "5 = uneingeschränkt ja; 3 = mit Überarbeitung; 1 = nein."),
+corr = [
+    ["Apportionment",
+     f"The routine broke the quota rule for {AP['as_run']['steps_outside_fair_range']} steps in "
+     f"{AP['affected_rubrics']} sheets, with {AP['as_run']['order_inversion_pairs']} order inversions in "
+     f"{AP['as_run']['rubrics_with_inversion']}. Of the {AP['n_drawn']} drawn sheets, {AP['affected_drawn_rubrics']} is "
+     f"affected ({NAME[AP['affected_drawn_generators'][0]]}); all {AP['affected_in_ranking']} affected sheets enter "
+     "the generator ranking. Now floor-constrained Hamilton (Section~\\ref{sec-allocation})."],
+    ["Totals",
+     f"The stored total was sometimes the model's own, within half a point of the step sum. With step sums the "
+     f"zero-shot repeat SD moves for Luna from {num(REL['tailored_luna']['repeat_sd_stored'])} to "
+     f"{num(REL['tailored_luna']['repeat_sd'])}, for Mini from {num(REL['tailored_mini']['repeat_sd_stored'])} to "
+     f"{num(REL['tailored_mini']['repeat_sd'])}. Now code computes every total. \\pending{{few-shot rows}}"],
+    ["Judge schema", "Response keys followed storage order, not outline order. Now outline order (Section~\\ref{sec-first})."],
+    ["Alternatives",
+     "Steps of alternative paths had no response keys, and points above a step's cap were dropped. Now "
+     "every path has its own keys (Section~\\ref{sec-judge}). \\pending{count of affected paths}"],
+    ["Verifier", "The first iteration verified no quotes; the stored D2b grades used an earlier verifier."],
+    ["Prompt wording",
+     "The generator prompt asked for exactly 100 points and also for relative weights; the weight class "
+     "was rendered to the judge but unused. Now the model states weights only and code allocates."],
+    ["Few-shot pool", "The few-shot arm changed the generator pool along with the exemplar, so the two effects are confounded."],
 ]
-print("\nThe seven dimensions (1–5 each, total of 35; German):\n")
-print_promptbox("\n".join(
-    f"- **{k}** ({n}, 1-5): {d} {r}" for k, n, d, r in _dims))
+write_table("tbl_corrections", "Defects of the first-iteration pipeline and how the rebuilt pipeline handles them.",
+            "tab:corrections", ["Topic", "Defect and handling"], corr,
+            colspec="lp{0.78\\textwidth}", size=r"\footnotesize")
 ```
 
-# Exact-arithmetic output specifications collapse generation yield {#sec-appendix-arithmetic}
+# First-iteration tables {#sec-app-first}
+
+Tables \ref{tab:compliance} to \ref{tab:probes} give the first iteration's per-generator, per-judge
+and per-probe results that Section \ref{sec-first} summarizes.
 
 ```{python}
-#| echo: false
 #| output: asis
-# Emit the appendix tables HERE (a section early): table* floats land at
-# the top of the page AFTER their anchor — anchoring them in their own
-# sections at the very end produced a trailing floats-only page.
-if "_compliance_rows" in globals():
-    write_table(
-        "tbl_compliance",
-        "Rubric generation per generator: schema-conformant cells (of 15 "
-        "exams), first-attempt compliance, mean attempts per success, "
-        "mean step count, and automated-audit total (of 35).",
-        "tab:compliance",
-        ["Generator", "valid", "1st try", "att.", "steps", "audit"],
-        _compliance_rows, span=True, size=r"\small")
-if "_judge_rows" in globals():
-    write_table(
-        "tbl_judges",
-        "Judge profiles under the tailored rubric, sorted by MAE: "
-        "agreement with the "
-        "blind-human pool (first pass, 30 annotation cells), three-pass "
-        "repeat SD (– = single-pass judge), the P01 probe (an honest "
-        "judge scores the restated Sachverhalt 0), and the "
-        "battery verdict over 45 degenerate submissions (– = not run).",
-        "tab:judges",
-        ["Judge", "$r$", "MAE", "rep.\\ SD", "probe", "battery"],
-        _judge_rows, span=True, size=r"\small")
+crow = []
+for g, v in sorted(gen_s.items(), key=lambda kv: (-kv[1]["valid"], NAME[kv[0]])):
+    crow.append([NAME[g], f"{v['valid']}/{V['n_exams']}", pct(v["first_attempt_rate_valid"]),
+                 pct(v["first_attempt_rate_model_series"]), num(v["attempts_per_success"]),
+                 num(v["step_count_mean"], 1), num(v["audit_total"], 1)])
+write_table(
+    "tbl_compliance",
+    "First iteration, generation by generator: valid sheets, first-attempt compliance over successful "
+    "sheets and over all series that reached the model, mean attempts per valid sheet, mean "
+    f"step count, and automated-audit total (of {GE['audit']['n_dimensions'] * GE['audit']['scale_max']}).",
+    "tab:compliance", ["Generator", "Valid", "1st (valid)", "1st (series)", "Attempts", "Steps", "Audit"],
+    crow, size=r"\footnotesize")
 
-# Generator-outcome ranking (moved from the body, reviewer revision
-# 2026-08-06): main block = full-coverage generators, conditional block =
-# incomplete coverage (survivorship-conditional quality).
-go_e = load_optional(processed / "generator_outcomes.json") or {}
-pg_e = go_e.get("per_generator") or {}
-dm_e = go_e.get("paired_dmae") or {}
-sl_e = go_e.get("sonnet_lens") or {}
-rank_e = go_e.get("ranking") or {}
-if pg_e:
-    def _gshort(g):
-        return (g.split("/")[-1].replace("-A22B-Thinking-2507", "-Think")
-                .replace("Maverick-17B-128E-Instruct-FP8", "Maverick")
-                .replace("-preview", ""))
-    def _grow(g, st):
-        row = pg_e[g]
-        return [_gshort(g), row["n_rubrics"], f"{row['validity_r']:.3f}",
-                f"{row['mae']:.1f}", f"${row['bias']:.1f}$",
-                f"{row['repeat_sd_mean']:.2f}", f"${dm_e.get(g, 0):+.1f}$",
-                f"{st['median_rank']:.0f} [{st['rank_ci95'][0]:.0f}–{st['rank_ci95'][1]:.0f}]"]
-    grows = [_grow(r["generator"], r) for r in rank_e.get("main") or []]
-    if rank_e.get("conditional"):
-        grows.append("@MIDRULE@")
-        grows.append("\\multicolumn{8}{@{}l}{\\emph{Incomplete coverage "
-                     "(quality when schema-conformant; survivorship-conditional):}}")
-        grows += [_grow(r["generator"], r) for r in rank_e.get("conditional") or []]
-    write_table(
-        "tbl_generators",
-        "Rubric sources ranked by outcome under the Luna lens "
-        "(within-exam-paired $\\Delta$MAE; negative = better than the "
-        "exam's cross-source mean): agreement $r$, MAE, signed bias vs "
-        "the human anchor, three-pass repeat SD. Rank: bootstrap median "
-        "and 95\\% interval over exam resamples – individual ranks carry "
-        "wide intervals. Sonnet replication: Table \\ref{tab:generators-sonnet}.",
-        "tab:generators",
-        ["Rubric source", "rubrics",
-         "$r$ (Luna)", "MAE", "bias", "rep.\\ SD", "$\\Delta$MAE", "rank"],
-        grows, span=True, size=r"\scriptsize\setlength{\tabcolsep}{4pt}")
-    srows = []
-    for r in (rank_e.get("main") or []) + (rank_e.get("conditional") or []):
-        g = r["generator"]
-        s_ = sl_e.get(g) or {}
-        if s_.get("mae") is None:
-            continue
-        srows.append([_gshort(g), f"{s_['mae']:.1f}", f"${s_['bias']:.1f}$"])
-    write_table(
-        "tbl_generators_sonnet",
-        "Sonnet lens (one pass, identical cells): MAE and signed bias per "
-        "rubric source – the harshness gradient is judge-independent, with "
-        "no evidence of family self-preference under this single lens.",
-        "tab:generators-sonnet",
-        ["Rubric source", "MAE (Son.)", "bias"],
-        srows, size=r"\scriptsize")
+jrow = []
+for r in sorted(JU["roster"], key=lambda r: r["mae"]):
+    p01 = r["p01"]
+    jrow.append([NAME[r["judge"]], cor(r["r"]), num(r["mae"], 1), num(r["repeat_sd"]), r["n_repeat_cells"],
+                 tex_escape(r["battery"] or "--"), r["positive_control"] or "--",
+                 "--" if p01 is None else num(p01, 0)])
+jrow.append("MIDRULE")
+for r in JU["extra_single_pass"]:
+    jrow.append([NAME[r["judge"]], cor(r["r"]), num(r["mae"], 1), "--", "--", "--", "--", num(r["p01"], 0)])
+write_table(
+    "tbl_judges",
+    f"First iteration, judges on the drawn step-score sheets (step sums), sorted by MAE. $r$ and MAE: first "
+    f"pass against the human pool ({JU['roster'][0]['n_agreement']} answers). SD\\textsubscript{{rep}} over "
+    f"{passes} passes on the listed number of answers. Battery: fail($N$) counts failing negative passes. P01: "
+    "the first pass on an answer that only restates the case. Below the line: single-pass judges, from the "
+    "database extraction.",
+    "tab:judges", ["Judge", "$r$", "MAE", "SD\\textsubscript{rep}", "Answers", "Battery", "Pos.", "P01"],
+    jrow, size=r"\footnotesize")
+
+frow = []
+for f in CO["per_judge"]:
+    frow.append([NAME[f["judge"]], num(f["tailored_mean"]), num(f["holistic_mean"]), sgn(f["delta"]),
+                 f"{sgn(f['ci95'][0])} to {sgn(f['ci95'][1])}", pv(f["sign_p"]),
+                 "yes" if f["in_pooled"] else "no"])
+frow.append("MIDRULE")
+frow.append(["Pooled (unweighted)", "", "", sgn(pooled["point"]),
+             f"{sgn(pooled['ci95'][0])} to {sgn(pooled['ci95'][1])}", "", ""])
+write_table(
+    "tbl_contrasts",
+    f"First iteration, within-judge repeat SD with the zero-shot sheet and the holistic instrument on the "
+    f"same {FI['reliability']['repeat_n']} answers, {passes} passes each (stored totals). 95\\% CIs from an "
+    "exam-clustered bootstrap; sign test on answers. The pooled estimate averages the capable judges "
+    "without weights; no correction for multiple comparisons.",
+    "tab:contrasts", ["Judge", "Sheet", "Holistic", "$\\Delta$", "95\\% CI", "Sign $p$", "Pooled"],
+    frow, size=r"\footnotesize")
+
+grow = []
+for block in ("main", "conditional"):
+    if block == "conditional":
+        grow.append("MIDRULE")
+        grow.append(r"\multicolumn{10}{@{}l}{\emph{Incomplete coverage (conditional on a valid sheet):}}")
+    for e in GE["ranking"][block]:
+        g = e["generator"]
+        v = gpo[g]
+        grow.append([NAME[g], v["n_rubrics"], cor(v["validity_r"]), num(v["mae"], 1), sgn(v["bias"], 1),
+                     num(v["repeat_sd_mean"]), sgn(v["paired_dmae"], 1),
+                     f"{num(e['median_rank'], 0)} [{num(e['rank_ci95'][0], 0)}--{num(e['rank_ci95'][1], 0)}]",
+                     num(v["sonnet"]["mae"], 1), sgn(v["sonnet"]["bias"], 1)])
+write_table(
+    "tbl_generators",
+    "First iteration, sheet sources ranked by outcome under Luna: agreement, MAE, signed bias, repeat SD, and "
+    "the within-exam paired $\\Delta$MAE (negative: better than the exam's average source), with the bootstrap "
+    "median rank and its 95\\% interval. Right: MAE and bias under a single-pass Sonnet lens.",
+    "tab:generators", ["Source", "Sheets", "$r$", "MAE", "Bias", "SD\\textsubscript{rep}", "$\\Delta$MAE",
+                       "Rank", "MAE\\textsubscript{S}", "Bias\\textsubscript{S}"],
+    grow, size=r"\scriptsize\setlength{\tabcolsep}{3.5pt}")
+
+ARM = {"tailored": "Zero-shot", "holistic": "Holistic", "fewshot": "Few-shot"}
+
+
+def sevs(e, t):
+    d = e.get(t)
+    return f"{num(d['median'], 0)}/{num(d['p95'], 0)}/{num(d['max'], 0)}" if d else "--"
+
+
+prow2 = []
+for arm in ("tailored", "holistic", "fewshot"):
+    for j in sorted(PR["severity"][arm], key=lambda j: NAME[j]):
+        e = PR["severity"][arm][j]
+        prow2.append([f"{ARM[arm]}, {NAME[j]}", tex_escape(PR["battery"][arm][j] or "--"),
+                      PR["positive_control"][arm][j] or "--", sevs(e, "repetition"), sevs(e, "empty"),
+                      sevs(e, "offtopic"), sevs(e, "musterloesung")])
+crit = PR["criteria"]
+write_table(
+    "tbl_probes",
+    "First iteration, probe battery by arm and judge: negative-battery verdict (fail($N$) = failing passes), "
+    "positive control, and the median/p95/max score per probe type. Criteria on every pass: "
+    f"repetition {crit_tex(crit['repetition'].split(' on')[0])}, empty {crit_tex(crit['empty'].split(' on')[0])}, "
+    f"off-topic {crit_tex(crit['offtopic'].split(' on')[0])}, model solution {crit_tex(crit['musterloesung'].split(' on')[0])}.",
+    "tab:probes", ["Arm, judge", "Battery", "Pos.", "Repetition", "Empty", "Off-topic", "Model sol."],
+    prow2, size=r"\scriptsize\setlength{\tabcolsep}{3.5pt}")
 ```
 
-An earlier revision of the output specification required the model itself to emit every number of
-the point scheme – integer step points summing to exactly 100, section subtotals, Klausurschwerpunkt
-totals, and alternative-path budgets equal to the sums of their member steps – under strict
-validation with blind retries (three attempts, no feedback). Across all twelve generators and 43
-dispatch series on real exam inputs, *two series produced a schema-conformant document (≈5%)*; every
-closed flagship (GPT-5.4, Claude Opus and Sonnet, Gemini 3.1 Pro) failed 100% of its series, and the
-only passing generators were an efficiency-tier model (once) and a reasoning-mode model that can
-verify sums internally (once). The dominant violation was arithmetic inconsistency – totals between
-89 and 157, and restated subtotals disagreeing with their member steps – present in 68% of failed
-attempts; blind retries almost never changed the failure class. This is consistent with known limits
-of transformer multi-operand addition [@baeumel2025lookahead; @yang2025numbercookbook] and with the
-fact that, to our knowledge, no published rubric- or checklist-generation system requires an exact
-model-emitted point total: existing systems use binary criteria or categorical importance labels
-with code-side arithmetic [@cook2024ticking; @lee2025checkeval; @gunjal2025rubrics]. Two remedies
-proved effective. Feeding the deterministic validator's verbatim violation list plus the model's own
-previous document back on retry lifted yield from ≈5% to 6/10 in a five-model pilot – but could not
-repair global-sum violations, whose correction requires redistribution across all steps. The final
-instrument (Method) therefore removes arithmetic from the model entirely: the model emits relative
-step weights in the familiar 100-point currency, and deterministic largest-remainder apportionment
-computes the exact point scheme, with all subtotals derived – making every arithmetic constraint
-satisfied by construction while the model's semantic content is preserved up to two logged,
-code-side normalizations (level merges at narrow steps and level drops at one-point steps;
-quantified in @sec-appendix-schema). The yield collapse is a result for this setting – a rich German
-legal instrument with interlocking totals – not a general impossibility claim.
+# Apportionment audit {#sec-app-apportionment}
 
-# Per-generator compliance and structure {#sec-appendix-compliance}
-
-Table \ref{tab:compliance} reports per-generator compliance with the specification, feedback-retry
-behavior, instrument granularity, and the automated-audit total.
-
-The sweep dispatched 220 series for the 180 cells; 50 failed. Of these, 34 aborted at the provider
-stage (credit errors, all against GPT-5.4 Mini), 14 ended with a validation verdict, and 2 with a
-parse verdict. Provider aborts leave no complete model document, so re-dispatching them cannot favor
-any generator. Three cells, however, passed only on a re-dispatched series after a fully executed
-three-attempt series had failed validation (two DeepSeek-V4-Flash, one GPT-5.4 Mini; a fourth,
-Qwen3.6-35B, after truncated attempts). Under a strict first-full-series rule, coverage would be
-167/180 (DeepSeek-V4-Flash 13/15, GPT-5.4 Mini 7/15). Every recorded failure's verdict rests on a
-fully executed series; per-series logs are released.
-
-*Crossed sweep (RQ4).* Each exam's picks are graded under all its schema-conformant rubrics (Luna
-×3). All 170 rubric–pick cells are complete; 102 excluded rows are over-selected same-model sibling
-generations, dropped by exact target matching. Per rubric, the automated audit total does not
-predict accuracy (Pearson $r = 0.09$ vs $|$error$|$, within-exam centered, 95% CI $-0.08$ to
-$+0.26$); it weakly tracks stability ($\rho = -0.22$ vs repeat SD) and *positively* tracks harshness
-($r = 0.19$ vs signed bias). Step count barely correlates with either error or stability ($r = 0.14$
-/ $-0.14$). GPT-5.4 Mini's conditional rank-1 probability (bootstrap over exams) is 0.47, so its
-"best instruments" claim is survivorship-conditional.
+The audit re-derives the points of all `{python} AP["n_rubrics"]` first-iteration sheets
+(`{python} AP["n_steps"]` steps) from their stated weights under each routine of Table
+\ref{tab:apportionment}. A step lies outside its fair range when its points differ from its quota by
+a full unit or more; an order inversion is a pair in which the lighter step receives more points.
+The as-run routine is reproduced exactly by a copy of the original code.
 
 ```{python}
-#| echo: false
 #| output: asis
-_go = load_optional(processed / "generator_outcomes.json") or {}
-if _go.get("sonnet_lens"):
-    print("Table \\ref{tab:generators} ranks the rubric sources by "
-          "outcome. A Sonnet lens (×1, identical cells; Table "
-          "\\ref{tab:generators-sonnet}) replicates the "
-          "harshness gradient with no evidence of family self-preference "
-          "under this single lens (Sonnet grades its "
-          "own family harshest); the source ranking replicates moderately "
-          f"($\\rho = {_go.get('lens_ranking_spearman')}$; "
-          f"{_go.get('lens_ranking_spearman_full_coverage')} among "
-          "full-coverage sources), and individual ranks carry wide "
-          "bootstrap intervals (rank column).")
+MLBL = {"as_run": "As run (first iteration)", "hamilton_floor": "Hamilton, floor first (integer)",
+        "hamilton_half": "Hamilton, floor first (half points)"}
+arows = []
+for k in ("as_run", "hamilton_floor", "hamilton_half"):
+    m = AP[k]
+    arows.append([MLBL[k], m["steps_outside_fair_range"], m["rubrics_outside_fair_range"], m["order_inversion_pairs"],
+                  m["collapsed_distinct_weight_pairs"], num(m["rel_error_median"], 3), m["steps_changed_vs_as_run"]])
+write_table(
+    "tbl_apportionment",
+    f"Apportionment of the {AP['n_rubrics']} first-iteration sheets under three routines: steps outside their "
+    "fair range, sheets affected, order-inversion pairs, pairs of distinct weights that receive equal points, "
+    "median relative rounding error, and steps whose points differ from the as-run result.",
+    "tab:apportionment", ["Routine", "Steps", "Sheets", "Inversions", "Collapsed", "Rel. error", "Changed"],
+    arows, size=r"\footnotesize")
 ```
 
-# Judge profiles {#sec-appendix-judges}
+# Weight sensitivity {#sec-app-weights}
 
-Table \ref{tab:judges} profiles all nine judges on human-score agreement, stability, the P01 probe,
-and the degenerate-submission battery (seven roster judges; none for Opus 5 and Terra). Agreement is
-the first pass on the 30 annotation cells; three-pass repeat SD covers 33–45 cells per judge; a
-per-row provenance guard (rubric identity against the drawn actives) dropped 8 rows. Panel contrasts
-pair on 43 of 45 cells: the imported control arm is missing its Opus-4-7 passes on two cells.
-Battery verdicts count failing passes over all probe passes (135 for three-pass judges, 45 for
-single-pass); under the tailored instrument, failures concentrate on the empty and
-fact-pattern-repetition probes – the off-topic probe (a competent solution to the wrong exam) is
-scored 0 by every judge except Mini. Two operational notes: Qwen3.5-397B repeats at SD 5.4 even at
-temperature 0 (nondeterministic serving, no seed support), and there is no restriction of range –
-tailored panel-mean scores spread slightly wider than the human pool.
-
-```{=latex}
-\begin{figure}[t]
-\centering
-\includegraphics[width=\columnwidth]{assets/fig_forest.pdf}
-\caption{Within-judge $\Delta$ repeat SD (tailored $-$ holistic) with
-exam-cluster bootstrap 95\% CIs; diamond = pooled over the five capable
-judges; open marker = Mini (below the execution floor, not pooled);
-clipped whiskers annotated.}
-\label{fig:forest}
-\end{figure}
-```
-
-*Severity, both arms, and the positive control.* Table \ref{tab:probes} reports per-probe severity
-(median/p95/max of the awarded score) alongside fail counts, because identical counts hide different
-risks: Mini fails *more* negative passes holistically (125/135) than under the tailored instrument
-(100/135), but its holistic failures are small-magnitude (empty: median 5 of 100 – pity-point
-granularity of the ten-dimension scheme) while its tailored failures are near-total credit (empty:
-median 95; repetition: median 100 vs.\ 45 holistically) – the tailored instrument *amplifies* a
-pre-existing source-attribution error. Luna's empty-input crediting exists only under detailed
-instruments (0/45 holistic vs.\ 26/45 zero-shot and 24/45 few-shot passes, median 89–90 when
-failing) – the instrument *induces* it. The positive control (own Musterlösung, $\geq 70$ on every
-pass) passes for all seven tailored-arm judges and for Luna holistically; Mini fails it holistically
-on 13/45 passes (median 82) – it under-credits even a correct answer.
+Every first-iteration judgment stores a score and a maximum per step. Re-weighting the stored
+fractions shows how much the generated allocation contributes to agreement and stability without new
+judge calls (Table \ref{tab:weights}). *Actual* reproduces the step sums; *class* weights each step by its
+weight class (routine `{python} num(WS["summary"]["class_weights"]["routine"], 0)`, load-bearing
+`{python} num(WS["summary"]["class_weights"]["tragend"], 0)`, focal `{python} num(WS["summary"]["class_weights"]["schwerpunkt"], 0)`); *uniform* counts every step the same; *permuted* shuffles a sheet's own
+points across its steps. The judges saw the actual maxima, so every scheme is conditional on them.
 
 ```{python}
-#| echo: false
 #| output: asis
-arms_ps = (probe_stats or {}).get("arms") or {}
-if arms_ps:
-    ARM_LBL = {"tailored": "Zero-shot", "holistic": "Holistic", "fewshot": "Few-shot"}
-    def _sev(e, t):
-        d = e.get(t)
-        return f"{d['median']:.0f}/{d['p95']:.0f}/{d['max']:.0f}" if d else "–"
-    prows = []
-    for _arm in ("tailored", "holistic", "fewshot"):
-        _ja = arms_ps.get(_arm) or {}
-        for _j in sorted(_ja):
-            _e = _ja[_j]
-            _nm = _j.split("/")[-1].replace("-preview", "")
-            prows.append([f"{ARM_LBL[_arm]} – {_nm}", _e.get("battery", "–"),
-                          _e.get("positive_control", "–"),
-                          _sev(_e, "repetition"), _sev(_e, "empty"),
-                          _sev(_e, "offtopic"), _sev(_e, "musterloesung")])
-    write_table(
-        "tbl_probes",
-        "Probe battery by arm and judge: negative-battery verdict "
-        "(fail($N$) = failing passes), positive-control verdict, and "
-        "severity (median/p95/max of the awarded score per pass) per probe "
-        "type. Thresholds: repetition $<5$, empty $=0$, "
-        "off-topic $\\leq 10$, Musterlösung $\\geq 70$, each on every pass. "
-        "Zero-shot rows: seven roster judges (mini and Luna ×3, flagships "
-        "×1 per exam); holistic and few-shot rows: the two primaries ×3.",
-        "tab:probes",
-        ["Arm – judge", "battery", "pos.\\ ctrl", "repetition", "empty",
-         "off-topic", "Musterl."],
-        prows, span=True, size=r"\scriptsize\setlength{\tabcolsep}{4pt}")
-
-_ab = load_optional(processed / "agreement_bias.json") or {}
-_fs_t = sig.get("luna_fewshot_repeats") or {}
-_lm = sig.get("luna_matched_repeats_sign") or {}
-_mm = sig.get("mini_matched_repeats_sign") or {}
-def _el(entry):
-    e = (entry or {}).get("exam_level") or {}
-    s = (e.get("sign") or {})
-    w = (e.get("wilcoxon") or {})
-    return (f"exam-aggregated (15 clusters): sign $p = {s.get('p', 1):.2f}$"
-            + (f", Wilcoxon $p = {w.get('p'):.2f}$" if w and w.get("p") is not None else ""))
-if _fs_t:
-    print("\n*Test details for the body's repeat contrasts.* Cell-level "
-          "tests treat the 45 solutions as exchangeable; the "
-          "exam-aggregated variants are the clustering-robust sensitivity "
-          "and agree in direction throughout. Luna few-shot vs holistic "
-          f"($-0.45$): sign test $p = {_fs_t.get('p', 1):.2f}$, Wilcoxon "
-          f"$p = {(_fs_t.get('wilcoxon') or {}).get('p', 1):.2f}$; "
-          f"{_el(_fs_t)}. Luna zero-shot vs holistic ($-0.28$): sign "
-          f"$p = {_lm.get('p', 1):.2f}$, Wilcoxon "
-          f"$p = {(_lm.get('wilcoxon') or {}).get('p', 1):.2f}$; {_el(_lm)}. "
-          f"Mini zero-shot vs holistic ($+1.65$): sign $p = {_mm.get('p', 1):.2f}$, "
-          f"Wilcoxon $p = {(_mm.get('wilcoxon') or {}).get('p', 1):.3f}$; "
-          f"{_el(_mm)}. Per-judge matched effects with exam-cluster CIs: "
-          "Figure \\ref{fig:forest}.")
-
-_bpc = _ab.get("per_condition") or {}
-_bs = _ab.get("blind_only_sensitivity") or {}
-if _bpc and "error" not in _bs:
-    _hl = _bs.get("holistic_luna") or {}
-    _ctl = _bpc.get("holistic_control") or {}
-    _tl = _bpc.get("tailored_luna") or {}
-    print("\n*Agreement sensitivities.* Against the blind-only pool (the "
-          "prior study's protocol) $r$ drops uniformly with unchanged "
-          f"ordering (e.g.\\ holistic-Luna .80→{_hl.get('pearson', 0):.2f}). "
-          "Leave-one-exam-out bias-corrected MAE shows the legacy "
-          "control's error is mostly level shift "
-          f"({_ctl.get('mae', 0):.1f}→{_ctl.get('mae_loeo_calibrated', 0):.1f}), "
-          "while the tailored arms' agreement costs are not calibratable "
-          f"(Luna {_tl.get('mae', 0):.1f}→{_tl.get('mae_loeo_calibrated', 0):.1f}) – "
-          "a real ranking effect, not a fixable offset. Signed bias flips "
-          "under the tailored instrument for both primaries (Luna "
-          f"{(_bpc.get('holistic_luna') or {}).get('bias', 0):+.1f}→"
-          f"{_tl.get('bias', 0):+.1f}, Mini "
-          f"{(_bpc.get('holistic_mini') or {}).get('bias', 0):+.1f}→"
-          f"{(_bpc.get('tailored_mini') or {}).get('bias', 0):+.1f}).")
+wrows = []
+for j in sorted(ws_j, key=lambda j: NAME[j]):
+    w = ws_j[j]
+    wrows.append([NAME[j], cor(w["actual"]["r"], 3), cor(w["model_weights"]["r"], 3), cor(w["class_only"]["r"], 3),
+                  cor(w["uniform"]["r"], 3), cor(w["sqrt_points"]["r"], 3),
+                  pct(w["permuted"]["share_of_permutations_below_actual_r"]),
+                  num(w["actual"]["repeat_sd"]), num(w["uniform"]["repeat_sd"])])
+write_table(
+    "tbl_weights",
+    "Weight sensitivity of the first-iteration sheets: agreement $r$ with the human pool under five weight "
+    "schemes, the share of within-sheet permutations whose $r$ falls below the actual one, and repeat SD under "
+    "the actual and uniform weights.",
+    "tab:weights", ["Judge", "Actual", "Model", "Class", "Uniform", "$\\sqrt{\\text{pts}}$", "Perm.",
+                    "SD act.", "SD unif."],
+    wrows, size=r"\footnotesize\setlength{\tabcolsep}{4pt}")
 ```
 
-# Sensitivity – temperature matching and the first judge pass {#sec-appendix-sensitivity}
+# Step size and variance {#sec-app-steps}
+
+For every judge with at least `{python} passes` passes per answer, we sum the per-step variance across passes by
+step size and compare it with the share of points in that size class (Table \ref{tab:steps}). The
+share ignores covariance between steps, so it is a share of *summed* step variance. We call a size
+class disproportionate when its share of variance exceeds its share of points by more than a factor
+of `{python} num(SS["summary"]["ratio_threshold"], 1)`.
 
 ```{python}
-#| echo: false
 #| output: asis
-t1 = ((paired_t1 or {}).get("tailored_on_same_cells") or {}).get("within_cell_stdev") or {}
-t0 = ((paired_t0 or {}).get("tailored_on_same_cells") or {}).get("within_cell_stdev") or {}
-c0 = ((paired_t0 or {}).get("control_on_picks") or {}).get("within_cell_stdev") or {}
-if t1 and t0:
-    print("The first execution of the tailored-arm judge runs inherited a "
-          "configuration default that set every judge's sampling "
-          "temperature to 1, whereas three of the six control-arm judges "
-          "(Sonnet, DeepSeek, Qwen) had graded at temperature 0. The "
-          "full arm was re-executed with each judge's temperature "
-          "replicated from its control-arm value.\n")
-    print(f"Effect of the correction (paired within-cell SD, Mini-primary "
-          f"panel): {fmt(t1.get('mean'))} at the mismatched settings vs "
-          f"{fmt(t0.get('mean'))} temperature-matched, against "
-          f"{fmt(c0.get('mean'))} in the control arm – the mismatch "
-          "accounted for roughly a quarter of the observed gap and did "
-          "not change its sign or interpretation. One judge changed "
-          "qualitatively: Qwen3.5-397B's human-score agreement collapsed at the "
-          "mismatched temperature 1 ($r=.41$) and recovered fully when "
-          "matched at 0 ($r=.75$, MAE better than its control-arm value) "
-          "– sampling temperature matters more under fine-grained rubrics "
-          "than under holistic ones, presumably because per-step scoring "
-          "multiplies the surface on which sampling noise can act. The "
-          "primary judge's failure is unaffected by this episode: its "
-          "temperature is provider-fixed at 1 in both arms and both "
-          "executions. Both datasets are released.")
-else:
-    print("*(sensitivity data pending)*")
+srows = []
+for j in sorted(ss, key=lambda j: -ss[j]["ratio"]):
+    v = ss[j]
+    srows.append([NAME[j], v["n_cells"], v["n_step_cells"], pct(v["share_points"], 1), pct(v["share_variance"], 1),
+                  num(v["ratio"])])
+write_table(
+    "tbl_steps",
+    f"Steps of {SS['summary']['bucket']} points in the first-iteration sheets: answers and step cells, share "
+    "of points, share of summed per-step repeat variance, and their ratio.",
+    "tab:steps", ["Judge", "Answers", "Step cells", "Points", "Variance", "Ratio"], srows, size=r"\footnotesize")
 ```
+
+# Precision {#sec-app-precision}
+
+The minimum detectable effect of a paired contrast is
+$(t_{1-\alpha/2,\,n-1} + t_{\text{power},\,n-1})\,\sigma_d/\sqrt{n}$. We take $\sigma_d$ from the
+closest existing contrast, Luna with the zero-shot sheet vs the holistic instrument on D1, so the
+values are proxies until the new instrument's data exist (Table \ref{tab:mde}). The D2 proxy uses a
+holistic human reference, which is noisier than per-step expert grades.
+
+```{python}
+#| output: asis
+c1, c2 = MDE["C1_repeat_sd"], MDE["C2_abs_error_vs_expert"]
+NLBL = {"n_15_d2a": f"D2a ({D2['d2a']['n_scripts']} scripts)",
+        "n_38_all_distinct": f"all distinct D2 scripts ({D2['distinct_scripts']})",
+        "n_37_dependent_pair_once": f"D2, dependent pair once ({D2['n_counting_dependent_pair_once']})"}
+mrows = [["Repeat SD, D1", c1["n"], num(c1["sd_of_differences"]), num(c1["mde"]["alpha_0.025"]), num(c1["mde"]["alpha_0.05"])],
+         [f"Repeat SD, D1, {int(next(k for k in c1 if k.startswith('mde_') and 'passes' in k).split('_')[1])} passes (optimistic)", c1["n"], "",
+          num(c1["mde_5_passes_optimistic"]["alpha_0.025"]), num(c1["mde_5_passes_optimistic"]["alpha_0.05"])]]
+for k, lbl in NLBL.items():
+    m = c2["mde"][k]
+    mrows.append([f"Absolute error, {lbl}", "", num(c2["sd_of_differences"], 1), num(m["alpha_0.025"], 1),
+                  num(m["alpha_0.05"], 1)])
+write_table(
+    "tbl_mde",
+    f"Minimum detectable effects at power {cor(DZ['statistics']['mde_power'], 1)} ($t$-based, paired). "
+    "$\\sigma_d$: SD of the paired differences in the proxy contrast.",
+    "tab:mde", ["Contrast", "$n$", "$\\sigma_d$", "$\\alpha$ = .025", "$\\alpha$ = .05"], mrows,
+    colspec="lrrrr", size=r"\footnotesize")
+```
+
+# Probe battery {#sec-app-probes}
+
+The probe battery runs per judge and instrument over `{python} DZ["probes"]["passes"]` passes before
+any benchmark run (Table \ref{tab:probes2}). A judge that fails a criterion on any pass is not used
+with that instrument. An alternative-path probe follows in E5: the model solution rewritten along one
+alternative path and checked by the exam author.
+
+```{python}
+#| output: asis
+brows = [[tex_escape(p["probe"]), tex_escape(p["input"]), crit_tex(p["criterion"])] for p in DZ["probes"]["battery"]]
+write_table("tbl_probes2", f"Probe battery of the extended study. Totals are out of {GEN['total_be']} BE.", "tab:probes2",
+            ["Probe", "Input", "Criterion"], brows, colspec="lp{0.42\\textwidth}p{0.3\\textwidth}",
+            size=r"\footnotesize")
+```
+
+# Verifier rules {#sec-app-verifier}
+
+The verifier (`services/workers/ml_evaluation/llm_judge_evaluator.py`) accepts a quote only if every
+fragment passes:
+
+- *Normalization.* Unicode normalization; literal line-break escapes, markup escapes, footnote marks,
+  emphasis markers and inline HTML removed; quotation marks and dashes unified; the result marks
+  "(+)" and "(-)" turned into the words *positiv* and *negativ*; case folded; whitespace collapsed.
+- *Fragments.* A quote is split at ellipses. Each fragment needs at least
+  `{python} VER["min_tokens"]` tokens, or two tokens with `{python} VER["two_token_min_chars"]` letters
+  together, and more than a norm citation. The whole quote needs `{python} VER["min_word_chars"]` word
+  characters.
+- *Matching.* Fragments with fewer than `{python} VER["short_fragment_tokens"]` tokens must match on
+  word boundaries. Longer ones may match as a substring or token by token in order, with up to
+  `{python} VER["max_skipped_answer_words"]` skipped answer words between quoted words and one missed
+  quoted word per `{python} VER["one_miss_per_tokens"]`. Unprotected words of at least
+  `{python} VER["typo_min_chars"]` letters may differ by one edit or a small inflection. Glued passages
+  without an ellipsis are checked sentence by sentence.
+- *Protected tokens.* Negations, result words and their antonyms (including every *un-* form),
+  qualifiers such as *nur* and *teilweise*, Roman numerals and every token with a digit must match
+  exactly. They may not be dropped, added, swapped or stepped over. Numbers never match part of a
+  longer number.
+- *Edges.* A match fails if a negation or a condition (*ob*, *wenn*, *falls*, *sofern*, *soweit*)
+  stands right before it in the same clause, or a negation, a negative result mark or a condition
+  right after it in the same sentence.
+
+# Validator checks {#sec-app-validator}
+
+*Strict* checks fail an attempt and return their messages to the model: the document structure and
+every cross-reference; steps above `{python} num(GEN["max_step_be"], 0)` BE; steps above
+`{python} num(GEN["two_bullets_above_be"], 0)` BE with a single bullet; bullets that can be met by an
+absence or that are conditional; steps named as a result; forks whose steps depend on replaced steps;
+a fork that replaces a whole section; and a path whose bullets repeat those of the replaced steps
+(token overlap of at least `{python} num(GEN["duplicate_jaccard"], 1)`). *Soft* checks only log hints:
+broader absence patterns; forks that replace exactly one step with one step; forks above
+`{python} num(GEN["large_weichenstellung_be"], 0)` BE; near-duplicate bullets; bare naming bullets
+shorter than `{python} GEN["bare_naming_min_words"]` words; a sheet on which most steps exceed
+`{python} num(GEN["step_be_guidance"][1], 0)` BE; and rescaled sections in top-down allocation.
+
+# Designs for alternative solution paths {#sec-app-alternatives}
+
+A dispute that changes only a result or its reasons (a local alternative) stays inside a step as an
+outcome-neutral bullet, such as "discusses the dispute with the arguments of both sides; both results
+tenable". A structural fork replaces named steps of the model solution's path with the steps of each
+alternative path, within the same budget. We compare three designs (E5):
+
+- *A0, replace.* Only the model solution's path is scored. The rendered sheet tells the judge to
+  credit work on another tenable path on the replaced steps. This is the first iteration's design; it
+  needs the step or rating unit, because a bullet of a replaced step describes that step's own
+  requirement.
+- *A1, branch, best path.* The judge scores the steps of every path; code counts the path with the
+  most points.
+- *A2, branch, declared path.* As A1, but code counts the path the judge declares the answer follows,
+  backed by a verified quote; without one it counts the model solution's path.
+
+A1 and A2 come from the same call. A path counts as followed only if the answer argues it as its
+tenability requirements demand; a bare other result does not count.
+
+# Costs {#sec-app-costs}
+
+```{python}
+#| output: asis
+krows = [[NAME.get(m, m), f"{p:.3f}"] for m, p in sorted(COST["judge_call_usd"].items(), key=lambda kv: kv[1])]
+krows.append("MIDRULE")
+krows += [[f"Sheet: {NAME.get(m, m)}", f"{p:.2f}"] for m, p in sorted(COST["sheet_usd"].items(), key=lambda kv: kv[1])]
+write_table(
+    "tbl_costs",
+    f"Planned cost in USD per judge call (about {COST['judge_call_tokens_in'] // 1000}k input and "
+    f"{COST['judge_call_tokens_out'] // 1000}k output tokens) and per generated sheet, from pilot-measured "
+    "tokens at catalog prices. Open-model sheets cost less than the value shown. \\pending{measured costs}",
+    "tab:costs", ["Model", "USD"], krows, size=r"\footnotesize")
+```
+
+The full program is planned at `{python} usd(COST["experiments_sum_usd"][0])` to
+`{python} usd(COST["experiments_sum_usd"][1])` (Table \ref{tab:experiments}); a lean version with fewer
+generators and judges at about `{python} usd(COST["program_usd"]["lean"][0])`.
+
+# Data statement {#sec-app-datastatement}
+
+*D1.* The first-iteration corpus of `{python} V["n_exams"]` German exams and `{python} V["n_answers"]`
+answers with blind human grades [@nagl2026bengerdata]. Exam texts are third-party material used under
+the permissions documented for that corpus and are not redistributed. Human grades are pseudonymized.
+
+*D2.* One police-law exam with its author's sheet and key, `{python} D2["d2a"]["n_scripts"]` graded
+scripts (D2a) and `{python} D2["d2b"]["n_students"]` student submissions (D2b), used with the students'
+consent for research. All texts are pseudonymized before any research call to a model provider. The
+material stays private; only aggregate statistics are published.
+
+*Z2.* Gregor Roth's grading sheet and workbook for a civil-law exam, without case, solution or
+scripts. Private; described only by its structure.
+
+*Model calls.* Every call records the model id, parameters, prompt hashes and the code version. For D1
+we release aggregates; the per-call records are withheld for size.
+\pending{owner: release the per-call records with the dataset release?}
+
+# Output specification of the checklist sheet {#sec-app-spec}
+
+\pending{the verbatim output specification (German) and its English translation, after the E0 freeze}
+
+# Example generated sheet {#sec-app-example}
+
+\pending{one generated checklist sheet for a D1 exam, as rendered for the judge, after the E0 freeze; D1 only, never D2}

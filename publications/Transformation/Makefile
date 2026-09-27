@@ -1,4 +1,4 @@
-.PHONY: derive analyze analyze-cslaw analyze-d2 pull render render-cslaw clean
+.PHONY: derive analyze analyze-cslaw analyze-d2 pull render clean
 
 # File-based derivation only — works without the dev stack.
 derive:
@@ -29,8 +29,8 @@ analyze:
 	uv run python scripts/analysis/compute_mde.py
 	uv run python scripts/figures/make_trend_figure.py
 
-# CSLAW full paper (cslaw/): the corrected first-iteration numbers and the
-# extended study's design constants. Reads only tracked files (the outputs of
+# The paper's first-iteration numbers (on step-sum totals) and the extended
+# study's design constants. Reads only tracked files (the outputs of
 # `make analyze` and a few tracked data/interim files), writes
 # data/processed/cslaw/. --check fails on a broken consistency anchor.
 analyze-cslaw:
@@ -41,26 +41,24 @@ analyze-cslaw:
 pull:
 	uv run python scripts/pull_local_sidecar.py
 
-render:
-	# Don't pass --to pdf: that resolves to Quarto's built-in pdf format and
-	# bypasses the acl-pdf format declared in _quarto.yml (no ACL template,
-	# no keep-tex). `uv run` puts the project venv's python (ipykernel) on
-	# PATH so Quarto can discover the `benger-transformation` jupyter kernel.
+# The paper: ACM acmsmall (CSLAW '27), xelatex. Needs the benger-transformation
+# jupyter kernel (see README) and TinyTeX with acmart. Don't pass --to pdf:
+# that resolves to Quarto's built-in pdf format and bypasses the acm-pdf
+# format declared in _quarto.yml. `uv run` puts the project venv's python
+# (ipykernel) on PATH so Quarto can discover the kernel.
+render: analyze-cslaw
 	uv run quarto render manuscript.qmd
 
-# The CSLAW draft (ACM acmsmall, xelatex). Needs the benger-transformation
-# jupyter kernel (see README) and TinyTeX with acmart.
-# D2 summaries: need the git-ignored pilot rows and D2 pack (local data
-# root, scripts/local_config.py); they write aggregates only.
+# D2 summaries and the structure of Roth's sheet: need the git-ignored
+# pilot rows, D2 pack and Z2 workbook (local data root,
+# scripts/local_config.py); they write aggregates only.
 analyze-d2:
+	uv run python scripts/analysis/extract_z2_structure.py
 	uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes || true
 	uv run python scripts/analysis/compute_d2_gate_summary.py
 	uv run python scripts/analysis/compute_d2_generation_summary.py
 	uv run python scripts/analysis/compute_d2_validity.py
 
-render-cslaw: analyze-cslaw
-	cd cslaw && uv run quarto render manuscript.qmd
-
 clean:
 	rm -rf .quarto manuscript_files manuscript_executed_files \
-	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb*
+	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb* comment.cut

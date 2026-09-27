@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""First-iteration numbers for the CSLAW full paper, with the corrections applied.
+"""First-iteration numbers for the full paper, with the corrections applied.
 
-The full paper reports the published first iteration (D1: 12 generators,
-15 exams, 45 answers) as "First iteration". Review round 3 (2026-09-26) found
-errors in the published text (corrections B1-B27). This script collects every
-first-iteration number the full paper prints, applies the corrections that the
-tracked data allow, and records the rest as pending with the reason.
+The full paper reports the first iteration (D1: 12 generators, 15 exams,
+45 answers) as "First iteration". Its short write-up was withdrawn before
+publication; review round 3 (2026-09-26) found errors in it (internal ids
+B1-B27). This script collects every first-iteration number the full paper
+prints, applies the corrections that the tracked data allow, and records the
+rest as pending with the reason.
 
 It reads ONLY tracked files (data/processed/*.json and a few tracked
-data/interim/*.json). It never writes to the published outputs.
+data/interim/*.json). It never writes to the outputs of `make analyze`.
 
 Corrections applied here (ids from the change list):
   B1   apportionment audit (as-run routine vs floor-constrained Hamilton)
@@ -69,7 +70,7 @@ BIG_BUCKET = "15+"
 # A size class is "disproportionate" when its share of summed step variance
 # exceeds its share of points by more than 30 %.
 RATIO_THRESHOLD = 1.3
-AUDIT_SCALE_MAX = 5  # each audit dimension is rated 1-5 (audit prompt, published appendix)
+AUDIT_SCALE_MAX = 5  # each audit dimension is rated 1-5 (audit prompt, first-iteration appendix)
 
 
 def _load_module(name: str, path: Path):
@@ -159,7 +160,7 @@ def main() -> int:
         "n_generated_answers": sum(1 for p in picks if p["target_type"] == "generation"),
         "provenances": sorted({p["provenance"] for p in picks}),
         "n_blind_raters": ctrl["human_irr"]["k_raters"],
-        # the human pool: three blind raters plus the answer's creator (published design)
+        # the human pool: three blind raters plus the answer's creator (the prior study's published design)
         "pool_graders": ctrl["human_irr"]["k_raters"] + 1,
         "n_irr_answers": ctrl["human_irr"]["n_annotations"],
         "holistic_dimensions": len(holistic["dimensions"]),
@@ -176,7 +177,7 @@ def main() -> int:
     }
 
     # ------------------------------------------------------------------
-    # RQ1 generation (B15 first-attempt compliance over all series)
+    # RQ3 generation (B15 first-attempt compliance over all series)
     # ------------------------------------------------------------------
     gens = run_summary["generators"]
     per_gen = {}
@@ -195,7 +196,7 @@ def main() -> int:
             "failure_stages": s.get("failure_stages") or {},
             "failure_categories": s.get("failure_contract_categories") or {},
             "first_attempt_successes": first_ok,
-            "first_attempt_rate_published": s["first_attempt_rate"],
+            "first_attempt_rate_valid": s["first_attempt_rate"],
             "first_attempt_rate_all_series": first_ok / s["series"],
             "first_attempt_rate_model_series": first_ok / model_series,
             "attempts_per_success": s["attempts_per_success"]["mean"],
@@ -218,8 +219,8 @@ def main() -> int:
         "series_failed": sum(s["failed_series"] for s in gens.values()),
         "failed_by_stage": stages,
         "provider_abort_generators": provider_gens,
-        "first_attempt_range_published": [min(v["first_attempt_rate_published"] for v in per_gen.values()),
-                                          max(v["first_attempt_rate_published"] for v in per_gen.values())],
+        "first_attempt_range_valid": [min(v["first_attempt_rate_valid"] for v in per_gen.values()),
+                                          max(v["first_attempt_rate_valid"] for v in per_gen.values())],
         "first_attempt_range_model_series": [min(v["first_attempt_rate_model_series"] for v in per_gen.values()),
                                              max(v["first_attempt_rate_model_series"] for v in per_gen.values())],
         "first_attempt_range_all_series": [min(v["first_attempt_rate_all_series"] for v in per_gen.values()),
@@ -236,7 +237,7 @@ def main() -> int:
     anchor(generation["series_total"] == 220, "series total is not 220")
     anchor(generation["series_failed"] == 50, "failed series is not 50")
     pending["strict_first_full_series_coverage"] = (
-        "coverage under a strict first-full-series rule (published 167/180) needs the per-series sweep log "
+        "coverage under a strict first-full-series rule (167/180 in the withdrawn write-up) needs the per-series sweep log "
         "(data/interim/rubric_sweep_log.jsonl, withheld)")
 
     # ------------------------------------------------------------------
@@ -430,7 +431,7 @@ def main() -> int:
         "severity": {arm: {j: {t: {k: e[t][k] for k in ("median", "p95", "max")}
                                for t in ("repetition", "empty", "offtopic", "musterloesung") if t in e}
                            for j, e in arms[arm].items()} for arm in arms},
-        # B18: the published "median 89-90 when failing" was over ALL passes.
+        # B18: the write-up's "median 89-90 when failing" was over ALL passes.
         "luna_empty_median_all_passes": {"tailored": entry("tailored", LUNA, "empty").get("median"),
                                          "fewshot": entry("fewshot", LUNA, "empty").get("median")},
         "luna_empty_mean_failing": {"tailored": fail_mean("tailored", LUNA, "empty"),
@@ -492,7 +493,7 @@ def main() -> int:
             "mae_centered": link["mae"]["within_exam_centered"],
             "repeat_sd_centered": link["repeat_sd"]["within_exam_centered"],
             "abs_bias_centered": link["abs_bias"]["within_exam_centered"],
-            "note": "B5: the published 'harshness'/'signed bias' wording referred to ABSOLUTE bias",
+            "note": "B5: the write-up's 'harshness'/'signed bias' wording referred to ABSOLUTE bias",
         },
     }
     anchor(generators["n_rubric_pick_cells"] == 510, "crossed-sweep cells are not 510")
@@ -534,7 +535,7 @@ def main() -> int:
     }
 
     result = {
-        "note": "First-iteration numbers for the CSLAW full paper, corrections B1-B27 applied where the tracked "
+        "note": "First-iteration numbers for the full paper, corrections B1-B27 applied where the tracked "
                 "data allow. Generated by scripts/analysis/cslaw_first_iteration.py. 'pending' lists what needs "
                 "withheld inputs.",
         "corpus": corpus,

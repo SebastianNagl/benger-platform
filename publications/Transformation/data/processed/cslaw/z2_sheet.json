@@ -1,0 +1,32 @@
+{
+ "source": "Gregor Roth's grading workbook (Z2), private; aggregates only",
+ "parts_pct": [
+  65.0,
+  5.0,
+  30.0
+ ],
+ "weighting_levels_below_part": 4,
+ "weighted_leaves": 40,
+ "weighted_parents": 16,
+ "parents_child_shares_not_100": 1,
+ "parents_absolute_weights_inconsistent": 0,
+ "max_leaf_weight_pct": 9.0,
+ "min_leaf_weight_pct": 0.24,
+ "leaf_weight_sum_pct": 100.0,
+ "leaf_grade_range": [
+  0.0,
+  18.0
+ ],
+ "leaf_grade_whole_numbers": true,
+ "aggregation": "weighted mean of leaf grades (absolute weights sum to 1)",
+ "workbook": {
+  "candidate_sheets": 30,
+  "weights_identical_across_candidates": true,
+  "pass_from_grade": 4,
+  "manual_bonus_malus": true,
+  "final_grade_fields": [
+   "Endnote 1",
+   "Endnote 2"
+  ]
+ }
+}

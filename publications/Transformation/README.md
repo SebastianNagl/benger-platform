@@ -6,7 +6,9 @@ replacing the dataset paper's abstract 10-dimension rubric. The study asks
 whether heterogeneous generators can produce schema-conformant exam-specific
 schemes, whether grading against them stabilises a judge across repeated
 passes, at what cost in human-score agreement, and which generators write the
-best instruments.
+best instruments. The full paper (draft, ACM CSLAW '27) adds a rebuilt
+pipeline, validation against an exam author's own grades, and a generator and
+judge benchmark.
 
 Companion to the BenGER dataset paper in `../Benchmark_EMNLP`, and built on the
 BenGER platform (this repo).
@@ -17,13 +19,16 @@ BenGER platform (this repo).
 uv sync                                  # hydrate the venv
 uv run python -m ipykernel install --user --name benger-transformation
 make derive                              # file-based data prep, no dev stack
-make analyze                             # regenerate every published statistic
-make render                              # -> manuscript.pdf (ACL, xelatex)
+make analyze                             # regenerate the first-iteration statistics
+make analyze-d2                          # D2 and Z2 aggregates (needs the private data, see below)
+make render                              # -> manuscript.pdf (ACM acmsmall, xelatex)
 ```
 
-`make render` rebuilds `manuscript.pdf` from `manuscript.qmd` and the tracked
-data. Every number in the paper is computed at render time from
-`data/processed/`; nothing is hardcoded.
+`make render` runs `make analyze-cslaw` and rebuilds `manuscript.pdf` from
+`manuscript.qmd` and the tracked data. It needs TinyTeX with `acmart`. Every
+number in the body is computed at render time from `data/processed/`; the
+abstract's three corpus counts are the only literals, because Quarto does not
+execute code in the YAML header.
 
 `make render` works from a clean clone. `make derive` and `make analyze` do
 not — they re-derive `data/processed/` from the run outputs and the exam
@@ -32,13 +37,13 @@ corpus, neither of which is in this repo (see below).
 ## Layout
 
 ```
-manuscript.qmd      the paper (Quarto, ACL format)
+manuscript.qmd      the paper (Quarto, ACM acmsmall for CSLAW '27)
 manuscript.pdf      the built paper
-_quarto.yml         format config (xelatex; do not "simplify", see comments)
-_extensions/acl/    ACL Quarto format
-fonts/              STIX Two Math + TeX Gyre Termes (self-contained build)
+_quarto.yml         format config (acm-pdf, xelatex)
+_extensions/quarto-journals/acm/   ACM Quarto format (acmart)
+partials/           author block and preamble for acmart
 references.bib      bibliography
-assets/             figures and generated LaTeX tables
+assets/             tables and figures written at render time (not in git)
 data/raw/local/     generated rubrics (task_rubrics.json) — not in git
 data/interim/       run inputs (tracked) + judge/probe/audit run outputs (not in git)
 data/processed/     derived statistics the manuscript loads
@@ -71,9 +76,10 @@ Some inputs are withheld and ship with the dataset release instead:
 - **Audit and probe account fixtures**, which carry platform credentials.
 - **Human expert material** (`data/raw/human/`, `data/interim/human/`): an
   expert's exam, grading sheets and student scripts with human and model
-  grades (personal data, used with consent for research), and a second
-  expert's grading sheet. Never published; only aggregate statistics go to
-  `data/processed/`. `scripts/extract_heidebach_pack.py` builds the local pack.
+  grades (personal data, used with consent for research), and Gregor Roth's
+  grading sheet and workbook (Z2). Never published; only aggregate statistics
+  go to `data/processed/`. `scripts/extract_heidebach_pack.py` builds the local
+  pack, `scripts/analysis/extract_z2_structure.py` the Z2 aggregates.
 
 None of these is an input to `make render`: every load in `manuscript.qmd` goes
 through `load_optional()`, so the paper rebuilds from the tracked data alone.
@@ -82,5 +88,6 @@ from the dataset release.
 
 ## Citing
 
-Nagl, S. and Grabmair, M. *BenGER Transformation: Exploring Automated Rubric
-Generation to Reduce LLM Grading Variance in German Legal Exams.*
+Nagl, S., Heidebach, M. and Grabmair, M. *BenGER Transformation: Exploring
+Automated Rubric Generation to Reduce LLM Grading Variance in German Legal
+Exams.* Draft, not yet published.

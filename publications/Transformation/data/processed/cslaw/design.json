@@ -155,19 +155,12 @@
    "grade_files_with_private_email": 9
   }
  },
- "z2": {
-  "source": "plan",
-  "unit": "relative percentages per level",
-  "leaf_scale_max": 18,
-  "aggregation": "weighted mean of grades",
-  "n_graders": 2
- },
  "experiments": [
   {
    "id": "E0",
    "name": "Gate v2 and instrument freeze",
    "rq": [
-    "RQ2",
+    "RQ1",
     "RQ5"
    ],
    "scope": "D2 and 4 D1 exams; the expert sheet (step and rating units), one checklist sheet each from two generators, the first-iteration sheet; 3 judges",
@@ -209,7 +202,7 @@
    "id": "E1",
    "name": "Generator benchmark",
    "rq": [
-    "RQ1",
+    "RQ3",
     "RQ4"
    ],
    "scope": "12 generators, 15 D1 exams and D2, 2-3 samples per exam, one reference judge (2 passes), a second judge on 4 generators",
@@ -230,8 +223,8 @@
    "id": "E2",
    "name": "Judge benchmark",
    "rq": [
+    "RQ1",
     "RQ2",
-    "RQ3",
     "RQ5"
    ],
    "scope": "6-8 judges on fixed sheets; 45 D1 answers and 15 D2a scripts, 3 passes",
@@ -279,7 +272,7 @@
    "id": "E5",
    "name": "Alternatives, Hilfsgutachten, placement",
    "rq": [
-    "RQ3",
+    "RQ2",
     "RQ6"
    ],
    "scope": "A0 vs A1 vs A2 on scripts that take another path; alternative-path and misplacement probes",
@@ -307,11 +300,11 @@
   },
   {
    "id": "E7",
-   "name": "Comparison with the second paradigm",
+   "name": "Comparison with Roth's paradigm",
    "rq": [
     "RQ7"
    ],
-   "scope": "scoring format and weight elicitation on D2 (no Z2 data); re-aggregation",
+   "scope": "scoring format and weight elicitation on D2 (Z2 has no case or scripts); re-aggregation",
    "cost_usd": [
     15,
     15
