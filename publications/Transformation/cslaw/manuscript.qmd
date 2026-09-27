@@ -975,7 +975,8 @@ GEN2 = _load("d2_generation.json")
 VAL2 = _load("d2_validity.json")
 INSTR = {"expert sheet:step": "Expert sheet (step unit)",
          "gpt-5.4 sheet 1:bullet": "GPT-5.4 checklist sheet",
-         "gpt-5.4-mini sheet 1:bullet": "GPT-5.4 Mini checklist sheet"}
+         "gpt-5.4-mini sheet 1:bullet": "GPT-5.4 Mini checklist sheet 1",
+         "gpt-5.4-mini sheet 2:bullet": "GPT-5.4 Mini checklist sheet 2"}
 JUDGES_ORDER = ["gpt-5.6-luna", "deepseek-ai/DeepSeek-V4-Pro", "gpt-5.4-mini"]
 GG = GEN2["per_generator"] if GEN2 else {}
 ```
@@ -985,15 +986,28 @@ These runs are a first look at the expert exam, not the benchmark. They use the 
 grades of `{python} D2["d2a"]["n_scripts"]` D2a scripts serve as the yardstick; the exam author has
 yet to confirm who graded nine of them, so we call them reference grades, not expert grades.
 
-*Generation.* Both generators needed retries. GPT-5.4 produced a valid sheet in
-`{python} GG["gpt-5.4"]["valid_sheets"]` of `{python} GG["gpt-5.4"]["chains"]` chains
-(`{python} GG["gpt-5.4"]["valid_sheet_steps"][0]` steps), GPT-5.4 Mini in
-`{python} GG["gpt-5.4-mini"]["valid_sheets"]` of `{python} GG["gpt-5.4-mini"]["chains"]`
-(`{python} GG["gpt-5.4-mini"]["valid_sheet_steps"][0]` steps, flagged as coarse by the validator
-because most steps carry more than 4 BE). Failed attempts most often broke the 10-BE cap: in the
-flat allocation mode a generator states relative weights, not BE, so it cannot see the cap directly.
-A valid sheet cost `{python} usd(GG["gpt-5.4"]["usd_per_valid_sheet"], 2)` with GPT-5.4 and
-`{python} usd(GG["gpt-5.4-mini"]["usd_per_valid_sheet"], 2)` with GPT-5.4 Mini, retries included.
+```{python}
+#| output: asis
+def _gen_par():
+    a, b = GG.get("gpt-5.4"), GG.get("gpt-5.4-mini")
+    if not (a and b):
+        return r"*Generation.* \pending{generation summary}"
+    steps = lambda g: " and ".join(str(x) for x in g["valid_sheet_steps"])
+    return (
+        "*Generation.* Both generators needed retries. GPT-5.4 produced a valid sheet in "
+        f"{a['valid_sheets']} of {a['chains']} chains ({steps(a)} steps), GPT-5.4 Mini in "
+        f"{b['valid_sheets']} of {b['chains']} ({steps(b)} steps; the validator flagged its first sheet as "
+        "coarse because most steps carry more than 4 BE). The two failed differently. GPT-5.4 builds "
+        "richer alternative paths, and most of its failed attempts broke the rules on forks "
+        f"({a['failed_attempt_categories'].get('weichenstellungen', 0)} attempts), for instance a later fork "
+        "that depends on an earlier one. GPT-5.4 Mini failed mostly on the 10-BE cap "
+        f"({b['failed_attempt_categories'].get('gewicht (10 BE cap)', 0)} attempts): in the flat allocation "
+        "mode a generator states relative weights, not BE, and cannot see the cap directly. A valid sheet "
+        f"cost {usd(a['usd_per_valid_sheet'], 2)} with GPT-5.4 and {usd(b['usd_per_valid_sheet'], 2)} with "
+        "GPT-5.4 Mini, failed chains included. Stricter checks buy legal coherence at the price of "
+        "compliance; the generator benchmark (E1) has to report both.")
+print(_gen_par())
+```
 
 ```{python}
 #| output: asis
@@ -1096,6 +1110,19 @@ else:
         "sheet, although the intervals overlap. Second, the generated sheets were more lenient than the "
         "expert's, and the coarser sheet more so; a generated sheet needs a stricter specification or a "
         "calibration step before its totals can stand in for an examiner's.")
+    _ss = ((VAL2 or {}).get("sheet_sample", {}).get("gpt-5.4-mini:bullet", {}) or {}).get("gpt-5.6-luna")
+    _l2 = _v("gpt-5.4-mini sheet 2:bullet", "gpt-5.6-luna")
+    if _ss and _l2:
+        parts.append(
+            f"A second GPT-5.4 Mini sheet, generated from the same input, gave Luna an MAE of {num(_l2['mae'], 1)} "
+            f"(bias {sgn(_l2['bias'], 1)}). Between the two sheets a script's total moved by "
+            f"{num(_ss['sheet_sample_sd'], 1)} points on average (SD over sheets; up to "
+            f"{num(_ss['max_script_sd'], 1)}), against {num(_lm['repeat_sd'], 1)} between two passes on one sheet. "
+            + ("Which sheet a generator happens to write is a larger source of variance than the judge's own "
+               "noise, so a benchmark has to sample several sheets per generator."
+               if _ss["sheet_sample_sd"] > _lm["repeat_sd"] else
+               "Here the sheet a generator happens to write added no more variance than the judge's own noise; "
+               "with two sheets of one generator this is a first estimate, not a rule."))
     print(" ".join(parts))
 ```
 

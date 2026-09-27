@@ -2,41 +2,48 @@
  "validator_sha256": "e06a1695309ed6e81f9d6706c175b8f5c956843d3adff0ea7935947a1a6eb069",
  "per_generator": {
   "gpt-5.4": {
-   "chains": 2,
+   "chains": 4,
    "valid_sheets": 1,
    "attempts_per_chain": [
     3,
-    2
+    2,
+    3,
+    3
    ],
    "failed_attempt_categories": {
-    "weichenstellungen": 2,
-    "gewicht (10 BE cap)": 2,
-    "anforderungen": 1,
-    "struktur": 1
+    "weichenstellungen": 6,
+    "gewicht (10 BE cap)": 4,
+    "struktur": 3,
+    "anforderungen": 1
    },
-   "usd_total": 1.806,
-   "usd_per_valid_sheet": 1.806,
-   "mean_usd_per_chain": 0.903,
+   "usd_total": 4.152,
+   "usd_per_valid_sheet": 4.152,
+   "mean_usd_per_chain": 1.038,
    "valid_sheet_steps": [
     34
    ]
   },
   "gpt-5.4-mini": {
-   "chains": 2,
-   "valid_sheets": 1,
+   "chains": 4,
+   "valid_sheets": 2,
    "attempts_per_chain": [
+    3,
+    1,
     3,
     1
    ],
    "failed_attempt_categories": {
-    "gewicht (10 BE cap)": 2,
-    "struktur": 1
+    "gewicht (10 BE cap)": 3,
+    "struktur": 1,
+    "weichenstellungen": 1,
+    "herkunft": 1
    },
-   "usd_total": 0.207,
-   "usd_per_valid_sheet": 0.207,
-   "mean_usd_per_chain": 0.103,
+   "usd_total": 0.459,
+   "usd_per_valid_sheet": 0.23,
+   "mean_usd_per_chain": 0.115,
    "valid_sheet_steps": [
-    19
+    19,
+    22
    ]
   }
  }

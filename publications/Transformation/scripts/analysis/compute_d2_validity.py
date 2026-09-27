@@ -160,6 +160,30 @@ def main() -> int:
             "step_abs_diff_share": round(statistics.fmean(step_diffs), 3) if step_diffs else None,
             "n_step_comparisons": len(step_diffs),
         }
+    # Sheet-sample variance: the same generator's independently generated
+    # sheets, the same judge and scripts. Per script, the SD of the
+    # sheet means (each the mean over passes), averaged over scripts.
+    sheet_means: dict[tuple[str, str, str], dict[str, float]] = defaultdict(dict)
+    for (judge, arm), by_script in cells.items():
+        label = arm_label(arm, LABELS)
+        if " sheet " not in label or label.startswith("expert"):
+            continue
+        gen, rest = label.split(" sheet ", 1)
+        sheet, unit = rest.split(":", 1)
+        for sid, rs in by_script.items():
+            sheet_means[(gen, unit, judge)].setdefault(sid, {})
+            sheet_means[(gen, unit, judge)][sid][sheet] = statistics.fmean(float(r["total"]) for r in rs)
+    sheet_sample = {}
+    for (gen, unit, judge), per_script in sorted(sheet_means.items()):
+        sds = [statistics.stdev(v.values()) for v in per_script.values() if len(v) >= 2]
+        n_sheets = max((len(v) for v in per_script.values()), default=0)
+        if not sds:
+            continue
+        sheet_sample.setdefault(f"{gen}:{unit}", {})[judge] = {
+            "n_sheets": n_sheets, "n_scripts": len(sds),
+            "sheet_sample_sd": round(statistics.fmean(sds), 2),
+            "max_script_sd": round(max(sds), 2),
+        }
     out = {
         "note": ("D2a expert exam: LLM judge totals vs reference grades (per-script mean over passes). "
                  "Reference grades of 9 of 15 scripts await the exam author's confirmation of the grader. "
@@ -169,6 +193,7 @@ def main() -> int:
         "n_boot": N_BOOT,
         "code_versions": sorted({(r.get("provenance") or {}).get("code_version") for r in rows} - {None}),
         "per_arm": result,
+        "sheet_sample": sheet_sample,
     }
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -177,6 +202,9 @@ def main() -> int:
             print(f"{arm:60.60s} {judge:28.28s} n={x['n_scripts']:2d} MAE {x['mae']:5.1f} {x['mae_ci95']} "
                   f"bias {x['bias']:+5.1f} r {x['pearson']} pass-agree {x['pass_agreement']} "
                   f"repeatSD {x['repeat_sd']} step {x['step_abs_diff_share']}")
+    for key, per in sheet_sample.items():
+        for judge, x in per.items():
+            print(f"sheet-sample {key} {judge}: {x}")
     print(f"-> {args.out}")
     return 0
 

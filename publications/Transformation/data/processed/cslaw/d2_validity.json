@@ -176,13 +176,13 @@
     },
     "mae": 6.43,
     "mae_ci95": [
-     4.18,
+     4.12,
      9.07
     ],
     "bias": 3.9,
     "bias_ci95": [
-     0.52,
-     7.53
+     0.35,
+     7.55
     ],
     "pearson": 0.911,
     "spearman": 0.897,
@@ -228,6 +228,49 @@
     "repeat_sd": 2.76,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4-mini sheet 2:bullet": {
+   "gpt-5.6-luna": {
+    "n_scripts": 15,
+    "passes_per_script": [
+     2
+    ],
+    "case_years": {
+     "2025": 12,
+     "2024": 3
+    },
+    "mae": 8.18,
+    "mae_ci95": [
+     5.43,
+     11.08
+    ],
+    "bias": 8.18,
+    "bias_ci95": [
+     5.53,
+     11.02
+    ],
+    "pearson": 0.947,
+    "spearman": 0.934,
+    "pass_agreement": 0.733,
+    "pass_kappa": 0.25,
+    "judge_pass_rate": 0.933,
+    "reference_pass_rate": 0.667,
+    "judge_mean_total": 59.98,
+    "reference_mean_total": 51.8,
+    "repeat_sd": 1.81,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  }
+ },
+ "sheet_sample": {
+  "gpt-5.4-mini:bullet": {
+   "gpt-5.6-luna": {
+    "n_sheets": 2,
+    "n_scripts": 15,
+    "sheet_sample_sd": 2.45,
+    "max_script_sd": 5.66
    }
   }
  }
