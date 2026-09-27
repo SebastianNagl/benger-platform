@@ -961,7 +961,8 @@ for arm in INSTR:
             continue
         c = x.get("mae_ci95") or [None, None]
         gated = (GATE2 or {}).get("batteries", {}).get(arm, {}).get(j)
-        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)) + ("" if gated else "$^\\dagger$"),
+        mark = "$^\\dagger$" if not gated else ("" if gated["battery"] == "pass" else "$^\\ddagger$")
+        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)) + mark,
                       str(x["complete_passes"]),
                       num(x["mae"], 1) + (f' [{num(c[0], 1)}, {num(c[1], 1)}]' if c[0] is not None else ""),
                       num(x["mae_grade_points"], 1), sgn(x["bias"], 1), cor(x["pearson"]), _wrong(x),
@@ -974,18 +975,18 @@ write_table(
     "and averaged over the runs. Grade points: the average error on the 0 to 18 scale under the exam's key. "
     "Wrongly passed: students the judge passes whom the reference fails; wrongly failed: the reverse. "
     "Run to run: average difference between two runs on the same script. "
-    "$^\\dagger$ not checked with the fake answers.",
+    "$^\\dagger$ not checked with the fake answers; $^\\ddagger$ failed that check (Table \\ref{tab:gate2}).",
     "tab:val2",
     ["Grading basis", "Judge", "Runs", "Average error [95\\%]", "Grade points", "Generous (+), strict ($-$)",
      "$r$", "Wrongly passed / failed", "Run to run"],
     vrows or [[r"\tbd"] * 9],
-    colspec="p{0.25\\textwidth}lr" + "".join(RP(w) for w in (0.12, 0.06, 0.09)) + "r" + RP(0.08) + RP(0.05),
-    size=r"\scriptsize")
+    colspec="p{0.28\\textwidth}lr" + "".join(RP(w) for w in (0.12, 0.06, 0.09)) + "r" + RP(0.08) + RP(0.05),
+    size=r"\scriptsize\setlength{\tabcolsep}{3.5pt}")
 ```
 
 ```{python}
 #| output: asis
-_n, _x, _g, _gs, _m = _v(NOS, LU), _v(EXS, LU), _v(G54, LU), _v(G54S, LU), _v(EXS, MI)
+_n, _x, _g, _gs, _m, _mn = _v(NOS, LU), _v(EXS, LU), _v(G54, LU), _v(G54S, LU), _v(EXS, MI), _v(NOS, MI)
 _cn, _cns = _c((LU, EXS), (LU, NOS)), _c((LU, G54S), (LU, EXS))
 _cu = [c for c in (VAL2 or {}).get("contrasts", []) if c["family"] == "scoring unit"]
 if not all((_n, _x, _g, _m, _cn)):
@@ -1009,7 +1010,9 @@ else:
            f"{num(max(abs(c['abs_error']['mean_diff']) for c in _cu), 1)} points. " if _cu else "")
         + f"The platform's default judge, GPT-5.4 Mini, was {num(_m['mae'], 1)} points off even on the examiner's "
         f"sheet and passed or failed {num(_m['wrong_pass'] + _m['wrong_fail'], 0)} of "
-        f"{_m['n_scripts']} students differently.")
+        f"{_m['n_scripts']} students differently"
+        + (f"; without a sheet it ranked the scripts poorly ($r$ = {cor(_mn['pearson'])}) and passed or failed "
+           f"{num(_mn['wrong_pass'] + _mn['wrong_fail'], 0)} of them differently." if _mn else "."))
 ```
 
 ```{python}
@@ -1044,7 +1047,7 @@ if _srows:
         "adds its own noise; flips there compare two sheets.",
         "tab:var2", ["Grading basis", "Scripts", "Run to run", "Between scripts", "Dependability", "Flips",
                      "US cents per run"], _srows,
-        colspec="p{0.36\\textwidth}rrrrrr", size=r"\scriptsize")
+        colspec="p{0.42\\textwidth}rrrrrr", size=r"\scriptsize")
 ```
 
 ```{python}
@@ -1067,8 +1070,8 @@ else:
            if _cn and _cn.get("repeat_sd") else "")
         + "The steadiness without a sheet came with a compressed scale, however: Luna spread the D2a scripts "
         f"with a standard deviation of {num(_n['judge_sd_between_scripts'], 1)} points, the reference with "
-        f"{num(_n['reference_sd_between_scripts'], 1)}, and it passed every script, so a second run could "
-        "not flip anyone. A grader can be steady and still wrong. "
+        f"{num(_n['reference_sd_between_scripts'], 1)}, and it passed every D2a script, so a second run "
+        "could not flip anyone. A grader can be steady and still wrong. "
         + (f"A new sheet from the same generator moved a script's total more than a new run did: one run with "
            f"a fresh GPT-5.4 Mini sheet had a standard deviation of {num(min(b['sd_one_judgment_fresh_sheet'] for b in _fresh), 1)} "
            f"to {num(max(b['sd_one_judgment_fresh_sheet'] for b in _fresh), 1)} points, and "
@@ -1099,7 +1102,7 @@ def _gcell(x, k):
 
 rows = []
 for name, judge, x in grows:
-    row = [name, judge, str(x["complete_passes"])]
+    row = [name, judge, str(x["runs"] if x.get("skipped_probes") else x["complete_passes"])]
     if not const:
         row += [x["battery"], _gcell(x, "battery_max_score")]
     row += [_gcell(x, "model_proposed_median_on_negatives"), _gcell(x, "musterloesung_median"),
@@ -1117,25 +1120,31 @@ write_table(
        "Fake answers: verdict on six fake answers (empty, the case text repeated, off-topic, off-topic from "
        "the same area, a keyword list, an instruction to award full marks); max: the highest score any of "
        "them received. ")
+    + ("The keyword list is built from a sheet's terms, so it is not run without a sheet. "
+       if any(x.get("skipped_probes") for _, _, x in grows) else "")
     + "Proposed: the most points the judge proposed for a fake answer before the quote check removed "
     "unsupported credit. Answer key: the reference solution graded as an answer. Part removed: points lost "
     "when one part of the answer key is deleted, against the points the sheet gives that part (matched by "
     "heading, a heuristic). Paragraph moved: points lost when a correct paragraph moves under another "
     "heading. Results reversed: points lost when the answer key's results are negated.",
     "tab:gate2", head, rows or [[r"\tbd"] * len(head)],
-    colspec="p{0.25\\textwidth}lr" + ("" if const else "lr") + "".join(RP(w) for w in (0.1, 0.07, 0.11, 0.08, 0.08)),
-    size=r"\scriptsize")
-_flips = [x["negation_flip_drop"] for _, _, x in grows if x.get("negation_flip_drop") is not None]
+    colspec="p{0.26\\textwidth}lr" + ("" if const else "lr") + "".join(RP(w) for w in (0.08, 0.06, 0.1, 0.07, 0.07)),
+    size=r"\scriptsize\setlength{\tabcolsep}{3pt}")
+_flips = [x["negation_flip_drop"] for n, _, x in grows if x.get("negation_flip_drop") is not None and n != INSTR[NOS]]
+_nos_gate = (GATE2 or {}).get("batteries", {}).get(NOS, {}).get(LU)
+_sheet_gates = [x for n, _, x in grows if n != INSTR[NOS]]
+_sheets_clean = bool(_sheet_gates) and all(x["battery"] == "pass" and x["battery_max_score"] == 0 for x in _sheet_gates)
 ```
 
-*Fake answers.* `{python} "Every judge and grading basis that we checked kept all six fake answers at zero" if const else "Not every judge and grading basis kept the fake answers at zero"`
-(Table \ref{tab:gate2}); the rows of Table \ref{tab:val2} that were not checked are marked. Removing one part of the answer key cost about as many
+*Fake answers.* `{python} "With every sheet, every judge we checked kept all six fake answers at zero" if _sheets_clean else "Not every sheet kept the fake answers at zero"`
+(Table \ref{tab:gate2})`{python} f". Without a sheet, Luna gave them up to {num(_nos_gate['battery_max_score'], 0)} points and failed the check; the judge without a sheet has no quote check" if _nos_gate and _nos_gate["battery"] != "pass" else ""`.
+The rows of Table \ref{tab:val2} that were not checked, or failed, are marked. Removing one part of the answer key cost about as many
 points as the sheet gives that part, and moving a correct paragraph under another heading cost almost
 nothing. On the examiner's sheet, scored per step, Luna still proposed half a point for every step of
 an empty or off-topic answer, and only the rule that a credit needs a quote removed these points.
 Reversing the results of the answer key cost only
 `{python} num(min(_flips), 0) if _flips else "?"` to `{python} num(max(_flips), 0) if _flips else "?"`
-points. What it should cost depends on how an examiner grades a conclusion that contradicts its own
+points with a sheet`{python} f", but {num(_nos_gate['negation_flip_drop'], 0)} without one: the requirements credit the reasoning whatever the result" if _nos_gate and _nos_gate.get("negation_flip_drop") is not None else ""`. What it should cost depends on how an examiner grades a conclusion that contradicts its own
 reasoning; E4 fixes this with the examiner in advance.
 
 ```{python}
@@ -1198,8 +1207,11 @@ else:
         "*What the expert exam suggests so far.* On the examiner's own sheet, the best judge was about "
         f"{num(_x['mae'], 0)} of 100 points from the reference grades on average, or "
         f"{num(_x['mae_grade_points'], 0)} grade point{'' if num(_x['mae_grade_points'], 0) == '1' else 's'}, and ranked the scripts almost as the reference did. "
-        f"Without a sheet the same judge was steady, but about {num(_n['bias'], 0)} points too generous, and it "
-        "passed every student whom the reference fails. Generated sheets came close to the examiner's sheet "
+        f"Without a sheet the same judge was steady, but about {num(_n['bias'], 0)} points too generous; it "
+        "passed every student whom the reference fails"
+        + (f" and gave fake answers up to {num(_nos_gate['battery_max_score'], 0)} points"
+           if _nos_gate and _nos_gate["battery"] != "pass" else "")
+        + ". Generated sheets came close to the examiner's sheet "
         f"({num(min(x['mae'] for x in _gm), 0)} to {num(max(x['mae'] for x in _gm), 0)} points off), though "
         "mostly more generous. On this exam, then, a sheet did not make the judge steadier; it made its grades "
         "far more accurate. The platform's default judge was about "

@@ -1,5 +1,8 @@
 {
- "code_version": "7fc295f3b81f",
+ "code_versions": [
+  "5768f1f9104b",
+  "7fc295f3b81f"
+ ],
  "criteria": {
   "battery": {
    "empty": [
@@ -43,9 +46,31 @@
   }
  },
  "batteries": {
+  "no sheet:holistic": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "complete_passes": 0,
+    "runs": 2,
+    "skipped_probes": [
+     "keyword_salad"
+    ],
+    "battery": "fail",
+    "battery_max_score": 14.0,
+    "model_proposed_median_on_negatives": 13.0,
+    "positive_control": "fail",
+    "musterloesung_median": 100.0,
+    "negation_flip_drop": 37.5,
+    "section_ablation_drop": 21.0,
+    "section_ablation_expected": 0.0,
+    "misplacement_drop": 2.5
+   }
+  },
   "expert sheet:step": {
    "deepseek-ai/DeepSeek-V4-Pro": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 1,
+    "runs": 2,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 0.0,
@@ -57,7 +82,10 @@
     "misplacement_drop": 0.0
    },
    "gpt-5.6-luna": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 2,
+    "runs": 2,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 23.0,
@@ -71,7 +99,10 @@
   },
   "gpt-5.4-mini sheet 1:bullet": {
    "deepseek-ai/DeepSeek-V4-Pro": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 1,
+    "runs": 1,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 0.0,
@@ -83,7 +114,10 @@
     "misplacement_drop": 0.0
    },
    "gpt-5.6-luna": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 2,
+    "runs": 2,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 0.0,
@@ -97,7 +131,10 @@
   },
   "gpt-5.4 sheet 1:bullet": {
    "deepseek-ai/DeepSeek-V4-Pro": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 1,
+    "runs": 1,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 0.0,
@@ -109,7 +146,10 @@
     "misplacement_drop": 0.0
    },
    "gpt-5.6-luna": {
+    "code_version": "7fc295f3b81f",
     "complete_passes": 2,
+    "runs": 2,
+    "skipped_probes": [],
     "battery": "pass",
     "battery_max_score": 0.0,
     "model_proposed_median_on_negatives": 0.0,

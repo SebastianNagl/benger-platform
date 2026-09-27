@@ -1,0 +1,160 @@
+{
+ "note": "Crossed variance study on the expert exam (all scripts with >= 2 passes; no human grades needed). Aggregates only.",
+ "pass_mark_be": 40.0,
+ "code_versions": [
+  "5768f1f9104b",
+  "7fc295f3b81f"
+ ],
+ "per_judge": {
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "instruments": {},
+   "generators": {},
+   "equal_cost": {}
+  },
+  "gpt-5.4-mini": {
+   "instruments": {},
+   "generators": {},
+   "equal_cost": {}
+  },
+  "gpt-5.6-luna": {
+   "instruments": {
+    "expert sheet:step": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 3.0,
+     "pass_sd": 3.35,
+     "script_sd": 16.22,
+     "phi_one_pass": 0.959,
+     "pass_flip_rate": 0.088,
+     "mean_total": 50.01,
+     "usd_per_call": 0.0118
+    },
+    "gpt-5.4 sheet 1:bullet": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 3.0,
+     "pass_sd": 2.87,
+     "script_sd": 15.15,
+     "phi_one_pass": 0.965,
+     "pass_flip_rate": 0.035,
+     "mean_total": 55.64,
+     "usd_per_call": 0.0162
+    },
+    "gpt-5.4 sheet 1:step": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 2.96,
+     "pass_sd": 3.59,
+     "script_sd": 15.21,
+     "phi_one_pass": 0.947,
+     "pass_flip_rate": 0.054,
+     "mean_total": 54.22,
+     "usd_per_call": 0.0143
+    },
+    "gpt-5.4-mini sheet 1:bullet": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 15,
+     "passes": 3.0,
+     "pass_sd": 3.04,
+     "script_sd": 14.49,
+     "phi_one_pass": 0.958,
+     "pass_flip_rate": 0.089,
+     "mean_total": 57.94,
+     "usd_per_call": 0.0118
+    },
+    "gpt-5.4-mini sheet 1:step": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 3.0,
+     "pass_sd": 2.95,
+     "script_sd": 13.94,
+     "phi_one_pass": 0.957,
+     "pass_flip_rate": 0.018,
+     "mean_total": 58.23,
+     "usd_per_call": 0.0104
+    },
+    "gpt-5.4-mini sheet 2:bullet": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 15,
+     "passes": 3.0,
+     "pass_sd": 2.63,
+     "script_sd": 15.68,
+     "phi_one_pass": 0.973,
+     "pass_flip_rate": 0.0,
+     "mean_total": 58.97,
+     "usd_per_call": 0.0125
+    },
+    "gpt-5.4-mini sheet 2:step": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 3.0,
+     "pass_sd": 2.74,
+     "script_sd": 15.18,
+     "phi_one_pass": 0.968,
+     "pass_flip_rate": 0.035,
+     "mean_total": 58.63,
+     "usd_per_call": 0.011
+    },
+    "no sheet:holistic": {
+     "code_version": "5768f1f9104b",
+     "n_scripts": 38,
+     "passes": 3.0,
+     "pass_sd": 2.94,
+     "script_sd": 9.58,
+     "phi_one_pass": 0.914,
+     "pass_flip_rate": 0.0,
+     "mean_total": 64.54,
+     "usd_per_call": 0.0062
+    }
+   },
+   "generators": {
+    "gpt-5.4-mini:bullet": {
+     "n_sheets": 2,
+     "n_scripts": 15,
+     "pass_sd": 2.84,
+     "sheet_sd": 2.99,
+     "sheet_level_sd": 0.0,
+     "script_sd": 14.8,
+     "sd_one_judgment_fresh_sheet": 4.12,
+     "phi_fresh_sheet_one_pass": 0.928,
+     "sheet_flip_rate": 0.156
+    },
+    "gpt-5.4-mini:step": {
+     "n_sheets": 2,
+     "n_scripts": 38,
+     "pass_sd": 2.85,
+     "sheet_sd": 2.75,
+     "sheet_level_sd": 0.0,
+     "script_sd": 14.31,
+     "sd_one_judgment_fresh_sheet": 3.96,
+     "phi_fresh_sheet_one_pass": 0.929,
+     "sheet_flip_rate": 0.061
+    }
+   },
+   "equal_cost": {
+    "no_sheet_mean_of_k": {
+     "1": {
+      "sd": 2.94,
+      "usd": 0.0062
+     },
+     "2": {
+      "sd": 2.08,
+      "usd": 0.0124
+     },
+     "3": {
+      "sd": 1.7,
+      "usd": 0.0186
+     },
+     "4": {
+      "sd": 1.47,
+      "usd": 0.0248
+     },
+     "5": {
+      "sd": 1.31,
+      "usd": 0.031
+     }
+    }
+   }
+  }
+ }
+}

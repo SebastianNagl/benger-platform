@@ -88,6 +88,11 @@ def battery_entry(b: dict) -> dict:
         positive = b.get("positive_control")
     return {
         "complete_passes": len(complete_passes),
+        # passes run, and battery probes skipped as not applicable (the keyword list is built
+        # from a sheet's key terms, so there is none without a sheet); a skipped battery probe
+        # leaves its pass incomplete, so complete_passes can be 0 while runs is not
+        "runs": b.get("passes"),
+        "skipped_probes": sorted(p for p in BATTERY if (probes.get(p) or {}).get("skipped")),
         "battery": battery,
         "battery_max_score": max((probes.get(p, {}).get("max") or 0.0) for p in BATTERY),
         "model_proposed_median_on_negatives": max(
