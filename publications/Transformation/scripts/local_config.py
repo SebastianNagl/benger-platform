@@ -11,6 +11,9 @@ default below. Keys of the local file:
                  (no default: paid runs need it)
   container      the dev worker container (default: benger-worker-1)
   extended_repo  the benger-extended checkout (default: next to this repo)
+  d2_pull_project  the prod project id prefix in the D2 pull's file name
+                 (raw/human/heidebach_polr/platform_2026/prod_<prefix>_pull_*.jsonl;
+                 default: the only prefix present there)
 
 A worktree points ``data_root`` at the main checkout, because the ignored
 data exists only there.
@@ -35,12 +38,14 @@ ENV = {
     "org_id": "PILOT_ORG",
     "container": "PILOT_CONTAINER",
     "extended_repo": "PILOT_EXTENDED_REPO",
+    "d2_pull_project": "PILOT_D2_PULL_PROJECT",
 }
 DEFAULTS: dict[str, Any] = {
     "data_root": str(PUB / "data"),
     "org_id": None,
     "container": "benger-worker-1",
     "extended_repo": str(REPO.parent / "benger-extended"),
+    "d2_pull_project": None,
 }
 
 

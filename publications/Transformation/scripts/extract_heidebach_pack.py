@@ -22,18 +22,27 @@ Cleaning, per script:
     footers and page numbers removed.
   - Header blocks before the first content heading are dropped, examiner
     lines (Dr., Prof., Korrektor) are stripped, e-mail addresses are scrubbed.
-  - The PII scanner looks for standalone lines of 2-3 capitalised words that
-    are not in the case, Musterloesung or sheet vocabulary, and for id
-    keywords and long numbers. Every hit must be listed by the sha256 of its
-    normalised line in KEY.local.json "redact_lines" (action "redact" or
-    "allow"); an unlisted hit FAILS the build. Listed "redact" lines are
-    removed wherever they occur.
+  - The PII scanner looks for standalone name lines: 2-5 words, each a
+    capitalised word or an all-caps one of 4+ letters (any script's letters,
+    so diacritics count) or a name particle (von, van, de, zu ...), at least
+    two of them names, at most one comma ("Surname, First"), no outline
+    label (A., VI., d)), at least one name not in the case, Musterloesung or
+    sheet vocabulary. It also flags labelled names
+    ("Bearbeiter:", "Verfasser:", "Name:" ...), id keywords and long numbers.
+    Every hit must be listed by the sha256 of its normalised line in
+    KEY.local.json "redact_lines" (action "redact" or "allow"); an unlisted
+    hit FAILS the build. Listed "redact" lines are removed wherever they
+    occur. The per-year case texts are scanned too (examiner lines, links
+    and passwords there are flagged, not stripped).
   - Platform texts: <br /> tags, <u> tags and NBSP residue normalised.
   - Duplicates and overlap by 8-gram containment (case text removed first):
-    duplicate_of, exclude_reason, related_to.
+    duplicate_of, duplicate_kind (near_copy, or copy_then_extend when the
+    later script holds the earlier one plus more), exclude_reason,
+    related_to.
   - case_year from the PDF creation date, checked against the years the text
     cites. Per-year case texts come from exam/Angabe_<year>.docx when present;
-    otherwise the script carries case_text_year_mismatch.
+    otherwise the script carries case_text_year_mismatch. Their sha256 and
+    length are taken after the same blank-line collapse the pack stores.
   - Sheet state per script: the step labels and maxima of its xlsx against
     the current sheet. The grader is "pending" for the xlsx grades, with
     xlsx_last_modified_by_differs per sheet (no names are stored).
@@ -43,7 +52,8 @@ sha256 and length of the raw and cleaned texts are stored.
 
 Inputs  (<data>/raw/human/heidebach_polr/, git-ignored):
   rubric/Korrekturbogen_BE.xlsx, scripts/H??.{pdf,xlsx}, exam/*.docx,
-  platform_2026/prod_2ad6d500_pull_*.jsonl, platform_2026/KEY.local.json
+  platform_2026/prod_<project>_pull_*.jsonl, platform_2026/KEY.local.json
+  (<project>: d2_pull_project in .pilot.local.json, else the only one there)
 Outputs (<data>/interim/human/, git-ignored):
   heidebach_exam.json         case text, Musterloesung, sheet, states, key
   heidebach_scripts.json      40 scripts: text + human and stored model grades
@@ -51,9 +61,11 @@ Outputs (<data>/interim/human/, git-ignored):
 Needs: pdftotext, pdfinfo, pdffonts (poppler).
 
   extract_heidebach_pack.py                  build the pack
+  extract_heidebach_pack.py --check          scan and report counts only; writes nothing
   extract_heidebach_pack.py --show-unlisted  also print unlisted PII lines (local review)
   extract_heidebach_pack.py --list redact|allow SHA256 CATEGORY [SCRIPT]
                                              add an entry to redact_lines
+  extract_heidebach_pack.py --selftest       the scanner and overlap rules on synthetic lines
 """
 
 from __future__ import annotations
@@ -168,10 +180,77 @@ def add_listed_line(action: str, digest: str, category: str, script_id: str | No
 
 # --- PII scanner ----------------------------------------------------------------
 
-NAME_TOKEN = re.compile(r"^[A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?$")
 ID_KEYWORD = re.compile(r"matrikel|kennziffer|klausurnummer|\bname\s*:|geburtsdatum|\bmat\.?-?nr", re.IGNORECASE)
 LONG_NUMBER = re.compile(r"(?<![\d/.,])\d{6,}(?![\d/])")
 EXAMINER = re.compile(r"^(?:Dr\.|Prof\.|PD\s)|\bKorrektor(?:in)?\b|\bPrüfer(?:in)?\b")
+# "Bearbeiter: X", "Name: X", "Verfasserin -", "Unterschrift:": a label that
+# introduces a person, with or without the value on the same line.
+NAME_LABEL = re.compile(
+    r"\b(?:Bearbeiter(?:in)?|Verfasser(?:in)?|Vor-?\s?name|Nach-?\s?name|Familienname|Name|Autor(?:in)?|"
+    r"Student(?:in)?|Studierende[rn]?|Kandidat(?:in)?|Prüfling|Teilnehmer(?:in)?|Unterschrift|"
+    r"Eingereicht\s+von|Vorgelegt\s+von)\s*[:=–-]", re.IGNORECASE)
+# Name particles (von der Leyen, van den Berg, de la Cruz, zu Guttenberg).
+# der/den/des/dem/la/las/los count only right after one of the leading ones.
+NAME_PARTICLES = {"von", "van", "de", "zu", "vom", "zur", "zum", "ter", "ten", "di", "da", "del", "della", "du",
+                  "le", "dos", "das", "af", "av", "bin", "ibn", "al", "el", "y", "d", "l"}
+NAME_PARTICLES_AFTER = {"der", "den", "des", "dem", "la", "las", "los", "lo"}
+# Links and passwords (flagged in case texts: a case once carried an upload link and its password).
+LINK_OR_SECRET = re.compile(r"https?://|\bwww\.|\b(?:passwort|password|kennwort|zugangscode|zugangsdaten)\b",
+                            re.IGNORECASE)
+VOCAB_WORD = re.compile(r"[^\W\d_]+")
+
+
+# Outline labels (A., VI., IX, d), aa), 1., (2)): a line holding one is a
+# heading, not a name line. Roman numerals never count as a name.
+OUTLINE_TOKEN = re.compile(r"(?:[A-Z]|[a-z]{1,3}|\d{1,3}|[IVXLC]+)[.)]|\(\w{1,3}\)|[IVXLC]+")
+
+
+def is_name_token(token: str) -> bool:
+    """A capitalised word (Müller, Çelik, O'Neil, Müller-Lüdenscheid) or an
+    all-caps one of 4+ letters (MÜLLER; shorter all-caps words are mostly
+    abbreviations); letters of any script."""
+    parts = [p for p in re.split(r"[-'’]", token) if p]
+    if not parts or len(parts) > 3:
+        return False
+    capitalised = [p for p in parts if p not in NAME_PARTICLES]  # al-Hassan, d'Alembert
+    if not capitalised:
+        return False
+    for part in capitalised:
+        if not part.isalpha() or not part[0].isupper():
+            return False
+        if not (part[1:].islower() or part[1:] == "" or (part.isupper() and len(part) >= 4)
+                or re.fullmatch(r"(?:Mc|Mac)[A-Z][a-z]+", part)):
+            return False
+    return len(token) >= 2
+
+
+def name_shape(core: str, vocab: set[str]) -> bool:
+    """A standalone name line: 2-5 words, each a name or a particle, at least
+    two names, at least one name outside the exam's vocabulary. One comma is
+    allowed ("Surname, First"); a line with an outline label or with more
+    commas (a list of nouns) is not a name line."""
+    if core.count(",") > 1:
+        return False
+    tokens = []
+    for raw in core.replace(",", " ").split():
+        if OUTLINE_TOKEN.fullmatch(raw.rstrip(":;")):
+            return False
+        token = raw.strip(".:;()[]\"'„“")
+        if token:
+            tokens.append(token)
+    if not 2 <= len(tokens) <= 5:
+        return False
+    names, previous = [], None
+    for token in tokens:
+        low = token.casefold()
+        if low in NAME_PARTICLES or (low in NAME_PARTICLES_AFTER and previous in NAME_PARTICLES):
+            previous = low
+            continue
+        if not is_name_token(token):
+            return False
+        names.append(token)
+        previous = low
+    return len(names) >= 2 and any(n.casefold() not in vocab for n in names)
 
 
 class PiiLog:
@@ -184,13 +263,15 @@ class PiiLog:
         self.hits: list[dict[str, Any]] = []
         self.used: set[str] = set()
 
-    def category(self, core: str) -> str | None:
-        tokens = core.rstrip(":.,").split()
-        if (2 <= len(tokens) <= 3 and all(NAME_TOKEN.match(t) for t in tokens)
-                and any(t.casefold() not in self.vocab for t in tokens)):
+    def category(self, core: str, links: bool = False) -> str | None:
+        if NAME_LABEL.search(core):
+            return "labelled_name"
+        if name_shape(core, self.vocab):
             return "name_shape"
         if ID_KEYWORD.search(core) or LONG_NUMBER.search(core):
             return "id_keyword"
+        if links and LINK_OR_SECRET.search(core):
+            return "link_or_secret"
         return None
 
     def log(self, script_id: str, line_no: int, category: str, action: str, core: str) -> None:
@@ -201,7 +282,12 @@ class PiiLog:
             detail = f"  text: {core!r}" if self.show else ""
             print(f"PII UNLISTED {script_id} line {line_no} {category} sha256 {digest}{detail}")
 
-    def apply(self, script_id: str, text: str, examiner_rule: bool = True) -> str:
+    def apply(self, script_id: str, text: str, examiner: str = "strip", links: bool = False) -> str:
+        """The text without listed "redact" lines; every other hit is logged.
+
+        ``examiner`` "strip" removes short examiner lines (scripts); "flag"
+        treats them as a hit that must be listed (case texts, which must not
+        change silently). ``links`` also flags links and passwords."""
         kept = []
         for no, line in enumerate(text.split("\n")):
             core = norm_line(line)
@@ -215,10 +301,11 @@ class PiiLog:
             if entry is not None and entry.get("action") == "redact":
                 self.log(script_id, no, entry.get("category") or "listed", "redacted", core)
                 continue
-            if examiner_rule and len(core.split()) <= 8 and EXAMINER.search(core):
+            is_examiner = len(core.split()) <= 8 and EXAMINER.search(core)
+            if is_examiner and examiner == "strip":
                 self.log(script_id, no, "examiner_line", "stripped", core)
                 continue
-            category = self.category(core)
+            category = "examiner_line" if is_examiner else self.category(core, links=links)
             if category:
                 self.log(script_id, no, category, "allowed" if entry is not None else "UNLISTED", core)
             kept.append(line)
@@ -653,14 +740,164 @@ def overlap(scripts: list[dict[str, Any]], case_texts: list[str]) -> list[dict[s
     return pairs
 
 
+def mark_duplicates(scripts: list[dict[str, Any]], pairs: list[dict[str, Any]]) -> None:
+    """duplicate_of, duplicate_kind and related_to from the overlap pairs.
+
+    A pair where either script's 8-grams sit to DUPLICATE_AT in the other is
+    one text twice: the later script (pack order) is the duplicate of the
+    earlier one. "near_copy" when the later one is contained in the earlier
+    one; "copy_then_extend" when the earlier one is contained in the later
+    one, which adds text of its own (a copy that was then extended). Pairs
+    between RELATED_AT and DUPLICATE_AT are related_to each other.
+    """
+    order = {s["script_id"]: i for i, s in enumerate(scripts)}
+    by_id = {s["script_id"]: s for s in scripts}
+    for s in scripts:
+        s.update(duplicate_of=None, duplicate_kind=None, exclude_reason=None, related_to=[])
+    for p in sorted(pairs, key=lambda p: (order[p["a"]], order[p["b"]])):
+        a, b = by_id[p["a"]], by_id[p["b"]]
+        if order[p["b"]] > order[p["a"]]:
+            later, earlier, later_in_earlier, earlier_in_later = b, a, p["b_in_a"], p["a_in_b"]
+        else:
+            later, earlier, later_in_earlier, earlier_in_later = a, b, p["a_in_b"], p["b_in_a"]
+        if max(later_in_earlier, earlier_in_later) >= DUPLICATE_AT:
+            if later["duplicate_of"] is None and earlier["duplicate_of"] is None:
+                later["duplicate_of"] = earlier["script_id"]
+                later["duplicate_kind"] = "near_copy" if later_in_earlier >= DUPLICATE_AT else "copy_then_extend"
+        elif max(later_in_earlier, earlier_in_later) >= RELATED_AT:
+            share = max(p["a_in_b"], p["b_in_a"])
+            a["related_to"].append({"script_id": b["script_id"], "shared_8grams": share})
+            b["related_to"].append({"script_id": a["script_id"], "shared_8grams": share})
+
+
+def pull_files() -> list[Path]:
+    """The prod pull files of the D2 project, oldest first.
+
+    The project id prefix is local configuration (d2_pull_project in
+    .pilot.local.json or PILOT_D2_PULL_PROJECT); without it the folder must
+    hold pulls of exactly one project."""
+    folder = RAW / "platform_2026"
+    project = local_config.setting("d2_pull_project")
+    if project:
+        files = sorted(folder.glob(f"prod_{project}_pull_*.jsonl"))
+    else:
+        files = sorted(folder.glob("prod_*_pull_*.jsonl"))
+        projects = {f.name.split("_pull_", 1)[0] for f in files}
+        if len(projects) > 1:
+            raise SystemExit(f"{folder} holds pulls of {len(projects)} projects: set d2_pull_project in "
+                             ".pilot.local.json (or PILOT_D2_PULL_PROJECT)")
+    if not files:
+        raise SystemExit(f"no prod pull in {folder} (prod_<project>_pull_*.jsonl)")
+    return files
+
+
 # --- main ---------------------------------------------------------------------------------
+
+
+def check_report(pii: PiiLog, scripts: list[dict[str, Any]], case_texts: dict[str, Any],
+                 unlisted: list[dict[str, Any]]) -> int:
+    """--check: counts, ids and hashes only; nothing is written."""
+    counts: dict[str, collections.Counter] = collections.defaultdict(collections.Counter)
+    for h in pii.hits:
+        counts[h["category"]][h["action"]] += 1
+    print("PII hits by category and action: " + json.dumps({c: dict(a) for c, a in sorted(counts.items())}))
+    by_where = collections.Counter((h["script_id"], h["category"]) for h in unlisted)
+    print(f"unlisted: {len(unlisted)}" + ("" if not by_where else " (" + ", ".join(
+        f"{sid} {cat} x{n}" for (sid, cat), n in sorted(by_where.items())) + ")"))
+    dups = [(s["script_id"], s["duplicate_of"], s.get("duplicate_kind")) for s in scripts if s.get("duplicate_of")]
+    print(f"duplicates: {dups or 'none'}; related pairs: "
+          f"{sum(len(s['related_to']) for s in scripts) // 2}; excluded: "
+          f"{sorted((s['script_id'], s['exclude_reason']) for s in scripts if s.get('exclude_reason'))}")
+    print("case texts: " + ", ".join(f"{y} sha256 {c['sha256'][:12]} ({c['chars']} chars)"
+                                     for y, c in sorted(case_texts.items())))
+    print("check only: nothing written")
+    return 1 if unlisted else 0
+
+
+def selftest() -> int:
+    """The scanner and the overlap rules on synthetic lines (no pack data)."""
+    failures: list[str] = []
+
+    def check(name: str, ok: bool) -> None:
+        print(f"{'PASS' if ok else 'FAIL'}  {name}")
+        if not ok:
+            failures.append(name)
+
+    vocab = {w.casefold() for w in VOCAB_WORD.findall("Die Polizei Maßnahme Rechtmäßigkeit der Verfügung Anspruch")}
+    pii = PiiLog([], vocab, show=False)
+    hits = {
+        "two capitalised names": "Erika Mustermann",
+        "all caps": "ERIKA MUSTERMANN",
+        "particle von": "Anna von Beispielberg",
+        "particles van den": "Jan van den Voorbeeld",
+        "particle zu": "Karl zu Probenstein",
+        "Surname, First": "Mustermann, Erika",
+        "Surname, First with particle": "von Beispielberg, Anna",
+        "diacritics": "Zoë Çelik-Dvořák",
+        "apostrophe": "Siobhán O'Brien",
+        "label Bearbeiter": "Bearbeiter: E. Mustermann",
+        "label Name without value": "Name:",
+        "label Verfasserin": "Verfasserin – Mustermann",
+        "label Unterschrift": "Unterschrift: ______",
+    }
+    for name, line in hits.items():
+        check(f"scanner flags {name}", pii.category(norm_line(line)) is not None)
+    misses = {
+        "a heading in the exam vocabulary": "Rechtmäßigkeit der Maßnahme",
+        "a sentence": "Die Polizei hat die Verfügung erlassen und der Anspruch besteht.",
+        "one name alone": "Mustermann",
+        "an outline label": "A. Zulässigkeit",
+        "a roman outline label with a period": "VI. Unbekanntes Merkmal",
+        "a roman outline label without a period": "IX Unbekanntes Merkmal",
+        "a letter outline label": "d) Unbekannter Eingriff",
+        "a short all-caps abbreviation": "Materielle RMK",
+        "a list of nouns": "Unbekannte, Merkmale, Beispiele",
+    }
+    for name, line in misses.items():
+        check(f"scanner leaves {name}", pii.category(norm_line(line)) is None)
+    check("scanner flags a link only where links are checked",
+          pii.category("siehe https://example.org/upload") is None
+          and pii.category("siehe https://example.org/upload", links=True) == "link_or_secret")
+    check("scanner flags a password line in a case text", pii.category("Passwort: abc123", links=True) is not None)
+    case = "Zeile eins\nProf. Dr. Beispiel\nZeile drei"
+    flagged = PiiLog([], vocab, show=False)
+    kept = flagged.apply("case_2025", case, examiner="flag")
+    check("case texts: an examiner line is flagged, not stripped",
+          kept == case and [h["category"] for h in flagged.unlisted()] == ["examiner_line"])
+    stripped = PiiLog([], vocab, show=False).apply("H01", case)
+    check("scripts: an examiner line is stripped", "Beispiel" not in stripped)
+
+    base = " ".join(f"wort{i} satz{i} teil{i}" for i in range(80))
+    extra = " ".join(f"neu{i} zusatz{i} mehr{i}" for i in range(60))
+    other = " ".join(f"anders{i} fremd{i} text{i}" for i in range(80))
+    scripts = [{"script_id": "S1", "text": base}, {"script_id": "S2", "text": base + " " + extra},
+               {"script_id": "S3", "text": base}, {"script_id": "S4", "text": other}]
+    mark_duplicates(scripts, overlap(scripts, []))
+    by_id = {s["script_id"]: s for s in scripts}
+    check("overlap: a later copy that adds text is a duplicate (copy_then_extend)",
+          by_id["S2"]["duplicate_of"] == "S1" and by_id["S2"]["duplicate_kind"] == "copy_then_extend")
+    check("overlap: a later identical copy is a duplicate (near_copy)",
+          by_id["S3"]["duplicate_of"] == "S1" and by_id["S3"]["duplicate_kind"] == "near_copy")
+    check("overlap: an unrelated script stays independent",
+          by_id["S4"]["duplicate_of"] is None and not by_id["S4"]["related_to"])
+    shorter = [{"script_id": "L1", "text": base + " " + extra}, {"script_id": "L2", "text": base}]
+    mark_duplicates(shorter, overlap(shorter, []))
+    check("overlap: a later truncated copy is a near_copy of the longer original",
+          shorter[1]["duplicate_of"] == "L1" and shorter[1]["duplicate_kind"] == "near_copy")
+    print(f"\nselftest: {'FAILED ' + str(len(failures)) if failures else 'all passed'}")
+    return 1 if failures else 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build the local D2 pack (see the module docstring).")
     parser.add_argument("--show-unlisted", action="store_true", help="print the text of unlisted PII hits (local review)")
     parser.add_argument("--list", nargs="+", metavar="ARG", help="redact|allow SHA256 CATEGORY [SCRIPT_ID]")
+    parser.add_argument("--check", action="store_true",
+                        help="run the scanner and the overlap check, print counts only, write nothing")
+    parser.add_argument("--selftest", action="store_true", help="scanner and overlap rules on synthetic lines")
     args = parser.parse_args()
+    if args.selftest:
+        return selftest()
     if args.list:
         if len(args.list) not in (3, 4):
             parser.error("--list needs redact|allow SHA256 CATEGORY [SCRIPT_ID]")
@@ -668,12 +905,13 @@ def main() -> int:
 
     key = load_key()
     martin = key["martin_user_id"].strip()
-    OUT.mkdir(parents=True, exist_ok=True)
+    if not args.check:
+        OUT.mkdir(parents=True, exist_ok=True)
     res, steps, ref_rows, ref_sections = sheet_steps()
     keys = [s["key"] for s in steps]
 
     # ---- the prod pull: exam text, rubric, D2b submissions ----------------------------
-    pulls = sorted((RAW / "platform_2026").glob("prod_2ad6d500_pull_*.jsonl"))
+    pulls = pull_files()
     rows = [json.loads(line) for line in pulls[-1].read_text().splitlines() if line.strip()]
     end = next(r for r in rows if r["kind"] == "end")
     exam = next(r for r in rows if r["kind"] == "exam")
@@ -687,7 +925,7 @@ def main() -> int:
     sachverhalt, sv_meta = clean_sachverhalt(sv_raw)
     musterloesung, ml_meta = clean_musterloesung(ml_raw)
     bewertungsbogen_text, bb_emails = scrub(data.get("bewertungsbogen", ""))
-    vocab = {w.casefold() for t in (sachverhalt, musterloesung, bewertungsbogen_text) for w in words(t)}
+    vocab = {w.casefold() for t in (sachverhalt, musterloesung, bewertungsbogen_text) for w in VOCAB_WORD.findall(t)}
 
     # ---- D2a: PDF scripts + xlsx grades (first pass: raw text) ------------------------------
     pdfs = sorted((RAW / "scripts").glob("H??.pdf"))
@@ -697,7 +935,7 @@ def main() -> int:
     platform_texts = {a["annotation_id"]: next((e["value"].get("markdown") for e in a["result"]
                                                 if e.get("from_name") == "loesung" and isinstance(e.get("value"), dict)),
                                                "") or "" for a in annotations}
-    repair_vocab = set(vocab)
+    repair_vocab = {w.casefold() for t in (sachverhalt, musterloesung, bewertungsbogen_text) for w in words(t)}
     for text in ["\n".join(pages) for pages in raw_pages.values()] + list(platform_texts.values()):
         for char, rep in LIGATURE_CHARS.items():
             text = text.replace(char, rep)
@@ -810,36 +1048,10 @@ def main() -> int:
     states["current"]["scripts"] = sorted(set(states["current"]["scripts"])
                                           | {s["script_id"] for s in scripts if s["cohort"] == "D2b"})
 
-    # ---- PII gate ---------------------------------------------------------------------------------
-    unlisted = pii.unlisted()
-    if unlisted:
-        print(f"\nFAIL: {len(unlisted)} PII scanner hits are not listed in {KEY_FILE.name} redact_lines. "
-              "Review them locally (--show-unlisted) and list each one:\n"
-              "  extract_heidebach_pack.py --list redact|allow SHA256 CATEGORY SCRIPT_ID")
-        return 1
-
-    # ---- duplicates and overlap ----------------------------------------------------------------------
-    order = {s["script_id"]: i for i, s in enumerate(scripts)}
-    for s in scripts:
-        s.update(duplicate_of=None, exclude_reason=None, related_to=[])
-    by_id = {s["script_id"]: s for s in scripts}
-    pairs = overlap(scripts, [sachverhalt, musterloesung])
-    for p in sorted(pairs, key=lambda p: (order[p["a"]], order[p["b"]])):
-        a, b = by_id[p["a"]], by_id[p["b"]]
-        later, earlier, contained = (b, a, p["b_in_a"]) if order[p["b"]] > order[p["a"]] else (a, b, p["a_in_b"])
-        if contained >= DUPLICATE_AT and later["duplicate_of"] is None and earlier["duplicate_of"] is None:
-            later["duplicate_of"] = earlier["script_id"]
-        elif RELATED_AT <= max(p["a_in_b"], p["b_in_a"]) < DUPLICATE_AT:
-            share = max(p["a_in_b"], p["b_in_a"])
-            a["related_to"].append({"script_id": b["script_id"], "shared_8grams": share})
-            b["related_to"].append({"script_id": a["script_id"], "shared_8grams": share})
-    for s in scripts:
-        if s.get("author_account"):
-            s["exclude_reason"] = "exam_author_test_upload"
-        elif s["duplicate_of"]:
-            s["exclude_reason"] = "duplicate"
-
-    # ---- per-year case texts ------------------------------------------------------------------------
+    # ---- per-year case texts (scanned like the scripts; hashed as stored) ------------------------------
+    # Examiner lines, links and passwords are flagged, not stripped: a case
+    # text changes only through a listed "redact" line.
+    sachverhalt = collapse_blank_lines(pii.apply(f"case_{PLATFORM_YEAR}", sachverhalt, examiner="flag", links=True))
     case_texts = {PLATFORM_YEAR: {"sachverhalt": sachverhalt, "source": "platform task data (cleaned)",
                                   "sha256": sha(sachverhalt), "chars": len(sachverhalt)}}
     docx_checks = {}
@@ -849,13 +1061,34 @@ def main() -> int:
         if year == PLATFORM_YEAR:
             docx_checks[docx.name] = {"word_similarity_to_platform_text": similarity(text, sachverhalt)}
             continue
-        case_texts[year] = {"sachverhalt": collapse_blank_lines(text), "source": docx.name,
-                            "sha256": sha(text), "chars": len(text)}
+        text = collapse_blank_lines(pii.apply(f"case_{year}", collapse_blank_lines(text), examiner="flag", links=True))
+        case_texts[year] = {"sachverhalt": text, "source": docx.name, "sha256": sha(text), "chars": len(text)}
     loesung = RAW / "exam" / "Loesung.docx"
     if loesung.exists():
         docx_checks[loesung.name] = {"word_similarity_to_musterloesung": similarity(docx_text(loesung), musterloesung)}
     for s in scripts:
         s["case_text_year_mismatch"] = s["case_year"] not in case_texts
+
+    # ---- PII gate ---------------------------------------------------------------------------------
+    unlisted = pii.unlisted()
+    if unlisted:
+        print(f"\nFAIL: {len(unlisted)} PII scanner hits are not listed in {KEY_FILE.name} redact_lines. "
+              "Review them locally (--show-unlisted) and list each one:\n"
+              "  extract_heidebach_pack.py --list redact|allow SHA256 CATEGORY SCRIPT_ID")
+        if not args.check:
+            return 1
+
+    # ---- duplicates and overlap ----------------------------------------------------------------------
+    pairs = overlap(scripts, [sachverhalt, musterloesung])
+    mark_duplicates(scripts, pairs)
+    for s in scripts:
+        if s.get("author_account"):
+            s["exclude_reason"] = "exam_author_test_upload"
+        elif s["duplicate_of"]:
+            s["exclude_reason"] = "duplicate"
+
+    if args.check:
+        return check_report(pii, scripts, case_texts, unlisted)
 
     # ---- write ---------------------------------------------------------------------------------------
     save_key(key)
@@ -883,7 +1116,8 @@ def main() -> int:
     report = {
         "scripts": len(scripts), "cohorts": collections.Counter(s["cohort"] for s in scripts),
         "usable": len(usable), "usable_by_cohort": collections.Counter(s["cohort"] for s in usable),
-        "excluded": {s["script_id"]: {"reason": s["exclude_reason"], "duplicate_of": s["duplicate_of"]}
+        "excluded": {s["script_id"]: {"reason": s["exclude_reason"], "duplicate_of": s["duplicate_of"],
+                                      "duplicate_kind": s.get("duplicate_kind")}
                      for s in scripts if s["exclude_reason"]},
         "related": {s["script_id"]: s["related_to"] for s in scripts if s["related_to"]},
         "case_year": collections.Counter(f"{s['cohort']} {s['case_year']}" for s in scripts),
