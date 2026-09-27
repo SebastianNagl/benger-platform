@@ -42,8 +42,13 @@ analyze-cslaw:
 # scripts/local_config.py) and write aggregates only to
 # data/processed/cslaw/first_iteration_local.json. --check fails when a
 # stored-total recompute no longer reproduces its tracked value.
+# The creator-reference view of D1 (the exam creator's grade as the expert
+# reference) also needs the benchmark's ignored raw export and writes
+# data/processed/cslaw/creator_reference.json; it runs second because it
+# anchors on first_iteration_local.json.
 analyze-local:
 	uv run python scripts/analysis/cslaw_first_iteration_local.py --check
+	uv run python scripts/analysis/cslaw_creator_reference.py --check
 
 # Pulls from the LOCAL dev stack (requires docker + running benger-db-1).
 pull:
