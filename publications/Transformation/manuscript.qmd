@@ -215,6 +215,7 @@ KEY = DZ["default_key"]
 STAT = DZ["statutory_scale"]
 EXP = {e["id"]: e for e in DZ["experiments"]}
 COST = DZ["costs"]
+PF = DZ["partly_fixed"]
 LUNA, MINI = "gpt-5.6-luna", "gpt-5.4-mini"
 # The repeat-SD contrasts on step sums replace the stored-total ones; the
 # largest change is reported next to them.
@@ -321,53 +322,63 @@ reasons must not be marked as wrong [@bverfge84_34]. And a consequential error (
 penalised twice: a later step that correctly builds on the candidate's own earlier decision still
 earns credit.
 
-*Two expert paradigms.* We compare two expert sheets with our instrument (Table \ref{tab:paradigms}).
+*Three paradigms.* We compare three ways of grading with our instrument (Table \ref{tab:paradigms}).
 The exam author's sheet (D2) is a list of steps with absolute BE, grouped into sections. Gregor
 Roth's sheet for a civil-law exam (Z2) is hierarchical: its weighted items state their share of the
 parent item, and each of the `{python} Z2["weighted_leaves"]` weighted leaves is graded in whole points
 from `{python} num(Z2["leaf_grade_range"][0], 0)` to `{python} num(Z2["leaf_grade_range"][1], 0)`. His
 grading workbook multiplies the shares down to absolute weights and averages the leaf grades with
-them; its legend marks the one place where it adjusted the stated shares. Our instrument keeps the
-half-point BE of the first paradigm, adds requirement bullets, lets code do the arithmetic, and can
-elicit the weights in the way of either paradigm (@sec-pipeline).
+them; its legend marks the one place where it adjusted the stated shares. A third practice is
+common as well: about `{python} pct(PF["fixed_share"])` of the BE go to steps, and the grader
+distributes the remaining `{python} pct(PF["free_share"])` freely, for instance for structure or the
+overall impression. We do not adopt it: the free share is tied to nothing in the answer that a
+second grader or a judge could check, so it invites variance and cannot be reproduced. Our
+instrument keeps the half-point BE of the first paradigm, assigns every point to a step, adds
+requirement bullets, lets code do the arithmetic, and can elicit the weights in the way of either
+expert sheet (@sec-pipeline).
 
 ```{python}
 #| output: asis
 sh = D2["sheet"]
 ZW = Z2["workbook"]
 rows = [
-    ["Unit of credit", "absolute BE", "relative share per level", "BE, allocated by code"],
-    ["Total", f"{sh['total_be']} BE", "100\\%", f"{GEN['total_be']} BE"],
+    ["Unit of credit", "absolute BE", "relative share per level", "BE per step, plus a free share",
+     "BE, allocated by code"],
+    ["Total", f"{sh['total_be']} BE", "100\\%", f"100 BE, {pct(PF['fixed_share'])} fixed", f"{GEN['total_be']} BE"],
     ["Leaves", f"{sh['n_steps']} steps", f"{Z2['weighted_leaves']} leaves, up to {Z2['weighting_levels_below_part']} levels deep",
-     f"steps with {GEN['bullets_per_step'][0]}--{GEN['bullets_per_step'][1]} bullets"],
+     "steps for the fixed share", f"steps with {GEN['bullets_per_step'][0]}--{GEN['bullets_per_step'][1]} bullets"],
     ["Leaf scoring", f"BE on a {num(sh['grid_be'], 1)} grid",
      f"grade {num(Z2['leaf_grade_range'][0], 0)}--{num(Z2['leaf_grade_range'][1], 0)}, whole points",
-     "bullet status, step BE, or grade"],
+     "BE per step; the free share at discretion", "bullet status, step BE, or grade"],
     ["Largest step", f"{num(sh['max_step_be'], 0)} BE", f"{num(Z2['max_leaf_weight_pct'], 0)}\\% of the grade",
-     f"cap {num(GEN['max_step_be'], 0)} BE"],
-    ["Aggregation", "sum of BE", "weighted mean of grades", "sum of BE (both for grades)"],
-    ["Pass mark", f"{pct(sh['pass_share'])} of BE", f"grade {ZW['pass_from_grade']}", "the exam's key"],
-    ["Adjustment", "\\tbd", "manual bonus or malus", "none"],
+     "--", f"cap {num(GEN['max_step_be'], 0)} BE"],
+    ["Aggregation", "sum of BE", "weighted mean of grades", "sum of BE", "sum of BE (both for grades)"],
+    ["Pass mark", f"{pct(sh['pass_share'])} of BE", f"grade {ZW['pass_from_grade']}", "the exam's key",
+     "the exam's key"],
+    ["Adjustment", "\\tbd", "manual bonus or malus", f"the free {pct(PF['free_share'])}", "none"],
     ["Result items", "none; some titles",
-     f"{Z2['result_rows_weighted']} of {Z2['result_rows']} weighted", "none; with its reasoning"],
-    ["Graders per script", "one (see Section 5)", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)", "judge, $k$ passes"],
-    ["Alternatives", "\\tbd", "\\tbd", "bullets or forks"],
+     f"{Z2['result_rows_weighted']} of {Z2['result_rows']} weighted", "--", "none; with its reasoning"],
+    ["Graders per script", "one (see Section 5)", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)",
+     "--", "judge, $k$ passes"],
+    ["Alternatives", "\\tbd", "\\tbd", "--", "bullets or forks"],
 ]
 write_table(
     "tbl_paradigms",
-    "Two expert grading paradigms and our instrument. D2: the exam author's sheet; Z2: Gregor Roth's "
-    "sheet and workbook (we hold no case or scripts). \\tbd{} = to be completed with the examiners. "
+    "Three grading paradigms and our instrument. D2: the exam author's sheet; Z2: Gregor Roth's "
+    "sheet and workbook (no case or scripts); partly fixed: a common practice that leaves a share of the "
+    "BE to the grader (typical values; -- = not set). "
+    "\\tbd{} = to be completed with the examiners. "
     "\\pending{rows on alternatives and result items, confirmed with both examiners}",
     "tab:paradigms",
-    ["", "Exam author (D2)", "Roth (Z2)", "Our instrument"],
-    rows, colspec="llll", size=r"\footnotesize")
+    ["", "Exam author (D2)", "Roth (Z2)", "Partly fixed", "Our instrument"],
+    rows, colspec="l" + "".join(r">{\raggedright\arraybackslash}p{%.2f\textwidth}" % w for w in (0.16, 0.19, 0.18, 0.2)),
+    size=r"\footnotesize")
 ```
 
 *Q1: How should the BE be distributed?* The author's sheet spreads `{python} D2["sheet"]["total_be"]`
 BE over `{python} D2["sheet"]["n_steps"]` steps with at most `{python} num(D2["sheet"]["max_step_be"], 0)`
-BE per step. He re-weighted it between runs: the sheet exists in `{python} D2["sheet"]["n_states"]`
-states, and the earliest differs from the later ones in the maxima of several steps
-\pending{exam author to confirm what changed between the states}. We took the step-size guidance of
+BE per step. He re-weighted some steps between runs (@sec-d2) \pending{exam author: why}. We took
+the step-size guidance of
 our instrument (`{python} num(GEN["step_be_guidance"][0], 1)` to `{python} num(GEN["step_be_guidance"][1], 0)`
 BE per step, at most `{python} num(GEN["max_step_be"], 0)` BE) from the two expert sheets, so step
 size is an input of our design, not a finding. E6 compares the BE distributions of generated sheets
@@ -1189,27 +1200,23 @@ else:
                if _ss["sheet_sd_component"] <= 1.5 * _ss["pass_sd_pooled"] else
                "the sheet a generator happens to write adds more variance than the judge's own noise")
             + ", so a benchmark has to sample several sheets per generator.")
-    print(" ".join(parts))
+    print(" ".join(parts), end="")
     _mdes = [c["abs_error"]["mde"] for c in (VAL2 or {}).get("contrasts", []) if c["abs_error"].get("mde")]
     print(
-        f"\n\nThese numbers come from {D2['d2a']['n_scripts']} scripts of one exam. The observed spread of "
-        f"the paired differences puts the smallest detectable difference in absolute error at "
-        f"{num(min(_mdes), 1)} to {num(max(_mdes), 1)} points (80\\% power, $\\alpha$ = .05); we read them "
-        "as a first signal for the benchmark design, not as a ranking.")
+        f" With {D2['d2a']['n_scripts']} scripts of one exam, the observed paired spread puts the smallest "
+        f"detectable difference in absolute error at {num(min(_mdes), 1)} to {num(max(_mdes), 1)} points "
+        "(80\\% power, $\\alpha$ = .05): these are first signals, not a ranking.")
 ```
 
 ## Benchmark results (E1 to E7)
 
-\pending{E1 to E7}. The generator benchmark (E1) will report compliance, validator defects, the
-author's spot audit of `{python} EXP["E1"]["audit_bullets_per_sheet"]` bullets per sheet, validity on
-D1 and D2a, repeat and sheet-sample SD, alignment with the expert sheet, and the cost per valid sheet.
-The judge benchmark (E2) will report validity against the expert (MAE, bias, ICC(A,1), grades within
-one point, pass/fail $\kappa$), per-step agreement, repeat SD, the probe battery, the share of
-rejected quotes and cost. E3 will estimate variance components and test whether generator rankings
-hold across judges (Kendall's $\tau$). E4 will report the Pareto front of error, variance and cost and
-confirm the recommended configuration once on the blind expert grades of D2b. E5 compares the
-designs for alternative paths; E6 and E7 answer the questions of @sec-practice and compare the two
-expert paradigms on D2.
+\pending{E1 to E7}. E1 reports per generator compliance, validator defects, the author's spot audit
+of `{python} EXP["E1"]["audit_bullets_per_sheet"]` bullets per sheet, validity, repeat and
+sheet-sample SD, and cost per valid sheet; E2 per judge validity against the expert (incl. ICC(A,1)
+and pass/fail $\kappa$), per-step agreement, repeat SD, the probe battery and cost. E3 estimates
+variance components and rank stability across judges, E4 the Pareto front of error, variance and
+cost with one confirmation on D2b, E5 the designs for alternative paths; E6 and E7 answer
+@sec-practice.
 
 # Discussion {#sec-discussion}
 
@@ -1219,9 +1226,8 @@ expert paradigms on D2.
 itself. Whether it steadies a judge depends on the judge and the sheet together: across the capable
 judges the average effect was null, and one judge was steadier without a sheet. Second, mean
 agreement hides a failure that matters for every grade a student sees. Under detailed sheets, some
-judges gave near-full credit to empty and copied answers; Luna credited the empty answer on
-`{python} fc["tailored"][LUNA]["empty"]` of `{python} npas["tailored"][LUNA]["empty"]` passes under
-the sheet and on `{python} fc["holistic"][LUNA]["empty"]` with the holistic instrument. A probe
+judges gave near-full credit to empty and copied answers far more often than with the holistic
+instrument (@sec-first). A probe
 battery must therefore gate every judge and instrument before use, and code must tie every credit to
 the answer. Third, writing, using and auditing a sheet are different skills. The least compliant
 generator wrote the best sheets when it succeeded, and the automated audit favoured sheets that
@@ -1231,15 +1237,14 @@ graded harshly. Generator and judge must be chosen together, by outcome.
 
 *Implications for practice.* The pipeline is a research instrument. Its sheets make each credit
 auditable: an examiner can see which requirement a quote met and can correct the sheet itself, which
-a holistic score does not allow. Two uses fit the evidence so far. One is formative feedback on
-practice exams, where students already receive LLM grades and quote-backed credit makes that
-feedback checkable. The other is support for examiners who write sheets, where a generated draft is
-edited, not trusted. Grade-bearing assessment needs a human examiner.
+a holistic score does not allow. Two uses fit the evidence so far: checkable feedback on practice
+exams, and drafts that examiners edit rather than trust. Grade-bearing assessment needs a human
+examiner.
 \pending{recommended pipeline and its cost per script}
 
 # Limitations {#sec-limitations}
 
-*One expert exam.* D2 is one case in one area of law, graded by its author. D1 spans many exams, but
+*One expert exam.* D2 is one case in one area of law, graded on its author's sheet. D1 spans many exams, but
 its human reference is noisy. Results on D2 may not transfer to other exams, areas or examiners, and
 the second grader gives a human ceiling for one exam only.
 
@@ -1254,8 +1259,7 @@ this, but his spot audit of generated sheets is not independent.
 
 *Leakage.* During development, examples in the generator and judge prompts came from the D2 exam.
 We replaced them with neutral examples and added a canary check. The check is lexical and cannot
-rule out that the prompts were shaped while the expert sheet was in hand. The step-size guidance
-comes from the expert sheets by design.
+rule out that the prompts were shaped while the expert sheet was in hand.
 
 *Verification.* The verifier checks that a quote exists, not that it supports the credit
 (@sec-verifier). It rejects some correct quotes and cannot catch a real sentence quoted for the
@@ -1264,12 +1268,11 @@ wrong requirement.
 *Models and sampling.* GPT-5.6 Luna cannot be seeded. Even at temperature 0, DeepSeek-V4-Pro's
 totals varied between passes (repeat SD `{python} num(roster["deepseek-ai/DeepSeek-V4-Pro"]["repeat_sd"])`
 in the first iteration), so repeat SD mixes model, sampling and serving effects. Providers change and retire models; we record model ids and
-dates. The prior study's repeat baseline ran on a judge that has since been retired; the matched
-arms remove this confound from every contrast we interpret.
+dates. The prior study's repeat baseline ran on a retired judge; no contrast we interpret uses it.
 
-*Exploratory design.* Nothing was pre-registered, many comparisons are reported, and the precision
-limits of @sec-experiments apply. The held-out confirmation on D2b is used once. The first-iteration
-results are exploratory too; several of its arms were added after earlier results were known.
+*Exploratory design.* Nothing was pre-registered and many comparisons are reported
+(@sec-experiments). The confirmation on D2b is used once. Several first-iteration arms were added
+after earlier results were known.
 
 # Ethics {#sec-ethics}
 
@@ -1303,9 +1306,8 @@ The platform, including the judge, the verifier and the aggregation code, is ope
 analysis scripts and every aggregate this paper reports (`make analyze-cslaw`; the D2 and Z2
 aggregates need the private data, `make analyze-d2`). The generator is part of a proprietary extension of the
 platform. \pending{owner decision: release of the generator prompt, output specification and validator rules}
-For D1 we follow the first study: its exam texts are third-party material and are not
-redistributed, and the generated sheets are withheld with them because they enumerate the model
-solutions. D2 and Roth's sheet are private, and we publish only aggregates
+D1's exam texts are third-party material and are not redistributed, nor are the generated sheets,
+which enumerate the model solutions. D2 and Roth's sheet are private, and we publish only aggregates
 (Appendix \ref{sec-app-datastatement}).
 
 # AI usage {#sec-ai}
@@ -1313,7 +1315,7 @@ solutions. D2 and Roth's sheet are private, and we publish only aggregates
 For the first iteration the authors used OpenAI GPT-5.6 Sol to discuss approaches and Anthropic
 Claude Fable 5 for coding and writing assistance. For the extended study, Anthropic Claude Opus 5.5
 was used for coding, for `{python} DZ["statistics"]["review_rounds"]` independent review rounds of the
-instrument and the analysis, which are part of the method record, and for writing assistance,
+instrument and the analysis, and for writing assistance,
 including an AI-assisted literature scan. All results were verified by the authors, and all
 citations were checked against their sources. The authors take full responsibility for the paper.
 
@@ -1324,8 +1326,7 @@ German Federal Ministry of Justice as part of the *Digitalisierungsinitiative de
 Justiz* under the GSJ project (*Generatives Sprachmodell der Justiz*), a collaboration between the
 justice ministries of North Rhine-Westphalia and Bavaria, TU Munich, and the University of Cologne.
 We thank Gregor Roth \pending{affiliation} for sharing his grading sheet and workbook, the second
-grader, and the students who allowed us to use their scripts. \pending{name of the second grader,
-subject to permission}
+grader \pending{name}, and the students who allowed us to use their scripts.
 :::
 
 ```{=latex}

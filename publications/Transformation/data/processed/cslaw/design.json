@@ -165,6 +165,11 @@
    "grade_files_with_private_email": 9
   }
  },
+ "partly_fixed": {
+  "source": "owner (2026-09-27): a common practice among examiners; not adopted",
+  "fixed_share": 0.8,
+  "free_share": 0.2
+ },
  "experiments": [
   {
    "id": "E0",

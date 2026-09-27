@@ -152,6 +152,14 @@ D2 = {
     "pii": {"student_name_lines_removed": 1, "examiner_headers_removed": 1, "grade_files_with_private_email": 9},
 }
 
+# A third grading practice for Table 1: most BE go to steps, a free share is
+# left to the grader. Typical values, not a specific sheet.
+PARTLY_FIXED = {
+    "source": "owner (2026-09-27): a common practice among examiners; not adopted",
+    "fixed_share": 0.8,
+    "free_share": 0.2,
+}
+
 EXPERIMENTS = [
     {"id": "E0", "name": "Gate v2 and instrument freeze", "rq": ["RQ1", "RQ5"],
      "scope": "D2 and 4 D1 exams; the expert sheet (step and rating units), one checklist sheet each from "
@@ -247,6 +255,7 @@ def main() -> int:
         "default_key": default_key(),
         "generator": GENERATOR,
         "d2": D2,
+        "partly_fixed": PARTLY_FIXED,
         "experiments": EXPERIMENTS,
         "costs": COSTS,
         "probes": PROBES,
