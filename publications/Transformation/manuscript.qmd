@@ -51,7 +51,7 @@ abstract: |
   LLM judges can grade free-text legal exam solutions at scale, but their scores vary across judges
   and across repeated runs. Careful examiners reduce such variance with a grading sheet
   (*Bewertungsbogen*) that splits the expected solution into small steps worth a fixed number of
-  points. We ask whether a sheet generated automatically from the case and its model solution
+  points. We ask whether a sheet generated automatically from the case and its reference solution
   reduces the variance of LLM grading of German law exams, and at what cost to agreement with human
   graders. In a first iteration, twelve models generated sheets for 15 exams, and judges re-graded
   45 answers with blind human grades. The sheets did not make capable judges steadier on average:
@@ -248,20 +248,21 @@ V = {
 # Introduction {#sec-intro}
 
 German law students learn and are examined through case solutions (*Falllösungen*). A candidate
-receives a set of facts (*Sachverhalt*) and writes a legal opinion in a prescribed appraisal style
+receives a fact pattern (*Sachverhalt*) and writes a legal opinion in a prescribed appraisal style
 (*Gutachtenstil*). The state examinations grade such opinions on a statutory scale from 0 to
 `{python} V["R18"]` points [@jurprnotskv1981]. Grading them is hard. Different examiners give the
 same script different grades [@hufeld2024]. To grade consistently, correctors often build a point
 scheme over the expected solution before they grade [@frenzel2011korrektur]. Many do this with a grading sheet
 (*Bewertungsbogen*): the expected solution split into small steps, each worth a number of points
-(*Bewertungseinheiten*, BE), and a key that maps the BE total to a grade.
+(*Bewertungseinheiten*, BE), and a key that maps the BE total to a grade. German terms are glossed
+at first use; a consolidated glossary is in Appendix \ref{sec-app-glossary}.
 
 Large language models (LLMs) can grade such texts at scale. On German case solutions, an LLM judge
 with one rubric for all exams tracks human graders on average, but its scores vary between judges
 and between repeated runs [@nagl2026bengerdata]. This paper studies the obvious remedy: let one
-model write an exam-specific grading sheet from the case and its model solution (*Musterlösung*),
+model write an exam-specific grading sheet from the case and its reference solution (*Musterlösung*),
 and let a judge model grade against it. If it works, the sheet becomes an auditable, editable
-artifact between the model solution and the grade, which an examiner can read and correct.
+artifact between the reference solution and the grade, which an examiner can read and correct.
 
 A first iteration tested this remedy with a rich step-score sheet on `{python} V["n_exams"]` exams
 with `{python} V["n_answers"]` answers and blind human grades. The sheets did not make capable judges
@@ -277,14 +278,14 @@ German examination law requires of such an instrument. Four research questions f
   and how many students would be misclassified at the pass mark?
 - **RQ3 Generators and judges.** Which models write sheets that grade validly and cheaply, and which
   judges use them well?
-- **RQ4 Law.** Does the instrument meet what German examination law asks of grading (tenable
-  alternative solutions, consequential errors, reasons for each credit, equal treatment), and which
+- **RQ4 Law.** Does the instrument meet what German examination law asks of grading (defensible
+  alternative solutions, follow-on errors, reasons for each credit, equal treatment), and which
   uses does the evidence support?
 
 Our contributions are:
 
 1. A grading-sheet pipeline that turns doctrine into checkable structure: requirement bullets with a
-   standard of assessment, structural forks for tenable alternative solutions, owed auxiliary
+   standard of assessment, structural forks for defensible alternative solutions, owed auxiliary
    opinions, credit only for quotes that code verifies, and arithmetic done by code (@sec-pipeline).
 2. A crossed variance study that separates pass, judge and sheet-sampling variance on all scripts of
    an expert exam and compares sheets with averaging passes at equal cost (RQ1).
@@ -305,12 +306,12 @@ before their grades exist. Every run records the hashes of its code, prompts and
 \draftnote{to be co-written with the exam author; every pending item below needs his input or experiments E2, E4 and E5}
 
 *The setting.* The statutory scale has `{python} V["bands"]` named bands from 0 to
-`{python} V["R18"]` points; `{python} V["pass_np"]` points (*ausreichend*) is the lowest pass
+`{python} V["R18"]` points; `{python} V["pass_np"]` points ("sufficient", *ausreichend*) is the lowest pass
 grade [@jurprnotskv1981]. Examiners in the state examinations grade holistically. Many first write
 down the expected solution and what each part is worth [@frenzel2011korrektur]. University exams
 often make this explicit: a sheet assigns BE to steps, and a key maps the BE total to the scale. Two
-principles shape every sheet. A tenable solution (*vertretbare Lösung*) that is argued with sound
-reasons must not be marked as wrong [@bverfge84_34]. And a consequential error (*Folgefehler*) is not
+principles shape every sheet. A defensible solution (*vertretbare Lösung*) that is argued with sound
+reasons must not be marked as wrong [@bverfge84_34]. And a follow-on error (*Folgefehler*) is not
 penalised twice: a later step that correctly builds on the candidate's own earlier decision still
 earns credit.
 
@@ -380,7 +381,7 @@ with the author's sheet and E5 with Roth's. \pending{BE distribution of the expe
 spotted or an argument made. No step credits a bare result; some step titles state a sub-result
 instead. Our generator follows the same rule: no step may credit only an intermediate or
 final result: a result earns credit only together with the reasoning that carries it, and where
-several results are tenable the bullets credit the argument, not the result. Whether
+several results are defensible the bullets credit the argument, not the result. Whether
 method (structure, appraisal style, precise language) earns separate credit is open
 \pending{exam author}. The first iteration kept style outside the points as a separate construct.
 
@@ -405,7 +406,7 @@ of the leaf grades is reported next to it.
 
 *Q5: How are cardinal errors treated?* Some errors are grave enough that examiners limit the grade
 as a whole. \pending{exam author: definition, examples and expected loss} Our instrument has no such
-cap yet. The consequential-error rule and the standard of each bullet decide how far an early error
+cap yet. The follow-on-error rule and the standard of each bullet decide how far an early error
 propagates (@sec-judge). E4 runs `{python} EXP["E4"]["kardinalfehler_probes"]` probes with the losses
 the author expects.
 
@@ -439,7 +440,7 @@ criteria, expert-written or official rubrics, and atomic judging [@fan2026lexam;
 @chlapanis2025greekbarbench; @shi2026plawbench; @pires2025automatic; @pires2026magisbench;
 @enguehard2025lemaj; @zubaer2026gradelegal; @cope2026grading]. All of them assume an
 expert-written scheme. To our knowledge, no prior work generates the exam-specific point scheme,
-turns tenable alternative solutions into scoreable paths, and validates the result against the
+turns defensible alternative solutions into scoreable paths, and validates the result against the
 exam's author on his own sheet and scale. Empirical work on German exam grading documents low
 agreement between examiners [@hufeld2024] and describes how examiners should correct
 [@frenzel2011korrektur]; we add a model of the grading sheet that makes these practices explicit.
@@ -465,7 +466,7 @@ tikz = rf"""\begin{{figure}}[t]
               text width=27mm, inner sep=2pt}},
   model/.style={{box, fill=blue!8}}, code/.style={{box, fill=green!10}}, data/.style={{box, fill=black!6}},
   arr/.style={{-{{Stealth[length=1.8mm]}}, semithick}}]
-\node[data] (case) {{\textbf{{Case}}\\ facts and\\ model solution}};
+\node[data] (case) {{\textbf{{Case}}\\ facts and\\ reference solution}};
 \node[model, right=of case] (gen) {{\textbf{{Generator (LLM)}}\\ steps, bullets, shares,\\ forks and paths}};
 \node[code, right=of gen] (val) {{\textbf{{Validator (code)}}\\ strict and soft checks,\\ feedback}};
 \node[code, right=of val] (alloc) {{\textbf{{Allocation (code)}}\\ Hamilton on {GEN['half_units']}\\ half-units}};
@@ -479,12 +480,12 @@ tikz = rf"""\begin{{figure}}[t]
 \draw[arr] (alloc) -- (render); \draw[arr] (render) -- (judge); \draw[arr] (judge) -- (ver); \draw[arr] (ver) -- (agg);
 \draw[arr] (ans) -- (judge); \draw[arr] (ans.west) -| (ver.south);
 \end{{tikzpicture}}
-\Description{{Flow diagram. Case facts and model solution go to an LLM generator, then to a code validator
+\Description{{Flow diagram. Case facts and reference solution go to an LLM generator, then to a code validator
 that returns violations to the generator, then to code allocation, code rendering, an LLM judge that also
 receives the student answer, a code verifier that checks the judge's quotes against the answer, and code
 aggregation into a total and a grade.}}
 \caption{{The grading-sheet pipeline. Blue: model steps; green: code. The judge also receives the case facts
-and the model solution as context. Levers per stage are listed in Table~\ref{{tab:levers}}.}}
+and the reference solution as context. Levers per stage are listed in Table~\ref{{tab:levers}}.}}
 \label{{fig:pipeline}}
 \end{{figure}}
 """
@@ -494,32 +495,32 @@ print("```{=latex}\n\\input{assets/fig_pipeline.tex}\n```\n")
 
 ## Case preparation
 
-Each exam provides a case text and a model solution. We clean both: markup escapes and tables of
+Each exam provides a case text and a reference solution. We clean both: markup escapes and tables of
 contents are removed, footnotes are kept. A script is graded against the case text of its own year.
 
 ## Generation: the checklist sheet {#sec-generation}
 
-The generator receives the case text, the model solution and a fixed output specification, the same
+The generator receives the case text, the reference solution and a fixed output specification, the same
 for every model, through plain text completion. It returns one JSON document:
 
 - *Sections and steps.* Each step names one expected legal performance and carries a relative
-  weight. Klausurschwerpunkte (the exam's focal problems) are marked groups of steps.
+  weight. The exam's focal problems (*Klausurschwerpunkte*) are marked groups of steps.
 - *Requirement bullets.* Each step has `{python} GEN["bullets_per_step"][0]` to
   `{python} GEN["bullets_per_step"][1]` bullets, each with a relative share and a standard
-  (*Maßstab*): *richtig* (judged against the correct law) or *folgerichtig* (judged against the
-  candidate's own earlier decision, the consequential-error principle at bullet level). A bullet
+  (*Maßstab*): correct (*richtig*, judged against the correct law) or consistent (*folgerichtig*,
+  judged against the candidate's own earlier decision, the follow-on-error principle at bullet level). A bullet
   describes a performance that stands in the answer and can be quoted. No bullet may be met by an
   absence, none may be conditional, and none may ask only for a norm, a term or a result to be named.
   A step above `{python} num(GEN["two_bullets_above_be"], 0)` BE needs at least two bullets.
 - *Forks and solution paths.* A dispute that changes only a result or its reasons stays inside a
   step as an outcome-neutral bullet. A structural fork (*Weichenstellung*) exists only where another
-  tenable decision drops a step of the model solution's path or adds a step with its own
+  defensible decision drops a step of the reference solution's path or adds a step with its own
   prerequisites. Each alternative path (*Lösungsweg*) carries its own steps, the reasoning that makes
-  it tenable (*Vertretbarkeitsanforderungen*), and the budget of the steps it replaces.
+  it defensible (*Vertretbarkeitsanforderungen*), and the budget of the steps it replaces.
 - *Owed auxiliary opinions.* Steps or sections can be marked as owed even when the candidate's own
   decision cuts them off (*Hilfsgutachten*), for instance when a contractual claim already fails at
   formation. The marker names the triggering decision.
-- *Work results.* Each step belongs to an *Arbeitsergebnis*, such as an opinion or a draft judgment.
+- *Work results.* Each step belongs to a work result (*Arbeitsergebnis*), such as an opinion or a draft judgment.
 
 The model states weights, never points. How it states them is a lever with three settings: flat
 weights over all steps; hierarchical shares, where each level states its share of the parent (Roth's
@@ -565,14 +566,14 @@ thing in different words pass.
 ## Rendering {#sec-rendering}
 
 Code renders the sheet for the judge: sections, steps with their BE, bullets with their share in
-percent and their standard, forks with their paths and tenability requirements, and notes on owed
+percent and their standard, forks with their paths and defensibility requirements, and notes on owed
 auxiliary opinions. A second view merges consecutive steps of a section until a merged step reaches
 about `{python} num(GEN["merged_view_target_be"], 0)` BE, without crossing a focal group, a fork or an
 auxiliary-opinion marker. Totals do not change. The two views isolate step size as a lever.
 
 ## Judging {#sec-judge}
 
-The judge receives four tagged inputs with fixed roles: the case, the model solution (a reference,
+The judge receives four tagged inputs with fixed roles: the case, the reference solution (a reference,
 not the answer), the rendered sheet and the answer. It returns JSON under a schema derived from the
 sheet. There are `{python} len(JDG["score_units"])` scoring units. In the *bullet* unit the judge marks
 each requirement as met, partly met or not met, which code credits with
@@ -585,17 +586,17 @@ quote from the answer. The judge's rules are fixed:
 - *Placement.* Work counts for the step whose requirement it meets, even if it stands elsewhere in
   the same question and work result; the step is then flagged as misplaced. It counts once, and work
   on another question counts only if the answer refers to it explicitly.
-- *Consequential errors.* *Folgerichtig* bullets are judged on the answer's own earlier decisions.
+- *Follow-on errors.* Bullets with the consistent standard are judged on the answer's own earlier decisions.
   Other bullets are judged on the correct law, but an error that has already cost credit is not
   charged again; the judge records the chain.
 - *Auxiliary opinions.* Work on questions that the answer's own decision cut off earns credit like
   work in the main opinion. It never replaces the main result.
-- *Alternatives.* In design A0 (*replace*) the judge puts the work on another tenable path onto the
+- *Alternatives.* In design A0 (*replace*) the judge puts the work on another defensible path onto the
   replaced steps. In the *branch* designs the judge scores every path's steps and declares, with a
   quote, which path the answer follows; a path counts as followed only if the answer argues it as its
-  tenability requirements demand. A2 counts the declared path (the model solution's path if the quote
+  defensibility requirements demand. A2 counts the declared path (the reference solution's path if the quote
   fails), A1 the best-scoring path; one call yields both.
-- *Unforeseen paths.* If the answer takes a tenable path that the sheet does not foresee, the judge
+- *Unforeseen paths.* If the answer takes a defensible path that the sheet does not foresee, the judge
   scores the functionally corresponding step at equal depth of reasoning and flags it; such a script
   goes to human review.
 - *General rules.* Contradictory results without a decision fail the requirement on the result.
@@ -743,7 +744,7 @@ verifier's precision and recall on human-checked quotes. Cost and latency are me
 *Probe battery.* Before any benchmark run, each judge and instrument passes a battery of synthetic
 answers over `{python} DZ["probes"]["passes"]` passes (Appendix \ref{sec-app-probes}): negative probes (an empty
 answer, the case text, another exam's solution, a keyword list, an injected instruction) must score
-near zero; the exam's own model solution must score high; removing one section of the model solution
+near zero; the exam's own reference solution must score high; removing one section of the reference solution
 must cost about that section's BE; moving correct reasoning under another heading must cost almost
 nothing.
 
@@ -796,7 +797,7 @@ gen_s = G["per_generator"]
 
 The first iteration asked `{python} V["n_gens"]` generators for one step-score
 sheet per exam. Each step carried a weight class, ordered partial-credit levels, provenance and
-consequential-error rules; alternative paths replaced named steps within their budget. A seeded
+follow-on-error rules; alternative paths replaced named steps within their budget. A seeded
 random draw fixed one valid sheet per exam for all judges. Judges graded the `{python} V["n_answers"]`
 answers against the drawn sheet and, in matched arms, against the *holistic* instrument of the prior study
 [@nagl2026bengerdata] (the same `{python} V["n_dims"]` dimensions for every exam) over `{python} passes` passes. A few-shot arm
@@ -911,7 +912,7 @@ not (`{python} num(AG["luna"]["zs_step_sum"]["mae"], 1)` to
 to `{python} cor(JU["capable_r_range"][1])`; Claude Opus 5 and GPT-5.6 Terra, one pass each,
 `{python} cor(extra["claude-opus-5"]["r"])` and `{python} cor(extra["gpt-5.6-terra"]["r"])`. A battery of
 `{python} PR["n_probes_per_type"]` degenerate answers per type (the case text verbatim, a near-empty
-answer, another exam's model solution) and each exam's own model solution as a positive control
+answer, another exam's reference solution) and each exam's own reference solution as a positive control
 tested execution (Table \ref{tab:probes}). Only `{python} " and ".join(NAME[j] for j in PR["clean_battery"])`
 passed the negative battery on every pass. Luna credited the near-empty answer on
 `{python} fc["tailored"][LUNA]["empty"]` of `{python} npas["tailored"][LUNA]["empty"]` zero-shot passes and
@@ -1076,11 +1077,11 @@ write_table(
     "Probe battery on the expert exam. Battery: six degenerate answers (empty, repeated case text, "
     "off-topic, same-area off-topic, keyword list, injected instruction) must score 0 or near 0 on "
     "every pass; max is the highest score any of them received. Proposed: the highest of the judge's "
-    "per-probe median totals on those answers before the evidence rules. ML: the model solution. "
-    "Ablation: points lost when one part of the model solution is removed, observed / expected; the "
+    "per-probe median totals on those answers before the evidence rules. ML: the reference solution. "
+    "Ablation: points lost when one part of the reference solution is removed, observed / expected; the "
     "expected loss is the sheet's BE for the steps matched by name to the removed part, a heuristic. "
     "Misplaced: points lost when one correct paragraph is moved under another heading. Flip: points "
-    "lost when the results of the model solution are negated.",
+    "lost when the results of the reference solution are negated.",
     "tab:gate2",
     ["Instrument", "Judge", "Passes", "Battery", "Max", "Proposed", "ML", "Ablation", "Misplaced", "Flip"],
     grows or [[r"\tbd"] * 10], colspec="llrlrrrrrr", size=r"\footnotesize", wide=True)
@@ -1093,7 +1094,7 @@ its second pass stopped for time) passed the battery on every instrument they we
 \ref{tab:gate2}): no degenerate answer received points. The plan asks for `{python} DZ["probes"]["passes"]` passes, and
 GPT-5.4 Mini as a judge and the second GPT-5.4 Mini sheet were not gated; their rows in Table
 \ref{tab:val2} are marked. Removing one
-part of the model solution cost about as many points as the sheet assigns to that part, and moving
+part of the reference solution cost about as many points as the sheet assigns to that part, and moving
 a correct paragraph under another heading cost almost nothing. On the
 expert sheet in the step unit, Luna still proposed half a point for every step of an empty or
 off-topic answer, and only the rule that a credit needs a quote removed them; on the checklist
@@ -1300,7 +1301,7 @@ analysis scripts and every aggregate this paper reports (`make analyze-cslaw`; t
 aggregates need the private data, `make analyze-d2`). The generator is part of a proprietary extension of the
 platform. \pending{owner decision: release of the generator prompt, output specification and validator rules}
 D1's exam texts are third-party material and are not redistributed, nor are the generated sheets,
-which enumerate the model solutions. D2 and Roth's sheet are private, and we publish only aggregates
+which enumerate the reference solutions. D2 and Roth's sheet are private, and we publish only aggregates
 (Appendix \ref{sec-app-datastatement}).
 
 # AI usage {#sec-ai}
@@ -1339,6 +1340,36 @@ grader \pending{name}, and the students who allowed us to use their scripts.
 :::
 
 # Appendix
+
+# Glossary of German terms {#sec-app-glossary}
+
+```{python}
+#| output: asis
+# Shared terms carry the companion paper's glosses word for word [@nagl2026bengerdata].
+GLOSSARY_ROWS = [
+    (r"\emph{Falllösung}", "Written case solution: the end-to-end work product that is graded."),
+    (r"\emph{Sachverhalt}", "Fact pattern: the facts of the case the candidate works on."),
+    (r"\emph{Gutachtenstil}", "Appraisal style: the conclusion follows the reasoning; the register graded here."),
+    (r"\emph{Musterlösung}", "Expert reference solution against which submissions are graded."),
+    (r"\emph{ausreichend}", "``Sufficient'': lowest passing grade (4-6 of 18 points)."),
+    (r"\emph{Bewertungsbogen}", "Grading sheet: the expected solution split into steps, each worth a number of BE."),
+    (r"\emph{Bewertungseinheiten} (BE)", "Points on a grading sheet; 100 per exam here, in half points."),
+    (r"\emph{Klausurschwerpunkte}", "The exam's focal problems."),
+    (r"\emph{Maßstab}", "The standard a requirement bullet is judged by: \emph{richtig} or \emph{folgerichtig}."),
+    (r"\emph{richtig}", "Correct: judged against the correct law."),
+    (r"\emph{folgerichtig}", "Consistent: judged against the candidate's own earlier decision."),
+    (r"\emph{vertretbare Lösung}", "Defensible solution: one argued with sound reasons, which must not be marked as wrong."),
+    (r"\emph{Folgefehler}", "Follow-on error: an error that later steps build on; it is not penalised twice."),
+    (r"\emph{Weichenstellung}", "Structural fork: a defensible decision that changes the further structure of the solution."),
+    (r"\emph{Lösungsweg}", "Alternative path after a structural fork, with its own steps."),
+    (r"\emph{Vertretbarkeitsanforderungen}", "The reasoning that makes an alternative path defensible."),
+    (r"\emph{Hilfsgutachten}", "Auxiliary opinion: the part a candidate still owes after a decision that ends the case."),
+    (r"\emph{Arbeitsergebnis}", "Work result, such as an opinion or a draft judgment."),
+    (r"\emph{Kardinalfehler}", "Cardinal error: an error grave enough to limit the grade as a whole."),
+]
+write_table("tbl_glossary", "German terms used in this paper and their glosses.", "tab:glossary",
+            ["Term", "Gloss"], GLOSSARY_ROWS, colspec="lp{0.66\\textwidth}", size=r"\footnotesize")
+```
 
 # Defects of the first-iteration pipeline {#sec-app-corrections}
 
@@ -1480,7 +1511,7 @@ write_table(
     "First iteration, probe battery by arm and judge: negative-battery verdict (fail($N$) = failing passes), "
     "positive control, and the median/p95/max score per probe type. Criteria on every pass: "
     f"repetition {crit_tex(crit['repetition'].split(' on')[0])}, empty {crit_tex(crit['empty'].split(' on')[0])}, "
-    f"off-topic {crit_tex(crit['offtopic'].split(' on')[0])}, model solution {crit_tex(crit['musterloesung'].split(' on')[0])}.",
+    f"off-topic {crit_tex(crit['offtopic'].split(' on')[0])}, reference solution {crit_tex(crit['musterloesung'].split(' on')[0])}.",
     "tab:probes", ["Arm, judge", "Battery", "Pos.", "Repetition", "Empty", "Off-topic", "Model sol."],
     prow2, size=r"\scriptsize\setlength{\tabcolsep}{3.5pt}")
 ```
@@ -1599,7 +1630,7 @@ write_table(
 
 The probe battery runs per judge and instrument over `{python} DZ["probes"]["passes"]` passes before
 any benchmark run (Table \ref{tab:probes2}). A judge that fails a criterion on any pass is not used
-with that instrument. An alternative-path probe follows in E4: the model solution rewritten along one
+with that instrument. An alternative-path probe follows in E4: the reference solution rewritten along one
 alternative path and checked by the exam author.
 
 ```{python}
@@ -1617,7 +1648,7 @@ fragment passes:
 
 - *Normalization.* Unicode normalization; literal line-break escapes, markup escapes, footnote marks,
   emphasis markers and inline HTML removed; quotation marks and dashes unified; the result marks
-  "(+)" and "(-)" turned into the words *positiv* and *negativ*; case folded; whitespace collapsed.
+  "(+)" and "(-)" turned into the words *positiv* and *negativ* (positive, negative); case folded; whitespace collapsed.
 - *Fragments.* A quote is split at ellipses. Each fragment needs at least
   `{python} VER["min_tokens"]` tokens, or two tokens with `{python} VER["two_token_min_chars"]` letters
   together, and more than a norm citation. The whole quote needs `{python} VER["min_word_chars"]` word
@@ -1629,10 +1660,10 @@ fragment passes:
   `{python} VER["typo_min_chars"]` letters may differ by one edit or a small inflection. Glued passages
   without an ellipsis are checked sentence by sentence.
 - *Protected tokens.* Negations, result words and their antonyms (including every *un-* form),
-  qualifiers such as *nur* and *teilweise*, Roman numerals and every token with a digit must match
+  qualifiers such as *nur* (only) and *teilweise* (partly), Roman numerals and every token with a digit must match
   exactly. They may not be dropped, added, swapped or stepped over. Numbers never match part of a
   longer number.
-- *Edges.* A match fails if a negation or a condition (*ob*, *wenn*, *falls*, *sofern*, *soweit*)
+- *Edges.* A match fails if a negation or a condition (*ob*, *wenn*, *falls*, *sofern*, *soweit*: whether, if, in case, provided, insofar)
   stands right before it in the same clause, or a negation, a negative result mark or a condition
   right after it in the same sentence.
 
@@ -1655,20 +1686,20 @@ shorter than `{python} GEN["bare_naming_min_words"]` words; a sheet on which mos
 
 A dispute that changes only a result or its reasons (a local alternative) stays inside a step as an
 outcome-neutral bullet, such as "discusses the dispute with the arguments of both sides; both results
-tenable". A structural fork replaces named steps of the model solution's path with the steps of each
+defensible". A structural fork replaces named steps of the reference solution's path with the steps of each
 alternative path, within the same budget. We compare three designs (E4):
 
-- *A0, replace.* Only the model solution's path is scored. The rendered sheet tells the judge to
-  credit work on another tenable path on the replaced steps. This is the first iteration's design; it
+- *A0, replace.* Only the reference solution's path is scored. The rendered sheet tells the judge to
+  credit work on another defensible path on the replaced steps. This is the first iteration's design; it
   needs the step or rating unit, because a bullet of a replaced step describes that step's own
   requirement.
 - *A1, branch, best path.* The judge scores the steps of every path; code counts the path with the
   most points.
 - *A2, branch, declared path.* As A1, but code counts the path the judge declares the answer follows,
-  backed by a verified quote; without one it counts the model solution's path.
+  backed by a verified quote; without one it counts the reference solution's path.
 
 A1 and A2 come from the same call. A path counts as followed only if the answer argues it as its
-tenability requirements demand; a bare other result does not count.
+defensibility requirements demand; a bare other result does not count.
 
 # Costs {#sec-app-costs}
 

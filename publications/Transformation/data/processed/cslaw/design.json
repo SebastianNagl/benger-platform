@@ -246,7 +246,7 @@
    "rq": [
     "RQ4"
    ],
-   "scope": "examiner-written probes with expected losses fixed in advance (tenable alternative path, consistent consequential-error chain, negated decisive results, fluent but wrong subsumption, padding, paraphrase, LLM-written answer, cardinal errors); A0/A1/A2 designs for alternative paths; quote-verifier precision and recall on 200 human-checked quotes",
+   "scope": "examiner-written probes with expected losses fixed in advance (defensible alternative path, consistent follow-on-error chain, negated decisive results, fluent but wrong subsumption, padding, paraphrase, LLM-written answer, cardinal errors); A0/A1/A2 designs for alternative paths; quote-verifier precision and recall on 200 human-checked quotes",
    "cost_usd": [
     15,
     20
@@ -261,7 +261,7 @@
     "RQ3",
     "RQ4"
    ],
-   "scope": "Roth's case and model solution (no scripts): generated sheets against his sheet (coverage, weights), checked by him",
+   "scope": "Roth's case and reference solution (no scripts): generated sheets against his sheet (coverage, weights), checked by him",
    "cost_usd": [
     5,
     5
@@ -315,12 +315,12 @@
    },
    {
     "probe": "off-topic",
-    "input": "the model solution of another exam",
+    "input": "the reference solution of another exam",
     "criterion": "total <= 10"
    },
    {
     "probe": "same-area off-topic",
-    "input": "the model solution of another exam in the same area",
+    "input": "the reference solution of another exam in the same area",
     "criterion": "total <= 10"
    },
    {
@@ -334,13 +334,13 @@
     "criterion": "total = 0"
    },
    {
-    "probe": "model solution",
-    "input": "the exam's own model solution",
+    "probe": "reference solution",
+    "input": "the exam's own reference solution",
     "criterion": "total >= 70 (descriptive for the rating unit)"
    },
    {
     "probe": "section ablation",
-    "input": "the model solution with one Abschnitt removed",
+    "input": "the reference solution with one Abschnitt removed",
     "criterion": "drop close to the removed Abschnitt's BE"
    },
    {
@@ -350,12 +350,12 @@
    },
    {
     "probe": "negation flip",
-    "input": "result sentences of the model solution negated",
+    "input": "result sentences of the reference solution negated",
     "criterion": "descriptive"
    }
   ],
   "later": [
-   "alternative path (E5): the model solution rewritten along one Loesungsweg, checked by the author"
+   "alternative path (E5): the reference solution rewritten along one Loesungsweg, checked by the author"
   ]
  },
  "statistics": {
