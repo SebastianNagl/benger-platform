@@ -86,6 +86,7 @@ analyze-d2:
 	  --gate $(foreach v,$(D2_CODE_VERSIONS),$(D2_GATE_DIR)/gate_d2-probes.$(v).json)
 	uv run python scripts/analysis/compute_d2_generation_summary.py
 	uv run python scripts/analysis/compute_d2_validity.py
+	uv run python scripts/analysis/compute_d2_variance.py
 
 # Build intermediates only; manuscript.pdf stays.
 clean:
