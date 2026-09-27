@@ -159,7 +159,7 @@ class Ctx:
         self.provenance = provenance
         self.run_id = args.run_id
         self.dry_run = os.environ.get("PILOT_DRY_RUN") == "1"
-        self.results = 0  # judgments and generations that returned (the zero-metering check)
+        self.results = 0  # scored judgments and completed generations (the zero-metering check)
 
 
 def now() -> str:
@@ -389,7 +389,7 @@ def judged(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, *, spec,
         result = ev._evaluate_multidim_single_call(
             context=context, ground_truth=ground_truth, prediction=prediction, task_data=data,
         )
-        ctx.results += 1
+        ctx.results += 1 if isinstance(result, dict) and not result.get("error") else 0
         unmetered = unmetered_problem(ctx, calls, result, "judge")
         if unmetered:
             raise L.UnmeteredCall(unmetered)
@@ -810,7 +810,7 @@ def run_generation(ctx: Ctx, phase: str, user_id: str, project_id: str, task, ge
                 prompt_key=CHECKLIST_PROMPT_KEY, activate_if_first=False,
                 rubric_contract="checklist", allocation_mode=args.allocation_mode,
             )
-        ctx.results += 1
+        ctx.results += 1 if isinstance(out, dict) and out.get("status") == "completed" else 0
         unmetered = unmetered_problem(ctx, calls, out, "generator")
         if unmetered:
             raise L.UnmeteredCall(unmetered)
@@ -1965,8 +1965,8 @@ def main() -> int:
         elif args.phase == "d2-probes":
             phase_d2_probes(ctx)
         if args.phase in SPENDING_PHASES and not dry_run and ctx.results and not ledger.calls_added():
-            raise L.UnmeteredCall(f"{ctx.results} judgments or generations returned, but the ledger booked "
-                                  "no call in this run")
+            raise L.UnmeteredCall(f"{ctx.results} scored judgments or completed generations, but the ledger "
+                                  "booked no call in this run")
     except L.UnmeteredCall as exc:
         status, rc = f"UNMETERED: {exc}", 7
     except L.BudgetExceeded as exc:
