@@ -160,7 +160,7 @@ def main() -> int:
         "n_generated_answers": sum(1 for p in picks if p["target_type"] == "generation"),
         "provenances": sorted({p["provenance"] for p in picks}),
         "n_blind_raters": ctrl["human_irr"]["k_raters"],
-        # the human pool: three blind raters plus the answer's creator (the prior study's published design)
+        # the human pool: three blind raters plus the exam's creator, un-blind (the prior study's published design)
         "pool_graders": ctrl["human_irr"]["k_raters"] + 1,
         "n_irr_answers": ctrl["human_irr"]["n_annotations"],
         "holistic_dimensions": len(holistic["dimensions"]),

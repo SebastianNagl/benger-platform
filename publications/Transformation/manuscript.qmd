@@ -666,7 +666,7 @@ write_table(
 D1 holds the `{python} V["n_exams"]` exams of the BenGER corpus [@nagl2026bengerdata], from civil,
 public and criminal law, with `{python} V["n_answers"]` answers: per exam one traditional, one
 co-created and one model-generated solution. The `{python} V["n_ann"]` human-written answers each have
-grades from `{python} V["blind"]` blind raters and the answer's creator; agreement uses the mean of
+grades from `{python} V["blind"]` blind raters and, un-blind, from the exam's creator; agreement uses the mean of
 these `{python} V["pool"]` grades. The blind raters agree at ICC(2,1) = `{python} V["icc"]` and differ
 by `{python} V["spread"]` raw points per answer on average. The prior study's primary judge tracked
 the pool at $r$ = `{python} V["prior_r"]` with an MAE of `{python} V["prior_mae"]` raw points, or
