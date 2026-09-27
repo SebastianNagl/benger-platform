@@ -829,13 +829,29 @@ async def update_project(
     # Update fields
     update_data = update.dict(exclude_unset=True)
 
-    # The exam's Notenschlüssel lives in evaluation_config, so this deep-merge
-    # is a writer of the key too: the same contract check as the eval-config
-    # PUT, before anything is written.
+    # The exam's Notenschlüssel lives in evaluation_config, so this write is
+    # a writer of the key too. Merged like the eval-config PUT merges (the key
+    # is replaced as one unit) and checked as it will be stored, before
+    # anything is written. An explicit null leaves the document as it is.
+    eval_config_before = None
+    eval_config_after = None
     if "evaluation_config" in update_data:
-        from routers.evaluations.config import validate_eval_config_grade_scale
+        eval_config_body = update_data.pop("evaluation_config")
+        if eval_config_body is not None:
+            from routers.evaluations.config import (
+                merge_evaluation_config,
+                validate_eval_config_grade_scale,
+            )
 
-        validate_eval_config_grade_scale(update_data["evaluation_config"])
+            eval_config_before = project.evaluation_config or {}
+            eval_config_after = merge_evaluation_config(eval_config_before, eval_config_body)
+            if GRADE_SCALE_KEY in eval_config_body:
+                validate_eval_config_grade_scale(eval_config_after)
+            # Same audit as the eval-config PUT: the key's trail is
+            # server-owned and every change of the key is appended.
+            eval_config_after = apply_grade_scale_write(
+                eval_config_before, eval_config_after, actor_id=str(current_user.id)
+            )
 
     # Kind is editable on expert projects (the extended student surfaces key
     # discovery off it), but a student-origin project can never be un-flagged
@@ -915,6 +931,14 @@ async def update_project(
             update_data.pop("version_description", None)
 
     grade_scale_moved = False
+    if eval_config_after is not None:
+        grade_scale_moved = grade_scale_changed(
+            eval_config_before.get(GRADE_SCALE_KEY), eval_config_after.get(GRADE_SCALE_KEY)
+        )
+        project.evaluation_config = eval_config_after
+        flag_modified(project, "evaluation_config")
+        logger.info(f"Project {project_id}: Deep merged evaluation_config update")
+
     for field, value in update_data.items():
         if hasattr(project, field):
             # Special handling for generation_config to preserve nested fields (Issue #818)
@@ -927,21 +951,6 @@ async def update_project(
                 # Ensure SQLAlchemy tracks the JSONB field change
                 flag_modified(project, "generation_config")
                 logger.info(f"Project {project_id}: Deep merged generation_config update")
-            elif field == "evaluation_config":
-                current_config = project.evaluation_config or {}
-                merged_config = deep_merge_dicts(current_config, value)
-                # Same audit as the eval-config PUT: the key's trail is
-                # server-owned and every change of the key is appended.
-                merged_config = apply_grade_scale_write(
-                    current_config, merged_config, actor_id=str(current_user.id)
-                )
-                grade_scale_moved = grade_scale_changed(
-                    current_config.get(GRADE_SCALE_KEY), merged_config.get(GRADE_SCALE_KEY)
-                )
-                setattr(project, field, merged_config)
-
-                flag_modified(project, "evaluation_config")
-                logger.info(f"Project {project_id}: Deep merged evaluation_config update")
             else:
                 setattr(project, field, value)
 

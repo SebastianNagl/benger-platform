@@ -14,7 +14,9 @@ Pinned here against Postgres:
 - the eval-config PUT (sync lane, ``client`` / ``test_db``) re-mirrors on a
   key change and leaves the mirrors alone otherwise;
 - the project PATCH (async lane), which deep-merges ``evaluation_config``
-  too: same check, same trail, same re-mirror.
+  too: same check, same trail, same re-mirror;
+- both writers replace the key as a whole and validate the key as stored,
+  so a body is never completed field by field from the stored key.
 
 The pure row pass is unit-tested in ``tests/unit/test_task_rubric_remirror.py``.
 """
@@ -299,6 +301,43 @@ class TestEvalConfigPut:
         assert resp.status_code == 422
         assert _mirror(_reload_task(test_db, task.id)) == "SENTINEL"
 
+    def test_the_key_is_replaced_as_a_whole(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """A key in the body replaces the stored one. Merged field by field,
+        these absolute thresholds would keep the stored key's percent unit
+        and preset and fail 18 times."""
+        project = _seed_project(
+            test_db, test_users, test_org, {"grade_scale": _exam_key("standard")}
+        )
+        absolute = {"thresholds": [0] * 9 + [150] * 9}
+
+        resp = _put(client, auth_headers, project.id, {"grade_scale": absolute})
+        assert resp.status_code == 200, resp.text
+
+        test_db.expire_all()
+        stored = test_db.query(Project).filter(Project.id == project.id).first()
+        assert stored.evaluation_config["grade_scale"] == absolute
+        history = stored.evaluation_config["grade_scale_history"]
+        assert history[-1]["to"] == absolute
+
+    def test_a_partial_key_is_not_completed_from_the_stored_one(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        project = _seed_project(
+            test_db, test_users, test_org, {"grade_scale": _exam_key("standard")}
+        )
+        task = _seed_sheet(test_db, project, mirror="SENTINEL")
+
+        resp = _put(client, auth_headers, project.id, {"grade_scale": {"pass_grade": 5}})
+        assert resp.status_code == 422, resp.text
+        assert "thresholds" in resp.json()["detail"]
+
+        test_db.expire_all()
+        stored = test_db.query(Project).filter(Project.id == project.id).first()
+        assert stored.evaluation_config == {"grade_scale": _exam_key("standard")}
+        assert _mirror(_reload_task(test_db, task.id)) == "SENTINEL"
+
 
 # ---------------------------------------------------------------------------
 # async lane: the helper and the project PATCH
@@ -532,3 +571,53 @@ class TestProjectPatch:
         assert resp.json()["detail"].startswith("Invalid Notenschlüssel: ")
         assert _mirror(await _stored_task(async_test_db, task_id)) == "SENTINEL"
         assert "grade_scale" not in (await _stored_config(async_test_db, project_id))
+
+    @pytest.mark.asyncio
+    async def test_the_key_is_replaced_as_a_whole(self, async_test_client, async_test_db):
+        """The reviewer's case: absolute thresholds that pass on their own.
+        Merged into the stored standard key (percent unit, preset) they would
+        be 18 errors and still be stored; replaced, the key is the body."""
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(
+            async_test_db, owner, {"grade_scale": _exam_key("standard"), "runs_per_task": 2}
+        )
+        project_id = project.id
+        await async_test_db.commit()
+        absolute = {"thresholds": [0] * 9 + [150] * 9}
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={"evaluation_config": {"grade_scale": absolute}},
+            )
+        assert resp.status_code == 200, resp.text
+        config = await _stored_config(async_test_db, project_id)
+        assert config["grade_scale"] == absolute
+        assert config["runs_per_task"] == 2
+        assert config["grade_scale_history"][-1]["to"] == absolute
+
+    @pytest.mark.asyncio
+    async def test_a_partial_key_is_422_before_any_write(
+        self, async_test_client, async_test_db
+    ):
+        owner = await _make_user(async_test_db)
+        project = await _make_exam(async_test_db, owner, {"grade_scale": _exam_key("standard")})
+        task = await _make_sheet(async_test_db, project, mirror="SENTINEL")
+        project_id, task_id = project.id, task.id
+        await async_test_db.commit()
+
+        with _as_user(owner):
+            resp = await async_test_client.patch(
+                f"/api/projects/{project_id}",
+                json={"title": "Umbenannt", "evaluation_config": {"grade_scale": {"pass_grade": 5}}},
+            )
+        assert resp.status_code == 422, resp.text
+        assert "thresholds" in resp.json()["detail"]
+        assert await _stored_config(async_test_db, project_id) == {
+            "grade_scale": _exam_key("standard")
+        }
+        assert _mirror(await _stored_task(async_test_db, task_id)) == "SENTINEL"
+        title = (
+            await async_test_db.execute(select(Project.title).where(Project.id == project_id))
+        ).scalar_one()
+        assert title == "Probeklausur"

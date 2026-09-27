@@ -578,9 +578,10 @@ def validate_eval_config_grade_scale(config) -> None:
     whatever the graded sheet totals, so no point total is known (or needed)
     here; an absolute ``unit: "BE"`` key is only checked for shape.
 
-    Called from the eval-config PUT, which deep-merges the WHOLE document —
-    so the key is validated whenever the body carries it. An explicit
-    ``null`` clears the key and is accepted.
+    Called by both writers of the document, the eval-config PUT and
+    ``PATCH /projects/{id}``, on the MERGED document (the key as it will be
+    stored) whenever the body carries the key. An explicit ``null`` clears
+    the key and is accepted.
     """
     if not isinstance(config, dict) or config.get("grade_scale") is None:
         return
@@ -592,6 +593,33 @@ def validate_eval_config_grade_scale(config) -> None:
             status_code=422,
             detail="Invalid Notenschlüssel: " + "; ".join(problems),
         )
+
+
+def merge_evaluation_config(stored_config: Any, body: Any) -> Dict[str, Any]:
+    """The ``evaluation_config`` document a write of ``body`` produces.
+
+    Deep-merge (issue #289): nested dicts merge recursively, lists are
+    replaced wholesale, explicit nulls delete keys. One exception: the
+    Notenschlüssel (``grade_scale``) is one unit. Its thresholds only mean
+    something together with its ``unit`` and ``preset``, so a key in the body
+    REPLACES the stored one as a whole and ``null`` deletes it. Merged field
+    by field, a valid body and a valid stored key could combine into an
+    invalid one (absolute thresholds merged into a stored percent key). Every
+    caller sends the full key: the extended Notenschlüssel card and the
+    wizard's post-create hook (``saveProjectGradeScale``).
+
+    Shared by both writers of the document, the eval-config PUT and
+    ``PATCH /projects/{id}``. Returns a new dict; neither input is mutated.
+    """
+    stored = stored_config if isinstance(stored_config, dict) else {}
+    patch = body if isinstance(body, dict) else {}
+    merged = deep_merge_dicts(stored, patch)
+    if GRADE_SCALE_KEY in patch:
+        if patch[GRADE_SCALE_KEY] is None:
+            merged.pop(GRADE_SCALE_KEY, None)
+        else:
+            merged[GRADE_SCALE_KEY] = patch[GRADE_SCALE_KEY]
+    return merged
 
 
 @router.put("/projects/{project_id}/evaluation-config")
@@ -613,7 +641,8 @@ async def update_project_evaluation_config(
     recursively, lists are replaced wholesale, explicit nulls delete keys.
     Clients therefore send only the keys they own — e.g. the project page
     sends ``{"evaluation_configs": [...]}`` — and sibling keys survive
-    (issue #289).
+    (issue #289). The Notenschlüssel (``grade_scale``) is the one exception:
+    it is replaced as a whole (see :func:`merge_evaluation_config`).
     """
     try:
         # Verify project exists. FOR UPDATE: the deep-merge below is a
@@ -713,18 +742,19 @@ async def update_project_evaluation_config(
         eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
         validate_evaluation_config_entries(eval_configs_list)
 
-        # The exam-level Notenschlüssel lives next to them in the same
-        # document and is deep-merged like everything else.
-        validate_eval_config_grade_scale(config)
-
         # Deep-merge the body into the stored config — same contract as
         # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
-        # lists are replaced wholesale, explicit nulls delete keys. Lets
-        # callers send minimal bodies (e.g. only evaluation_configs) without
-        # clobbering sibling keys a concurrent eval-defaults PATCH wrote
-        # (issue #289 lost-update).
+        # lists are replaced wholesale, explicit nulls delete keys, and the
+        # Notenschlüssel is replaced as one unit. Lets callers send minimal
+        # bodies (e.g. only evaluation_configs) without clobbering sibling
+        # keys a concurrent eval-defaults PATCH wrote (issue #289 lost-update).
         stored_config = project.evaluation_config or {}
-        merged = deep_merge_dicts(stored_config, config)
+        merged = merge_evaluation_config(stored_config, config)
+
+        # The exam-level Notenschlüssel lives next to them in the same
+        # document. Checked as it will be stored, before anything is written.
+        if GRADE_SCALE_KEY in config:
+            validate_eval_config_grade_scale(merged)
 
         # Every Notenschlüssel change is recorded — the key
         # retroactively rewrites grades people have already seen, so a grade
