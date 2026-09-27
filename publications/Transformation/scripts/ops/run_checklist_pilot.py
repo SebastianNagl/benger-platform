@@ -1528,9 +1528,10 @@ def phase_selftest(ctx: Ctx) -> int:
     else:
         print(f"SKIP  exam terms: {terms_file.name} not in the work dir (a live guarded phase refuses to start "
               "without it); the guard checks below use synthetic terms")
-    tracked_terms = [t for t in L.GENERIC_TERMS if L.canon_text(t, True) in {L.canon_text(x, True) for x in exam_terms}]
+    exam_canon = {L.canon_text(x, True) for x in exam_terms}
+    tracked_terms = [i for i, t in enumerate(L.GENERIC_TERMS) if L.canon_text(t, True) in exam_canon]
     check("guard: no exam term is listed in tracked code (GENERIC_TERMS)", not tracked_terms,
-          f"indices {tracked_terms}" if tracked_terms else "")
+          f"GENERIC_TERMS indices {tracked_terms}" if tracked_terms else "")
 
     # Synthetic terms (not from any exam) exercise the matching; the exam's own
     # terms, when present, must behave the same.
