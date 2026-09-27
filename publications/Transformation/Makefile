@@ -56,6 +56,9 @@ pull:
 # (ipykernel) on PATH so Quarto can discover the kernel.
 render: analyze-cslaw
 	uv run quarto render manuscript.qmd
+	$(MAKE) clean
+
+# Build intermediates only; manuscript.pdf stays.
 
 # D2 summaries and the structure of Roth's sheet: need the git-ignored
 # pilot rows, D2 pack and Z2 workbook (local data root,
@@ -78,5 +81,6 @@ analyze-d2:
 	uv run python scripts/analysis/compute_d2_validity.py
 
 clean:
-	rm -rf .quarto manuscript_files manuscript_executed_files \
+	rm -rf .quarto assets manuscript_files manuscript_executed_files \
 	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb* comment.cut
+	find scripts -name __pycache__ -type d -prune -exec rm -rf {} +

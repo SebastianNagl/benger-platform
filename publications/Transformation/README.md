@@ -44,7 +44,7 @@ _quarto.yml         format config (acm-pdf, xelatex)
 _extensions/quarto-journals/acm/   ACM Quarto format (acmart)
 partials/           author block and preamble for acmart
 references.bib      bibliography
-assets/             tables and figures written at render time (not in git)
+assets/             tables written during a render, removed after it (not in git)
 data/raw/local/     generated rubrics (task_rubrics.json) — not in git
 data/interim/       run inputs (tracked) + judge/probe/audit run outputs (not in git)
 data/processed/     derived statistics the manuscript loads
