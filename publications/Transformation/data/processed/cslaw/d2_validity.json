@@ -1,9 +1,10 @@
 {
- "note": "D2a expert exam: LLM judge totals vs reference grades (per-script mean over passes). Reference grades of 9 of 15 scripts await the exam author's confirmation of the grader. Aggregates only.",
+ "note": "D2a expert exam: LLM judge totals vs reference grades. Statistics are per pass, averaged over complete passes. Reference grades of 9 of 15 scripts await the exam author's confirmation of the grader. Aggregates only.",
  "pass_mark_be": 40.0,
  "seed": 20260926,
  "n_boot": 4000,
- "code_versions": [
+ "code_version": "7fc295f3b81f",
+ "code_versions_seen": [
   "7fc295f3b81f"
  ],
  "per_arm": {
@@ -13,9 +14,10 @@
     "passes_per_script": [
      1
     ],
+    "complete_passes": 1,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
     "mae": 5.23,
     "mae_ci95": [
@@ -35,7 +37,9 @@
     "reference_pass_rate": 0.667,
     "judge_mean_total": 47.9,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 5.23,
     "repeat_sd": null,
+    "mean_abs_pass_diff": null,
     "step_abs_diff_share": 0.138,
     "n_step_comparisons": 690
    },
@@ -44,19 +48,20 @@
     "passes_per_script": [
      1
     ],
+    "complete_passes": 1,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
     "mae": 9.43,
     "mae_ci95": [
-     6.2,
-     12.9
+     6.37,
+     12.73
     ],
     "bias": -1.63,
     "bias_ci95": [
-     -7.2,
-     4.5
+     -7.1,
+     4.33
     ],
     "pearson": 0.744,
     "spearman": 0.598,
@@ -66,7 +71,9 @@
     "reference_pass_rate": 0.667,
     "judge_mean_total": 50.17,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 9.43,
     "repeat_sd": null,
+    "mean_abs_pass_diff": null,
     "step_abs_diff_share": 0.197,
     "n_step_comparisons": 690
    },
@@ -75,29 +82,32 @@
     "passes_per_script": [
      2
     ],
+    "complete_passes": 2,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
-    "mae": 4.4,
+    "mae": 4.63,
     "mae_ci95": [
-     2.93,
-     5.8
+     3.3,
+     6.02
     ],
     "bias": -1.93,
     "bias_ci95": [
-     -4.33,
-     0.58
+     -4.32,
+     0.53
     ],
-    "pearson": 0.959,
-    "spearman": 0.946,
+    "pearson": 0.954,
+    "spearman": 0.94,
     "pass_agreement": 0.8,
     "pass_kappa": 0.526,
     "judge_pass_rate": 0.733,
     "reference_pass_rate": 0.667,
     "judge_mean_total": 49.87,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 4.4,
     "repeat_sd": 1.65,
+    "mean_abs_pass_diff": 2.33,
     "step_abs_diff_share": 0.148,
     "n_step_comparisons": 1380
    }
@@ -108,19 +118,20 @@
     "passes_per_script": [
      1
     ],
+    "complete_passes": 1,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
     "mae": 6.2,
     "mae_ci95": [
      4.13,
-     8.43
+     8.47
     ],
     "bias": 3.07,
     "bias_ci95": [
-     -0.33,
-     6.47
+     -0.37,
+     6.5
     ],
     "pearson": 0.913,
     "spearman": 0.914,
@@ -130,7 +141,9 @@
     "reference_pass_rate": 0.667,
     "judge_mean_total": 54.87,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 6.2,
     "repeat_sd": null,
+    "mean_abs_pass_diff": null,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
    },
@@ -139,19 +152,20 @@
     "passes_per_script": [
      1
     ],
+    "complete_passes": 1,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
     "mae": 10.33,
     "mae_ci95": [
-     6.5,
-     14.3
+     6.57,
+     14.2
     ],
     "bias": 5.67,
     "bias_ci95": [
-     -0.1,
-     11.47
+     -0.13,
+     11.57
     ],
     "pearson": 0.743,
     "spearman": 0.674,
@@ -161,7 +175,9 @@
     "reference_pass_rate": 0.667,
     "judge_mean_total": 57.47,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 10.33,
     "repeat_sd": null,
+    "mean_abs_pass_diff": null,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
    },
@@ -170,29 +186,32 @@
     "passes_per_script": [
      2
     ],
+    "complete_passes": 2,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
-    "mae": 6.43,
+    "mae": 6.53,
     "mae_ci95": [
-     4.12,
-     9.07
+     4.28,
+     9.13
     ],
     "bias": 3.9,
     "bias_ci95": [
-     0.35,
-     7.55
+     0.45,
+     7.53
     ],
-    "pearson": 0.911,
-    "spearman": 0.897,
+    "pearson": 0.902,
+    "spearman": 0.913,
     "pass_agreement": 0.867,
     "pass_kappa": 0.667,
     "judge_pass_rate": 0.8,
     "reference_pass_rate": 0.667,
     "judge_mean_total": 55.7,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 6.43,
     "repeat_sd": 2.26,
+    "mean_abs_pass_diff": 3.2,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
    }
@@ -203,29 +222,32 @@
     "passes_per_script": [
      2
     ],
+    "complete_passes": 2,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
-    "mae": 8.42,
+    "mae": 8.58,
     "mae_ci95": [
-     5.68,
-     11.43
+     5.97,
+     11.47
     ],
     "bias": 8.12,
     "bias_ci95": [
      5.15,
-     11.27
+     11.33
     ],
-    "pearson": 0.936,
-    "spearman": 0.912,
-    "pass_agreement": 0.733,
-    "pass_kappa": 0.25,
-    "judge_pass_rate": 0.933,
+    "pearson": 0.926,
+    "spearman": 0.899,
+    "pass_agreement": 0.767,
+    "pass_kappa": 0.36,
+    "judge_pass_rate": 0.9,
     "reference_pass_rate": 0.667,
     "judge_mean_total": 59.92,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 8.42,
     "repeat_sd": 2.76,
+    "mean_abs_pass_diff": 3.9,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
    }
@@ -236,41 +258,289 @@
     "passes_per_script": [
      2
     ],
+    "complete_passes": 2,
     "case_years": {
-     "2025": 12,
-     "2024": 3
+     "2024": 3,
+     "2025": 12
     },
-    "mae": 8.18,
+    "mae": 8.22,
     "mae_ci95": [
-     5.43,
-     11.08
+     5.6,
+     11.05
     ],
     "bias": 8.18,
     "bias_ci95": [
-     5.53,
-     11.02
+     5.48,
+     11.1
     ],
-    "pearson": 0.947,
-    "spearman": 0.934,
+    "pearson": 0.943,
+    "spearman": 0.943,
     "pass_agreement": 0.733,
     "pass_kappa": 0.25,
     "judge_pass_rate": 0.933,
     "reference_pass_rate": 0.667,
     "judge_mean_total": 59.98,
     "reference_mean_total": 51.8,
+    "mae_of_pass_means": 8.18,
     "repeat_sd": 1.81,
+    "mean_abs_pass_diff": 2.57,
     "step_abs_diff_share": null,
     "n_step_comparisons": 0
    }
   }
  },
+ "contrasts": [
+  {
+   "family": "judge on the expert sheet",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 4.8,
+    "ci95": [
+     1.63,
+     8.25
+    ],
+    "sd_diff": 6.76,
+    "mde": 5.26
+   },
+   "signed_error": {
+    "mean_diff": 0.3,
+    "ci95": [
+     -4.73,
+     6.53
+    ],
+    "sd_diff": 11.18,
+    "mde": 8.7
+   }
+  },
+  {
+   "family": "judge on the expert sheet",
+   "a": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 0.6,
+    "ci95": [
+     -0.93,
+     2.18
+    ],
+    "sd_diff": 3.26,
+    "mde": 2.54
+   },
+   "signed_error": {
+    "mean_diff": -1.97,
+    "ci95": [
+     -3.83,
+     -0.25
+    ],
+    "sd_diff": 3.65,
+    "mde": 2.84
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 1.9,
+    "ci95": [
+     -0.2,
+     4.15
+    ],
+    "sd_diff": 4.55,
+    "mde": 3.54
+   },
+   "signed_error": {
+    "mean_diff": 5.83,
+    "ci95": [
+     2.95,
+     8.78
+    ],
+    "sd_diff": 5.95,
+    "mde": 4.63
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 3.95,
+    "ci95": [
+     1.38,
+     6.62
+    ],
+    "sd_diff": 5.39,
+    "mde": 4.19
+   },
+   "signed_error": {
+    "mean_diff": 10.05,
+    "ci95": [
+     7.42,
+     12.73
+    ],
+    "sd_diff": 5.53,
+    "mde": 4.3
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 2:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 3.58,
+    "ci95": [
+     0.82,
+     6.37
+    ],
+    "sd_diff": 5.65,
+    "mde": 4.4
+   },
+   "signed_error": {
+    "mean_diff": 10.12,
+    "ci95": [
+     7.67,
+     12.92
+    ],
+    "sd_diff": 5.31,
+    "mde": 4.13
+   }
+  },
+  {
+   "family": "sheet for DeepSeek",
+   "a": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 0.97,
+    "ci95": [
+     -2.2,
+     4.03
+    ],
+    "sd_diff": 6.31,
+    "mde": 4.91
+   },
+   "signed_error": {
+    "mean_diff": 6.97,
+    "ci95": [
+     2.87,
+     11.23
+    ],
+    "sd_diff": 8.37,
+    "mde": 6.51
+   }
+  },
+  {
+   "family": "sheet for GPT-5.4 Mini",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 0.9,
+    "ci95": [
+     -3.8,
+     6.0
+    ],
+    "sd_diff": 9.93,
+    "mde": 7.72
+   },
+   "signed_error": {
+    "mean_diff": 7.3,
+    "ci95": [
+     1.27,
+     12.6
+    ],
+    "sd_diff": 11.37,
+    "mde": 8.84
+   }
+  },
+  {
+   "family": "weak judge vs generated sheet",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "n_scripts": 15,
+   "abs_error": {
+    "mean_diff": 2.9,
+    "ci95": [
+     -1.33,
+     6.9
+    ],
+    "sd_diff": 8.57,
+    "mde": 6.67
+   },
+   "signed_error": {
+    "mean_diff": -5.53,
+    "ci95": [
+     -10.78,
+     0.27
+    ],
+    "sd_diff": 11.39,
+    "mde": 8.86
+   }
+  }
+ ],
  "sheet_sample": {
   "gpt-5.4-mini:bullet": {
    "gpt-5.6-luna": {
     "n_sheets": 2,
     "n_scripts": 15,
-    "sheet_sample_sd": 2.45,
-    "max_script_sd": 5.66
+    "passes_per_sheet": 2.0,
+    "sd_of_sheet_means": 2.79,
+    "pass_sd_pooled": 2.67,
+    "sheet_sd_component": 2.06,
+    "mean_abs_sheet_diff": 3.47
    }
   }
  }
