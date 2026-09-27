@@ -53,8 +53,8 @@ MAX_RUBRIC_FILE_BYTES = 5 * 1024 * 1024
 # so a 5 MB upload can declare a multi-gigabyte sheet/document part ("zip
 # bomb") and OOM the api worker inside ``zf.read``. Every member this module
 # reads goes through :func:`_read_member`, which refuses oversized entries
-# before decompressing. 32 MB is far above any real Korrekturbogen (the
-# colleague's 100-BE sheet has a 28 KB worksheet part).
+# before decompressing. 32 MB is far above any real Korrekturbogen (a
+# hand-made 100-BE sheet has a worksheet part of about 28 KB).
 MAX_ZIP_MEMBER_BYTES = 32 * 1024 * 1024
 MAX_RAW_ROWS = 2000
 #: Container formats a Korrekturbogen may arrive in. The OOXML pair is what
@@ -495,9 +495,10 @@ def _rows_from_xlsx(grid, warnings: _Warnings) -> Tuple[List[_RawRow], List[Tupl
         points_value = cells.get(points_col) if points_col is not None else None
         # A column-header row ("Gliederungspunkt | max. BE"): the points cell
         # names the column instead of holding a value. The row still carries
-        # text worth keeping — in the colleague's sheet the header shares its
-        # row with "Frage 1:" — so it is only barred from the TITLE heuristic,
-        # which would otherwise offer "Gliederungspunkt" as the sheet's title.
+        # text worth keeping (a hand-made sheet can put the header in the row
+        # of a question heading such as "Frage 1:"), so it is only barred from
+        # the TITLE heuristic, which would otherwise offer "Gliederungspunkt"
+        # as the sheet's title.
         column_header = isinstance(points_value, str) and bool(
             _HEADER_CELL_RE.match(points_value.strip())
         )
@@ -1454,11 +1455,11 @@ def _read_markdown_grid(data: bytes) -> List[Tuple[int, Dict[int, Any]]]:
             continue
         listed = _MD_LIST_RE.match(line)
         content = listed.group(2).strip() if listed else stripped
-        # A section's subtotal ("insgesamt 21 BE") is a NOTE, not that row's
+        # A section's subtotal ("insgesamt 20 BE") is a NOTE, not that row's
         # own score. In a table it lands in the text column and never reaches
         # the points column; in an outline it sits at the end of the line
         # where the points are, so it has to be excluded explicitly — else
-        # "A. Zulässigkeit (insgesamt 21 BE)" becomes a 21-point step and the
+        # "A. Erster Teil (insgesamt 20 BE)" becomes a 20-point step and the
         # sheet's total is counted twice.
         points_match = (
             None if _NOTE_RE.search(content) else _MD_TRAILING_POINTS_RE.match(content)
