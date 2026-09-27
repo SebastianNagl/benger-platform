@@ -10,8 +10,8 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-26',
     audience: 'both',
     text: {
-      de: 'Der Bewertungsbogen in den Aufgabendaten nennt jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert und jetzt auch, sobald sich der Notenschlüssel der Klausur ändert.',
-      en: 'The grading sheet in the task data now names the grade key the exam is graded with. Until now it showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited, and now also whenever the exam’s grade key changes.',
+      de: 'Bewertungsbögen mit Gliederung, etwa hochgeladene oder im Editor erstellte, nennen in den Aufgabendaten jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert und jetzt auch, sobald sich der Notenschlüssel der Klausur ändert. KI-generierte Bögen stehen dort weiterhin als generierter Text ohne Notenschlüssel.',
+      en: 'Grading sheets with an outline, such as uploaded sheets or sheets made in the editor, now name the grade key the exam is graded with in the task data. Until now they showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited, and now also whenever the exam’s grade key changes. AI-generated sheets still appear there as their generated text, without the grade key.',
     },
   },
   {
