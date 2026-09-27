@@ -33,25 +33,35 @@ Phases
 Integrity
   - Every provider call is metered: catalog price required, spend cap
     checked before dispatch (--cap is the cumulative ceiling), a call that
-    raises is charged the model's reserve, a failure without usage is
-    charged the reserve, and the provider's internal retries are charged
-    (their usage, else the reserve each). PILOT_DRY_RUN=1 stops each call
-    before the provider with a dry-run failure and spends nothing.
+    raises is charged the model's reserve, a failure without usage and a
+    success without usage are charged the reserve (the latter flagged
+    usage_missing), and the provider service's internal retries are charged
+    (their usage, else the reserve each). The provider SDK's own retries
+    (OpenAI, Anthropic clients) are switched off, so every attempt passes
+    the meter. A live result without a metered call, the judge's
+    E2E_TEST_MODE mock, or a live run whose results booked no call stops
+    the run (exit 7). PILOT_DRY_RUN=1 stops each call before the provider
+    with a dry-run failure and spends nothing.
   - Dry runs never write the database: d2-setup and the prompt install
     print their plan instead. The generator reads the mounted checklist
     prompt through an in-memory overlay on the project row, in dry and live
     runs, so the D1 clone's config is never changed.
   - Leakage guard: every generator prompt and every judge prompt of a
-    non-expert arm is checked for the D2 canary terms before it is sent
-    (pilot_lib.CanaryGuard). A hit raises LeakageDetected. PILOT_CANARY=warn
-    downgrades that to a warning, and only in a dry run. Messages name the
-    term's index, never the term.
+    non-expert arm is checked for the D2 canary phrases and terms before it
+    is sent (pilot_lib.CanaryGuard). Both lists come from git-ignored files
+    in data/interim/human/ (canary_phrases.json, canary_terms.json); a live
+    guarded phase refuses to start without either. A hit raises
+    LeakageDetected. PILOT_CANARY=warn downgrades that to a warning, and
+    only in a dry run. Messages name the term's index, never the term.
   - Pass k uses seed 42 + k. Every judge row stores the full finalized
     result, the raw model output, usage, latency, arm and provenance (git
     SHAs, content hashes of every instrument module, the validator hash,
     prompt hashes).
   - SIGINT and SIGTERM stop the run cleanly: the current row is written as
     aborted and the ledger records the run as interrupted.
+  - Exit codes: 0 ok, 1 error, 2 stopped (usage or missing input), 3 budget,
+    4 provider refuses on billing grounds, 5 price missing, 6 leakage,
+    7 unmetered, 130 interrupted.
 
 Outputs: one JSON line per judgment or generation in <work>/out/<phase>.jsonl
 (probe coverage in <work>/out/<phase>-coverage.jsonl). The wrapper appends
@@ -65,13 +75,13 @@ import argparse
 import contextlib
 import inspect
 import json
-from types import SimpleNamespace
 import os
 import signal
 import sys
 import time
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 # The D1 research clone of the Benchathon project (local dev database).
@@ -80,20 +90,39 @@ D2_PROJECT_TITLE = "Transformation D2 research"
 RESEARCH_USER_EMAIL = "research-ops@example.com"
 CHECKLIST_PROMPT_KEY = "bewertungsbogen_checklist"
 CHECKLIST_PROMPT_REL = "benger_extended/workers/rubric_prompt_checklist.json"
-# The instrument: judge rules, evidence verifier, rubric structure, generator
-# contract, validator, generator prompts, the pilot helpers (probe builders,
-# spec adapter). Their content hashes make up the code version the gate
-# filters on. Paths are relative to the import roots (/app, /shared, work/in).
+# The instrument: judge rules and prompts, evidence verifier, the checklist
+# scoring and its assessment block, rubric structure, the judge context
+# builder, the provider services that send the request, generator contract,
+# validator, generator prompts, the pilot helpers (probe builders, spec
+# adapter). Their content hashes make up the code version the gate filters
+# on. Paths are relative to the import roots (/app, /shared, work/in). The
+# selftest checks that every local module the judge modules import is here
+# (instrument_import_gaps).
 INSTRUMENT_FILES = (
     "ml_evaluation/checklist_scoring.py",
     "ml_evaluation/llm_judge_evaluator.py",
+    "ml_evaluation/llm_judge_prompts.py",
+    "ml_evaluation/base_evaluator.py",
+    "evaluation/cell_evaluator.py",
     "rubric_structure.py",
     "benger_extended/workers/bewertungsbogen_checklist.py",
     "benger_extended/workers/bewertungsbogen_constants.py",
     "benger_extended/workers/bewertungsbogen_tasks.py",
     "pilot_lib.py",
 )
-INSTRUMENT_GLOBS = ("benger_extended/workers/rubric_prompt*.py", "benger_extended/workers/rubric_prompt*.json")
+# Imported by the checklist judge when present (the shared assessment block).
+# An absent file hashes as None, so the code version changes when it appears.
+OPTIONAL_INSTRUMENT_FILES = ("ml_evaluation/rubric_assessment.py",)
+INSTRUMENT_GLOBS = ("benger_extended/workers/rubric_prompt*.py", "benger_extended/workers/rubric_prompt*.json",
+                    "ai_services/*.py")
+# The judge modules whose local imports must all be instrument files, and the
+# local modules they import that are plumbing, not instrument (DB schema and
+# session, the worker's task module for two small helpers).
+JUDGE_MODULES = ("ml_evaluation/llm_judge_evaluator.py", "ml_evaluation/checklist_scoring.py",
+                 "ml_evaluation/rubric_assessment.py", "ml_evaluation/base_evaluator.py",
+                 "ml_evaluation/llm_judge_prompts.py", "rubric_structure.py")
+NOT_INSTRUMENT = ("models.py", "project_models.py", "database.py", "tasks.py")
+LOCAL_ROOTS: list[str] = []  # the import roots setup_paths adds (set in main)
 VALIDATOR_FILE = "benger_extended/workers/bewertungsbogen_checklist.py"
 D2_MARKER = "heidebach_polr_2026"
 # Same values as the D1 tasks on the clone, so the generator prompt is built
@@ -130,6 +159,7 @@ class Ctx:
         self.provenance = provenance
         self.run_id = args.run_id
         self.dry_run = os.environ.get("PILOT_DRY_RUN") == "1"
+        self.results = 0  # judgments and generations that returned (the zero-metering check)
 
 
 def now() -> str:
@@ -163,7 +193,7 @@ def find_file(rel: str, kind: str = "file") -> Path | None:
 
 def instrument_hashes() -> dict[str, str | None]:
     files: dict[str, str | None] = {}
-    for rel in INSTRUMENT_FILES:
+    for rel in INSTRUMENT_FILES + OPTIONAL_INSTRUMENT_FILES:
         path = find_file(rel)
         files[rel] = L.sha256_file(path) if path else None
     for pattern in INSTRUMENT_GLOBS:
@@ -172,6 +202,45 @@ def instrument_hashes() -> dict[str, str | None]:
         for path in sorted(base.glob(glob)) if base else []:
             files[f"{folder}/{path.name}"] = L.sha256_file(path)
     return files
+
+
+def _local_file(module: str) -> str | None:
+    """The instrument-relative path of a module under a local import root."""
+    rel = module.replace(".", "/")
+    for candidate in (f"{rel}.py", f"{rel}/__init__.py"):
+        for root in LOCAL_ROOTS:
+            if (Path(root) / candidate).is_file():
+                return candidate
+    return None
+
+
+def instrument_import_gaps(files: dict[str, str | None]) -> list[str]:
+    """Local modules the judge modules import (also inside functions) that
+    are neither instrument files nor declared plumbing (NOT_INSTRUMENT)."""
+    import ast
+
+    gaps: set[str] = set()
+    for rel in JUDGE_MODULES:
+        path = find_file(rel)
+        if path is None:
+            continue
+        package = rel.rsplit("/", 1)[0].replace("/", ".") if "/" in rel else ""
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [a.name for a in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                base = node.module or ""
+                if node.level:
+                    parts = package.split(".") if package else []
+                    parts = parts[: len(parts) - (node.level - 1)] if node.level > 1 else parts
+                    base = ".".join(p for p in parts + ([base] if base else []) if p)
+                names = [base] + [f"{base}.{a.name}" for a in node.names]
+            for name in names:
+                local = _local_file(name) if name else None
+                if local and local not in files and local not in NOT_INSTRUMENT and not local.endswith("/__init__.py"):
+                    gaps.add(local)
+    return sorted(gaps)
 
 
 # ---------------------------------------------------------------------------
@@ -315,11 +384,15 @@ def judged(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, *, spec,
     else:
         ctx.guard.disarm()
     started = time.monotonic()
-    result, exc = None, None
+    result, exc, unmetered = None, None, None
     try:
         result = ev._evaluate_multidim_single_call(
             context=context, ground_truth=ground_truth, prediction=prediction, task_data=data,
         )
+        ctx.results += 1
+        unmetered = unmetered_problem(ctx, calls, result, "judge")
+        if unmetered:
+            raise L.UnmeteredCall(unmetered)
         return result
     except BaseException as e:
         exc = e
@@ -329,7 +402,25 @@ def judged(ctx: Ctx, phase: str, base: dict[str, Any], ev, calls: list, *, spec,
         row = judge_row(ctx, phase, base, ev, calls, result, exc, spec, unit, guard_on,
                         round(time.monotonic() - started, 1))
         row["guard_checks"] = ctx.guard.checked - checks_before
+        if unmetered:
+            row["unmetered"] = unmetered
         write(ctx, phase, row)
+
+
+def unmetered_problem(ctx: Ctx, calls: list, result: dict[str, Any] | None, who: str) -> str | None:
+    """Why a result cannot be trusted to be metered, or None.
+
+    A live result that is not an error must rest on at least one metered
+    provider call; the judge's E2E_TEST_MODE mock is refused in every run."""
+    if not isinstance(result, dict):
+        return None
+    if (result.get("_call_metadata") or {}).get("e2e_test_mode"):
+        return f"the {who} returned its E2E_TEST_MODE mock, not a provider answer"
+    if ctx.dry_run or result.get("error") or str(result.get("status") or "completed") != "completed":
+        return None
+    if not [c for c in calls if not c.get("dry_run")]:
+        return f"the {who} returned a result without a metered provider call"
+    return None
 
 
 def usage_check(calls: list, meta: dict[str, Any]) -> dict[str, Any] | None:
@@ -711,7 +802,7 @@ def run_generation(ctx: Ctx, phase: str, user_id: str, project_id: str, task, ge
     checks_before = ctx.guard.checked
     ctx.guard.arm(f"{phase} {generator} sample {sample}", case_texts=case_texts_of(task.data or {}))
     started = time.monotonic()
-    out, exc, extra = None, None, {}
+    out, exc, extra, unmetered = None, None, {}, None
     try:
         with prompt_overlay(project_id, prompt[0]):
             out = generate_bewertungsbogen_impl(
@@ -719,6 +810,10 @@ def run_generation(ctx: Ctx, phase: str, user_id: str, project_id: str, task, ge
                 prompt_key=CHECKLIST_PROMPT_KEY, activate_if_first=False,
                 rubric_contract="checklist", allocation_mode=args.allocation_mode,
             )
+        ctx.results += 1
+        unmetered = unmetered_problem(ctx, calls, out, "generator")
+        if unmetered:
+            raise L.UnmeteredCall(unmetered)
         if out.get("status") == "completed" and out.get("rubric_id"):
             extra = rubric_generation_facts(out["rubric_id"], ctx.provenance.get("validator_sha256"))
         return out
@@ -740,7 +835,7 @@ def run_generation(ctx: Ctx, phase: str, user_id: str, project_id: str, task, ge
             "prompt": {"system_sha256": first.get("system_sha256"), "prompt_sha256": first.get("prompt_sha256")},
             "guard_checks": ctx.guard.checked - checks_before,
             "calls": calls, "usage": L.usage_summary(calls), "latency_s": round(time.monotonic() - started, 1),
-            "provenance": ctx.provenance,
+            "provenance": ctx.provenance, **({"unmetered": unmetered} if unmetered else {}),
         })
         print(f"{generator} sample {sample}: {(out or {}).get('status') or 'ABORTED'} rubric {(out or {}).get('rubric_id')} "
               f"steps {(out or {}).get('steps')} attempts {(out or {}).get('attempts')} "
@@ -1417,19 +1512,32 @@ def phase_selftest(ctx: Ctx) -> int:
           json.dumps(sheet_meta))
 
     # --- canaries (reported by index, never by text) ------------------------------
-    case = L.norm_text(exam["sachverhalt"]) + "\n" + L.norm_text(exam["musterloesung"])
-    present = [i for i, p in enumerate(phrases) if L.norm_text(p) in case]
+    case = L.canon_text(exam["sachverhalt"]) + "\n" + L.canon_text(exam["musterloesung"])
+    present = [i for i, p in enumerate(phrases) if L.canon_text(p) in case]
     check(f"canaries: {len(phrases)} sheet phrases, none in the Sachverhalt or the Musterlösung",
           len(phrases) >= 10 and not present, f"present: phrase indices {present}" if present else "")
-    missing = [i for i, p in enumerate(phrases) if L.norm_text(p) not in L.norm_text(mirror)]
+    missing = [i for i, p in enumerate(phrases) if L.canon_text(p) not in L.canon_text(mirror)]
     check("canaries: every phrase occurs in the expert sheet", not missing,
           f"missing: phrase indices {missing}" if missing else "")
-    in_case = [i for i, t in enumerate(L.FIXED_CANARIES) if L.norm_text(t) in case]
-    print(f"INFO  fixed canary terms (by index) that occur in the case text, hence removed before the check: {in_case}")
+    terms_file = ctx.inp / L.CANARY_TERMS_FILE
+    exam_terms = L.load_canary_terms(terms_file) if terms_file.exists() else []
+    if exam_terms:
+        in_case = [i for i, t in enumerate(exam_terms) if L.canon_text(t) in case]
+        print(f"INFO  {len(exam_terms)} exam terms from {terms_file.name}; those (by index) in the case text, "
+              f"masked before the user-prompt check: {in_case}")
+    else:
+        print(f"SKIP  exam terms: {terms_file.name} not in the work dir (a live guarded phase refuses to start "
+              "without it); the guard checks below use synthetic terms")
+    tracked_terms = [t for t in L.GENERIC_TERMS if L.canon_text(t, True) in {L.canon_text(x, True) for x in exam_terms}]
+    check("guard: no exam term is listed in tracked code (GENERIC_TERMS)", not tracked_terms,
+          f"indices {tracked_terms}" if tracked_terms else "")
 
-    guard = L.CanaryGuard(phrases)
+    # Synthetic terms (not from any exam) exercise the matching; the exam's own
+    # terms, when present, must behave the same.
+    synthetic = ["Kanarienprüfung", "Maßstabsfalle", "Übermaßkontrolle"]
+    guard = L.CanaryGuard(phrases, synthetic + exam_terms)
     ml, sv, answer = exam["musterloesung"], exam["sachverhalt"], "Die Klage ist zulässig und begründet. " * 3
-    rubric_lines = [f"Schritt 3: {L.FIXED_CANARIES[1]} (2 BE)", f"Schritt 4: {phrases[1]} (1 BE)"]
+    rubric_lines = [f"Schritt 3: {synthetic[0]} (2 BE)", f"Schritt 4: {phrases[1]} (1 BE)"]
     guard.arm("selftest", case_texts=[sv, ml, answer], rubric_texts=rubric_lines)
     clean_prompt = f"SACHVERHALT:\n<sachverhalt>\n{sv}\n</sachverhalt>\nMUSTERLÖSUNG:\n{ml}\nBEARBEITUNG:\n{answer}"
 
@@ -1440,22 +1548,50 @@ def phase_selftest(ctx: Ctx) -> int:
         except L.LeakageDetected as exc:
             return str(exc)
 
-    check("guard: case text, answer and rubric terms pass",
+    check("guard: case text, answer and rubric terms pass in the user prompt",
           raises("Bewerte fair.", clean_prompt + "\n" + rubric_lines[0]) is None)
-    message = raises(f"Etwa ein Argument zur {L.FIXED_CANARIES[1]}.", clean_prompt)
-    check("guard: a fixed term in the system prompt raises, naming its index only",
-          message is not None and "fixed term #" in message and L.FIXED_CANARIES[1] not in message)
-    check("guard: ss spelling is caught too", raises(f"Zur {L.FIXED_CANARIES[2]}.", clean_prompt) is not None)
+    message = raises(f"Etwa ein Argument zur {synthetic[1]}.", clean_prompt)
+    check("guard: a term in the system prompt raises, naming its index only",
+          message is not None and "exam term #" in message and synthetic[1] not in message)
+    check("guard: the system prompt is scanned unmasked (a rubric step named after a term hides nothing)",
+          raises(f"Regel: {synthetic[0]} beachten.", clean_prompt) is not None)
+    check("guard: the system prompt is scanned unmasked for sheet phrases too",
+          raises(f"Regel: {phrases[2]}.", clean_prompt) is not None)
+    variants = {
+        "ss for ß": synthetic[1].replace("ß", "ss"),
+        "Ue for Ü": synthetic[2].replace("Ü", "Ue"),
+        "upper case": synthetic[1].upper(),
+        "soft hyphen": synthetic[2][:4] + "\u00ad" + synthetic[2][4:],
+        "zero-width space": synthetic[1][:3] + "\u200b" + synthetic[1][3:],
+        "zero-width joiner": synthetic[2][:6] + "\u200d" + synthetic[2][6:],
+        "line-break hyphenation": synthetic[1][:5] + "-\n" + synthetic[1][5:],
+        "hyphen inside the word": synthetic[2][:6] + "-" + synthetic[2][6:],
+        "combining umlaut": synthetic[2].replace("Ü", "U\u0308"),
+    }
+    for name, variant in variants.items():
+        check(f"guard: {name} is caught in the system prompt", raises(f"Zur {variant}.", clean_prompt) is not None)
+        check(f"guard: {name} is caught in the user prompt",
+              raises("Bewerte fair.", clean_prompt + f"\nHinweis: {variant}") is not None)
+    for i, term in enumerate(exam_terms):
+        check(f"guard: exam term #{i} raises in the system prompt, also written with ss and hyphenated",
+              raises(f"Zur {term}.", clean_prompt) is not None
+              and raises(f"Zur {term.replace('ß', 'ss')[:4]}-\n{term.replace('ß', 'ss')[4:]}.", clean_prompt) is not None)
     message = raises("Bewerte fair.", clean_prompt + "\n" + phrases[0])
     check("guard: a sheet phrase in the user prompt raises, naming its index only",
           message is not None and "sheet phrase #0" in message and phrases[0] not in message)
     check("guard: a sheet phrase inside the rubric under test raises",
           raises("Bewerte fair.", clean_prompt + "\n" + rubric_lines[1]) is not None)
     check("guard: the generator's correction block is not scanned",
-          raises("Bewerte fair.", clean_prompt + L.CORRECTION_MARKER + "\nVORHERIGES DOKUMENT: " + L.FIXED_CANARIES[0]) is None)
+          raises("Bewerte fair.", clean_prompt + L.CORRECTION_MARKER + "\nVORHERIGES DOKUMENT: " + synthetic[1]) is None)
     guard.disarm()
-    check("guard: disarmed guard never raises", raises(L.FIXED_CANARIES[1], phrases[0]) is None)
+    check("guard: disarmed guard never raises", raises(synthetic[1], phrases[0]) is None)
     check("guard: LeakageDetected escapes except Exception", not issubclass(L.LeakageDetected, Exception))
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / L.CANARY_PHRASES_FILE).write_text(json.dumps({"phrases": ["x"]}))
+        check("guard: a live guarded phase refuses to start without the term file",
+              load_guard(Path(tmp), "raise", dry_run=False) is None)
+        check("guard: a dry run without the term file goes ahead with the generic terms",
+              isinstance(load_guard(Path(tmp), "raise", dry_run=True), L.CanaryGuard))
     stripped = L.strip_task_data({"Sachverhalt": 1, "Bewertungsbogen": 2, "korrekturhinweise": 3, "exemplar_rubrics": 4})
     check("strip: sheet, hints and exemplars removed case-insensitively", stripped == {"Sachverhalt": 1})
 
@@ -1552,10 +1688,97 @@ def phase_selftest(ctx: Ctx) -> int:
                 check("ledger: cap stops the call", False)
             except L.BudgetExceeded:
                 check("ledger: cap stops the call", True)
+            ledger.cap = 100.0
+
+            class NoUsage:
+                def ok(self, **kwargs):
+                    return {"success": True, "usage": {}}
+
+            no_usage, flagged = NoUsage(), []
+            before = ledger.state["spent"]
+            L.meter(no_usage, "ok", "m", ledger, flagged)
+            no_usage.ok(prompt="p")
+            check("ledger: a success without usage is charged the reserve and flagged, not booked at $0",
+                  abs(ledger.state["spent"] - before - ledger.reserve("m")) < 1e-9
+                  and flagged[-1].get("usage_missing") and ledger.state["usage_missing"] == 1)
+
+            class Client:
+                def __init__(self, max_retries=2, sticky=False):
+                    self.max_retries, self.sticky = max_retries, sticky
+
+                def with_options(self, max_retries):
+                    return Client(self.max_retries if self.sticky else max_retries, self.sticky)
+
+            class SdkService:
+                def __init__(self, client):
+                    self.client = client
+
+                def ok(self, **kwargs):
+                    return {"success": True, "usage": {"prompt_tokens": 10, "completion_tokens": 10}}
+
+            sdk_calls: list = []
+            sdk = SdkService(Client())
+            L.meter(sdk, "ok", "m", ledger, sdk_calls)
+            sdk.ok(prompt="p")
+            check("metering: the SDK client's own retries are switched off (max_retries 0) before the call",
+                  sdk.client.max_retries == 0 and sdk_calls[-1].get("sdk_max_retries") == 0)
+            stuck = SdkService(Client(sticky=True))
+            L.meter(stuck, "ok", "m", ledger, sdk_calls)
+            try:
+                stuck.ok(prompt="p")
+                check("metering: a client that keeps retrying stops the run", False)
+            except L.UnmeteredCall:
+                check("metering: a client that keeps retrying stops the run", True)
+            plain = SdkService(True)  # DeepInfra style: no SDK client
+            L.meter(plain, "ok", "m", ledger, sdk_calls)
+            plain.ok(prompt="p")
+            check("metering: a service without an SDK client records sdk_max_retries None",
+                  sdk_calls[-1].get("sdk_max_retries") is None)
         finally:
             os.environ.pop("PILOT_DRY_RUN", None)
             if saved is not None:
                 os.environ["PILOT_DRY_RUN"] = saved
+
+    # --- unmetered results ---------------------------------------------------
+    live = SimpleNamespace(dry_run=False)
+    check("unmetered: a live result without a metered call is refused",
+          unmetered_problem(live, [], {"total_score": 50}, "judge") is not None)
+    check("unmetered: a live result with a metered call passes",
+          unmetered_problem(live, [{"model": "m", "usd": 0.01}], {"total_score": 50}, "judge") is None)
+    check("unmetered: an error result without a call passes (nothing was sent)",
+          unmetered_problem(live, [], {"error": True}, "judge") is None)
+    check("unmetered: a failed generation without a call passes",
+          unmetered_problem(live, [], {"status": "failed"}, "generator") is None)
+    check("unmetered: the judge's E2E_TEST_MODE mock is refused, also in a dry run",
+          unmetered_problem(SimpleNamespace(dry_run=True), [], {"_call_metadata": {"e2e_test_mode": True}},
+                            "judge") is not None)
+
+    # --- ledger merge (pilot.sh) ------------------------------------------------
+    base = {"spent": 1.0, "calls": 10, "by_model": {"m": {"calls": 10, "usd": 1.0, "in": 5, "out": 5}},
+            "runs": [{"run_id": "a"}], "reserve_charges": 0}
+    run = {"spent": 1.5, "calls": 14, "by_model": {"m": {"calls": 12, "usd": 1.3, "in": 9, "out": 9},
+                                                   "n": {"calls": 2, "usd": 0.2, "in": 1, "out": 1}},
+           "runs": [{"run_id": "a"}, {"run_id": "b"}], "reserve_charges": 1}
+    check("merge: an unmoved host ledger takes the run's ledger", L.merge_ledger_states(base, base, run) == run)
+    moved = dict(base, spent=2.0, calls=20, runs=[{"run_id": "a"}, {"run_id": "c"}])
+    merged = L.merge_ledger_states(moved, base, run)
+    check("merge: a moved host ledger keeps both runs' spend",
+          abs(merged["spent"] - 2.5) < 1e-9 and merged["calls"] == 24
+          and [r["run_id"] for r in merged["runs"]] == ["a", "c", "b"]
+          and abs(merged["by_model"]["n"]["usd"] - 0.2) < 1e-9, json.dumps(merged)[:200])
+    try:
+        L.merge_ledger_states(base, run, base)
+        check("merge: a run ledger lower than its base is refused", False)
+    except ValueError:
+        check("merge: a run ledger lower than its base is refused", True)
+
+    # --- code version covers the judge's imports ---------------------------------
+    gaps = instrument_import_gaps(ctx.provenance.get("files") or {})
+    check("code version: every local module the judge modules import is an instrument file", not gaps, str(gaps))
+    check("code version: the checklist scoring, rubric structure, evaluator and assessment block are hashed",
+          all(k in (ctx.provenance.get("files") or {}) for k in (
+              "ml_evaluation/checklist_scoring.py", "rubric_structure.py", "ml_evaluation/llm_judge_evaluator.py",
+              "ml_evaluation/rubric_assessment.py")))
 
     # --- arms ---------------------------------------------------------------
     arm = L.parse_arm("rubric:abc:step:replace")
@@ -1645,6 +1868,25 @@ def setup_paths(work: Path) -> None:
         paths += [str(repo / "services" / "shared"), str(repo / "services" / "workers")]
     lib_dirs = [str(work / "in")] + ([str(here)] if here is not None else [])
     sys.path[:0] = lib_dirs + paths
+    LOCAL_ROOTS[:] = lib_dirs + paths
+
+
+def load_guard(inp: Path, mode: str, dry_run: bool):
+    """The leakage guard from the git-ignored phrase and term files.
+
+    Both files are required for a live run: without them the guard would
+    look for nothing and pass every prompt. A dry run without the term file
+    goes ahead with the generic terms only and says so."""
+    phrases, terms = inp / L.CANARY_PHRASES_FILE, inp / L.CANARY_TERMS_FILE
+    missing = [p.name for p in (phrases, terms) if not p.exists()]
+    if phrases.name in missing or (missing and not dry_run):
+        print(f"{', '.join(missing)} missing in {inp} (git-ignored, data/interim/human/): the leakage guard "
+              "fails closed", flush=True)
+        return None
+    exam_terms = L.load_canary_terms(terms) if terms.exists() else []
+    if not terms.exists():
+        print(f"WARNING {terms.name} missing: dry run with the generic terms only", flush=True)
+    return L.CanaryGuard(L.load_canary_phrases(phrases), list(L.GENERIC_TERMS) + exam_terms, mode=mode)
 
 
 def interrupt_on_term(signum, _frame):
@@ -1673,7 +1915,7 @@ def main() -> int:
     signal.signal(signal.SIGTERM, interrupt_on_term)
 
     files = instrument_hashes()
-    missing = sorted(k for k, v in files.items() if v is None)
+    missing = sorted(k for k, v in files.items() if v is None and k not in OPTIONAL_INSTRUMENT_FILES)
     if missing:
         print(f"WARNING instrument files not found on the import path: {missing}", flush=True)
     provenance = {
@@ -1697,11 +1939,9 @@ def main() -> int:
     ledger = L.Ledger(work / "ledger.json", cap=args.cap)
     guard = None
     if args.phase in SPENDING_PHASES:
-        canaries = work / "in" / "canary_phrases.json"
-        if not canaries.exists():
-            print(f"{canaries} missing: the leakage guard fails closed", flush=True)
+        guard = load_guard(work / "in", canary_mode, dry_run)
+        if guard is None:
             return 2
-        guard = L.CanaryGuard(L.load_canary_phrases(canaries), mode=canary_mode)
     ctx = Ctx(args, ledger, guard, provenance)
     started = now()
     status, rc = "ok", 0
@@ -1724,6 +1964,11 @@ def main() -> int:
             phase_d2_judge(ctx)
         elif args.phase == "d2-probes":
             phase_d2_probes(ctx)
+        if args.phase in SPENDING_PHASES and not dry_run and ctx.results and not ledger.calls_added():
+            raise L.UnmeteredCall(f"{ctx.results} judgments or generations returned, but the ledger booked "
+                                  "no call in this run")
+    except L.UnmeteredCall as exc:
+        status, rc = f"UNMETERED: {exc}", 7
     except L.BudgetExceeded as exc:
         status, rc = f"budget stop: {exc}", 3
     except L.ProviderBlocked as exc:
@@ -1750,7 +1995,8 @@ def main() -> int:
                 "canary_warnings": len(guard.warnings) if guard else 0,
             })
         print("LEDGER " + json.dumps({"spent": round(ledger.state["spent"], 5), "added": round(ledger.added(), 5),
-                                      "calls": ledger.state["calls"]}), flush=True)
+                                      "calls": ledger.state["calls"], "calls_added": ledger.calls_added(),
+                                      "usage_missing": ledger.state.get("usage_missing", 0)}), flush=True)
     return rc
 
 

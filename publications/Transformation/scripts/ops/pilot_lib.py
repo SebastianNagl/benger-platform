@@ -4,9 +4,11 @@ Nothing here touches the database or a provider at import time, so the
 runner's ``selftest`` phase can exercise every piece without either:
 
 - the spend ledger and the metered provider wrapper (spend cap, catalog
-  prices, reserve charge on a failed call, dry run);
-- the leakage guard (canary terms from the D2 exam against every prompt that
-  must not have seen the expert sheet; messages name terms by index only);
+  prices, reserve charge on a failed call or a success without usage, SDK
+  retries switched off, dry run) and the ledger merge pilot.sh uses;
+- the leakage guard (canary phrases and terms of the D2 exam, both from
+  git-ignored files, against every prompt that must not have seen the
+  expert sheet; messages name terms by index only);
 - the spec adapter (any platform rubric or the expert sheet, in each sheet
   state, as a checklist spec for the step and rating units);
 - the probe builders (negation flip, keyword salad, section ablation,
@@ -16,7 +18,8 @@ runner's ``selftest`` phase can exercise every piece without either:
   and the model-proposed total.
 
 The runner copies this file next to itself into the container
-(``scripts/ops/pilot.sh``) and imports it from there.
+(``scripts/ops/pilot.sh``) and imports it from there. On the host,
+``pilot_lib.py merge-ledger HOST BASE RUN OUT`` merges a run's ledger back.
 """
 
 from __future__ import annotations
@@ -53,6 +56,11 @@ class PriceMissing(BaseException):
 
 class LeakageDetected(BaseException):
     """A canary term of the D2 exam reached a prompt that must not see it."""
+
+
+class UnmeteredCall(BaseException):
+    """A live judgment or generation produced a result without a metered call,
+    or a provider client could not be kept from retrying on its own."""
 
 
 # ---------------------------------------------------------------------------
@@ -136,8 +144,10 @@ class Ledger:
         self.state.setdefault("calls", 0)
         self.state.setdefault("by_model", {})
         self.state.setdefault("reserve_charges", 0)
+        self.state.setdefault("usage_missing", 0)
         self.state.setdefault("runs", [])
         self.start_spent = float(self.state["spent"])
+        self.start_calls = int(self.state["calls"])
 
     def price(self, model: str) -> tuple[float, float]:
         pin, pout = self.prices.get(model, (None, None))
@@ -189,6 +199,10 @@ class Ledger:
     def added(self) -> float:
         return float(self.state["spent"]) - self.start_spent
 
+    def calls_added(self) -> int:
+        """Bookings made in this run (priced usage and reserve charges)."""
+        return int(self.state["calls"]) - self.start_calls
+
     def record_run(self, info: dict[str, Any]) -> None:
         self.state["runs"].append(info)
         self.save()
@@ -219,6 +233,9 @@ def charge_response(ledger: Ledger, model: str, response: dict[str, Any]) -> dic
     - A failed response without usage is charged the reserve for the failed
       call itself; when its retry history already lists that failed attempt,
       it is not charged twice (max of 1 and the attempts without usage).
+    - A success without usage was paid for but cannot be priced: it is
+      charged the reserve (a conservative ceiling) and flagged
+      ``usage_missing``, never booked at $0.
     """
     usage = response.get("usage") or {}
     meta = response.get("metadata") or {}
@@ -232,18 +249,51 @@ def charge_response(ledger: Ledger, model: str, response: dict[str, Any]) -> dic
         if attempt_usage is not None:
             usd += ledger.add(model, attempt_usage)
     unpriced = sum(1 for u in priced if u is None)
+    usage_missing = False
     if has_usage:
         usd += ledger.add(model, usage)
         reserves = unpriced
     elif not response.get("success"):
         reserves = max(1, unpriced)
-    else:  # a success without usage: nothing to price, retries still cost
-        usd += ledger.add(model, usage)
+    else:  # a success without usage: paid, but not priceable -> reserve, flagged
+        usage_missing = True
+        ledger.state["usage_missing"] = int(ledger.state.get("usage_missing") or 0) + 1
+        usd += ledger.charge_reserve(model, "success without usage data (reserve as ceiling)")
         reserves = unpriced
     for _ in range(reserves):
         usd += ledger.charge_reserve(model, "provider retry or failure without usage")
     return {"usd": usd, "retry_count": len(attempts), "retry_attempts_priced": len(priced) - unpriced,
-            "reserves_charged": reserves}
+            "reserves_charged": reserves + (1 if usage_missing else 0), "usage_missing": usage_missing}
+
+
+def disable_sdk_retries(service: Any) -> int | None:
+    """Keep the provider SDK from retrying on its own; returns its max_retries.
+
+    The OpenAI and Anthropic SDK clients retry failed requests themselves
+    (default ``max_retries=2``). Those attempts happen inside one call of
+    the wrapped service method, so the meter would never see them. The
+    service's client is swapped for a copy with ``max_retries=0``; the
+    service's own retry loop (rate limits) and the judge's retry loop then
+    carry every retry, and both report it (``metadata.retry_attempts``, one
+    metered call per judge attempt).
+
+    None means the service has no SDK client with a retry setting: the
+    DeepInfra and OpenAI-compatible services call aiohttp directly and
+    report their own retries in ``metadata.retry_attempts``.
+    """
+    client = getattr(service, "client", None)
+    if client is None or isinstance(client, bool):
+        return None
+    current = getattr(client, "max_retries", None)
+    if not isinstance(current, int) or isinstance(current, bool):
+        return None
+    if current != 0:
+        copy = getattr(client, "with_options", None)
+        if callable(copy):
+            service.client = copy(max_retries=0)
+        else:
+            client.max_retries = 0
+    return getattr(service.client, "max_retries", None)
 
 
 def meter(service: Any, method: str, model: str, ledger: Ledger, calls: list[dict[str, Any]],
@@ -258,9 +308,12 @@ def meter(service: Any, method: str, model: str, ledger: Ledger, calls: list[dic
     provider's internal retries (their usage, else the reserve each) and the
     reserve for a failure without usage. Re-wrapping an already metered
     method replaces the old wrapper, so a call is never metered twice.
+    The provider SDK's own retries are switched off before every call
+    (:func:`disable_sdk_retries`), so each attempt passes this wrapper.
     """
     current = getattr(service, method)
     original = getattr(current, "__pilot_original__", current)
+    disable_sdk_retries(service)
 
     def metered(*args, **kwargs):
         prompt = kwargs.get("prompt")
@@ -288,6 +341,11 @@ def meter(service: Any, method: str, model: str, ledger: Ledger, calls: list[dic
             response = {"success": False, "error": "Error code: 429 credit_balance_exhausted", "usage": {}}
             ledger.add(model, {})
             check_blocked(model, response)
+        sdk_retries = disable_sdk_retries(service)
+        if sdk_retries not in (None, 0):
+            raise UnmeteredCall(f"{model}: the provider client still retries on its own "
+                                f"(max_retries={sdk_retries}); its attempts would not be metered")
+        entry["sdk_max_retries"] = sdk_retries
         started = time.monotonic()
         try:
             response = original(*args, **kwargs)
@@ -308,12 +366,59 @@ def meter(service: Any, method: str, model: str, ledger: Ledger, calls: list[dic
                       "success": bool(response.get("success")), "error_type": meta.get("error_type"),
                       "finish_reason": meta.get("finish_reason"), "retry_count": booked["retry_count"],
                       "reserves_charged": booked["reserves_charged"]})
+        if booked["usage_missing"]:
+            entry["usage_missing"] = True
+            print(f"WARNING {model}: a successful call returned no usage data; charged the reserve "
+                  f"${ledger.reserve(model):.2f} as a ceiling", flush=True)
         calls.append(entry)
         check_blocked(model, response)
         return response
 
     metered.__pilot_original__ = original  # type: ignore[attr-defined]
     setattr(service, method, metered)
+
+
+_LEDGER_COUNTERS = ("spent", "calls", "reserve_charges", "usage_missing")
+_LEDGER_LISTS = ("runs", "reserve_log")
+
+
+def merge_ledger_states(host: dict[str, Any], base: dict[str, Any], run: dict[str, Any]) -> dict[str, Any]:
+    """The host ledger plus what one run added: host + (run - base).
+
+    ``base`` is the ledger the run started from (pilot.sh copies it in next
+    to the run's working copy), ``run`` the run's ledger at its end. When
+    the host ledger did not move meanwhile (the usual case) the result is
+    the run's ledger. When it did (a recovered orphan run, see
+    ``pilot.sh recover``), both runs' spend is kept. Raises ValueError when
+    the run's ledger is lower than its base (it must only grow).
+    """
+    host, base, run = host or {}, base or {}, run or {}
+    for key in _LEDGER_COUNTERS:
+        if float(run.get(key) or 0) < float(base.get(key) or 0) - 1e-9:
+            raise ValueError(f"the run's ledger went down ({key}: {run.get(key)} < base {base.get(key)})")
+    for key in _LEDGER_LISTS:
+        if len(run.get(key) or []) < len(base.get(key) or []):
+            raise ValueError(f"the run's ledger lost entries ({key})")
+    if host == base:
+        return json.loads(json.dumps(run))
+    merged = json.loads(json.dumps(host))
+    for key in _LEDGER_COUNTERS:
+        delta = float(run.get(key) or 0) - float(base.get(key) or 0)
+        value = float(host.get(key) or 0) + delta
+        merged[key] = value if key == "spent" else round(value)
+    by_model = merged.setdefault("by_model", {})
+    base_models = base.get("by_model") or {}
+    for model, stats in (run.get("by_model") or {}).items():
+        before = base_models.get(model) or {}
+        target = by_model.setdefault(model, {"calls": 0, "usd": 0.0, "in": 0, "out": 0})
+        for field, value in stats.items():
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                delta = value - (before.get(field) or 0)
+                target[field] = (target.get(field) or 0) + delta
+    for key in _LEDGER_LISTS:
+        new = (run.get(key) or [])[len(base.get(key) or []):]
+        merged[key] = list(host.get(key) or []) + list(new)
+    return merged
 
 
 def usage_summary(calls: Sequence[dict[str, Any]]) -> dict[str, Any]:
@@ -329,24 +434,49 @@ def usage_summary(calls: Sequence[dict[str, Any]]) -> dict[str, Any]:
 # Leakage guard
 # ---------------------------------------------------------------------------
 
-# Generic terms that mark the D2 exam (review decisions, section 4). They also
-# occur in Martin's Musterlösung, so the guard removes the case text, the
-# answer and the rubric under test before it looks for them. The distinctive
-# phrases from Martin's sheet live in the git-ignored
-# data/interim/human/canary_phrases.json: they quote his sheet, and this repo
-# is public.
-FIXED_CANARIES = ("Zweckveranlasser", "Maßnahmerichtung", "Massnahmerichtung", "Fortsetzungsfeststellung")
+# The terms that mark the D2 exam (review decisions, section 4) name its
+# legal problems, and this repo is public: they live in the git-ignored
+# data/interim/human/canary_terms.json ({"terms": [...]}), next to the
+# distinctive phrases quoted from Martin's sheet (canary_phrases.json,
+# {"phrases": [...]}). Both files are required for a live guarded phase.
+# Only generic, exam-independent terms may be listed here.
+GENERIC_TERMS: tuple[str, ...] = ()
+CANARY_PHRASES_FILE = "canary_phrases.json"
+CANARY_TERMS_FILE = "canary_terms.json"
 SENSITIVE_TASK_KEYS = ("bewertungsbogen", "korrekturhinweise", "exemplar_rubrics")
 # The generator's validator-feedback retry appends its previous output after
 # this marker. The model's own output is not instruction text.
 CORRECTION_MARKER = "\n\n---\nKORREKTURAUFTRAG"
 _MIN_CASE_SEGMENT = 20
 _MIN_RUBRIC_SEGMENT = 4
+# Soft hyphen, zero-width space and joiners, LRM/RLM, word joiner, Mongolian
+# vowel separator, BOM: characters that split a term without showing.
+_INVISIBLE = dict.fromkeys(map(ord, "\u00ad\u200b\u200c\u200d\u200e\u200f\u2060\u180e\ufeff"), None)
+_TRANSLIT = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue"})  # after casefold, which maps ß to ss
+_LINEBREAK_HYPHEN = re.compile(r"(?<=\w)[-\u2010\u2011][ \t]*\r?\n\s*(?=\w)")
+_INNER_HYPHEN = re.compile(r"(?<=\w)[-\u2010\u2011][ \t]*(?=\w)")
 
 
 def norm_text(text: Any) -> str:
     """Casefolded, NFC, whitespace-collapsed (so ß and ss match)."""
     return re.sub(r"\s+", " ", unicodedata.normalize("NFC", str(text or ""))).strip().casefold()
+
+
+def canon_text(text: Any, loose: bool = False) -> str:
+    """The guard's matching form of a text.
+
+    NFKC (ligatures, compatibility forms), invisible characters removed,
+    line-break hyphenation joined (a hyphen at a line end glues the two
+    halves), casefolded (ß becomes ss), ä/ö/ü written as ae/oe/ue,
+    whitespace collapsed. ``loose`` also drops every hyphen between two
+    word characters, so a term hyphenated anywhere still matches.
+    """
+    text = unicodedata.normalize("NFKC", str(text or "")).translate(_INVISIBLE)
+    text = _LINEBREAK_HYPHEN.sub("", text)
+    if loose:
+        text = _INNER_HYPHEN.sub("", text)
+    text = text.casefold().translate(_TRANSLIT)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def strip_task_data(data: dict[str, Any] | None) -> dict[str, Any]:
@@ -355,77 +485,106 @@ def strip_task_data(data: dict[str, Any] | None) -> dict[str, Any]:
             if not (isinstance(k, str) and k.casefold() in SENSITIVE_TASK_KEYS)}
 
 
-def load_canary_phrases(path: Any) -> list[str]:
+def _load_list(path: Any, key: str, what: str) -> list[str]:
     doc = json.loads(Path(path).read_text(encoding="utf-8"))
-    phrases = [str(p).strip() for p in doc.get("phrases") or [] if str(p).strip()]
-    if not phrases:
-        raise ValueError(f"{path}: no canary phrases")
-    return phrases
+    items = doc.get(key) if isinstance(doc, dict) else None
+    items = [str(p).strip() for p in items or [] if str(p).strip()]
+    if not items:
+        raise ValueError(f"{path}: no {what} under {key!r}")
+    return items
+
+
+def load_canary_phrases(path: Any) -> list[str]:
+    """The distinctive sheet phrases (git-ignored ``canary_phrases.json``)."""
+    return _load_list(path, "phrases", "canary phrases")
+
+
+def load_canary_terms(path: Any) -> list[str]:
+    """The exam's own leakage terms (git-ignored ``canary_terms.json``)."""
+    return _load_list(path, "terms", "canary terms")
 
 
 class CanaryGuard:
     """Asserts that no canary term reaches a guarded prompt.
 
-    Two tiers, both case-insensitive. The distinctive sheet phrases never
-    occur in the case text, so they are searched in everything except the
-    Sachverhalt, the Musterlösung and the answer under test. The generic
-    terms do occur in the Musterlösung and legitimately in a rubric derived
-    from it, so the rubric under test (its text, step names, requirements
-    and keys) is removed as well before they are searched. What remains is
-    the instrument itself: system prompt, template, rules, key map.
+    Two tiers, matched in :func:`canon_text` form, plain and loose (case,
+    ß/ss, umlaut/ae, soft hyphens, zero-width characters and hyphenation do
+    not hide a term). The system prompt is instrument text only, so it is
+    searched whole with nothing masked: a rubric step named after a term
+    cannot hide that term there. In the user prompt the distinctive sheet
+    phrases are searched after the Sachverhalt, the Musterlösung and the
+    answer under test are masked. The exam terms do occur in the
+    Musterlösung and legitimately in a rubric derived from it, so the rubric
+    under test (its text, step names, requirements and keys) is masked as
+    well before they are searched. What remains is the instrument: template,
+    rules, key map.
     """
 
-    def __init__(self, phrases: Iterable[str], fixed: Iterable[str] = FIXED_CANARIES, mode: str = "raise"):
+    def __init__(self, phrases: Iterable[str], terms: Iterable[str] = GENERIC_TERMS, mode: str = "raise"):
         if mode not in ("raise", "warn"):
             raise ValueError("guard mode must be 'raise' or 'warn'")
         self.phrases = self._unique(phrases)
-        self.fixed = self._unique(fixed)
+        self.terms = self._unique(terms)
         self.mode = mode
         self.label: str | None = None
-        self.case: list[str] = []
-        self.rubric: list[str] = []
+        self.case: dict[bool, list[str]] = {False: [], True: []}
+        self.rubric: dict[bool, list[str]] = {False: [], True: []}
         self.warnings: list[str] = []
         self.checked = 0
 
     @staticmethod
     def _unique(terms: Iterable[str]) -> list[str]:
-        """Distinct after normalisation (Maßnahmerichtung == Massnahmerichtung)."""
+        """Distinct after normalisation (ß/ss and ü/ue spellings are one term)."""
         seen: dict[str, str] = {}
         for term in (str(x).strip() for x in terms):
-            if term and norm_text(term) not in seen:
-                seen[norm_text(term)] = term
+            if term and canon_text(term, loose=True) not in seen:
+                seen[canon_text(term, loose=True)] = term
         return list(seen.values())
 
     @property
     def armed(self) -> bool:
         return self.label is not None
 
+    @staticmethod
+    def _segments(texts: Iterable[Any], minimum: int) -> dict[bool, list[str]]:
+        texts = list(texts)
+        return {loose: sorted({t for t in (canon_text(x, loose) for x in texts) if len(t) >= minimum},
+                              key=len, reverse=True) for loose in (False, True)}
+
     def arm(self, label: str, case_texts: Iterable[Any] = (), rubric_texts: Iterable[Any] = ()) -> None:
         self.label = label
-        self.case = sorted({t for t in map(norm_text, case_texts) if len(t) >= _MIN_CASE_SEGMENT},
-                           key=len, reverse=True)
-        self.rubric = sorted({t for t in map(norm_text, rubric_texts) if len(t) >= _MIN_RUBRIC_SEGMENT},
-                             key=len, reverse=True)
+        self.case = self._segments(case_texts, _MIN_CASE_SEGMENT)
+        self.rubric = self._segments(rubric_texts, _MIN_RUBRIC_SEGMENT)
 
     def disarm(self) -> None:
         self.label = None
-        self.case, self.rubric = [], []
+        self.case, self.rubric = {False: [], True: []}, {False: [], True: []}
+
+    def _scan(self, part: str, raw: str, masked: bool) -> list[str]:
+        found: list[str] = []
+        for loose in (False, True):
+            text = canon_text(raw, loose)
+            if masked:
+                for segment in self.case[loose]:
+                    text = text.replace(segment, " ")
+            found += [f"sheet phrase #{i} in the {part} prompt" for i, p in enumerate(self.phrases)
+                      if canon_text(p, loose) in text]
+            if masked:
+                for segment in self.rubric[loose]:
+                    text = text.replace(segment, " ")
+            found += [f"exam term #{i} in the {part} prompt" for i, t in enumerate(self.terms)
+                      if canon_text(t, loose) in text]
+        return found
 
     def hits(self, system: str, prompt: str) -> list[str]:
         """Which canary terms occur where, by index only: messages end up in
-        logs and the ledger, so they never quote a term."""
-        found: list[str] = []
-        for part, raw in (("system", system or ""), ("user", prompt or "")):
-            cut = raw.find(CORRECTION_MARKER)
-            text = norm_text(raw[:cut] if cut >= 0 else raw)
-            for segment in self.case:
-                text = text.replace(segment, " ")
-            found += [f"sheet phrase #{i} in the {part} prompt" for i, p in enumerate(self.phrases)
-                      if norm_text(p) in text]
-            for segment in self.rubric:
-                text = text.replace(segment, " ")
-            found += [f"fixed term #{i} in the {part} prompt" for i, t in enumerate(self.fixed)
-                      if norm_text(t) in text]
+        logs and the ledger, so they never quote a term. The system prompt
+        is scanned whole and unmasked; the user prompt up to the generator's
+        correction block, with the case, answer and rubric masked."""
+        user = prompt or ""
+        cut = user.find(CORRECTION_MARKER)
+        found = self._scan("system", system or "", masked=False)
+        found += self._scan("user", user[:cut] if cut >= 0 else user, masked=True)
         return list(dict.fromkeys(found))
 
     def check(self, system: str, prompt: str) -> None:
@@ -436,7 +595,8 @@ class CanaryGuard:
         if not found:
             return
         message = (f"leakage guard ({self.label}): " + "; ".join(found)
-                   + " (outside the case text, the answer and the rubric under test)")
+                   + " (system prompt: anywhere; user prompt: outside the case text, the answer"
+                     " and the rubric under test)")
         if self.mode == "warn":
             self.warnings.append(message)
             print("CANARY WARNING (dry run, not raised): " + message, flush=True)
@@ -1238,3 +1398,51 @@ def model_total(result: dict[str, Any], spec: dict[str, Any] | None, unit: str |
         else:
             total += float(entry.get("model_score") or 0)
     return total
+
+
+# ---------------------------------------------------------------------------
+# Host-side CLI (scripts/ops/pilot.sh)
+# ---------------------------------------------------------------------------
+
+
+def _read_ledger(path: str) -> dict[str, Any]:
+    """A ledger file, or {} when it does not exist (an empty file is an error)."""
+    p = Path(path)
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
+def _cli(argv: list[str]) -> int:
+    """``merge-ledger HOST BASE RUN OUT``: write host + (run - base) to OUT.
+
+    OUT is written atomically and read back; the printed line says what was
+    added. Exit 1 when a file is unreadable or the run's ledger went down.
+    """
+    import sys
+
+    if len(argv) != 5 or argv[0] != "merge-ledger":
+        print("usage: pilot_lib.py merge-ledger HOST BASE RUN OUT", file=sys.stderr)
+        return 2
+    host_path, base_path, run_path, out_path = argv[1:]
+    try:
+        host, base, run = _read_ledger(host_path), _read_ledger(base_path), _read_ledger(run_path)
+        merged = merge_ledger_states(host, base, run)
+    except (ValueError, OSError) as exc:
+        print(f"merge-ledger: {exc}")
+        return 1
+    out = Path(out_path)
+    tmp = out.with_name(out.name + ".tmp")
+    tmp.write_text(json.dumps(merged, indent=1))
+    tmp.replace(out)
+    if abs(float(_read_ledger(out_path).get("spent") or 0) - float(merged.get("spent") or 0)) > 1e-9:
+        print(f"merge-ledger: {out} does not read back as written")
+        return 1
+    added = float(run.get("spent") or 0) - float(base.get("spent") or 0)
+    print(json.dumps({"host_before": round(float(host.get("spent") or 0), 5), "run_added": round(added, 5),
+                      "merged": round(float(merged.get("spent") or 0), 5), "host_moved": host != base}))
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    raise SystemExit(_cli(sys.argv[1:]))
