@@ -523,13 +523,19 @@ def main() -> int:
     steps = {}
     for j in ROSTER:
         b = stepvar[j]["by_step_size"][BIG_BUCKET]
+        small = stepvar[j]["by_step_size"].get("3-5") or {}
         steps[j] = {"share_points": b["share_of_points"], "share_variance": b["share_of_variance"],
+                    "share_squared_maxima": b.get("share_of_squared_maxima"),
+                    "rel_sd_big": b.get("mean_relative_sd"), "rel_sd_3_5": small.get("mean_relative_sd"),
                     "n_step_cells": b["n_step_cells"], "n_cells": stepvar[j]["n_cells"],
                     "ratio": b["share_of_variance"] / b["share_of_points"]}
     step_summary = {
         "disproportionate": sorted(j for j in ROSTER if steps[j]["ratio"] > RATIO_THRESHOLD),
         "near_proportional": sorted(j for j in ROSTER if steps[j]["ratio"] <= RATIO_THRESHOLD),
         "ratio_threshold": RATIO_THRESHOLD,
+        # equal relative noise per step puts share_squared_maxima of the variance in the class
+        "above_equal_relative_noise": sorted(j for j in ROSTER if steps[j]["share_squared_maxima"] is not None
+                                             and steps[j]["share_variance"] > steps[j]["share_squared_maxima"]),
         "bucket": BIG_BUCKET,
         "note": "share = share of SUMMED per-step variance (covariance ignored), bucket = step maximum >= 15",
     }

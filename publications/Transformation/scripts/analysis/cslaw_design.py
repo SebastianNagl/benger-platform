@@ -160,38 +160,42 @@ PARTLY_FIXED = {
     "free_share": 0.2,
 }
 
+# Redesigned 2026-09-27 after a simulated peer review (three reviewers, identical brief): four RQs,
+# a crossed variance study that answers the title question on all D2 scripts, human anchors, a lean
+# benchmark, and doctrinal probes. The pipeline factorial and the Roth experiment are dropped.
 EXPERIMENTS = [
-    {"id": "E0", "name": "Gate v2 and instrument freeze", "rq": ["RQ1", "RQ5"],
-     "scope": "D2 and 4 D1 exams; the expert sheet (step and rating units), one checklist sheet each from "
-              "two generators, the first-iteration sheet; 3 judges",
-     "cost_usd": [15, 15], "n_d1_exams": 4, "passes": 3,
-     "judges": ["gpt-5.6-luna", "gpt-5.4-mini", "DeepSeek-V4-Pro"],
-     "instruments": [["expert", "step"], ["expert", "rating"], ["gpt-5.4-mini", "bullet"], ["gpt-5.4", "bullet"],
-                     ["first iteration", "step"]]},
-    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ1", "RQ3", "RQ4"],
-     "scope": "12 generators, 15 D1 exams and D2, 2-3 samples per exam, one reference judge (2 passes), "
-              "a second judge on 4 generators",
-     "cost_usd": [170, 170], "n_generators": 12, "samples": [2, 3], "reference_judge_passes": 2,
-     "second_judge_generators": 4, "audit_bullets_per_sheet": 10},
-    {"id": "E2", "name": "Judge benchmark", "rq": ["RQ1", "RQ2", "RQ5"],
-     "scope": "6-8 judges on fixed sheets; 45 D1 answers and 15 D2a scripts, 3 passes",
-     "cost_usd": [100, 150], "n_judges": [6, 8], "passes": 3},
-    {"id": "E3", "name": "Generator x judge interaction", "rq": ["RQ1", "RQ4", "RQ5"],
-     "scope": "3 generators x 3 judges x 15 D2a scripts x 2 sheet samples x 2 passes, plus 5 D1 exams",
-     "cost_usd": [25, 25], "generators": 3, "judges": 3, "samples": 2, "passes": 2, "n_d1_exams": 5},
-    {"id": "E4", "name": "Pipeline optimization", "rq": ["RQ6"],
-     "scope": "fractional factorial over the levers on D1 and D2a; one confirmation on held-out D2b",
-     "cost_usd": [80, 80]},
-    {"id": "E5", "name": "Alternatives, Hilfsgutachten, placement", "rq": ["RQ2", "RQ6"],
-     "scope": "A0 vs A1 vs A2 on scripts that take another path; alternative-path and misplacement probes",
-     "cost_usd": [15, 15]},
-    {"id": "E6", "name": "Grading practice", "rq": ["RQ7"],
-     "scope": "re-aggregation of stored outputs (BE distribution, method bullets, pass mark sweep, key "
-              "shape); Kardinalfehler probes",
-     "cost_usd": [10, 10], "pass_mark_sweep": [0.35, 0.55], "kardinalfehler_probes": 5},
-    {"id": "E7", "name": "Comparison with Roth's paradigm", "rq": ["RQ7"],
-     "scope": "scoring format and weight elicitation on D2 (Z2 has no case or scripts); re-aggregation",
-     "cost_usd": [15, 15]},
+    {"id": "E0", "name": "Freeze, gate and registration", "rq": ["RQ1", "RQ2", "RQ3", "RQ4"],
+     "scope": "one frozen code version (checklist-4 generator, one judge build), the probe gate on every "
+              "judge and instrument over 3 passes, a public pre-registration of the D2b test before any "
+              "D2b grade exists",
+     "cost_usd": [10, 15], "passes": 3},
+    {"id": "E1", "name": "Crossed variance study", "rq": ["RQ1"],
+     "scope": "all 38 D2 scripts under no sheet, the expert sheet and generated sheets (2 generators x 5 "
+              "sheets, step and bullet units); Luna 3 passes, DeepSeek-V4-Pro and GPT-5.4 Mini on a subset; "
+              "D1 replication with the current Luna (45 answers, 3 passes); variance components, "
+              "dependability, pass/fail flips, equal-cost comparison with averaging passes",
+     "cost_usd": [60, 90], "n_scripts": 38, "generators": 2, "sheets_per_generator": 5, "passes": 3},
+    {"id": "E2", "name": "Validity and misclassification", "rq": ["RQ2"],
+     "scope": "E1 outputs against the examiner (D2a by reference state; D2b graded blind from exported "
+              "scripts, the registered test), a second grader (at least 20 scripts, incl. the 9 with an "
+              "unconfirmed grader), the examiner's blind re-grade of 5 scripts; D1 against the blind pool "
+              "(primary) and the exam creator (alternative-annotator test); pass-mark sweep",
+     "cost_usd": [0, 0], "second_grader_scripts": 20, "retest_scripts": 5, "pass_mark_sweep": [0.35, 0.55]},
+    {"id": "E3", "name": "Lean generator and judge benchmark", "rq": ["RQ3"],
+     "scope": "5 generators x 3 sheets on D2 and 5 D1 exams with a fixed judge; 4 judges (one "
+              "open-weight, one never used in development) on fixed sheets; cost per valid sheet; the "
+              "examiner's source-masked audit of generated sheets",
+     "cost_usd": [50, 70], "n_generators": 5, "sheets": 3, "n_judges": [4, 4], "audit_bullets_per_sheet": 10},
+    {"id": "E4", "name": "Doctrine and safety", "rq": ["RQ4"],
+     "scope": "examiner-written probes with expected losses fixed in advance (tenable alternative path, "
+              "consistent consequential-error chain, negated decisive results, fluent but wrong "
+              "subsumption, padding, paraphrase, LLM-written answer, cardinal errors); A0/A1/A2 designs "
+              "for alternative paths; quote-verifier precision and recall on 200 human-checked quotes",
+     "cost_usd": [15, 20], "kardinalfehler_probes": 5, "checked_quotes": 200},
+    {"id": "E5", "name": "Second exam at sheet level", "rq": ["RQ3", "RQ4"],
+     "scope": "Roth's case and model solution (no scripts): generated sheets against his sheet "
+              "(coverage, weights), checked by him",
+     "cost_usd": [5, 5]},
 ]
 
 COSTS = {
@@ -202,7 +206,7 @@ COSTS = {
     "judge_call_tokens_in": 25000,
     "judge_call_tokens_out": 6000,
     "sheet_usd": {"open models": 0.05, "gpt-5.4-mini": 0.15, "gpt-5.4": 0.6, "claude-opus-4-7": 1.0},
-    "program_usd": {"full": [400, 450], "lean": [200, 200]},
+    "program_usd": {"lean": [140, 200]},
     "development_spend_usd": 11.47,
 }
 

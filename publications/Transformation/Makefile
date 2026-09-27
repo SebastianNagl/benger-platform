@@ -58,28 +58,31 @@ render: analyze-cslaw
 	uv run quarto render manuscript.qmd
 	$(MAKE) clean
 
-# Build intermediates only; manuscript.pdf stays.
-
 # D2 summaries and the structure of Roth's sheet: need the git-ignored
 # pilot rows, D2 pack and Z2 workbook (local data root,
 # scripts/local_config.py); they write aggregates only.
-# The D2 runs' judge code version; the same pin as scripts/analysis/d2_labels.py.
-D2_CODE_VERSION = 7fc295f3b81f
-
-D2_GATE = $(shell uv run python scripts/local_config.py get data_root)/interim/pilot/gate_d2-probes.json
+# The D2 runs' judge code versions, newest first; the same pins as
+# scripts/analysis/d2_labels.py (D2_CODE_VERSIONS).
+D2_CODE_VERSIONS = 5768f1f9104b 7fc295f3b81f
+D2_GATE_DIR = $(shell uv run python scripts/local_config.py get data_root)/interim/pilot
 
 analyze-d2:
 	uv run python scripts/analysis/extract_z2_structure.py
 	# The gate's exit code is its verdict (1 a battery failed, 2 a pass is incomplete
 	# or the input is bad); the summary records the verdict, so the build only
-	# requires that this run wrote a fresh gate file.
-	rm -f $(D2_GATE)
-	-uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes --code-version $(D2_CODE_VERSION) --out $(D2_GATE)
-	test -s $(D2_GATE)
-	uv run python scripts/analysis/compute_d2_gate_summary.py --gate $(D2_GATE)
+	# requires that each run wrote a fresh gate file (one per code version).
+	for v in $(D2_CODE_VERSIONS); do \
+	  rm -f $(D2_GATE_DIR)/gate_d2-probes.$$v.json; \
+	  uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes --code-version $$v \
+	    --out $(D2_GATE_DIR)/gate_d2-probes.$$v.json; \
+	  test -s $(D2_GATE_DIR)/gate_d2-probes.$$v.json || exit 1; \
+	done
+	uv run python scripts/analysis/compute_d2_gate_summary.py \
+	  --gate $(foreach v,$(D2_CODE_VERSIONS),$(D2_GATE_DIR)/gate_d2-probes.$(v).json)
 	uv run python scripts/analysis/compute_d2_generation_summary.py
 	uv run python scripts/analysis/compute_d2_validity.py
 
+# Build intermediates only; manuscript.pdf stays.
 clean:
 	rm -rf .quarto assets manuscript_files manuscript_executed_files \
 	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb* comment.cut

@@ -3,7 +3,11 @@
 
 For every judge with at least three passes on a cell, the per-step score
 variance across passes is summed by step size (the step's apportioned
-maximum) and compared with the share of points in that size class. Also
+maximum) and compared with the share of points in that size class, and
+with the share of SQUARED maxima: if every step had the same relative noise
+(SD proportional to its maximum), a size class would hold exactly that share
+of the variance, so only a share above it means big steps are noisier per
+point. The mean relative SD (SD / maximum) per class tests this directly. Also
 reported: the partial-credit rate (score strictly between 0 and max) and,
 for steps of at least 6 points, the SD relative to the maximum split by the
 widest partial-credit band of the step (< 4 vs >= 4 points), which tests
@@ -68,6 +72,8 @@ def main() -> int:
     result = {}
     for judge in sorted({j for j, _ in cells}):
         var, pts, n_steps, partial, n_scores = Counter(), Counter(), Counter(), Counter(), Counter()
+        sq_pts = Counter()
+        rel_by_bucket = defaultdict(list)
         rel_sd = defaultdict(list)
         n_cells = 0
         for (j, _pick), runs in cells.items():
@@ -84,6 +90,8 @@ def main() -> int:
                 b = bucket(mx)
                 var[b] += statistics.pvariance(vals)
                 pts[b] += mx
+                sq_pts[b] += mx * mx
+                rel_by_bucket[b].append(statistics.pstdev(vals) / mx)
                 n_steps[b] += 1
                 n_scores[b] += len(vals)
                 partial[b] += sum(1 for v in vals if 0 < v < mx)
@@ -92,12 +100,14 @@ def main() -> int:
                         statistics.pstdev(vals) / mx)
         if not n_cells:
             continue
-        tv, tp = sum(var.values()), sum(pts.values())
+        tv, tp, tsq = sum(var.values()), sum(pts.values()), sum(sq_pts.values())
         result[judge] = {
             "n_cells": n_cells,
             "by_step_size": {
                 label: {"share_of_points": round(pts[label] / tp, 4),
                         "share_of_variance": round(var[label] / tv, 4) if tv else None,
+                        "share_of_squared_maxima": round(sq_pts[label] / tsq, 4),
+                        "mean_relative_sd": round(statistics.mean(rel_by_bucket[label]), 4),
                         "partial_credit_rate": round(partial[label] / n_scores[label], 4),
                         "n_step_cells": n_steps[label]}
                 for _, label in BUCKETS if n_steps[label]},
@@ -110,8 +120,9 @@ def main() -> int:
     for judge, res in result.items():
         print(f"== {judge} ({res['n_cells']} cells)")
         for label, m in res["by_step_size"].items():
-            print(f"  max {label:5s} points {m['share_of_points']:6.1%}  variance "
-                  f"{m['share_of_variance']:6.1%}  partial credit {m['partial_credit_rate']:6.1%}")
+            print(f"  max {label:5s} points {m['share_of_points']:6.1%}  squared {m['share_of_squared_maxima']:6.1%}  "
+                  f"variance {m['share_of_variance']:6.1%}  rel SD {m['mean_relative_sd']:.3f}  "
+                  f"partial credit {m['partial_credit_rate']:6.1%}")
         for k, m in res["relative_sd_steps_ge6"].items():
             print(f"  steps >= 6 pts, {k}: SD/max {m['mean']:.3f} (n={m['n']})")
     print(f"-> {OUT.relative_to(HERE)}")

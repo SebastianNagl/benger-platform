@@ -17,7 +17,11 @@ legacy gate.json (written before the per-phase files) is read only when its
 input was the D2 probe rows and its batteries are D2 arms; it has no per-pass
 error record, so none of its errors is discounted.
 
-  compute_d2_gate_summary.py [--gate FILE] [--out FILE]
+With several --gate files (one per judge code version, newest first), each
+judge x instrument takes its battery from the first file that has it, and
+the summary records that file's code version.
+
+  compute_d2_gate_summary.py [--gate FILE ...] [--out FILE]
 """
 
 from __future__ import annotations
@@ -99,17 +103,23 @@ def battery_entry(b: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--gate", type=Path, default=None, help=f"D2 gate file (default: {GATE.name})")
+    parser.add_argument("--gate", type=Path, nargs="*", default=None,
+                        help=f"D2 gate files, newest code version first (default: {GATE.name})")
     parser.add_argument("--out", type=Path, default=OUT, help="summary file (default: the tracked gate_v2.json)")
     args = parser.parse_args()
-    gate, source = load_gate(args.gate)
-    if source == LEGACY_GATE:
-        print(f"note: reading the legacy {source.name}; rerun the gate for {GATE.name} (per-pass error record)")
-    out = {"code_version": gate.get("code_version"), "criteria": gate.get("criteria"), "batteries": {}}
-    for label, b in gate["per_battery"].items():
-        judge, rest = label.split(" [", 1)
-        arm = rest.split("]", 1)[0]
-        out["batteries"].setdefault(arm_label(arm, LABELS), {})[judge] = battery_entry(b)
+    gates = [load_gate(path) for path in (args.gate or [None])]
+    for _gate, source in gates:
+        if source == LEGACY_GATE:
+            print(f"note: reading the legacy {source.name}; rerun the gate for {GATE.name} (per-pass error record)")
+    out = {"code_versions": [g.get("code_version") for g, _ in gates], "criteria": gates[0][0].get("criteria"),
+           "batteries": {}}
+    for gate, _source in gates:
+        for label, b in gate["per_battery"].items():
+            judge, rest = label.split(" [", 1)
+            arm = rest.split("]", 1)[0]
+            per = out["batteries"].setdefault(arm_label(arm, LABELS), {})
+            if judge not in per:  # the newest code version wins
+                per[judge] = {"code_version": gate.get("code_version"), **battery_entry(b)}
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(out, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     for arm, per in out["batteries"].items():

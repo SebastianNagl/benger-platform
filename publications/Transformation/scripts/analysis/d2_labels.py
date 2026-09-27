@@ -20,13 +20,24 @@ from pathlib import Path
 
 # checklist-3 as run on D2 (extended f13c3b1) and the judge code of the D2 runs
 D2_VALIDATOR = "e06a1695309ed6e81f9d6706c175b8f5c956843d3adff0ea7935947a1a6eb069"
-D2_CODE_VERSION = "7fc295f3b81f"
+# checklist-4 (extended 5fe4517): its sheets are numbered on their own, "<gen> c4 sheet N"
+D2_VALIDATOR_C4 = "28ca3922040ea537147e582daf021519fcb5d3502460225f5b927eceda52983c"
+VALIDATOR_TAGS = {D2_VALIDATOR: "", D2_VALIDATOR_C4: " c4"}
+# Judge code versions of the D2 runs, newest first: 5768f1f9104b after review
+# round 4 (quote verifier and checklist judge fixes; the no-sheet arm),
+# 7fc295f3b81f the runs of 09-26. An arm uses its newest version; a paired
+# comparison uses the newest version both arms have.
+D2_CODE_VERSIONS = ("5768f1f9104b", "7fc295f3b81f")
+D2_CODE_VERSION = D2_CODE_VERSIONS[-1]
 NUMBERED = re.compile(r" sheet \d+$")
 
 
-def rubric_labels(generate_rows: Path, validator: str = D2_VALIDATOR) -> dict[str, str]:
+def rubric_labels(generate_rows: Path, validators: dict[str, str] | None = None) -> dict[str, str]:
+    """Rubric id -> label. Sheets are numbered per generator within each
+    pinned validator (checklist-3 plain, checklist-4 tagged " c4")."""
+    tags = VALIDATOR_TAGS if validators is None else validators
     labels: dict[str, str] = {}
-    counts: dict[str, int] = {}
+    counts: dict[tuple[str, str], int] = {}
     if not generate_rows.exists():
         return labels
     rows = [json.loads(line) for line in generate_rows.read_text(encoding="utf-8").splitlines() if line.strip()]
@@ -36,15 +47,19 @@ def rubric_labels(generate_rows: Path, validator: str = D2_VALIDATOR) -> dict[st
         if not rid or row.get("status") != "completed" or rid in labels:
             continue
         gen = row.get("generator") or "unknown"
-        if (row.get("provenance") or {}).get("validator_sha256") != validator:
+        validator = (row.get("provenance") or {}).get("validator_sha256")
+        if validator not in tags:
             labels[rid] = f"{gen} sheet {rid[:8]} (other contract)"
             continue
-        counts[gen] = counts.get(gen, 0) + 1
-        labels[rid] = f"{gen} sheet {counts[gen]}"
+        tagged = gen + tags[validator]
+        counts[(tagged, validator)] = counts.get((tagged, validator), 0) + 1
+        labels[rid] = f"{tagged} sheet {counts[(tagged, validator)]}"
     return labels
 
 
 def arm_label(arm: str, labels: dict[str, str]) -> str:
+    if arm == "holistic":
+        return "no sheet:holistic"
     parts = arm.split(":")
     if parts[0] == "martin":
         return "expert sheet:" + ":".join(parts[1:])

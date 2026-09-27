@@ -3,8 +3,10 @@
 
 Reads the d2-judge rows (git-ignored, <data root>/interim/human/pilot/d2-judge.jsonl)
 and the D2 pack (<data root>/interim/human/heidebach_scripts.json). Only rows of
-the pinned judge code version count (d2_labels.D2_CODE_VERSION, override with
---code-version), and per judge x arm x script x pass only the newest row.
+the pinned judge code versions count (d2_labels.D2_CODE_VERSIONS, newest first;
+override with --code-versions), and per judge x arm x version x script x pass
+only the newest row. Each judge x arm reports its newest version; a paired
+comparison uses the newest version that both arms have.
 
 Per judge x arm, every statistic is computed per pass and averaged over the
 passes that cover every script, so a judge with two passes and a judge with
@@ -14,8 +16,9 @@ one pass are compared on single-pass performance:
 - MAE and mean bias (judge - reference), with script-bootstrap 95 % CIs;
 - Pearson r and Spearman rho (average ranks for ties);
 - pass/fail agreement at the exam's pass mark (40 BE) and Cohen's kappa;
-- repeat SD (mean within-script SD over passes) and the mean absolute
-  difference between two passes, for scripts with >= 2 passes;
+- repeat SD (pooled within-script SD over passes: the root of the mean
+  variance) and the mean absolute difference between two passes, for
+  scripts with >= 2 passes;
 - the MAE of the per-script pass means, for reference;
 - for the expert-sheet arms: per-step mean absolute difference, over the
   steps both graded, as a share of the step maximum.
@@ -53,7 +56,7 @@ from scipy.stats import t as student_t
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path[:0] = [str(HERE / "scripts"), str(HERE / "scripts" / "analysis")]
 import local_config  # noqa: E402
-from d2_labels import D2_CODE_VERSION, arm_label, is_numbered_sheet, rubric_labels  # noqa: E402
+from d2_labels import D2_CODE_VERSIONS, arm_label, is_numbered_sheet, rubric_labels  # noqa: E402
 
 DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 ROWS = DATA / "interim" / "human" / "pilot" / "d2-judge.jsonl"
@@ -100,6 +103,11 @@ def kappa(a: list[bool], b: list[bool]) -> float | None:
     return None if pe == 1 else (po - pe) / (1 - pe)
 
 
+def rng_for(*key) -> random.Random:
+    """A random stream per statistic, so adding one never moves another's CI."""
+    return random.Random(f"{SEED}:" + "|".join(map(str, key)))
+
+
 def boot_ci(n: int, stat, rng: random.Random) -> list[float] | None:
     """Percentile CI of stat(indices) over script resamples."""
     if n < 3:
@@ -115,10 +123,10 @@ def mde(sd_d: float, n: int, alpha: float = 0.05, power: float = 0.8) -> float |
 
 
 def newest_rows(rows: list[dict]) -> list[dict]:
-    """One row per judge x arm x script x pass: the newest."""
+    """One row per judge x arm x code version x script x pass: the newest."""
     best: dict[tuple, dict] = {}
     for r in rows:
-        key = (r["judge"], r["arm"], r.get("script_id"), r.get("pass"))
+        key = (r["judge"], r["arm"], (r.get("provenance") or {}).get("code_version"), r.get("script_id"), r.get("pass"))
         if key not in best or str(r.get("ts") or "") >= str(best[key].get("ts") or ""):
             best[key] = r
     return list(best.values())
@@ -179,7 +187,13 @@ def _rate(j, r):
 # Paired contrasts on the same scripts: (judge, arm label) A minus B.
 LUNA, MINI, DS = "gpt-5.6-luna", "gpt-5.4-mini", "deepseek-ai/DeepSeek-V4-Pro"
 EXPERT = "expert sheet:step"
+HOLISTIC = "no sheet:holistic"
 CONTRASTS = [
+    ("sheet vs no sheet", (LUNA, EXPERT), (LUNA, HOLISTIC)),
+    ("sheet vs no sheet", (LUNA, "gpt-5.4 sheet 1:bullet"), (LUNA, HOLISTIC)),
+    ("sheet vs no sheet", (MINI, EXPERT), (MINI, HOLISTIC)),
+    ("sheet vs no sheet", (DS, EXPERT), (DS, HOLISTIC)),
+    ("sheet vs no sheet", (DS, "gpt-5.4 sheet 1:bullet"), (DS, HOLISTIC)),
     ("judge on the expert sheet", (MINI, EXPERT), (LUNA, EXPERT)),
     ("judge on the expert sheet", (DS, EXPERT), (LUNA, EXPERT)),
     ("sheet for Luna", (LUNA, "gpt-5.4 sheet 1:bullet"), (LUNA, EXPERT)),
@@ -195,26 +209,36 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--rows", type=Path, default=ROWS)
     parser.add_argument("--out", type=Path, default=OUT)
-    parser.add_argument("--code-version", default=D2_CODE_VERSION,
-                        help="keep only rows of this provenance code version ('' keeps all)")
+    parser.add_argument("--code-versions", default=",".join(D2_CODE_VERSIONS),
+                        help="provenance code versions to use, newest first, comma-separated")
     args = parser.parse_args()
 
     pack = {s["script_id"]: s for s in json.loads(PACK.read_text(encoding="utf-8"))}
     rows = [json.loads(line) for line in args.rows.read_text(encoding="utf-8").splitlines() if line.strip()]
     rows = [r for r in rows if not (r.get("provenance") or {}).get("dry_run") and r.get("total") is not None]
-    if args.code_version:
-        rows = [r for r in rows if (r.get("provenance") or {}).get("code_version") == args.code_version]
+    versions = [v for v in args.code_versions.split(",") if v]
+    rows = [r for r in rows if (r.get("provenance") or {}).get("code_version") in versions]
     rows = newest_rows(rows)
 
-    grouped: dict[tuple[str, str], dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
+    by_version: dict[tuple[str, str, str], dict[str, list[dict]]] = defaultdict(lambda: defaultdict(list))
     for r in rows:
         sid = r.get("script_id")
         script = pack.get(sid) or {}
         if script.get("exclude_reason") or script.get("duplicate_of") or not script.get("human"):
             continue
-        grouped[(r["judge"], arm_label(r["arm"], LABELS))][sid].append(r)
+        version = (r.get("provenance") or {}).get("code_version")
+        by_version[(r["judge"], arm_label(r["arm"], LABELS), version)][sid].append(r)
+    all_cells = {key: Cell(v, pack) for key, v in by_version.items()}
+    all_cells = {key: c for key, c in all_cells.items() if c.by_pass}
+    # each judge x arm: its newest version
+    grouped: dict[tuple[str, str], dict[str, list[dict]]] = {}
+    chosen_version: dict[tuple[str, str], str] = {}
+    for version in reversed(versions):  # oldest first, newer overwrite
+        for (judge, label, v), by_script in by_version.items():
+            if v == version and (judge, label, v) in all_cells:
+                grouped[(judge, label)] = by_script
+                chosen_version[(judge, label)] = v
 
-    rng = random.Random(SEED)
     result: dict[str, dict] = {}
     cells: dict[tuple[str, str], Cell] = {}
     for (judge, label), by_script in sorted(grouped.items(), key=lambda kv: (kv[0][1], kv[0][0])):
@@ -242,14 +266,15 @@ def main() -> int:
         means = [statistics.fmean(cell.totals[s]) for s in cell.sids]
         rnd = lambda v, d=2: None if v is None else round(v, d)
         result.setdefault(label, {})[judge] = {
+            "code_version": chosen_version[(judge, label)],
             "n_scripts": n,
             "passes_per_script": sorted({len(v) for v in cell.totals.values()}),
             "complete_passes": len(cell.by_pass),
             "case_years": dict(sorted(years.items())),
             "mae": rnd(cell.per_pass(_mae)),
-            "mae_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae, idx), rng),
+            "mae_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae, idx), rng_for(judge, label, "mae")),
             "bias": rnd(cell.per_pass(_bias)),
-            "bias_ci95": boot_ci(n, lambda idx: cell.per_pass(_bias, idx), rng),
+            "bias_ci95": boot_ci(n, lambda idx: cell.per_pass(_bias, idx), rng_for(judge, label, "bias")),
             "pearson": rnd(cell.per_pass(pearson), 3),
             "spearman": rnd(cell.per_pass(_spearman), 3),
             "pass_agreement": rnd(cell.per_pass(_agree), 3),
@@ -259,7 +284,9 @@ def main() -> int:
             "judge_mean_total": round(statistics.fmean(means), 2),
             "reference_mean_total": round(statistics.fmean(cell.ref), 2),
             "mae_of_pass_means": round(_mae(means, cell.ref), 2),
-            "repeat_sd": round(statistics.fmean(repeat_sds), 2) if repeat_sds else None,
+            # pooled within-script SD (root of the mean variance): far less dependent on the
+            # number of passes, unlike a mean of per-script SDs
+            "repeat_sd": round(math.sqrt(statistics.fmean(v * v for v in repeat_sds)), 2) if repeat_sds else None,
             "mean_abs_pass_diff": round(statistics.fmean(pass_diffs), 2) if pass_diffs else None,
             "step_abs_diff_share": round(statistics.fmean(step_diffs), 3) if step_diffs else None,
             "n_step_comparisons": len(step_diffs),
@@ -267,17 +294,26 @@ def main() -> int:
 
     contrasts = []
     for family, a, b in CONTRASTS:
-        if a not in cells or b not in cells or cells[a].sids != cells[b].sids:
+        version = next((v for v in versions if (*a, v) in all_cells and (*b, v) in all_cells
+                        and all_cells[(*a, v)].sids == all_cells[(*b, v)].sids), None)
+        if version is None:
             continue
-        ca, cb = cells[a], cells[b]
+        ca, cb = all_cells[(*a, version)], all_cells[(*b, version)]
         n = len(ca.sids)
-        entry = {"family": family, "a": {"judge": a[0], "arm": a[1]}, "b": {"judge": b[0], "arm": b[1]}, "n_scripts": n}
-        for name, fa, fb in (("abs_error", ca.abs_err(), cb.abs_err()), ("signed_error", ca.signed_err(), cb.signed_err())):
+        entry = {"family": family, "a": {"judge": a[0], "arm": a[1]}, "b": {"judge": b[0], "arm": b[1]},
+                 "n_scripts": n, "code_version": version}
+        pairs = [("abs_error", ca.abs_err(), cb.abs_err()), ("signed_error", ca.signed_err(), cb.signed_err())]
+        sd_a = [statistics.stdev(ca.totals[s]) for s in ca.sids if len(ca.totals[s]) >= 2]
+        sd_b = [statistics.stdev(cb.totals[s]) for s in cb.sids if len(cb.totals[s]) >= 2]
+        if len(sd_a) == n and len(sd_b) == n:  # repeat SD per script, both arms repeated
+            pairs.append(("repeat_sd", sd_a, sd_b))
+        for name, fa, fb in pairs:
             d = [x - y for x, y in zip(fa, fb)]
             sd_d = statistics.stdev(d) if n >= 2 else None
             entry[name] = {
                 "mean_diff": round(statistics.fmean(d), 2),
-                "ci95": boot_ci(n, lambda idx, d=d: statistics.fmean(d[i] for i in idx), rng),
+                "ci95": boot_ci(n, lambda idx, d=d: statistics.fmean(d[i] for i in idx),
+                                rng_for(*a, *b, version, name)),
                 "sd_diff": None if sd_d is None else round(sd_d, 2),
                 "mde": None if sd_d is None else round(mde(sd_d, n), 2),
             }
@@ -327,7 +363,7 @@ def main() -> int:
         "pass_mark_be": PASS_MARK,
         "seed": SEED,
         "n_boot": N_BOOT,
-        "code_version": args.code_version or None,
+        "code_versions": versions,
         "code_versions_seen": sorted({(r.get("provenance") or {}).get("code_version") for r in rows} - {None}),
         "per_arm": result,
         "contrasts": contrasts,
