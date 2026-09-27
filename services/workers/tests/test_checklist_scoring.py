@@ -14,10 +14,14 @@ import pytest
 from ml_evaluation import checklist_scoring as cs
 from ml_evaluation.llm_judge_evaluator import LLMJudgeEvaluator
 
+# A synthetic civil-law case: a used bicycle with a defective brake. The
+# fork (Weichenstellung) is whether the brake was defective when the bike was
+# handed over (the reference solution's path) or only worn (another
+# defensible path).
 ANSWER = (
-    "Der Verwaltungsrechtsweg ist nach § 40 I 1 VwGO eröffnet. "
-    "H ist als Zweckveranlasser Störer, weil er die Gefahr bezweckt. "
-    "Die Kunstfreiheit ist betroffen, der Eingriff aber gerechtfertigt."
+    "Der Anspruch auf Rückzahlung des Kaufpreises folgt aus §§ 437 Nr. 2, 346 I BGB. "
+    "Die Bremse des Fahrrads war bei Übergabe defekt, weil sie am ersten Tag versagte. "
+    "Die Kette ist verschlissen, der Verschleiß ist aber gewöhnlich."
 )
 
 
@@ -32,19 +36,19 @@ def _spec():
         }
     return {
         "version": 1, "total_points": 100.0,
-        "order": ["s01_rechtsweg", "s02_klageart", "s03_stoerer"],
+        "order": ["s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel"],
         "steps": {
-            "s01_rechtsweg": step("S1", "Rechtsweg", 20.0, [0.5, 0.5]),
-            "s02_klageart": step("S2", "Klageart", 30.0, [1.0]),
-            "s03_stoerer": step("S3", "Störer", 50.0, [0.6, 0.4], {"id": "W1", "loesungsweg": "musterloesung"}),
+            "s01_anspruchsgrundlage": step("S1", "Anspruchsgrundlage", 20.0, [0.5, 0.5]),
+            "s02_kaufvertrag": step("S2", "Kaufvertrag", 30.0, [1.0]),
+            "s03_sachmangel": step("S3", "Sachmangel", 50.0, [0.6, 0.4], {"id": "W1", "loesungsweg": "musterloesung"}),
         },
         "loesungsweg_steps": {
-            "s04_nichtstoerer": step("W1-L1-S1", "Nichtstörer", 50.0, [1.0], {"id": "W1", "loesungsweg": "W1-L1"}),
+            "s04_verschleiss": step("W1-L1-S1", "Verschleiß", 50.0, [1.0], {"id": "W1", "loesungsweg": "W1-L1"}),
         },
         "weichenstellungen": [{
-            "id": "W1", "bezeichnung": "Zweckveranlasser", "budget": 50.0,
-            "loesungswege": [{"id": "musterloesung", "step_keys": ["s03_stoerer"]},
-                       {"id": "W1-L1", "step_keys": ["s04_nichtstoerer"]}],
+            "id": "W1", "bezeichnung": "Mangel oder Verschleiß", "budget": 50.0,
+            "loesungswege": [{"id": "musterloesung", "step_keys": ["s03_sachmangel"]},
+                       {"id": "W1-L1", "step_keys": ["s04_verschleiss"]}],
         }],
     }
 
@@ -62,13 +66,13 @@ def _verify(quote):
 def _judgment(declared="musterloesung"):
     return {
         "scores": {
-            "s01_rechtsweg": _bullets((2, "Verwaltungsrechtsweg ist nach § 40 I 1 VwGO eröffnet"),
-                                      (1, "nach § 40 I 1 VwGO")),
-            "s02_klageart": _bullets((0, "")),
-            "s03_stoerer": _bullets((2, "H ist als Zweckveranlasser Störer"), (2, "erfunden, steht nicht da")),
-            "s04_nichtstoerer": _bullets((1, "Die Kunstfreiheit ist betroffen")),
+            "s01_anspruchsgrundlage": _bullets((2, "Anspruch auf Rückzahlung des Kaufpreises folgt aus §§ 437 Nr. 2, 346 I BGB"),
+                                      (1, "aus §§ 437 Nr. 2, 346 I BGB")),
+            "s02_kaufvertrag": _bullets((0, "")),
+            "s03_sachmangel": _bullets((2, "Die Bremse des Fahrrads war bei Übergabe defekt"), (2, "erfunden, steht nicht da")),
+            "s04_verschleiss": _bullets((1, "Die Kette ist verschlissen")),
         },
-        "weichenstellungen": {"W1": {"gefolgter_loesungsweg": declared, "evidence": "als Zweckveranlasser Störer", "reason": "r"}},
+        "weichenstellungen": {"W1": {"gefolgter_loesungsweg": declared, "evidence": "bei Übergabe defekt", "reason": "r"}},
         "overall_assessment": "ok",
         **_diagnosis(),
     }
@@ -83,7 +87,7 @@ def _diagnosis(status="scored", products=(("P1 Gutachten", "fulfilled"),), reaso
                                    "status": "not_required", "assumption": None, "reason": "r"}],
         "error_chains": [],
         "review_reasons": list(reasons),
-        "improvements": ["Zulässigkeit knapper"],
+        "improvements": ["Anspruchsgrundlage knapper"],
     }
 
 
@@ -91,8 +95,8 @@ class TestSchema:
     def test_bullet_schema_scores_every_path_and_declares_the_weiche(self):
         schema = cs.build_schema(_spec(), "bullet", "branch")
         steps = schema["properties"]["scores"]["properties"]
-        assert list(steps) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer", "s04_nichtstoerer"]
-        b1 = steps["s01_rechtsweg"]["properties"]["anforderungen"]["properties"]["b1"]
+        assert list(steps) == ["s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel", "s04_verschleiss"]
+        b1 = steps["s01_anspruchsgrundlage"]["properties"]["anforderungen"]["properties"]["b1"]
         assert b1["properties"]["status"] == {"type": "integer", "enum": [0, 1, 2]}
         assert schema["properties"]["weichenstellungen"]["properties"]["W1"]["properties"]["gefolgter_loesungsweg"]["enum"] == [
             "musterloesung", "W1-L1"]
@@ -100,20 +104,20 @@ class TestSchema:
 
     def test_replace_schema_has_only_the_primary_path(self):
         schema = cs.build_schema(_spec(), "step", "replace")
-        assert list(schema["properties"]["scores"]["properties"]) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
+        assert list(schema["properties"]["scores"]["properties"]) == ["s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel"]
         assert "weichenstellungen" not in schema["properties"]
 
     def test_step_and_rating_units(self):
-        step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"]
+        step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_anspruchsgrundlage"]
         assert step["properties"]["score"]["enum"][-1] == 20.0
-        rating = cs.build_schema(_spec(), "rating", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"]
+        rating = cs.build_schema(_spec(), "rating", "replace")["properties"]["scores"]["properties"]["s01_anspruchsgrundlage"]
         assert rating["properties"]["note"]["enum"] == list(range(19))
 
     def test_large_sheets_fall_back_to_ranges(self):
         spec = _spec()
         for k in list(spec["steps"]):
             spec["steps"][k]["anforderungen"] = spec["steps"][k]["anforderungen"] * 200
-        status = cs.build_schema(spec, "bullet", "branch")["properties"]["scores"]["properties"]["s01_rechtsweg"][
+        status = cs.build_schema(spec, "bullet", "branch")["properties"]["scores"]["properties"]["s01_anspruchsgrundlage"][
             "properties"]["anforderungen"]["properties"]["b1"]["properties"]["status"]
         assert status == {"type": "integer", "minimum": 0, "maximum": 2}
 
@@ -122,15 +126,15 @@ class TestSchema:
         # under the cap on their own, over it with the diagnosis block (13) and
         # the Weichenstellung ids (2).
         spec = _spec()
-        spec["steps"]["s01_rechtsweg"]["anforderungen"] = [
+        spec["steps"]["s01_anspruchsgrundlage"]["anforderungen"] = [
             {"key": f"k{i}", "id": f"S1-{i}", "text": "A", "share": 1 / 325} for i in range(325)]
         schema = cs.build_schema(spec, "bullet", "branch")
         enums, _ = cs.schema_budget(schema)
         assert enums == 2 + 5 + 5 + 3  # only the fixed enums remain
-        status = schema["properties"]["scores"]["properties"]["s01_rechtsweg"]["properties"]["anforderungen"][
+        status = schema["properties"]["scores"]["properties"]["s01_anspruchsgrundlage"]["properties"]["anforderungen"][
             "properties"]["b1"]["properties"]["status"]
         assert status == {"type": "integer", "minimum": 0, "maximum": 2}
-        spec["steps"]["s01_rechtsweg"]["anforderungen"] = spec["steps"]["s01_rechtsweg"]["anforderungen"][:320]
+        spec["steps"]["s01_anspruchsgrundlage"]["anforderungen"] = spec["steps"]["s01_anspruchsgrundlage"]["anforderungen"][:320]
         enums, properties = cs.schema_budget(cs.build_schema(spec, "bullet", "branch"))
         assert enums == 3 * 324 + 15 and properties < 5000  # 987: enums again
 
@@ -143,18 +147,18 @@ class TestSchema:
 
 _COMBINATIONS = [(unit, alt) for unit in cs.SCORE_UNITS for alt in cs.ALTERNATIVES]
 
-# Terms of the study exam the instrument is validated on. None of them may
-# reach a judge prompt: an example from that exam would tell the judge what
-# its answers are about.
-_LEAKAGE_TERMS = ("Zweckveranlasser", "Maßnahmerichtung", "Massnahmerichtung", "Fortsetzungsfeststellung",
-                  "Platzverweis", "Versammlung", "Störer", "Polizei")
+# The judge prompts are generic. No term of a concrete case may reach them:
+# an example from a case would tell the judge what the answers are about.
+# The terms of the fixture case above stand in for any case the instrument
+# is used on.
+_CASE_TERMS = ("Fahrrad", "Bremse", "Kaufpreis", "Rückzahlung", "Kaufvertrag", "Sachmangel", "Verschleiß")
 
 
 class TestPromptRules:
     @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
-    def test_no_study_exam_terms_in_any_judge_prompt(self, unit, alternatives):
+    def test_no_case_terms_in_any_judge_prompt(self, unit, alternatives):
         text = (cs.system_prompt(unit, alternatives) + "\n" + cs.closing_rules(unit, alternatives)).casefold()
-        assert [t for t in _LEAKAGE_TERMS if t.casefold() in text] == []
+        assert [t for t in _CASE_TERMS if t.casefold() in text] == []
 
     @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
     def test_general_rules_are_in_the_system_prompt_and_the_closing_rules(self, unit, alternatives):
@@ -199,9 +203,9 @@ class TestPromptRules:
             assert slot in cs.USER_TEMPLATE
 
     def test_missing_keys_note_names_the_json_paths(self):
-        note = cs.missing_keys_note(["s02_klageart", "s01_rechtsweg.b2", "weichenstellungen.W1"])
+        note = cs.missing_keys_note(["s02_kaufvertrag", "s01_anspruchsgrundlage.b2", "weichenstellungen.W1"])
         assert note.startswith("Deiner letzten Antwort fehlten Pflichtangaben. Es fehlen die Schlüssel ")
-        assert "scores.s02_klageart, scores.s01_rechtsweg.anforderungen.b2, weichenstellungen.W1." in note
+        assert "scores.s02_kaufvertrag, scores.s01_anspruchsgrundlage.anforderungen.b2, weichenstellungen.W1." in note
         many = cs.missing_keys_note([f"s{i:02d}" for i in range(50)])
         assert "scores.s39" in many and "scores.s40" not in many and "und 10 weitere" in many
 
@@ -222,27 +226,27 @@ class TestPlacement:
         assert "fehlplatziert" in cs.closing_rules("step", "replace")
 
     def test_flag_is_in_the_schema_and_counted(self):
-        step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_rechtsweg"]
+        step = cs.build_schema(_spec(), "step", "replace")["properties"]["scores"]["properties"]["s01_anspruchsgrundlage"]
         assert step["properties"]["fehlplatziert"] == {"type": "boolean"}
         judgment = _judgment()
-        judgment["scores"]["s03_stoerer"]["fehlplatziert"] = True
+        judgment["scores"]["s03_sachmangel"]["fehlplatziert"] = True
         out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
         assert out["checklist"]["fehlplatziert_steps"] == 1
-        assert out["scores"]["s03_stoerer"]["fehlplatziert"] is True
+        assert out["scores"]["s03_sachmangel"]["fehlplatziert"] is True
         # A misplacement is recorded, not punished.
-        assert out["scores"]["s03_stoerer"]["raw_points"] == pytest.approx(50 * 0.6)
+        assert out["scores"]["s03_sachmangel"]["raw_points"] == pytest.approx(50 * 0.6)
 
 
 class TestFinalize:
     def test_bullet_points_evidence_and_both_totals(self):
         out = cs.finalize(_judgment(), _spec(), "bullet", "branch", "declared", _verify)
-        s1 = out["scores"]["s01_rechtsweg"]
+        s1 = out["scores"]["s01_anspruchsgrundlage"]
         assert s1["raw_points"] == pytest.approx(20 * (0.5 * 1 + 0.5 * 0.5))  # 15.0
-        s3 = out["scores"]["s03_stoerer"]
+        s3 = out["scores"]["s03_sachmangel"]
         assert s3["anforderungen"]["b2"] == {"status": 0, "model_status": 2,
                                              "evidence": "erfunden, steht nicht da", "evidence_verified": False}
         assert s3["raw_points"] == pytest.approx(50 * 0.6)
-        branch = out["scores"]["s04_nichtstoerer"]["raw_points"]
+        branch = out["scores"]["s04_verschleiss"]["raw_points"]
         assert branch == pytest.approx(25.0)
         ck = out["checklist"]
         assert ck["totals"]["declared"] == 45.0          # 15 + 0 + 30
@@ -280,7 +284,7 @@ class TestFinalize:
 
     def test_best_mode_subtotals_and_rating_grade_follow_the_counted_path(self):
         judgment = _judgment()
-        judgment["scores"]["s04_nichtstoerer"] = _bullets((2, "Die Kunstfreiheit ist betroffen"))  # 50 > 30
+        judgment["scores"]["s04_verschleiss"] = _bullets((2, "Die Kette ist verschlissen"))  # 50 > 30
         declared = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
         best = cs.finalize(judgment, _spec(), "bullet", "branch", "best", _verify)
         assert declared["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(45.0)
@@ -288,10 +292,10 @@ class TestFinalize:
         assert best["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(65.0)
 
         def rated(note):
-            return {"note": note, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False,
+            return {"note": note, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
                     "fehlplatziert": False, "reason": ""}
-        ratings = {"scores": {"s01_rechtsweg": rated(18), "s02_klageart": rated(0), "s03_stoerer": rated(4),
-                              "s04_nichtstoerer": rated(16)},
+        ratings = {"scores": {"s01_anspruchsgrundlage": rated(18), "s02_kaufvertrag": rated(0), "s03_sachmangel": rated(4),
+                              "s04_verschleiss": rated(16)},
                    "weichenstellungen": {"W1": {"gefolgter_loesungsweg": "musterloesung", "evidence": "", "reason": ""}},
                    **_diagnosis()}
         declared = cs.finalize(ratings, _spec(), "rating", "branch", "declared", _verify)
@@ -303,27 +307,27 @@ class TestFinalize:
     def test_replace_mode_counts_the_primary_steps(self):
         def scored(score, quote):
             return {"score": score, "evidence": quote, "abweichender_weg": False, "fehlplatziert": False, "reason": ""}
-        judgment = {"scores": {"s01_rechtsweg": scored(15, "nach § 40 I 1 VwGO"), "s02_klageart": scored(0, ""),
-                               "s03_stoerer": scored(30, "als Zweckveranlasser Störer")}, **_diagnosis()}
+        judgment = {"scores": {"s01_anspruchsgrundlage": scored(15, "aus §§ 437 Nr. 2, 346 I BGB"), "s02_kaufvertrag": scored(0, ""),
+                               "s03_sachmangel": scored(30, "bei Übergabe defekt")}, **_diagnosis()}
         out = cs.finalize(judgment, _spec(), "step", "replace", "declared", _verify)
         assert out["checklist"]["totals"] == {"declared": 45.0, "best": 45.0}
 
     def test_missing_items_are_reported_for_a_retry(self):
         judgment = _judgment()
-        del judgment["scores"]["s02_klageart"]
-        del judgment["scores"]["s01_rechtsweg"]["anforderungen"]["b2"]
+        del judgment["scores"]["s02_kaufvertrag"]
+        del judgment["scores"]["s01_anspruchsgrundlage"]["anforderungen"]["b2"]
         del judgment["weichenstellungen"]
         out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
-        assert set(out["missing"]) == {"s02_klageart", "s01_rechtsweg.b2", "weichenstellungen.W1"}
+        assert set(out["missing"]) == {"s02_kaufvertrag", "s01_anspruchsgrundlage.b2", "weichenstellungen.W1"}
 
     def test_totals_round_half_up_once(self):
         spec = _spec()
-        spec["steps"]["s01_rechtsweg"]["max_score"] = 0.5
+        spec["steps"]["s01_anspruchsgrundlage"]["max_score"] = 0.5
         judgment = _judgment()
-        judgment["scores"]["s01_rechtsweg"] = _bullets((2, "nach § 40 I 1 VwGO"), (0, ""))
+        judgment["scores"]["s01_anspruchsgrundlage"] = _bullets((2, "aus §§ 437 Nr. 2, 346 I BGB"), (0, ""))
         out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
-        assert out["scores"]["s01_rechtsweg"]["raw_points"] == 0.25
-        assert out["scores"]["s01_rechtsweg"]["score"] == 0.5    # half up, not banker's
+        assert out["scores"]["s01_anspruchsgrundlage"]["raw_points"] == 0.25
+        assert out["scores"]["s01_anspruchsgrundlage"]["score"] == 0.5    # half up, not banker's
         assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(30.25)
         assert out["checklist"]["totals"]["declared"] == 30.5
         assert cs.round_half_up(0.25) == 0.5 and cs.round_half_up(0.75) == 1.0
@@ -338,7 +342,7 @@ class TestFinalize:
         spec = {"total_points": 3.0, "order": ["a", "b", "c"],
                 "steps": {k: {"name": k, "max_score": 1.0, "anforderungen": [{"share": 0.25}, {"share": 0.75}]}
                           for k in ("a", "b", "c")}}
-        judgment = {"scores": {k: _bullets((2, "nach § 40 I 1 VwGO"), (0, "")) for k in ("a", "b", "c")},
+        judgment = {"scores": {k: _bullets((2, "aus §§ 437 Nr. 2, 346 I BGB"), (0, "")) for k in ("a", "b", "c")},
                     **_diagnosis()}
         out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
         assert out["total_score"] == 1.0
@@ -355,35 +359,35 @@ class TestFinalize:
 
     def test_best_mode_shows_the_best_path(self):
         out = cs.finalize(_judgment("W1-L1"), _spec(), "bullet", "branch", "best", _verify)
-        shown = ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
+        shown = ["s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel"]
         assert sum(out["scores"][k]["score"] for k in shown) == out["total_score"] == 45.0
-        assert out["scores"]["s04_nichtstoerer"]["score"] == 25.0  # not counted, rounded on its own
+        assert out["scores"]["s04_verschleiss"]["score"] == 25.0  # not counted, rounded on its own
 
     def test_rating_unit_maps_notes_through_the_grade_key(self):
         judgment = {
             "scores": {
-                "s01_rechtsweg": {"note": 18, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False, "reason": ""},
-                "s02_klageart": {"note": 9, "evidence": "erfunden", "abweichender_weg": False, "reason": ""},
-                "s03_stoerer": {"note": 9, "evidence": "als Zweckveranlasser Störer", "abweichender_weg": True, "reason": ""},
+                "s01_anspruchsgrundlage": {"note": 18, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""},
+                "s02_kaufvertrag": {"note": 9, "evidence": "erfunden", "abweichender_weg": False, "reason": ""},
+                "s03_sachmangel": {"note": 9, "evidence": "bei Übergabe defekt", "abweichender_weg": True, "reason": ""},
             },
             "overall_assessment": "",
         }
         out = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify)
-        assert out["scores"]["s02_klageart"]["note"] == 0  # unverified quote
+        assert out["scores"]["s02_kaufvertrag"]["note"] == 0  # unverified quote
         # Standard key: grade 18, the top of the scale, is the full step; grade 9
         # is the midpoint of its band [67, 70) -> 68.5 %.
-        assert out["scores"]["s01_rechtsweg"]["raw_points"] == pytest.approx(20.0)
-        assert out["scores"]["s03_stoerer"]["raw_points"] == pytest.approx(50 * 0.685)
+        assert out["scores"]["s01_anspruchsgrundlage"]["raw_points"] == pytest.approx(20.0)
+        assert out["scores"]["s03_sachmangel"]["raw_points"] == pytest.approx(50 * 0.685)
         assert out["checklist"]["totals_unrounded"]["declared"] == pytest.approx(54.25)
         assert out["checklist"]["totals"]["declared"] == 54.5
-        assert [out["scores"][k]["score"] for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")] == [20.0, 0.0, 34.5]
+        assert [out["scores"][k]["score"] for k in ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")] == [20.0, 0.0, 34.5]
         # Aggregation (a) is unchanged: the weighted mean of the grades.
         assert out["checklist"]["rating_grade"] == pytest.approx((18 * 20 + 0 * 30 + 9 * 50) / 100)
         assert out["checklist"]["abweichender_weg_steps"] == 1
 
     def test_rating_key_of_the_exam_changes_the_points(self):
-        judgment = {"scores": {k: {"note": 4, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False, "reason": ""}
-                               for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")}}
+        judgment = {"scores": {k: {"note": 4, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""}
+                               for k in ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")}}
         study_key = {"thresholds_be": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
                      "rounding": "floor", "pass_grade": 4}
         out = cs.finalize(judgment, _spec(), "rating", "replace", "declared", _verify, grade_scale=study_key)
@@ -464,7 +468,7 @@ class TestEvaluatorIntegration:
         monkeypatch.setattr("time.sleep", lambda *_: None)
         ev = self._evaluator()
         incomplete = _judgment()
-        del incomplete["scores"]["s02_klageart"]
+        del incomplete["scores"]["s02_kaufvertrag"]
         self._respond(ev, incomplete, _judgment())
         result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
         assert not result.get("error") and ev.ai_service.generate_structured.call_count == 2
@@ -473,7 +477,7 @@ class TestEvaluatorIntegration:
         monkeypatch.setattr("time.sleep", lambda *_: None)
         ev = self._evaluator()
         incomplete = _judgment()
-        del incomplete["scores"]["s02_klageart"]
+        del incomplete["scores"]["s02_kaufvertrag"]
         del incomplete["weichenstellungen"]
         ev.ai_service.generate_structured.side_effect = [
             {"success": True, "content": json.dumps(incomplete), "metadata": {"finish_reason": "stop"},
@@ -485,7 +489,7 @@ class TestEvaluatorIntegration:
         first, second = (c.kwargs["prompt"] for c in ev.ai_service.generate_structured.call_args_list)
         assert "Es fehlen die Schlüssel" not in first
         assert second.startswith(first.rstrip())
-        assert second.endswith("Es fehlen die Schlüssel scores.s02_klageart, weichenstellungen.W1. "
+        assert second.endswith("Es fehlen die Schlüssel scores.s02_kaufvertrag, weichenstellungen.W1. "
                                "Gib die vollständige Antwort erneut aus, mit allen Schlüsseln des Schemas.")
         meta = result["_call_metadata"]
         assert meta["usage_all_attempts"] == {"attempts": 2, "attempts_without_usage": 0, "input_tokens": 210,
@@ -498,7 +502,7 @@ class TestEvaluatorIntegration:
         monkeypatch.setattr("time.sleep", lambda *_: None)
         ev = self._evaluator()
         incomplete = _judgment()
-        del incomplete["scores"]["s02_klageart"]
+        del incomplete["scores"]["s02_kaufvertrag"]
         ev.ai_service.generate_structured.side_effect = [
             {"success": True, "content": json.dumps(incomplete), "metadata": {"finish_reason": "stop"},
              "usage": {"prompt_tokens": 100, "completion_tokens": 20}},
@@ -546,7 +550,7 @@ class TestEvaluatorIntegration:
 
     def test_spec_without_bound_rubric_supplies_the_criteria(self):
         ev = self._evaluator()
-        assert list(ev.custom_criteria) == ["s01_rechtsweg", "s02_klageart", "s03_stoerer"]
+        assert list(ev.custom_criteria) == ["s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel"]
         assert ev.is_multidim_mode() and ev.rubric_mode
 
     def test_bad_options_rejected(self):
@@ -565,9 +569,9 @@ class TestEvaluatorIntegration:
         ev.configure_checklist(_spec(), "rating", "replace", "declared",
                                grade_scale={"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor", "pass_grade": 4})
         assert ev.checklist["grade_scale"]["unit"] == "BE"
-        judgment = {"scores": {k: {"note": 18, "evidence": "nach § 40 I 1 VwGO", "abweichender_weg": False,
+        judgment = {"scores": {k: {"note": 18, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
                                    "fehlplatziert": False, "reason": ""}
-                               for k in ("s01_rechtsweg", "s02_klageart", "s03_stoerer")}, **_diagnosis()}
+                               for k in ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")}, **_diagnosis()}
         self._respond(ev, judgment)
         result = ev._evaluate_multidim_single_call(context="SV", ground_truth="ML", prediction=ANSWER)
         assert result["checklist"]["totals_unrounded"]["declared"] == pytest.approx(100.0)
@@ -598,11 +602,11 @@ class TestDiagnosisAndSecondExamAlignment:
 
     def test_unforeseen_path_needs_review(self):
         judgment = _judgment()
-        judgment["scores"]["s02_klageart"]["abweichender_weg"] = True
+        judgment["scores"]["s02_kaufvertrag"]["abweichender_weg"] = True
         out = cs.finalize(judgment, _spec(), "bullet", "branch", "declared", _verify)
         assert out["assessment"]["assessment_status"] == "review_required"
         assert out["assessment"]["score_status"] == "provisional"
-        assert any("s02_klageart" in r for r in out["assessment"]["review_reasons"])
+        assert any("s02_kaufvertrag" in r for r in out["assessment"]["review_reasons"])
         assert out["total_score"] == 45.0  # the value is kept
 
     def test_missing_product_with_credited_steps_needs_review(self):
@@ -617,20 +621,20 @@ class TestDiagnosisAndSecondExamAlignment:
         # per step, and a step-level Hilfsgutachten marker with its "ebene".
         spec = _spec()
         spec["arbeitsergebnisse"] = [
-            {"id": "P1", "bezeichnung": "Gutachten", "art": "gutachten", "step_keys": ["s01_rechtsweg"]},
-            {"id": "P2", "bezeichnung": "Urteil", "art": "urteil", "step_keys": ["s02_klageart", "s03_stoerer"]}]
-        spec["steps"]["s01_rechtsweg"]["arbeitsergebnis_id"] = "P1"
-        for k in ("s02_klageart", "s03_stoerer"):
+            {"id": "P1", "bezeichnung": "Gutachten", "art": "gutachten", "step_keys": ["s01_anspruchsgrundlage"]},
+            {"id": "P2", "bezeichnung": "Urteil", "art": "urteil", "step_keys": ["s02_kaufvertrag", "s03_sachmangel"]}]
+        spec["steps"]["s01_anspruchsgrundlage"]["arbeitsergebnis_id"] = "P1"
+        for k in ("s02_kaufvertrag", "s03_sachmangel"):
             spec["steps"][k]["arbeitsergebnis_id"] = "P2"
-        spec["steps"]["s02_klageart"]["hilfsgutachten"] = {
+        spec["steps"]["s02_kaufvertrag"]["hilfsgutachten"] = {
             "abschnitt_id": "A2", "ebene": "schritt", "funktion": "praemissenwechsel",
-            "ausloeser": "die Klage bereits unzulässig ist", "ausloeser_step_keys": ["s01_rechtsweg"]}
+            "ausloeser": "der Kaufvertrag bereits nichtig ist", "ausloeser_step_keys": ["s01_anspruchsgrundlage"]}
         out = cs.finalize(_judgment(), spec, "bullet", "branch", "declared", _verify)
         results = out["checklist"]["arbeitsergebnisse"]
         assert results["P1"] == {"points": pytest.approx(15.0), "max": 20.0}
         # s03 is counted on the declared path; a path's own steps would go to P2 too.
         assert results["P2"] == {"points": pytest.approx(30.0), "max": 80.0}
-        assert "s02_klageart: Klageart (Anforderungen b1 bis b1; hilfsgutachtlich geschuldet)" in (
+        assert "s02_kaufvertrag: Kaufvertrag (Anforderungen b1 bis b1; hilfsgutachtlich geschuldet)" in (
             cs.expected_output_note(spec, "bullet", "branch"))
         declared_l1 = cs.finalize(_judgment("W1-L1"), spec, "bullet", "branch", "declared", _verify)
         assert declared_l1["checklist"]["arbeitsergebnisse"]["P2"] == {"points": pytest.approx(25.0), "max": 80.0}
@@ -638,7 +642,7 @@ class TestDiagnosisAndSecondExamAlignment:
     @pytest.mark.parametrize("key", ["arbeitsergebnis_id", "arbeitsprodukt_id"])
     def test_work_results_match_exactly(self, key):
         spec = _spec()
-        spec["steps"]["s02_klageart"][key] = "P10"
+        spec["steps"]["s02_kaufvertrag"][key] = "P10"
         spec["arbeitsergebnisse" if key == "arbeitsergebnis_id" else "arbeitsprodukte"] = [
             {"id": "P1", "bezeichnung": "Gutachten"}, {"id": "P10", "bezeichnung": "Urteil"}]
         judgment = _judgment()
@@ -659,10 +663,10 @@ class TestDiagnosisAndSecondExamAlignment:
 
     def test_key_map_marks_folgerichtig_and_owed_steps(self):
         spec = _spec()
-        spec["steps"]["s02_klageart"]["anforderungen"][0]["massstab"] = "folgerichtig"
-        spec["steps"]["s02_klageart"]["hilfsgutachten"] = {"funktion": "praemissenwechsel"}
+        spec["steps"]["s02_kaufvertrag"]["anforderungen"][0]["massstab"] = "folgerichtig"
+        spec["steps"]["s02_kaufvertrag"]["hilfsgutachten"] = {"funktion": "praemissenwechsel"}
         note = cs.expected_output_note(spec, "bullet", "branch")
-        assert "s02_klageart: Klageart (Anforderungen b1 bis b1; folgerichtig: b1; hilfsgutachtlich geschuldet)" in note
+        assert "s02_kaufvertrag: Kaufvertrag (Anforderungen b1 bis b1; folgerichtig: b1; hilfsgutachtlich geschuldet)" in note
 
     def test_not_evaluable_becomes_an_error_row(self, monkeypatch):
         monkeypatch.setattr("time.sleep", lambda *_: None)
