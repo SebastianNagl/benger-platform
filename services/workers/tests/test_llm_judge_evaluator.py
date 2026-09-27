@@ -2068,6 +2068,8 @@ class TestVerifyEvidenceRound4:
         # a quote ending with "weil" stops where the new clause starts
         ("Eine Strafbarkeit wegen Mordes scheidet aus, weil kein Mordmerkmal erfüllt ist.",
          "Eine Strafbarkeit wegen Mordes scheidet aus, weil"),
+        ("Insbesondere liegt kein Notwehrexzess nach § 33 StGB vor, da T nicht aus Furcht handelte.",
+         "Insbesondere liegt kein Notwehrexzess nach § 33 StGB vor, da"),
         # a "dass" clause under an affirming clause, a quote that keeps its "ob"
         ("Es ist unstreitig, dass der Verkäufer die Sache mangelfrei geliefert hat.",
          "der Verkäufer die Sache mangelfrei geliefert hat"),

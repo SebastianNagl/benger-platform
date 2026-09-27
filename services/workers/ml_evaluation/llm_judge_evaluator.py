@@ -787,6 +787,15 @@ def _turns_round_after(index: "EvidenceIndex", j: int) -> bool:
     return _is_negation(token) or token == "negativ" or token in _EDGE_CONDITION_WORDS
 
 
+def _opens_clause(index: EvidenceIndex, k: int) -> bool:
+    """Is token ``k`` a subordinating conjunction? "da" only counts right
+    after a comma ("…, da T nicht …"); elsewhere it is mostly an adverb."""
+    token = index.tokens[k]
+    if token in _SUBORDINATORS:
+        return True
+    return token == "da" and k > 0 and _gap_level(index, k - 1, index.ends[k - 1], index.starts[k]) == 1
+
+
 def _turns_round_before(token: str) -> bool:
     """A negation, a question or condition word, or a doubt word."""
     return _is_negation(token) or token in _EDGE_BEFORE_WORDS or token in _DOUBT_WORDS
@@ -880,7 +889,7 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
     j = bisect.bisect_left(index.starts, end)
     if j >= len(tokens):
         return True
-    if j > 0 and tokens[j - 1] in _SUBORDINATORS:
+    if j > 0 and _opens_clause(index, j - 1):
         return True  # the words after it belong to the clause it opens
     level = _gap_level(index, j - 1, end, index.starts[j])
     if level < 2 and _turns_round_after(index, j):
