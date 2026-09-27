@@ -74,6 +74,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import inspect
+import hashlib
 import json
 import os
 import signal
@@ -123,7 +124,11 @@ JUDGE_MODULES = ("ml_evaluation/llm_judge_evaluator.py", "ml_evaluation/checklis
                  "ml_evaluation/llm_judge_prompts.py", "rubric_structure.py")
 NOT_INSTRUMENT = ("models.py", "project_models.py", "database.py", "tasks.py")
 LOCAL_ROOTS: list[str] = []  # the import roots setup_paths adds (set in main)
-VALIDATOR_FILE = "benger_extended/workers/bewertungsbogen_checklist.py"
+# The generator contract's validator modules, in extended's order: from
+# checklist-4 on, validator_sha256 is the sha256 over their bytes
+# concatenated (extended modules_sha256); checklist-3 hashed the first alone.
+VALIDATOR_FILES = ("benger_extended/workers/bewertungsbogen_checklist.py",
+                   "benger_extended/workers/bewertungsbogen_constants.py")
 D2_MARKER = "heidebach_polr_2026"
 # Same values as the D1 tasks on the clone, so the generator prompt is built
 # the same way for both corpora.
@@ -189,6 +194,17 @@ def find_file(rel: str, kind: str = "file") -> Path | None:
         if path is not None and (path.is_file() if kind == "file" else path.is_dir()):
             return path
     return None
+
+
+def validator_hash() -> str | None:
+    """The mounted validator's hash as the generator records it (checklist-4)."""
+    paths = [find_file(rel) for rel in VALIDATOR_FILES]
+    if not all(paths):
+        return None
+    digest = hashlib.sha256()
+    for path in paths:
+        digest.update(Path(path).read_bytes())
+    return digest.hexdigest()
 
 
 def instrument_hashes() -> dict[str, str | None]:
@@ -849,7 +865,7 @@ def rubric_generation_facts(rubric_id: str, validator_sha256: str | None) -> dic
     try:
         rubric = db.query(TaskRubric).filter(TaskRubric.id == rubric_id).one()
         meta = rubric.generation_metadata or {}
-        stored_validator = meta.get("validator_sha256")  # stream A, contract checklist-3
+        stored_validator = meta.get("validator_sha256")  # the contract's validator modules
         return {"prompt_version": rubric.prompt_version, "contract_version": meta.get("contract_version"),
                 "validator_sha256": stored_validator, "prompt_sha256": meta.get("prompt_sha256"),
                 "validator_matches_mounted": (stored_validator == validator_sha256) if stored_validator else None,
@@ -1922,7 +1938,7 @@ def main() -> int:
     provenance = {
         "code_version": L.code_version(files),
         "files": files,
-        "validator_sha256": files.get(VALIDATOR_FILE),
+        "validator_sha256": validator_hash(),
         "runner_sha256": args.runner_sha256,
         "lib_sha256": L.sha256_file(pilot_lib.__file__),
         "git": {"platform": args.platform_sha, "platform_mounted": args.platform_mounted_sha,
