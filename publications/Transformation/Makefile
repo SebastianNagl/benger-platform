@@ -60,10 +60,20 @@ render: analyze-cslaw
 # D2 summaries and the structure of Roth's sheet: need the git-ignored
 # pilot rows, D2 pack and Z2 workbook (local data root,
 # scripts/local_config.py); they write aggregates only.
+# The D2 runs' judge code version; the same pin as scripts/analysis/d2_labels.py.
+D2_CODE_VERSION = 7fc295f3b81f
+
+D2_GATE = $(shell uv run python scripts/local_config.py get data_root)/interim/pilot/gate_d2-probes.json
+
 analyze-d2:
 	uv run python scripts/analysis/extract_z2_structure.py
-	uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes || true
-	uv run python scripts/analysis/compute_d2_gate_summary.py
+	# The gate's exit code is its verdict (1 a battery failed, 2 a pass is incomplete
+	# or the input is bad); the summary records the verdict, so the build only
+	# requires that this run wrote a fresh gate file.
+	rm -f $(D2_GATE)
+	-uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes --code-version $(D2_CODE_VERSION) --out $(D2_GATE)
+	test -s $(D2_GATE)
+	uv run python scripts/analysis/compute_d2_gate_summary.py --gate $(D2_GATE)
 	uv run python scripts/analysis/compute_d2_generation_summary.py
 	uv run python scripts/analysis/compute_d2_validity.py
 
