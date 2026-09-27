@@ -1233,15 +1233,20 @@ class LLMJudgeEvaluator(BaseEvaluator):
         wording), the system prompt and the closing rules. The evaluator uses
         them while checklist mode is on, whatever ``custom_prompt_template``
         the caller set; that template is kept for the product lane.
+
+        A spec that cannot be scored raises
+        :class:`checklist_scoring.ChecklistSpecError` (a ``ValueError``) here,
+        before any judge call (:func:`checklist_scoring.validate_spec`).
         """
         from . import checklist_scoring
         from .checklist_scoring import grade_key, rating_percent_table, validate_options
 
         validate_options(score_unit, alternatives, total_mode)
-        if not isinstance(spec, dict) or not spec.get("order") or not isinstance(spec.get("steps"), dict):
-            raise ValueError("checklist spec needs 'order' and 'steps'")
+        # The whole spec shape, once, here: a broken spec must not cost a
+        # paid judge call before finalize trips over it.
+        checklist_scoring.validate_spec(spec, score_unit, alternatives)
         key = grade_key(grade_scale)
-        rating_percent_table(key, float(spec.get("total_points") or 100.0))  # raises on a bad key
+        rating_percent_table(key, checklist_scoring.spec_total_points(spec))  # raises on a bad key
         if not self.custom_criteria:
             self.custom_criteria = {
                 key: {"name": spec["steps"][key].get("name"), "max_score": spec["steps"][key]["max_score"]}

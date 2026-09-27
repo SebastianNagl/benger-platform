@@ -202,6 +202,198 @@ def validate_options(score_unit: str, alternatives: str, total_mode: str) -> Non
         raise ValueError("alternatives='replace' needs score_unit 'step' or 'rating', not 'bullet'")
 
 
+class ChecklistSpecError(ValueError):
+    """A checklist spec (or its sheet total) that cannot be scored.
+
+    Raised before any judge call (:func:`validate_spec`, run by the
+    evaluator's ``configure_checklist``), so a broken spec never costs a
+    paid call. A ``ValueError``, like the option checks.
+    """
+
+
+_SPEC_PROBLEMS_SHOWN = 20
+
+
+def _is_finite_number(value: Any) -> bool:
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(float(value))
+    )
+
+
+def spec_total_points(spec: Dict[str, Any]) -> float:
+    """The sheet total the spec states (``total_points``).
+
+    Never assumed: a spec without a positive total raises
+    :class:`ChecklistSpecError` instead of silently scoring on 100. Both
+    producers of checklist specs state it (the extended generator's
+    ``checklist_spec`` and the research adapter ``spec_from_rubric``).
+    """
+    total = spec.get("total_points") if isinstance(spec, dict) else None
+    if not _is_finite_number(total) or float(total) <= 0:
+        raise ChecklistSpecError(
+            f"checklist spec needs total_points, a positive number (got {total!r})"
+        )
+    return float(total)
+
+
+def _step_problems(where: str, step: Any, score_unit: str) -> List[str]:
+    if not isinstance(step, dict):
+        return [f"{where} must be an object"]
+    problems = []
+    if not _is_finite_number(step.get("max_score")) or float(step["max_score"]) < 0:
+        problems.append(f"{where}.max_score must be a number >= 0 (got {step.get('max_score')!r})")
+    if score_unit == "bullet":
+        bullets = step.get("anforderungen")
+        if bullets is not None and not isinstance(bullets, list):
+            problems.append(f"{where}.anforderungen must be a list")
+        for i, bullet in enumerate(bullets if isinstance(bullets, list) else [], start=1):
+            if not isinstance(bullet, dict):
+                problems.append(f"{where}.anforderungen[b{i}] must be an object")
+            elif bullet.get("share") is not None and (
+                not _is_finite_number(bullet["share"]) or float(bullet["share"]) < 0
+            ):
+                problems.append(f"{where}.anforderungen[b{i}].share must be a number >= 0")
+    return problems
+
+
+def _path_problems(
+    where: str,
+    stellung: Dict[str, Any],
+    primary_keys: set,
+    steps: Dict[str, Any],
+    path_steps: Dict[str, Any],
+    score_unit: str,
+    alternatives: str,
+) -> List[str]:
+    """The Lösungswege of one Weichenstellung."""
+    wege = stellung.get("loesungswege")
+    if not isinstance(wege, list) or not wege:
+        return [f"{where}.loesungswege must be a non-empty list"]
+    problems: List[str] = []
+    weg_ids = set()
+    for j, weg in enumerate(wege):
+        if not isinstance(weg, dict):
+            problems.append(f"{where}.loesungswege[{j}] must be an object")
+            continue
+        wid = weg.get("id")
+        if not isinstance(wid, str) or not wid:
+            problems.append(f"{where}.loesungswege[{j}].id must be a non-empty string")
+            continue
+        if wid in weg_ids:
+            problems.append(f"{where}: Lösungsweg {wid} is listed twice")
+            continue
+        weg_ids.add(wid)
+        keys = weg.get("step_keys")
+        if not isinstance(keys, list):
+            problems.append(f"{where}: Lösungsweg {wid} needs step_keys, a list")
+            continue
+        for key in keys:
+            if wid == PRIMARY:
+                if key not in primary_keys:
+                    problems.append(f"{where}: the Musterlösung's step {key!r} is not in order")
+            elif alternatives == "branch":
+                # Branch mode scores every path, so the other paths' steps
+                # need their own entries.
+                if not isinstance(key, str) or key not in path_steps:
+                    problems.append(f"{where}: step {key!r} of {wid} has no entry in loesungsweg_steps")
+                elif key in steps:
+                    problems.append(f"{where}: step {key} of {wid} is also a primary step")
+                else:
+                    problems.extend(_step_problems(f"loesungsweg_steps.{key}", path_steps[key], score_unit))
+    if PRIMARY not in weg_ids:
+        problems.append(f"{where} has no Lösungsweg with id {PRIMARY!r}")
+    return problems
+
+
+def validate_spec(spec: Any, score_unit: str, alternatives: str) -> None:
+    """Check a checklist spec's shape once, before any judge call.
+
+    Everything :func:`build_schema`, :func:`expected_output_note` and
+    :func:`finalize` read from the spec is checked here: the sheet total,
+    the primary steps in ``order``, every Weichenstellung with its
+    Musterlösung path, the other paths' steps (branch mode scores them) and
+    the work results. Raises :class:`ChecklistSpecError` naming every
+    problem found.
+    """
+    if not isinstance(spec, dict):
+        raise ChecklistSpecError("checklist spec must be an object")
+    problems: List[str] = []
+    try:
+        spec_total_points(spec)
+    except ChecklistSpecError as exc:
+        problems.append(str(exc).replace("checklist spec needs ", ""))
+
+    order = spec.get("order")
+    steps = spec.get("steps")
+    if not isinstance(order, list) or not order:
+        problems.append("order must be a non-empty list of step keys")
+        order = []
+    if not isinstance(steps, dict):
+        problems.append("steps must be an object")
+        steps = {}
+    for key, step in steps.items():
+        if not isinstance(step, dict):
+            problems.append(f"steps.{key} must be an object")
+    primary_keys = set()
+    for key in order:
+        if not isinstance(key, str) or not key:
+            problems.append(f"order: {key!r} is not a step key")
+        elif key in primary_keys:
+            problems.append(f"order: {key} is listed twice")
+        elif key not in steps:
+            problems.append(f"order: {key} has no entry in steps")
+        else:
+            primary_keys.add(key)
+            if isinstance(steps[key], dict):
+                problems.extend(_step_problems(f"steps.{key}", steps[key], score_unit))
+
+    path_steps = spec.get("loesungsweg_steps")
+    if path_steps is None:
+        path_steps = {}
+    if not isinstance(path_steps, dict):
+        problems.append("loesungsweg_steps must be an object")
+        path_steps = {}
+    weichenstellungen = spec.get("weichenstellungen")
+    if weichenstellungen is None:
+        weichenstellungen = []
+    if not isinstance(weichenstellungen, list):
+        problems.append("weichenstellungen must be a list")
+        weichenstellungen = []
+    stellung_ids = set()
+    for i, stellung in enumerate(weichenstellungen):
+        where = f"weichenstellungen[{i}]"
+        if not isinstance(stellung, dict):
+            problems.append(f"{where} must be an object")
+            continue
+        sid = stellung.get("id")
+        if not isinstance(sid, str) or not sid:
+            problems.append(f"{where}.id must be a non-empty string")
+        elif sid in stellung_ids:
+            problems.append(f"{where}.id {sid} is used twice")
+        else:
+            stellung_ids.add(sid)
+            where = f"weichenstellung {sid}"
+        problems.extend(
+            _path_problems(where, stellung, primary_keys, steps, path_steps, score_unit, alternatives)
+        )
+
+    for name in ("arbeitsergebnisse", "arbeitsprodukte"):
+        results = spec.get(name)
+        if results is not None and (
+            not isinstance(results, list) or not all(isinstance(r, dict) for r in results)
+        ):
+            problems.append(f"{name} must be a list of objects")
+
+    if problems:
+        shown = "; ".join(problems[:_SPEC_PROBLEMS_SHOWN])
+        more = len(problems) - _SPEC_PROBLEMS_SHOWN
+        raise ChecklistSpecError(
+            f"checklist spec is invalid: {shown}" + (f" (and {more} more)" if more > 0 else "")
+        )
+
+
 # ---------------------------------------------------------------------------
 # Grade key (rating unit, aggregation b)
 # ---------------------------------------------------------------------------
@@ -245,7 +437,9 @@ def rating_percent_table(grade_scale: Optional[Dict[str, Any]], total_points: fl
     from rubric_structure import GRADE_COUNT, effective_grade_scale, is_percent_scale, validate_grade_scale
 
     key = grade_key(grade_scale)
-    total = float(total_points) if total_points and float(total_points) > 0 else 100.0
+    if not _is_finite_number(total_points) or float(total_points) <= 0:
+        raise ChecklistSpecError(f"total_points must be a positive number (got {total_points!r})")
+    total = float(total_points)
     errors = validate_grade_scale(key, None if is_percent_scale(key) else total)
     if errors:
         raise ValueError("grade_scale: " + "; ".join(errors))
@@ -662,7 +856,8 @@ def finalize(
     ``total_score`` adds up to it exactly (:func:`distribute_half_points`);
     other steps show their own points rounded half up. ``grade_scale`` is the
     exam's key for the rating unit (:func:`rating_percent_table`; ``None`` is
-    the platform default).
+    the platform default). A spec without ``total_points`` raises
+    :class:`ChecklistSpecError`.
     """
     scores_in = parsed.get("scores") if isinstance(parsed.get("scores"), dict) else {}
     steps = scored_steps(spec, alternatives)
@@ -685,10 +880,8 @@ def finalize(
     if missing:
         return {"missing": missing}
 
-    rating_table = (
-        rating_percent_table(grade_scale, float(spec.get("total_points") or 100.0))
-        if score_unit == "rating" else None
-    )
+    total_points = spec_total_points(spec)
+    rating_table = rating_percent_table(grade_scale, total_points) if score_unit == "rating" else None
     out: Dict[str, Dict[str, Any]] = {}
     raw_points: Dict[str, float] = {}
     zeroed = 0
@@ -840,7 +1033,7 @@ def finalize(
     return {
         "scores": out,
         "total_score": totals[total_mode],
-        "total_max": float(spec.get("total_points") or 100.0),
+        "total_max": total_points,
         "overall_assessment": str(parsed.get("overall_assessment") or ""),
         "assessment": assessment,
         "not_evaluable": assessment["assessment_status"] == "not_evaluable",

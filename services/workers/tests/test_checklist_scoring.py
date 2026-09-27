@@ -681,3 +681,126 @@ class TestDiagnosisAndSecondExamAlignment:
         assert result["error"] is True
         assert result["_call_metadata"]["error_type"] == "not_evaluable"
         assert "unlesbar" in result["error_message"]
+
+
+
+# ---------------------------------------------------------------------------
+# Robustness: a broken spec fails before any call, and the sheet total is
+# never assumed.
+# ---------------------------------------------------------------------------
+
+
+def _without(mapping, *path):
+    """``mapping`` with the key at ``path`` removed (a fresh spec each time)."""
+    node = mapping
+    for key in path[:-1]:
+        node = node[key]
+    del node[path[-1]]
+    return mapping
+
+
+def _broken(change):
+    spec = _spec()
+    change(spec)
+    return spec
+
+
+_BROKEN_SPECS = {
+    "no total_points": (lambda s: s.pop("total_points"), "total_points"),
+    "zero total_points": (lambda s: s.update(total_points=0), "total_points"),
+    "no max_score": (lambda s: _without(s, "steps", "s02_kaufvertrag", "max_score"), "steps.s02_kaufvertrag.max_score"),
+    "text max_score": (lambda s: s["steps"]["s01_anspruchsgrundlage"].update(max_score="20"), "max_score"),
+    "text share": (lambda s: s["steps"]["s01_anspruchsgrundlage"]["anforderungen"][0].update(share="half"),
+                   "anforderungen[b1].share"),
+    "bullet not an object": (lambda s: s["steps"]["s02_kaufvertrag"].update(anforderungen=["A1"]),
+                             "anforderungen[b1] must be an object"),
+    "order key without step": (lambda s: s["order"].append("s09_fehlt"), "s09_fehlt has no entry in steps"),
+    "order listed twice": (lambda s: s["order"].append("s02_kaufvertrag"), "listed twice"),
+    "no musterloesung path": (lambda s: s["weichenstellungen"][0]["loesungswege"][0].update(id="W1-L0"),
+                              "no Lösungsweg with id 'musterloesung'"),
+    "branch step without entry": (lambda s: s.update(loesungsweg_steps={}), "s04_verschleiss"),
+    "step_keys not a list": (lambda s: s["weichenstellungen"][0]["loesungswege"][1].update(step_keys="s04_verschleiss"),
+                             "needs step_keys"),
+    "primary step outside order": (lambda s: s["weichenstellungen"][0]["loesungswege"][0].update(
+        step_keys=["s09_fehlt"]), "s09_fehlt"),
+    "weichenstellung id twice": (lambda s: s["weichenstellungen"].append(dict(s["weichenstellungen"][0])),
+                                 "used twice"),
+    "work results not objects": (lambda s: s.update(arbeitsergebnisse=["P1"]), "arbeitsergebnisse"),
+}
+
+
+class TestSpecValidation:
+    @pytest.mark.parametrize("unit,alternatives", _COMBINATIONS)
+    def test_the_fixture_spec_is_valid(self, unit, alternatives):
+        cs.validate_spec(_spec(), unit, alternatives)
+
+    @pytest.mark.parametrize("name", list(_BROKEN_SPECS))
+    def test_a_broken_spec_is_named(self, name):
+        change, fragment = _BROKEN_SPECS[name]
+        with pytest.raises(cs.ChecklistSpecError) as exc:
+            cs.validate_spec(_broken(change), "bullet", "branch")
+        assert str(exc.value).startswith("checklist spec is invalid: ")
+        assert fragment in str(exc.value)
+
+    def test_every_problem_is_listed(self):
+        spec = _spec()
+        del spec["total_points"]
+        del spec["steps"]["s02_kaufvertrag"]["max_score"]
+        spec["loesungsweg_steps"] = {}
+        message = str(pytest.raises(cs.ChecklistSpecError, cs.validate_spec, spec, "bullet", "branch").value)
+        for fragment in ("total_points", "s02_kaufvertrag.max_score", "s04_verschleiss"):
+            assert fragment in message
+
+    def test_replace_mode_does_not_score_the_other_paths(self):
+        """The other paths' steps are only scored in branch mode; replace
+        mode needs no entries for them."""
+        spec = _spec()
+        spec["loesungsweg_steps"] = {}
+        cs.validate_spec(spec, "step", "replace")
+        with pytest.raises(cs.ChecklistSpecError):
+            cs.validate_spec(spec, "step", "branch")
+
+    def test_step_and_rating_units_ignore_the_bullet_shares(self):
+        spec = _spec()
+        spec["steps"]["s01_anspruchsgrundlage"]["anforderungen"][0]["share"] = "half"
+        cs.validate_spec(spec, "step", "branch")
+        cs.validate_spec(spec, "rating", "replace")
+
+    @pytest.mark.parametrize("spec", [None, [], "spec", {"order": [], "steps": {}, "total_points": 100}])
+    def test_not_a_spec(self, spec):
+        with pytest.raises(cs.ChecklistSpecError):
+            cs.validate_spec(spec, "bullet", "branch")
+
+    def test_configure_checklist_fails_before_any_call(self):
+        ai = MagicMock()
+        ev = LLMJudgeEvaluator(ai_service=ai, judge_model="m", custom_prompt_template="x")
+        spec = _without(_spec(), "steps", "s02_kaufvertrag", "max_score")
+        with pytest.raises(cs.ChecklistSpecError, match="s02_kaufvertrag.max_score"):
+            ev.configure_checklist(spec, "bullet", "branch", "declared")
+        assert ev.checklist is None
+        ai.generate_structured.assert_not_called()
+
+
+class TestTotalPoints:
+    def test_the_spec_total_is_used(self):
+        spec = _spec()
+        spec["total_points"] = 120.0
+        out = cs.finalize(_judgment(), spec, "bullet", "branch", "declared", _verify)
+        assert out["total_max"] == 120.0
+
+    @pytest.mark.parametrize("total", [None, 0, -5, "100", float("inf")])
+    def test_no_total_is_an_error_not_100(self, total):
+        spec = _spec()
+        if total is None:
+            del spec["total_points"]
+        else:
+            spec["total_points"] = total
+        with pytest.raises(cs.ChecklistSpecError, match="total_points"):
+            cs.finalize(_judgment(), spec, "bullet", "branch", "declared", _verify)
+        with pytest.raises(cs.ChecklistSpecError, match="total_points"):
+            cs.spec_total_points(spec)
+
+    @pytest.mark.parametrize("total", [None, 0, "100"])
+    def test_the_rating_table_needs_a_total(self, total):
+        with pytest.raises(cs.ChecklistSpecError, match="total_points"):
+            cs.rating_percent_table(None, total)
