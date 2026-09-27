@@ -26,9 +26,10 @@ make render                              # -> manuscript.pdf (ACM acmsmall, xela
 
 `make render` runs `make analyze-cslaw` and rebuilds `manuscript.pdf` from
 `manuscript.qmd` and the tracked data. It needs TinyTeX with `acmart`. Every
-number in the body is computed at render time from `data/processed/`; the
-abstract's three corpus counts are the only literals, because Quarto does not
-execute code in the YAML header.
+result in the paper is computed at render time from `data/processed/`. The
+abstract's corpus counts are literals, because Quarto does not execute code in
+the YAML header, and so are a few design descriptions in the prose (such as
+"two generators").
 
 `make render` works from a clean clone. `make derive` and `make analyze` do
 not — they re-derive `data/processed/` from the run outputs and the exam
@@ -81,10 +82,11 @@ Some inputs are withheld and ship with the dataset release instead:
   go to `data/processed/`. `scripts/extract_heidebach_pack.py` builds the local
   pack, `scripts/analysis/extract_z2_structure.py` the Z2 aggregates.
 
-None of these is an input to `make render`: every load in `manuscript.qmd` goes
-through `load_optional()`, so the paper rebuilds from the tracked data alone.
-Reproducing `data/processed/` from scratch needs the withheld inputs restored
-from the dataset release.
+None of these is an input to `make render`: the manuscript loads only the
+tracked aggregates in `data/processed/`, so the paper rebuilds from a clean
+clone. Reproducing `data/processed/` from scratch needs the withheld inputs
+restored from the dataset release (`make analyze`, `make analyze-local`) or
+the private expert data (`make analyze-d2`).
 
 ## Citing
 

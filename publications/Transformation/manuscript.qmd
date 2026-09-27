@@ -57,11 +57,11 @@ abstract: |
   45 answers with blind human grades. The sheets did not make capable judges steadier on average:
   the effect depended on the judge, the sheets cost some agreement with the human graders, and under
   the sheet several judges gave high scores to empty or copied answers. We then rebuilt the pipeline. The
-  model writes small steps with requirements that must be quoted from the answer, code allocates
-  the points and verifies every quote, and defensible alternative solutions and auxiliary opinions
-  are represented explicitly. We validate it against the author of an exam grading his own
-  students' scripts on his own sheet, benchmark which models generate good sheets and which use them
-  well, and describe how such exams are graded in practice. \pending{results of the full benchmark
+  model writes small steps with requirements, the judge must support each credit with a quote from
+  the answer, code allocates the points and checks every quote, and defensible alternative
+  solutions and auxiliary opinions are represented explicitly. We validate it against grades of real
+  exam scripts on the exam author's own sheet, benchmark which models generate good sheets and which
+  use them well, and describe how such exams are graded in practice. \pending{results of the full benchmark
   and the recommended pipeline}
 jupyter: benger-transformation
 ---
@@ -250,8 +250,8 @@ with `{python} V["n_answers"]` answers and blind human grades. The sheets did no
 steadier on average, they cost some agreement with the human graders, and under the sheet several
 judges gave high scores to empty or copied answers (@sec-first). We rebuilt the pipeline and ask the
 question again, now also asking *which* models write good sheets and *which* use them well, against
-the strongest yardstick we can get: the author of an exam grading his own students' scripts on his
-own sheet and scale. RQ1 and RQ2 carry the story; the others explain the result.
+the strongest yardstick we can get: grades of real exam scripts on the exam author's own sheet
+and scale. RQ1 and RQ2 carry the story; the others explain the result.
 
 - **RQ1 Variance.** Does grading against a generated sheet make judges steadier, across repeated
   passes, across judges and across independently generated sheets for the same exam?
@@ -305,15 +305,14 @@ penalised twice: a later step that correctly builds on the candidate's own earli
 earns credit.
 
 *Two expert paradigms.* We compare two expert sheets with our instrument (Table \ref{tab:paradigms}).
-The exam author's sheet (D2) is a flat list of steps with absolute BE. Gregor Roth's sheet for a
-civil-law exam (Z2) is hierarchical: each node states its share of the parent, and each of the
-`{python} Z2["weighted_leaves"]` leaves is graded from `{python} num(Z2["leaf_grade_range"][0], 0)` to
-`{python} num(Z2["leaf_grade_range"][1], 0)` points. His workbook multiplies the shares down and
-averages the leaf grades with these weights. Consistency is left to the examiner: in
-`{python} Z2["parents_child_shares_not_100"]` of `{python} Z2["weighted_parents"] + len(Z2["parts_pct"])`
-parents the stated shares of the children do not sum to 100%, while the weights the workbook uses do.
-Our instrument keeps the half-point BE of the first paradigm, adds requirement bullets, lets code do
-the arithmetic, and can elicit the weights in the way of either paradigm (@sec-pipeline).
+The exam author's sheet (D2) is a list of steps with absolute BE, grouped into sections. Gregor
+Roth's sheet for a civil-law exam (Z2) is hierarchical: its weighted items state their share of the
+parent item, and each of the `{python} Z2["weighted_leaves"]` weighted leaves is graded in whole points
+from `{python} num(Z2["leaf_grade_range"][0], 0)` to `{python} num(Z2["leaf_grade_range"][1], 0)`. His
+grading workbook multiplies the shares down to absolute weights and averages the leaf grades with
+them; its legend marks the one place where it adjusted the stated shares. Our instrument keeps the
+half-point BE of the first paradigm, adds requirement bullets, lets code do the arithmetic, and can
+elicit the weights in the way of either paradigm (@sec-pipeline).
 
 ```{python}
 #| output: asis
@@ -332,7 +331,8 @@ rows = [
     ["Aggregation", "sum of BE", "weighted mean of grades", "sum of BE (both for grades)"],
     ["Pass mark", f"{pct(sh['pass_share'])} of BE", f"grade {ZW['pass_from_grade']}", "the exam's key"],
     ["Adjustment", "\\tbd", "manual bonus or malus", "none"],
-    ["Result items", "none; some titles", "\\tbd", "none; a bullet"],
+    ["Result items", "none; some titles",
+     f"{Z2['result_rows_weighted']} of {Z2['result_rows']} weighted", "none; with its reasoning"],
     ["Graders per script", "one (see Section 5)", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)", "judge, $k$ passes"],
     ["Alternatives", "\\tbd", "\\tbd", "bullets or forks"],
 ]
@@ -359,7 +359,8 @@ with both expert sheets. \pending{BE distribution of the expert sheet and of gen
 *Q2: What earns credit, including method?* In the author's sheet every step credits an issue
 spotted or an argument made. No step credits a bare result; some step titles state a sub-result
 instead. Our generator follows the same rule: no step may credit only an intermediate or
-final result, and the correctness of a result is a bullet in the last substantive step. Whether
+final result: a result earns credit only together with the reasoning that carries it, and where
+several results are tenable the bullets credit the argument, not the result. Whether
 method (structure, appraisal style, precise language) earns separate credit is open
 \pending{exam author}. The first iteration kept style outside the points as a separate construct.
 E6 compares sheets with and without method bullets.
@@ -371,12 +372,14 @@ The pass mark decides pass/fail agreement between a judge and the examiner. E6 s
 `{python} pct(EXP["E6"]["pass_mark_sweep"][0])` to `{python} pct(EXP["E6"]["pass_mark_sweep"][1])`
 on stored outputs. \pending{E6}
 
-*Q4: Is the key linear or curved?* \pending{exam author: shape of his key and why} The platform's
-default key is piecewise linear with a kink at the pass mark: below it a grade point spans
+*Q4: Is the key linear or curved?* The author's key is piecewise linear with a kink at the pass
+mark: below it a grade point spans `{python} D2["sheet"]["key_be_per_grade_below_pass"]` BE, from the
+pass mark upwards `{python} D2["sheet"]["key_be_per_grade_from_pass"]` BE, up to grade 18 at
+`{python} D2["sheet"]["key_top_grade_be"]` BE. \pending{exam author: why this shape} The platform's
+default key has the same shape: below the pass mark a grade point spans
 `{python} num(KEY["mean_band_width_below_pass"], 1)` percentage points of the total on average, from
 the pass mark upwards `{python} num(KEY["mean_band_width_from_pass"], 1)`. Roth's paradigm needs no
-key, because it grades each leaf on the statutory scale and averages the grades; a script passes
-from grade `{python} Z2["workbook"]["pass_from_grade"]`, the statutory pass mark. Our rating unit
+key: it averages statutory grades and passes from grade `{python} Z2["workbook"]["pass_from_grade"]`. Our rating unit
 supports both views: a leaf grade maps back to BE through the exam's own key, and the weighted mean
 of the leaf grades is reported next to it.
 
@@ -509,7 +512,8 @@ Code turns weights into BE. It apportions `{python} GEN["half_units"]` half-unit
 (`{python} GEN["total_be"]` BE) over the steps by the largest-remainder (Hamilton) method
 [@balinski2001fair], with a floor of `{python} num(GEN["min_step_be"], 1)` BE per step. The floor is
 enforced before the remainders are ranked: steps whose quota falls below the floor are pinned to it,
-and the rest is apportioned again. Every free step then lands within one half-unit of its quota, a
+and the rest is apportioned again. Every free step then lands within one half-unit of its quota
+among the free steps, a
 heavier step never receives less than a lighter one, and weights that already sum to the total pass
 unchanged. A bullet is worth the step's BE times the bullet's share. Budgets of alternative paths
 equal the sum of the steps they replace. A step above `{python} num(GEN["max_step_be"], 0)` BE fails
@@ -647,13 +651,15 @@ D2 is one police-law exam from LMU, set in yearly runs from 2024 to 2026. Its au
 of this paper. His grading sheet has `{python} D2["sheet"]["n_steps"]` steps and
 `{python} D2["sheet"]["total_be"]` BE on a half-point grid, and his key passes a script at
 `{python} pct(D2["sheet"]["pass_share"])`. The sheet exists in `{python} D2["sheet"]["n_states"]`
-states, one per run.
+states with the same steps: the 2024 run used earlier step maxima, and
+`{python} D2["d2a"]["states"]["older_labels"]` scripts of 2025 carry older step labels; the other
+2025 scripts and the 2026 run use the current sheet.
 
 - *D2a* holds `{python} D2["d2a"]["n_scripts"]` typed scripts from the runs of 2024 (`{python} D2["d2a"]["by_year"]["2024"]`)
   and 2025 (`{python} D2["d2a"]["by_year"]["2025"]`), each
-  with per-step grades on the sheet state of its year. We call these the *reference grades (grader
-  confirmation pending)*: for `{python} D2["d2a"]["grader_pending"]` scripts the grader is still being
-  confirmed.
+  with per-step grades on the sheet state it was graded on. We call these the *reference grades*:
+  for the `{python} D2["d2a"]["grader_pending"]` scripts with older labels the grader is still being
+  confirmed. The judge sees the current sheet for all scripts.
 - *D2b* holds `{python} D2["d2b"]["n_uploads"]` submissions from the `{python} D2["d2b"]["year"]` run
   on our platform. We exclude `{python} D2["d2b"]["n_excluded"]` uploads from the author's own account
   (a test upload and a copy of a D2a script), leaving `{python} D2["d2b"]["n_students"]` student
@@ -663,9 +669,9 @@ states, one per run.
 
 In total D2 has at most `{python} D2["distinct_scripts"]` distinct scripts,
 `{python} D2["n_counting_dependent_pair_once"]` if one pair with overlapping text counts once. The case
-text changed between runs, at least in its dates. Each script is graded against its own year's text;
-until the texts of 2024 and 2025 arrive, D2a scripts are flagged as graded against another year's
-text. \pending{per-year case texts from the exam author} A second grader will grade
+text changed between runs, at least in its dates. `{python} D2["d2a"]["own_year_case_text"]` D2a
+scripts are judged against their own year's text; the `{python} D2["d2a"]["later_case_text"]` scripts
+of 2024 are judged against a later text and flagged. \pending{the 2024 case text from the exam author} A second grader will grade
 `{python} D2["second_grader_plan"]["n_scripts"]` scripts blind (`{python} D2["second_grader_plan"]["d2a"]`
 from each part) to give a human-to-human ceiling. \pending{second grader}
 
@@ -732,7 +738,7 @@ platform's grading default temperature; we report each provider's determinism. G
 seeded, so its repeat SD mixes sampling noise with instrument effects.
 
 *Development history.* Before the benchmark we ran small development runs to build the instrument:
-a feasibility pilot and two probe gates. They used an earlier template, had gaps in the verifier, and
+a feasibility pilot, two probe gates and two generation runs on D2. They used an earlier template, had gaps in the verifier, and
 one probe was defective. Together with `{python} DZ["statistics"]["review_rounds"]` independent review rounds they shaped the instrument;
 their numbers are not evidence. They cost `{python} usd(COST["development_spend_usd"], 2)`.
 
@@ -834,7 +840,7 @@ write_table(
     colspec="lrrrr", size=r"\footnotesize")
 ```
 
-*Reliability (RQ1).* For Luna, repeat SD falls from `{python} num(REL["holistic_luna"]["repeat_sd"])`
+*Variance (RQ1).* For Luna, repeat SD falls from `{python} num(REL["holistic_luna"]["repeat_sd"])`
 (holistic) to `{python} num(REL["tailored_luna"]["repeat_sd"])` (zero-shot sheet) and
 `{python} num(REL["fewshot_luna"]["repeat_sd_stored"])` \pending{few-shot on step sums} (few-shot sheet;
 Table \ref{tab:reliability}). The direction is consistent, but no single step is established:
@@ -894,7 +900,7 @@ GPT-5.4 Mini failed `{python} PR["mini_negative_fails"]["tailored"]` of
 `{python} PR["mini_negative_fails"]["holistic"]` under the holistic instrument, but its holistic
 failures were small (median `{python} num(sev["holistic"][MINI]["empty"]["median"], 0)` points on the
 empty answer) and its sheet failures near-total (median
-`{python} num(sev["tailored"][MINI]["empty"]["median"], 0)`). The off-topic answer scored at most
+`{python} num(sev["tailored"][MINI]["empty"]["median"], 0)`). Under the sheet, the off-topic answer scored at most
 `{python} num(max(v for j, v in PR["offtopic_max_tailored"].items() if j != MINI), 1)` points with every
 judge except Mini (up to `{python} num(PR["offtopic_max_tailored"][MINI], 0)`). All
 `{python} sum(1 for v in PR["positive_control"]["tailored"].values() if v == "pass")` judges passed the
@@ -930,7 +936,7 @@ harsher grading (Spearman `{python} cor(GE["generator_level_spearman_audit_vs_bi
 Luna, `{python} cor(GE["generator_level_spearman_audit_vs_bias"]["sonnet"])` with Sonnet): the Claude
 sheets top the audit (`{python} num(gpo[opus]["audit_total"], 1)` and
 `{python} num(gpo[sonnet]["audit_total"], 1)` of `{python} GE["audit"]["n_dimensions"] * GE["audit"]["scale_max"]`)
-and grade harshest (bias `{python} sgn(gpo[opus]["bias"], 1)` and `{python} sgn(gpo[sonnet]["bias"], 1)`).
+and grade among the harshest (bias `{python} sgn(gpo[opus]["bias"], 1)` and `{python} sgn(gpo[sonnet]["bias"], 1)`).
 DeepSeek-V4-Flash sheets cut agreement ($r$ = `{python} cor(gpo[dsf]["validity_r"])`, the lowest)
 behind a mid-field audit (`{python} num(gpo[dsf]["audit_total"], 1)`). Llama-4 Maverick sheets made
 Luna least stable (repeat SD `{python} num(gpo[llama]["repeat_sd_mean"])`), but the audit ranked them
@@ -991,10 +997,12 @@ JUDGES_ORDER = ["gpt-5.6-luna", "deepseek-ai/DeepSeek-V4-Pro", "gpt-5.4-mini"]
 GG = GEN2["per_generator"] if GEN2 else {}
 ```
 
-These runs are a first look at the expert exam, not the benchmark. They use the pipeline of
-@sec-pipeline as it stood for these runs (output specification checklist-3), one sheet per generator from two generators, and up to three judges. The reference
-grades of `{python} D2["d2a"]["n_scripts"]` D2a scripts serve as the yardstick; the exam author has
-yet to confirm who graded nine of them, so we call them reference grades, not expert grades.
+These runs are a first look at the expert exam, not the benchmark: the pipeline as it stood
+(output specification checklist-3), sheets from two generators, and up to three judges. They include
+no run without a sheet, so they speak to validity
+(RQ2) and generation (RQ3), not yet to variance reduction (RQ1). The reference grades of
+`{python} D2["d2a"]["n_scripts"]` D2a scripts serve as the yardstick; the exam author has yet to
+confirm who graded `{python} D2["d2a"]["grader_pending"]` of them, so we call them reference grades, not expert grades.
 
 ```{python}
 #| output: asis
@@ -1003,19 +1011,25 @@ def _gen_par():
     if not (a and b):
         return r"*Generation.* \pending{generation summary}"
     steps = lambda g: " and ".join(str(x) for x in g["valid_sheet_steps"])
+    ends = {}
+    for g in (a, b):
+        for k, v in g["failed_chain_final_categories"].items():
+            ends[k] = ends.get(k, 0) + v
+    n_failed = (a["chains"] - a["valid_sheets"]) + (b["chains"] - b["valid_sheets"])
+    coarse = [i + 1 for i, d in enumerate(b["valid_sheet_detail"]) if d["hints"].get("gewicht")]
     return (
-        "*Generation.* Both generators needed retries. GPT-5.4 produced a valid sheet in "
-        f"{a['valid_sheets']} of {a['chains']} chains ({steps(a)} steps), GPT-5.4 Mini in "
-        f"{b['valid_sheets']} of {b['chains']} ({steps(b)} steps; the validator flagged its first sheet as "
-        "coarse because most steps carry more than 4 BE). The two failed differently. GPT-5.4 builds "
-        "richer alternative paths, and most of its failed attempts broke the rules on forks "
-        f"({a['failed_attempt_categories'].get('weichenstellungen', 0)} attempts), for instance a later fork "
-        "that depends on an earlier one. GPT-5.4 Mini failed mostly on the 10-BE cap "
-        f"({b['failed_attempt_categories'].get('gewicht (10 BE cap)', 0)} attempts): in the flat allocation "
-        "mode a generator states relative weights, not BE, and cannot see the cap directly. A valid sheet "
-        f"cost {usd(a['usd_per_valid_sheet'], 2)} with GPT-5.4 and {usd(b['usd_per_valid_sheet'], 2)} with "
-        "GPT-5.4 Mini, failed chains included. Stricter checks buy legal coherence at the price of "
-        "compliance; the generator benchmark (E1) has to report both.")
+        f"*Generation.* GPT-5.4 produced a valid sheet in {a['valid_sheets']} of {a['chains']} chains "
+        f"({steps(a)} steps), GPT-5.4 Mini in {b['valid_sheets']} of {b['chains']} ({steps(b)} steps"
+        + (f"; the validator flagged sheet {coarse[0]} as coarse" if coarse else "") + "). "
+        f"Of the {n_failed} failed chains, {ends.get('gewicht (10 BE cap)', 0)} ended on the 10-BE cap, "
+        f"{ends.get('weichenstellungen', 0)} on the rules for forks and {ends.get('unparseable response', 0)} "
+        "on an unreadable response. GPT-5.4 builds richer alternative paths, and "
+        f"{a['failed_attempt_categories'].get('weichenstellungen', 0)} of its "
+        f"{a['failed_attempts']} failed attempts broke the rules on forks. For GPT-5.4 Mini, {b['failed_attempt_categories'].get('gewicht (10 BE cap)', 0)} "
+        f"of {b['failed_attempts']} failed attempts exceeded the cap: a generator states relative weights, "
+        "not BE, and on a solution path only splitting a step helps, which the feedback did not say. A "
+        f"valid sheet cost {usd(a['usd_per_valid_sheet'], 2)} with GPT-5.4 and {usd(b['usd_per_valid_sheet'], 2)} "
+        "with GPT-5.4 Mini, failed chains included.")
 print(_gen_par())
 ```
 
@@ -1037,25 +1051,29 @@ write_table(
     "tbl_gate2",
     "Probe battery on the expert exam. Battery: six degenerate answers (empty, repeated case text, "
     "off-topic, same-area off-topic, keyword list, injected instruction) must score 0 or near 0 on "
-    "every pass; max is the highest score any of them received. Proposed: the judge's own median "
-    "total on those answers before the evidence rules. ML: the model solution. Ablation: points lost "
-    "when one part of the model solution is removed, observed / expected from the sheet. Misplaced: "
-    "points lost when one correct paragraph is moved under another heading. Flip: points lost when the "
-    "results of the model solution are negated.",
+    "every pass; max is the highest score any of them received. Proposed: the highest of the judge's "
+    "per-probe median totals on those answers before the evidence rules. ML: the model solution. "
+    "Ablation: points lost when one part of the model solution is removed, observed / expected; the "
+    "expected loss is the sheet's BE for the steps matched by name to the removed part, a heuristic. "
+    "Misplaced: points lost when one correct paragraph is moved under another heading. Flip: points "
+    "lost when the results of the model solution are negated.",
     "tab:gate2",
     ["Instrument", "Judge", "Passes", "Battery", "Max", "Proposed", "ML", "Ablation", "Misplaced", "Flip"],
     grows or [[r"\tbd"] * 10], colspec="llrlrrrrrr", size=r"\footnotesize", wide=True)
+GATED = {(arm, j) for arm, per in (GATE2 or {}).get("batteries", {}).items() for j in per}
 ```
 
-*Probe battery.* Every judge passed the battery on every instrument (Table \ref{tab:gate2}; Luna over
-two passes, DeepSeek over one, its second pass stopped for time): no degenerate answer received points, and the model solution scored near full marks. The new probes
-show that the judges track content, not form. Removing one part of the model solution cost about as
-many points as the sheet assigns to that part, and moving a correct paragraph under another heading
-cost almost nothing, as the placement rule intends. One difference from the first iteration stands
-out. On the expert sheet in the step unit, Luna still proposed half a point for every step of an
-empty or off-topic answer, and only the rule that a credit needs a quote removed them; on the
-checklist sheets it proposed nothing in the first place. The bullet format stops this failure at its
-source; the step format relies on the check.
+*Probe battery.* Luna (`{python} min(x["complete_passes"] for per in GATE2["batteries"].values() for j, x in per.items() if j == "gpt-5.6-luna")`
+passes) and DeepSeek (`{python} min(x["complete_passes"] for per in GATE2["batteries"].values() for j, x in per.items() if j != "gpt-5.6-luna")`;
+its second pass stopped for time) passed the battery on every instrument they were gated on (Table
+\ref{tab:gate2}): no degenerate answer received points. The plan asks for `{python} DZ["probes"]["passes"]` passes, and
+GPT-5.4 Mini as a judge and the second GPT-5.4 Mini sheet were not gated; their rows in Table
+\ref{tab:val2} are marked. Removing one
+part of the model solution cost about as many points as the sheet assigns to that part, and moving
+a correct paragraph under another heading cost almost nothing. On the
+expert sheet in the step unit, Luna still proposed half a point for every step of an empty or
+off-topic answer, and only the rule that a credit needs a quote removed them; on the checklist
+sheets it proposed nothing in the first place.
 
 ```{python}
 #| output: asis
@@ -1067,19 +1085,24 @@ for arm in INSTR:
         if not x:
             continue
         c = x.get("mae_ci95") or [None, None]
-        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)), str(x["n_scripts"]),
+        mark = "" if (arm, j) in GATED else "$^\\dagger$"
+        vrows.append([INSTR[arm], SHORT.get(j, NAME.get(j, j)) + mark, str(x["complete_passes"]),
                       num(x["mae"], 1) + (f' [{num(c[0], 1)}, {num(c[1], 1)}]' if c[0] is not None else ""),
                       sgn(x["bias"], 1), cor(x["pearson"]) if x["pearson"] is not None else "--",
-                      pct(x["pass_agreement"]), num(x["repeat_sd"], 2) if x.get("repeat_sd") is not None else "--"])
+                      pct(x["pass_agreement"]), cor(x["pass_kappa"]) if x["pass_kappa"] is not None else "--",
+                      num(x["repeat_sd"], 1) if x.get("repeat_sd") is not None else "--"])
 write_table(
     "tbl_val2",
-    "Totals on the D2a scripts against the reference grades (grader confirmation pending for nine "
-    "scripts; three scripts of the earliest cohort are judged against the later case text). MAE with "
-    "a script-bootstrap 95\\% interval; bias is judge minus reference; pass agreement at the exam's "
-    "pass mark of 40 BE; SD\\textsubscript{rep} is the mean SD over repeated passes.",
+    f"Totals on the {D2['d2a']['n_scripts']} D2a scripts against the reference grades (grader "
+    f"confirmation pending for {D2['d2a']['grader_pending']} scripts; {D2['d2a']['later_case_text']} scripts "
+    "of the earliest cohort are judged against a later case text). Each statistic is computed per pass "
+    "and averaged over the passes; MAE with a script-bootstrap 95\\% interval; bias is judge minus "
+    "reference; pass/fail agreement and Cohen's $\\kappa$ at the exam's pass mark of "
+    f"{num(VAL2['pass_mark_be'], 0) if VAL2 else ''} BE; SD\\textsubscript{{rep}}: mean SD over repeated passes. "
+    "$^\\dagger$ not gated by the probe battery.",
     "tab:val2",
-    ["Instrument", "Judge", "$n$", "MAE [95\\% CI]", "Bias", "$r$", "Pass agr.", "SD\\textsubscript{rep}"],
-    vrows or [[r"\tbd"] * 8], colspec="llrrrrrr", size=r"\footnotesize", wide=True)
+    ["Instrument", "Judge", "Passes", "MAE [95\\% CI]", "Bias", "$r$", "Agr.", "$\\kappa$", "SD\\textsubscript{rep}"],
+    vrows or [[r"\tbd"] * 9], colspec="llrrrrrrr", size=r"\footnotesize", wide=True)
 ```
 
 ```{python}
@@ -1087,59 +1110,73 @@ write_table(
 def _v(arm, judge):
     return ((VAL2 or {}).get("per_arm", {}).get(arm, {}) or {}).get(judge)
 
-_lx, _mx = _v("expert sheet:step", "gpt-5.6-luna"), _v("expert sheet:step", "gpt-5.4-mini")
-_lg, _lm = _v("gpt-5.4 sheet 1:bullet", "gpt-5.6-luna"), _v("gpt-5.4-mini sheet 1:bullet", "gpt-5.6-luna")
-_dx, _dg = _v("expert sheet:step", "deepseek-ai/DeepSeek-V4-Pro"), _v("gpt-5.4 sheet 1:bullet", "deepseek-ai/DeepSeek-V4-Pro")
-if not (_lx and _mx and _lg and _lm):
+
+def _c(a, b):
+    for c in (VAL2 or {}).get("contrasts", []):
+        if (c["a"]["judge"], c["a"]["arm"]) == a and (c["b"]["judge"], c["b"]["arm"]) == b:
+            return c
+    return None
+
+
+def _d(x, nd=1):
+    """A paired difference with its bootstrap interval."""
+    return f"{sgn(x['mean_diff'], nd)} [{num(x['ci95'][0], nd)}, {num(x['ci95'][1], nd)}]"
+
+
+LU, MI, DSK, EXS = "gpt-5.6-luna", "gpt-5.4-mini", "deepseek-ai/DeepSeek-V4-Pro", "expert sheet:step"
+G54, M1, M2 = "gpt-5.4 sheet 1:bullet", "gpt-5.4-mini sheet 1:bullet", "gpt-5.4-mini sheet 2:bullet"
+_lx, _mx, _dx = _v(EXS, LU), _v(EXS, MI), _v(EXS, DSK)
+_lg, _lm, _dg = _v(G54, LU), _v(M1, LU), _v(G54, DSK)
+_cj, _cg, _cm, _cw = _c((MI, EXS), (LU, EXS)), _c((LU, G54), (LU, EXS)), _c((LU, M1), (LU, EXS)), _c((MI, EXS), (LU, G54))
+if not all((_lx, _mx, _lg, _lm, _cj, _cg, _cm, _cw)):
     print(r"*Agreement with the reference grades.* \pending{validity runs}")
 else:
     parts = [
-        "*Agreement with the reference grades.* On the expert's own sheet, Luna came within "
-        f"{num(_lx['mae'], 1)} points of the reference grades on average (bias {sgn(_lx['bias'], 1)}, "
-        f"$r$ = {cor(_lx['pearson'])}), agreed on pass or fail for {pct(_lx['pass_agreement'])} of the "
-        f"scripts, and moved by {num(_lx['repeat_sd'], 1)} points between two passes "
-        "(Table \\ref{tab:val2}). GPT-5.4 Mini, the platform's current default judge, was "
-        + (("about twice" if 1.75 <= _mx['mae'] / _lx['mae'] <= 2.25 else f"{num(_mx['mae'] / _lx['mae'], 1)} times")
-           + " as far off")
-        + f" on the same sheet (MAE {num(_mx['mae'], 1)}, $r$ = {cor(_mx['pearson'])}).",
+        "*Agreement with the reference grades.* On the expert's own sheet, a single Luna pass came "
+        f"within {num(_lx['mae'], 1)} points of the reference grades on average (bias {sgn(_lx['bias'], 1)}, "
+        f"$r$ = {cor(_lx['pearson'])}) and agreed on pass or fail for {pct(_lx['pass_agreement'])} of the "
+        f"scripts ($\\kappa$ = {cor(_lx['pass_kappa'])}); two passes differed by {num(_lx['mean_abs_pass_diff'], 1)} "
+        f"points on average (Table \\ref{{tab:val2}}). GPT-5.4 Mini, the platform's current default judge, was "
+        f"further off on the same sheet (MAE {num(_mx['mae'], 1)}, $r$ = {cor(_mx['pearson'])}); paired over the "
+        f"scripts, the difference in absolute error was {_d(_cj['abs_error'])}.",
     ]
     if _dx:
         parts.append(
-            f"DeepSeek-V4-Pro reached an MAE of {num(_dx['mae'], 1)} on the expert sheet "
-            f"($r$ = {cor(_dx['pearson'])})"
+            f"DeepSeek-V4-Pro reached an MAE of {num(_dx['mae'], 1)} on the expert sheet"
             + (f" and {num(_dg['mae'], 1)} on the GPT-5.4 sheet." if _dg else "."))
     parts.append(
-        "With generated sheets, Luna's error grew, to "
-        f"{num(_lg['mae'], 1)} with the GPT-5.4 sheet and {num(_lm['mae'], 1)} with the GPT-5.4 Mini sheet. "
-        f"Most of the growth is leniency (bias {sgn(_lg['bias'], 1)} and {sgn(_lm['bias'], 1)}), while "
-        f"the order of the scripts stayed close to the reference ($r$ = {cor(_lg['pearson'])} and "
-        f"{cor(_lm['pearson'])}).")
+        f"With generated sheets, Luna's MAE was {num(_lg['mae'], 1)} (GPT-5.4 sheet) and "
+        f"{num(_lm['mae'], 1)} (GPT-5.4 Mini sheet 1). The change is mostly leniency: the signed error "
+        f"rose by {_d(_cg['signed_error'])} and {_d(_cm['signed_error'])} points, the absolute error by "
+        f"{_d(_cg['abs_error'])} and {_d(_cm['abs_error'])}, while the order of the scripts stayed close to "
+        f"the reference ($r$ = {cor(_lg['pearson'])} and {cor(_lm['pearson'])}).")
     parts.append(
-        "Two readings follow, both preliminary. First, the judge mattered more than the sheet: the better "
-        "judge on a generated sheet came closer to the reference than the default judge on the expert's own "
-        "sheet, although the intervals overlap. Second, the generated sheets were more lenient than the "
-        "expert's, and the coarser sheet more so; a generated sheet needs a stricter specification or a "
-        "calibration step before its totals can stand in for an examiner's.")
-    _ss = ((VAL2 or {}).get("sheet_sample", {}).get("gpt-5.4-mini:bullet", {}) or {}).get("gpt-5.6-luna")
-    _l2 = _v("gpt-5.4-mini sheet 2:bullet", "gpt-5.6-luna")
+        "Two readings follow, both preliminary. First, the judge mattered at least as much as the sheet: "
+        "the default judge on the expert's sheet was not closer to the reference than Luna on the GPT-5.4 "
+        f"sheet (difference {_d(_cw['abs_error'])}). Second, the generated sheets were more lenient than "
+        "the expert's; a generated sheet needs a stricter specification or a calibration step before its "
+        "totals can stand in for an examiner's.")
+    _ss = ((VAL2 or {}).get("sheet_sample", {}).get("gpt-5.4-mini:bullet", {}) or {}).get(LU)
+    _l2 = _v(M2, LU)
     if _ss and _l2:
         parts.append(
-            f"A second GPT-5.4 Mini sheet, generated from the same input, gave Luna an MAE of {num(_l2['mae'], 1)} "
-            f"(bias {sgn(_l2['bias'], 1)}). Between the two sheets a script's total moved by "
-            f"{num(_ss['sheet_sample_sd'], 1)} points on average (SD over sheets; up to "
-            f"{num(_ss['max_script_sd'], 1)}), against {num(_lm['repeat_sd'], 1)} between two passes on one sheet. "
-            + ("Which sheet a generator happens to write is a larger source of variance than the judge's own "
-               "noise, so a benchmark has to sample several sheets per generator."
-               if _ss["sheet_sample_sd"] > _lm["repeat_sd"] else
-               "Here the sheet a generator happens to write added no more variance than the judge's own noise; "
-               "with two sheets of one generator this is a first estimate, not a rule."))
+            f"A second GPT-5.4 Mini sheet from the same input gave Luna an MAE of {num(_l2['mae'], 1)} "
+            f"(bias {sgn(_l2['bias'], 1)}). A script's total differed between the two sheets by "
+            f"{num(_ss['mean_abs_sheet_diff'], 1)} points on average. Separating the pass noise, the "
+            f"sheet-to-sheet SD is {num(_ss['sheet_sd_component'], 1)} and the pass-to-pass SD "
+            f"{num(_ss['pass_sd_pooled'], 1)}: "
+            + ("the sheet a generator happens to write adds variance of the same order as the judge's own noise"
+               if _ss["sheet_sd_component"] <= 1.5 * _ss["pass_sd_pooled"] else
+               "the sheet a generator happens to write adds more variance than the judge's own noise")
+            + ", so a benchmark has to sample several sheets per generator.")
     print(" ".join(parts))
+    _mdes = [c["abs_error"]["mde"] for c in (VAL2 or {}).get("contrasts", []) if c["abs_error"].get("mde")]
+    print(
+        f"\n\nThese numbers come from {D2['d2a']['n_scripts']} scripts of one exam. The observed spread of "
+        f"the paired differences puts the smallest detectable difference in absolute error at "
+        f"{num(min(_mdes), 1)} to {num(max(_mdes), 1)} points (80\\% power, $\\alpha$ = .05); we read them "
+        "as a first signal for the benchmark design, not as a ranking.")
 ```
-
-These numbers come from `{python} D2["d2a"]["n_scripts"]` scripts of one exam. With so few
-scripts, differences in absolute error below about
-`{python} num(MDE["C2_abs_error_vs_expert"]["mde"]["n_15_d2a"]["alpha_0.025"], 1)` points are not detectable (Appendix \ref{sec-app-precision}); we read them as a first signal for the
-benchmark design, not as a ranking.
 
 ## Benchmark results (E1 to E7)
 
@@ -1162,8 +1199,9 @@ expert paradigms on D2.
 itself. Whether it steadies a judge depends on the judge and the sheet together: across the capable
 judges the average effect was null, and one judge was steadier without a sheet. Second, mean
 agreement hides a failure that matters for every grade a student sees. Under detailed sheets, some
-judges gave near-full credit to empty and copied answers, which they scored at or near zero with the
-holistic instrument. A probe
+judges gave near-full credit to empty and copied answers; Luna credited the empty answer on
+`{python} fc["tailored"][LUNA]["empty"]` of `{python} npas["tailored"][LUNA]["empty"]` passes under
+the sheet and on `{python} fc["holistic"][LUNA]["empty"]` with the holistic instrument. A probe
 battery must therefore gate every judge and instrument before use, and code must tie every credit to
 the answer. Third, writing, using and auditing a sheet are different skills. The least compliant
 generator wrote the best sheets when it succeeded, and the automated audit favoured sheets that
@@ -1186,8 +1224,8 @@ its human reference is noisy. Results on D2 may not transfer to other exams, are
 the second grader gives a human ceiling for one exam only.
 
 *Open data questions.* For `{python} D2["d2a"]["grader_pending"]` D2a scripts the grader is not yet
-confirmed, and until the earlier case texts arrive, D2a scripts are graded against another year's
-text. The D2b students saw LLM grades before the author grades their scripts; he grades without
+confirmed, and the `{python} D2["d2a"]["later_case_text"]` scripts of 2024 are judged against a later
+year's case text. The judge sees the current sheet also for scripts graded on an earlier state. The D2b students saw LLM grades before the author grades their scripts; he grades without
 seeing them.
 
 *The exam author is a co-author.* He wrote the exam, grades the scripts, audits generated sheets and
@@ -1203,9 +1241,9 @@ comes from the expert sheets by design.
 (@sec-verifier). It rejects some correct quotes and cannot catch a real sentence quoted for the
 wrong requirement.
 
-*Models and sampling.* GPT-5.6 Luna cannot be seeded. DeepSeek-V4-Pro at temperature 0 repeats
-itself almost exactly, while another model served at temperature 0 did not, so repeat SD mixes
-model, sampling and serving effects. Providers change and retire models; we record model ids and
+*Models and sampling.* GPT-5.6 Luna cannot be seeded. Even at temperature 0, DeepSeek-V4-Pro's
+totals varied between passes (repeat SD `{python} num(roster["deepseek-ai/DeepSeek-V4-Pro"]["repeat_sd"])`
+in the first iteration), so repeat SD mixes model, sampling and serving effects. Providers change and retire models; we record model ids and
 dates. The prior study's repeat baseline ran on a judge that has since been retired; the matched
 arms remove this confound from every contrast we interpret.
 
@@ -1242,8 +1280,8 @@ only their structure, not their content.
 
 The platform, including the judge, the verifier and the aggregation code, is open source at
 <https://github.com/SebastianNagl/benger-platform>. Its folder `publications/Transformation` holds the
-analysis scripts and every aggregate this paper reports; `make analyze-cslaw` rebuilds the numbers of
-this paper from the tracked aggregates. The generator is part of a proprietary extension of the
+analysis scripts and every aggregate this paper reports (`make analyze-cslaw`; the D2 and Z2
+aggregates need the private data, `make analyze-d2`). The generator is part of a proprietary extension of the
 platform. \pending{owner decision: release of the generator prompt, output specification and validator rules}
 For D1 we follow the first study: its exam texts are third-party material and are not
 redistributed, and the generated sheets are withheld with them because they enumerate the model
@@ -1302,7 +1340,7 @@ corr = [
      f"zero-shot repeat SD moves for Luna from {num(REL['tailored_luna']['repeat_sd_stored'])} to "
      f"{num(REL['tailored_luna']['repeat_sd'])}, for Mini from {num(REL['tailored_mini']['repeat_sd_stored'])} to "
      f"{num(REL['tailored_mini']['repeat_sd'])}. Now code computes every total. \\pending{{few-shot rows}}"],
-    ["Judge schema", "Response keys followed storage order, not outline order. Now outline order (Section~\\ref{sec-first})."],
+    ["Judge schema", "Response keys followed storage order, not outline order. Now outline order (Section~\\ref{sec-judge})."],
     ["Alternatives",
      "Steps of alternative paths had no response keys, and points above a step's cap were dropped. Now "
      "every path has its own keys (Section~\\ref{sec-judge}). \\pending{count of affected paths}"],
@@ -1501,8 +1539,9 @@ write_table(
 The minimum detectable effect of a paired contrast is
 $(t_{1-\alpha/2,\,n-1} + t_{\text{power},\,n-1})\,\sigma_d/\sqrt{n}$. We take $\sigma_d$ from the
 closest existing contrast, Luna with the zero-shot sheet vs the holistic instrument on D1, so the
-values are proxies until the new instrument's data exist (Table \ref{tab:mde}). The D2 proxy uses a
-holistic human reference, which is noisier than per-step expert grades.
+values are planning proxies (Table \ref{tab:mde}). The D2 proxy uses a holistic human reference,
+which is noisier than per-step expert grades; the first D2a runs show smaller spreads, and
+@sec-prelim reports the detectable differences they imply.
 
 ```{python}
 #| output: asis

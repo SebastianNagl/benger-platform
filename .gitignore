@@ -299,8 +299,8 @@ publications/Transformation/DESIGN.md
 publications/Transformation/data/interim/audit/exam_*.md
 # Run outputs from the judge/probe/audit dispatches — 23 MB of per-cell score
 # rows. Regenerable from the platform, and git is not a data store; they ship
-# with the dataset release. Every manuscript.qmd load goes through
-# load_optional(), so the paper still renders from the tracked data alone;
+# with the dataset release. manuscript.qmd loads only tracked aggregates
+# in data/processed/, so the paper still renders from the tracked data alone;
 # `make analyze` is what needs these back.
 publications/Transformation/data/**/*.jsonl
 
@@ -317,8 +317,8 @@ publications/Transformation/data/interim/probes/probe_users.json
 # Full Sachverhalt + Musterloesung for all 15 exams - corpus text we do not
 # hold redistribution rights for. Same call as the Benchmark_EMNLP ZJS source
 # trees below: ships via HF + Zenodo at release time, never via git.
-# exams.json is the extract_exam_pack.py output; manuscript.qmd reads it via
-# load_optional() and falls back to n_exams = 15, so the paper still renders.
+# exams.json is the extract_exam_pack.py output; manuscript.qmd does not read
+# it, so the paper still renders.
 publications/Transformation/data/interim/exams.json
 publications/Transformation/data/interim/audit/audit_import.json
 publications/Transformation/data/interim/audit/audit_import.resolved.json
