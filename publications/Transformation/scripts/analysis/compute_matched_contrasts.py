@@ -75,6 +75,13 @@ def main() -> int:
             ctrl_rep[r["pick_id"]][int(r["run_index"] or 0)] = float(r["score"])
         else:
             ctrl_single[r["pick_id"]][r["judge"]] = float(r["score"])
+    # The benchmark's primary judge as the benchmark itself reads it: the
+    # database rows carry a later config pass for one pick (bench_primary.py).
+    import sys
+    sys.path.insert(0, str(HERE / "scripts" / "analysis"))
+    from bench_primary import primary_totals
+    for pid, total in primary_totals().items():
+        ctrl_single[pid][MINI] = total
 
     sample = json.loads((DATASET_ARR / "data" / "interim" / "benchathon_human_grading_sample.json").read_text())
     subj = {p["pick_id"]: p["subject_id"] for p in sample["picks"]}

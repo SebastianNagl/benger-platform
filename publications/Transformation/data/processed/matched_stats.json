@@ -156,7 +156,7 @@
   },
   "control_mini": {
    "n": 43,
-   "mean": 8.115224103702994
+   "mean": 8.002596631293201
   },
   "paired_tail_vs_hol_luna": {
    "n": 43,
@@ -192,7 +192,7 @@
    "panel_tail_mini": 36.89512162874653,
    "panel_hol_luna": 0.7312470322826768,
    "panel_hol_mini": 3.2627953250753152,
-   "panel_ctrl_mini": 15.917539243097709
+   "panel_ctrl_mini": 11.074557929476613
   },
   {
    "pick_id": "P02",

@@ -63,6 +63,12 @@ def main() -> int:
         r = json.loads(line)
         if not r["repeat_run"]:
             ctrl[r["pick_id"]][r["judge"]] = r["score"]
+    # the benchmark's primary judge as the benchmark reads it (bench_primary.py)
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from bench_primary import primary_totals
+    for pid, total in primary_totals().items():
+        ctrl[pid][MINI] = total
 
     sample = json.loads((DATASET_ARR / "data" / "interim" / "benchathon_human_grading_sample.json").read_text())
     subj = {p["pick_id"]: p["subject_id"] for p in sample["picks"]}

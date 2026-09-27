@@ -27,7 +27,6 @@ analyze:
 	uv run python scripts/analysis/compute_weight_sensitivity.py --check
 	uv run python scripts/analysis/compute_step_variance.py
 	uv run python scripts/analysis/compute_mde.py
-	uv run python scripts/figures/make_trend_figure.py
 
 # The paper's first-iteration numbers (on step-sum totals) and the extended
 # study's design constants. Reads only tracked files (the outputs of
