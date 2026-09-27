@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
+import extensions
 from auth_module import require_user
 from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
@@ -829,10 +830,10 @@ async def update_project(
     # Update fields
     update_data = update.dict(exclude_unset=True)
 
-    # The exam's Notenschlüssel lives in evaluation_config, so this write is
-    # a writer of the key too. Merged like the eval-config PUT merges (the key
-    # is replaced as one unit) and checked as it will be stored, before
-    # anything is written. An explicit null leaves the document as it is.
+    # evaluation_config is written by the eval-config PUT too. Both writers
+    # merge the same way (the Notenschlüssel is replaced as one unit) and run
+    # the same checks on the merged document, before anything is written.
+    # An explicit null leaves the stored document as it is.
     eval_config_before = None
     eval_config_after = None
     if "evaluation_config" in update_data:
@@ -840,13 +841,12 @@ async def update_project(
         if eval_config_body is not None:
             from routers.evaluations.config import (
                 merge_evaluation_config,
-                validate_eval_config_grade_scale,
+                validate_evaluation_config_write,
             )
 
             eval_config_before = project.evaluation_config or {}
             eval_config_after = merge_evaluation_config(eval_config_before, eval_config_body)
-            if GRADE_SCALE_KEY in eval_config_body:
-                validate_eval_config_grade_scale(eval_config_after)
+            validate_evaluation_config_write(eval_config_body, eval_config_after)
             # Same audit as the eval-config PUT: the key's trail is
             # server-owned and every change of the key is appended.
             eval_config_after = apply_grade_scale_write(
@@ -938,6 +938,17 @@ async def update_project(
         project.evaluation_config = eval_config_after
         flag_modified(project, "evaluation_config")
         logger.info(f"Project {project_id}: Deep merged evaluation_config update")
+        # Same hook as the eval-config PUT: extended derives its Korrektur
+        # fields from the saved evaluation_configs. Runs before the other
+        # fields of the body are applied, so an explicit korrektur_enabled /
+        # korrektur_config in the same PATCH still wins. The hook is sync and
+        # takes a sync session, hence run_sync.
+        saved_eval_config = eval_config_after
+        await db.run_sync(
+            lambda session: extensions.run_after_eval_config_save(
+                session, project, saved_eval_config
+            )
+        )
 
     for field, value in update_data.items():
         if hasattr(project, field):
