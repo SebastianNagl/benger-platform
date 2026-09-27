@@ -6,7 +6,7 @@ closest existing contrast, Luna tailored vs Luna holistic on the 45 matched
 cells (data/processed/matched_stats.json, per_pick), so the MDEs are proxies
 until the new instrument's own pilot data exist.
 
-  C1  repeat SD, new instrument vs published instrument, 45 D1 picks.
+  C1  repeat SD, new instrument vs first-iteration instrument, 45 D1 picks.
       Proxy d_i = tailored repeat SD - holistic repeat SD (3 passes each).
       Also a projection for 5 passes: the variance of a sample SD scales with
       1/(k-1), so if the paired spread were pure sampling noise it would
@@ -14,8 +14,8 @@ until the new instrument's own pilot data exist.
   C2  absolute error vs the expert, new instrument vs the expert's sheet, D2
       scripts. Proxy e_i = |tailored - human| - |holistic - human| on the 30
       D1 annotation picks with a blind-human pool mean (a holistic, noisier
-      reference than per-step expert grades). Reported for the real D2
-      counts: n = 15 (D2a) and n = 38 (every distinct D2 script: 15 D2a + 23
+      reference than per-step expert grades). Reported for the D2
+      counts: n = 15 (D2a, graded) and n = 38 (once D2b is graded: every distinct D2 script: 15 D2a + 23
       D2b students after excluding the author's test upload and the
       duplicate of H11). Two D2b scripts share 26 % of their 8-grams, so
       they are one dependent pair; n = 37 counts them once.

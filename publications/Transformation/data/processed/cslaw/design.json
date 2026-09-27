@@ -69,7 +69,7 @@
   "pass_grade": 4,
   "pass_percent": 50.0,
   "mean_band_width_below_pass": 12.5,
-  "mean_band_width_from_pass": 3.4
+  "mean_band_width_from_pass": 3.3333333333333335
  },
  "generator": {
   "source": "generator",
@@ -125,7 +125,10 @@
    "pass_share": 0.4,
    "result_items": 0,
    "n_states": 3,
-   "max_step_be": 10.0
+   "max_step_be": 10.0,
+   "key_be_per_grade_below_pass": 10,
+   "key_be_per_grade_from_pass": 4,
+   "key_top_grade_be": 96
   },
   "d2a": {
    "n_scripts": 15,
@@ -133,7 +136,14 @@
     "2024": 3,
     "2025": 12
    },
-   "grader_pending": 9
+   "grader_pending": 9,
+   "states": {
+    "earlier_maxima": 3,
+    "older_labels": 9,
+    "current": 3
+   },
+   "own_year_case_text": 12,
+   "later_case_text": 3
   },
   "d2b": {
    "n_uploads": 25,
@@ -202,6 +212,7 @@
    "id": "E1",
    "name": "Generator benchmark",
    "rq": [
+    "RQ1",
     "RQ3",
     "RQ4"
    ],
@@ -242,6 +253,7 @@
    "id": "E3",
    "name": "Generator x judge interaction",
    "rq": [
+    "RQ1",
     "RQ4",
     "RQ5"
    ],
@@ -409,7 +421,7 @@
   "source": "plan",
   "mde_power": 0.8,
   "mde_alpha": 0.025,
-  "review_rounds": 3,
+  "review_rounds": 4,
   "passes_averaged": [
    1,
    2,

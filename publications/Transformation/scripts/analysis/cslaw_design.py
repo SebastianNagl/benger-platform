@@ -95,7 +95,7 @@ def default_key() -> dict:
     thr = [float(t) for t in key["thresholds"]]      # minimum percent for grades 1..18
     p = key["pass_grade"]
     below = [thr[0]] + [thr[i] - thr[i - 1] for i in range(1, p)]            # widths of grades 0..p-1
-    above = [thr[i] - thr[i - 1] for i in range(p, len(thr))] + [100.0 - thr[-1] + 1]
+    above = [thr[i] - thr[i - 1] for i in range(p, len(thr))] + [100.0 - thr[-1]]
     return {"source": "code", "module": "services/shared/rubric_structure.py", "preset": key["preset"],
             "thresholds_percent": thr, "pass_grade": p, "pass_percent": thr[p - 1],
             "mean_band_width_below_pass": sum(below) / len(below),
@@ -135,8 +135,16 @@ D2 = {
     "source": "plan",
     "exam": {"area": "police law", "institution": "LMU", "author_is_coauthor": True},
     "sheet": {"n_steps": 46, "total_be": 100, "grid_be": 0.5, "pass_share": 0.40, "result_items": 0,
-              "n_states": 3, "max_step_be": 10.0},
-    "d2a": {"n_scripts": 15, "by_year": {"2024": 3, "2025": 12}, "grader_pending": 9},
+              "n_states": 3, "max_step_be": 10.0,
+              # the author's key (pack grade_scale): grades 1-3 at 10/20/30 BE, pass (4) at 40,
+              # then one grade per 4 BE up to 18 at 96
+              "key_be_per_grade_below_pass": 10, "key_be_per_grade_from_pass": 4, "key_top_grade_be": 96},
+    # sheet state per D2a script (pack): 2024 = earlier step maxima; 2025 = older step
+    # labels (9, the grader-pending scripts) or the current sheet (3); 2026 = current
+    "d2a": {"n_scripts": 15, "by_year": {"2024": 3, "2025": 12}, "grader_pending": 9,
+            "states": {"earlier_maxima": 3, "older_labels": 9, "current": 3},
+            # case text used by the judge: the script's own year, or a later year's text
+            "own_year_case_text": 12, "later_case_text": 3},
     "d2b": {"n_uploads": 25, "n_excluded": 2, "n_students": 23, "year": 2026, "shown_llm_grader": "gpt-5.4-mini"},
     "distinct_scripts": 38,
     "n_counting_dependent_pair_once": 37,
@@ -152,7 +160,7 @@ EXPERIMENTS = [
      "judges": ["gpt-5.6-luna", "gpt-5.4-mini", "DeepSeek-V4-Pro"],
      "instruments": [["expert", "step"], ["expert", "rating"], ["gpt-5.4-mini", "bullet"], ["gpt-5.4", "bullet"],
                      ["first iteration", "step"]]},
-    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ3", "RQ4"],
+    {"id": "E1", "name": "Generator benchmark", "rq": ["RQ1", "RQ3", "RQ4"],
      "scope": "12 generators, 15 D1 exams and D2, 2-3 samples per exam, one reference judge (2 passes), "
               "a second judge on 4 generators",
      "cost_usd": [170, 170], "n_generators": 12, "samples": [2, 3], "reference_judge_passes": 2,
@@ -160,7 +168,7 @@ EXPERIMENTS = [
     {"id": "E2", "name": "Judge benchmark", "rq": ["RQ1", "RQ2", "RQ5"],
      "scope": "6-8 judges on fixed sheets; 45 D1 answers and 15 D2a scripts, 3 passes",
      "cost_usd": [100, 150], "n_judges": [6, 8], "passes": 3},
-    {"id": "E3", "name": "Generator x judge interaction", "rq": ["RQ4", "RQ5"],
+    {"id": "E3", "name": "Generator x judge interaction", "rq": ["RQ1", "RQ4", "RQ5"],
      "scope": "3 generators x 3 judges x 15 D2a scripts x 2 sheet samples x 2 passes, plus 5 D1 exams",
      "cost_usd": [25, 25], "generators": 3, "judges": 3, "samples": 2, "passes": 2, "n_d1_exams": 5},
     {"id": "E4", "name": "Pipeline optimization", "rq": ["RQ6"],
@@ -219,7 +227,7 @@ STATISTICS = {
     "source": "plan",
     "mde_power": 0.8,           # as in compute_mde.py
     "mde_alpha": 0.025,         # Holm over two contrasts (compute_mde.py)
-    "review_rounds": 3,         # independent review rounds of instrument and analysis (2026-09-26)
+    "review_rounds": 4,         # independent review rounds of instrument and analysis (2026-09-26, 09-27)
     "passes_averaged": [1, 2, 3],
     "bootstrap_resamples": 10000,
     "development": ["D1", "D2a"],
