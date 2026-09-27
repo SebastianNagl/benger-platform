@@ -1,5 +1,5 @@
 {
- "note": "Design constants for the CSLAW full paper (scripts/analysis/cslaw_design.py). 'source' says where each block comes from: code (read from this repository), generator (transcribed from contract checklist-3), plan (transcribed from the study plan of 2026-09-26).",
+ "note": "Design constants for the CSLAW full paper (scripts/analysis/cslaw_design.py). 'source' says where each block comes from: code (read from this repository), generator (transcribed from contract checklist-4), plan (transcribed from the study plan of 2026-09-26).",
  "judge": {
   "source": "code",
   "module": "services/workers/ml_evaluation/checklist_scoring.py",
@@ -73,7 +73,7 @@
  },
  "generator": {
   "source": "generator",
-  "contract_version": "checklist-3",
+  "contract_version": "checklist-4",
   "total_be": 100,
   "half_units": 200,
   "min_step_be": 0.5,

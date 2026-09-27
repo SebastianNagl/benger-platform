@@ -454,7 +454,7 @@ agreement between examiners [@hufeld2024] and describes how examiners should cor
 
 # The pipeline {#sec-pipeline}
 
-\draftnote{describes the implementation of output specification checklist-3; the instrument is frozen only after the probe gate E0, and this section is updated then}
+\draftnote{describes output specification checklist-4; the D2 runs of Section 6.2 used checklist-3 (fewer validator checks, a cap message without the advice to split); frozen after E0}
 
 The pipeline has five stages (Figure \ref{fig:pipeline}). Models do two things only. The generator
 states the content of the sheet and relative weights, and the judge marks requirements and quotes
@@ -1636,7 +1636,9 @@ fragment passes:
 *Strict* checks fail an attempt and return their messages to the model: the document structure and
 every cross-reference; steps above `{python} num(GEN["max_step_be"], 0)` BE; steps above
 `{python} num(GEN["two_bullets_above_be"], 0)` BE with a single bullet; bullets that can be met by an
-absence or that are conditional; steps named as a result; forks whose steps depend on replaced steps;
+absence or that are conditional; steps named as a result (except the result of a taking of evidence
+and a Tenor); ids that are not non-empty strings; regular steps that depend on a solution-path step;
+forks whose steps depend on replaced steps;
 a fork that replaces a whole section; and a path whose bullets repeat those of the replaced steps
 (token overlap of at least `{python} num(GEN["duplicate_jaccard"], 1)`). *Soft* checks only log hints:
 broader absence patterns; forks that replace exactly one step with one step; forks above

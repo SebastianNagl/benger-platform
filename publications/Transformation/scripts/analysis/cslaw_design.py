@@ -10,7 +10,7 @@ Three kinds of values, each marked with its source:
 
 * ``code``: read at run time from the judge module in this repository
   (services/workers/ml_evaluation/checklist_scoring.py).
-* ``generator``: the generator's constants (contract checklist-3). The
+* ``generator``: the generator's constants (contract checklist-4). The
   generator lives in the private extension; the values are transcribed here
   and must be re-checked at the instrument freeze (E0).
 * ``plan``: the study plan of 2026-09-26 (data counts, experiment scope,
@@ -111,7 +111,7 @@ STATUTORY = {
 
 GENERATOR = {
     "source": "generator",
-    "contract_version": "checklist-3",
+    "contract_version": "checklist-4",
     "total_be": 100,
     "half_units": 200,
     "min_step_be": 0.5,
@@ -248,7 +248,7 @@ def main() -> int:
     result = {
         "note": "Design constants for the CSLAW full paper (scripts/analysis/cslaw_design.py). 'source' says "
                 "where each block comes from: code (read from this repository), generator (transcribed from "
-                "contract checklist-3), plan (transcribed from the study plan of 2026-09-26).",
+                "contract checklist-4), plan (transcribed from the study plan of 2026-09-26).",
         "judge": judge_constants(),
         "verifier": verifier_constants(),
         "statutory_scale": STATUTORY,
