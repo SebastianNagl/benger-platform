@@ -40,6 +40,13 @@ class TestMergeEvaluationConfig:
     def test_a_null_grade_key_on_an_empty_document_leaves_no_key(self):
         assert merge_evaluation_config({}, {"grade_scale": None}) == {}
 
+    @pytest.mark.parametrize("stored", [{}, None, {"runs_per_task": 3}])
+    def test_no_top_level_null_is_stored(self, stored):
+        """deep_merge_dicts copies the body as is onto an empty document,
+        nulls included; the shared merge drops them in every case."""
+        merged = merge_evaluation_config(stored, {"runs_per_task": None, "x": 1})
+        assert merged == {"x": 1}
+
     def test_no_grade_key_in_the_body_keeps_the_stored_one(self):
         merged = merge_evaluation_config({"grade_scale": STANDARD}, {"runs_per_task": 2})
         assert merged == {"grade_scale": STANDARD, "runs_per_task": 2}

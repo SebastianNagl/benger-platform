@@ -609,15 +609,18 @@ def merge_evaluation_config(stored_config: Any, body: Any) -> Dict[str, Any]:
 
     Shared by both writers of the document, the eval-config PUT and
     ``PATCH /projects/{id}``. Returns a new dict; neither input is mutated.
+    A top-level null never ends up stored: ``deep_merge_dicts`` copies the
+    body as is when the stored document is empty, nulls included, so they
+    are dropped here too.
     """
     stored = stored_config if isinstance(stored_config, dict) else {}
     patch = body if isinstance(body, dict) else {}
     merged = deep_merge_dicts(stored, patch)
-    if GRADE_SCALE_KEY in patch:
-        if patch[GRADE_SCALE_KEY] is None:
-            merged.pop(GRADE_SCALE_KEY, None)
-        else:
-            merged[GRADE_SCALE_KEY] = patch[GRADE_SCALE_KEY]
+    for key, value in patch.items():
+        if value is None:
+            merged.pop(key, None)
+    if patch.get(GRADE_SCALE_KEY) is not None:
+        merged[GRADE_SCALE_KEY] = patch[GRADE_SCALE_KEY]
     return merged
 
 
