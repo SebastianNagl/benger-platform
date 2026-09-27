@@ -193,6 +193,12 @@ G = FI["generation"]
 AP = FI["apportionment"]
 BM = FI["band_mapping"]
 REL = {r["condition"]: r for r in FI["reliability"]["table"]}
+# Step-sum recomputes that need the git-ignored run outputs (make analyze-local)
+FL = json.loads((PROC / "cslaw" / "first_iteration_local.json").read_text(encoding="utf-8"))["items"]
+for _k, _v in FL["fewshot_step_sum"]["value"].items():
+    REL[_k].update(repeat_sd=_v["repeat_sd"], r=_v["r"], mae=_v["mae"], bias=_v["bias"], basis="step_sum_full")
+for _k, _b in FL["tailored_bias_step_sum"]["value"].items():
+    REL[_k].update(bias=_b, basis="step_sum_full")
 CO = FI["contrasts"]
 AG = FI["agreement"]
 JU = FI["judges"]
@@ -210,6 +216,17 @@ STAT = DZ["statutory_scale"]
 EXP = {e["id"]: e for e in DZ["experiments"]}
 COST = DZ["costs"]
 LUNA, MINI = "gpt-5.6-luna", "gpt-5.4-mini"
+# The repeat-SD contrasts on step sums replace the stored-total ones; the
+# largest change is reported next to them.
+_FLC = FL["contrast_cis_step_sum"]["value"]
+CONTRAST_SHIFT = max([abs(_FLC[k]["point"] - CO[k]["point"]) for k in _FLC if k != "per_judge" and k in CO]
+                     + [abs(_FLC["per_judge"][f["judge"]]["delta"] - f["delta"]) for f in CO["per_judge"]
+                        if f["judge"] in _FLC["per_judge"]])
+for _k in _FLC:
+    if _k != "per_judge" and _k in CO:
+        CO[_k].update(_FLC[_k])
+for _f in CO["per_judge"]:
+    _f.update(_FLC["per_judge"].get(_f["judge"], {}))
 per_judge_forest = {f["judge"]: f for f in CO["per_judge"]}
 gpg = G["per_generator"]
 ws_j = WS["per_judge"]
@@ -833,8 +850,9 @@ write_table(
     f"First iteration: stability and agreement by instrument. SD\\textsubscript{{rep}}: repeat SD over "
     f"{passes} passes on {FI['reliability']['repeat_n']} answers. $r$, MAE, bias: first pass against the "
     f"human pool on {FI['reliability']['agreement_n']} human-written answers; bias is judge minus humans. "
-    f"Step-score totals are step sums. {DAG}Stored total; the step-sum recompute needs withheld run "
-    f"outputs \\pending{{few-shot rows and zero-shot bias on step sums}}. The {FI['reliability']['panel_size']}-judge panel SD ranges "
+    "Step-score totals are step sums. "
+    + (f"{DAG}Stored total. " if any(REL[k]["basis"] in ("step_sum", "stored_pending") for k in REL) else "")
+    + f"The {FI['reliability']['panel_size']}-judge panel SD ranges "
     f"from {num(prs[0])} to {num(prs[1])} across the panel definitions.",
     "tab:reliability", ["Instrument", "SD\\textsubscript{rep}", "$r$", "MAE", "bias"], rows,
     colspec="lrrrr", size=r"\footnotesize")
@@ -842,7 +860,7 @@ write_table(
 
 *Variance (RQ1).* For Luna, repeat SD falls from `{python} num(REL["holistic_luna"]["repeat_sd"])`
 (holistic) to `{python} num(REL["tailored_luna"]["repeat_sd"])` (zero-shot sheet) and
-`{python} num(REL["fewshot_luna"]["repeat_sd_stored"])` \pending{few-shot on step sums} (few-shot sheet;
+`{python} num(REL["fewshot_luna"]["repeat_sd"])` (few-shot sheet;
 Table \ref{tab:reliability}). The direction is consistent, but no single step is established:
 few-shot minus holistic is `{python} sgn(lf["point"])` (`{python} ci(lf["ci95"])`; sign test
 $p$ = `{python} pv(lf["sign_p"])`), zero-shot minus holistic `{python} sgn(lz["point"])`
@@ -860,8 +878,8 @@ test $p$ = `{python} pv(mz["sign_p"])`, Wilcoxon $p$ = `{python} pv(mz["wilcoxon
 few-shot sheets, a post-hoc subset by generator, reached `{python} num(min(fs_sd.values()))` with
 Luna, and an in-sample floor (the best sheet per exam, chosen after the fact)
 `{python} num(CO["trend_luna"]["in_sample_floor"])`; both are optimistic bounds without intervals.
-These contrasts use stored totals; step sums move the zero-shot means of the matched
-judges by at most `{python} num(shift_max)`.
+These contrasts use step sums; on the stored totals they differ by at most
+`{python} num(CONTRAST_SHIFT)`.
 
 *Agreement (RQ2).* Agreement with the human pool fell as the sheets tightened. Luna's $r$ moved from
 `{python} cor(AG["luna"]["hol"]["r"])` to `{python} cor(AG["luna"]["zs_step_sum"]["r"])` and
@@ -893,8 +911,9 @@ passed the negative battery on every pass. Luna credited the near-empty answer o
 `{python} fc["tailored"][LUNA]["empty"]` of `{python} npas["tailored"][LUNA]["empty"]` zero-shot passes and
 `{python} fc["fewshot"][LUNA]["empty"]` of `{python} npas["fewshot"][LUNA]["empty"]` few-shot passes, with
 `{python} num(PR["luna_empty_mean_failing"]["tailored"], 1)` and
-`{python} num(PR["luna_empty_mean_failing"]["fewshot"], 1)` points on average when it did
-\pending{median over failing passes}, but on `{python} fc["holistic"][LUNA]["empty"]` holistic passes.
+`{python} num(PR["luna_empty_mean_failing"]["fewshot"], 1)` points on average when it did (median
+`{python} num(FL["luna_empty_median_failing"]["value"]["tailored"], 1)` and
+`{python} num(FL["luna_empty_median_failing"]["value"]["fewshot"], 1)`), but on `{python} fc["holistic"][LUNA]["empty"]` holistic passes.
 GPT-5.4 Mini failed `{python} PR["mini_negative_fails"]["tailored"]` of
 `{python} PR["mini_negative_passes"]["tailored"]` negative passes under the sheet and
 `{python} PR["mini_negative_fails"]["holistic"]` under the holistic instrument, but its holistic
@@ -930,7 +949,8 @@ and a weak one with stability ($r$ = `{python} cor(link["repeat_sd_centered"]["p
 `{python} ci(link["repeat_sd_centered"]["ci95"])`; Spearman
 `{python} cor(link["repeat_sd_centered"]["spearman"])`). It correlates with the *absolute* bias
 ($r$ = `{python} cor(link["abs_bias_centered"]["pearson"])`, `{python} ci(link["abs_bias_centered"]["ci95"])`)
-\pending{within-exam correlation with signed bias}. At the generator level
+and with the signed bias ($r$ = `{python} cor(FL["audit_signed_bias_link"]["value"]["pearson"])`,
+`{python} ci(FL["audit_signed_bias_link"]["value"]["ci95"])`): higher-rated sheets grade harsher. At the generator level
 ($n$ = `{python} GE["generator_level_spearman_audit_vs_bias"]["n"]`), higher audit totals go with
 harsher grading (Spearman `{python} cor(GE["generator_level_spearman_audit_vs_bias"]["luna"])` with
 Luna, `{python} cor(GE["generator_level_spearman_audit_vs_bias"]["sonnet"])` with Sonnet): the Claude
@@ -1333,13 +1353,18 @@ corr = [
      f"The routine broke the quota rule for {AP['as_run']['steps_outside_fair_range']} steps in "
      f"{AP['affected_rubrics']} sheets, with {AP['as_run']['order_inversion_pairs']} order inversions in "
      f"{AP['as_run']['rubrics_with_inversion']}. Of the {AP['n_drawn']} drawn sheets, {AP['affected_drawn_rubrics']} is "
-     f"affected ({NAME[AP['affected_drawn_generators'][0]]}); all {AP['affected_in_ranking']} affected sheets enter "
+     f"affected ({NAME[AP['affected_drawn_generators'][0]]}; "
+     f"{FL['apportionment_steps_off_in_drawn_rubric']['value']['steps_changed']} of its "
+     f"{FL['apportionment_steps_off_in_drawn_rubric']['value']['n_steps']} steps change by one point); "
+     f"all {AP['affected_in_ranking']} affected sheets enter "
      "the generator ranking. Now floor-constrained Hamilton (Section~\\ref{sec-allocation})."],
     ["Totals",
      f"The stored total was sometimes the model's own, within half a point of the step sum. With step sums the "
      f"zero-shot repeat SD moves for Luna from {num(REL['tailored_luna']['repeat_sd_stored'])} to "
      f"{num(REL['tailored_luna']['repeat_sd'])}, for Mini from {num(REL['tailored_mini']['repeat_sd_stored'])} to "
-     f"{num(REL['tailored_mini']['repeat_sd'])}. Now code computes every total. \\pending{{few-shot rows}}"],
+     f"{num(REL['tailored_mini']['repeat_sd'])}, and few-shot for Luna from "
+     f"{num(REL['fewshot_luna']['repeat_sd_stored'])} to {num(REL['fewshot_luna']['repeat_sd'])}. "
+     "Now code computes every total."],
     ["Judge schema", "Response keys followed storage order, not outline order. Now outline order (Section~\\ref{sec-judge})."],
     ["Alternatives",
      "Steps of alternative paths had no response keys, and points above a step's cap were dropped. Now "
@@ -1405,7 +1430,7 @@ frow.append(["Pooled (unweighted)", "", "", sgn(pooled["point"]),
 write_table(
     "tbl_contrasts",
     f"First iteration, within-judge repeat SD with the zero-shot sheet and the holistic instrument on the "
-    f"same {FI['reliability']['repeat_n']} answers, {passes} passes each (stored totals). 95\\% CIs from an "
+    f"same {FI['reliability']['repeat_n']} answers, {passes} passes each (step sums). 95\\% CIs from an "
     "exam-clustered bootstrap; sign test on answers. The pooled estimate averages the capable judges "
     "without weights; no correction for multiple comparisons.",
     "tab:contrasts", ["Judge", "Sheet", "Holistic", "$\\Delta$", "95\\% CI", "Sign $p$", "Pooled"],
