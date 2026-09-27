@@ -209,7 +209,7 @@
    "rq": [
     "RQ2"
    ],
-   "scope": "Compare the E1 grades with the author (D2a; D2b as the registered test), a second grader (20 scripts, incl. the 9 with an unconfirmed grader) and the author's second grading of 5 scripts. On D1, compare with the blind graders and test whether a model could replace one of them. Count wrong passes and fails at pass marks from 35 to 55%.",
+   "scope": "Compare the E1 grades with the author (D2a, and D2b as the registered test), a second grader (20 scripts, incl. the 9 with an unconfirmed grader) and the author's second grading of 5 scripts. On D1, compare with the blind graders and test whether a model could replace one of them. Count wrong passes and fails at pass marks from 35 to 55%.",
    "cost_usd": [
     0,
     0

@@ -175,7 +175,7 @@ EXPERIMENTS = [
               "pass/fail flips between runs, compare with averaging runs at equal cost.",
      "cost_usd": [60, 90], "n_scripts": 38, "generators": 2, "sheets_per_generator": 5, "passes": 3},
     {"id": "E2", "name": "Close to the examiner?", "rq": ["RQ2"],
-     "scope": "Compare the E1 grades with the author (D2a; D2b as the registered test), a second grader "
+     "scope": "Compare the E1 grades with the author (D2a, and D2b as the registered test), a second grader "
               "(20 scripts, incl. the 9 with an unconfirmed grader) and the author's second grading of 5 "
               "scripts. On D1, compare with the blind graders and test whether a model could replace one "
               "of them. Count wrong passes and fails at pass marks from 35 to 55%.",
