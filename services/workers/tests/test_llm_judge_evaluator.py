@@ -1529,7 +1529,7 @@ class TestVerifyEvidence:
             "Mangels abdrängender Sonderzuweisung richtet sich der Rechtsweg nach § 13 GVG.",
             # the answer escapes "I\." and bolds the norm; the quote does not
             "I. Eröffnung des Zivilrechtswegs",
-            "nach § 13 GVG",
+            "richtet sich der Rechtsweg nach § 13 GVG",
             # the quote keeps the markdown escape itself
             "1\\. Die Bestellung ist eine",
             # whitespace and line breaks differ
@@ -1585,9 +1585,12 @@ class TestVerifyEvidence:
             "des Zivilrechtsweg",
             # one keyword fragment poisons an otherwise verbatim quote
             "Mangels abdrängender Sonderzuweisung … GVG",
-            # a norm citation alone is not a quote, even when it is verbatim
+            # a norm citation alone is not a quote, even when it is verbatim,
+            # and neither is one with only a connecting word
             "§ 13 GVG",
             "§ 130 Abs. 1 S. 1 BGB",
+            "nach § 13 GVG",
+            "im Sinne des § 130 Abs. 1 S. 1 BGB",
             # glued passages: one real sentence, one invented
             "Die Streitigkeit ist bürgerlich-rechtlich. Ein Rücktrittsrecht besteht hier offensichtlich nicht.",
         ],
@@ -1612,6 +1615,28 @@ class TestVerifyEvidence:
         assert (EVIDENCE_MIN_TOKENS, EVIDENCE_MIN_LONG_FRAGMENT_CHARS, EVIDENCE_MIN_WORD_CHARS) == (
             3, 15, 4
         )
+
+
+def _some_run_verifies(answer, evidence):
+    """Some run of three or more words of the quote verifies on its own."""
+    index = EvidenceIndex(answer)
+    pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
+    return any(
+        _verify_evidence(" ".join(words[i:j]), index)
+        for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
+    )
+
+
+def _some_run_stands_in_the_answer(answer, evidence):
+    """Some run of three or more words of the quote stands in the answer word
+    for word, so only its surroundings in the answer make the quote fail."""
+    text = _normalize_evidence_text(answer)
+    pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
+    runs = (
+        _normalize_evidence_text(" ".join(words[i:j])).strip(" .,;:")
+        for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
+    )
+    return any(re.search(rf"(?<!\w){re.escape(run)}(?!\w)", text) for run in runs)
 
 
 class TestVerifyEvidenceAdversarial:
@@ -1646,22 +1671,27 @@ class TestVerifyEvidenceAdversarial:
         ("Der Mangel ist erheblich, weil die Nutzung der Sache eingeschränkt ist. Im Übrigen gilt: "
          "Die Frist ist abgelaufen.",
          "Der Mangel ist nicht erheblich, weil die Nutzung der Sache eingeschränkt ist. Die Frist ist abgelaufen."),
-        # 7. the negation of the answer skipped inside a norm citation
-        ("Der Anspruch ist nicht nach § 327m Abs. 2 S. 1 BGB ausgeschlossen.",
-         "Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen"),
         # 8. a single keyword riding along
         ("Der Beklagte ist als Besitzer verantwortlich, weil er die Sache selbst beschädigt hat. "
          "Die Frist ist abgelaufen.",
          "Besitzer. Die Frist ist abgelaufen."),
+        # 10. a four-digit number that is a prefix of the answer's number
+        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.",
+         "Der Kaufpreis beträgt 1000 Euro und ist sofort fällig"),
+        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.", "Der Kaufpreis beträgt 1000"),
+    ]
+
+    # The quoted words stand in the answer, but a negation, "(-)" or "kein"
+    # governs the whole clause they stand in.
+    REJECTED_IN_CONTEXT = [
+        # 7. the negation of the answer skipped inside a norm citation
+        ("Der Anspruch ist nicht nach § 327m Abs. 2 S. 1 BGB ausgeschlossen.",
+         "Der Anspruch ist nach § 327m Abs. 2 S. 1 BGB ausgeschlossen"),
         # 9. the result mark flipped, in either spelling of the minus
         ("Voraussetzung einer abdrängenden Sonderzuweisung (-). Der Zivilrechtsweg ist eröffnet.",
          "Voraussetzung einer abdrängenden Sonderzuweisung (+)"),
         ("Voraussetzung einer abdrängenden Sonderzuweisung (−). Der Zivilrechtsweg ist eröffnet.",
          "Voraussetzung einer abdrängenden Sonderzuweisung (+)"),
-        # 10. a four-digit number that is a prefix of the answer's number
-        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.",
-         "Der Kaufpreis beträgt 1000 Euro und ist sofort fällig"),
-        ("Der Kaufpreis beträgt 10000 Euro und ist sofort fällig.", "Der Kaufpreis beträgt 1000"),
         # "Ein" inside "Kein", as a substring and with the first word skipped
         ("Kein Anspruch auf Schadensersatz besteht gegen den Verkäufer.",
          "Ein Anspruch auf Schadensersatz besteht gegen den Verkäufer"),
@@ -1699,19 +1729,19 @@ class TestVerifyEvidenceAdversarial:
          "Der Anspruch des M gegen V auf Rückzahlung der Anzahlung besteht in Höhe"),
     ]
 
-    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    @pytest.mark.parametrize("answer,evidence", REJECTED + REJECTED_IN_CONTEXT)
     def test_rejected(self, answer, evidence):
         assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_the_positive_part_is_in_the_answer(self, answer, evidence):
         # Each case is a real near miss: some run of three or more of its words verifies.
-        index = EvidenceIndex(answer)
-        pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
-        assert any(
-            _verify_evidence(" ".join(words[i:j]), index)
-            for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
-        ), evidence
+        assert _some_run_verifies(answer, evidence), evidence
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED_IN_CONTEXT)
+    def test_the_quoted_words_stand_in_the_answer(self, answer, evidence):
+        # Only the governing negation or mark around them makes these fail.
+        assert _some_run_stands_in_the_answer(answer, evidence), evidence
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
@@ -1773,19 +1803,12 @@ class TestVerifyEvidenceStrict:
         ("Die Pflicht richtet sich nach § 312a BGB und gilt für Verbraucherverträge.", "Die Pflicht richtet sich nach § 312"),
         ("Der Schutz ergibt sich aus § 823 II BGB.", "Der Schutz ergibt sich aus § 823 I"),
         ("Der Vertrag ist nichtig, weil er gegen ein gesetzliches Verbot verstößt.", "Der Vertrag ist nicht"),
-        # a negation or a question word right before the match
+        # a negation right before the match
         ("Der Vermieter hat nicht rechtmäßig gehandelt, als er die Wohnung räumen ließ.",
          "rechtmäßig gehandelt, als er die Wohnung räumen ließ"),
-        ("Fraglich ist, ob die Übergabe der Sache in den Geschäftsräumen stattfand.",
-         "die Übergabe der Sache in den Geschäftsräumen stattfand"),
-        ("Wenn die Frist gewahrt ist, ist die Klage zulässig.", "die Frist gewahrt ist"),
-        ("Es besteht kein Anspruch auf Rückzahlung der Kaution gegen den Vermieter.",
-         "Anspruch auf Rückzahlung der Kaution gegen den Vermieter"),
-        # a negation, "(-)" or a condition right after the match
+        # a negation or a condition right after the match
         ("Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht nicht.",
          "Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht"),
-        ("Voraussetzung einer abdrängenden Sonderzuweisung (-)",
-         "Voraussetzung einer abdrängenden Sonderzuweisung"),
         ("Die Klage ist begründet, soweit sie sich gegen den Zinsanspruch richtet.", "Die Klage ist begründet"),
         ("Ein Mangel liegt vor, wenn die Sache nicht die vereinbarte Beschaffenheit hat.", "Ein Mangel liegt vor"),
         # the edge rules hold on each side of an ellipsis
@@ -1794,6 +1817,18 @@ class TestVerifyEvidenceStrict:
         # a one-letter change that turns a word into a negation
         ("Der Schuldner hat seine Pflicht aus dem Vertrag schuldhaft verletzt.",
          "Der Schuldner hat keine Pflicht aus dem Vertrag schuldhaft verletzt"),
+    ]
+
+    # The quoted words stand in the answer, but a question, condition,
+    # "kein" or "(-)" governs the whole clause they stand in.
+    REJECTED_IN_CONTEXT = [
+        ("Fraglich ist, ob die Übergabe der Sache in den Geschäftsräumen stattfand.",
+         "die Übergabe der Sache in den Geschäftsräumen stattfand"),
+        ("Wenn die Frist gewahrt ist, ist die Klage zulässig.", "die Frist gewahrt ist"),
+        ("Es besteht kein Anspruch auf Rückzahlung der Kaution gegen den Vermieter.",
+         "Anspruch auf Rückzahlung der Kaution gegen den Vermieter"),
+        ("Voraussetzung einer abdrängenden Sonderzuweisung (-)",
+         "Voraussetzung einer abdrängenden Sonderzuweisung"),
     ]
 
     NORM_ONLY = [
@@ -1837,19 +1872,18 @@ class TestVerifyEvidenceStrict:
         ("Nach alledem gilt: Die Frist\\\nist gewahrt.", "Frist ist gewahrt"),
     ]
 
-    @pytest.mark.parametrize("answer,evidence", REJECTED + NORM_ONLY)
+    @pytest.mark.parametrize("answer,evidence", REJECTED + REJECTED_IN_CONTEXT + NORM_ONLY)
     def test_rejected(self, answer, evidence):
         assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_the_positive_part_is_in_the_answer(self, answer, evidence):
         # Each case is a real near miss: some run of three or more of its words verifies.
-        index = EvidenceIndex(answer)
-        pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
-        assert any(
-            _verify_evidence(" ".join(words[i:j]), index)
-            for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
-        ), evidence
+        assert _some_run_verifies(answer, evidence), evidence
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED_IN_CONTEXT)
+    def test_the_quoted_words_stand_in_the_answer(self, answer, evidence):
+        assert _some_run_stands_in_the_answer(answer, evidence), evidence
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
@@ -1879,9 +1913,220 @@ class TestVerifyEvidenceStrict:
 
         assert not _fragment_is_quotable(["art", "8", "gg"], ["Art", "8", "GG"])
         assert not _fragment_is_quotable(["40", "i", "1", "vwgo"], ["40", "I", "1", "VwGO"])
-        assert _fragment_is_quotable(["nach", "40", "vwgo"], ["nach", "40", "VwGO"])
+        # a word that only connects the citation does not make it a quote
+        assert not _fragment_is_quotable(["nach", "40", "vwgo"], ["nach", "40", "VwGO"])
+        assert _fragment_is_quotable(["nach", "40", "vwgo", "eröffnet"], ["nach", "40", "VwGO", "eröffnet"])
         # without the cased tokens the abbreviation reads as a word (lenient)
         assert _fragment_is_quotable(["40", "i", "1", "vwgo"])
+
+
+class TestVerifyEvidenceRound4:
+    """Review round 4 (all synthetic). Each REJECTED case verified before this
+    round: abbreviation periods split glued quotes, long quotes swapped or
+    moved a decisive word, typos crossed antonyms, a split "un-" fell off,
+    numbers merged in the compact path, the edge rules missed negations
+    after the match and governing words earlier in the clause, and a
+    citation with a connecting word counted as a quote."""
+
+    REJECTED = [
+        # 1. a period after an abbreviation is no sentence end: the quote stays
+        #    one piece and must stand in the answer as a whole
+        ("Der Käufer ist gem. § 437 Nr. 2 BGB nicht zum Rücktritt berechtigt, weil er keine Frist gesetzt hat. "
+         "Die Verkäuferin ist nach § 437 Nr. 2 BGB zum Rücktritt berechtigt.",
+         "Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt"),
+        ("Die Frist beginnt nach § 199 Abs. 1 BGB nicht vor Kenntnis des Gläubigers. "
+         "Sie endet gem. § 188 Abs. 1 BGB mit dem Schluss des Jahres.",
+         "Die Frist beginnt nach § 199 Abs. 1 BGB mit dem Schluss des Jahres"),
+        ("Der Anspruch ist nach § 275 Abs. 1 S. 1 BGB nicht ausgeschlossen. "
+         "Die Leistung ist nach § 275 Abs. 2 S. 1 BGB ausgeschlossen.",
+         "Der Anspruch ist nach § 275 Abs. 1 S. 1 BGB ausgeschlossen"),
+        # 2. a word swapped for another one, or a negation moved, in a long quote
+        ("Nach alledem hat B hier als Nichtberechtigter über das Fahrrad des K wirksam zugunsten des C verfügt.",
+         "Nach alledem hat B hier als Berechtigter über das Fahrrad des K wirksam zugunsten des C verfügt"),
+        ("Der Täter handelte nach den Feststellungen des Gerichts bei der Tat mit Blick auf den Erfolg "
+         "vorsätzlich und schuldhaft.",
+         "Der Täter handelte nach den Feststellungen des Gerichts bei der Tat mit Blick auf den Erfolg "
+         "fahrlässig und schuldhaft"),
+        ("Der Käufer verlangte nach Ablauf der gesetzten Frist von dem Verkäufer die Minderung des gezahlten "
+         "Kaufpreises.",
+         "Der Käufer verlangte nach Ablauf der gesetzten Frist von dem Verkäufer die Erstattung des gezahlten "
+         "Kaufpreises"),
+        ("Nach alledem ist die Klage des K gegen den Verkäufer zwar zulässig, aber nicht begründet und daher "
+         "abzuweisen.",
+         "Nach alledem ist die Klage des K gegen den Verkäufer zwar nicht zulässig, aber begründet und daher "
+         "abzuweisen"),
+        # ... and a content word the answer does not have
+        ("Der Käufer hat dem Verkäufer nach Übergabe der Sache eine angemessene Frist zur Nacherfüllung gesetzt.",
+         "Der Käufer hat dem Verkäufer nach Übergabe der mangelhaften Sache eine angemessene Frist zur "
+         "Nacherfüllung gesetzt"),
+        # 3. a "typo" that is another word: first letter, umlaut
+        ("Der zwischen den Parteien geschlossene Vertrag ist nichtig.",
+         "Der zwischen den Parteien geschlossene Vertrag ist richtig"),
+        ("Der Verkäufer hätte die Sache vor der Übergabe an den Käufer prüfen müssen.",
+         "Der Verkäufer hatte die Sache vor der Übergabe an den Käufer prüfen müssen"),
+        ("Der Mieter würde die Wohnung zum Ende des Monats räumen.",
+         "Der Mieter wurde die Wohnung zum Ende des Monats räumen"),
+        # 4. a split "un-" belongs to its word
+        ("Die Klage ist un- zulässig, weil die Einspruchsfrist abgelaufen ist.",
+         "Die Klage ist zulässig, weil die Einspruchsfrist abgelaufen ist"),
+        ("Die Klage ist un-\nzulässig, weil die Einspruchsfrist abgelaufen ist.",
+         "Die Klage ist zulässig, weil die Einspruchsfrist abgelaufen ist"),
+        ("Die Klage ist un zulässig, weil die Einspruchsfrist abgelaufen ist.",
+         "Die Klage ist zulässig, weil die Einspruchsfrist abgelaufen ist"),
+        ("Die Klage ist un- zulässig. Die Frist ist abgelaufen.", "Die Klage ist zulässig"),
+        # 5. numbers never merge in the spacing-insensitive comparison
+        ("Der Zinssatz des Darlehens beträgt 10,5 Prozent pro Jahr und ist fest vereinbart.",
+         "Der Zinssatz des Darlehens beträgt 105 Prozent pro Jahr und ist fest vereinbart"),
+        ("Der Zinssatz des Darlehens beträgt 10 5 Prozent pro Jahr und ist fest vereinbart.",
+         "Der Zinssatz des Darlehens beträgt 105 Prozent pro Jahr und ist fest vereinbart"),
+        ("Der Anspruch ergibt sich aus §§ 1, 2 des Vertrages zwischen den beiden Parteien.",
+         "Der Anspruch ergibt sich aus § 12 des Vertrages zwischen den beiden Parteien"),
+        # 6. every negation right after the match, and one later in its clause
+        ("Einen Anspruch auf Schadensersatz statt der Leistung hat der Käufer keinen.",
+         "Einen Anspruch auf Schadensersatz statt der Leistung hat der Käufer"),
+        ("Eine Pflicht zur Nacherfüllung hat der Verkäufer keine.", "Eine Pflicht zur Nacherfüllung hat der Verkäufer"),
+        ("Einer Fristsetzung durch den Käufer bedurfte es keiner.", "Einer Fristsetzung durch den Käufer bedurfte es"),
+        ("Für den Mangel der Sache kann der Verkäufer nichts.", "Für den Mangel der Sache kann der Verkäufer"),
+        ("Der Käufer trat vom Vertrag zurück ohne Grund.", "Der Käufer trat vom Vertrag zurück"),
+        ("Der Verkäufer hat die Sache geliefert weder rechtzeitig noch vollständig.",
+         "Der Verkäufer hat die Sache geliefert"),
+        ("Ein Anspruch des Käufers auf Rückzahlung des Kaufpreises besteht daher im Ergebnis nicht.",
+         "Ein Anspruch des Käufers auf Rückzahlung des Kaufpreises besteht"),
+        ("Der Käufer zahlte den vereinbarten Kaufpreis bis heute nicht.", "Der Käufer zahlte den vereinbarten Kaufpreis"),
+        # 7. a negation, question or doubt word earlier in the clause, or in the
+        #    clause that governs a "dass" clause
+        ("Fraglich ist, ob der Verkäufer die Sache mangelfrei geliefert hat.",
+         "Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Es ist nicht ersichtlich, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Es ist nicht ersichtlich, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "dass der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Zweifelhaft ist daher, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Es besteht kein fälliger Anspruch des Verkäufers auf Zahlung des Kaufpreises.",
+         "Anspruch des Verkäufers auf Zahlung des Kaufpreises"),
+        ("Der Beklagte bestreitet, dass er die Sache vorsätzlich beschädigt hat.",
+         "er die Sache vorsätzlich beschädigt hat"),
+        ("Der Käufer ist nicht gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt.",
+         "§ 437 Nr. 2 BGB zum Rücktritt berechtigt"),
+        # 8. a citation with only connecting words is no quote
+        ("Der Anspruch folgt gem. § 433 Abs. 2 BGB und ist fällig.", "gem. § 433 Abs. 2 BGB"),
+        ("Der Anspruch folgt nach § 433 Abs. 2 BGB und ist fällig.", "nach § 433 Abs. 2 BGB"),
+        ("Der Anspruch folgt aus § 280 Abs. 1 BGB i.V.m. § 241 Abs. 2 BGB.",
+         "aus § 280 Abs. 1 BGB i.V.m. § 241 Abs. 2 BGB"),
+        ("Der Anspruch folgt gemäß § 280 Abs. 1 BGB i. V. m. § 241 Abs. 2 BGB.",
+         "gemäß § 280 Abs. 1 BGB i. V. m. § 241 Abs. 2 BGB"),
+        ("Die Sache ist ein Gegenstand im Sinne des § 90 BGB.", "im Sinne des § 90 BGB"),
+    ]
+
+    # Genuine quotes with harmless variation keep verifying.
+    ACCEPTED = [
+        # glued passages at real sentence ends, also with abbreviations inside
+        ("Die Klage ist zulässig. Sie ist auch begründet. Die Frist ist abgelaufen.",
+         "Die Klage ist zulässig. Die Frist ist abgelaufen."),
+        ("Die Klage ist zulässig. Der Anspruch folgt aus § 433 Abs. 2 BGB. Die Frist ist abgelaufen.",
+         "Die Klage ist zulässig. Der Anspruch folgt aus § 433 Abs. 2 BGB."),
+        ("Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt, weil die Frist abgelaufen ist.",
+         "Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt"),
+        ("Der Vertrag wurde am 10. Mai 2020 geschlossen und ist wirksam.",
+         "Der Vertrag wurde am 10. Mai 2020 geschlossen"),
+        ("Ein Mangel liegt vor. Der Käufer hat gezahlt.\n\nb) Rücktrittserklärung\n\nK hat den Rücktritt erklärt.",
+         "Ein Mangel liegt vor. b) Rücktrittserklärung"),
+        # hyphenation, a ligature, spacing inside numbers, thousands dots
+        ("Die Nacherfüllung ist fehl-\ngeschlagen, weil der Verkäufer zweimal erfolglos nachgebessert hat.",
+         "Die Nacherfüllung ist fehlgeschlagen, weil der Verkäufer zweimal erfolglos nachgebessert hat"),
+        ("Der Käufer hat die Pﬂicht zur Abnahme der Sache verletzt.",
+         "Der Käufer hat die Pflicht zur Abnahme der Sache verletzt"),
+        ("S hat etwas erlangt, nämlich Eigentum und Besitz an den entrichte ten 10.000,– € durch Leistung.",
+         "Eigentum und Besitz an den entrichteten 10.000,– € durch Leistung"),
+        ("Der Kaufpreis von 10.000 Euro ist nach Übergabe der Sache sofort fällig.",
+         "Der Kaufpreis von 10000 Euro ist nach Übergabe der Sache sofort fällig"),
+        # a split "un-" on either side
+        ("Die Klage ist un- zulässig, weil die Einspruchsfrist abgelaufen ist.",
+         "Die Klage ist unzulässig, weil die Einspruchsfrist abgelaufen ist"),
+        ("Die Klage ist unzulässig, weil die Einspruchsfrist abgelaufen ist.",
+         "Die Klage ist un- zulässig, weil die Einspruchsfrist abgelaufen ist"),
+        # a typo in a word that is not protected, on either side
+        ("Der Beklagte hat die Verkehrssicherungspflicht verlezt, weil er nicht gestreut hat.",
+         "Der Beklagte hat die Verkehrssicherungspflicht verletzt, weil er nicht gestreut hat"),
+        # a word left out, a function word added or left out
+        ("Der Anspruch des M gegen V auf Rückzahlung der Anzahlung besteht in voller Höhe.",
+         "Der Anspruch des M gegen V auf Rückzahlung der Anzahlung besteht in Höhe"),
+        ("Der Käufer hat dem Verkäufer nach der Übergabe eine angemessene Frist zur Nacherfüllung gesetzt.",
+         "Der Käufer hat dem Verkäufer nach Übergabe eine angemessene Frist zur Nacherfüllung gesetzt"),
+        ("Der Käufer hat dem Verkäufer nach Übergabe eine angemessene Frist zur Nacherfüllung gesetzt.",
+         "Der Käufer hat dem Verkäufer nach der Übergabe eine angemessene Frist zur Nacherfüllung gesetzt"),
+        # the negation belongs to the verb after the quoted noun phrase, to a
+        # heading above the paragraph, or affirms ("ohne Weiteres")
+        ("Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht nicht.",
+         "Der Anspruch des Klägers auf Herausgabe des Fahrzeugs"),
+        ("II. Keine Einwilligung\n\nDie Körperverletzung ist rechtswidrig, weil keine Einwilligung vorliegt.",
+         "Die Körperverletzung ist rechtswidrig"),
+        ("I. Anspruch aus § 985 BGB\n\nDer Anspruch scheitert, weil K nicht Eigentümer ist.",
+         "Anspruch aus § 985 BGB"),
+        ("Der Anspruch des Käufers besteht ohne Weiteres.", "Der Anspruch des Käufers besteht"),
+        # a quote ending with "weil" stops where the new clause starts
+        ("Eine Strafbarkeit wegen Mordes scheidet aus, weil kein Mordmerkmal erfüllt ist.",
+         "Eine Strafbarkeit wegen Mordes scheidet aus, weil"),
+        # a "dass" clause under an affirming clause, a quote that keeps its "ob"
+        ("Es ist unstreitig, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Fraglich ist, ob der Verkäufer die Sache mangelfrei geliefert hat.",
+         "ob der Verkäufer die Sache mangelfrei geliefert hat"),
+        # a citation with reasoning around it
+        ("Der Anspruch des K folgt aus § 433 II BGB und ist fällig.", "aus § 433 II BGB und ist fällig"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_the_quoted_words_stand_in_the_answer(self, answer, evidence):
+        assert _some_run_stands_in_the_answer(answer, evidence), evidence
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    def test_sentences_never_end_at_an_abbreviation(self):
+        from ml_evaluation.llm_judge_evaluator import _split_sentences
+
+        assert _split_sentences("Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt.") == [
+            "Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt."
+        ]
+        for text in (
+            "Der Anspruch folgt aus § 280 Abs. 1 S. 1 i.V.m. § 241 Abs. 2 BGB.",
+            "Das gilt vgl. BGH NJW 2020, 1 und z. B. für Kaufverträge.",
+            "Der Vertrag wurde am 10. Mai 2020 geschlossen.",
+            "So auch entspr. der Regel des § 133 BGB.",
+            "Das folgt aus Art. 14 II. Der Eigentümer ist geschützt.",
+        ):
+            assert len(_split_sentences(text)) == 1, text
+        assert _split_sentences("Die Klage ist zulässig. Sie ist begründet: Die Frist ist gewahrt.") == [
+            "Die Klage ist zulässig.", "Sie ist begründet:", "Die Frist ist gewahrt."
+        ]
+        # a list label after a real sentence end starts a new piece
+        assert _split_sentences("Ein Mangel liegt vor. b) Rücktritt") == ["Ein Mangel liegt vor.", "b) Rücktritt"]
+
+    def test_token_rules(self):
+        from ml_evaluation.llm_judge_evaluator import _is_protected, _tokens_match
+
+        for word in ("nichtig", "nichtberechtigter", "un", "wirksam", "richtig", "falsche", "vorsätzlich",
+                     "fahrlässige", "vermeintlich", "mutmasslich", "fraglich", "vielleicht"):
+            assert _is_protected(word), word
+        assert not _tokens_match("nichtig", "richtig") and not _tokens_match("richtig", "nichtig")
+        assert not _tokens_match("hatte", "hätte") and not _tokens_match("wurde", "würde")
+        assert not _tokens_match("müssen", "mussen") and not _tokens_match("gesetzt", "besetzt")
+        assert not _tokens_match("nicht", "nichts") and not _tokens_match("wirksam", "unwirksam")
+        assert _tokens_match("unzulässig", "unzulässige") and _tokens_match("nichtig", "nichtige")
+        assert _tokens_match("verletzt", "verlezt") and _tokens_match("kaufpreis", "kaufpries")
+
+    def test_a_split_un_is_joined(self):
+        for text in ("un- zulässig", "un-\nzulässig", "un-\\nzulässig", "un zulässig", "Un-Zulässig"):
+            assert _normalize_evidence_text(text) == "unzulässig", text
+        assert _normalize_evidence_text("un- und rechtmäßig") == "un- und rechtmässig"
+        assert _normalize_evidence_text("Un- zulässig", casefold=False) == "Unzulässig"
 
 
 class TestFinalizeRubricScores:

@@ -67,7 +67,7 @@ def _judgment(declared="musterloesung"):
     return {
         "scores": {
             "s01_anspruchsgrundlage": _bullets((2, "Anspruch auf Rückzahlung des Kaufpreises folgt aus §§ 437 Nr. 2, 346 I BGB"),
-                                      (1, "aus §§ 437 Nr. 2, 346 I BGB")),
+                                      (1, "folgt aus §§ 437 Nr. 2, 346 I BGB")),
             "s02_kaufvertrag": _bullets((0, "")),
             "s03_sachmangel": _bullets((2, "Die Bremse des Fahrrads war bei Übergabe defekt"), (2, "erfunden, steht nicht da")),
             "s04_verschleiss": _bullets((1, "Die Kette ist verschlissen")),
@@ -292,7 +292,7 @@ class TestFinalize:
         assert best["checklist"]["arbeitsergebnisse"]["P1"]["points"] == pytest.approx(65.0)
 
         def rated(note):
-            return {"note": note, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
+            return {"note": note, "evidence": "folgt aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
                     "fehlplatziert": False, "reason": ""}
         ratings = {"scores": {"s01_anspruchsgrundlage": rated(18), "s02_kaufvertrag": rated(0), "s03_sachmangel": rated(4),
                               "s04_verschleiss": rated(16)},
@@ -307,7 +307,7 @@ class TestFinalize:
     def test_replace_mode_counts_the_primary_steps(self):
         def scored(score, quote):
             return {"score": score, "evidence": quote, "abweichender_weg": False, "fehlplatziert": False, "reason": ""}
-        judgment = {"scores": {"s01_anspruchsgrundlage": scored(15, "aus §§ 437 Nr. 2, 346 I BGB"), "s02_kaufvertrag": scored(0, ""),
+        judgment = {"scores": {"s01_anspruchsgrundlage": scored(15, "folgt aus §§ 437 Nr. 2, 346 I BGB"), "s02_kaufvertrag": scored(0, ""),
                                "s03_sachmangel": scored(30, "bei Übergabe defekt")}, **_diagnosis()}
         out = cs.finalize(judgment, _spec(), "step", "replace", "declared", _verify)
         assert out["checklist"]["totals"] == {"declared": 45.0, "best": 45.0}
@@ -324,7 +324,7 @@ class TestFinalize:
         spec = _spec()
         spec["steps"]["s01_anspruchsgrundlage"]["max_score"] = 0.5
         judgment = _judgment()
-        judgment["scores"]["s01_anspruchsgrundlage"] = _bullets((2, "aus §§ 437 Nr. 2, 346 I BGB"), (0, ""))
+        judgment["scores"]["s01_anspruchsgrundlage"] = _bullets((2, "folgt aus §§ 437 Nr. 2, 346 I BGB"), (0, ""))
         out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
         assert out["scores"]["s01_anspruchsgrundlage"]["raw_points"] == 0.25
         assert out["scores"]["s01_anspruchsgrundlage"]["score"] == 0.5    # half up, not banker's
@@ -342,7 +342,7 @@ class TestFinalize:
         spec = {"total_points": 3.0, "order": ["a", "b", "c"],
                 "steps": {k: {"name": k, "max_score": 1.0, "anforderungen": [{"share": 0.25}, {"share": 0.75}]}
                           for k in ("a", "b", "c")}}
-        judgment = {"scores": {k: _bullets((2, "aus §§ 437 Nr. 2, 346 I BGB"), (0, "")) for k in ("a", "b", "c")},
+        judgment = {"scores": {k: _bullets((2, "folgt aus §§ 437 Nr. 2, 346 I BGB"), (0, "")) for k in ("a", "b", "c")},
                     **_diagnosis()}
         out = cs.finalize(judgment, spec, "bullet", "branch", "declared", _verify)
         assert out["total_score"] == 1.0
@@ -366,7 +366,7 @@ class TestFinalize:
     def test_rating_unit_maps_notes_through_the_grade_key(self):
         judgment = {
             "scores": {
-                "s01_anspruchsgrundlage": {"note": 18, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""},
+                "s01_anspruchsgrundlage": {"note": 18, "evidence": "folgt aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""},
                 "s02_kaufvertrag": {"note": 9, "evidence": "erfunden", "abweichender_weg": False, "reason": ""},
                 "s03_sachmangel": {"note": 9, "evidence": "bei Übergabe defekt", "abweichender_weg": True, "reason": ""},
             },
@@ -386,7 +386,7 @@ class TestFinalize:
         assert out["checklist"]["abweichender_weg_steps"] == 1
 
     def test_rating_key_of_the_exam_changes_the_points(self):
-        judgment = {"scores": {k: {"note": 4, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""}
+        judgment = {"scores": {k: {"note": 4, "evidence": "folgt aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False, "reason": ""}
                                for k in ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")}}
         study_key = {"thresholds_be": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
                      "rounding": "floor", "pass_grade": 4}
@@ -569,7 +569,7 @@ class TestEvaluatorIntegration:
         ev.configure_checklist(_spec(), "rating", "replace", "declared",
                                grade_scale={"thresholds_be": STUDY_THRESHOLDS, "rounding": "floor", "pass_grade": 4})
         assert ev.checklist["grade_scale"]["unit"] == "BE"
-        judgment = {"scores": {k: {"note": 18, "evidence": "aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
+        judgment = {"scores": {k: {"note": 18, "evidence": "folgt aus §§ 437 Nr. 2, 346 I BGB", "abweichender_weg": False,
                                    "fehlplatziert": False, "reason": ""}
                                for k in ("s01_anspruchsgrundlage", "s02_kaufvertrag", "s03_sachmangel")}, **_diagnosis()}
         self._respond(ev, judgment)

@@ -405,7 +405,23 @@ _WORD_RE = re.compile(r"\d+(?:[.,]\d+)+|\w+")
 _ELLIPSIS_SPLIT_RE = re.compile(r"\.{3,}")
 # Judges often glue passages from different places into one quote without the
 # ellipsis the rules ask for; such a fragment is checked sentence by sentence.
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?:;])\s+")
+# A candidate break is punctuation plus whitespace; a period is a break only
+# when it does not end an abbreviation (see _period_ends_sentence).
+_SENTENCE_BREAK_CANDIDATE_RE = re.compile(r"([.!?:;])\s+")
+# Casefolded words that take an abbreviation period in legal German. A period
+# after one of them (or after a single letter, a number or a Roman numeral)
+# never ends a sentence: "gem. § 42", "Abs. 2 S. 1", "i.V.m.", "vgl. BGH".
+_ABBREVIATIONS = frozenset({
+    "abl", "abs", "abschn", "abzgl", "allg", "alt", "amtl", "anh", "anl", "anm", "art", "artt", "aufl", "az",
+    "bd", "bearb", "begr", "bekl", "beschl", "bgbl", "bl", "bsp", "bspw", "buchst", "bzgl", "bzw", "ca",
+    "ders", "dgl", "dr", "einschl", "entspr", "erg", "etc", "evtl", "exkl", "ff", "fn", "fr", "gegr", "gem",
+    "ggf", "ggü", "grds", "halbs", "hr", "hrsg", "hs", "inkl", "insb", "insbes", "jew", "kap", "kl", "lit",
+    "ls", "lt", "max", "min", "mind", "mio", "mrd", "mtl", "nachw", "nr", "nrn", "od", "prof", "rdnr", "rn",
+    "rspr", "rz", "sog", "st", "str", "tz", "urt", "usw", "var", "verf", "vgl", "vorbem", "vorl", "vs",
+    "ziff", "zit", "zust", "zzgl",
+})
+# "un- zulässig", "un-\nzulässig" and "un zulässig" are one word: "unzulässig".
+_UN_SPLIT_RE = re.compile(r"(?<!\w)(un)(?:- ?| )(?!(?:und|oder|bzw|sowie)\b)(?=[^\W\d_])", re.IGNORECASE)
 # Everything but letters and digits, for the spacing-insensitive comparison of
 # long fragments (hyphenation splits like "entrichte ten", "10.000,– €").
 _COMPACT_RE = re.compile(r"[\W_]+")
@@ -426,19 +442,45 @@ _POLARITY_MARKS = {"+": " positiv ", "-": " negativ "}
 # Negations (and every "kein…" form, see _is_negation). With the normalized
 # result marks they are the polarity tokens.
 _NEGATION_TOKENS = frozenset({"nicht", "nichts", "nie", "niemals", "ohne", "weder"})
-_POLARITY_TOKENS = _NEGATION_TOKENS | {"positiv", "negativ"}
-# Protected tokens beyond polarity and numbers: words that state or qualify a
-# result. A quote may never drop one, add one, swap one for another word, or
-# step over one in the answer. Casefolded, so "ß" is "ss".
+_RESULT_MARK_TOKENS = frozenset({"positiv", "negativ"})
+_POLARITY_TOKENS = _NEGATION_TOKENS | _RESULT_MARK_TOKENS
+# Protected tokens beyond polarity and numbers: words that state, qualify or
+# hedge a result. A quote may never drop one, add one, swap one for another
+# word, or step over one in the answer. Casefolded, so "ß" is "ss".
 _QUALIFIER_TOKENS = frozenset({
     "nur", "teilweise", "kaum", "allenfalls", "insoweit", "stets",
     "jemand", "jemanden", "jemandem", "niemand", "niemanden", "niemandem",
+    "vermutlich", "möglicherweise", "eventuell", "vielleicht",
 })
 _RESULT_WORD_RE = re.compile(
     r"(?:rechtmässig|rechtswidrig|bejah|vernein|erforderlich|entbehrlich|formell|materiell)\w*"
     r"|gegeben(?:e[mnrs]?)?|fehl(?:t|te|ten|en|end|ende[mnrs]?)"
     r"|besteh(?:t|en|end|ende[mnrs]?)|bestand(?:en)?"
+    r"|(?:richtig|falsch|wirksam|gültig|vorsätzlich|fahrlässig|strafbar|straflos|verjährt|schuldhaft|schuldlos"
+    r"|vermeintlich|angeblich|scheinbar|mutmasslich|fraglich|zweifelhaft)(?:e[mnrs]?)?"
 )
+# Words a token-wise match may leave out of the answer or find missing in it:
+# articles, pronouns, simple prepositions, auxiliaries and filler particles.
+# Everything else is a content word: a quote may leave out one content word
+# of the answer, but never add one, and never swap a word for another.
+_FUNCTION_WORDS = frozenset({
+    "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer", "eines", "einem", "einen",
+    "dieser", "diese", "dieses", "diesem", "diesen", "jener", "jene", "jenes", "jenem", "jenen",
+    "sein", "seine", "seiner", "seines", "seinem", "seinen", "ihr", "ihre", "ihrer", "ihres", "ihrem", "ihren",
+    "welcher", "welche", "welches", "welchem", "welchen", "dessen", "deren",
+    "er", "sie", "es", "ihm", "ihn", "ihnen", "sich", "man", "wir", "uns",
+    "in", "im", "ins", "an", "am", "ans", "auf", "aus", "bei", "beim", "mit", "nach", "seit", "von", "vom",
+    "zu", "zum", "zur", "für", "gegen", "um", "durch", "über", "unter", "vor", "wegen", "gemäss", "laut",
+    "bis", "ab", "gegenüber", "hinsichtlich", "bezüglich", "mangels", "aufgrund", "infolge",
+    "und", "sowie", "bzw", "als", "wie", "dass", "weil", "da", "denn",
+    "also", "daher", "deshalb", "somit", "mithin", "folglich", "damit", "dabei", "hierbei", "hierzu", "dazu",
+    "ist", "sind", "war", "waren", "wird", "werden", "wurde", "wurden", "worden", "hat", "haben", "hatte",
+    "hatten", "sei", "seien", "gewesen", "geworden",
+    "auch", "noch", "schon", "bereits", "hier", "dort", "so", "dann", "nun", "ja", "eben", "etwa",
+    "jedenfalls", "zudem", "ferner", "vorliegend", "zunächst", "ebenfalls", "sodann", "hierfür", "dafür",
+})
+# A quote may leave out at most this many content words of the answer.
+_EVIDENCE_MAX_CONTENT_SKIPS = 1
 # Any "un-" form of an adjective ("unzulässig", "unbegründet", "unstreitig",
 # "unmittelbar") flips a result; words with these beginnings only start
 # with "un" ("unter", "unsere", "Universität").
@@ -447,20 +489,52 @@ _ROMAN_NUMERALS = frozenset({
     "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
     "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
 })
-# Edge rules. Right before a matched fragment (same clause) no negation and
-# no word that makes the fragment a question or a condition; right after it
-# (same sentence) no negation, "(-)" or condition.
-_EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit"})
-_EDGE_AFTER_WORDS = frozenset({
-    "nicht", "negativ", "wenn", "sofern", "soweit", "falls", "nie", "niemals", "keineswegs", "keinesfalls",
+# Edge rules (see _edges_ok). Words that make the text after them a question
+# or a condition; words that cast doubt on it; words that open a clause whose
+# content the clause in front of it governs ("Es ist nicht ersichtlich, dass
+# …"); and the conjunctions that end a clause scan.
+_EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit", "inwieweit", "inwiefern"})
+_EDGE_CONDITION_WORDS = frozenset({"wenn", "sofern", "soweit", "falls"})
+_DOUBT_WORDS = frozenset({
+    "fraglich", "zweifelhaft", "unklar", "ungewiss", "problematisch", "streitig", "bestritten", "bestreitet",
+    "bezweifelt", "behauptet",
 })
-_CLAUSE_BREAK_RE = re.compile(r"[.,;:!?]")
-_SENTENCE_BREAK_RE = re.compile(r"[.;:!?]")
+_CONTENT_CLAUSE_OPENERS = frozenset({"dass", "ob", "inwieweit", "inwiefern", "warum", "weshalb", "wieso"})
+# Subordinating conjunctions: they open a clause of their own, so a scan
+# around a match stops at them.
+_SUBORDINATORS = _CONTENT_CLAUSE_OPENERS | {
+    "weil", "denn", "obwohl", "obgleich", "nachdem", "bevor", "sodass", "indem", "wodurch", "wobei",
+}
+_COORDINATORS = frozenset({"und", "oder", "sowie", "bzw", "aber", "sondern", "doch", "jedoch", "allerdings"})
+# "ohne Weiteres" and "ohne Zweifel" affirm what comes before them.
+_AFFIRMING_AFTER_OHNE = frozenset({"weiteres", "zweifel"})
+# The scan after a match ends at the clause's verb: a negation behind it
+# belongs to that verb, not to the quoted words in front of it ("[Der
+# Anspruch des K] besteht nicht" leaves the quoted noun phrase intact).
+_PREDICATE_WORDS = frozenset({
+    "ist", "sind", "war", "waren", "wird", "werden", "wurde", "wurden", "hat", "haben", "hatte", "hatten",
+    "sei", "seien", "wäre", "wären", "hätte", "hätten", "kann", "können", "konnte", "konnten", "könnte",
+    "könnten", "muss", "müssen", "musste", "mussten", "müsste", "soll", "sollen", "sollte", "darf", "dürfen",
+    "durfte", "liegt", "liegen", "lag", "lagen", "greift", "greifen", "kommt", "kommen", "scheidet",
+    "scheiden", "gilt", "gelten", "steht", "stehen", "handelt", "reicht", "genügt", "trifft", "folgt",
+    "ergibt",
+})
+# A blank line: the scans around a match stop there, so a heading ("Keine
+# Einwilligung") does not govern the paragraph below it.
+_PARAGRAPH_BREAK_RE = re.compile(r"\n\s*\n")
 # Norm citations: a fragment made only of these (plus digits, Roman numerals
 # and single letters) is a citation, not a quote of the step's reasoning.
 _CITATION_WORDS = frozenset({
     "art", "artt", "abs", "nr", "nrn", "lit", "satz", "alt", "var", "hs", "halbs", "buchst", "ivm", "ff",
     "rn", "rdnr",
+})
+# Words that only connect a citation ("gem. § 433 BGB", "nach § 40 VwGO",
+# "§ 280 BGB i.V.m. § 241 BGB", "im Sinne des § 145 BGB"). A fragment made of
+# citation tokens and these is still only a citation.
+_CITATION_CONNECTORS = frozenset({
+    "gem", "gemäss", "nach", "aus", "in", "im", "isd", "isv", "verbindung", "mit", "sinne", "des", "der",
+    "den", "dem", "von", "vom", "und", "sowie", "bzw", "oder", "vgl", "siehe", "analog", "entspr",
+    "entsprechend", "zu", "zum", "zur", "bis",
 })
 # Law abbreviations keep their capitals: VwGO, GG, BGB, BayVwVfG, StPO.
 _LAW_ABBREVIATION_RE = re.compile(r"[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]{1,11}")
@@ -490,6 +564,7 @@ def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     (``1\\.``), footnote references (``[4]``) and emphasis/heading markers
     removed, inline HTML (Word bookmark anchors) dropped, quotes/dashes
     unified, ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
+    a split "un-" joined to its word ("un- zulässig" is "unzulässig"),
     casefolded (unless ``casefold`` is False), whitespace collapsed.
     """
     t = unicodedata.normalize("NFKC", text or "")
@@ -502,7 +577,8 @@ def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     t = _MARKDOWN_MARKER_RE.sub(" ", t)
     if casefold:
         t = t.casefold()
-    return re.sub(r"\s+", " ", t).strip()
+    t = re.sub(r"\s+", " ", t).strip()
+    return _UN_SPLIT_RE.sub(r"\1", t)
 
 
 def _is_negation(token: str) -> bool:
@@ -519,15 +595,25 @@ def _has_digit(token: str) -> bool:
     return any(ch.isdigit() for ch in token)
 
 
+def _is_function_word(token: str) -> bool:
+    """An article, pronoun, simple preposition, auxiliary or filler word
+    (:data:`_FUNCTION_WORDS`) that is not protected."""
+    return token in _FUNCTION_WORDS and not _is_protected(token)
+
+
 @functools.lru_cache(maxsize=65536)
 def _is_protected(token: str) -> bool:
-    """Tokens a quote may not drop, add, swap or step over: polarity, result
-    and antonym words (every "un-" form, rechtmäßig/rechtswidrig, bejaht/
-    verneint, erforderlich/entbehrlich, gegeben/besteht/fehlt, jemand/
-    niemand, stets), qualifiers (nur, teilweise, formell, materiell, kaum,
-    allenfalls, insoweit), Roman numerals I-XX and every token with a digit."""
+    """Tokens a quote may not drop, add, swap or step over: polarity (every
+    "nicht…" and "kein…" form, a bare "un"), result and antonym words (every
+    "un-" form, rechtmäßig/rechtswidrig, bejaht/verneint, erforderlich/
+    entbehrlich, gegeben/besteht/fehlt, richtig/falsch, wirksam, vorsätzlich/
+    fahrlässig, jemand/niemand, stets), qualifiers and hedges (nur,
+    teilweise, formell, materiell, kaum, allenfalls, insoweit, vermeintlich,
+    mutmaßlich, fraglich), Roman numerals I-XX and every token with a digit."""
     return (
         _is_polarity(token)
+        or token.startswith("nicht")
+        or token == "un"
         or _has_digit(token)
         or token in _QUALIFIER_TOKENS
         or token in _ROMAN_NUMERALS
@@ -544,22 +630,38 @@ def _is_inflection(a: str, b: str) -> bool:
 
 
 def _is_transposition(a: str, b: str) -> bool:
-    """Equal but for two neighbouring characters swapped ("nciht", "nicht")."""
+    """Equal but for two neighbouring characters swapped ("nciht", "nicht").
+    The first letter stays."""
     if len(a) != len(b):
         return False
     diff = [i for i in range(len(a)) if a[i] != b[i]]
-    return len(diff) == 2 and diff[1] == diff[0] + 1 and a[diff[0]] == b[diff[1]] and a[diff[1]] == b[diff[0]]
+    return (
+        len(diff) == 2
+        and diff[0] > 0
+        and diff[1] == diff[0] + 1
+        and a[diff[0]] == b[diff[1]]
+        and a[diff[1]] == b[diff[0]]
+    )
 
 
-def _within_one_edit(a: str, b: str) -> bool:
-    """Levenshtein distance at most 1, or one transposition."""
-    if abs(len(a) - len(b)) > 1:
+_UMLAUTS = frozenset("äöü")
+
+
+def _is_typo(a: str, b: str) -> bool:
+    """One edit or one transposition that keeps the first letter and adds,
+    removes or swaps no umlaut: "verlezt" / "verletzt" are a typo;
+    "nichtig" / "richtig" (first letter) and "hatte" / "hätte" (umlaut) are
+    different words."""
+    if not a or not b or a[0] != b[0] or abs(len(a) - len(b)) > 1:
         return False
     if len(a) == len(b):
-        return sum(x != y for x, y in zip(a, b)) <= 1 or _is_transposition(a, b)
+        diff = [i for i in range(len(a)) if a[i] != b[i]]
+        if len(diff) == 1:
+            return a[diff[0]] not in _UMLAUTS and b[diff[0]] not in _UMLAUTS
+        return _is_transposition(a, b)
     short, long_ = (a, b) if len(a) < len(b) else (b, a)
     i = next((k for k in range(len(short)) if short[k] != long_[k]), len(short))
-    return short[i:] == long_[i + 1:]
+    return short[i:] == long_[i + 1:] and long_[i] not in _UMLAUTS
 
 
 def _tokens_match(quoted: str, answer: str) -> bool:
@@ -567,25 +669,30 @@ def _tokens_match(quoted: str, answer: str) -> bool:
 
     ``rechtsweg`` / ``rechtswegs`` match; different words do not. Numbers
     only match exactly ("1000" is not "10000"). A protected token only
-    matches the same word ("nichtig" is not "nicht", "unzulässig" is not
-    "zulässig"); the one exception is a typo with two letters swapped
+    matches the same word or an inflection of it ("unzulässig" /
+    "unzulässige"; never "nicht" / "nichtig", "unzulässig" / "zulässig" or
+    "nichtig" / "richtig"); the one typo allowed is two letters swapped
     ("nciht" / "nicht"), which never spells another word. Other words of at
-    least :data:`EVIDENCE_TYPO_MIN_CHARS` characters may differ by one edit.
+    least :data:`EVIDENCE_TYPO_MIN_CHARS` characters may carry a typo
+    (:func:`_is_typo`).
     """
     if quoted == answer:
         return True
     if _has_digit(quoted) or _has_digit(answer):
         return False
+    long_enough = min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS
     protected_quote, protected_answer = _is_protected(quoted), _is_protected(answer)
-    if protected_quote != protected_answer:
-        return min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS and _is_transposition(quoted, answer)
-    if _is_inflection(quoted, answer):
-        return True
-    return (
-        not protected_quote
-        and min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS
-        and _within_one_edit(quoted, answer)
-    )
+    if protected_quote or protected_answer:
+        if long_enough and _is_transposition(quoted, answer):
+            return True
+        return (
+            protected_quote
+            and protected_answer
+            and quoted not in _NEGATION_TOKENS
+            and answer not in _NEGATION_TOKENS
+            and _is_inflection(quoted, answer)
+        )
+    return _is_inflection(quoted, answer) or (long_enough and _is_typo(quoted, answer))
 
 
 class EvidenceIndex:
@@ -600,46 +707,237 @@ class EvidenceIndex:
         # Position in ``text`` of every character of ``compact``.
         self.compact_pos = [m.start() for m in _COMPACT_CHAR_RE.finditer(self.text)]
         self.compact = "".join(self.text[i] for i in self.compact_pos)
+        # Indices of the tokens that open a paragraph after a blank line. Left
+        # empty when the paragraphs do not line up with the tokens (a word
+        # joined across the break), so the edge scans then run on.
+        self.paragraph_starts: set = set()
+        paragraphs = _PARAGRAPH_BREAK_RE.split(answer or "")
+        if len(paragraphs) > 1:
+            counts = [len(_WORD_RE.findall(_normalize_evidence_text(p))) for p in paragraphs]
+            if sum(counts) == len(self.tokens):
+                total = 0
+                for count in counts[:-1]:
+                    total += count
+                    self.paragraph_starts.add(total)
+
+
+def _is_abbreviation_token(token: str) -> bool:
+    """A word a period after which is an abbreviation mark, not the end of a
+    sentence: a known abbreviation ("gem", "Abs", "vgl"), a single letter
+    ("S", "K", the parts of "i.V.m."), a number or a Roman numeral."""
+    folded = token.casefold()
+    return (
+        (len(folded) == 1 and folded.isalpha())
+        or folded in _ABBREVIATIONS
+        or _has_digit(folded)
+        or folded in _ROMAN_NUMERALS
+    )
+
+
+def _period_ends_sentence(text: str, dot: int) -> bool:
+    """Does the period at ``text[dot]`` end a sentence? Not after an
+    abbreviation (:func:`_is_abbreviation_token`), and not before a "§" or a
+    lowercase word ("entspr. der Regel", "gem. § 42"), unless that word is a
+    list label ("… liegt vor. b) Subjektiver Tatbestand")."""
+    word = re.search(r"\w+$", text[:dot])
+    if word and _is_abbreviation_token(word.group(0)):
+        return False
+    following = re.match(r"\s*(§|\w+\)?)", text[dot + 1 :])
+    if not following:
+        return True
+    head = following.group(1)
+    return not (head == "§" or (head[0].islower() and not head.endswith(")")))
+
+
+def _split_sentences(text: str) -> List[str]:
+    """``text`` cut after every ``.``, ``!``, ``?``, ``:`` and ``;`` that is
+    followed by whitespace, except a period that does not end a sentence
+    (:func:`_period_ends_sentence`). Each piece keeps its punctuation."""
+    pieces: List[str] = []
+    last = 0
+    for m in _SENTENCE_BREAK_CANDIDATE_RE.finditer(text):
+        if m.group(1) == "." and not _period_ends_sentence(text, m.start()):
+            continue
+        pieces.append(text[last : m.start() + 1])
+        last = m.end()
+    pieces.append(text[last:])
+    return pieces
+
+
+def _gap_level(index: "EvidenceIndex", before: int, gap_start: int, gap_end: int) -> int:
+    """How strongly ``text[gap_start:gap_end]`` separates the words around
+    it: 2 for a sentence break (``;``, ``:``, ``!``, ``?``, an ellipsis or a
+    period that is no abbreviation mark after token ``before``), 1 for a
+    comma, 0 for none."""
+    gap = index.text[gap_start:gap_end]
+    if any(ch in gap for ch in ";:!?") or "..." in gap:
+        return 2
+    if "." in gap and not (0 <= before < len(index.tokens) and _is_abbreviation_token(index.tokens[before])):
+        return 2
+    return 1 if "," in gap else 0
+
+
+def _turns_round_after(index: "EvidenceIndex", j: int) -> bool:
+    """Does token ``j``, standing after a match, negate or condition it? A
+    negation (but not "ohne Weiteres" or "ohne Zweifel"), "(-)" or a
+    condition word."""
+    token = index.tokens[j]
+    if token == "ohne" and j + 1 < len(index.tokens) and index.tokens[j + 1] in _AFFIRMING_AFTER_OHNE:
+        return False
+    return _is_negation(token) or token == "negativ" or token in _EDGE_CONDITION_WORDS
+
+
+def _turns_round_before(token: str) -> bool:
+    """A negation, a question or condition word, or a doubt word."""
+    return _is_negation(token) or token in _EDGE_BEFORE_WORDS or token in _DOUBT_WORDS
+
+
+def _clause_start_before(index: EvidenceIndex, first: int, start: int) -> Optional[int]:
+    """Scan back from token ``first`` (the last token before text offset
+    ``start``) to the start of its clause and return the index of the
+    clause's first token. A comma, a sentence break, a blank line, a result
+    mark or a coordinating conjunction ends the scan in front of the clause;
+    a subordinating conjunction ("dass", "weil") is the clause's first token.
+    Returns None when a scanned token turns the text after it round."""
+    tokens = index.tokens
+    k, gap_end = first, start
+    while k >= 0 and not _gap_level(index, k, index.ends[k], gap_end) and (k + 1) not in index.paragraph_starts:
+        token = tokens[k]
+        if token in _RESULT_MARK_TOKENS or token in _COORDINATORS:
+            break
+        if _turns_round_before(token):
+            return None
+        if token in _SUBORDINATORS:
+            return k
+        gap_end = index.starts[k]
+        k -= 1
+    return k + 1
+
+
+def _governing_clause_ok(index: EvidenceIndex, opener: int, match_first: int) -> bool:
+    """A clause opened by "dass", "ob" or a similar word states what the
+    clause in front of it says about it: "Es ist nicht ersichtlich, dass …"
+    denies it, "Fraglich ist, ob …" asks. That clause (back to its own
+    start) may hold no negation, question, condition or doubt word. A quote
+    that itself starts with a question word ("ob der Verkäufer …") keeps the
+    question and passes."""
+    tokens = index.tokens
+    if not (0 < opener < len(tokens)) or tokens[opener] not in _CONTENT_CLAUSE_OPENERS:
+        return True
+    if opener == match_first and tokens[opener] != "dass":
+        return True
+    if opener in index.paragraph_starts:
+        return True
+    if _gap_level(index, opener - 1, index.ends[opener - 1], index.starts[opener]) > 1:
+        return True
+    k = opener - 1
+    while k >= 0:
+        if _turns_round_before(tokens[k]):
+            return False
+        if k == 0 or k in index.paragraph_starts or _gap_level(index, k - 1, index.ends[k - 1], index.starts[k]):
+            return True
+        k -= 1
+    return True
 
 
 def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
     """The answer around a match at ``text[start:end]`` does not turn it round.
 
-    Rejected: a negation, "ob", "wenn", "falls", "sofern" or "soweit" right
-    before the match in the same clause ("Fraglich ist, ob [die Klage
-    zulässig ist]", "kein [Anspruch auf …]"), and a negation, "(-)" or a
-    condition right after it in the same sentence ("[Der Anspruch besteht]
-    nicht", "[Die Klage ist begründet], soweit …"). A result mark before the
-    match belongs to the text in front of it and does not count.
+    Before the match: no negation, question or condition word ("ob",
+    "wenn", "inwieweit" …) or doubt word ("fraglich", "zweifelhaft",
+    "bestritten" …) back to the start of its clause (see
+    :func:`_clause_start_before`). So "kein [Anspruch auf …]" and
+    "Fraglich ist, ob der [Verkäufer …]" fail. When the clause opens with
+    "dass", "ob" or a similar word after a comma, the clause in front of it
+    is read the same way: "Es ist nicht ersichtlich, [dass der Verkäufer …]"
+    fails.
+
+    After the match: no negation, "(-)" or condition as the next word in the
+    same sentence ("[Der Anspruch besteht] nicht", "[Die Klage ist
+    begründet], soweit …", "[… hat der Käufer] keinen"), and none in the
+    rest of its clause up to the clause's verb ("[Ein Anspruch besteht]
+    daher nicht"; but "[Der Anspruch des K] besteht nicht" keeps the noun
+    phrase). A coordinating or subordinating conjunction ("und", "weil") also
+    ends that scan. A match that ends with a result mark or a subordinating
+    conjunction closes its own clause.
+
+    The word right next to the match counts even across a blank line (a
+    hard page break must not hide a "nicht"); the scans beyond it stop at
+    blank lines, so a heading does not govern the paragraph below it. A
+    result mark before the match belongs to the text in front of it and
+    does not count. A period after an abbreviation ("gem.", "Abs.") is no
+    break.
     """
+    tokens = index.tokens
     i = bisect.bisect_right(index.ends, start) - 1
-    if i >= 0:
-        before = index.tokens[i]
-        if (_is_negation(before) or before in _EDGE_BEFORE_WORDS) and not _CLAUSE_BREAK_RE.search(
-            index.text, index.ends[i], start
-        ):
+    if i >= 0 and not _gap_level(index, i, index.ends[i], start):
+        if tokens[i] not in _RESULT_MARK_TOKENS and _turns_round_before(tokens[i]):
             return False
+    opener = _clause_start_before(index, i, start)
+    if opener is None or not _governing_clause_ok(index, opener, i + 1):
+        return False
+
     j = bisect.bisect_left(index.starts, end)
-    if j < len(index.tokens):
-        if index.tokens[j] in _EDGE_AFTER_WORDS and not _SENTENCE_BREAK_RE.search(index.text, end, index.starts[j]):
+    if j >= len(tokens):
+        return True
+    if j > 0 and tokens[j - 1] in _SUBORDINATORS:
+        return True  # the words after it belong to the clause it opens
+    level = _gap_level(index, j - 1, end, index.starts[j])
+    if level < 2 and _turns_round_after(index, j):
+        return False
+    if j > 0 and tokens[j - 1] in _RESULT_MARK_TOKENS:
+        return True
+    while level == 0 and j not in index.paragraph_starts:
+        token = tokens[j]
+        if (
+            token in _COORDINATORS
+            or token in _SUBORDINATORS
+            or token in _PREDICATE_WORDS
+            or _RESULT_WORD_RE.fullmatch(token)
+        ):
+            break
+        if _turns_round_after(index, j):
             return False
+        j += 1
+        if j >= len(tokens):
+            break
+        level = _gap_level(index, j - 1, index.ends[j - 1], index.starts[j])
     return True
+
+
+def _clause_starts_at(index: EvidenceIndex, start: int) -> bool:
+    """Is answer token ``start`` the first word of its clause (or paragraph)?"""
+    return (
+        start == 0
+        or start in index.paragraph_starts
+        or _gap_level(index, start - 1, index.ends[start - 1], index.starts[start]) > 0
+    )
 
 
 def _tokens_in_order(fragment: List[str], index: EvidenceIndex) -> bool:
     """True when the fragment's tokens occur in order in a tight answer window.
 
-    Tolerates punctuation and markup differences (tokens ignore them), up to
-    two skipped answer words between quoted words, and one unmatched quoted
-    word per eight. A paraphrase changes many words and fails.
+    Tolerates punctuation and markup differences (tokens ignore them),
+    inflections and typos (:func:`_tokens_match`), and small omissions and
+    additions:
 
-    Protected tokens (:func:`_is_protected`) are exact: a quoted one is never
-    missed, neither in the middle nor at the start, and one of the answer is
-    never stepped over. A quoted word missed where the answer has a protected
-    token must be followed by a quoted word that lands at or before that
-    token; a quote that ends there fails, and so does one that skips its own
-    first words where the answer has such a token (or a question word). The
-    match must pass :func:`_edges_ok`.
+    - Between two quoted words the answer may have up to two words the quote
+      leaves out. They must be function words (:data:`_FUNCTION_WORDS`),
+      except for one content word per quote. A protected answer word
+      (:func:`_is_protected`) or a question or condition word is never
+      stepped over.
+    - The quote may add one function word per eight words that the answer
+      lacks, also at its start when the match starts a clause of the answer.
+      It never adds a content word or a protected word, and never ends with
+      an added word.
+    - A word the quote adds where the answer has a word the quote leaves out
+      is a substitution ("Berechtigter" for "Nichtberechtigter", "fahrlässig"
+      for "vorsätzlich") and fails.
+    - A protected quoted word must be the very next answer word: nothing may
+      be stepped over in front of it, so a moved "nicht" fails.
+
+    A paraphrase changes many words and fails. The match must pass
+    :func:`_edges_ok`.
     """
     answer = index.tokens
     n = len(fragment)
@@ -649,44 +947,54 @@ def _tokens_in_order(fragment: List[str], index: EvidenceIndex) -> bool:
     window = n + max(2, n // 4)
     max_step = 3
     for first in range(min(allowed_misses, n - 1) + 1):
-        if any(_is_protected(t) for t in fragment[:first]):
+        if not all(_is_function_word(t) for t in fragment[:first]):
             break
         for start, token in enumerate(answer):
             if not _tokens_match(fragment[first], token):
                 continue
-            # A quote that leaves out its own first words stands for the answer
-            # words in front of the match: none of them may be protected or a
-            # question word, and the edge rules apply in front of them.
-            lead = max(0, start - first)
-            if any(_is_protected(t) or t in _EDGE_BEFORE_WORDS for t in answer[lead:start]):
+            # Words the quote adds in front of the match are an addition only
+            # where the answer's clause starts; otherwise they stand in for
+            # the answer's words in front of the match.
+            if first and not _clause_starts_at(index, start):
                 continue
             misses = first
+            content_skips = 0
             pos = start + 1
+            gap_missed = False
             ok = True
-            blocked = False
             for quoted in fragment[first + 1 :]:
                 found = None
-                stopped = False
-                for p in range(pos, min(pos + max_step, len(answer))):
-                    if _tokens_match(quoted, answer[p]):
-                        found = p
-                        break
-                    if _is_protected(answer[p]):
-                        stopped = True
-                        break
+                if _is_protected(quoted):
+                    if pos < len(answer) and _tokens_match(quoted, answer[pos]):
+                        found = pos
+                else:
+                    for p in range(pos, min(pos + max_step, len(answer))):
+                        if _tokens_match(quoted, answer[p]):
+                            found = p
+                            break
+                        if _is_protected(answer[p]) or answer[p] in _EDGE_BEFORE_WORDS:
+                            break
                 if found is None:
                     misses += 1
-                    if _is_protected(quoted) or misses > allowed_misses:
+                    if not _is_function_word(quoted) or misses > allowed_misses:
                         ok = False
                         break
-                    blocked = blocked or stopped
-                else:
-                    pos = found + 1
-                    blocked = False
+                    gap_missed = True
+                    continue
+                skipped = answer[pos:found]
+                if skipped and gap_missed:
+                    ok = False  # a substitution
+                    break
+                content_skips += sum(not _is_function_word(t) for t in skipped)
+                if content_skips > _EVIDENCE_MAX_CONTENT_SKIPS:
+                    ok = False
+                    break
+                pos = found + 1
+                gap_missed = False
                 if pos - start > window:
                     ok = False
                     break
-            if ok and not blocked and _edges_ok(index, index.starts[lead], index.ends[pos - 1]):
+            if ok and not gap_missed and _edges_ok(index, index.starts[start], index.ends[pos - 1]):
                 return True
     return False
 
@@ -705,14 +1013,20 @@ def _is_citation_token(token: str) -> bool:
 
 def _fragment_is_quotable(tokens: List[str], cased: Optional[List[str]] = None) -> bool:
     """Long enough to be a quote rather than a keyword (see the constants),
-    and more than a norm citation: at least one token outside the citation
-    ("nach § 40 I 1 VwGO" is a quote, "§ 40 I 1 VwGO" is not). ``cased`` are
-    the same tokens with their case, for the law abbreviations."""
+    and more than a norm citation: at least one token that is neither part
+    of the citation nor a word that only connects it
+    (:data:`_CITATION_CONNECTORS`).
+    "nach § 40 I 1 VwGO als Leistungsklage statthaft" is a quote; "§ 40 I 1
+    VwGO", "nach § 40 I 1 VwGO" and "gem. § 280 BGB i.V.m. § 241 BGB" are
+    not. ``cased`` are the same tokens with their case, for the law
+    abbreviations."""
     if len(tokens) < EVIDENCE_MIN_TOKENS and not (
         len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
     ):
         return False
-    return not all(_is_citation_token(t) for t in (cased or tokens))
+    return not all(
+        _is_citation_token(t) or t.casefold() in _CITATION_CONNECTORS for t in (cased or tokens)
+    )
 
 
 def _cased_tokens(cased_text: str, tokens: List[str]) -> Optional[List[str]]:
@@ -747,10 +1061,10 @@ def _ends_protected(part: str, tokens: List[str]) -> bool:
 
 def _text_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
     """A substring match starts on a word boundary ("zulässig" is not in
-    "unzulässig", "Störer" not in "Nichtstörer"), cuts no number, ends on a
-    word boundary when the quote ends with a protected token ("§ 80" is not
-    "§ 80a", "Art. 8 I" not "Art. 8 II", "nicht" not "nichtig"), and passes
-    :func:`_edges_ok`."""
+    "unzulässig", "Berechtigter" not in "Nichtberechtigter"), cuts no number,
+    ends on a word boundary when the quote ends with a protected token ("§ 80"
+    is not "§ 80a", "Art. 8 I" not "Art. 8 II", "nicht" not "nichtig"), and
+    passes :func:`_edges_ok`."""
     text = index.text
     if start and text[start - 1].isalnum():
         return False
@@ -763,15 +1077,29 @@ def _text_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens
     return _edges_ok(index, start, end)
 
 
+_THOUSANDS_RE = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?")
+
+
+def _number_tokens(tokens: List[str]) -> List[str]:
+    """The numbers among ``tokens``, thousands dots dropped ("10.000" is
+    "10000"; "10,5" stays "10,5")."""
+    return [t.replace(".", "") if _THOUSANDS_RE.fullmatch(t) else t for t in tokens if _has_digit(t)]
+
+
 def _compact_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
-    """Digit boundaries in the compact text, then the substring rules on the
-    matched span of the answer text."""
+    """Digit boundaries in the compact text, the same numbers in the same
+    order in the matched span ("10,5" is not "105", "§§ 1, 2" is not
+    "§ 12"), then the substring rules on the matched span of the answer
+    text."""
     compact = index.compact
     if compact[start].isdigit() and start and compact[start - 1].isdigit():
         return False
     if compact[end - 1].isdigit() and end < len(compact) and compact[end].isdigit():
         return False
-    return _text_match_ok(index, index.compact_pos[start], index.compact_pos[end - 1] + 1, part, tokens)
+    text_start, text_end = index.compact_pos[start], index.compact_pos[end - 1] + 1
+    if _number_tokens(_WORD_RE.findall(index.text[text_start:text_end])) != _number_tokens(tokens):
+        return False
+    return _text_match_ok(index, text_start, text_end, part, tokens)
 
 
 def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> bool:
@@ -800,16 +1128,17 @@ def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> b
 
 def _stitched_fragment_in_answer(cased_part: str, index: EvidenceIndex) -> bool:
     """A fragment that is not one passage of the answer may be several
-    passages glued together without an ellipsis. It is split into sentences,
-    and every piece must be quotable on its own and in the answer. A piece
-    too short to be a quote ("VwGO.", "Kein Anspruch.", "§ 40 VwGO.", or
-    "2 S." out of "Abs. 2 S. 1") is glued back to its neighbour, separator
-    included, and the glued text must be in the answer. So a keyword cannot
-    ride along with a real sentence, and an invented sentence fails the
-    whole quote. ``cased_part`` is the normalized fragment before
-    casefolding."""
+    passages glued together without an ellipsis. It is split into sentences
+    (:func:`_split_sentences`: never after an abbreviation, so "Der Käufer
+    ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt" stays one piece), and
+    every piece must be quotable on its own and in the answer. A piece too
+    short to be a quote ("VwGO.", "Kein Anspruch.", "§ 40 VwGO.") is glued
+    back to its neighbour, separator included, and the glued text must be in
+    the answer. So a keyword cannot ride along with a real sentence, and an
+    invented sentence fails the whole quote. ``cased_part`` is the
+    normalized fragment before casefolding."""
     pieces: List[str] = []
-    for piece in _SENTENCE_SPLIT_RE.split(cased_part):
+    for piece in _split_sentences(cased_part):
         if _WORD_RE.search(piece) or not pieces:
             pieces.append(piece)
         else:
