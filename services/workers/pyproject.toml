@@ -29,7 +29,7 @@ dependencies = [
     "celery==5.6.3",
     "redis>=6.4.0,<6.5.0",  # kombu 5.6 caps redis at <6.5
     "cryptography>=46.0.0,<51.0.0",  # bounds aligned with api
-    "PyJWT[crypto]>=2.8.0,<2.14.0",  # bounds aligned with api; LTI 1.3 AGS token client (extended workers)
+    "PyJWT[crypto]>=2.8.0,<2.15.0",  # bounds aligned with api; LTI 1.3 AGS token client (extended workers)
     "psycopg2-binary>=2.9.10",
     "sqlalchemy>=2.0.49",
     "python-dotenv==1.2.3",
