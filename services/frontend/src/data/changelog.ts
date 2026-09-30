@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-09-30',
     audience: 'both',
     text: {
+      de: 'Wer sich selbst registriert, während eine Einladung an dieselbe Adresse offen ist, tritt der einladenden Organisation jetzt auch bei, wenn die Adresse von einer Administration bestätigt oder über „Passwort vergessen“ bzw. die Kontoaktivierung nachgewiesen wird. Bisher klappte das nur über den Bestätigungslink. Einladungen lassen sich außerdem annehmen, wenn die Adresse in anderer Groß- und Kleinschreibung eingetragen wurde.',
+      en: 'If you sign up yourself while an invitation to the same address is open, you now also join the inviting organization when an administrator verifies your address or you prove it via “Forgot password” or account activation. Until now this only worked through the verification link. Invitations can also be accepted when the address was entered in different upper and lower case.',
+    },
+  },
+  {
+    date: '2026-09-30',
+    audience: 'both',
+    text: {
       de: 'Kann die Plattform beim Start aus Moodle oder ILIAS die Schlüssel der Lernplattform nicht laden, etwa weil eine Firewall sie nicht durchlässt, zeigt die Fehlerseite jetzt den eigenen Code jwks_unreachable. Bisher erschien dafür invalid_token, obwohl die Tool-Einstellungen oft richtig waren. Die Hilfe nennt, welche Adressen die Administration der Lernplattform freigeben muss.',
       en: 'When the platform cannot load the keys of the learning platform during a launch from Moodle or ILIAS, for example because a firewall blocks it, the error page now shows its own code jwks_unreachable. Until now this appeared as invalid_token, although the tool settings were often correct. The help names the addresses the learning platform administration has to open.',
     },

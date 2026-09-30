@@ -380,6 +380,30 @@ async def add_user_to_organization(
 
     return {"message": "User added to organization successfully"}
 
+async def _accept_verified_users_invitations(
+    db: AsyncSession, users, current_user, organization_id: str
+) -> None:
+    """Join the verified users to the orgs that invited their address.
+
+    Someone who signs up on their own while an invitation to the same address
+    is open only joins that org when they click their verification link; an
+    admin verifying them instead must do the same. An org admin vouches for
+    the address within their own org only, so only its invitations count;
+    a superadmin's verification accepts all of them.
+    """
+    from auth_module.email_verification import email_verification_service
+
+    scope = None if current_user.is_superadmin else organization_id
+
+    def _run(sync_db):
+        for user in users:
+            email_verification_service.accept_pending_invitations(
+                sync_db, user, scope, admin_vouched=True
+            )
+
+    await db.run_sync(_run)
+
+
 @router.post("/{organization_id}/members/{user_id}/verify-email")
 async def verify_member_email(
     organization_id: str,
@@ -463,6 +487,9 @@ async def verify_member_email(
     user_to_verify.email_verification_sent_at = None
 
     await db.commit()
+    await _accept_verified_users_invitations(
+        db, [user_to_verify], current_user, organization_id
+    )
 
     # Log the action (could be extended to a proper audit log)
     import logging
@@ -509,6 +536,7 @@ async def bulk_verify_member_emails(
         )
 
     results = []
+    verified_users = []
     success_count = 0
     skip_count = 0
     error_count = 0
@@ -589,6 +617,7 @@ async def bulk_verify_member_emails(
         # Clear verification token if present
         user_to_verify.email_verification_token = None
         user_to_verify.email_verification_sent_at = None
+        verified_users.append(user_to_verify)
 
         results.append(
             {
@@ -602,6 +631,9 @@ async def bulk_verify_member_emails(
 
     # Commit all changes at once for better performance
     await db.commit()
+    await _accept_verified_users_invitations(
+        db, verified_users, current_user, organization_id
+    )
 
     # Log the bulk action
     import logging

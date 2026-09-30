@@ -159,5 +159,10 @@ async def activate_account(
     user.password_reset_expires = None
     db.commit()
 
+    # A now-proven address joins the orgs whose invitations to it are open.
+    from auth_module.email_verification import email_verification_service
+
+    email_verification_service.accept_pending_invitations(db, user)
+
     logger.info(f"Account activated for user {user.id}")
     return {"message": "Account activated"}

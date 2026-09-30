@@ -802,7 +802,7 @@ async def accept_invitation(
         )
 
     # Check if the current user's email matches the invitation
-    if current_user.email != invitation.email:
+    if (current_user.email or "").strip().lower() != (invitation.email or "").strip().lower():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="This invitation is not for your email address",
