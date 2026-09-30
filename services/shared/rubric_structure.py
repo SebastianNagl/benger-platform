@@ -728,13 +728,19 @@ def render_structure_text(
     return "\n".join(lines)
 
 
-def rubric_prompt_text(rubric: Any, include_grade_scale: bool = False) -> str:
+def rubric_prompt_text(
+    rubric: Any, include_grade_scale: bool = False, project_config: Any = None
+) -> str:
     """Judge-facing text of a rubric row (or row-like object).
 
     Precedence: a pre-rendered ``generation_metadata.rendered_text`` (written
     by the AI generator; carries document-level context the structure cannot)
     → the structure outline → the flat criteria. A malformed structure falls
     through to the flat rendering instead of raising.
+
+    With ``include_grade_scale`` the outline ends in the Notenschlüssel that
+    grades this rubric (``resolve_grade_scale``: the exam's key in
+    ``project_config``, else the rubric's own, else the standard key).
     """
     metadata = getattr(rubric, "generation_metadata", None) or {}
     rendered = metadata.get("rendered_text") if isinstance(metadata, dict) else None
@@ -747,7 +753,7 @@ def rubric_prompt_text(rubric: Any, include_grade_scale: bool = False) -> str:
             return render_structure_text(
                 structure,
                 getattr(rubric, "total_points", None),
-                getattr(rubric, "grade_scale", None),
+                resolve_grade_scale(project_config, rubric),
                 title=getattr(rubric, "title", None),
                 include_grade_scale=include_grade_scale,
             )
@@ -756,16 +762,39 @@ def rubric_prompt_text(rubric: Any, include_grade_scale: bool = False) -> str:
     return render_flat_criteria_text(getattr(rubric, "criteria", None))
 
 
-def mirror_rubric_into_task_data(task: Any, rubric: Any) -> None:
+def _loaded_project_config(task: Any) -> Any:
+    """The task's ``project.evaluation_config`` when the project is already
+    loaded. Never lazy-loads: an async session cannot, mid-request."""
+    try:
+        from sqlalchemy import inspect as sa_inspect
+        from sqlalchemy.orm.base import NO_VALUE
+
+        state = sa_inspect(task, raiseerr=False)
+    except Exception:  # pragma: no cover - SQLAlchemy is always installed
+        state = None
+    if state is None:
+        project = getattr(task, "project", None)
+    else:
+        attr = state.attrs.get("project")
+        project = attr.loaded_value if attr is not None else None
+        if project is NO_VALUE:
+            project = None
+    return getattr(project, "evaluation_config", None)
+
+
+def mirror_rubric_into_task_data(task: Any, rubric: Any, project_config: Any = None) -> None:
     """Mirror the ACTIVE rubric into ``task.data["bewertungsbogen"]``.
 
     The Bewertungsbogen belongs next to Sachverhalt and Musterlösung as
     task-level data (visible on the data page, included in task exports,
     referenceable as ``$bewertungsbogen`` in prompt structures). The
     ``task_rubrics`` row stays the source of truth; this is a synced snapshot
-    of the active rubric's rendering (with the Notenschlüssel). Pass
-    ``rubric=None`` when no active rubric remains to remove the key. Callers
-    must be in a session that will be committed.
+    of the active rubric's rendering with the Notenschlüssel that grades it:
+    the exam's key (``project_config``, the project's ``evaluation_config``;
+    when omitted, taken from ``task.project`` if that is loaded), else the
+    rubric's own, else the standard key. Pass ``rubric=None`` when no active
+    rubric remains to remove the key. Callers must be in a session that will
+    be committed.
     """
     from sqlalchemy.orm.attributes import flag_modified
 
@@ -775,7 +804,11 @@ def mirror_rubric_into_task_data(task: Any, rubric: Any) -> None:
             return
         data.pop("bewertungsbogen", None)
     else:
-        data["bewertungsbogen"] = rubric_prompt_text(rubric, include_grade_scale=True)
+        if project_config is None:
+            project_config = _loaded_project_config(task)
+        data["bewertungsbogen"] = rubric_prompt_text(
+            rubric, include_grade_scale=True, project_config=project_config
+        )
     task.data = data
     flag_modified(task, "data")
 

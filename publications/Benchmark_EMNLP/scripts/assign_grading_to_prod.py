@@ -36,7 +36,6 @@ from typing import Any
 
 from sqlalchemy import create_engine, text
 
-
 DEFAULT_PROJECT_ID = "e529779b-300f-48c0-89cb-90f3f4b72a51"          # Benchathon
 DEFAULT_ASSIGNED_BY = "c137f76b-ac24-4624-a530-b7abd1ed7552"         # Sebastian (superadmin)
 DEFAULT_SOURCE_TAG = "arr_dataset_2026-05-11"
@@ -367,7 +366,7 @@ def main() -> int:
         try:
             ins, skp = execute_inserts(conn, planned, args.project_id, args.assigned_by)
             conn.commit()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - roll back on any failure, then report it
             conn.rollback()
             info(f"  ✗ transaction rolled back: {e}")
             return 1

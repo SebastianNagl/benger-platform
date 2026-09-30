@@ -34,7 +34,7 @@ DEFAULT_LOG = HERE / "data" / "interim" / "judge_run_log.jsonl"
 DEFAULT_PROJECT = "e529779b-300f-48c0-89cb-90f3f4b72a51"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 
 def main() -> int:

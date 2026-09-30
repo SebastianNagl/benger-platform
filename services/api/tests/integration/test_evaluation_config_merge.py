@@ -129,6 +129,21 @@ class TestEvaluationConfigMerge:
         assert "defaults_mode" not in stored
         assert stored["default_temperature"] == 0.2
 
+    @pytest.mark.parametrize("stored_config", [{}, {"runs_per_task": 3}])
+    def test_put_null_runs_per_task_deletes_it(
+        self, client, test_db, test_users, auth_headers, test_org, stored_config
+    ):
+        """A null deletes like every other null of the merge, also on an
+        empty document, and is never stored as null."""
+        project = _seed_project(test_db, test_users, test_org, dict(stored_config))
+        resp = client.put(
+            f"{BASE}/projects/{project.id}/evaluation-config",
+            json={"runs_per_task": None},
+            headers=self._headers(auth_headers, test_org),
+        )
+        assert resp.status_code == 200, resp.text
+        assert "runs_per_task" not in _stored_config(test_db, project.id)
+
     def test_put_full_doc_on_empty_stored_config(
         self, client, test_db, test_users, auth_headers, test_org
     ):

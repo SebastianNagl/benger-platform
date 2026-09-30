@@ -14,7 +14,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
@@ -37,7 +37,7 @@ def main() -> int:
         "source_repo": "benger-extended",
         "source_path": str(SOURCE.relative_to(EXTENDED_REPO)),
         "source_commit": commit,
-        "retrieved": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "retrieved": datetime.now(UTC).isoformat(timespec="seconds"),
         "system_prompt": mod.FALLOESUNG_SYSTEM_PROMPT,
         "prompt_template": mod.FALLOESUNG_PROMPT_TEMPLATE,
         "template_slots": ["context", "ground_truth", "prediction"],

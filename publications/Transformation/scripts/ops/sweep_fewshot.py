@@ -23,12 +23,14 @@ Usage: uv run python scripts/ops/sweep_fewshot.py [--generators a,b] [--tasks id
 from __future__ import annotations
 
 import argparse
+import contextlib
+import http.client
 import http.cookiejar
 import json
 import os
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
@@ -69,12 +71,10 @@ def _request(opener, method, path, payload=None, retries=5):
         except urllib.error.HTTPError as exc:
             last = exc
             if exc.code in (401, 403):
-                try:
+                with contextlib.suppress(OSError, http.client.HTTPException, ValueError):
                     _login(opener)
-                except Exception:
-                    pass
             time.sleep(5 * (attempt + 1))
-        except Exception as exc:
+        except (OSError, http.client.HTTPException, ValueError) as exc:
             last = exc
             time.sleep(5 * (attempt + 1))
     raise last
@@ -87,7 +87,7 @@ def _login(opener):
 
 def _log_row(row):
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    row["ts"] = datetime.now(timezone.utc).isoformat()
+    row["ts"] = datetime.now(UTC).isoformat()
     row["prompt_key"] = PROMPT_KEY
     with LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -118,7 +118,7 @@ def _dispatch_and_poll(opener, generator, task_id):
         try:
             status = _request(opener, "GET",
                               f"/api/projects/{PROJECT_ID}/bewertungsbogen/status/{celery_id}")
-        except Exception as exc:
+        except (OSError, http.client.HTTPException, ValueError) as exc:
             print(f"  poll error {task_id[:8]}: {exc}", flush=True)
             continue
         state = status.get("status")

@@ -38,8 +38,8 @@ PROCESSED = HERE / "data" / "processed"
 ASSETS = HERE / "assets"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import REAL, humans_by_solution, load_json  # noqa: E402
-from derive_paper_exports import (  # noqa: E402
+from compute_agreement import REAL, humans_by_solution, load_json
+from derive_paper_exports import (
     CONFIG_A_GPT54MINI_FIELD_PREFIX,
     CONFIG_B_FIELD_PREFIX,
     CONFIG_DEEPSEEK_FIELD_PREFIX,
@@ -270,7 +270,7 @@ def main():
     # GPT-5.4-mini run via BASELINE_JUDGE_FIELD_PREFIX). For LLM picks, use
     # benchathon_model_evaluations.json which is regenerated against the new
     # baseline by derive_paper_exports.py.
-    from compute_agreement import index_judge_on_humans  # noqa: E402
+    from compute_agreement import index_judge_on_humans
     baseline_idx_h = index_judge_on_humans(real)
     baseline_by_sol_h = {k: float(v["raw_score"]) for k, v in baseline_idx_h.items()
                          if v.get("raw_score") is not None}

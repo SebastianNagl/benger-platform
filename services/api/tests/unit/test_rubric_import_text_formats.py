@@ -28,11 +28,11 @@ def _steps(result):
 
 CSV_SHEET = (
     "Prüfungsschritt;max. BE\n"
-    "Frage 1: Klage des H;\n"
-    "A. Zulässigkeit;\n"
-    "I. Eröffnung des Verwaltungsrechtswegs;1\n"
-    "II. Statthafte Klageart;2,5\n"
-    "b) Sperrwirkung (Schwerpunkt!);6\n"
+    "Frage 1: Anspruch des K;\n"
+    "A. Anspruch entstanden;\n"
+    "I. Einigung über den Kauf;1\n"
+    "II. Sachmangel;2,5\n"
+    "b) Nutzungsersatz (Schwerpunkt!);6\n"
     "Gesamt-BE;9,5\n"
 )
 
@@ -74,24 +74,24 @@ class TestCsv:
 
     def test_cp1252_is_read(self):
         result = parse_rubric_file("bogen.csv", CSV_SHEET.encode("cp1252"))
-        assert "Eröffnung" in _steps(result)[0]["title"]
+        assert "Einigung über" in _steps(result)[0]["title"]
 
 
 MD_OUTLINE = (
-    "# Korrekturbogen Polizeirecht\n\n"
+    "# Korrekturbogen Zivilrecht\n\n"
     "## Frage 1\n\n"
-    "### A. Zulässigkeit\n"
-    "- I. Eröffnung des Verwaltungsrechtswegs — 1 BE\n"
-    "- II. Statthafte Klageart (2,5 BE)\n"
-    "- b) Sperrwirkung (Schwerpunkt!) 6 BE\n"
+    "### A. Anspruch entstanden\n"
+    "- I. Einigung über den Kauf — 1 BE\n"
+    "- II. Sachmangel (2,5 BE)\n"
+    "- b) Nutzungsersatz (Schwerpunkt!) 6 BE\n"
 )
 
 MD_TABLE = (
     "| Schritt | max. BE |\n"
     "| --- | --- |\n"
-    "| A. Zulässigkeit | |\n"
-    "| I. Verwaltungsrechtsweg | 1 |\n"
-    "| II. Klageart | 2,5 |\n"
+    "| A. Anspruch entstanden | |\n"
+    "| I. Kaufvertrag | 1 |\n"
+    "| II. Sachmangel | 2,5 |\n"
 )
 
 
@@ -133,9 +133,9 @@ class TestJson:
         payload = json.dumps(
             {
                 "steps": [
-                    {"label": "A.", "title": "Zulässigkeit"},
-                    {"label": "I.", "title": "Verwaltungsrechtsweg", "max_score": 1},
-                    {"label": "II.", "title": "Klageart", "max_score": 2.5},
+                    {"label": "A.", "title": "Anspruch entstanden"},
+                    {"label": "I.", "title": "Kaufvertrag", "max_score": 1},
+                    {"label": "II.", "title": "Sachmangel", "max_score": 2.5},
                 ]
             }
         )
@@ -149,13 +149,13 @@ class TestJson:
         source = parse_rubric_file("bogen.csv", CSV_SHEET.encode("utf-8"))
         exported = json.dumps(
             {
-                "title": "Korrekturbogen PolR",
+                "title": "Korrekturbogen ZivR",
                 "structure": source["structure"],
                 "grade_scale": source["grade_scale"],
             }
         )
         back = parse_rubric_file("export.json", exported.encode("utf-8"))
-        assert back["title"] == "Korrekturbogen PolR"
+        assert back["title"] == "Korrekturbogen ZivR"
         assert back["total_points"] == source["total_points"]
         assert [s["key"] for s in _steps(back)] == [s["key"] for s in _steps(source)]
         assert [s["title"] for s in _steps(back)] == [s["title"] for s in _steps(source)]

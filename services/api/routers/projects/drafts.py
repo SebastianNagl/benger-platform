@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any, Dict
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
@@ -13,6 +13,7 @@ from database import get_db
 from project_models import Project, TaskDraft, TaskDraftCheckpoint
 from routers.projects.helpers import (
     check_task_assigned_to_user,
+    enforce_seb,
     get_project_access_tier,
     require_write_tier,
 )
@@ -26,6 +27,7 @@ router = APIRouter()
 async def save_draft(
     project_id: str,
     task_id: str,
+    request: Request,
     body: Dict[str, Any] = Body(...),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -36,11 +38,13 @@ async def save_draft(
     Upserts into task_drafts table for crash recovery.
     """
     # A draft is a write: the attempted (read-only) tier gets the coded 403.
-    require_write_tier(get_project_access_tier(db, current_user, project_id))
+    tier = get_project_access_tier(db, current_user, project_id)
+    require_write_tier(tier)
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    enforce_seb(db, current_user, project, request, tier=tier)
 
     draft_result = body.get("result", [])
 
@@ -106,11 +110,14 @@ def _draft_has_content(draft_result: Any) -> bool:
     return False
 
 
-def _require_task_access(db, current_user, project_id, task_id, *, write=False):
+def _require_task_access(
+    db, current_user, project_id, task_id, *, write=False, request=None
+):
     """Shared access guard (mirrors save_draft); returns the Project or raises.
 
     ``write=True`` (checkpoint append) additionally refuses the read-only
-    attempted tier; the checkpoint reads stay open to it (own rows only).
+    attempted tier and applies the Safe Exam Browser guard (needs
+    ``request``); the checkpoint reads stay open to it (own rows only).
     """
     tier = get_project_access_tier(db, current_user, project_id)
     if write:
@@ -120,6 +127,8 @@ def _require_task_access(db, current_user, project_id, task_id, *, write=False):
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    if write:
+        enforce_seb(db, current_user, project, request, tier=tier)
     return project
 
 
@@ -127,6 +136,7 @@ def _require_task_access(db, current_user, project_id, task_id, *, write=False):
 async def save_checkpoint(
     project_id: str,
     task_id: str,
+    request: Request,
     body: Dict[str, Any] = Body(...),
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
@@ -139,7 +149,7 @@ async def save_checkpoint(
     history is capped at ``CHECKPOINT_RETENTION`` per (task, user).
     """
     project = _require_task_access(
-        db, current_user, project_id, task_id, write=True
+        db, current_user, project_id, task_id, write=True, request=request
     )
 
     if not (project and project.restorable_checkpoints_enabled):

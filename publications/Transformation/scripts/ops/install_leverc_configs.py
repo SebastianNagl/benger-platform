@@ -27,7 +27,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import date
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
@@ -35,7 +35,7 @@ INTERIM = HERE / "data" / "interim"
 CLONE_PROJECT = "81e474b8-d226-4bf8-bc2e-fb744d25cba5"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 # The sonnet-repair config must be a byte-identical clone of the existing
 # -rep3 rubric config (incl. custom_prompt_template — required by the
@@ -92,7 +92,7 @@ def main() -> int:
     project = client.request("GET", f"/api/projects/{args.project}")
     configs = (project.get("evaluation_config") or {}).get("evaluation_configs") or []
 
-    backup = INTERIM / f"clone_eval_config_backup_{date.today().isoformat()}.json"
+    backup = INTERIM / f"clone_eval_config_backup_{datetime.now(UTC).date().isoformat()}.json"
     backup.write_text(json.dumps(configs, ensure_ascii=False, indent=1), encoding="utf-8")
 
     # Build the sonnet-repair config from the live -rep3 config (clone its

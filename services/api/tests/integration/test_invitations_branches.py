@@ -1316,6 +1316,91 @@ class TestEmailVerificationAutoAccept:
         assert stored.accepted is True
 
 
+@pytest.mark.integration
+class TestSelfSignupWithOpenInvitation:
+    """Someone signs up on their own while an invitation to the same address
+    is open. Every way their address becomes verified joins them to the
+    inviting org, not only the verification link."""
+
+    def _member(self, test_db, user_id, org_id):
+        test_db.expire_all()
+        return (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == user_id,
+                OrganizationMembership.organization_id == org_id,
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+
+    def test_superadmin_verify_accepts_open_invitation(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        invitee = _make_user(
+            test_db, f"self-signup-{_uid()[:8]}@example.com", email_verified=False
+        )
+        inv = _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[3].id,
+            email=invitee.email.upper(),
+            role=OrganizationRole.CONTRIBUTOR,
+        )
+
+        resp = client.patch(
+            f"/api/users/{invitee.id}/verify-email", headers=auth_headers["admin"]
+        )
+
+        assert resp.status_code == 200, resp.text
+        membership = self._member(test_db, invitee.id, test_org.id)
+        assert membership is not None
+        assert membership.role == OrganizationRole.CONTRIBUTOR
+        stored = test_db.query(Invitation).filter(Invitation.id == inv.id).one()
+        assert stored.accepted is True
+
+    def test_lms_claimed_address_does_not_accept(
+        self, test_db, test_users, test_org
+    ):
+        """An address an LMS supplied is not proven to be the user's."""
+        from auth_module.email_verification import EmailVerificationService
+
+        invitee = _make_user(test_db, f"lms-{_uid()[:8]}@example.com")
+        invitee.email_verification_method = "lti_claim"
+        test_db.commit()
+        inv = _make_invitation(
+            test_db, test_org.id, test_users[0].id, email=invitee.email
+        )
+        with patch("auth_module.email_verification.EmailService"):
+            service = EmailVerificationService()
+
+        assert service.accept_pending_invitations(test_db, invitee) == []
+        assert self._member(test_db, invitee.id, test_org.id) is None
+        stored = test_db.query(Invitation).filter(Invitation.id == inv.id).one()
+        assert stored.accepted is False
+
+    def test_accept_endpoint_ignores_email_letter_case(
+        self, client, test_db, test_users, test_org
+    ):
+        """An invitation typed as Max.Muster@… is for the account
+        max.muster@…; the accept endpoint used to answer "not for your
+        email address"."""
+        invitee = _make_user(test_db, f"max.muster-{_uid()[:8]}@example.com")
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=invitee.email.title(),
+            token=token,
+        )
+
+        resp = client.post(f"/api/invitations/accept/{token}", headers=_bearer(invitee))
+
+        assert resp.status_code == 200, resp.text
+        assert self._member(test_db, invitee.id, test_org.id) is not None
+
+
 # ---------------------------------------------------------------------------
 # Invitation-mail delivery state + resend (migration 107)
 #

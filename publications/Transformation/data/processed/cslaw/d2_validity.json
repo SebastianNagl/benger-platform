@@ -1,0 +1,1374 @@
+{
+ "note": "D2a expert exam: LLM judge totals vs reference grades. Statistics are per pass, averaged over complete passes. Reference grades of 9 of 15 scripts await the exam author's confirmation of the grader. Aggregates only.",
+ "pass_mark_be": 40.0,
+ "seed": 20260926,
+ "n_boot": 4000,
+ "code_versions": [
+  "5768f1f9104b",
+  "7fc295f3b81f"
+ ],
+ "code_versions_seen": [
+  "5768f1f9104b",
+  "7fc295f3b81f"
+ ],
+ "per_arm": {
+  "expert sheet:step": {
+   "deepseek-ai/DeepSeek-V4-Pro": {
+    "code_version": "7fc295f3b81f",
+    "n_scripts": 15,
+    "passes_per_script": [
+     1
+    ],
+    "complete_passes": 1,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 5.23,
+    "mae_ci95": [
+     3.2,
+     7.4
+    ],
+    "bias": -3.9,
+    "bias_ci95": [
+     -6.7,
+     -1.27
+    ],
+    "pearson": 0.948,
+    "spearman": 0.91,
+    "pass_agreement": 0.933,
+    "pass_kappa": 0.857,
+    "judge_pass_rate": 0.6,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 0.0,
+    "wrong_fail": 1.0,
+    "wrong_pass_by_run": [
+     0
+    ],
+    "wrong_fail_by_run": [
+     1
+    ],
+    "mae_grade_points": 0.87,
+    "mae_grade_points_ci95": [
+     0.4,
+     1.4
+    ],
+    "within_one_grade": 0.667,
+    "judge_mean_total": 47.9,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.91,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 5.23,
+    "repeat_sd": null,
+    "mean_abs_pass_diff": null,
+    "step_abs_diff_share": 0.138,
+    "n_step_comparisons": 690
+   },
+   "gpt-5.4-mini": {
+    "code_version": "7fc295f3b81f",
+    "n_scripts": 15,
+    "passes_per_script": [
+     1
+    ],
+    "complete_passes": 1,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 9.43,
+    "mae_ci95": [
+     6.2,
+     13.0
+    ],
+    "bias": -1.63,
+    "bias_ci95": [
+     -7.1,
+     4.37
+    ],
+    "pearson": 0.744,
+    "spearman": 0.598,
+    "pass_agreement": 0.667,
+    "pass_kappa": 0.211,
+    "judge_pass_rate": 0.733,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 3.0,
+    "wrong_fail": 2.0,
+    "wrong_pass_by_run": [
+     3
+    ],
+    "wrong_fail_by_run": [
+     2
+    ],
+    "mae_grade_points": 1.73,
+    "mae_grade_points_ci95": [
+     1.07,
+     2.4
+    ],
+    "within_one_grade": 0.467,
+    "judge_mean_total": 50.17,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 14.78,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 9.43,
+    "repeat_sd": null,
+    "mean_abs_pass_diff": null,
+    "step_abs_diff_share": 0.197,
+    "n_step_comparisons": 690
+   },
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 5.11,
+    "mae_ci95": [
+     3.34,
+     6.97
+    ],
+    "bias": -3.38,
+    "bias_ci95": [
+     -5.91,
+     -0.87
+    ],
+    "pearson": 0.946,
+    "spearman": 0.963,
+    "pass_agreement": 0.911,
+    "pass_kappa": 0.795,
+    "judge_pass_rate": 0.711,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 1.0,
+    "wrong_fail": 0.33,
+    "wrong_pass_by_run": [
+     1,
+     1,
+     1
+    ],
+    "wrong_fail_by_run": [
+     1,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.11,
+    "mae_grade_points_ci95": [
+     0.62,
+     1.62
+    ],
+    "within_one_grade": 0.711,
+    "judge_mean_total": 48.42,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.42,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 4.6,
+    "repeat_sd": 3.18,
+    "mean_abs_pass_diff": 2.4,
+    "step_abs_diff_share": 0.155,
+    "n_step_comparisons": 2070
+   }
+  },
+  "gpt-5.4 sheet 1:bullet": {
+   "deepseek-ai/DeepSeek-V4-Pro": {
+    "code_version": "7fc295f3b81f",
+    "n_scripts": 15,
+    "passes_per_script": [
+     1
+    ],
+    "complete_passes": 1,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 6.2,
+    "mae_ci95": [
+     4.1,
+     8.43
+    ],
+    "bias": 3.07,
+    "bias_ci95": [
+     -0.4,
+     6.5
+    ],
+    "pearson": 0.913,
+    "spearman": 0.914,
+    "pass_agreement": 0.8,
+    "pass_kappa": 0.471,
+    "judge_pass_rate": 0.867,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 3.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     3
+    ],
+    "wrong_fail_by_run": [
+     0
+    ],
+    "mae_grade_points": 1.4,
+    "mae_grade_points_ci95": [
+     0.87,
+     1.93
+    ],
+    "within_one_grade": 0.6,
+    "judge_mean_total": 54.87,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.22,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 6.2,
+    "repeat_sd": null,
+    "mean_abs_pass_diff": null,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   },
+   "gpt-5.4-mini": {
+    "code_version": "7fc295f3b81f",
+    "n_scripts": 15,
+    "passes_per_script": [
+     1
+    ],
+    "complete_passes": 1,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 10.33,
+    "mae_ci95": [
+     6.63,
+     14.4
+    ],
+    "bias": 5.67,
+    "bias_ci95": [
+     0.03,
+     11.57
+    ],
+    "pearson": 0.743,
+    "spearman": 0.674,
+    "pass_agreement": 0.667,
+    "pass_kappa": 0.118,
+    "judge_pass_rate": 0.867,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 4.0,
+    "wrong_fail": 1.0,
+    "wrong_pass_by_run": [
+     4
+    ],
+    "wrong_fail_by_run": [
+     1
+    ],
+    "mae_grade_points": 2.33,
+    "mae_grade_points_ci95": [
+     1.53,
+     3.2
+    ],
+    "within_one_grade": 0.467,
+    "judge_mean_total": 57.47,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.32,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 10.33,
+    "repeat_sd": null,
+    "mean_abs_pass_diff": null,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   },
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 6.12,
+    "mae_ci95": [
+     4.24,
+     8.22
+    ],
+    "bias": 2.21,
+    "bias_ci95": [
+     -1.09,
+     5.72
+    ],
+    "pearson": 0.912,
+    "spearman": 0.909,
+    "pass_agreement": 0.844,
+    "pass_kappa": 0.601,
+    "judge_pass_rate": 0.822,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 2.33,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     3,
+     2,
+     2
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.31,
+    "mae_grade_points_ci95": [
+     0.82,
+     1.87
+    ],
+    "within_one_grade": 0.644,
+    "judge_mean_total": 54.01,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 13.71,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 5.77,
+    "repeat_sd": 3.28,
+    "mean_abs_pass_diff": 4.1,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4 sheet 1:step": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 5.69,
+    "mae_ci95": [
+     3.83,
+     8.08
+    ],
+    "bias": -0.42,
+    "bias_ci95": [
+     -4.26,
+     2.88
+    ],
+    "pearson": 0.892,
+    "spearman": 0.87,
+    "pass_agreement": 0.867,
+    "pass_kappa": 0.667,
+    "judge_pass_rate": 0.8,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 2.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     2,
+     2,
+     2
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.29,
+    "mae_grade_points_ci95": [
+     0.73,
+     2.0
+    ],
+    "within_one_grade": 0.622,
+    "judge_mean_total": 51.38,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 12.87,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 5.47,
+    "repeat_sd": 4.75,
+    "mean_abs_pass_diff": 4.6,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4-mini sheet 1:bullet": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 7.34,
+    "mae_ci95": [
+     4.89,
+     10.06
+    ],
+    "bias": 6.14,
+    "bias_ci95": [
+     2.98,
+     9.53
+    ],
+    "pearson": 0.921,
+    "spearman": 0.924,
+    "pass_agreement": 0.8,
+    "pass_kappa": 0.462,
+    "judge_pass_rate": 0.867,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 3.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     2,
+     4,
+     3
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.62,
+    "mae_grade_points_ci95": [
+     0.98,
+     2.36
+    ],
+    "within_one_grade": 0.556,
+    "judge_mean_total": 57.94,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 14.6,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 6.88,
+    "repeat_sd": 3.04,
+    "mean_abs_pass_diff": 3.23,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4-mini sheet 1:step": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 8.27,
+    "mae_ci95": [
+     6.36,
+     10.21
+    ],
+    "bias": 5.58,
+    "bias_ci95": [
+     1.78,
+     8.78
+    ],
+    "pearson": 0.914,
+    "spearman": 0.954,
+    "pass_agreement": 0.711,
+    "pass_kappa": 0.167,
+    "judge_pass_rate": 0.956,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 4.33,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     5
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.91,
+    "mae_grade_points_ci95": [
+     1.38,
+     2.51
+    ],
+    "within_one_grade": 0.4,
+    "judge_mean_total": 57.38,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 12.96,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 8.02,
+    "repeat_sd": 3.02,
+    "mean_abs_pass_diff": 3.73,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4-mini sheet 2:bullet": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 7.28,
+    "mae_ci95": [
+     4.79,
+     9.99
+    ],
+    "bias": 7.17,
+    "bias_ci95": [
+     4.59,
+     10.0
+    ],
+    "pearson": 0.941,
+    "spearman": 0.933,
+    "pass_agreement": 0.733,
+    "pass_kappa": 0.25,
+    "judge_pass_rate": 0.933,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 4.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     4
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.69,
+    "mae_grade_points_ci95": [
+     1.07,
+     2.4
+    ],
+    "within_one_grade": 0.533,
+    "judge_mean_total": 58.97,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.75,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 7.17,
+    "repeat_sd": 2.63,
+    "mean_abs_pass_diff": 3.2,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "gpt-5.4-mini sheet 2:step": {
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 6.86,
+    "mae_ci95": [
+     4.21,
+     9.69
+    ],
+    "bias": 5.94,
+    "bias_ci95": [
+     2.86,
+     9.23
+    ],
+    "pearson": 0.919,
+    "spearman": 0.907,
+    "pass_agreement": 0.733,
+    "pass_kappa": 0.25,
+    "judge_pass_rate": 0.933,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 4.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     4
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 1.56,
+    "mae_grade_points_ci95": [
+     0.96,
+     2.27
+    ],
+    "within_one_grade": 0.622,
+    "judge_mean_total": 57.74,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 15.1,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 6.26,
+    "repeat_sd": 3.4,
+    "mean_abs_pass_diff": 3.23,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  },
+  "no sheet:holistic": {
+   "gpt-5.4-mini": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     1
+    ],
+    "complete_passes": 1,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 13.07,
+    "mae_ci95": [
+     8.8,
+     17.77
+    ],
+    "bias": -2.8,
+    "bias_ci95": [
+     -10.6,
+     4.93
+    ],
+    "pearson": 0.393,
+    "spearman": 0.351,
+    "pass_agreement": 0.533,
+    "pass_kappa": -0.235,
+    "judge_pass_rate": 0.867,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 5.0,
+    "wrong_fail": 2.0,
+    "wrong_pass_by_run": [
+     5
+    ],
+    "wrong_fail_by_run": [
+     2
+    ],
+    "mae_grade_points": 3.0,
+    "mae_grade_points_ci95": [
+     2.0,
+     4.07
+    ],
+    "within_one_grade": 0.333,
+    "judge_mean_total": 49.0,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 6.68,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 13.07,
+    "repeat_sd": null,
+    "mean_abs_pass_diff": null,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   },
+   "gpt-5.6-luna": {
+    "code_version": "5768f1f9104b",
+    "n_scripts": 15,
+    "passes_per_script": [
+     3
+    ],
+    "complete_passes": 3,
+    "case_years": {
+     "2024": 3,
+     "2025": 12
+    },
+    "mae": 14.37,
+    "mae_ci95": [
+     10.24,
+     18.53
+    ],
+    "bias": 12.37,
+    "bias_ci95": [
+     6.56,
+     17.7
+    ],
+    "pearson": 0.837,
+    "spearman": 0.839,
+    "pass_agreement": 0.667,
+    "pass_kappa": 0.0,
+    "judge_pass_rate": 1.0,
+    "reference_pass_rate": 0.667,
+    "reference_n_pass": 10,
+    "reference_n_fail": 5,
+    "wrong_pass": 5.0,
+    "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     5,
+     5,
+     5
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
+    "mae_grade_points": 3.27,
+    "mae_grade_points_ci95": [
+     2.24,
+     4.33
+    ],
+    "within_one_grade": 0.311,
+    "judge_mean_total": 64.17,
+    "reference_mean_total": 51.8,
+    "judge_sd_between_scripts": 7.95,
+    "reference_sd_between_scripts": 17.47,
+    "mae_of_pass_means": 14.37,
+    "repeat_sd": 2.19,
+    "mean_abs_pass_diff": 1.8,
+    "step_abs_diff_share": null,
+    "n_step_comparisons": 0
+   }
+  }
+ },
+ "contrasts": [
+  {
+   "family": "sheet vs no sheet",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "no sheet:holistic"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": -9.26,
+    "ci95": [
+     -14.51,
+     -3.92
+    ],
+    "sd_diff": 10.84,
+    "mde": 8.44
+   },
+   "signed_error": {
+    "mean_diff": -15.74,
+    "ci95": [
+     -20.06,
+     -11.16
+    ],
+    "sd_diff": 9.07,
+    "mde": 7.05
+   },
+   "repeat_sd": {
+    "mean_diff": 0.62,
+    "ci95": [
+     -0.54,
+     1.91
+    ],
+    "sd_diff": 2.51,
+    "mde": 1.95
+   }
+  },
+  {
+   "family": "sheet vs no sheet",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "no sheet:holistic"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": -8.24,
+    "ci95": [
+     -12.39,
+     -4.32
+    ],
+    "sd_diff": 8.25,
+    "mde": 6.42
+   },
+   "signed_error": {
+    "mean_diff": -10.16,
+    "ci95": [
+     -13.89,
+     -6.2
+    ],
+    "sd_diff": 7.75,
+    "mde": 6.03
+   },
+   "repeat_sd": {
+    "mean_diff": 0.67,
+    "ci95": [
+     -0.26,
+     1.56
+    ],
+    "sd_diff": 1.93,
+    "mde": 1.5
+   }
+  },
+  {
+   "family": "judge on the expert sheet",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "7fc295f3b81f",
+   "abs_error": {
+    "mean_diff": 4.8,
+    "ci95": [
+     1.55,
+     8.2
+    ],
+    "sd_diff": 6.76,
+    "mde": 5.26
+   },
+   "signed_error": {
+    "mean_diff": 0.3,
+    "ci95": [
+     -4.7,
+     6.13
+    ],
+    "sd_diff": 11.18,
+    "mde": 8.7
+   }
+  },
+  {
+   "family": "judge on the expert sheet",
+   "a": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "7fc295f3b81f",
+   "abs_error": {
+    "mean_diff": 0.6,
+    "ci95": [
+     -0.92,
+     2.28
+    ],
+    "sd_diff": 3.26,
+    "mde": 2.54
+   },
+   "signed_error": {
+    "mean_diff": -1.97,
+    "ci95": [
+     -3.83,
+     -0.3
+    ],
+    "sd_diff": 3.65,
+    "mde": 2.84
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 1.01,
+    "ci95": [
+     -1.66,
+     3.6
+    ],
+    "sd_diff": 5.22,
+    "mde": 4.06
+   },
+   "signed_error": {
+    "mean_diff": 5.59,
+    "ci95": [
+     3.1,
+     8.24
+    ],
+    "sd_diff": 5.43,
+    "mde": 4.23
+   },
+   "repeat_sd": {
+    "mean_diff": 0.05,
+    "ci95": [
+     -1.3,
+     1.4
+    ],
+    "sd_diff": 2.79,
+    "mde": 2.17
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 2.23,
+    "ci95": [
+     -1.16,
+     5.4
+    ],
+    "sd_diff": 6.8,
+    "mde": 5.29
+   },
+   "signed_error": {
+    "mean_diff": 9.52,
+    "ci95": [
+     6.46,
+     12.76
+    ],
+    "sd_diff": 6.36,
+    "mde": 4.95
+   },
+   "repeat_sd": {
+    "mean_diff": -0.08,
+    "ci95": [
+     -1.06,
+     0.8
+    ],
+    "sd_diff": 1.89,
+    "mde": 1.47
+   }
+  },
+  {
+   "family": "sheet for Luna",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 2:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 2.17,
+    "ci95": [
+     -1.03,
+     5.31
+    ],
+    "sd_diff": 6.63,
+    "mde": 5.16
+   },
+   "signed_error": {
+    "mean_diff": 10.54,
+    "ci95": [
+     8.2,
+     13.03
+    ],
+    "sd_diff": 5.01,
+    "mde": 3.9
+   },
+   "repeat_sd": {
+    "mean_diff": -0.27,
+    "ci95": [
+     -1.32,
+     0.68
+    ],
+    "sd_diff": 2.08,
+    "mde": 1.62
+   }
+  },
+  {
+   "family": "sheet for DeepSeek",
+   "a": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "deepseek-ai/DeepSeek-V4-Pro",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "7fc295f3b81f",
+   "abs_error": {
+    "mean_diff": 0.97,
+    "ci95": [
+     -2.1,
+     4.0
+    ],
+    "sd_diff": 6.31,
+    "mde": 4.91
+   },
+   "signed_error": {
+    "mean_diff": 6.97,
+    "ci95": [
+     2.87,
+     10.9
+    ],
+    "sd_diff": 8.37,
+    "mde": 6.51
+   }
+  },
+  {
+   "family": "sheet for GPT-5.4 Mini",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "7fc295f3b81f",
+   "abs_error": {
+    "mean_diff": 0.9,
+    "ci95": [
+     -3.8,
+     5.87
+    ],
+    "sd_diff": 9.93,
+    "mde": 7.72
+   },
+   "signed_error": {
+    "mean_diff": 7.3,
+    "ci95": [
+     1.47,
+     12.63
+    ],
+    "sd_diff": 11.37,
+    "mde": 8.84
+   }
+  },
+  {
+   "family": "weak judge vs generated sheet",
+   "a": {
+    "judge": "gpt-5.4-mini",
+    "arm": "expert sheet:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "n_scripts": 15,
+   "code_version": "7fc295f3b81f",
+   "abs_error": {
+    "mean_diff": 2.9,
+    "ci95": [
+     -1.37,
+     6.98
+    ],
+    "sd_diff": 8.57,
+    "mde": 6.67
+   },
+   "signed_error": {
+    "mean_diff": -5.53,
+    "ci95": [
+     -10.75,
+     0.05
+    ],
+    "sd_diff": 11.39,
+    "mde": 8.86
+   }
+  },
+  {
+   "family": "sheet for Luna, per step",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 0.58,
+    "ci95": [
+     -2.31,
+     3.71
+    ],
+    "sd_diff": 6.21,
+    "mde": 4.83
+   },
+   "signed_error": {
+    "mean_diff": 2.96,
+    "ci95": [
+     -0.78,
+     6.01
+    ],
+    "sd_diff": 7.01,
+    "mde": 5.45
+   },
+   "repeat_sd": {
+    "mean_diff": 0.97,
+    "ci95": [
+     -0.79,
+     2.88
+    ],
+    "sd_diff": 3.85,
+    "mde": 3.0
+   }
+  },
+  {
+   "family": "sheet for Luna, per step",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 1:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 3.16,
+    "ci95": [
+     0.36,
+     6.0
+    ],
+    "sd_diff": 5.83,
+    "mde": 4.53
+   },
+   "signed_error": {
+    "mean_diff": 8.96,
+    "ci95": [
+     6.32,
+     11.58
+    ],
+    "sd_diff": 5.31,
+    "mde": 4.13
+   },
+   "repeat_sd": {
+    "mean_diff": -0.01,
+    "ci95": [
+     -1.1,
+     0.92
+    ],
+    "sd_diff": 2.12,
+    "mde": 1.65
+   }
+  },
+  {
+   "family": "sheet for Luna, per step",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 2:step"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "expert sheet:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 1.74,
+    "ci95": [
+     -1.79,
+     5.21
+    ],
+    "sd_diff": 7.1,
+    "mde": 5.52
+   },
+   "signed_error": {
+    "mean_diff": 9.32,
+    "ci95": [
+     6.83,
+     12.13
+    ],
+    "sd_diff": 5.48,
+    "mde": 4.26
+   },
+   "repeat_sd": {
+    "mean_diff": 0.3,
+    "ci95": [
+     -1.2,
+     1.69
+    ],
+    "sd_diff": 2.93,
+    "mde": 2.28
+   }
+  },
+  {
+   "family": "scoring unit",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4 sheet 1:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 0.43,
+    "ci95": [
+     -2.26,
+     2.88
+    ],
+    "sd_diff": 5.19,
+    "mde": 4.04
+   },
+   "signed_error": {
+    "mean_diff": 2.63,
+    "ci95": [
+     0.26,
+     5.63
+    ],
+    "sd_diff": 5.55,
+    "mde": 4.32
+   },
+   "repeat_sd": {
+    "mean_diff": -0.92,
+    "ci95": [
+     -2.62,
+     0.86
+    ],
+    "sd_diff": 3.6,
+    "mde": 2.8
+   }
+  },
+  {
+   "family": "scoring unit",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 1:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 1:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": -0.92,
+    "ci95": [
+     -3.06,
+     1.32
+    ],
+    "sd_diff": 4.52,
+    "mde": 3.52
+   },
+   "signed_error": {
+    "mean_diff": 0.57,
+    "ci95": [
+     -2.11,
+     3.3
+    ],
+    "sd_diff": 5.52,
+    "mde": 4.29
+   },
+   "repeat_sd": {
+    "mean_diff": -0.07,
+    "ci95": [
+     -0.75,
+     0.68
+    ],
+    "sd_diff": 1.44,
+    "mde": 1.12
+   }
+  },
+  {
+   "family": "scoring unit",
+   "a": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 2:bullet"
+   },
+   "b": {
+    "judge": "gpt-5.6-luna",
+    "arm": "gpt-5.4-mini sheet 2:step"
+   },
+   "n_scripts": 15,
+   "code_version": "5768f1f9104b",
+   "abs_error": {
+    "mean_diff": 0.42,
+    "ci95": [
+     -1.43,
+     2.11
+    ],
+    "sd_diff": 3.53,
+    "mde": 2.75
+   },
+   "signed_error": {
+    "mean_diff": 1.22,
+    "ci95": [
+     -0.54,
+     2.82
+    ],
+    "sd_diff": 3.52,
+    "mde": 2.74
+   },
+   "repeat_sd": {
+    "mean_diff": -0.58,
+    "ci95": [
+     -1.76,
+     0.54
+    ],
+    "sd_diff": 2.38,
+    "mde": 1.85
+   }
+  }
+ ],
+ "sheet_sample": {
+  "gpt-5.4-mini:bullet": {
+   "gpt-5.6-luna": {
+    "n_sheets": 2,
+    "n_scripts": 15,
+    "passes_per_sheet": 3.0,
+    "sd_of_sheet_means": 3.41,
+    "pass_sd_pooled": 2.84,
+    "sheet_sd_component": 2.99,
+    "mean_abs_sheet_diff": 3.96
+   }
+  },
+  "gpt-5.4-mini:step": {
+   "gpt-5.6-luna": {
+    "n_sheets": 2,
+    "n_scripts": 15,
+    "passes_per_sheet": 3.0,
+    "sd_of_sheet_means": 4.25,
+    "pass_sd_pooled": 3.22,
+    "sheet_sd_component": 3.83,
+    "mean_abs_sheet_diff": 5.01
+   }
+  }
+ }
+}

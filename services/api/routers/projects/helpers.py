@@ -55,6 +55,7 @@ from project_window import (
     project_window_state,
     project_writes_allowed,
 )
+import seb
 
 
 # Re-export the noise filter from /shared. Single source of truth lives in
@@ -3011,6 +3012,158 @@ async def enforce_project_write_window_async(db: AsyncSession, user, project) ->
     ):
         return
     raise _window_403(project, project_window_state(project))
+
+
+# ── Safe Exam Browser ────────────────────────────────────────────────────────
+# A project with ``seb_required`` only serves exam content to, and accepts exam
+# writes from, non-editors whose request carries an accepted SEB proof (see
+# /shared/seb.py). Same exemptions as the window guards: anyone who can EDIT
+# the project (so organizers set up and review in a normal browser), and the
+# read-only attempted access to an own submission (grades and corrections
+# stay readable anywhere). Server-side actions (the auto-submit worker) never
+# pass through here.
+
+
+def _seb_403(code: str) -> HTTPException:
+    message = (
+        "This exam must be opened in an approved Safe Exam Browser version."
+        if code == seb.CODE_SEB_VERSION_NOT_ALLOWED
+        else "This exam must be opened in Safe Exam Browser."
+    )
+    return HTTPException(status_code=403, detail={"code": code, "message": message})
+
+
+def _seb_result(request, project) -> "seb.SebCheck":
+    return seb.verify_seb_request(
+        request.headers,
+        request.url.path,
+        request.url.query,
+        project.seb_config,
+        seb.exam_page_paths(str(project.id)),
+    )
+
+
+def seb_request_allowed(
+    db: Session, user, project, request, *, tier: Optional[str] = None
+) -> bool:
+    """Sync: whether this request may see the project's unsubmitted tasks.
+
+    True when the project does not require SEB, for editors, and when the
+    request carries a valid SEB proof. List endpoints use it to narrow to the
+    caller's own submitted tasks instead of refusing (see :func:`enforce_seb`
+    for single-task reads and writes).
+    """
+    if project is None or not getattr(project, "seb_required", False):
+        return True
+    if tier == TIER_ATTEMPTED:
+        return False
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return True
+    return _seb_result(request, project).ok
+
+
+async def seb_request_allowed_async(
+    db: AsyncSession, user, project, request, *, tier: Optional[str] = None
+) -> bool:
+    """Async twin of :func:`seb_request_allowed`."""
+    if project is None or not getattr(project, "seb_required", False):
+        return True
+    if tier == TIER_ATTEMPTED:
+        return False
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return True
+    return _seb_result(request, project).ok
+
+
+def can_read_all_task_content(db: Session, user, project) -> bool:
+    """Sync: whether ``user`` may see every task's content at once.
+
+    For whole-project views (bulk exports, generation and evaluation results
+    with reference answers and other people's work). Contributors may: the
+    project's editors and public CONTRIBUTOR visitors. Plain members and exam
+    participants may not, since that would bypass blinding, access windows and
+    the SEB gate. A Safe Exam Browser exam narrows this to its editors.
+    """
+    if project is None:
+        return False
+    if getattr(project, "seb_required", False):
+        return check_user_can_edit_project(db, user, project.id)
+    return check_project_write_access(db, user, project.id)
+
+
+async def can_read_all_task_content_async(db: AsyncSession, user, project) -> bool:
+    """Async twin of :func:`can_read_all_task_content`."""
+    if project is None:
+        return False
+    if getattr(project, "seb_required", False):
+        return await check_user_can_edit_project_async(db, user, project.id)
+    return await check_project_write_access_async(db, user, project.id)
+
+
+def enforce_seb(
+    db: Session,
+    user,
+    project,
+    request,
+    *,
+    tier: Optional[str] = None,
+    read_task_id: Optional[str] = None,
+) -> None:
+    """Sync: raise 403 unless the request may touch this SEB exam.
+
+    No-op when the project does not require SEB, for editors, and for the
+    attempted tier unless it reads a task it never submitted. ``read_task_id`` marks a
+    read of one task's content: a task the user already submitted stays
+    readable outside SEB, so results and corrections open anywhere. Writes
+    pass ``None`` and are always checked. Lists of tasks use
+    :func:`seb_request_allowed` and narrow instead.
+    """
+    if project is None or not getattr(project, "seb_required", False):
+        return
+    # The attempted tier is read-only; a task read still needs an own
+    # submission on that task (leaving and rejoining must not unlock others).
+    if tier == TIER_ATTEMPTED and read_task_id is None:
+        return
+    if getattr(user, "is_superadmin", False) or check_user_can_edit_project(
+        db, user, project.id
+    ):
+        return
+    if read_task_id is not None and user_attempted_task(db, user.id, read_task_id):
+        return
+    result = _seb_result(request, project)
+    if not result.ok:
+        raise _seb_403(result.code)
+
+
+async def enforce_seb_async(
+    db: AsyncSession,
+    user,
+    project,
+    request,
+    *,
+    tier: Optional[str] = None,
+    read_task_id: Optional[str] = None,
+) -> None:
+    """Async twin of :func:`enforce_seb`."""
+    if project is None or not getattr(project, "seb_required", False):
+        return
+    if tier == TIER_ATTEMPTED and read_task_id is None:
+        return
+    if getattr(user, "is_superadmin", False) or await check_user_can_edit_project_async(
+        db, user, project.id
+    ):
+        return
+    if read_task_id is not None and await user_attempted_task_async(
+        db, user.id, read_task_id
+    ):
+        return
+    result = _seb_result(request, project)
+    if not result.ok:
+        raise _seb_403(result.code)
 
 
 # NOTE: the canonical project-access dependency is `require_project_access` in

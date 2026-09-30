@@ -1,8 +1,8 @@
 {
   "control_arm": {
     "_sources": {
-      "agreement_stats": "/home/pschorr95/Code/BenGER/benger-platform/publications/Benchmark_EMNLP/data/processed/agreement_stats.json",
-      "inter_judge": "/home/pschorr95/Code/BenGER/benger-platform/publications/Benchmark_EMNLP/data/processed/benchathon_inter_judge_agreement.json"
+      "agreement_stats": "publications/Benchmark_EMNLP/data/processed/agreement_stats.json",
+      "inter_judge": "publications/Benchmark_EMNLP/data/processed/benchathon_inter_judge_agreement.json"
     },
     "inter_judge": {
       "judges": [
@@ -13,19 +13,19 @@
         "deepseek-ai/DeepSeek-V4-Pro",
         "Qwen/Qwen3.5-397B-A17B"
       ],
-      "n_cells": 258,
+      "n_cells": 223,
       "within_cell_stdev": {
-        "n": 258,
-        "mean": 7.925441903204538,
-        "median": 7.447247804540598,
+        "n": 223,
+        "mean": 8.08277624557626,
+        "median": 7.724420150837645,
         "min": 2.5,
         "max": 24.190936089554057
       },
       "within_cell_spread": {
-        "n": 258,
-        "mean": 23.108527131782946,
-        "median": 22.0,
-        "min": 7.0,
+        "n": 223,
+        "mean": 23.522421524663677,
+        "median": 22.5,
+        "min": 7.5,
         "max": 71.0
       }
     },

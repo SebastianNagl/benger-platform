@@ -46,7 +46,7 @@ def _clip(s, n):
 
 
 def main():
-    export = json.load(open(SRC, encoding="utf-8"))
+    export = json.loads(SRC.read_text(encoding="utf-8"))
     rows = []
     for t in export.get("tasks", []):
         data = t.get("data") or {}
@@ -72,7 +72,7 @@ def main():
                 if acc is None and isinstance(m.get("accuracy"), dict):
                     v = m["accuracy"].get("value")
                     if v is not None:
-                        acc = int(round(float(v)))
+                        acc = round(float(v))
             if rc_score is None or acc is None:
                 continue
             rc_frac = float(rc_score) / RC_MAX
@@ -89,7 +89,7 @@ def main():
                     parsed = json.loads(rc)
                     model_dec = parsed.get("kurzantwort")
                     model_reason = parsed.get("begruendung")
-                except Exception:
+                except (ValueError, AttributeError):  # not JSON, or not an object
                     model_reason = rc
             norm_match = (_decision(model_dec) is not None
                           and _decision(model_dec) == _decision(gold))

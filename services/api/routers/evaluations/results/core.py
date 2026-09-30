@@ -270,6 +270,14 @@ async def get_evaluation_samples(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied",
             )
+        # Ground truth and predictions of every sample: contributors only.
+        from routers.projects.helpers import can_read_all_task_content_async
+
+        sample_project = (
+            await db.execute(select(Project).where(Project.id == evaluation.project_id))
+        ).scalar_one_or_none()
+        if not await can_read_all_task_content_async(db, current_user, sample_project):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         # Build the shared filter conditions for both the count and the page.
         conditions = [TaskEvaluation.evaluation_id == evaluation_id]

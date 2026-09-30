@@ -35,7 +35,7 @@ PICK_CONFIGS = ["llm_judge_rubric-msewfvty-24qr", "llm_judge_rubric-mini3-fewsho
 PROBE_CONFIGS = ["llm_judge_rubric-probe-luna", "llm_judge_rubric-probe-mini3"]
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 log_lock = threading.Lock()
 print_lock = threading.Lock()
@@ -73,9 +73,8 @@ def dispatch_wait_verify(client, task_id, rubric_id, cfgs, spec, kind, results):
     verified = n_rows > 0 and n_rows == n_ok
     row = {"task_id": task_id, "rubric_id": rubric_id, "kind": kind,
            "evaluation_id": eval_id, "status": status, "n_rows": n_rows, "verified": verified}
-    with log_lock:
-        with LOG.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(row) + "\n")
+    with log_lock, LOG.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row) + "\n")
     results.append(row)
     return row
 

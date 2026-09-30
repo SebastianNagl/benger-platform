@@ -121,7 +121,7 @@ async def _org(db, *members) -> Organization:
 
 async def _group(db, org, *members) -> OrganizationGroup:
     g = OrganizationGroup(
-        id=str(uuid.uuid4()), organization_id=org.id, name="Heidebach", is_active=True
+        id=str(uuid.uuid4()), organization_id=org.id, name="Lehrstuhl A", is_active=True
     )
     db.add(g)
     await db.flush()

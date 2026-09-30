@@ -45,7 +45,7 @@ def fix_task(task):
             continue
         groups.setdefault(ann.get("completed_by"), []).append(ann)
     cancelled = 0
-    for user, group in groups.items():
+    for group in groups.values():
         if len(group) <= 1:
             continue
         group.sort(key=annotation_rank)

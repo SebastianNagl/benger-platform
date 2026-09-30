@@ -278,6 +278,11 @@ def _schema(_eager_celery):
             "attached_via VARCHAR(16) NOT NULL DEFAULT 'manual' "
             "CONSTRAINT ck_project_organizations_attached_via "
             "CHECK (attached_via IN ('manual', 'lti'))",
+            # Migration 109: Safe Exam Browser settings; every Project
+            # select names both columns.
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
+            "seb_required BOOLEAN NOT NULL DEFAULT false",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS seb_config JSONB",
         ):
             conn.execute(text(_ddl))
     yield

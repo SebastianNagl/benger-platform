@@ -77,8 +77,10 @@ def main() -> int:
         lines = [
             f"# Exam {i:02d}: {title}",
             "",
-            f"Task: `{task_id}` — Bereich: {exam.get('bereich', '?')} — "
-            f"{len(rows)} Kandidaten-Bewertungsbögen (blind codiert)",
+            (
+                f"Task: `{task_id}` — Bereich: {exam.get('bereich', '?')} — "
+                f"{len(rows)} Kandidaten-Bewertungsbögen (blind codiert)"
+            ),
             "",
         ]
         for j, r in enumerate(rows):

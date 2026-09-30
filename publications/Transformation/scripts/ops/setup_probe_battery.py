@@ -37,7 +37,7 @@ PROBES = INTERIM / "probes"
 CLONE_PROJECT = "81e474b8-d226-4bf8-bc2e-fb744d25cba5"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 # Probe configs copy the tailored-arm layout (see DESIGN.md pre-registration):
 # panel = msc0vokl-mmdi (T=0, mini x3 + four flagships x1), gem = -gem1 (T=1),
@@ -80,8 +80,8 @@ def main() -> int:
     args = parser.parse_args()
     add_types = tuple(t.strip() for t in args.add_types.split(",")) if args.add_types else None
 
-    texts = json.load(open(PROBES / "probe_texts.json"))
-    users = json.load(open(PROBES / "probe_users.json"))
+    texts = json.loads((PROBES / "probe_texts.json").read_text(encoding="utf-8"))
+    users = json.loads((PROBES / "probe_users.json").read_text(encoding="utf-8"))
     ann_path = PROBES / "probe_annotations.json"
     if add_types:
         assert not args.cleanup, "--cleanup would delete the published probe rows; refuse in --add-types mode"
@@ -124,12 +124,12 @@ def main() -> int:
     # --- 2. annotations -------------------------------------------------------
     existing_records = []
     if add_types:
-        existing_records = json.load(open(ann_path)) if ann_path.exists() else []
+        existing_records = json.loads(ann_path.read_text(encoding="utf-8")) if ann_path.exists() else []
         already = sorted({r["probe_type"] for r in existing_records} & set(add_types))
         assert not already, f"probe types already inserted: {already} — nothing to add"
     else:
         if args.cleanup and ann_path.exists():
-            old = json.load(open(ann_path))
+            old = json.loads(ann_path.read_text(encoding="utf-8"))
             ids = "','".join(a["annotation_id"] for a in old)
             n = psql(f"delete from annotations where id in ('{ids}') returning id;")
             print(f"cleanup: deleted {len(n.splitlines())} probe annotations")

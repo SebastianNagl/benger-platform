@@ -49,18 +49,18 @@ from rubric_structure import (  # noqa: E402
 SAMPLE = {
     "version": 1,
     "nodes": [
-        {"id": "a", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": "insgesamt 21 BE"},
-        {"id": "b", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung des Verwaltungsrechtswegs", "max_score": 1},
-        {"id": "c", "level": 1, "kind": "section", "label": "II.", "title": "Statthafte Klageart"},
-        {"id": "d", "level": 2, "kind": "step", "label": "1.", "title": "Anfechtungsklage", "max_score": 0.5, "hints": ["Regelung (+)", ""]},
-        {"id": "e", "level": 0, "kind": "section", "label": "B.", "title": "Begründetheit"},
+        {"id": "a", "level": 0, "kind": "section", "label": "A.", "title": "Anspruch entstanden", "note": "insgesamt 20 BE"},
+        {"id": "b", "level": 1, "kind": "step", "label": "I.", "title": "Wirksamer Kaufvertrag", "max_score": 1},
+        {"id": "c", "level": 1, "kind": "section", "label": "II.", "title": "Sachmangel"},
+        {"id": "d", "level": 2, "kind": "step", "label": "1.", "title": "Beschaffenheit", "max_score": 0.5, "hints": ["Reichweite des Akkus (+)", ""]},
+        {"id": "e", "level": 0, "kind": "section", "label": "B.", "title": "Rechtsfolge"},
         {
-            "id": "f", "level": 1, "kind": "step", "label": "b)", "title": "Maßnahmerichtung",
+            "id": "f", "level": 1, "kind": "step", "label": "b)", "title": "Nutzungsersatz",
             "max_score": 10.0, "emphasis": "schwerpunkt", "hints": ["H1", " H2 "], "key": "client_key_ignored",
         },
     ],
 }
-COLLEAGUE_SCALE = {
+UEBUNGSKLAUSUR_SCALE = {
     "unit": "BE",
     "thresholds": [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96],
     "rounding": "floor",
@@ -195,25 +195,25 @@ class TestValidateStructure:
 
 
 class TestValidateGradeScale:
-    def test_colleague_scale_valid(self):
-        assert validate_grade_scale(COLLEAGUE_SCALE, 100) == []
-        assert validate_grade_scale({"thresholds": COLLEAGUE_SCALE["thresholds"]}) == []
+    def test_uebungsklausur_scale_valid(self):
+        assert validate_grade_scale(UEBUNGSKLAUSUR_SCALE, 100) == []
+        assert validate_grade_scale({"thresholds": UEBUNGSKLAUSUR_SCALE["thresholds"]}) == []
 
     def test_errors(self):
         assert validate_grade_scale("x") == ["grade_scale must be an object"]
         assert any("exactly 18" in e for e in validate_grade_scale({"thresholds": [1, 2]}))
-        bad = {**COLLEAGUE_SCALE, "thresholds": [10, "x"] + COLLEAGUE_SCALE["thresholds"][2:]}
+        bad = {**UEBUNGSKLAUSUR_SCALE, "thresholds": [10, "x"] + UEBUNGSKLAUSUR_SCALE["thresholds"][2:]}
         assert any("[1] must be a number" in e for e in validate_grade_scale(bad))
-        bad = {**COLLEAGUE_SCALE, "thresholds": [-1] + COLLEAGUE_SCALE["thresholds"][1:]}
+        bad = {**UEBUNGSKLAUSUR_SCALE, "thresholds": [-1] + UEBUNGSKLAUSUR_SCALE["thresholds"][1:]}
         assert any(">= 0" in e for e in validate_grade_scale(bad))
-        bad = {**COLLEAGUE_SCALE, "thresholds": [10, 5] + COLLEAGUE_SCALE["thresholds"][2:]}
+        bad = {**UEBUNGSKLAUSUR_SCALE, "thresholds": [10, 5] + UEBUNGSKLAUSUR_SCALE["thresholds"][2:]}
         assert any("lower than its predecessor" in e for e in validate_grade_scale(bad))
-        assert any("exceeds the total" in e for e in validate_grade_scale(COLLEAGUE_SCALE, 72.5))
-        assert any("rounding" in e for e in validate_grade_scale({**COLLEAGUE_SCALE, "rounding": "up"}))
-        assert any("pass_grade" in e for e in validate_grade_scale({**COLLEAGUE_SCALE, "pass_grade": 19}))
-        assert any("pass_grade" in e for e in validate_grade_scale({**COLLEAGUE_SCALE, "pass_grade": True}))
-        assert any("max_points" in e for e in validate_grade_scale({**COLLEAGUE_SCALE, "max_points": 0}))
-        assert any("unit" in e for e in validate_grade_scale({**COLLEAGUE_SCALE, "unit": "u" * 21}))
+        assert any("exceeds the total" in e for e in validate_grade_scale(UEBUNGSKLAUSUR_SCALE, 72.5))
+        assert any("rounding" in e for e in validate_grade_scale({**UEBUNGSKLAUSUR_SCALE, "rounding": "up"}))
+        assert any("pass_grade" in e for e in validate_grade_scale({**UEBUNGSKLAUSUR_SCALE, "pass_grade": 19}))
+        assert any("pass_grade" in e for e in validate_grade_scale({**UEBUNGSKLAUSUR_SCALE, "pass_grade": True}))
+        assert any("max_points" in e for e in validate_grade_scale({**UEBUNGSKLAUSUR_SCALE, "max_points": 0}))
+        assert any("unit" in e for e in validate_grade_scale({**UEBUNGSKLAUSUR_SCALE, "unit": "u" * 21}))
 
 
 # ---------------------------------------------------------------------------
@@ -229,16 +229,16 @@ class TestNormalizeStructure:
         steps = [n for n in nodes if n["kind"] == "step"]
         # Keys ALWAYS regenerated from (title, step ordinal): the client key is ignored.
         assert [s["key"] for s in steps] == [
-            "s01_eroeffnung_des_verwaltungsrechtswegs",
-            "s02_anfechtungsklage",
-            "s03_massnahmerichtung",
+            "s01_wirksamer_kaufvertrag",
+            "s02_beschaffenheit",
+            "s03_nutzungsersatz",
         ]
         assert steps[2]["max_score"] == 10 and isinstance(steps[2]["max_score"], int)
         assert steps[1]["max_score"] == 0.5
-        assert steps[1]["hints"] == ["Regelung (+)"]  # empty hint dropped
+        assert steps[1]["hints"] == ["Reichweite des Akkus (+)"]  # empty hint dropped
         assert steps[2]["hints"] == ["H1", "H2"]  # trimmed
         assert steps[0]["emphasis"] is None and steps[2]["emphasis"] == "schwerpunkt"
-        assert nodes[0]["note"] == "insgesamt 21 BE" and nodes[2]["note"] is None
+        assert nodes[0]["note"] == "insgesamt 20 BE" and nodes[2]["note"] is None
         assert "max_score" not in nodes[0] and "hints" not in nodes[0]
         assert validate_structure(normalized) == []
 
@@ -251,7 +251,7 @@ class TestNormalizeStructure:
         assert total_points_from_structure(_structure(_step(max_score=0.5), _step(id="b", max_score=0.5), _step(id="c", max_score=0.5))) == 1.5
         assert total_points_from_structure(_structure(_step(max_score=2), _step(id="b", max_score=3))) == 5
         assert isinstance(total_points_from_structure(_structure(_step(max_score=2))), int)
-        assert [s["title"] for s in iter_steps(SAMPLE)] == ["Eröffnung des Verwaltungsrechtswegs", "Anfechtungsklage", "Maßnahmerichtung"]
+        assert [s["title"] for s in iter_steps(SAMPLE)] == ["Wirksamer Kaufvertrag", "Beschaffenheit", "Nutzungsersatz"]
         assert list(iter_steps(None)) == []
 
     def test_normalize_grade_scale_fills_defaults(self):
@@ -261,31 +261,31 @@ class TestNormalizeStructure:
             "rounding": "floor",
             "pass_grade": 4,
         }
-        assert normalize_grade_scale({**COLLEAGUE_SCALE, "max_points": 100.0})["max_points"] == 100
+        assert normalize_grade_scale({**UEBUNGSKLAUSUR_SCALE, "max_points": 100.0})["max_points"] == 100
 
 
 class TestCriteriaFromStructure:
     def test_shape_and_prose(self):
         criteria = criteria_from_structure(normalize_structure(SAMPLE))
         assert list(criteria) == [
-            "s01_eroeffnung_des_verwaltungsrechtswegs",
-            "s02_anfechtungsklage",
-            "s03_massnahmerichtung",
+            "s01_wirksamer_kaufvertrag",
+            "s02_beschaffenheit",
+            "s03_nutzungsersatz",
         ]
-        first = criteria["s01_eroeffnung_des_verwaltungsrechtswegs"]
-        assert first["name"] == "Eröffnung des Verwaltungsrechtswegs"
+        first = criteria["s01_wirksamer_kaufvertrag"]
+        assert first["name"] == "Wirksamer Kaufvertrag"
         assert first["description"] == ""
         assert first["max_score"] == 1
         assert first["rubric"] == (
-            "Kontext: A. Zulässigkeit (insgesamt 21 BE)\n"
-            "Gliederungspunkt: I. Eröffnung des Verwaltungsrechtswegs — max. 1 BE (halbe BE zulässig)"
+            "Kontext: A. Anspruch entstanden (insgesamt 20 BE)\n"
+            "Gliederungspunkt: I. Wirksamer Kaufvertrag — max. 1 BE (halbe BE zulässig)"
         )
-        nested = criteria["s02_anfechtungsklage"]
-        assert nested["rubric"].startswith("Kontext: A. Zulässigkeit (insgesamt 21 BE) › II. Statthafte Klageart\n")
+        nested = criteria["s02_beschaffenheit"]
+        assert nested["rubric"].startswith("Kontext: A. Anspruch entstanden (insgesamt 20 BE) › II. Sachmangel\n")
         assert "max. 0.5 BE" in nested["rubric"]
-        assert nested["description"] == "Regelung (+)"
-        assert "Hinweise:\n- Regelung (+)" in nested["rubric"]
-        emphasised = criteria["s03_massnahmerichtung"]
+        assert nested["description"] == "Reichweite des Akkus (+)"
+        assert "Hinweise:\n- Reichweite des Akkus (+)" in nested["rubric"]
+        emphasised = criteria["s03_nutzungsersatz"]
         assert "Schwerpunkt der Klausur: ausführliche Prüfung erwartet." in emphasised["rubric"]
         assert emphasised["rubric"].endswith("Hinweise:\n- H1\n- H2")
         assert emphasised["description"] == "H1\nH2"
@@ -400,25 +400,25 @@ class TestRenderings:
 
     def test_structure_rendering(self):
         normalized = normalize_structure(SAMPLE)
-        text = render_structure_text(normalized, 11.5, None, title="Polizeirecht")
+        text = render_structure_text(normalized, 11.5, None, title="Zivilrecht")
         lines = text.splitlines()
-        assert lines[0] == "BEWERTUNGSBOGEN: Polizeirecht (insgesamt 11.5 BE; halbe BE zulässig)"
-        assert lines[1] == "A. Zulässigkeit (insgesamt 21 BE)"
-        assert lines[2] == "  I. Eröffnung des Verwaltungsrechtswegs (1 BE) [Schlüssel: s01_eroeffnung_des_verwaltungsrechtswegs]"
-        assert lines[4] == "    1. Anfechtungsklage (0.5 BE) [Schlüssel: s02_anfechtungsklage]"
-        assert lines[5] == "      – Hinweis: Regelung (+)"
-        assert lines[7] == "  b) Maßnahmerichtung (10 BE) SCHWERPUNKT [Schlüssel: s03_massnahmerichtung]"
+        assert lines[0] == "BEWERTUNGSBOGEN: Zivilrecht (insgesamt 11.5 BE; halbe BE zulässig)"
+        assert lines[1] == "A. Anspruch entstanden (insgesamt 20 BE)"
+        assert lines[2] == "  I. Wirksamer Kaufvertrag (1 BE) [Schlüssel: s01_wirksamer_kaufvertrag]"
+        assert lines[4] == "    1. Beschaffenheit (0.5 BE) [Schlüssel: s02_beschaffenheit]"
+        assert lines[5] == "      – Hinweis: Reichweite des Akkus (+)"
+        assert lines[7] == "  b) Nutzungsersatz (10 BE) SCHWERPUNKT [Schlüssel: s03_nutzungsersatz]"
         assert "NOTENSCHLÜSSEL" not in text
         untitled = render_structure_text(normalized, None)
         assert untitled.startswith("BEWERTUNGSBOGEN (insgesamt 11.5 BE; halbe BE zulässig)")
 
     def test_structure_rendering_with_scale_block(self):
-        text = render_structure_text(normalize_structure(SAMPLE), 100, COLLEAGUE_SCALE, include_grade_scale=True)
+        text = render_structure_text(normalize_structure(SAMPLE), 100, UEBUNGSKLAUSUR_SCALE, include_grade_scale=True)
         assert "\nNOTENSCHLÜSSEL (BE → Notenpunkte): 0 NP unter 10 BE; 1 NP ab 10 BE; " in text
         assert "18 NP ab 96 BE" in text
         assert "Rundung: halbe BE werden abgerundet." in text
         assert text.endswith("Bestanden ab 4 Notenpunkten.")
-        nearest = render_grade_scale_text(effective_grade_scale({**COLLEAGUE_SCALE, "rounding": "nearest"}, 100))
+        nearest = render_grade_scale_text(effective_grade_scale({**UEBUNGSKLAUSUR_SCALE, "rounding": "nearest"}, 100))
         assert "kaufmännisch" in nearest
 
     def test_rubric_prompt_text_precedence(self):
@@ -442,7 +442,7 @@ class TestRenderings:
         task = Task(id="t", project_id="p", data={"sachverhalt": "S"}, inner_id=1)
         row = SimpleNamespace(
             generation_metadata=None, structure=normalize_structure(SAMPLE), criteria={},
-            total_points=11.5, grade_scale=COLLEAGUE_SCALE, title="T",
+            total_points=11.5, grade_scale=UEBUNGSKLAUSUR_SCALE, title="T",
         )
         mirror_rubric_into_task_data(task, row)
         assert task.data["sachverhalt"] == "S"
@@ -452,6 +452,45 @@ class TestRenderings:
         assert "bewertungsbogen" not in task.data
         mirror_rubric_into_task_data(task, None)  # no-op when absent
         assert task.data == {"sachverhalt": "S"}
+
+    def test_mirror_renders_the_key_that_grades(self):
+        """The mirror shows the Notenschlüssel the grading applies: the exam's
+        key, else the rubric's own, else the standard one. A rubric without a
+        key of its own used to show the standard key on every exam."""
+        from project_models import Project, Task
+
+        exam_key = {"unit": "percent", "preset": "custom", "rounding": "floor", "pass_grade": 4,
+                    "thresholds": [5 * i for i in range(1, 19)]}
+        project_config = {"grade_scale": exam_key}
+        sheet_key = {"unit": "BE", "thresholds": [0.5 * i for i in range(1, 19)], "rounding": "floor",
+                     "pass_grade": 4}
+
+        def key_block(scale):
+            return render_grade_scale_text(effective_grade_scale(scale, 11.5))
+
+        def mirrored(grade_scale, config=None, project=None):
+            task = Task(id="t", project_id="p", data={}, inner_id=1)
+            if project is not None:
+                task.project = project
+            row = SimpleNamespace(
+                generation_metadata=None, structure=normalize_structure(SAMPLE), criteria={},
+                total_points=11.5, grade_scale=grade_scale, title="T",
+            )
+            mirror_rubric_into_task_data(task, row, config)
+            return task.data["bewertungsbogen"]
+
+        assert key_block(exam_key) != key_block(None)
+        assert mirrored(None, project_config).endswith(key_block(exam_key))
+        assert mirrored(sheet_key, project_config).endswith(key_block(exam_key))  # the exam's key wins
+        assert mirrored(sheet_key).endswith(key_block(sheet_key))
+        assert mirrored(None).endswith(key_block(None))
+        # Without an explicit config the loaded project supplies it.
+        project = Project(id="p", title="P", evaluation_config=project_config)
+        assert mirrored(None, project=project).endswith(key_block(exam_key))
+        # The judge text never carries a key.
+        row = SimpleNamespace(generation_metadata=None, structure=normalize_structure(SAMPLE), criteria={},
+                              total_points=11.5, grade_scale=None, title="T")
+        assert "NOTENSCHLÜSSEL" not in rubric_prompt_text(row, project_config=project_config)
 
 
 # ---------------------------------------------------------------------------
@@ -471,15 +510,15 @@ class TestGrades:
         assert grade_from_points(points, 100)[0] == expected
 
     @pytest.mark.parametrize("points, expected", [(39.5, (3, False)), (40, (4, True)), (72.5, (12, True)), (9.9, (0, False)), (96, (18, True))])
-    def test_colleague_scale(self, points, expected):
-        assert grade_from_points(points, 100, COLLEAGUE_SCALE) == expected
+    def test_uebungsklausur_scale(self, points, expected):
+        assert grade_from_points(points, 100, UEBUNGSKLAUSUR_SCALE) == expected
 
     def test_rounding_modes(self):
-        assert grade_from_points(39.5, 100, {**COLLEAGUE_SCALE, "rounding": "ceil"}) == (4, True)
-        assert grade_from_points(39.5, 100, {**COLLEAGUE_SCALE, "rounding": "nearest"}) == (4, True)
-        assert grade_from_points(39.4, 100, {**COLLEAGUE_SCALE, "rounding": "nearest"}) == (3, False)
-        assert grade_from_points(39.5, 100, {**COLLEAGUE_SCALE, "rounding": "none"}) == (3, False)
-        assert grade_from_points(40.0, 100, {**COLLEAGUE_SCALE, "rounding": "none"}) == (4, True)
+        assert grade_from_points(39.5, 100, {**UEBUNGSKLAUSUR_SCALE, "rounding": "ceil"}) == (4, True)
+        assert grade_from_points(39.5, 100, {**UEBUNGSKLAUSUR_SCALE, "rounding": "nearest"}) == (4, True)
+        assert grade_from_points(39.4, 100, {**UEBUNGSKLAUSUR_SCALE, "rounding": "nearest"}) == (3, False)
+        assert grade_from_points(39.5, 100, {**UEBUNGSKLAUSUR_SCALE, "rounding": "none"}) == (3, False)
+        assert grade_from_points(40.0, 100, {**UEBUNGSKLAUSUR_SCALE, "rounding": "none"}) == (4, True)
 
     def test_invalid_points(self):
         assert grade_from_points(None, 100) == (0, False)
@@ -497,11 +536,11 @@ class TestGrades:
         assert grade_from_points(36, 72.5) == (3, False)
         assert grade_from_points(37, 72.5) == (4, True)
         assert effective_grade_scale(None, None)["thresholds"] == DEFAULT_GRADE_THRESHOLDS
-        assert effective_grade_scale(COLLEAGUE_SCALE, 100)["source"] == "rubric"
-        assert effective_grade_scale({"thresholds": COLLEAGUE_SCALE["thresholds"]}, 100)["pass_grade"] == 4
+        assert effective_grade_scale(UEBUNGSKLAUSUR_SCALE, 100)["source"] == "rubric"
+        assert effective_grade_scale({"thresholds": UEBUNGSKLAUSUR_SCALE["thresholds"]}, 100)["pass_grade"] == 4
 
     def test_grade_for_rubric_prefers_rubric_total_and_scale(self):
-        row = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        row = SimpleNamespace(total_points=100, grade_scale=UEBUNGSKLAUSUR_SCALE)
         assert grade_for_rubric(row, 39.5, 80) == (3, False, "rubric")
         legacy = SimpleNamespace(total_points=100, grade_scale=None)
         assert grade_for_rubric(legacy, 80, 100) == (13, True, "default")
@@ -575,7 +614,7 @@ class TestGradeScalePresets:
             assert grade_from_points(points, 100, PERCENT_STANDARD)[0] == _legacy_grade(points)
 
     def test_uebungsklausur_preset_pins(self):
-        # Same numbers as the colleague's imported sheet, expressed in percent.
+        # Same numbers as UEBUNGSKLAUSUR_SCALE, expressed in percent.
         assert grade_from_points(39.5, 100, PERCENT_UEBUNG) == (3, False)
         assert grade_from_points(40, 100, PERCENT_UEBUNG) == (4, True)
         assert grade_from_points(72.5, 100, PERCENT_UEBUNG) == (12, True)
@@ -588,7 +627,7 @@ class TestPercentScales:
         # A percent key is valid on ANY total — that is the whole point of
         # the unit; the "exceeds the total" rule is for absolute BE scales.
         assert validate_grade_scale(PERCENT_UEBUNG, 3.5) == []
-        assert any("exceeds the total" in e for e in validate_grade_scale(COLLEAGUE_SCALE, 10))
+        assert any("exceeds the total" in e for e in validate_grade_scale(UEBUNGSKLAUSUR_SCALE, 10))
 
     def test_validate_percent_bounds(self):
         bad = {**PERCENT_STANDARD, "thresholds": [0] + PERCENT_STANDARD["thresholds"][1:]}
@@ -609,7 +648,7 @@ class TestPercentScales:
         assert out["unit"] == "percent"
         assert out["preset"] == "uebungsklausur"
         assert out["thresholds"] == PERCENT_UEBUNG["thresholds"]
-        assert "preset" not in normalize_grade_scale(COLLEAGUE_SCALE)
+        assert "preset" not in normalize_grade_scale(UEBUNGSKLAUSUR_SCALE)
         assert normalize_grade_scale({**PERCENT_UEBUNG, "preset": "nope"}).get("preset") is None
 
     def test_effective_scale_converts_percent_to_points(self):
@@ -622,8 +661,8 @@ class TestPercentScales:
         assert grade_from_points(29, 72.5, PERCENT_UEBUNG) == (4, True)
         assert grade_from_points(28.9, 72.5, PERCENT_UEBUNG) == (3, False)
         # An absolute scale is passed through untouched.
-        assert effective_grade_scale(COLLEAGUE_SCALE, 72.5)["thresholds"] == COLLEAGUE_SCALE["thresholds"]
-        assert effective_grade_scale(COLLEAGUE_SCALE, 72.5)["source_unit"] == "BE"
+        assert effective_grade_scale(UEBUNGSKLAUSUR_SCALE, 72.5)["thresholds"] == UEBUNGSKLAUSUR_SCALE["thresholds"]
+        assert effective_grade_scale(UEBUNGSKLAUSUR_SCALE, 72.5)["source_unit"] == "BE"
 
     def test_percent_key_survives_a_trimmed_sheet(self):
         """The reason for the unit: trimming a 100 BE sheet to 90 BE keeps
@@ -635,17 +674,17 @@ class TestPercentScales:
 
 class TestResolveGradeScale:
     def test_project_key_wins(self):
-        rubric = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        rubric = SimpleNamespace(total_points=100, grade_scale=UEBUNGSKLAUSUR_SCALE)
         assert resolve_grade_scale({"grade_scale": PERCENT_UEBUNG}, rubric) is PERCENT_UEBUNG
 
     def test_falls_back_to_the_rubric(self):
-        rubric = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
-        assert resolve_grade_scale(None, rubric) is COLLEAGUE_SCALE
-        assert resolve_grade_scale({}, rubric) is COLLEAGUE_SCALE
-        assert resolve_grade_scale({"grade_scale": None}, rubric) is COLLEAGUE_SCALE
+        rubric = SimpleNamespace(total_points=100, grade_scale=UEBUNGSKLAUSUR_SCALE)
+        assert resolve_grade_scale(None, rubric) is UEBUNGSKLAUSUR_SCALE
+        assert resolve_grade_scale({}, rubric) is UEBUNGSKLAUSUR_SCALE
+        assert resolve_grade_scale({"grade_scale": None}, rubric) is UEBUNGSKLAUSUR_SCALE
         # Unusable project entries are ignored, not crashed on.
-        assert resolve_grade_scale({"grade_scale": "nope"}, rubric) is COLLEAGUE_SCALE
-        assert resolve_grade_scale({"grade_scale": {}}, rubric) is COLLEAGUE_SCALE
+        assert resolve_grade_scale({"grade_scale": "nope"}, rubric) is UEBUNGSKLAUSUR_SCALE
+        assert resolve_grade_scale({"grade_scale": {}}, rubric) is UEBUNGSKLAUSUR_SCALE
 
     def test_none_means_platform_default(self):
         assert resolve_grade_scale(None, None) is None
@@ -653,12 +692,12 @@ class TestResolveGradeScale:
         assert resolve_grade_scale("not a dict", None) is None
 
     def test_accepts_a_plain_dict_rubric(self):
-        assert resolve_grade_scale(None, {"grade_scale": COLLEAGUE_SCALE}) is COLLEAGUE_SCALE
+        assert resolve_grade_scale(None, {"grade_scale": UEBUNGSKLAUSUR_SCALE}) is UEBUNGSKLAUSUR_SCALE
 
 
 class TestGradeForRubricWithProjectConfig:
     def test_exam_percent_key_beats_the_sheets_absolute_one(self):
-        row = SimpleNamespace(total_points=100, grade_scale=COLLEAGUE_SCALE)
+        row = SimpleNamespace(total_points=100, grade_scale=UEBUNGSKLAUSUR_SCALE)
         # Sheet key: 39.5 BE → NP 3 (fail). Exam key (standard, 50 %): also 3.
         assert grade_for_rubric(row, 39.5, 100) == (3, False, "rubric")
         assert grade_for_rubric(row, 40, 100) == (4, True, "rubric")

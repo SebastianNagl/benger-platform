@@ -48,9 +48,9 @@ from pathlib import Path
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_export_view, dedup_superseded  # noqa: E402
-from _stats import kendall_tau, spearman  # noqa: E402
-from derive_paper_exports import (  # noqa: E402
+from _gen_dedup import dedup_export_view, dedup_superseded
+from _stats import kendall_tau, spearman
+from derive_paper_exports import (
     BASELINE_JUDGE_FIELD_PREFIX,
     _baseline_judge_score,
     _zjs_model_whitelist,
@@ -58,8 +58,8 @@ from derive_paper_exports import (  # noqa: E402
     iter_gen_evals,
     load,
 )
-from derive_zjs_summary import SRC as ZJS_SRC  # noqa: E402
-from derive_zjs_summary import ZJS_PRIMARY_JUDGE_PREFIX  # noqa: E402
+from derive_zjs_summary import SRC as ZJS_SRC
+from derive_zjs_summary import ZJS_PRIMARY_JUDGE_PREFIX
 
 HERE = Path(__file__).resolve().parent.parent
 BENCHATHON_EXPORT = HERE / "data" / "raw" / "benchathon" / "Benchathon_export.json"

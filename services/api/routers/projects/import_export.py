@@ -108,6 +108,7 @@ from routers.projects.helpers import (  # noqa: E402
     check_project_accessible,
     check_project_accessible_async,
     check_project_write_access_async,
+    can_read_all_task_content,
     enforce_project_read_window_async,
 )
 
@@ -973,8 +974,12 @@ async def bulk_export_projects(
         if not project:
             continue
 
-        # Check access permission via the shared access helper
+        # Whole-project exports (task data, other people's annotations) are
+        # for contributors; plain members would bypass blinding, access
+        # windows and the SEB gate here.
         if not check_project_accessible(db, current_user, project_id):
+            continue
+        if not can_read_all_task_content(db, current_user, project):
             continue
 
         task_count = db.query(Task).filter(Task.project_id == project.id).count()
@@ -1173,7 +1178,9 @@ async def bulk_export_full_projects(
                         )
                         continue
 
-                    if not check_project_accessible(db, current_user, project_id):
+                    if not check_project_accessible(
+                        db, current_user, project_id
+                    ) or not can_read_all_task_content(db, current_user, project):
                         logger.warning(
                             "bulk-export-full: access denied for project %s, skipping",
                             project_id,

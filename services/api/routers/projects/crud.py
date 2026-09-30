@@ -13,10 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import flag_modified
 
+import extensions
 from auth_module import require_user
 from auth_module.dependencies import get_current_user
 from auth_module.models import User as AuthUser
 from database import SessionLocal, get_async_db
+from grade_scale_history import (
+    GRADE_SCALE_KEY,
+    apply_grade_scale_write,
+    grade_scale_changed,
+)
 from services.label_config.validator import LabelConfigValidator
 from services.label_config.version_service import LabelConfigVersionService
 from services.member_privacy import (
@@ -65,6 +71,7 @@ from routers.projects.helpers import (
     get_user_with_memberships_async,
     resolve_project_roles_batch_async,
 )
+from task_rubric_service import remirror_project_rubrics
 # Module-level so `from routers.projects.crud import deep_merge_dicts` keeps
 # working for existing importers (tests) after the local copy was removed.
 from utils.json_merge import deep_merge_dicts
@@ -823,6 +830,29 @@ async def update_project(
     # Update fields
     update_data = update.dict(exclude_unset=True)
 
+    # evaluation_config is written by the eval-config PUT too. Both writers
+    # merge the same way (the Notenschlüssel is replaced as one unit) and run
+    # the same checks on the merged document, before anything is written.
+    # An explicit null leaves the stored document as it is.
+    eval_config_before = None
+    eval_config_after = None
+    if "evaluation_config" in update_data:
+        eval_config_body = update_data.pop("evaluation_config")
+        if eval_config_body is not None:
+            from routers.evaluations.config import (
+                merge_evaluation_config,
+                validate_evaluation_config_write,
+            )
+
+            eval_config_before = project.evaluation_config or {}
+            eval_config_after = merge_evaluation_config(eval_config_before, eval_config_body)
+            validate_evaluation_config_write(eval_config_body, eval_config_after)
+            # Same audit as the eval-config PUT: the key's trail is
+            # server-owned and every change of the key is appended.
+            eval_config_after = apply_grade_scale_write(
+                eval_config_before, eval_config_after, actor_id=str(current_user.id)
+            )
+
     # Kind is editable on expert projects (the extended student surfaces key
     # discovery off it), but a student-origin project can never be un-flagged
     # back into the public/expert lanes. Only kind CHANGES are rejected, so a
@@ -900,6 +930,26 @@ async def update_project(
             # Remove version_description if present (not a model field)
             update_data.pop("version_description", None)
 
+    grade_scale_moved = False
+    if eval_config_after is not None:
+        grade_scale_moved = grade_scale_changed(
+            eval_config_before.get(GRADE_SCALE_KEY), eval_config_after.get(GRADE_SCALE_KEY)
+        )
+        project.evaluation_config = eval_config_after
+        flag_modified(project, "evaluation_config")
+        logger.info(f"Project {project_id}: Deep merged evaluation_config update")
+        # Same hook as the eval-config PUT: extended derives its Korrektur
+        # fields from the saved evaluation_configs. Runs before the other
+        # fields of the body are applied, so an explicit korrektur_enabled /
+        # korrektur_config in the same PATCH still wins. The hook is sync and
+        # takes a sync session, hence run_sync.
+        saved_eval_config = eval_config_after
+        await db.run_sync(
+            lambda session: extensions.run_after_eval_config_save(
+                session, project, saved_eval_config
+            )
+        )
+
     for field, value in update_data.items():
         if hasattr(project, field):
             # Special handling for generation_config to preserve nested fields (Issue #818)
@@ -912,15 +962,13 @@ async def update_project(
                 # Ensure SQLAlchemy tracks the JSONB field change
                 flag_modified(project, "generation_config")
                 logger.info(f"Project {project_id}: Deep merged generation_config update")
-            elif field == "evaluation_config":
-                current_config = project.evaluation_config or {}
-                merged_config = deep_merge_dicts(current_config, value)
-                setattr(project, field, merged_config)
-
-                flag_modified(project, "evaluation_config")
-                logger.info(f"Project {project_id}: Deep merged evaluation_config update")
             else:
                 setattr(project, field, value)
+
+    # The grading sheets' task-data mirrors end in the key that grades the
+    # exam; a key change re-renders them in the same transaction.
+    if grade_scale_moved:
+        await remirror_project_rubrics(db, project.id, project.evaluation_config)
 
     await db.commit()
 

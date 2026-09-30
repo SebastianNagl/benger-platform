@@ -1,0 +1,16 @@
+/.quarto/
+**/*.quarto_ipynb
+# Written at render time (tables, TikZ) or by `make analyze` (figures).
+/assets/
+comment.cut
+# Private material must never be tracked, wherever it lands. The repo-wide
+# `!data/**/*.json` re-include would otherwise pick up a misplaced key or
+# canary file; office and PDF files belong under the ignored raw/ folder.
+data/**/*.xlsx
+data/**/*.docx
+data/**/*.pdf
+**/KEY*.json
+**/*canary*
+.pilot.local.json
+# Owner's plain-language explainer: local only unless the owner adds it.
+EXPLAINED_SIMPLY.md

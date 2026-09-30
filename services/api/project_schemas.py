@@ -487,6 +487,9 @@ class ProjectResponse(ProjectBase):
     # Timed access window (null ⇒ no window). Copied verbatim by from_orm.
     window_start_at: Optional[datetime] = None
     window_end_at: Optional[datetime] = None
+    # Safe Exam Browser gate (read-only here; the extended edition owns the
+    # settings endpoint that also computes the accepted Config Key).
+    seb_required: bool = False
     review_enabled: bool = False
     review_mode: Optional[str] = "in_place"
     allow_self_review: bool = False

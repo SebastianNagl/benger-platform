@@ -180,6 +180,16 @@ class Project(Base):
     window_start_at = Column(DateTime(timezone=True), nullable=True, index=True)
     window_end_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
+    # Safe Exam Browser (migration 109). When ``seb_required`` is true, exam
+    # content reads and exam writes by non-editors must come from SEB with an
+    # accepted Config Key (see /shared/seb.py and enforce_seb in
+    # routers/projects/helpers.py). ``seb_config`` holds the settings the
+    # extended edition builds the .seb file from plus the accepted keys:
+    # ``generated_config_key``, ``extra_config_keys`` and
+    # ``browser_exam_keys`` (list of {"key", "label"}; empty = BEK unchecked).
+    seb_required = Column(Boolean, default=False, server_default="false", nullable=False)
+    seb_config = Column(JSONB, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

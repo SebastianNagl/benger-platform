@@ -53,7 +53,13 @@ from sqlalchemy import select
 from auth_module.dependencies import get_current_user, require_user
 from auth_module.models import User as AuthUser
 from main import app
-from models import Organization, OrganizationMembership, OrganizationRole, User
+from models import (
+    Invitation,
+    Organization,
+    OrganizationMembership,
+    OrganizationRole,
+    User,
+)
 
 
 def _uid() -> str:
@@ -567,6 +573,91 @@ async def test_annotator_cannot_verify_forbidden(async_test_client, async_test_d
         )
     assert resp.status_code == 403
     assert "Only organization admins" in resp.json()["detail"]
+
+
+async def _open_invitation(db, org_id, invited_by, email):
+    from datetime import timedelta
+
+    inv = Invitation(
+        id=_uid(),
+        organization_id=org_id,
+        email=email,
+        role=OrganizationRole.CONTRIBUTOR,
+        token=_uid(),
+        invited_by=invited_by,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        accepted=False,
+    )
+    db.add(inv)
+    await db.flush()
+    return inv
+
+
+async def _accepted(db, invitation_id):
+    db.expire_all()
+    return (
+        await db.execute(select(Invitation.accepted).where(Invitation.id == invitation_id))
+    ).scalar_one()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_org_admin_verify_accepts_only_own_org_invitations(
+    async_test_client, async_test_db
+):
+    """An org admin vouches for the address within their org only: another
+    org's invitation to the same address stays open."""
+    org, users = await _seed_org_with_members(async_test_db)
+    other = await _make_org(async_test_db, name="Other Org")
+    target = await _make_user(async_test_db, "Self Signup", email_verified=False)
+    await _membership(async_test_db, target.id, org.id, "ANNOTATOR")
+    own_inv = await _open_invitation(async_test_db, org.id, users["admin"].id, target.email)
+    other_inv = await _open_invitation(
+        async_test_db, other.id, users["admin"].id, target.email
+    )
+    ids = (org.id, other.id, target.id, own_inv.id, other_inv.id)
+    await async_test_db.commit()
+    oid, other_id, target_id, own_inv_id, other_inv_id = ids
+
+    with _as_user(users["org_admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/{target_id}/verify-email", json={}
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert await _accepted(async_test_db, own_inv_id) is True
+    assert await _accepted(async_test_db, other_inv_id) is False
+    assert await _get_membership(async_test_db, target_id, other_id) is None
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_superadmin_bulk_verify_accepts_every_open_invitation(
+    async_test_client, async_test_db
+):
+    """A self-signup whose verification mail never arrived, verified by a
+    superadmin, joins the org that had invited the address."""
+    org, users = await _seed_org_with_members(async_test_db)
+    inviting = await _make_org(async_test_db, name="Inviting Org")
+    target = await _make_user(async_test_db, "Self Signup", email_verified=False)
+    inv = await _open_invitation(
+        async_test_db, inviting.id, users["admin"].id, target.email.upper()
+    )
+    oid, inviting_id, target_id, inv_id = org.id, inviting.id, target.id, inv.id
+    await async_test_db.commit()
+
+    with _as_user(users["admin"]):
+        resp = await async_test_client.post(
+            f"/api/organizations/{oid}/members/verify-emails",
+            json={"user_ids": [target_id]},
+        )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["summary"]["success"] == 1
+    assert await _accepted(async_test_db, inv_id) is True
+    membership = await _get_membership(async_test_db, target_id, inviting_id)
+    assert membership is not None and membership.is_active is True
+    assert membership.role == OrganizationRole.CONTRIBUTOR
 
 
 # ---------------------------------------------------------------------------

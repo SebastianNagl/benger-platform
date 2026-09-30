@@ -100,13 +100,21 @@ class PasswordResetService:
         # The reset link was mailed to user.email, so using it proves the
         # mailbox. Without this an account whose address is still unproven
         # (e.g. supplied by an LMS) could set a password but never log in.
-        verify_email_by_link(user, method="self")
+        newly_verified = verify_email_by_link(user, method="self")
 
         # Clear reset token
         user.password_reset_token = None
         user.password_reset_expires = None
 
         db.commit()
+
+        # A self-signup that never got its verification mail can recover this
+        # way; its address's open invitations count as accepted, as they
+        # would on the verification link.
+        if newly_verified:
+            from auth_module.email_verification import email_verification_service
+
+            email_verification_service.accept_pending_invitations(db, user)
         return True
 
     def clear_expired_tokens(self, db: Session) -> int:

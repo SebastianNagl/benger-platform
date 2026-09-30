@@ -1334,11 +1334,11 @@ class TestTaskRubricRoundtrip:
     STRUCTURE = {
         "version": 1,
         "nodes": [
-            {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": None},
-            {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Eröffnung", "note": None,
-             "key": "s01_eroeffnung", "max_score": 70, "emphasis": None, "hints": []},
+            {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Anspruch entstanden", "note": None},
+            {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "Kaufvertrag", "note": None,
+             "key": "s01_kaufvertrag", "max_score": 70, "emphasis": None, "hints": []},
             {"id": "n3", "level": 1, "kind": "step", "label": "II.", "title": "Obersatz", "note": None,
-             "key": "s02_obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Vergangenheitsform!"]},
+             "key": "s02_obersatz", "max_score": 2.5, "emphasis": "schwerpunkt", "hints": ["Gutachtenstil!"]},
         ],
     }
     SCALE = {
@@ -1358,7 +1358,7 @@ class TestTaskRubricRoundtrip:
         structured = TaskRubric(
             id=str(uuid.uuid4()), task_id=data["tasks"][0].id, project_id=project.id,
             title="Korrekturbogen",
-            criteria={"s01_eroeffnung": {"name": "Eröffnung", "rubric": "r", "max_score": 70},
+            criteria={"s01_kaufvertrag": {"name": "Kaufvertrag", "rubric": "r", "max_score": 70},
                       "s02_obersatz": {"name": "Obersatz", "rubric": "r", "max_score": 2.5}},
             total_points=72.5, structure=self.STRUCTURE, grade_scale=self.SCALE,
             source="human", status="active", created_by=user.id,

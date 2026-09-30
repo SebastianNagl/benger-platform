@@ -4,6 +4,7 @@ import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { UserIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
+import { useState } from 'react'
 
 interface TeamMember {
   name: string
@@ -20,31 +21,18 @@ interface NetworkPartner {
   logo?: string
 }
 
+// The first two rows (six cards) show by default, so the order of
+// `landing.people.members` in the locale files decides who is visible
+// before "show all".
+const COLLAPSED_COUNT = 6
+
 export function PeopleSection() {
   const { t } = useI18n()
+  const [showAll, setShowAll] = useState(false)
 
-  // One block: every person from the (historically separate) platform,
-  // dataset, senior-author and acknowledgement lists, each listed once
-  // (first occurrence wins, so a person who leads the project and
-  // contributed to the dataset shows their project role).
-  const lists = [
-    'landing.people.teamPlatform',
-    'landing.people.teamDatasetCore',
-    'landing.people.teamDatasetContribution',
-    'landing.people.teamDatasetSenior',
-    'landing.people.acknowledgements',
-  ]
-  const seen = new Set<string>()
-  const members: TeamMember[] = []
-  for (const key of lists) {
-    const list = t(key) as unknown as TeamMember[]
-    if (!Array.isArray(list)) continue
-    for (const member of list) {
-      if (!member?.name || seen.has(member.name)) continue
-      seen.add(member.name)
-      members.push(member)
-    }
-  }
+  const list = t('landing.people.members') as unknown as TeamMember[]
+  const members = Array.isArray(list) ? list.filter((m) => m?.name) : []
+  const visibleMembers = showAll ? members : members.slice(0, COLLAPSED_COUNT)
   const network = t('landing.people.network') as unknown as NetworkPartner[]
   const networkPartners = Array.isArray(network) ? network : []
 
@@ -109,9 +97,27 @@ export function PeopleSection() {
         </div>
 
         {/* People */}
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {members.map((member, i) => renderMemberCard(member, i))}
+        <div
+          id="people-list"
+          className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+        >
+          {visibleMembers.map((member, i) => renderMemberCard(member, i))}
         </div>
+        {members.length > COLLAPSED_COUNT && (
+          <div className="mt-6 text-center">
+            <button
+              type="button"
+              onClick={() => setShowAll((v) => !v)}
+              aria-expanded={showAll}
+              aria-controls="people-list"
+              className="text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              {showAll
+                ? t('landing.people.showLess')
+                : `${t('landing.people.showAll')} (${members.length})`}
+            </button>
+          </div>
+        )}
 
         {/* Network partners — same block, logo cards below the people. */}
         <div className="mt-12">

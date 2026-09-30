@@ -33,14 +33,14 @@ EMPTY_TEXT = "—"
 
 def main() -> int:
     PROBES.mkdir(parents=True, exist_ok=True)
-    exams = json.load(open(INTERIM / "exams.json"))
+    exams = json.loads((INTERIM / "exams.json").read_text(encoding="utf-8"))
     by_inner = {e["inner_id"]: e for e in exams}
 
     # exams.json carries EXPORT task ids -> local source project ids via
     # benchathon_local_task_map.json -> clone ids via the pick files.
-    export_to_local = json.load(open(INTERIM / "benchathon_local_task_map.json"))["task_id_map"]
-    src = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks.json"))["resolved"]}
-    clo = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks_temp0.json"))["resolved"]}
+    export_to_local = json.loads((INTERIM / "benchathon_local_task_map.json").read_text(encoding="utf-8"))["task_id_map"]
+    src = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks.json").read_text(encoding="utf-8"))["resolved"]}
+    clo = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks_temp0.json").read_text(encoding="utf-8"))["resolved"]}
     local_to_clone = {}
     for pid, s_task in src.items():
         local_to_clone.setdefault(s_task, clo[pid])
@@ -78,7 +78,7 @@ def main() -> int:
         json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
 
     users_path = PROBES / "probe_users.json"
-    users = json.load(open(users_path)) if users_path.exists() else {}
+    users = json.loads(users_path.read_text(encoding="utf-8")) if users_path.exists() else {}
     added = [t for t in PROBE_TYPES if t not in users]
     for t in added:
         users[t] = {

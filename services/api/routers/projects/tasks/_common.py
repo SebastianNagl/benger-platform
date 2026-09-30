@@ -42,6 +42,8 @@ from routers.projects.helpers import (
     check_user_can_edit_task_data_async,
     enforce_project_read_window_async,
     enforce_project_write_window_async,
+    enforce_seb_async,
+    seb_request_allowed_async,
     get_user_with_memberships,
     get_user_with_memberships_async,
 )
@@ -119,6 +121,8 @@ __all__ = [
     "check_user_can_edit_task_data_async",
     "enforce_project_read_window_async",
     "enforce_project_write_window_async",
+    "enforce_seb_async",
+    "seb_request_allowed_async",
     "get_user_with_memberships",
     "get_user_with_memberships_async",
     # this module

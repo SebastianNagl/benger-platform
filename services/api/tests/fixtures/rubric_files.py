@@ -291,54 +291,56 @@ def make_docx(
 
 
 # ---------------------------------------------------------------------------
-# The colleague's sheet, reduced (points re-balanced to sum to 100 so the
-# Notenschlüssel still fits; every real-world quirk of the original kept).
+# A synthetic sample sheet: a neutral civil-law practice exam (sale of a used
+# e-bike). Points sum to 100 so the Notenschlüssel fits. It carries the layout
+# quirks real Korrekturbögen show.
 # ---------------------------------------------------------------------------
 
 SCALE_RANGES = [
     "0-9", "10~19", "20-29", "30-39", "40-43", "44-47", "48-51", "52-55", "56-59",
     "60-63", "64-67", "68-71", "72-75", "76-79", "80-83", "84-87", "88-91", "92-95", "96-100",
 ]
-COLLEAGUE_THRESHOLDS = [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96]
+# The platform's "uebungsklausur" grade preset (pass from 40 BE of 100).
+UEBUNGSKLAUSUR_THRESHOLDS = [10, 20, 30, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88, 92, 96]
 _COLS = "BCDEFGHIJKLMNOPQRST"
 
 
-def colleague_sample_rows(*, grades: Optional[List[int]] = None) -> List[Optional[Dict[str, Any]]]:
+def sample_sheet_rows(*, grades: Optional[List[int]] = None) -> List[Optional[Dict[str, Any]]]:
     grades = list(range(19)) if grades is None else grades
     scale_row = {"A": "BE", **{_COLS[i]: r for i, r in enumerate(SCALE_RANGES)}}
     grade_row = {"A": "Note in Punkten", **{_COLS[i]: g for i, g in enumerate(grades)}}
     return [
         {"A": "Frage 1:", "B": "max. BE", "C": "Ihre BE"},  # 1
-        {"A": "A.    Zulässigkeit  (insgesamt 21 BE)"},  # 2 (declared 21, steps sum to 6 → subtotal warning)
-        {"A": "I.                Eröffnung des Verwaltungsrechtswegs nach § 40 I 1 VwGO", "B": 1},  # 3
-        {"A": "·        Abdrängende Sonderzuweisung eindeutig zu verneinen", "B": 2},  # 4
-        {"A": "II.              Statthafte Klageart"},  # 5
-        {"A": "1.               Anfechtungsklage"},  # 6
-        {"A": "a)               Verwaltungsakt i.S.d. Art. 35 S. 1 VwVfG"},  # 7
-        {"A": "·        Regelung (+)", "B": 1},  # 8
-        {"A": "·        Allgemeinverfügung irrelevant", "B": 0.5},  # 9
-        {"A": "b)              Erledigung des VA", "B": 1},  # 10
-        {"A": "IV.            Klagebefugnis, § 42 II VwGO analog", "B": 0.5},  # 11
-        {"A": RichText(["B.    ", "Begründetheit", " (insgesamt 21,5 BE)"])},  # 12
-        {"A": "Obersatz (Vergangenheitsform!)", "B": 1},  # 13
-        {"A": "b)              Maßnahmerichtung (Schwerpunkt!)", "B": 10},  # 14
-        {"A": "·        Ausführliche Diskussion: H als Zweckveranlasser? (+)"},  # 15
-        {"A": "·        A. A. vertr., wichtig ist die Diskussion der Frage!"},  # 16
-        {"A": "bb)           Unverhältnismäßiger Grundrechtseingriff (weiterer Schwerpunkt!)"},  # 17
-        {"A": "(1)            Schutzbereich", "B": 4},  # 18
-        {"A": "(3)            Rechtfertigung", "B": 6},  # 19
-        {"A": "III.            Rechtsverletzung des H", "B": 0.5},  # 20
+        {"A": "A.    Rücktrittsrecht  (insgesamt 20 BE)"},  # 2 (declared 20, steps sum to 6 → subtotal warning)
+        {"A": "I.                Wirksamer Kaufvertrag nach § 433 BGB", "B": 1},  # 3
+        {"A": "·        Einigung über das gebrauchte Rad unproblematisch", "B": 2},  # 4
+        {"A": "II.              Sachmangel"},  # 5
+        {"A": "1.               Beschaffenheitsvereinbarung"},  # 6
+        {"A": "a)               Vereinbarte Beschaffenheit i.S.d. § 434 II 1 Nr. 1 BGB"},  # 7
+        {"A": "·        Reichweite des Akkus (+)", "B": 1},  # 8
+        {"A": "·        Werbeaussage des Herstellers unerheblich", "B": 0.5},  # 9
+        {"A": "b)              Mangel bei Gefahrübergang", "B": 1},  # 10
+        {"A": "IV.            Fristsetzung, § 323 I BGB", "B": 0.5},  # 11
+        {"A": RichText(["B.    ", "Rechtsfolgen", " (insgesamt 21,5 BE)"])},  # 12
+        {"A": "Obersatz (Gutachtenstil!)", "B": 1},  # 13
+        {"A": "b)              Nutzungsersatz (Schwerpunkt!)", "B": 10},  # 14
+        {"A": "·        Ausführliche Diskussion: Abzug für die gefahrenen Kilometer? (+)"},  # 15
+        {"A": "·        A. A. vertretbar, entscheidend ist die Begründung!"},  # 16
+        {"A": "bb)           Gegenrechte des Verkäufers (weiterer Schwerpunkt!)"},  # 17
+        {"A": "(1)            Verwendungsersatz", "B": 4},  # 18
+        {"A": "(3)            Aufrechnung", "B": 6},  # 19
+        {"A": "III.            Zurückbehaltungsrecht des V", "B": 0.5},  # 20
         {"A": "IV.            Zwischenergebnis"},  # 21
         {"A": "C.    Ergebnis"},  # 22
         None,  # 23
         {"A": "Frage 2: Insgesamt 72,5 BE"},  # 24
-        {"A": "I.            Rechtsgrundlage"},  # 25
-        {"A": "1.           Art. 16 Abs. 2 S. 1 Nr. 2 lit. a PAG", "B": 2},  # 26
-        {"A": "·        Auftrittsverbot kein Aufenthaltsverbot"},  # 27
-        {"A": "2.           Generalklausel (Schwerpunkt!)", "B": 1},  # 28
-        {"A": "a)           Sperrwirkung der Standardbefugnisse", "B": "1,5"},  # 29 (text cell with comma)
-        {"A": "II.          Formelle Rechtmäßigkeit des Auftrittsverbots"},  # 30
-        {"A": "aa)        Aufgabeneröffnung nach Art. 2 Abs. 1 PAG (Schwerpunkt!)", "B": 68},  # 31
+        {"A": "I.            Anspruchsgrundlage"},  # 25
+        {"A": "1.           § 437 Nr. 3 i. V. m. § 281 Abs. 1 S. 1 Alt. 2 BGB", "B": 2},  # 26
+        {"A": "·        Kein Fall des § 440 BGB"},  # 27
+        {"A": "2.           Pflichtverletzung (Schwerpunkt!)", "B": 1},  # 28
+        {"A": "a)           Vorrang der Nacherfüllung", "B": "1,5"},  # 29 (text cell with comma)
+        {"A": "II.          Vertretenmüssen des Verkäufers"},  # 30
+        {"A": "aa)        Vermutung nach § 280 Abs. 1 S. 2 BGB (Schwerpunkt!)", "B": 68},  # 31
         {"A": "Gesamt-BE", "B": Formula("SUM(B1:B31)", 100), "C": Formula("SUM(C2:C31)", 0)},  # 32
         {"A": "Ergibt Gesamtnote:"},  # 33
         None,  # 34
@@ -347,12 +349,12 @@ def colleague_sample_rows(*, grades: Optional[List[int]] = None) -> List[Optiona
         grade_row,  # 37
         None,  # 38
         {"A": "Die Note errechnet sich aus den zusammengezählten BE der rechten Spalte; bei 0,5 BE wird abgerundet."},  # 39
-        {"A": "Korrektor: Dr. Martin Heidebach martin.heidebach@jura.uni-muenchen.de"},  # 40
+        {"A": "Korrektor: Prüfer, pruefer@example.org"},  # 40
     ]
 
 
-def colleague_sample_xlsx(**kwargs) -> bytes:
-    return make_xlsx(colleague_sample_rows(), **kwargs)
+def sample_sheet_xlsx(**kwargs) -> bytes:
+    return make_xlsx(sample_sheet_rows(), **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -365,23 +367,23 @@ def parity_sheet_xlsx() -> bytes:
     """Excel layout: one outline line per row, points on the line they score."""
     return make_xlsx(
         [
-            {"A": "A.    Zulässigkeit"},
-            {"A": "I.        Statthaftigkeit", "B": 2},
-            {"A": "·        Verwaltungsakt (+)"},
-            {"A": "B.    Begründetheit"},
-            {"A": "I.        Rechtsgrundlage"},
-            {"A": "1.        Gefahr"},
-            {"A": "·        Konkrete Gefahr für die öffentliche Sicherheit", "B": 3},
-            {"A": "2.        Vorübergehend"},
-            {"A": "·        Dauer der Maßnahme", "B": "1,5"},
-            {"A": "II.       Maßnahmerichtung (Schwerpunkt!)", "B": 10},
-            {"A": "·        Zweckveranlasser"},
-            {"A": "III.      Ermessen"},
-            {"A": "1.        Auswahlermessen", "B": 2},
-            {"A": "2.        Grundrechtseingriff (weiterer Schwerpunkt!)"},
-            {"A": "a)        Schutzbereich", "B": 4},
-            {"A": "b)        Rechtfertigung", "B": 6},
-            {"A": "·        Verhältnismäßigkeit (Schwerpunkt!)"},
+            {"A": "A.    Anspruch entstanden"},
+            {"A": "I.        Kaufvertrag", "B": 2},
+            {"A": "·        Einigung (+)"},
+            {"A": "B.    Rücktrittsrecht"},
+            {"A": "I.        Sachmangel"},
+            {"A": "1.        Beschaffenheit"},
+            {"A": "·        Abweichung von der vereinbarten Beschaffenheit", "B": 3},
+            {"A": "2.        Gefahrübergang"},
+            {"A": "·        Übergabe an den Käufer", "B": "1,5"},
+            {"A": "II.       Fristsetzung (Schwerpunkt!)", "B": 10},
+            {"A": "·        Entbehrlichkeit"},
+            {"A": "III.      Ausschluss"},
+            {"A": "1.        Kenntnis des Käufers", "B": 2},
+            {"A": "2.        Unerheblichkeit (weiterer Schwerpunkt!)"},
+            {"A": "a)        Aufwand der Mangelbeseitigung", "B": 4},
+            {"A": "b)        Interessenabwägung", "B": 6},
+            {"A": "·        Gesamtwürdigung (Schwerpunkt!)"},
             {"A": "Gesamt", "B": 28.5},
         ]
     )
@@ -398,18 +400,18 @@ def parity_sheet_docx() -> bytes:
     return make_docx(
         [
             [
-                [["A. Zulässigkeit"], [""]],
-                [["I. Statthaftigkeit", bullet("Verwaltungsakt (+)")], ["2"]],
-                [["B. Begründetheit"], [""]],
-                [["I. Rechtsgrundlage"], [""]],
-                [["1. Gefahr", bullet("Konkrete Gefahr für die öffentliche Sicherheit")], ["", "3"]],
-                [["2. Vorübergehend", bullet("Dauer der Maßnahme")], ["", "1,5"]],
-                [["II. Maßnahmerichtung (Schwerpunkt!)", bullet("Zweckveranlasser")], ["10"]],
-                [["III. Ermessen"], [""]],
-                [["1. Auswahlermessen"], ["2"]],
-                [["2. Grundrechtseingriff (weiterer Schwerpunkt!)"], [""]],
-                [["a) Schutzbereich"], ["4"]],
-                [["b) Rechtfertigung", bullet("Verhältnismäßigkeit (Schwerpunkt!)")], ["6"]],
+                [["A. Anspruch entstanden"], [""]],
+                [["I. Kaufvertrag", bullet("Einigung (+)")], ["2"]],
+                [["B. Rücktrittsrecht"], [""]],
+                [["I. Sachmangel"], [""]],
+                [["1. Beschaffenheit", bullet("Abweichung von der vereinbarten Beschaffenheit")], ["", "3"]],
+                [["2. Gefahrübergang", bullet("Übergabe an den Käufer")], ["", "1,5"]],
+                [["II. Fristsetzung (Schwerpunkt!)", bullet("Entbehrlichkeit")], ["10"]],
+                [["III. Ausschluss"], [""]],
+                [["1. Kenntnis des Käufers"], ["2"]],
+                [["2. Unerheblichkeit (weiterer Schwerpunkt!)"], [""]],
+                [["a) Aufwand der Mangelbeseitigung"], ["4"]],
+                [["b) Interessenabwägung", bullet("Gesamtwürdigung (Schwerpunkt!)")], ["6"]],
                 [["Gesamt"], ["28,5"]],
             ]
         ],

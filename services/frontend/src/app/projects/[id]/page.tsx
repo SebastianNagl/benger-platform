@@ -361,6 +361,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Student access (share links, participants, discoverability) — sub-sections
   // of the Project settings card, filled by the extended edition.
   const ProjectSharing = useSlot('project-sharing')
+  // Safe Exam Browser requirement for exams (extended): its own save.
+  const ProjectExamSecurity = useSlot('project-exam-security')
   const ProjectDeckWorkspace = useSlot('project-deck-workspace')
   const ProjectSolverActions = useSlot('project-solver-actions')
   // Learning-platform (LMS) activities linked to this project, shown under the
@@ -2954,6 +2956,19 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     />
                   </div>
                 )}
+
+                {/* Safe Exam Browser (extended): whether students must write
+              the exam in SEB. Beside visibility and sharing because it also
+              decides how the project may be reached. */}
+                {ProjectExamSecurity &&
+                  currentProject &&
+                  currentProject.enable_annotation !== false &&
+                  canEditProject() && (
+                    <ProjectExamSecurity
+                      project={currentProject}
+                      onRefresh={() => fetchProject(projectId)}
+                    />
+                  )}
               </ConfigCard>
             </>
           )}

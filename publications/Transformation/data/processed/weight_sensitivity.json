@@ -1,0 +1,327 @@
+{
+ "note": "Post-hoc re-weighting of stored per-step tailored scores (D6-active rubrics). r/MAE: first pass vs blind-human pool mean, annotation picks; repeat_sd: population SD over >=3 passes, mean over cells.",
+ "per_judge": {
+  "Qwen/Qwen3.5-397B-A17B": {
+   "actual": {
+    "n": 30,
+    "r": 0.7449,
+    "mae": 13.2125,
+    "repeat_sd": 5.4318,
+    "n_repeat_cells": 45
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.7422,
+    "mae": 13.3203,
+    "repeat_sd": 5.409,
+    "n_repeat_cells": 45
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.7311,
+    "mae": 13.3604,
+    "repeat_sd": 5.2757,
+    "n_repeat_cells": 45
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.716,
+    "mae": 13.8097,
+    "repeat_sd": 5.0484,
+    "n_repeat_cells": 45
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.7381,
+    "mae": 12.9149,
+    "repeat_sd": 5.2048,
+    "n_repeat_cells": 45
+   },
+   "permuted": {
+    "r_median": 0.7053,
+    "r_ci95": [
+     0.6559,
+     0.7507
+    ],
+    "share_of_permutations_below_actual_r": 0.93,
+    "repeat_sd_median": 5.1891
+   }
+  },
+  "claude-opus-4-7": {
+   "actual": {
+    "n": 30,
+    "r": 0.7406,
+    "mae": 15.5125,
+    "repeat_sd": 1.2548,
+    "n_repeat_cells": 36
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.7382,
+    "mae": 15.6053,
+    "repeat_sd": 1.2457,
+    "n_repeat_cells": 36
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.7302,
+    "mae": 15.3612,
+    "repeat_sd": 1.232,
+    "n_repeat_cells": 36
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.724,
+    "mae": 14.346,
+    "repeat_sd": 1.1527,
+    "n_repeat_cells": 36
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.738,
+    "mae": 14.7756,
+    "repeat_sd": 1.1965,
+    "n_repeat_cells": 36
+   },
+   "permuted": {
+    "r_median": 0.7165,
+    "r_ci95": [
+     0.6704,
+     0.7574
+    ],
+    "share_of_permutations_below_actual_r": 0.875,
+    "repeat_sd_median": 1.2333
+   }
+  },
+  "claude-sonnet-4-6": {
+   "actual": {
+    "n": 30,
+    "r": 0.7724,
+    "mae": 15.1875,
+    "repeat_sd": 1.174,
+    "n_repeat_cells": 45
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.7707,
+    "mae": 15.2632,
+    "repeat_sd": 1.18,
+    "n_repeat_cells": 45
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.7654,
+    "mae": 15.22,
+    "repeat_sd": 1.2339,
+    "n_repeat_cells": 45
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.7583,
+    "mae": 14.5474,
+    "repeat_sd": 1.3221,
+    "n_repeat_cells": 45
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.7694,
+    "mae": 14.7592,
+    "repeat_sd": 1.2377,
+    "n_repeat_cells": 45
+   },
+   "permuted": {
+    "r_median": 0.7527,
+    "r_ci95": [
+     0.7162,
+     0.7854
+    ],
+    "share_of_permutations_below_actual_r": 0.865,
+    "repeat_sd_median": 1.342
+   }
+  },
+  "deepseek-ai/DeepSeek-V4-Pro": {
+   "actual": {
+    "n": 30,
+    "r": 0.6998,
+    "mae": 19.7125,
+    "repeat_sd": 1.8059,
+    "n_repeat_cells": 45
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.6973,
+    "mae": 19.748,
+    "repeat_sd": 1.7857,
+    "n_repeat_cells": 45
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.6826,
+    "mae": 19.6836,
+    "repeat_sd": 1.764,
+    "n_repeat_cells": 45
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.6905,
+    "mae": 18.3929,
+    "repeat_sd": 1.6095,
+    "n_repeat_cells": 45
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.6991,
+    "mae": 18.9784,
+    "repeat_sd": 1.7053,
+    "n_repeat_cells": 45
+   },
+   "permuted": {
+    "r_median": 0.6837,
+    "r_ci95": [
+     0.6482,
+     0.7217
+    ],
+    "share_of_permutations_below_actual_r": 0.75,
+    "repeat_sd_median": 1.6492
+   }
+  },
+  "gemini-3.1-pro-preview": {
+   "actual": {
+    "n": 30,
+    "r": 0.7318,
+    "mae": 13.6375,
+    "repeat_sd": 2.1218,
+    "n_repeat_cells": 44
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.7279,
+    "mae": 13.7965,
+    "repeat_sd": 2.1232,
+    "n_repeat_cells": 44
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.7244,
+    "mae": 13.3372,
+    "repeat_sd": 2.0279,
+    "n_repeat_cells": 44
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.6975,
+    "mae": 13.9028,
+    "repeat_sd": 1.8977,
+    "n_repeat_cells": 44
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.7222,
+    "mae": 13.4955,
+    "repeat_sd": 1.9863,
+    "n_repeat_cells": 44
+   },
+   "permuted": {
+    "r_median": 0.687,
+    "r_ci95": [
+     0.6413,
+     0.7376
+    ],
+    "share_of_permutations_below_actual_r": 0.955,
+    "repeat_sd_median": 2.01
+   }
+  },
+  "gpt-5.4-mini": {
+   "actual": {
+    "n": 30,
+    "r": 0.4112,
+    "mae": 19.4208,
+    "repeat_sd": 5.5149,
+    "n_repeat_cells": 45
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.4099,
+    "mae": 19.5343,
+    "repeat_sd": 5.5172,
+    "n_repeat_cells": 45
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.383,
+    "mae": 19.9832,
+    "repeat_sd": 5.4314,
+    "n_repeat_cells": 45
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.3775,
+    "mae": 19.4067,
+    "repeat_sd": 4.8465,
+    "n_repeat_cells": 45
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.3984,
+    "mae": 19.2619,
+    "repeat_sd": 5.1218,
+    "n_repeat_cells": 45
+   },
+   "permuted": {
+    "r_median": 0.3696,
+    "r_ci95": [
+     0.3115,
+     0.4255
+    ],
+    "share_of_permutations_below_actual_r": 0.92,
+    "repeat_sd_median": 5.0244
+   }
+  },
+  "gpt-5.6-luna": {
+   "actual": {
+    "n": 30,
+    "r": 0.7691,
+    "mae": 12.8125,
+    "repeat_sd": 1.9627,
+    "n_repeat_cells": 45
+   },
+   "model_weights": {
+    "n": 30,
+    "r": 0.7669,
+    "mae": 12.899,
+    "repeat_sd": 1.9545,
+    "n_repeat_cells": 45
+   },
+   "class_only": {
+    "n": 30,
+    "r": 0.7641,
+    "mae": 12.6022,
+    "repeat_sd": 1.9482,
+    "n_repeat_cells": 45
+   },
+   "uniform": {
+    "n": 30,
+    "r": 0.7243,
+    "mae": 12.7596,
+    "repeat_sd": 1.7713,
+    "n_repeat_cells": 45
+   },
+   "sqrt_points": {
+    "n": 30,
+    "r": 0.7543,
+    "mae": 12.5529,
+    "repeat_sd": 1.8575,
+    "n_repeat_cells": 45
+   },
+   "permuted": {
+    "r_median": 0.7116,
+    "r_ci95": [
+     0.6518,
+     0.7651
+    ],
+    "share_of_permutations_below_actual_r": 0.99,
+    "repeat_sd_median": 1.8957
+   }
+  }
+ }
+}

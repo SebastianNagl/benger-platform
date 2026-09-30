@@ -172,7 +172,7 @@ def main() -> int:
         print(f"{'judge':30s} {'battery':10s} {'pos.ctrl':10s} "
               f"{'rep med/p95/max':>16s} {'empty med/p95/max':>18s} {'offt med/p95/max':>17s}")
         for judge, e in judges.items():
-            def fmt(t):
+            def fmt(t, e=e):
                 d = e.get(t)
                 return f"{d['median']:.0f}/{d['p95']:.0f}/{d['max']:.0f}" if d else "-"
             print(f"{judge.split('/')[-1]:30s} {e.get('battery', '-'):10s} "

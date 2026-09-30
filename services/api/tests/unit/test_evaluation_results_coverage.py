@@ -40,6 +40,18 @@ from models import (
 from project_models import Project, Task
 
 
+@pytest.fixture(autouse=True)
+def _caller_can_edit():
+    """Access is stubbed per test via check_project_accessible_async. The
+    editors-only rule has its own integration test
+    (test_seb_enforcement.py::test_project_wide_content_views_are_for_contributors)."""
+    with patch(
+        "routers.evaluations.results.by_task_model.can_read_all_task_content_async",
+        new=AsyncMock(return_value=True),
+    ):
+        yield
+
+
 def _uid() -> str:
     return str(uuid.uuid4())
 

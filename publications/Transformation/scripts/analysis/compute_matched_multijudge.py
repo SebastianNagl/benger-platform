@@ -182,9 +182,9 @@ def main() -> int:
         return {"n_exams": len(em), "mean": statistics.mean(em),
                 "sign": sign_test(em), "wilcoxon": wilcoxon(em)}
 
-    for judge in per_judge:
-        per_judge[judge]["ci95"] = judge_ci(judge)
-        per_judge[judge]["exam_level"] = exam_level_tests(judge)
+    for judge, entry in per_judge.items():
+        entry["ci95"] = judge_ci(judge)
+        entry["exam_level"] = exam_level_tests(judge)
 
     FOREST_LABELS = {
         "gpt-5.6-luna": "Luna", "claude-sonnet-4-6": "Sonnet",

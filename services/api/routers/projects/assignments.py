@@ -4,7 +4,7 @@ import random
 import uuid
 from typing import Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -26,6 +26,7 @@ from project_models import (
 from services.member_privacy import project_name_mask
 from routers.projects.helpers import (
     check_project_accessible_async,
+    seb_request_allowed,
     get_project_access_tier,
     get_user_with_memberships,
 )
@@ -527,6 +528,7 @@ async def remove_task_assignment(
 @router.get("/{project_id}/my-tasks")
 async def get_my_tasks(
     project_id: str,
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(30, ge=1, le=100),
     status: Optional[str] = Query(None, pattern="^(assigned|in_progress|completed|skipped)$"),
@@ -543,8 +545,12 @@ async def get_my_tasks(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    if get_project_access_tier(db, current_user, project_id, project=project) is None:
+    tier = get_project_access_tier(db, current_user, project_id, project=project)
+    if tier is None:
         raise HTTPException(status_code=403, detail="Access denied")
+    # Safe Exam Browser: outside SEB a non-editor sees only submitted tasks
+    # (their assigned-but-open tasks would make `search` a content oracle).
+    seb_ok = seb_request_allowed(db, current_user, project, request, tier=tier)
 
     from sqlalchemy import exists as sa_exists, or_ as sa_or
 
@@ -568,7 +574,11 @@ async def get_my_tasks(
             & (TaskAssignment.target_type == "task"),
         )
         .filter(Task.project_id == project_id)
-        .filter(sa_or(TaskAssignment.id.isnot(None), annotation_exists))
+        .filter(
+            sa_or(TaskAssignment.id.isnot(None), annotation_exists)
+            if seb_ok
+            else annotation_exists
+        )
     )
 
     # The status filter is on the assignment; selecting one naturally drops

@@ -38,7 +38,7 @@ CLONE_PROJECT = "81e474b8-d226-4bf8-bc2e-fb744d25cba5"
 NEW_KEY = "bewertungsbogen_fewshot"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 # German instruction block that introduces the exemplar. ASCII-only
 # placeholder name ({{exemplar_rubrics}}) so the parser's {{[a-zA-Z_]...}}

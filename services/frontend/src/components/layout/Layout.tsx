@@ -4,10 +4,11 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { useSlot } from '@/lib/extensions/slots'
+import { sebNavigationTarget } from '@/lib/seb'
 import { isExpertOnlyRoute } from '@/lib/utils/routeSurface'
 import { useUIStore } from '@/stores'
 import { motion } from 'framer-motion'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { Footer } from '@/components/layout/Footer'
@@ -32,6 +33,13 @@ export function Layout({
   const { isLoading } = useAuth()
   const resolvedUiMode = useResolvedUiMode()
   const StudentShell = useSlot('StudentShell')
+  const router = useRouter()
+
+  // Inside Safe Exam Browser the session stays on its exam page.
+  useEffect(() => {
+    const target = sebNavigationTarget(pathname)
+    if (target && target !== pathname) router.replace(target)
+  }, [pathname, router])
 
   // During SSR or before hydration, show the sidebar to prevent layout shift
   // After hydration, use the actual state

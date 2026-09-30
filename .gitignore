@@ -299,8 +299,8 @@ publications/Transformation/DESIGN.md
 publications/Transformation/data/interim/audit/exam_*.md
 # Run outputs from the judge/probe/audit dispatches — 23 MB of per-cell score
 # rows. Regenerable from the platform, and git is not a data store; they ship
-# with the dataset release. Every manuscript.qmd load goes through
-# load_optional(), so the paper still renders from the tracked data alone;
+# with the dataset release. manuscript.qmd loads only tracked aggregates
+# in data/processed/, so the paper still renders from the tracked data alone;
 # `make analyze` is what needs these back.
 publications/Transformation/data/**/*.jsonl
 
@@ -317,8 +317,8 @@ publications/Transformation/data/interim/probes/probe_users.json
 # Full Sachverhalt + Musterloesung for all 15 exams - corpus text we do not
 # hold redistribution rights for. Same call as the Benchmark_EMNLP ZJS source
 # trees below: ships via HF + Zenodo at release time, never via git.
-# exams.json is the extract_exam_pack.py output; manuscript.qmd reads it via
-# load_optional() and falls back to n_exams = 15, so the paper still renders.
+# exams.json is the extract_exam_pack.py output; manuscript.qmd does not read
+# it, so the paper still renders.
 publications/Transformation/data/interim/exams.json
 publications/Transformation/data/interim/audit/audit_import.json
 publications/Transformation/data/interim/audit/audit_import.resolved.json
@@ -338,6 +338,22 @@ publications/Transformation/data/interim/clone_eval_config_backup_*.json
 # Directory-level ignore: nothing under raw/ is publishable, and an excluded
 # directory cannot be re-included by the `!...*.json` rule above.
 publications/Transformation/data/raw/
+# Anything derived from the human expert material (student scripts, per-step
+# human grades, exam text): personal data and third-party exam text. The
+# `!...*.json` rule above would otherwise re-include these; only aggregate
+# statistics in data/processed/ are publishable.
+publications/Transformation/data/interim/human/
+# Pilot runs (judge rows with quoted evidence, raw model output, the spend
+# ledger). Directory-level ignore for the same reason as human/ above.
+publications/Transformation/data/interim/pilot/
+# Working notes (review decisions, manuscript change lists): they quote
+# study-exam terms and stay local.
+publications/Transformation/notes/
+# The pilot probe gate's output is a product-lane check, not evidence: it
+# lives in data/interim/pilot/ (the gate's default output), never here.
+publications/Transformation/data/processed/pilot_probe_gate.json
+# Machine-specific pilot settings (data root, org id); see scripts/local_config.py.
+publications/Transformation/.pilot.local.json
 
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
@@ -414,3 +430,4 @@ publications/LEXam_DE/analysis/data/
 
 # WIP publications - not yet ready for the public repo
 publications/Watermark_Study/
+publications/Benchmark_v2/

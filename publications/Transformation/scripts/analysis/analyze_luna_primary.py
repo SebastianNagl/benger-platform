@@ -63,6 +63,12 @@ def main() -> int:
         r = json.loads(line)
         if not r["repeat_run"]:
             ctrl[r["pick_id"]][r["judge"]] = r["score"]
+    # the benchmark's primary judge as the benchmark reads it (bench_primary.py)
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from bench_primary import primary_totals
+    for pid, total in primary_totals().items():
+        ctrl[pid][MINI] = total
 
     sample = json.loads((DATASET_ARR / "data" / "interim" / "benchathon_human_grading_sample.json").read_text())
     subj = {p["pick_id"]: p["subject_id"] for p in sample["picks"]}
@@ -109,8 +115,8 @@ def main() -> int:
 
     mini_panel = panel_sd(panel_cells, MINI)
     luna_panel = panel_sd(luna_cells, LUNA)
-    common = sorted(set(mini_panel) & set(luna_panel) & set(
-        pid for pid in ctrl if all(j in ctrl[pid] for j in PANEL_BASE + (MINI,))))
+    common = sorted(set(mini_panel) & set(luna_panel) & {
+        pid for pid in ctrl if all(j in ctrl[pid] for j in PANEL_BASE + (MINI,))})
     ctrl_sd = {pid: statistics.pstdev([ctrl[pid][j] for j in PANEL_BASE + (MINI,)]) for pid in common}
 
     payload = {

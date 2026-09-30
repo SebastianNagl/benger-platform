@@ -137,7 +137,7 @@ def main() -> int:
         runs = tailored_cells[pid].get(j) or {}
         if not runs:
             return None
-        return runs[min(runs)] if j == PRIMARY else list(runs.values())[0]
+        return runs[min(runs)] if j == PRIMARY else next(iter(runs.values()))
 
     paired = []
     for pid in sorted({p["pick_id"] for p in picks}):

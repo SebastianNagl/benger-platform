@@ -12,6 +12,8 @@ Now with answer-type-aware evaluation:
 Issue #483: LLM-as-Judge evaluation for research-grade assessment
 """
 
+import bisect
+import functools
 import json
 import logging
 import random
@@ -262,7 +264,7 @@ Feste Regeln:
 1. Punkte gibt es nur für Ausführungen, die in der Bearbeitung selbst stehen. Was nur in der Musterlösung oder im Bewertungsbogen steht, bringt keine Punkte.
 2. Spricht die Bearbeitung einen Schritt nicht an, erhält er 0 Punkte. Schließe nicht aus dem Ergebnis, aus benachbarten Schritten oder aus dem Gesamteindruck, dass ein Schritt mitgeprüft wurde.
 3. Zitiere für jeden Schritt mit Punkten im Feld "evidence" wörtlich die Stelle der Bearbeitung, auf die sich die Punkte stützen. Kopiere den Text zeichengenau. Ändere keine Wörter und fasse keine Sätze zusammen. Halte das Zitat kurz, höchstens ein bis zwei Sätze. Mehrere Stellen trennst du mit " … ".
-4. Das Zitat muss genau den Punkt dieses Schritts behandeln, also die Frage, Norm, Voraussetzung oder das Ergebnis, die der Schritt nennt. Stelle zuerst fest, zu welcher Aufgabe und zu welchem Gliederungspunkt der Schritt laut Bewertungsbogen gehört, und suche das Zitat nur in dem Teil der Bearbeitung, der diese Aufgabe behandelt. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder nur zum allgemeinen Thema genügt nicht. Ein gleiches Stichwort, eine gleiche Norm oder ein ähnliches Ergebnis in anderem Zusammenhang genügt ebenfalls nicht. Dieselbe Stelle zählt für einen weiteren Schritt nur, wenn sie dessen Punkt ausdrücklich behandelt.
+4. Das Zitat muss genau den Punkt dieses Schritts behandeln, also die Frage, Norm, Voraussetzung oder das Ergebnis, die der Schritt nennt. Stelle zuerst fest, zu welcher Aufgabe und zu welchem Gliederungspunkt der Schritt laut Bewertungsbogen gehört, und suche das Zitat nur in dem Teil der Bearbeitung, der diese Aufgabe behandelt. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder nur zum allgemeinen Thema genügt nicht. Ein gleiches Stichwort, eine gleiche Norm oder ein ähnliches Ergebnis in anderem Zusammenhang genügt ebenfalls nicht. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt. Dieselbe Stelle zählt für einen weiteren Schritt nur, wenn sie dessen Punkt ausdrücklich behandelt.
 5. Gibt es keine solche Stelle, bleibt "evidence" leer und der Schritt erhält 0 Punkte.
 6. Eine abweichende Lösung ("a.A. vertretbar") erhält nur Punkte, wenn die Bearbeitung sie selbst vertritt und begründet.
 7. Bemiss die Punkte eines Schritts nach seinen Hinweisen und danach, wie vollständig und richtig die Bearbeitung ihn behandelt. Halbe Bewertungseinheiten sind zulässig. Vergib nie mehr als die Maximalpunkte eines Schritts.
@@ -275,7 +277,7 @@ RUBRIC_JUDGE_CLOSING_RULES = """VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelt
 - Bewertet wird nur der Text in <bearbeitung>. <musterloesung> und <bewertungsbogen> sind nur der Maßstab.
 - Punkte gibt es nur für das, was die Bearbeitung selbst ausführt. Was nur in der Musterlösung steht, bringt keine Punkte.
 - Gib für jeden Schritt im Feld "evidence" ein kurzes, wörtliches Zitat aus <bearbeitung> an. Ohne passendes Zitat bleibt "evidence" leer und der Schritt erhält 0 Punkte.
-- Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln und aus dem Teil der Bearbeitung stammen, der die Aufgabe dieses Schritts bearbeitet. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder mit nur gleichem Stichwort bringt keine Punkte.
+- Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln und aus dem Teil der Bearbeitung stammen, der die Aufgabe dieses Schritts bearbeitet. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder mit nur gleichem Stichwort bringt keine Punkte. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt.
 - Eine abweichende Ansicht ("a.A. vertretbar") bringt nur Punkte, wenn die Bearbeitung sie selbst vertritt und begründet.
 - Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung."""
 
@@ -390,8 +392,41 @@ def _task_korrekturhinweise(task_data: Optional[Dict[str, Any]]) -> str:
 _MD_ESCAPE_RE = re.compile(r"\\([\\`*_{}\[\]()#+\-.!|>~<\"'])")
 _HTML_TAG_RE = re.compile(r"<[^<>\n]{0,200}>")
 _MARKDOWN_MARKER_RE = re.compile(r"[*_`#>]+")
-_WORD_RE = re.compile(r"\w+")
+# Layout, not text: an escape sequence a judge copied out of JSON literally
+# ("wahren.\n\nIX. Frist"), and a markdown hard line break (a backslash at
+# the end of a line of an uploaded answer).
+_LAYOUT_ESCAPE_RE = re.compile(r"\\[nrt]|\\(?=\s|$)")
+# A footnote reference glued to the text ("erfassen.[4] Zwar …") is layout
+# too; a quote that leaves it out still quotes the sentence.
+_FOOTNOTE_MARK_RE = re.compile(r"(?<=\S)\[\^?\d{1,3}\]")
+# A token is a word, or a whole number with its inner separators ("10.000",
+# "3,5"), so "10" never matches a piece of "10.000".
+_WORD_RE = re.compile(r"\d+(?:[.,]\d+)+|\w+")
 _ELLIPSIS_SPLIT_RE = re.compile(r"\.{3,}")
+# Judges often glue passages from different places into one quote without the
+# ellipsis the rules ask for; such a fragment is checked sentence by sentence.
+# A candidate break is punctuation plus whitespace; a period is a break only
+# when it does not end an abbreviation (see _period_ends_sentence).
+_SENTENCE_BREAK_CANDIDATE_RE = re.compile(r"([.!?:;])\s+")
+# Casefolded words that take an abbreviation period in legal German. A period
+# after one of them (or after a single letter, a number or a Roman numeral)
+# never ends a sentence: "gem. § 42", "Abs. 2 S. 1", "i.V.m.", "vgl. BGH".
+_ABBREVIATIONS = frozenset({
+    "abl", "abs", "abschn", "abzgl", "allg", "alt", "amtl", "anh", "anl", "anm", "art", "artt", "aufl", "az",
+    "bd", "bearb", "begr", "bekl", "beschl", "bgbl", "bl", "bsp", "bspw", "buchst", "bzgl", "bzw", "ca",
+    "ders", "dgl", "dr", "einschl", "entspr", "erg", "etc", "evtl", "exkl", "ff", "fn", "fr", "gegr", "gem",
+    "ggf", "ggü", "grds", "halbs", "hr", "hrsg", "hs", "inkl", "insb", "insbes", "jew", "kap", "kl", "lit",
+    "ls", "lt", "max", "min", "mind", "mio", "mrd", "mtl", "nachw", "nr", "nrn", "od", "prof", "rdnr", "rn",
+    "rspr", "rz", "sog", "st", "str", "tz", "urt", "usw", "var", "verf", "vgl", "vorbem", "vorl", "vs",
+    "ziff", "zit", "zust", "zzgl",
+})
+# "un- zulässig", "un-\nzulässig" and "un zulässig" are one word: "unzulässig".
+_UN_SPLIT_RE = re.compile(r"(?<!\w)(un)(?:- ?| )(?!(?:und|oder|bzw|sowie)\b)(?=[^\W\d_])", re.IGNORECASE)
+# Everything but letters and digits, for the spacing-insensitive comparison of
+# long fragments (hyphenation splits like "entrichte ten", "10.000,– €").
+_COMPACT_RE = re.compile(r"[\W_]+")
+_COMPACT_CHAR_RE = re.compile(r"[^\W_]")
+EVIDENCE_MIN_COMPACT_CHARS = 20
 _PUNCT_TRANSLATION = str.maketrans(
     {
         "„": '"', "“": '"', "”": '"', "‟": '"', "«": '"', "»": '"',
@@ -400,87 +435,264 @@ _PUNCT_TRANSLATION = str.maketrans(
         "­": "",
     }
 )
+# The short-hand result marks "(+)" and "(-)" become words, so a quote that
+# turns one into the other no longer matches.
+_POLARITY_MARK_RE = re.compile(r"\(\s*([+-])\s*\)")
+_POLARITY_MARKS = {"+": " positiv ", "-": " negativ "}
+# Negations (and every "kein…" form, see _is_negation). With the normalized
+# result marks they are the polarity tokens.
+_NEGATION_TOKENS = frozenset({"nicht", "nichts", "nie", "niemals", "ohne", "weder"})
+_RESULT_MARK_TOKENS = frozenset({"positiv", "negativ"})
+_POLARITY_TOKENS = _NEGATION_TOKENS | _RESULT_MARK_TOKENS
+# Protected tokens beyond polarity and numbers: words that state, qualify or
+# hedge a result. A quote may never drop one, add one, swap one for another
+# word, or step over one in the answer. Casefolded, so "ß" is "ss".
+_QUALIFIER_TOKENS = frozenset({
+    "nur", "teilweise", "kaum", "allenfalls", "insoweit", "stets",
+    "jemand", "jemanden", "jemandem", "niemand", "niemanden", "niemandem",
+    "vermutlich", "möglicherweise", "eventuell", "vielleicht",
+})
+_RESULT_WORD_RE = re.compile(
+    r"(?:rechtmässig|rechtswidrig|bejah|vernein|erforderlich|entbehrlich|formell|materiell)\w*"
+    r"|gegeben(?:e[mnrs]?)?|fehl(?:t|te|ten|en|end|ende[mnrs]?)"
+    r"|besteh(?:t|en|end|ende[mnrs]?)|bestand(?:en)?"
+    r"|(?:richtig|falsch|wirksam|gültig|vorsätzlich|fahrlässig|strafbar|straflos|verjährt|schuldhaft|schuldlos"
+    r"|vermeintlich|angeblich|scheinbar|mutmasslich|fraglich|zweifelhaft)(?:e[mnrs]?)?"
+)
+# Words a token-wise match may leave out of the answer or find missing in it:
+# articles, pronouns, simple prepositions, auxiliaries and filler particles.
+# Everything else is a content word: a quote may leave out one content word
+# of the answer, but never add one, and never swap a word for another.
+_FUNCTION_WORDS = frozenset({
+    "der", "die", "das", "den", "dem", "des", "ein", "eine", "einer", "eines", "einem", "einen",
+    "dieser", "diese", "dieses", "diesem", "diesen", "jener", "jene", "jenes", "jenem", "jenen",
+    "sein", "seine", "seiner", "seines", "seinem", "seinen", "ihr", "ihre", "ihrer", "ihres", "ihrem", "ihren",
+    "welcher", "welche", "welches", "welchem", "welchen", "dessen", "deren",
+    "er", "sie", "es", "ihm", "ihn", "ihnen", "sich", "man", "wir", "uns",
+    "in", "im", "ins", "an", "am", "ans", "auf", "aus", "bei", "beim", "mit", "nach", "seit", "von", "vom",
+    "zu", "zum", "zur", "für", "gegen", "um", "durch", "über", "unter", "vor", "wegen", "gemäss", "laut",
+    "bis", "ab", "gegenüber", "hinsichtlich", "bezüglich", "mangels", "aufgrund", "infolge",
+    "und", "sowie", "bzw", "als", "wie", "dass", "weil", "da", "denn",
+    "also", "daher", "deshalb", "somit", "mithin", "folglich", "damit", "dabei", "hierbei", "hierzu", "dazu",
+    "ist", "sind", "war", "waren", "wird", "werden", "wurde", "wurden", "worden", "hat", "haben", "hatte",
+    "hatten", "sei", "seien", "gewesen", "geworden",
+    "auch", "noch", "schon", "bereits", "hier", "dort", "so", "dann", "nun", "ja", "eben", "etwa",
+    "jedenfalls", "zudem", "ferner", "vorliegend", "zunächst", "ebenfalls", "sodann", "hierfür", "dafür",
+})
+# A quote may leave out at most this many content words of the answer.
+_EVIDENCE_MAX_CONTENT_SKIPS = 1
+# Any "un-" form of an adjective ("unzulässig", "unbegründet", "unstreitig",
+# "unmittelbar") flips a result; words with these beginnings only start
+# with "un" ("unter", "unsere", "Universität").
+_UN_WORD_EXCEPTIONS = ("unser", "unter", "union", "univers", "unfall", "ungarn")
+_ROMAN_NUMERALS = frozenset({
+    "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
+    "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
+})
+# Edge rules (see _edges_ok). Words that make the text after them a question
+# or a condition; words that cast doubt on it; words that open a clause whose
+# content the clause in front of it governs ("Es ist nicht ersichtlich, dass
+# …"); and the conjunctions that end a clause scan.
+_EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit", "inwieweit", "inwiefern"})
+_EDGE_CONDITION_WORDS = frozenset({"wenn", "sofern", "soweit", "falls"})
+_DOUBT_WORDS = frozenset({
+    "fraglich", "zweifelhaft", "unklar", "ungewiss", "problematisch", "streitig", "bestritten", "bestreitet",
+    "bezweifelt", "behauptet",
+})
+_CONTENT_CLAUSE_OPENERS = frozenset({"dass", "ob", "inwieweit", "inwiefern", "warum", "weshalb", "wieso"})
+# Subordinating conjunctions: they open a clause of their own, so a scan
+# around a match stops at them.
+_SUBORDINATORS = _CONTENT_CLAUSE_OPENERS | {
+    "weil", "denn", "obwohl", "obgleich", "nachdem", "bevor", "sodass", "indem", "wodurch", "wobei",
+}
+_COORDINATORS = frozenset({"und", "oder", "sowie", "bzw", "aber", "sondern", "doch", "jedoch", "allerdings"})
+# "ohne Weiteres" and "ohne Zweifel" affirm what comes before them.
+_AFFIRMING_AFTER_OHNE = frozenset({"weiteres", "zweifel"})
+# The scan after a match ends at the clause's verb: a negation behind it
+# belongs to that verb, not to the quoted words in front of it ("[Der
+# Anspruch des K] besteht nicht" leaves the quoted noun phrase intact).
+_PREDICATE_WORDS = frozenset({
+    "ist", "sind", "war", "waren", "wird", "werden", "wurde", "wurden", "hat", "haben", "hatte", "hatten",
+    "sei", "seien", "wäre", "wären", "hätte", "hätten", "kann", "können", "konnte", "konnten", "könnte",
+    "könnten", "muss", "müssen", "musste", "mussten", "müsste", "soll", "sollen", "sollte", "darf", "dürfen",
+    "durfte", "liegt", "liegen", "lag", "lagen", "greift", "greifen", "kommt", "kommen", "scheidet",
+    "scheiden", "gilt", "gelten", "steht", "stehen", "handelt", "reicht", "genügt", "trifft", "folgt",
+    "ergibt",
+})
+# A blank line: the scans around a match stop there, so a heading ("Keine
+# Einwilligung") does not govern the paragraph below it.
+_PARAGRAPH_BREAK_RE = re.compile(r"\n\s*\n")
+# Norm citations: a fragment made only of these (plus digits, Roman numerals
+# and single letters) is a citation, not a quote of the step's reasoning.
+_CITATION_WORDS = frozenset({
+    "art", "artt", "abs", "nr", "nrn", "lit", "satz", "alt", "var", "hs", "halbs", "buchst", "ivm", "ff",
+    "rn", "rdnr",
+})
+# Words that only connect a citation ("gem. § 433 BGB", "nach § 40 VwGO",
+# "§ 280 BGB i.V.m. § 241 BGB", "im Sinne des § 145 BGB"). A fragment made of
+# citation tokens and these is still only a citation.
+_CITATION_CONNECTORS = frozenset({
+    "gem", "gemäss", "nach", "aus", "in", "im", "isd", "isv", "verbindung", "mit", "sinne", "des", "der",
+    "den", "dem", "von", "vom", "und", "sowie", "bzw", "oder", "vgl", "siehe", "analog", "entspr",
+    "entsprechend", "zu", "zum", "zur", "bis",
+})
+# Law abbreviations keep their capitals: VwGO, GG, BGB, BayVwVfG, StPO.
+_LAW_ABBREVIATION_RE = re.compile(r"[A-ZÄÖÜ][A-Za-zÄÖÜäöüß]{1,11}")
 # Evidence needs this many word characters in total to count at all, so a
 # quote like "(+)" or "der" cannot verify a step.
 EVIDENCE_MIN_WORD_CHARS = 4
 # A fragment (one ellipsis-separated part of the quote) verifies only with
 # at least EVIDENCE_MIN_TOKENS tokens, or with two tokens that together
 # carry at least EVIDENCE_MIN_LONG_FRAGMENT_CHARS word characters. A single
-# token never does: "VwGO", or "Platz" inside "Platzverweis", is a keyword
+# token never does: "VwGO", or "Recht" inside "Rechtsweg", is a keyword
 # the answer happens to contain, not a quote of the step's reasoning.
 EVIDENCE_MIN_TOKENS = 3
 EVIDENCE_MIN_LONG_FRAGMENT_CHARS = 15
+# A word this long that is not protected may differ from the answer by one
+# edit (a typo on either side).
+EVIDENCE_TYPO_MIN_CHARS = 5
 # Fragments with fewer tokens than this must match the answer on word
 # boundaries; longer ones may also match token-wise in order.
 _EVIDENCE_SHORT_FRAGMENT_TOKENS = 4
+_EDGE_PUNCTUATION = " \"'.,;:!?()[]-"
 
 
-def _normalize_evidence_text(text: str) -> str:
+def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     """Canonical form for comparing a quote with the answer.
 
-    NFKC, markdown escapes (``1\\.``) and emphasis/heading markers removed,
-    inline HTML (Word bookmark anchors) dropped, quotes/dashes unified,
-    ellipsis as ``...``, casefolded, whitespace collapsed.
+    NFKC, literal ``\\n`` escapes and markdown hard breaks, markdown escapes
+    (``1\\.``), footnote references (``[4]``) and emphasis/heading markers
+    removed, inline HTML (Word bookmark anchors) dropped, quotes/dashes
+    unified, ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
+    a split "un-" joined to its word ("un- zulässig" is "unzulässig"),
+    casefolded (unless ``casefold`` is False), whitespace collapsed.
     """
     t = unicodedata.normalize("NFKC", text or "")
+    t = _LAYOUT_ESCAPE_RE.sub(" ", t)
     t = _MD_ESCAPE_RE.sub(r"\1", t)
+    t = _FOOTNOTE_MARK_RE.sub("", t)
     t = _HTML_TAG_RE.sub(" ", t)
     t = t.translate(_PUNCT_TRANSLATION).replace("…", "...")
+    t = _POLARITY_MARK_RE.sub(lambda m: _POLARITY_MARKS[m.group(1)], t)
     t = _MARKDOWN_MARKER_RE.sub(" ", t)
-    t = t.casefold()
-    return re.sub(r"\s+", " ", t).strip()
+    if casefold:
+        t = t.casefold()
+    t = re.sub(r"\s+", " ", t).strip()
+    return _UN_SPLIT_RE.sub(r"\1", t)
 
 
-def _tokens_match(quoted: str, answer: str) -> bool:
-    """Equal tokens, or a small inflection difference on a long word.
+def _is_negation(token: str) -> bool:
+    """nicht, nichts, nie, niemals, ohne, weder, or any "kein…" form."""
+    return token in _NEGATION_TOKENS or token.startswith("kein")
 
-    ``platzverweis`` / ``platzverweises`` match; different words do not.
-    """
-    if quoted == answer:
-        return True
-    short, long_ = (quoted, answer) if len(quoted) <= len(answer) else (answer, quoted)
+
+def _is_polarity(token: str) -> bool:
+    """A negation or a normalized result mark (positiv, negativ)."""
+    return _is_negation(token) or token in _POLARITY_TOKENS
+
+
+def _has_digit(token: str) -> bool:
+    return any(ch.isdigit() for ch in token)
+
+
+def _is_function_word(token: str) -> bool:
+    """An article, pronoun, simple preposition, auxiliary or filler word
+    (:data:`_FUNCTION_WORDS`) that is not protected."""
+    return token in _FUNCTION_WORDS and not _is_protected(token)
+
+
+@functools.lru_cache(maxsize=65536)
+def _is_protected(token: str) -> bool:
+    """Tokens a quote may not drop, add, swap or step over: polarity (every
+    "nicht…" and "kein…" form, a bare "un"), result and antonym words (every
+    "un-" form, rechtmäßig/rechtswidrig, bejaht/verneint, erforderlich/
+    entbehrlich, gegeben/besteht/fehlt, richtig/falsch, wirksam, vorsätzlich/
+    fahrlässig, jemand/niemand, stets), qualifiers and hedges (nur,
+    teilweise, formell, materiell, kaum, allenfalls, insoweit, vermeintlich,
+    mutmaßlich, fraglich), Roman numerals I-XX and every token with a digit."""
+    return (
+        _is_polarity(token)
+        or token.startswith("nicht")
+        or token == "un"
+        or _has_digit(token)
+        or token in _QUALIFIER_TOKENS
+        or token in _ROMAN_NUMERALS
+        or (len(token) >= 6 and token.startswith("un") and not token.startswith(_UN_WORD_EXCEPTIONS))
+        or _RESULT_WORD_RE.fullmatch(token) is not None
+    )
+
+
+def _is_inflection(a: str, b: str) -> bool:
+    """``rechtsweg`` / ``rechtswegs``: one word at least four characters
+    long, the other the same plus at most two characters."""
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
     return len(short) >= 4 and len(long_) - len(short) <= 2 and long_.startswith(short)
 
 
-def _tokens_in_order(fragment: List[str], answer: List[str]) -> bool:
-    """True when the fragment's tokens occur in order in a tight answer window.
-
-    Tolerates punctuation and markup differences (tokens ignore them), up to
-    two skipped answer words between quoted words, and one unmatched quoted
-    word per eight. A paraphrase changes many words and fails.
-    """
-    n = len(fragment)
-    if n == 0:
+def _is_transposition(a: str, b: str) -> bool:
+    """Equal but for two neighbouring characters swapped ("nciht", "nicht").
+    The first letter stays."""
+    if len(a) != len(b):
         return False
-    allowed_misses = n // 8
-    window = n + max(2, n // 4)
-    max_step = 3
-    for first in range(min(allowed_misses, n - 1) + 1):
-        for start, token in enumerate(answer):
-            if not _tokens_match(fragment[first], token):
-                continue
-            misses = first
-            pos = start + 1
-            ok = True
-            for quoted in fragment[first + 1 :]:
-                found = None
-                for p in range(pos, min(pos + max_step, len(answer))):
-                    if _tokens_match(quoted, answer[p]):
-                        found = p
-                        break
-                if found is None:
-                    misses += 1
-                    if misses > allowed_misses:
-                        ok = False
-                        break
-                else:
-                    pos = found + 1
-                if pos - start > window:
-                    ok = False
-                    break
-            if ok:
-                return True
-    return False
+    diff = [i for i in range(len(a)) if a[i] != b[i]]
+    return (
+        len(diff) == 2
+        and diff[0] > 0
+        and diff[1] == diff[0] + 1
+        and a[diff[0]] == b[diff[1]]
+        and a[diff[1]] == b[diff[0]]
+    )
+
+
+_UMLAUTS = frozenset("äöü")
+
+
+def _is_typo(a: str, b: str) -> bool:
+    """One edit or one transposition that keeps the first letter and adds,
+    removes or swaps no umlaut: "verlezt" / "verletzt" are a typo;
+    "nichtig" / "richtig" (first letter) and "hatte" / "hätte" (umlaut) are
+    different words."""
+    if not a or not b or a[0] != b[0] or abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        diff = [i for i in range(len(a)) if a[i] != b[i]]
+        if len(diff) == 1:
+            return a[diff[0]] not in _UMLAUTS and b[diff[0]] not in _UMLAUTS
+        return _is_transposition(a, b)
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    i = next((k for k in range(len(short)) if short[k] != long_[k]), len(short))
+    return short[i:] == long_[i + 1:] and long_[i] not in _UMLAUTS
+
+
+def _tokens_match(quoted: str, answer: str) -> bool:
+    """Equal tokens, a small inflection difference on a long word, or a typo.
+
+    ``rechtsweg`` / ``rechtswegs`` match; different words do not. Numbers
+    only match exactly ("1000" is not "10000"). A protected token only
+    matches the same word or an inflection of it ("unzulässig" /
+    "unzulässige"; never "nicht" / "nichtig", "unzulässig" / "zulässig" or
+    "nichtig" / "richtig"); the one typo allowed is two letters swapped
+    ("nciht" / "nicht"), which never spells another word. Other words of at
+    least :data:`EVIDENCE_TYPO_MIN_CHARS` characters may carry a typo
+    (:func:`_is_typo`).
+    """
+    if quoted == answer:
+        return True
+    if _has_digit(quoted) or _has_digit(answer):
+        return False
+    long_enough = min(len(quoted), len(answer)) >= EVIDENCE_TYPO_MIN_CHARS
+    protected_quote, protected_answer = _is_protected(quoted), _is_protected(answer)
+    if protected_quote or protected_answer:
+        if long_enough and _is_transposition(quoted, answer):
+            return True
+        return (
+            protected_quote
+            and protected_answer
+            and quoted not in _NEGATION_TOKENS
+            and answer not in _NEGATION_TOKENS
+            and _is_inflection(quoted, answer)
+        )
+    return _is_inflection(quoted, answer) or (long_enough and _is_typo(quoted, answer))
 
 
 class EvidenceIndex:
@@ -488,23 +700,477 @@ class EvidenceIndex:
 
     def __init__(self, answer: str):
         self.text = _normalize_evidence_text(answer)
-        self.tokens = _WORD_RE.findall(self.text)
+        spans = [m.span() for m in _WORD_RE.finditer(self.text)]
+        self.tokens = [self.text[s:e] for s, e in spans]
+        self.starts = [s for s, _e in spans]
+        self.ends = [e for _s, e in spans]
+        # Position in ``text`` of every character of ``compact``.
+        self.compact_pos = [m.start() for m in _COMPACT_CHAR_RE.finditer(self.text)]
+        self.compact = "".join(self.text[i] for i in self.compact_pos)
+        # Indices of the tokens that open a paragraph after a blank line. Left
+        # empty when the paragraphs do not line up with the tokens (a word
+        # joined across the break), so the edge scans then run on.
+        self.paragraph_starts: set = set()
+        paragraphs = _PARAGRAPH_BREAK_RE.split(answer or "")
+        if len(paragraphs) > 1:
+            counts = [len(_WORD_RE.findall(_normalize_evidence_text(p))) for p in paragraphs]
+            if sum(counts) == len(self.tokens):
+                total = 0
+                for count in counts[:-1]:
+                    total += count
+                    self.paragraph_starts.add(total)
 
 
-def _fragment_is_quotable(tokens: List[str]) -> bool:
-    """Long enough to be a quote rather than a keyword (see the constants)."""
-    if len(tokens) >= EVIDENCE_MIN_TOKENS:
+def _is_abbreviation_token(token: str) -> bool:
+    """A word a period after which is an abbreviation mark, not the end of a
+    sentence: a known abbreviation ("gem", "Abs", "vgl"), a single letter
+    ("S", "K", the parts of "i.V.m."), a number or a Roman numeral."""
+    folded = token.casefold()
+    return (
+        (len(folded) == 1 and folded.isalpha())
+        or folded in _ABBREVIATIONS
+        or _has_digit(folded)
+        or folded in _ROMAN_NUMERALS
+    )
+
+
+def _period_ends_sentence(text: str, dot: int) -> bool:
+    """Does the period at ``text[dot]`` end a sentence? Not after an
+    abbreviation (:func:`_is_abbreviation_token`), and not before a "§" or a
+    lowercase word ("entspr. der Regel", "gem. § 42"), unless that word is a
+    list label ("… liegt vor. b) Subjektiver Tatbestand")."""
+    word = re.search(r"\w+$", text[:dot])
+    if word and _is_abbreviation_token(word.group(0)):
+        return False
+    following = re.match(r"\s*(§|\w+\)?)", text[dot + 1 :])
+    if not following:
         return True
-    return len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
+    head = following.group(1)
+    return not (head == "§" or (head[0].islower() and not head.endswith(")")))
+
+
+def _split_sentences(text: str) -> List[str]:
+    """``text`` cut after every ``.``, ``!``, ``?``, ``:`` and ``;`` that is
+    followed by whitespace, except a period that does not end a sentence
+    (:func:`_period_ends_sentence`). Each piece keeps its punctuation."""
+    pieces: List[str] = []
+    last = 0
+    for m in _SENTENCE_BREAK_CANDIDATE_RE.finditer(text):
+        if m.group(1) == "." and not _period_ends_sentence(text, m.start()):
+            continue
+        pieces.append(text[last : m.start() + 1])
+        last = m.end()
+    pieces.append(text[last:])
+    return pieces
+
+
+def _gap_level(index: "EvidenceIndex", before: int, gap_start: int, gap_end: int) -> int:
+    """How strongly ``text[gap_start:gap_end]`` separates the words around
+    it: 2 for a sentence break (``;``, ``:``, ``!``, ``?``, an ellipsis or a
+    period that is no abbreviation mark after token ``before``), 1 for a
+    comma, 0 for none."""
+    gap = index.text[gap_start:gap_end]
+    if any(ch in gap for ch in ";:!?") or "..." in gap:
+        return 2
+    if "." in gap and not (0 <= before < len(index.tokens) and _is_abbreviation_token(index.tokens[before])):
+        return 2
+    return 1 if "," in gap else 0
+
+
+def _turns_round_after(index: "EvidenceIndex", j: int) -> bool:
+    """Does token ``j``, standing after a match, negate or condition it? A
+    negation (but not "ohne Weiteres" or "ohne Zweifel"), "(-)" or a
+    condition word."""
+    token = index.tokens[j]
+    if token == "ohne" and j + 1 < len(index.tokens) and index.tokens[j + 1] in _AFFIRMING_AFTER_OHNE:
+        return False
+    return _is_negation(token) or token == "negativ" or token in _EDGE_CONDITION_WORDS
+
+
+def _opens_clause(index: EvidenceIndex, k: int) -> bool:
+    """Is token ``k`` a subordinating conjunction? "da" only counts right
+    after a comma ("…, da T nicht …"); elsewhere it is mostly an adverb."""
+    token = index.tokens[k]
+    if token in _SUBORDINATORS:
+        return True
+    return token == "da" and k > 0 and _gap_level(index, k - 1, index.ends[k - 1], index.starts[k]) == 1
+
+
+def _turns_round_before(token: str) -> bool:
+    """A negation, a question or condition word, or a doubt word."""
+    return _is_negation(token) or token in _EDGE_BEFORE_WORDS or token in _DOUBT_WORDS
+
+
+def _clause_start_before(index: EvidenceIndex, first: int, start: int) -> Optional[int]:
+    """Scan back from token ``first`` (the last token before text offset
+    ``start``) to the start of its clause and return the index of the
+    clause's first token. A comma, a sentence break, a blank line, a result
+    mark or a coordinating conjunction ends the scan in front of the clause;
+    a subordinating conjunction ("dass", "weil") is the clause's first token.
+    Returns None when a scanned token turns the text after it round."""
+    tokens = index.tokens
+    k, gap_end = first, start
+    while k >= 0 and not _gap_level(index, k, index.ends[k], gap_end) and (k + 1) not in index.paragraph_starts:
+        token = tokens[k]
+        if token in _RESULT_MARK_TOKENS or token in _COORDINATORS:
+            break
+        if _turns_round_before(token):
+            return None
+        if token in _SUBORDINATORS:
+            return k
+        gap_end = index.starts[k]
+        k -= 1
+    return k + 1
+
+
+def _governing_clause_ok(index: EvidenceIndex, opener: int, match_first: int) -> bool:
+    """A clause opened by "dass", "ob" or a similar word states what the
+    clause in front of it says about it: "Es ist nicht ersichtlich, dass …"
+    denies it, "Fraglich ist, ob …" asks. That clause (back to its own
+    start) may hold no negation, question, condition or doubt word. A quote
+    that itself starts with a question word ("ob der Verkäufer …") keeps the
+    question and passes."""
+    tokens = index.tokens
+    if not (0 < opener < len(tokens)) or tokens[opener] not in _CONTENT_CLAUSE_OPENERS:
+        return True
+    if opener == match_first and tokens[opener] != "dass":
+        return True
+    if opener in index.paragraph_starts:
+        return True
+    if _gap_level(index, opener - 1, index.ends[opener - 1], index.starts[opener]) > 1:
+        return True
+    k = opener - 1
+    while k >= 0:
+        if _turns_round_before(tokens[k]):
+            return False
+        if k == 0 or k in index.paragraph_starts or _gap_level(index, k - 1, index.ends[k - 1], index.starts[k]):
+            return True
+        k -= 1
+    return True
+
+
+def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
+    """The answer around a match at ``text[start:end]`` does not turn it round.
+
+    Before the match: no negation, question or condition word ("ob",
+    "wenn", "inwieweit" …) or doubt word ("fraglich", "zweifelhaft",
+    "bestritten" …) back to the start of its clause (see
+    :func:`_clause_start_before`). So "kein [Anspruch auf …]" and
+    "Fraglich ist, ob der [Verkäufer …]" fail. When the clause opens with
+    "dass", "ob" or a similar word after a comma, the clause in front of it
+    is read the same way: "Es ist nicht ersichtlich, [dass der Verkäufer …]"
+    fails.
+
+    After the match: no negation, "(-)" or condition as the next word in the
+    same sentence ("[Der Anspruch besteht] nicht", "[Die Klage ist
+    begründet], soweit …", "[… hat der Käufer] keinen"), and none in the
+    rest of its clause up to the clause's verb ("[Ein Anspruch besteht]
+    daher nicht"; but "[Der Anspruch des K] besteht nicht" keeps the noun
+    phrase). A coordinating or subordinating conjunction ("und", "weil") also
+    ends that scan. A match that ends with a result mark or a subordinating
+    conjunction closes its own clause.
+
+    The word right next to the match counts even across a blank line (a
+    hard page break must not hide a "nicht"); the scans beyond it stop at
+    blank lines, so a heading does not govern the paragraph below it. A
+    result mark before the match belongs to the text in front of it and
+    does not count. A period after an abbreviation ("gem.", "Abs.") is no
+    break.
+    """
+    tokens = index.tokens
+    i = bisect.bisect_right(index.ends, start) - 1
+    if i >= 0 and not _gap_level(index, i, index.ends[i], start):
+        if tokens[i] not in _RESULT_MARK_TOKENS and _turns_round_before(tokens[i]):
+            return False
+    opener = _clause_start_before(index, i, start)
+    if opener is None or not _governing_clause_ok(index, opener, i + 1):
+        return False
+
+    j = bisect.bisect_left(index.starts, end)
+    if j >= len(tokens):
+        return True
+    if j > 0 and _opens_clause(index, j - 1):
+        return True  # the words after it belong to the clause it opens
+    level = _gap_level(index, j - 1, end, index.starts[j])
+    if level < 2 and _turns_round_after(index, j):
+        return False
+    if j > 0 and tokens[j - 1] in _RESULT_MARK_TOKENS:
+        return True
+    while level == 0 and j not in index.paragraph_starts:
+        token = tokens[j]
+        if (
+            token in _COORDINATORS
+            or token in _SUBORDINATORS
+            or token in _PREDICATE_WORDS
+            or _RESULT_WORD_RE.fullmatch(token)
+        ):
+            break
+        if _turns_round_after(index, j):
+            return False
+        j += 1
+        if j >= len(tokens):
+            break
+        level = _gap_level(index, j - 1, index.ends[j - 1], index.starts[j])
+    return True
+
+
+def _clause_starts_at(index: EvidenceIndex, start: int) -> bool:
+    """Is answer token ``start`` the first word of its clause (or paragraph)?"""
+    return (
+        start == 0
+        or start in index.paragraph_starts
+        or _gap_level(index, start - 1, index.ends[start - 1], index.starts[start]) > 0
+    )
+
+
+def _tokens_in_order(fragment: List[str], index: EvidenceIndex) -> bool:
+    """True when the fragment's tokens occur in order in a tight answer window.
+
+    Tolerates punctuation and markup differences (tokens ignore them),
+    inflections and typos (:func:`_tokens_match`), and small omissions and
+    additions:
+
+    - Between two quoted words the answer may have up to two words the quote
+      leaves out. They must be function words (:data:`_FUNCTION_WORDS`),
+      except for one content word per quote. A protected answer word
+      (:func:`_is_protected`) or a question or condition word is never
+      stepped over.
+    - The quote may add one function word per eight words that the answer
+      lacks, also at its start when the match starts a clause of the answer.
+      It never adds a content word or a protected word, and never ends with
+      an added word.
+    - A word the quote adds where the answer has a word the quote leaves out
+      is a substitution ("Berechtigter" for "Nichtberechtigter", "fahrlässig"
+      for "vorsätzlich") and fails.
+    - A protected quoted word must be the very next answer word: nothing may
+      be stepped over in front of it, so a moved "nicht" fails.
+
+    A paraphrase changes many words and fails. The match must pass
+    :func:`_edges_ok`.
+    """
+    answer = index.tokens
+    n = len(fragment)
+    if n == 0:
+        return False
+    allowed_misses = n // 8
+    window = n + max(2, n // 4)
+    max_step = 3
+    for first in range(min(allowed_misses, n - 1) + 1):
+        if not all(_is_function_word(t) for t in fragment[:first]):
+            break
+        for start, token in enumerate(answer):
+            if not _tokens_match(fragment[first], token):
+                continue
+            # Words the quote adds in front of the match are an addition only
+            # where the answer's clause starts; otherwise they stand in for
+            # the answer's words in front of the match.
+            if first and not _clause_starts_at(index, start):
+                continue
+            misses = first
+            content_skips = 0
+            pos = start + 1
+            gap_missed = False
+            ok = True
+            for quoted in fragment[first + 1 :]:
+                found = None
+                if _is_protected(quoted):
+                    if pos < len(answer) and _tokens_match(quoted, answer[pos]):
+                        found = pos
+                else:
+                    for p in range(pos, min(pos + max_step, len(answer))):
+                        if _tokens_match(quoted, answer[p]):
+                            found = p
+                            break
+                        if _is_protected(answer[p]) or answer[p] in _EDGE_BEFORE_WORDS:
+                            break
+                if found is None:
+                    misses += 1
+                    if not _is_function_word(quoted) or misses > allowed_misses:
+                        ok = False
+                        break
+                    gap_missed = True
+                    continue
+                skipped = answer[pos:found]
+                if skipped and gap_missed:
+                    ok = False  # a substitution
+                    break
+                content_skips += sum(not _is_function_word(t) for t in skipped)
+                if content_skips > _EVIDENCE_MAX_CONTENT_SKIPS:
+                    ok = False
+                    break
+                pos = found + 1
+                gap_missed = False
+                if pos - start > window:
+                    ok = False
+                    break
+            if ok and not gap_missed and _edges_ok(index, index.starts[start], index.ends[pos - 1]):
+                return True
+    return False
+
+
+def _is_citation_token(token: str) -> bool:
+    """Part of a norm citation: §-free pieces like "Art", "Abs", "S", "Nr",
+    "lit", digits, Roman numerals, single letters, and law abbreviations
+    (``token`` keeps its case: "VwGO", "GG", "BGB")."""
+    folded = token.casefold()
+    if len(folded) == 1 or _has_digit(folded) or folded in _ROMAN_NUMERALS or folded in _CITATION_WORDS:
+        return True
+    if _LAW_ABBREVIATION_RE.fullmatch(token) and sum(ch.isupper() for ch in token) >= 2:
+        return not token.isupper() or len(token) <= 6
+    return False
+
+
+def _fragment_is_quotable(tokens: List[str], cased: Optional[List[str]] = None) -> bool:
+    """Long enough to be a quote rather than a keyword (see the constants),
+    and more than a norm citation: at least one token that is neither part
+    of the citation nor a word that only connects it
+    (:data:`_CITATION_CONNECTORS`).
+    "nach § 40 I 1 VwGO als Leistungsklage statthaft" is a quote; "§ 40 I 1
+    VwGO", "nach § 40 I 1 VwGO" and "gem. § 280 BGB i.V.m. § 241 BGB" are
+    not. ``cased`` are the same tokens with their case, for the law
+    abbreviations."""
+    if len(tokens) < EVIDENCE_MIN_TOKENS and not (
+        len(tokens) == 2 and sum(len(t) for t in tokens) >= EVIDENCE_MIN_LONG_FRAGMENT_CHARS
+    ):
+        return False
+    return not all(
+        _is_citation_token(t) or t.casefold() in _CITATION_CONNECTORS for t in (cased or tokens)
+    )
+
+
+def _cased_tokens(cased_text: str, tokens: List[str]) -> Optional[List[str]]:
+    """The tokens of ``cased_text`` when they line up with the casefolded
+    ``tokens`` (casefolding can split a token in rare scripts)."""
+    cased = _WORD_RE.findall(cased_text)
+    return cased if len(cased) == len(tokens) else None
+
+
+def _find_all(haystack: str, needle: str):
+    start = haystack.find(needle)
+    while start != -1:
+        yield start
+        start = haystack.find(needle, start + 1)
+
+
+def _continues_number(text: str, index: int, step: int) -> bool:
+    """Does a number go on at ``index`` (a digit, or ``.``/``,`` then a
+    digit, read in direction ``step``)?"""
+    if not 0 <= index < len(text):
+        return False
+    if text[index].isdigit():
+        return True
+    nxt = index + step
+    return text[index] in ".," and 0 <= nxt < len(text) and text[nxt].isdigit()
+
+
+def _ends_protected(part: str, tokens: List[str]) -> bool:
+    """Does ``part`` end with a protected token ("§ 80", "Art. 8 I", "nicht")?"""
+    return bool(tokens) and part.endswith(tokens[-1]) and _is_protected(tokens[-1])
+
+
+def _text_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
+    """A substring match starts on a word boundary ("zulässig" is not in
+    "unzulässig", "Berechtigter" not in "Nichtberechtigter"), cuts no number,
+    ends on a word boundary when the quote ends with a protected token ("§ 80"
+    is not "§ 80a", "Art. 8 I" not "Art. 8 II", "nicht" not "nichtig"), and
+    passes :func:`_edges_ok`."""
+    text = index.text
+    if start and text[start - 1].isalnum():
+        return False
+    if part[:1].isdigit() and _continues_number(text, start - 1, -1):
+        return False
+    if _ends_protected(part, tokens) and end < len(text) and (
+        text[end].isalnum() or _continues_number(text, end, 1)
+    ):
+        return False
+    return _edges_ok(index, start, end)
+
+
+_THOUSANDS_RE = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?")
+
+
+def _number_tokens(tokens: List[str]) -> List[str]:
+    """The numbers among ``tokens``, thousands dots dropped ("10.000" is
+    "10000"; "10,5" stays "10,5")."""
+    return [t.replace(".", "") if _THOUSANDS_RE.fullmatch(t) else t for t in tokens if _has_digit(t)]
+
+
+def _compact_match_ok(index: EvidenceIndex, start: int, end: int, part: str, tokens: List[str]) -> bool:
+    """Digit boundaries in the compact text, the same numbers in the same
+    order in the matched span ("10,5" is not "105", "§§ 1, 2" is not
+    "§ 12"), then the substring rules on the matched span of the answer
+    text."""
+    compact = index.compact
+    if compact[start].isdigit() and start and compact[start - 1].isdigit():
+        return False
+    if compact[end - 1].isdigit() and end < len(compact) and compact[end].isdigit():
+        return False
+    text_start, text_end = index.compact_pos[start], index.compact_pos[end - 1] + 1
+    if _number_tokens(_WORD_RE.findall(index.text[text_start:text_end])) != _number_tokens(tokens):
+        return False
+    return _text_match_ok(index, text_start, text_end, part, tokens)
 
 
 def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> bool:
     """Short fragments must sit on word boundaries ("des Verwaltungsrechtsweg"
     does not match "des Verwaltungsrechtswegs"); longer ones may be a
-    substring or match token-wise in order (see :func:`_tokens_in_order`)."""
+    substring or match token-wise in order (see :func:`_tokens_in_order`).
+    Every path applies the boundary and edge rules of :func:`_text_match_ok`,
+    and none lets a number match part of a longer number."""
     if len(tokens) < _EVIDENCE_SHORT_FRAGMENT_TOKENS:
-        return re.search(rf"(?<!\w){re.escape(part)}(?!\w)", index.text) is not None
-    return part in index.text or _tokens_in_order(tokens, index.tokens)
+        return any(
+            _text_match_ok(index, m.start(), m.end(), part, tokens)
+            for m in re.finditer(rf"(?<!\w){re.escape(part)}(?!\w)", index.text)
+        )
+    if any(_text_match_ok(index, s, s + len(part), part, tokens) for s in _find_all(index.text, part)):
+        return True
+    if _tokens_in_order(tokens, index):
+        return True
+    # Source artifacts (a hyphenation split, spacing inside numbers) break the
+    # token match of an otherwise verbatim long quote: compare letters and
+    # digits only.
+    compact = _COMPACT_RE.sub("", part)
+    return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and any(
+        _compact_match_ok(index, s, s + len(compact), part, tokens) for s in _find_all(index.compact, compact)
+    )
+
+
+def _stitched_fragment_in_answer(cased_part: str, index: EvidenceIndex) -> bool:
+    """A fragment that is not one passage of the answer may be several
+    passages glued together without an ellipsis. It is split into sentences
+    (:func:`_split_sentences`: never after an abbreviation, so "Der Käufer
+    ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt" stays one piece), and
+    every piece must be quotable on its own and in the answer. A piece too
+    short to be a quote ("VwGO.", "Kein Anspruch.", "§ 40 VwGO.") is glued
+    back to its neighbour, separator included, and the glued text must be in
+    the answer. So a keyword cannot ride along with a real sentence, and an
+    invented sentence fails the whole quote. ``cased_part`` is the
+    normalized fragment before casefolding."""
+    pieces: List[str] = []
+    for piece in _split_sentences(cased_part):
+        if _WORD_RE.search(piece) or not pieces:
+            pieces.append(piece)
+        else:
+            pieces[-1] = f"{pieces[-1]} {piece}"
+
+    def quotable(piece: str) -> bool:
+        tokens = _WORD_RE.findall(piece.casefold())
+        return _fragment_is_quotable(tokens, _cased_tokens(piece, tokens))
+
+    while len(pieces) > 1:
+        short = next((i for i, p in enumerate(pieces) if not quotable(p)), None)
+        if short is None:
+            break
+        # The previous neighbour; a leading piece goes with the next one.
+        i = short - 1 if short else 0
+        pieces[i : i + 2] = [f"{pieces[i]} {pieces[i + 1]}"]
+    if len(pieces) < 2:
+        return False
+    for piece in pieces:
+        piece = piece.strip(_EDGE_PUNCTUATION).casefold()
+        if not _fragment_in_answer(piece, _WORD_RE.findall(piece), index):
+            return False
+    return True
 
 
 def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
@@ -512,23 +1178,29 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
 
     Fragments are split on ellipses (``…``, ``...``, ``[...]``). Each must be
     quotable (:func:`_fragment_is_quotable`: at least three tokens, or two
-    long ones; never a single token) and present in the answer
-    (:func:`_fragment_in_answer`). Empty evidence, or evidence with fewer
-    than :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
+    long ones, never a single token, never only a norm citation) and present
+    in the answer (:func:`_fragment_in_answer`, or glued passages, see
+    :func:`_stitched_fragment_in_answer`) with nothing around it that turns
+    it round (:func:`_edges_ok`). Protected tokens (negations, result marks,
+    result and qualifier words, Roman numerals, numbers) must match exactly.
+    Empty evidence, or evidence with fewer than
+    :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
     """
     fragments = []
-    for part in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence)):
-        part = part.strip(" \"'.,;:!?()[]-")
+    for cased in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence, casefold=False)):
+        cased = cased.strip(_EDGE_PUNCTUATION)
+        part = cased.casefold()
         tokens = _WORD_RE.findall(part)
         if tokens:
-            fragments.append((part, tokens))
+            fragments.append((cased, part, tokens))
     if not fragments:
         return False
-    if sum(len(tok) for _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
+    if sum(len(tok) for _cased, _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
         return False
     return all(
-        _fragment_is_quotable(tokens) and _fragment_in_answer(part, tokens, index)
-        for part, tokens in fragments
+        _fragment_is_quotable(tokens, _cased_tokens(cased, tokens))
+        and (_fragment_in_answer(part, tokens, index) or _stitched_fragment_in_answer(cased, index))
+        for cased, part, tokens in fragments
     )
 
 
@@ -826,6 +1498,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # to ai_service.generate() in _evaluate_single_criterion.
         self.seed = seed
         self.rubric_mode = rubric_mode
+        # Checklist scoring (research lane): set by configure_checklist().
+        self.checklist: Optional[Dict[str, Any]] = None
 
         # Merge all criteria: defaults + type-specific + custom
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
@@ -855,10 +1529,80 @@ class LLMJudgeEvaluator(BaseEvaluator):
         sites call this after construction: the bulk lane resolves the
         rubric per cell, so it cannot be a factory kwarg. Evaluators are
         cell-scoped, so the binding cannot leak across tasks.
+
+        ``criteria`` is a JSONB column, and Postgres returns object keys by
+        length, then bytes, not in outline order. The response schema and the
+        score vector follow the dict order, so the steps are put back into
+        Bewertungsbogen order (structure first, then the ``sNN_`` ordinals).
         """
-        self.custom_criteria = rubric.criteria
+        from rubric_structure import order_criteria_keys
+
+        criteria = rubric.criteria or {}
+        ordered = order_criteria_keys(criteria, getattr(rubric, "structure", None))
+        self.custom_criteria = {key: criteria[key] for key in ordered}
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
+
+    def configure_checklist(
+        self,
+        spec: Dict[str, Any],
+        score_unit: str = "bullet",
+        alternatives: str = "branch",
+        total_mode: str = "declared",
+        grade_scale: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """Score against a ``checklist_spec`` instead of free step scores.
+
+        Opt-in (research lane, see :mod:`ml_evaluation.checklist_scoring`):
+        the judge marks requirement bullets, scores steps, or rates steps
+        (``score_unit``), and Weichenstellungen are scored per path or onto the
+        replaced steps (``alternatives``; ``"replace"`` needs the step or
+        rating unit). Code computes every point. Without a bound rubric the
+        spec's primary path becomes the criteria.
+
+        ``grade_scale`` is the exam's Notenschlüssel for the rating unit's
+        BE equivalents: ``None`` for the platform default
+        (``grade_scale_from_preset("standard")``), a platform ``grade_scale``,
+        or ``{"thresholds_be": [...], "rounding": ..., "pass_grade": ...}``
+        (see :func:`checklist_scoring.grade_key` for the conversion).
+
+        The checklist lane owns its prompts: ``self.checklist`` carries the
+        user template (:data:`checklist_scoring.USER_TEMPLATE`, no score
+        wording), the system prompt and the closing rules. The evaluator uses
+        them while checklist mode is on, whatever ``custom_prompt_template``
+        the caller set; that template is kept for the product lane.
+
+        A spec that cannot be scored raises
+        :class:`checklist_scoring.ChecklistSpecError` (a ``ValueError``) here,
+        before any judge call (:func:`checklist_scoring.validate_spec`).
+        """
+        from . import checklist_scoring
+        from .checklist_scoring import grade_key, rating_percent_table, validate_options
+
+        validate_options(score_unit, alternatives, total_mode)
+        # The whole spec shape, once, here: a broken spec must not cost a
+        # paid judge call before finalize trips over it.
+        checklist_scoring.validate_spec(spec, score_unit, alternatives)
+        key = grade_key(grade_scale)
+        rating_percent_table(key, checklist_scoring.spec_total_points(spec))  # raises on a bad key
+        if not self.custom_criteria:
+            self.custom_criteria = {
+                key: {"name": spec["steps"][key].get("name"), "max_score": spec["steps"][key]["max_score"]}
+                for key in spec["order"]
+            }
+            self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
+        self.rubric_mode = True
+        weichenstellungen = checklist_scoring.has_weichenstellungen(spec)
+        self.checklist = {
+            "spec": spec,
+            "score_unit": score_unit,
+            "alternatives": alternatives,
+            "total_mode": total_mode,
+            "grade_scale": key,
+            "user_template": checklist_scoring.USER_TEMPLATE,
+            "system_prompt": checklist_scoring.system_prompt(score_unit, alternatives, weichenstellungen),
+            "closing_rules": checklist_scoring.closing_rules(score_unit, alternatives, weichenstellungen),
+        }
 
     def get_supported_metrics(self) -> List[str]:
         """Return list of supported LLM-as-Judge metrics."""
@@ -1601,7 +2345,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # to spell out the rubric. Fall back to SINGLE_EVALUATION_PROMPT
         # would silently emit a single-score response that fails the
         # multi-dim parser; better to fail loudly.
-        raw_template = self.custom_prompt_template
+        # The checklist lane brings its own template (configure_checklist).
+        raw_template = self.checklist["user_template"] if self.checklist else self.custom_prompt_template
         if not raw_template:
             return {
                 "error": True,
@@ -1681,8 +2426,18 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     prompt = f"{prompt.rstrip()}\n\nKORREKTURHINWEISE:\n{hint_block}"
             # Appended after the rendered template, so no stored template
             # can drop the rules.
-            prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-            system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+            if self.checklist:
+                from . import checklist_scoring
+
+                opts = self.checklist
+                key_map = checklist_scoring.expected_output_note(
+                    opts["spec"], opts["score_unit"], opts["alternatives"]
+                )
+                prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{opts['closing_rules']}"
+                system_prompt = opts["system_prompt"]
+            else:
+                prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
+                system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
                 for value in (field_outputs or {}).values()
@@ -1690,9 +2445,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
             ]
             evidence_index = EvidenceIndex("\n".join(answer_parts))
 
-        json_schema = _build_rubric_json_schema(
-            self.custom_criteria, require_evidence=rubric_mode
-        )
+        if self.checklist:
+            from . import checklist_scoring
+
+            json_schema = checklist_scoring.build_schema(
+                self.checklist["spec"], self.checklist["score_unit"], self.checklist["alternatives"]
+            )
+        else:
+            json_schema = _build_rubric_json_schema(
+                self.custom_criteria, require_evidence=rubric_mode
+            )
         # Sum of max_scores; used to clamp total_score and to give callers
         # a 0..1 normalisation reference.
         total_max = sum(
@@ -1711,8 +2473,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
             "temperature": self.temperature,
             "custom_criteria": self.custom_criteria,
             "field_mappings": self.field_mappings,
-            "mode": "multidim_single_call",
+            "mode": "checklist" if self.checklist else "multidim_single_call",
         }
+        if self.checklist:
+            provenance["checklist"] = {
+                k: self.checklist[k]
+                for k in ("score_unit", "alternatives", "total_mode", "grade_scale")
+            }
         # "api_default" says explicitly that no value was sent, so a row
         # graded at the provider's default is not mistaken for one whose
         # value went unrecorded.
@@ -1732,7 +2499,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # verification as a real response.
         import os
 
-        if os.environ.get("E2E_TEST_MODE") == "true":
+        if os.environ.get("E2E_TEST_MODE") == "true" and not self.checklist:
             import hashlib
 
             mock_reason = "Mock evaluation (E2E test mode)"
@@ -1779,11 +2546,51 @@ class LLMJudgeEvaluator(BaseEvaluator):
             }
 
         last_failure: Optional[Dict[str, Any]] = None
-        # One entry per retried provider failure; persisted in _call_metadata
-        # so a row shows how many 429s / timeouts preceded its result.
+        # One entry per retry of this loop (a provider 429 / timeout, or a
+        # checklist judgment with missing keys); persisted in _call_metadata
+        # so a row shows what preceded its result.
         judge_retries: List[Dict[str, Any]] = []
+        # Token usage summed over every attempt of this loop, so metering
+        # sees the retries too. The top-level input/output_tokens stay the
+        # last attempt's.
+        usage_all: Dict[str, int] = {
+            "attempts": 0,
+            "attempts_without_usage": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+        # A checklist retry tells the judge what its last answer lacked.
+        retry_note = ""
+
+        def count_usage(response: Optional[Dict[str, Any]]) -> None:
+            usage_all["attempts"] += 1
+            usage = (response or {}).get("usage") or {}
+            numbers = {
+                key: usage.get(source)
+                for key, source in (("input_tokens", "prompt_tokens"), ("output_tokens", "completion_tokens"))
+                if isinstance(usage.get(source), (int, float)) and not isinstance(usage.get(source), bool)
+            }
+            total = usage.get("total_tokens")
+            if not isinstance(total, (int, float)) or isinstance(total, bool):
+                total = sum(numbers.values()) if numbers else None
+            if not numbers and total is None:
+                usage_all["attempts_without_usage"] += 1
+                return
+            for key, value in numbers.items():
+                usage_all[key] += int(value)
+            usage_all["total_tokens"] += int(total or 0)
+
+        def call_meta(base: Dict[str, Any], **extra: Any) -> Dict[str, Any]:
+            return {
+                **base,
+                **extra,
+                "judge_retries": judge_retries,
+                "usage_all_attempts": dict(usage_all),
+            }
 
         for attempt in range(self.max_retries):
+            counted = False
             try:
                 extra_kwargs: Dict[str, Any] = {"seed": self.seed}
                 if self.thinking_budget:
@@ -1799,7 +2606,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 # `generate(response_format=...)` directly here would have
                 # blown up on Anthropic / Google judges with an unknown kwarg.
                 response = self.ai_service.generate_structured(
-                    prompt=prompt,
+                    prompt=f"{prompt.rstrip()}\n\n{retry_note}" if retry_note else prompt,
                     system_prompt=provenance["system_prompt"],
                     model_name=self.judge_model,
                     json_schema=json_schema,
@@ -1807,17 +2614,19 @@ class LLMJudgeEvaluator(BaseEvaluator):
                     temperature=self.temperature,
                     **extra_kwargs,
                 )
+                count_usage(response)
+                counted = True
 
                 if not response.get("success"):
-                    call_meta = _extract_call_metadata(response)
+                    base_meta = _extract_call_metadata(response)
                     last_failure = {
                         "error": True,
                         "error_message": response.get("error"),
-                        "_call_metadata": {**call_meta, "judge_retries": judge_retries},
+                        "_call_metadata": call_meta(base_meta),
                         "_raw_output": response.get("content", ""),
                         "_judge_prompts_used": provenance,
                     }
-                    error_type = call_meta.get("error_type")
+                    error_type = base_meta.get("error_type")
                     if (
                         error_type in JUDGE_RETRY_ERROR_TYPES
                         and attempt < self.max_retries - 1
@@ -1841,6 +2650,85 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 content = response.get("content", "")
                 parsed = _parse_multidim_response(content)
 
+                if self.checklist and parsed and isinstance(parsed.get("scores"), dict):
+                    from . import checklist_scoring
+
+                    opts = self.checklist
+                    try:
+                        result = checklist_scoring.finalize(
+                            parsed,
+                            opts["spec"],
+                            opts["score_unit"],
+                            opts["alternatives"],
+                            opts["total_mode"],
+                            lambda quote: _verify_evidence(quote, evidence_index),
+                            grade_scale=opts.get("grade_scale"),
+                        )
+                    except Exception as exc:
+                        # finalize coerces every malformed value of the
+                        # answer, so an error here comes from the spec, the
+                        # key or the code. It repeats for the same answer:
+                        # fail at once instead of paying for retries.
+                        logger.error(
+                            f"Checklist judge ({self.judge_model}): finalize failed "
+                            f"({type(exc).__name__}: {exc}); not retried"
+                        )
+                        return {
+                            "error": True,
+                            "error_message": (
+                                f"checklist scoring failed ({type(exc).__name__}): {exc}"
+                            ),
+                            "_call_metadata": call_meta(
+                                _extract_call_metadata(response), error_type="checklist_error"
+                            ),
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
+                    if not result.get("missing") and result.get("not_evaluable"):
+                        # Same contract as the second-exam engine: no value,
+                        # an error row with the judge's reasons.
+                        reasons = "; ".join(result["assessment"].get("review_reasons") or [])
+                        return {
+                            "error": True,
+                            "error_message": f"Judge: nicht bewertbar ({reasons})" if reasons else "Judge: nicht bewertbar",
+                            "assessment": result["assessment"],
+                            "_call_metadata": call_meta(
+                                _extract_call_metadata(response), error_type="not_evaluable"
+                            ),
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
+                    if not result.get("missing"):
+                        return {
+                            **result,
+                            "_call_metadata": call_meta(_extract_call_metadata(response)),
+                            "_raw_output": content,
+                            "_judge_prompts_used": provenance,
+                        }
+                    # A judgment that skips steps is not a judgment: retry,
+                    # and say which keys were missing.
+                    last_failure = {
+                        "error": True,
+                        "error_message": "judge response lacks scored items: "
+                        + ", ".join(result["missing"][:20]),
+                        "_call_metadata": call_meta(
+                            _extract_call_metadata(response), error_type="parse_error"
+                        ),
+                        "_raw_output": content,
+                        "_judge_prompts_used": provenance,
+                    }
+                    if attempt < self.max_retries - 1:
+                        retry_note = checklist_scoring.missing_keys_note(result["missing"])
+                        judge_retries.append(
+                            {
+                                "attempt": attempt + 1,
+                                "error_type": "missing_keys",
+                                "missing": len(result["missing"]),
+                            }
+                        )
+                        time.sleep(1)
+                    continue
+
                 if parsed and isinstance(parsed.get("scores"), dict):
                     clamped, total, zeroed = _finalize_multidim_scores(
                         parsed, self.custom_criteria, evidence_index
@@ -1855,16 +2743,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "total_score": float(total),
                         "total_max": float(total_max),
                         "overall_assessment": str(parsed.get("overall_assessment", "") or ""),
-                        "_call_metadata": {
-                            **_extract_call_metadata(response),
-                            "judge_retries": judge_retries,
-                        },
+                        "_call_metadata": call_meta(_extract_call_metadata(response)),
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
 
-                call_meta = _extract_call_metadata(response)
-                if call_meta.get("truncated"):
+                base_meta = _extract_call_metadata(response)
+                if base_meta.get("truncated"):
                     # finish_reason=length: the JSON never completed. Retrying
                     # the identical call burns quota for an identical cut —
                     # fail fast with an actionable message instead.
@@ -1875,11 +2760,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             "(finish_reason=length); raise metric_parameters.max_tokens "
                             "for this metric"
                         ),
-                        "_call_metadata": {
-                            **call_meta,
-                            "error_type": "truncated",
-                            "judge_retries": judge_retries,
-                        },
+                        "_call_metadata": call_meta(base_meta, error_type="truncated"),
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
@@ -1887,11 +2768,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 last_failure = {
                     "error": True,
                     "error_message": "judge response missing parseable scores dict",
-                    "_call_metadata": {
-                        **call_meta,
-                        "error_type": "parse_error",
-                        "judge_retries": judge_retries,
-                    },
+                    "_call_metadata": call_meta(base_meta, error_type="parse_error"),
                     "_raw_output": content,
                     "_judge_prompts_used": provenance,
                 }
@@ -1902,6 +2779,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
 
             except Exception as e:
                 logger.warning(f"Multi-dim attempt {attempt + 1} failed: {e}")
+                if not counted:
+                    count_usage(None)
                 try:
                     from ai_services.base_service import classify_error_type
                     error_type = classify_error_type(e)
@@ -1910,13 +2789,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 last_failure = {
                     "error": True,
                     "error_message": str(e),
-                    "_call_metadata": {"error_type": error_type, "judge_retries": judge_retries},
+                    "_call_metadata": call_meta({"error_type": error_type}),
                     "_raw_output": "",
                     "_judge_prompts_used": provenance,
                 }
                 if attempt < self.max_retries - 1:
                     time.sleep(1 * (attempt + 1))
 
+        if last_failure is not None:
+            # An earlier attempt's failure is returned: give it the final sum.
+            last_failure["_call_metadata"]["usage_all_attempts"] = dict(usage_all)
         return last_failure
 
     def _format_value(self, value: Any) -> str:

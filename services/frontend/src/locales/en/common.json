@@ -3301,10 +3301,12 @@
       "title": "Group & Network",
       "subtitle": "The team behind BenGER, everyone who contributed to the dataset, and our partners in legal AI research.",
       "networkTitle": "Network & Partners",
-      "teamPlatform": [
+      "showAll": "Show all",
+      "showLess": "Show less",
+      "members": [
         {
           "name": "Sebastian Nagl",
-          "role": "Project Lead & Developer",
+          "role": "Product Lead & Developer",
           "institution": "Technical University of Munich",
           "url": "https://legalplusplus.net",
           "image": "/people/sebastian-nagl.jpg"
@@ -3315,31 +3317,41 @@
           "institution": "Technical University of Munich",
           "url": "",
           "image": "/people/matthias-grabmair.jpg"
-        }
-      ],
-      "teamDatasetCore": [
+        },
         {
-          "name": "Sebastian Nagl",
-          "role": "Project Lead & Developer",
+          "name": "Sofija Milijas",
+          "role": "Project Coordination",
           "institution": "Technical University of Munich",
-          "url": "https://legalplusplus.net",
-          "image": "/people/sebastian-nagl.jpg"
-        }
-      ],
-      "teamDatasetContribution": [
+          "url": "",
+          "image": "/people/sofija-milijas.jpg"
+        },
         {
           "name": "Ann-Kristin Mayrhofer",
           "role": "Civil Law",
           "institution": "LMU Munich",
           "url": "",
-          "image": ""
+          "image": "/people/ann-kristin-mayrhofer.jpg"
         },
         {
           "name": "Martin Heidebach",
           "role": "Public Law",
           "institution": "LMU Munich",
           "url": "",
-          "image": ""
+          "image": "/people/martin-heidebach.jpg"
+        },
+        {
+          "name": "Liane Wörner",
+          "role": "Criminal Law",
+          "institution": "University of Konstanz",
+          "url": "",
+          "image": "/people/liane-woerner.jpg"
+        },
+        {
+          "name": "Philipp Reuß",
+          "role": "Civil Law",
+          "institution": "University of Göttingen",
+          "url": "",
+          "image": "/people/philipp-reuss.jpg"
         },
         {
           "name": "Anne Zettelmeier",
@@ -3351,7 +3363,7 @@
         {
           "name": "Aleyna Kocak",
           "role": "Criminal Law",
-          "institution": "University of Freiburg",
+          "institution": "University of Konstanz",
           "url": "",
           "image": ""
         },
@@ -3370,31 +3382,6 @@
           "image": "/people/elly-breu.jpg"
         },
         {
-          "name": "Sofija Milijas",
-          "role": "Project Coordination",
-          "institution": "Technical University of Munich",
-          "url": "",
-          "image": "/people/sofija-milijas.jpg"
-        }
-      ],
-      "teamDatasetSenior": [
-        {
-          "name": "Matthias Grabmair",
-          "role": "Project Supervisor",
-          "institution": "Technical University of Munich",
-          "url": "",
-          "image": "/people/matthias-grabmair.jpg"
-        }
-      ],
-      "acknowledgements": [
-        {
-          "name": "Liane Wörner",
-          "role": "Criminal Law",
-          "institution": "University of Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
           "name": "Sarah Rachut",
           "role": "Public Law",
           "institution": "TU Braunschweig",
@@ -3405,13 +3392,6 @@
           "name": "Dominik Brodowski",
           "role": "Criminal Law",
           "institution": "Saarland University",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Philipp Reuß",
-          "role": "Civil Law",
-          "institution": "University of Göttingen",
           "url": "",
           "image": ""
         },
@@ -9405,6 +9385,7 @@
           "invalid_request": "Open the activity again in your learning platform. If the error comes back, pass the error code on to your teacher.",
           "invalid_state": "Open the activity again in your learning platform.",
           "invalid_token": "Open the activity again in your learning platform. If the error persists, pass the error code on to your teacher. Teachers ask the learning platform admin to check the tool settings.",
+          "jwks_unreachable": "Open the activity again in your learning platform in a few minutes. If the error persists, pass the error code on to your teacher. Teachers ask the learning platform admin to make the key URL (JWKS) reachable for this platform, for example in the firewall.",
           "launch_expired": "Open the activity again in your learning platform.",
           "launch_mismatch": "Open the activity again in your learning platform and stay in the same browser.",
           "link_proof_failed": "Open the activity again in your learning platform and request a new link.",
@@ -9426,6 +9407,7 @@
         "invalid_request": "The learning platform sent an incomplete request.",
         "invalid_state": "The sign-in has expired or was already used. This happens for example after going back, after reloading the page or after waiting more than 5 minutes. It is not a cookie problem.",
         "invalid_token": "The sign-in data of the learning platform could not be verified.",
+        "jwks_unreachable": "The sign-in could not be checked because this tool could not load the keys of the learning platform.",
         "launch_expired": "The sign-in has expired or is already complete. An open sign-in expires after 30 minutes without activity.",
         "launch_mismatch": "This page belongs to another sign-in, for example from another tab or browser.",
         "link_proof_failed": "The confirmation link is invalid, expired or already used.",
@@ -10258,6 +10240,7 @@
         "state_unavailable": "The sign-in could not be stored because of a temporary server problem. This is not caused by your browser.",
         "invalid_state": "The sign-in was older than 5 minutes or was already used, for example after going back or reloading the page.",
         "invalid_token": "The sign-in data from the learning platform could not be verified.",
+        "jwks_unreachable": "This server could not load the keys of the learning platform (JWKS URL), usually because a firewall blocks it or the URL is wrong. The tool settings themselves can be correct.",
         "nonce_mismatch": "The response of the learning platform does not match this sign-in.",
         "nonce_reused": "This sign-in was already used once.",
         "unsupported_message": "The learning platform sent a request the tool does not support, for example Deep Linking.",

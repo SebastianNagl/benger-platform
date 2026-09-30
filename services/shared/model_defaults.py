@@ -16,9 +16,9 @@ judge (``llm_judge_rubric``): the worker floors a default-tier
 ``max_tokens`` to it (``METRIC_MAX_TOKENS_FLOOR``), the metric registry
 seeds new configs with it and the extended rubric lanes read it, so one
 number governs every place that sets the budget. 32000 is measured, not
-guessed: grading a submission against the 46-step Polizeirecht
-Korrekturbogen on gpt-5-mini spent the ENTIRE 8000-token budget (6928
-prompt + 8000 completion) without closing the JSON. Reasoning models bill
+guessed: grading a submission against a hand-made sheet with 46 steps on
+gpt-5-mini spent the ENTIRE 8000-token budget (6928 prompt + 8000
+completion) without closing the JSON. Reasoning models bill
 their thinking against the same completion budget, so the usable room for
 ~46 reasons is a fraction of the cap. The generator that writes these
 sheets already runs at 32000; grading one is the same order of work. A cap

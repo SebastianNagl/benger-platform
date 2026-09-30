@@ -3,9 +3,9 @@
 
 Every fixture is built in-test with the stdlib zip builders in
 ``tests/fixtures/rubric_files.py`` — no binary files in the repo. The
-colleague's sheet (Polizeirecht Übungsklausur) is reproduced in reduced form
-with all of its real-world quirks: the ``Frage 1:`` header row shared with the
-column header, ``insgesamt N BE`` notes, half points, ``0,5`` comma decimals,
+synthetic sample sheet (a neutral civil-law practice exam) carries the quirks
+real Korrekturbögen show: the ``Frage 1:`` header row shared with the column
+header, ``insgesamt N BE`` notes, half points, ``0,5`` comma decimals,
 Schwerpunkt markers with hint bullets, a scored node with scored children,
 the ``Gesamt-BE`` formula row, a ``10~19`` range, the Notenschlüssel rows and
 the rounding sentence, and a ``Korrektor:`` trailer.
@@ -32,15 +32,15 @@ from services.rubric_import import (  # noqa: E402
     rubric_document_text,
 )
 from tests.fixtures.rubric_files import (  # noqa: E402
-    COLLEAGUE_THRESHOLDS,
     SCALE_RANGES,
+    UEBUNGSKLAUSUR_THRESHOLDS,
     Formula,
-    colleague_sample_rows,
-    colleague_sample_xlsx,
     make_docx,
     make_xlsx,
     parity_sheet_docx,
     parity_sheet_xlsx,
+    sample_sheet_rows,
+    sample_sheet_xlsx,
 )
 
 
@@ -70,14 +70,14 @@ def _scale_rows():
 
 
 # ---------------------------------------------------------------------------
-# The colleague's sheet
+# The synthetic sample sheet
 # ---------------------------------------------------------------------------
 
 
-class TestColleagueSample:
+class TestSampleSheet:
     @pytest.fixture(scope="class")
     def result(self):
-        return parse_rubric_file("Korrekturbogen mit Bewertungseinheiten.xlsx", colleague_sample_xlsx())
+        return parse_rubric_file("Korrekturbogen Kaufrecht.xlsx", sample_sheet_xlsx())
 
     def test_totals_scale_and_contract(self, result):
         assert result["source_format"] == "xlsx"
@@ -86,7 +86,7 @@ class TestColleagueSample:
         assert len(_steps(result)) == 15
         assert result["grade_scale"] == {
             "unit": "BE",
-            "thresholds": COLLEAGUE_THRESHOLDS,
+            "thresholds": UEBUNGSKLAUSUR_THRESHOLDS,
             "rounding": "floor",
             "pass_grade": 4,
             "max_points": 100,
@@ -96,55 +96,56 @@ class TestColleagueSample:
         assert result["grade_scale_percent"] == {
             "unit": "percent",
             "preset": "custom",
-            "thresholds": [float(t) for t in COLLEAGUE_THRESHOLDS],
+            "thresholds": [float(t) for t in UEBUNGSKLAUSUR_THRESHOLDS],
             "rounding": "floor",
             "pass_grade": 4,
         }
         assert validate_structure(result["structure"]) == []
         assert criteria_from_structure(result["structure"]) == result["criteria"]
         assert list(result["criteria"])[:2] == [
-            "s01_eroeffnung_des_verwaltungsrechtswegs_nach_40_i_1_vwgo",
-            "s02_abdraengende_sonderzuweisung_eindeutig_zu_verneinen",
+            "s01_wirksamer_kaufvertrag_nach_433_bgb",
+            "s02_einigung_ueber_das_gebrauchte_rad_unproblematisch",
         ]
-        assert result["title"] == "Korrekturbogen mit Bewertungseinheiten"
+        assert result["title"] == "Korrekturbogen Kaufrecht"
 
     def test_levels_kinds_and_labels(self, result):
         nodes = result["structure"]["nodes"]
         by = _by_title(result)
         assert nodes[0] == {"id": "n1", "level": 0, "kind": "section", "label": "", "title": "Frage 1", "note": None}
-        assert by["Zulässigkeit"]["level"] == 1 and by["Zulässigkeit"]["label"] == "A."
-        assert by["Zulässigkeit"]["note"] == "insgesamt 21 BE"
-        eroeffnung = by["Eröffnung des Verwaltungsrechtswegs nach § 40 I 1 VwGO"]
-        assert (eroeffnung["level"], eroeffnung["label"], eroeffnung["max_score"]) == (2, "I.", 1)
+        assert by["Rücktrittsrecht"]["level"] == 1 and by["Rücktrittsrecht"]["label"] == "A."
+        assert by["Rücktrittsrecht"]["note"] == "insgesamt 20 BE"
+        kaufvertrag = by["Wirksamer Kaufvertrag nach § 433 BGB"]
+        assert (kaufvertrag["level"], kaufvertrag["label"], kaufvertrag["max_score"]) == (2, "I.", 1)
         # a scored bullet under a scored step → child step (rows 3/4)
-        child = by["Abdrängende Sonderzuweisung eindeutig zu verneinen"]
+        child = by["Einigung über das gebrauchte Rad unproblematisch"]
         assert (child["level"], child["label"], child["max_score"]) == (3, "", 2)
-        assert by["Statthafte Klageart"]["level"] == 2 and by["Anfechtungsklage"]["level"] == 3
-        va = by["Verwaltungsakt i.S.d. Art. 35 S. 1 VwVfG"]
-        assert va["kind"] == "section" and va["level"] == 4 and va["label"] == "a)"
-        assert (by["Regelung (+)"]["level"], by["Regelung (+)"]["max_score"]) == (5, 1)
-        assert by["Allgemeinverfügung irrelevant"]["max_score"] == 0.5
-        assert by["Erledigung des VA"]["label"] == "b)" and by["Erledigung des VA"]["level"] == 4
-        assert by["Klagebefugnis, § 42 II VwGO analog"]["level"] == 2  # roman continues after a subtree
+        assert by["Sachmangel"]["level"] == 2 and by["Beschaffenheitsvereinbarung"]["level"] == 3
+        vereinbart = by["Vereinbarte Beschaffenheit i.S.d. § 434 II 1 Nr. 1 BGB"]
+        assert vereinbart["kind"] == "section" and vereinbart["level"] == 4 and vereinbart["label"] == "a)"
+        akku = by["Reichweite des Akkus (+)"]
+        assert (akku["level"], akku["max_score"]) == (5, 1)
+        assert by["Werbeaussage des Herstellers unerheblich"]["max_score"] == 0.5
+        assert by["Mangel bei Gefahrübergang"]["label"] == "b)" and by["Mangel bei Gefahrübergang"]["level"] == 4
+        assert by["Fristsetzung, § 323 I BGB"]["level"] == 2  # roman continues after a subtree
         # rich-text shared string joined; comma decimal note kept verbatim
-        assert by["Begründetheit"]["note"] == "insgesamt 21,5 BE"
-        obersatz = by["Obersatz (Vergangenheitsform!)"]
+        assert by["Rechtsfolgen"]["note"] == "insgesamt 21,5 BE"
+        obersatz = by["Obersatz (Gutachtenstil!)"]
         assert (obersatz["level"], obersatz["label"], obersatz["max_score"]) == (2, "", 1)
-        emphasised = by["Maßnahmerichtung"]
+        emphasised = by["Nutzungsersatz"]
         assert emphasised["emphasis"] == "schwerpunkt" and emphasised["max_score"] == 10
         assert emphasised["hints"] == [
-            "Ausführliche Diskussion: H als Zweckveranlasser? (+)",
-            "A. A. vertr., wichtig ist die Diskussion der Frage!",
+            "Ausführliche Diskussion: Abzug für die gefahrenen Kilometer? (+)",
+            "A. A. vertretbar, entscheidend ist die Begründung!",
         ]
-        bb = by["Unverhältnismäßiger Grundrechtseingriff"]
+        bb = by["Gegenrechte des Verkäufers"]
         assert bb["kind"] == "section" and bb["note"] == "weiterer Schwerpunkt!"
-        assert by["Schutzbereich"]["label"] == "(1)" and by["Schutzbereich"]["level"] == 4
+        assert by["Verwendungsersatz"]["label"] == "(1)" and by["Verwendungsersatz"]["level"] == 4
         assert by["Zwischenergebnis"]["kind"] == "section" and by["Ergebnis"]["label"] == "C."
         frage2 = by["Frage 2"]
         assert frage2["level"] == 0 and frage2["note"] == "Insgesamt 72,5 BE"
-        assert by["Sperrwirkung der Standardbefugnisse"]["max_score"] == 1.5  # "1,5" text cell
-        assert by["Generalklausel"]["emphasis"] == "schwerpunkt"
-        aa = by["Aufgabeneröffnung nach Art. 2 Abs. 1 PAG"]
+        assert by["Vorrang der Nacherfüllung"]["max_score"] == 1.5  # "1,5" text cell
+        assert by["Pflichtverletzung"]["emphasis"] == "schwerpunkt"
+        aa = by["Vermutung nach § 280 Abs. 1 S. 2 BGB"]
         assert aa["label"] == "aa)" and aa["max_score"] == 68 and aa["emphasis"] == "schwerpunkt"
 
     def test_warnings(self, result):
@@ -152,7 +153,7 @@ class TestColleagueSample:
         assert sorted(codes) == ["empty_section", "empty_section", "subtotal_mismatch", "title_from_filename"]
         mismatch = next(w for w in result["warnings"] if w["code"] == "subtotal_mismatch")
         assert mismatch["node_id"] == "n2" and mismatch["row"] == 2
-        assert "21 BE" in mismatch["message"] and "6 BE" in mismatch["message"]
+        assert "20 BE" in mismatch["message"] and "6 BE" in mismatch["message"]
         empties = [w for w in result["warnings"] if w["code"] == "empty_section"]
         assert {w["node_id"] for w in empties} == {"n19", "n20"}
 
@@ -164,7 +165,7 @@ class TestColleagueSample:
     def test_inline_strings_and_non_default_sheet_name(self):
         result = parse_rubric_file(
             "bogen.xlsx",
-            make_xlsx(colleague_sample_rows(), shared_strings=False, sheet_file="sheet3.xml", absolute_target=True),
+            make_xlsx(sample_sheet_rows(), shared_strings=False, sheet_file="sheet3.xml", absolute_target=True),
         )
         assert result["total_points"] == 100
         assert len(_steps(result)) == 15
@@ -249,7 +250,7 @@ class TestXlsxHeuristics:
 
     def test_notes_emphasis_and_bullet_note(self):
         result = _xlsx([
-            {"A": "A. Zulässigkeit (insgesamt 4 BE)"},
+            {"A": "A. Anspruch entstanden (insgesamt 4 BE)"},
             {"A": "· Hinweis zum Abschnitt"},
             {"A": "I. x (Schwerpunkt!)", "B": 3},
             {"A": "II. y (weiterer Schwerpunkt!)"},
@@ -257,7 +258,7 @@ class TestXlsxHeuristics:
             {"A": "Insgesamt 1 BE"},
         ])
         by = _by_title(result)
-        assert by["Zulässigkeit"]["note"] == "insgesamt 4 BE; Hinweis zum Abschnitt"
+        assert by["Anspruch entstanden"]["note"] == "insgesamt 4 BE; Hinweis zum Abschnitt"
         assert by["x"]["emphasis"] == "schwerpunkt" and by["x"]["max_score"] == 3
         assert by["y"]["kind"] == "section" and by["y"]["note"] == "weiterer Schwerpunkt!"
         assert "note_from_bullet" in _codes(result)
@@ -281,12 +282,12 @@ class TestXlsxHeuristics:
         assert len(hints) == 20 and "Hinweis 24" in hints[-1]
 
     def test_unparsed_scale_with_17_grades_falls_back_to_default(self):
-        result = parse_rubric_file("b.xlsx", make_xlsx(colleague_sample_rows(grades=list(range(17)) + [None, None])))
+        result = parse_rubric_file("b.xlsx", make_xlsx(sample_sheet_rows(grades=list(range(17)) + [None, None])))
         assert result["grade_scale"] is None
         assert "grade_scale_unparsed" in _codes(result)
 
     def test_rounding_assumed_when_sentence_missing(self):
-        rows = [r for r in colleague_sample_rows() if not (r and "abgerundet" in str(r.get("A", "")))]
+        rows = [r for r in sample_sheet_rows() if not (r and "abgerundet" in str(r.get("A", "")))]
         result = parse_rubric_file("b.xlsx", make_xlsx(rows))
         assert result["grade_scale"]["rounding"] == "floor"
         assert "rounding_assumed" in _codes(result)
@@ -300,7 +301,7 @@ class TestXlsxHeuristics:
         rows = [{"A": "I. a", "B": 100}, {"A": "Punkteschlüssel"}]
         rows += [{"A": rng, "B": grade} for grade, rng in enumerate(SCALE_RANGES)]
         result = _xlsx(rows)
-        assert result["grade_scale"]["thresholds"] == COLLEAGUE_THRESHOLDS
+        assert result["grade_scale"]["thresholds"] == UEBUNGSKLAUSUR_THRESHOLDS
 
     def test_scale_not_fitting_the_total_is_dropped(self):
         result = _xlsx([{"A": "I. a", "B": 10}] + _scale_rows())
@@ -434,29 +435,29 @@ class TestDocx:
             [
                 [
                     [[""], ["max. BE"], ["erreicht"]],
-                    [["A. Zulässigkeit (insgesamt 3 BE)"], [""], [""]],
-                    [["I. Eröffnung des Verwaltungsrechtswegs"], ["1"], [""]],
-                    [["II. Klagebefugnis (Schwerpunkt!)"], ["2"], [""]],
-                    [["B. Begründetheit"], [""], [""]],
-                    [["I. Anspruch"], ["97"], [""]],
+                    [["A. Anspruch entstanden (insgesamt 3 BE)"], [""], [""]],
+                    [["I. Kaufvertrag"], ["1"], [""]],
+                    [["II. Sachmangel (Schwerpunkt!)"], ["2"], [""]],
+                    [["B. Rechtsfolge"], [""], [""]],
+                    [["I. Rücktritt"], ["97"], [""]],
                     [["Gesamt-BE"], ["100"], [""]],
                 ],
                 _scale_table(),
             ],
-            paragraphs_before=["Korrekturbogen Polizeirecht"],
+            paragraphs_before=["Korrekturbogen Zivilrecht"],
             paragraphs_between=["Notenschlüssel:"],
             paragraphs_after=["Die Note errechnet sich aus den BE; bei 0,5 BE wird abgerundet.", "Korrektor: X"],
         )
-        result = parse_rubric_file("Übungsklausur Korrekturbogen.docx", data)
+        result = parse_rubric_file("Bogen Zivilrecht.docx", data)
         assert result["source_format"] == "docx"
-        assert result["title"] == "Korrekturbogen Polizeirecht"
+        assert result["title"] == "Korrekturbogen Zivilrecht"
         assert result["total_points"] == 100
-        assert result["grade_scale"]["thresholds"] == COLLEAGUE_THRESHOLDS
+        assert result["grade_scale"]["thresholds"] == UEBUNGSKLAUSUR_THRESHOLDS
         assert result["grade_scale"]["rounding"] == "floor"
         by = _by_title(result)
-        assert by["Zulässigkeit"]["note"] == "insgesamt 3 BE"
-        assert by["Klagebefugnis"]["emphasis"] == "schwerpunkt" and by["Klagebefugnis"]["level"] == 1
-        assert by["Anspruch"]["max_score"] == 97
+        assert by["Anspruch entstanden"]["note"] == "insgesamt 3 BE"
+        assert by["Sachmangel"]["emphasis"] == "schwerpunkt" and by["Sachmangel"]["level"] == 1
+        assert by["Rücktritt"]["max_score"] == 97
         assert "title_from_filename" not in _codes(result)
         assert "total_mismatch" not in _codes(result)
         assert validate_structure(result["structure"]) == []
@@ -465,19 +466,19 @@ class TestDocx:
     def test_messy_cell_alignment(self):
         data = make_docx([[
             [["Text"], ["BE"]],
-            [["b) Maßnahmerichtung (Schwerpunkt!)", "· H1", "· H2"], ["10", "", ""]],
-            [["a) VA", "· Regelung", "· AV"], ["1", "", "2"]],
-            [["Gefahr", "Konkrete Gefahr"], ["3"]],
+            [["b) Nutzungsersatz (Schwerpunkt!)", "· H1", "· H2"], ["10", "", ""]],
+            [["a) Vertrag", "· Angebot", "· Annahme"], ["1", "", "2"]],
+            [["Mangel", "Sachmangel"], ["3"]],
             [["Nur eine Zeile"], ["1", "2"]],
         ]])
         result = parse_rubric_file("b.docx", data)
         by = _by_title(result)
-        assert by["Maßnahmerichtung"]["max_score"] == 10 and by["Maßnahmerichtung"]["emphasis"] == "schwerpunkt"
-        assert by["Maßnahmerichtung"]["hints"] == ["H1", "H2"]
-        assert by["VA"]["max_score"] == 1 and by["VA"]["hints"] == ["Regelung"]
-        assert by["AV"]["max_score"] == 2 and by["AV"]["level"] == by["VA"]["level"] + 1
+        assert by["Nutzungsersatz"]["max_score"] == 10 and by["Nutzungsersatz"]["emphasis"] == "schwerpunkt"
+        assert by["Nutzungsersatz"]["hints"] == ["H1", "H2"]
+        assert by["Vertrag"]["max_score"] == 1 and by["Vertrag"]["hints"] == ["Angebot"]
+        assert by["Annahme"]["max_score"] == 2 and by["Annahme"]["level"] == by["Vertrag"]["level"] + 1
         # one value, two non-bullet lines → heading gets it, reviewer warned
-        assert by["Gefahr"]["max_score"] == 3 and by["Gefahr"]["hints"] == ["Konkrete Gefahr"]
+        assert by["Mangel"]["max_score"] == 3 and by["Mangel"]["hints"] == ["Sachmangel"]
         assert by["Nur eine Zeile"]["max_score"] == 1
         alignment = [w for w in result["warnings"] if w["code"] == "alignment_uncertain"]
         assert {w["row"] for w in alignment} == {4, 5}
@@ -502,26 +503,26 @@ class TestDocx:
         data = make_docx(
             [[
                 [[""], ["BE"]],
-                [["Frage 1:", {"text": "Zulässigkeit", "style": "H1"}], ["Insgesamt: 3,5 BE"]],
-                [[{"text": "Eröffnung", "style": "H2"}, {"text": "Abdrängend", "bullet": True}], ["1", "", "2"]],
-                [[{"text": "Statthafte Klageart", "style": "H2"}], [""]],
-                [[{"text": "Anfechtungsklage", "style": "H3"}], ["0,5"]],
-                [[{"text": "Begründetheit", "style": "H1"}], [""]],
-                [[{"text": "Anspruch", "style": "H2"}], ["1"]],
+                [["Frage 1:", {"text": "Anspruch entstanden", "style": "H1"}], ["Insgesamt: 3,5 BE"]],
+                [[{"text": "Kaufvertrag", "style": "H2"}, {"text": "Einigung", "bullet": True}], ["1", "", "2"]],
+                [[{"text": "Sachmangel", "style": "H2"}], [""]],
+                [[{"text": "Beschaffenheit", "style": "H3"}], ["0,5"]],
+                [[{"text": "Rechtsfolge", "style": "H1"}], [""]],
+                [[{"text": "Rücktritt", "style": "H2"}], ["1"]],
             ]],
             styles=True,
         )
         result = parse_rubric_file("b.docx", data)
         by = _by_title(result)
         assert by["Frage 1"]["level"] == 0
-        assert (by["Zulässigkeit"]["label"], by["Zulässigkeit"]["level"]) == ("A.", 1)
-        assert by["Zulässigkeit"]["note"] == "Insgesamt: 3,5 BE"  # BE-cell note → last heading of the cell
-        assert (by["Eröffnung"]["label"], by["Eröffnung"]["level"], by["Eröffnung"]["max_score"]) == ("I.", 2, 1)
-        assert by["Abdrängend"]["max_score"] == 2 and by["Abdrängend"]["level"] == 3
-        assert by["Statthafte Klageart"]["label"] == "II."
-        assert (by["Anfechtungsklage"]["label"], by["Anfechtungsklage"]["max_score"]) == ("1.", 0.5)
-        assert by["Begründetheit"]["label"] == "B."
-        assert by["Anspruch"]["label"] == "I."  # roman restarts under the new section
+        assert (by["Anspruch entstanden"]["label"], by["Anspruch entstanden"]["level"]) == ("A.", 1)
+        assert by["Anspruch entstanden"]["note"] == "Insgesamt: 3,5 BE"  # BE-cell note → last heading of the cell
+        assert (by["Kaufvertrag"]["label"], by["Kaufvertrag"]["level"], by["Kaufvertrag"]["max_score"]) == ("I.", 2, 1)
+        assert by["Einigung"]["max_score"] == 2 and by["Einigung"]["level"] == 3
+        assert by["Sachmangel"]["label"] == "II."
+        assert (by["Beschaffenheit"]["label"], by["Beschaffenheit"]["max_score"]) == ("1.", 0.5)
+        assert by["Rechtsfolge"]["label"] == "B."
+        assert by["Rücktritt"]["label"] == "I."  # roman restarts under the new section
         assert "auto_numbering" in _codes(result)
         assert "subtotal_mismatch" not in _codes(result)
 
@@ -530,24 +531,24 @@ class TestDocx:
             [[
                 [["Text"], ["BE"]],
                 [[{"text": "Abschnitt", "num": (2, 0)}], [""]],
-                [[{"text": "Formell", "num": (2, 3)}], [""]],
-                [[{"text": "Polizei", "num": (2, 4)}], ["2"]],
-                [[{"text": "Sachlich", "num": (2, 4)}], ["1"]],
-                [[{"text": "Aufgabe", "num": (2, 5)}], ["3"]],
+                [[{"text": "Vertrag", "num": (2, 3)}], [""]],
+                [[{"text": "Angebot", "num": (2, 4)}], ["2"]],
+                [[{"text": "Annahme", "num": (2, 4)}], ["1"]],
+                [[{"text": "Zugang", "num": (2, 5)}], ["3"]],
             ]],
             bullet_numbering=True,
         )
         result = parse_rubric_file("b.docx", data)
         by = _by_title(result)
         assert by["Abschnitt"]["label"] == "A."
-        assert by["Formell"]["label"] == "a)"
-        assert by["Polizei"]["label"] == "aa)" and by["Sachlich"]["label"] == "bb)"  # w:start=27
-        assert by["Aufgabe"]["label"] == "(1)" and by["Aufgabe"]["level"] == by["Sachlich"]["level"] + 1
+        assert by["Vertrag"]["label"] == "a)"
+        assert by["Angebot"]["label"] == "aa)" and by["Annahme"]["label"] == "bb)"  # w:start=27
+        assert by["Zugang"]["label"] == "(1)" and by["Zugang"]["level"] == by["Annahme"]["level"] + 1
 
     def test_scale_table_without_trigger_paragraph(self):
         data = make_docx([[[["Text"], ["BE"]], [["I. a"], ["99"]], [["II. b"], ["1"]]], _scale_table()])
         result = parse_rubric_file("b.docx", data)
-        assert result["grade_scale"]["thresholds"] == COLLEAGUE_THRESHOLDS
+        assert result["grade_scale"]["thresholds"] == UEBUNGSKLAUSUR_THRESHOLDS
         assert "rounding_assumed" in _codes(result)
 
     def test_merged_cell_row(self):
@@ -622,14 +623,14 @@ class TestDocxXlsxParity:
         assert sum(1 for n in nodes if n["kind"] == "section") == 7
         assert [s["max_score"] for s in _steps(result)] == [2, 3, 1.5, 10, 2, 4, 6]
         assert [s["title"] for s in _steps(result) if s.get("emphasis") == "schwerpunkt"] == [
-            "Maßnahmerichtung",
-            "Rechtfertigung",
+            "Fristsetzung",
+            "Interessenabwägung",
         ]
         # The section-level marker is kept as the section's note, not dropped.
-        assert _by_title(result)["Grundrechtseingriff"]["note"] == "weiterer Schwerpunkt!"
+        assert _by_title(result)["Unerheblichkeit"]["note"] == "weiterer Schwerpunkt!"
         # Points next to the bullet: the bullet is the scored step under a section.
-        gefahr = _by_title(result)["Gefahr"]
-        assert gefahr["kind"] == "section"
+        beschaffenheit = _by_title(result)["Beschaffenheit"]
+        assert beschaffenheit["kind"] == "section"
         assert not validate_structure(result["structure"])
 
     def test_no_alignment_guesses(self, results):
@@ -647,18 +648,18 @@ class TestMarkdownSectionSubtotal:
 
     def test_a_section_subtotal_does_not_become_a_step(self):
         md = (
-            "- A. Zulaessigkeit (insgesamt 20 BE)\n"
-            "  - I. Rechtsweg - 5 BE\n"
-            "  - II. Klageart - 15 BE\n"
+            "- A. Anspruchsgrundlage (insgesamt 20 BE)\n"
+            "  - I. Kaufvertrag - 5 BE\n"
+            "  - II. Sachmangel - 15 BE\n"
         )
         result = parse_rubric_file("bogen.md", md.encode("utf-8"))
         steps = _steps(result)
-        assert [s["title"] for s in steps] == ["Rechtsweg", "Klageart"]
+        assert [s["title"] for s in steps] == ["Kaufvertrag", "Sachmangel"]
         assert result["total_points"] == 20
         section = next(
             n for n in result["structure"]["nodes"] if n["kind"] == "section"
         )
-        assert section["title"] == "Zulaessigkeit"
+        assert section["title"] == "Anspruchsgrundlage"
         assert "insgesamt 20 BE" in (section.get("note") or "")
         # The subtotal matches, so no mismatch is reported.
         assert "subtotal_mismatch" not in _codes(result)
@@ -680,25 +681,25 @@ class TestColumnHeaderRow:
     def test_csv_header_row_does_not_become_the_title(self):
         csv = (
             "Gliederungspunkt;max. BE;Ihre BE\n"
-            "A. Zulaessigkeit;;\n"
-            "I. Rechtsweg;1;\n"
-            "II. Klageart;\"2,5\";\n"
+            "A. Anspruchsgrundlage;;\n"
+            "I. Kaufvertrag;1;\n"
+            "II. Sachmangel;\"2,5\";\n"
         )
         result = parse_rubric_file("bogen.csv", csv.encode("utf-8"))
         assert result["title"] == "bogen"
         assert "title_from_filename" in _codes(result)
-        assert [n["title"] for n in _steps(result)] == ["Rechtsweg", "Klageart"]
+        assert [n["title"] for n in _steps(result)] == ["Kaufvertrag", "Sachmangel"]
         assert result["total_points"] == 3.5
 
     def test_a_real_title_row_still_wins(self):
         csv = (
-            "Korrekturbogen Polizeirecht;;\n"
+            "Korrekturbogen Zivilrecht;;\n"
             "Gliederungspunkt;max. BE;\n"
-            "I. Rechtsweg;1;\n"
-            "II. Klageart;2;\n"
+            "I. Kaufvertrag;1;\n"
+            "II. Sachmangel;2;\n"
         )
         result = parse_rubric_file("bogen.csv", csv.encode("utf-8"))
-        assert result["title"] == "Korrekturbogen Polizeirecht"
+        assert result["title"] == "Korrekturbogen Zivilrecht"
 
 
 class TestRubricDocumentText:
@@ -715,34 +716,34 @@ class TestRubricDocumentText:
             make_xlsx(
                 [
                     {"A": "Text", "B": "max. BE"},
-                    {"A": "A. Zulässigkeit"},
-                    {"A": "I. Rechtsweg", "B": 1},
+                    {"A": "A. Anspruch entstanden"},
+                    {"A": "I. Kaufvertrag", "B": 1},
                 ]
             ),
         )
         assert text.splitlines() == [
             "Text | max. BE",
-            "A. Zulässigkeit",
-            "I. Rechtsweg | 1",
+            "A. Anspruch entstanden",
+            "I. Kaufvertrag | 1",
         ]
 
     def test_docx_keeps_paragraphs_and_table_cells_in_document_order(self):
         data = make_docx(
-            [[[["I. Rechtsweg"], ["1"]], [["b) Maßnahmerichtung"], ["10"]]]],
-            paragraphs_before=["Korrekturbogen Polizeirecht"],
+            [[[["I. Kaufvertrag"], ["1"]], [["b) Nutzungsersatz"], ["10"]]]],
+            paragraphs_before=["Korrekturbogen Zivilrecht"],
             paragraphs_after=["bei 0,5 BE wird abgerundet"],
         )
         assert rubric_document_text("b.docx", data).splitlines() == [
-            "Korrekturbogen Polizeirecht",
-            "I. Rechtsweg | 1",
-            "b) Maßnahmerichtung | 10",
+            "Korrekturbogen Zivilrecht",
+            "I. Kaufvertrag | 1",
+            "b) Nutzungsersatz | 10",
             "bei 0,5 BE wird abgerundet",
         ]
 
     def test_text_formats_come_through_as_written(self):
         for name, raw in (
-            ("b.md", "- I. Rechtsweg — 1 BE\n- b) Maßnahme — 10 BE"),
-            ("b.csv", "Text;max. BE\nI. Rechtsweg;1"),
+            ("b.md", "- I. Kaufvertrag — 1 BE\n- b) Nutzungsersatz — 10 BE"),
+            ("b.csv", "Text;max. BE\nI. Kaufvertrag;1"),
             ("b.json", '{"nodes": []}'),
         ):
             assert rubric_document_text(name, raw.encode("utf-8")) == raw

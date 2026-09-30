@@ -29,15 +29,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
 import random
 import subprocess
 import sys
-import textwrap
 import uuid
-from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -48,7 +44,7 @@ PLATFORM_ROOT = SCRIPT_PATH.parents[3]                          # benger-platfor
 WORKSPACE_ROOT = PLATFORM_ROOT.parent                           # benger-workspace parent
 EXTENDED_ROOT = WORKSPACE_ROOT / "benger-extended"
 sys.path.insert(0, str(EXTENDED_ROOT))
-from benger_extended.workers.falloesung_constants import (      # noqa: E402
+from benger_extended.workers.falloesung_constants import (
     FALLOESUNG_DIMENSIONS,
     raw_score_to_grade_points,
 )
@@ -317,8 +313,8 @@ def _mock_dimensions(target_raw: float, rng: random.Random) -> tuple[dict[str, d
         dims["ergebnisrichtigkeit"]["score"] = new
 
     band = _band(raw_sum)
-    for key in dims:
-        dims[key]["justification"] = rng.choice(_JUSTIFICATIONS[band])
+    for dim in dims.values():
+        dim["justification"] = rng.choice(_JUSTIFICATIONS[band])
     return dims, raw_sum
 
 
@@ -618,8 +614,8 @@ def build_export(raw: dict) -> tuple[dict, dict]:
     by_target: dict[str, list[dict]] = defaultdict(list)
     for r in roster:
         by_target[r["target_id"]].append(r)
-    for target_id in by_target:
-        by_target[target_id].sort(key=lambda x: x["pass"])
+    for slots in by_target.values():
+        slots.sort(key=lambda x: x["pass"])
 
     for target_id, slots in by_target.items():
         target_type = slots[0]["target_type"]
@@ -740,8 +736,7 @@ def build_export(raw: dict) -> tuple[dict, dict]:
             for te in te_by_generation.get(g["id"], []):
                 if has_korrektur(te): continue
                 gen_evals.append(serialize_real_te(te))
-            for me in generation_mocks.get(g["id"], []):
-                gen_evals.append(me)
+            gen_evals.extend(generation_mocks.get(g["id"], []))
             task_obj["generations"].append(serialize_generation(g, gen_evals))
         export["tasks"].append(task_obj)
 

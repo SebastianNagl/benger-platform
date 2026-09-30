@@ -1,4 +1,4 @@
-.PHONY: derive analyze pull render clean
+.PHONY: derive analyze analyze-cslaw analyze-local analyze-d2 pull render clean
 
 # File-based derivation only — works without the dev stack.
 derive:
@@ -23,19 +23,72 @@ analyze:
 	uv run python scripts/analysis/compute_probe_stats.py
 	uv run python scripts/analysis/compute_fewshot_contrasts.py
 	uv run python scripts/analysis/compute_band_mapping_stats.py
-	uv run python scripts/figures/make_trend_figure.py
+	uv run python scripts/analysis/compute_apportionment_audit.py
+	uv run python scripts/analysis/compute_weight_sensitivity.py --check
+	uv run python scripts/analysis/compute_step_variance.py
+	uv run python scripts/analysis/compute_mde.py
+
+# The paper's first-iteration numbers (on step-sum totals) and the extended
+# study's design constants. Reads only tracked files (the outputs of
+# `make analyze` and a few tracked data/interim files), writes
+# data/processed/cslaw/. --check fails on a broken consistency anchor.
+analyze-cslaw:
+	uv run python scripts/analysis/cslaw_first_iteration.py --check
+	uv run python scripts/analysis/cslaw_design.py
+
+# The first-iteration numbers that analyze-cslaw lists as pending: they need
+# the git-ignored run outputs and rubrics (local data root,
+# scripts/local_config.py) and write aggregates only to
+# data/processed/cslaw/first_iteration_local.json. --check fails when a
+# stored-total recompute no longer reproduces its tracked value.
+# The creator-reference view of D1 (the exam creator's grade as the expert
+# reference) also needs the benchmark's ignored raw export and writes
+# data/processed/cslaw/creator_reference.json; it runs second because it
+# anchors on first_iteration_local.json.
+analyze-local:
+	uv run python scripts/analysis/cslaw_first_iteration_local.py --check
+	uv run python scripts/analysis/cslaw_creator_reference.py --check
 
 # Pulls from the LOCAL dev stack (requires docker + running benger-db-1).
 pull:
 	uv run python scripts/pull_local_sidecar.py
 
-render:
-	# Don't pass --to pdf: that resolves to Quarto's built-in pdf format and
-	# bypasses the acl-pdf format declared in _quarto.yml (no ACL template,
-	# no keep-tex). `uv run` puts the project venv's python (ipykernel) on
-	# PATH so Quarto can discover the `benger-transformation` jupyter kernel.
+# The paper: ACM acmsmall (CSLAW '27), xelatex. Needs the benger-transformation
+# jupyter kernel (see README) and TinyTeX with acmart. Don't pass --to pdf:
+# that resolves to Quarto's built-in pdf format and bypasses the acm-pdf
+# format declared in _quarto.yml. `uv run` puts the project venv's python
+# (ipykernel) on PATH so Quarto can discover the kernel.
+render: analyze-cslaw
 	uv run quarto render manuscript.qmd
+	$(MAKE) clean
 
+# D2 summaries and the structure of Roth's sheet: need the git-ignored
+# pilot rows, D2 pack and Z2 workbook (local data root,
+# scripts/local_config.py); they write aggregates only.
+# The D2 runs' judge code versions, newest first; the same pins as
+# scripts/analysis/d2_labels.py (D2_CODE_VERSIONS).
+D2_CODE_VERSIONS = 5768f1f9104b 7fc295f3b81f
+D2_GATE_DIR = $(shell uv run python scripts/local_config.py get data_root)/interim/pilot
+
+analyze-d2:
+	uv run python scripts/analysis/extract_z2_structure.py
+	# The gate's exit code is its verdict (1 a battery failed, 2 a pass is incomplete
+	# or the input is bad); the summary records the verdict, so the build only
+	# requires that each run wrote a fresh gate file (one per code version).
+	for v in $(D2_CODE_VERSIONS); do \
+	  rm -f $(D2_GATE_DIR)/gate_d2-probes.$$v.json; \
+	  uv run python scripts/analysis/compute_pilot_probe_gate.py --phase d2-probes --code-version $$v \
+	    --out $(D2_GATE_DIR)/gate_d2-probes.$$v.json; \
+	  test -s $(D2_GATE_DIR)/gate_d2-probes.$$v.json || exit 1; \
+	done
+	uv run python scripts/analysis/compute_d2_gate_summary.py \
+	  --gate $(foreach v,$(D2_CODE_VERSIONS),$(D2_GATE_DIR)/gate_d2-probes.$(v).json)
+	uv run python scripts/analysis/compute_d2_generation_summary.py
+	uv run python scripts/analysis/compute_d2_validity.py
+	uv run python scripts/analysis/compute_d2_variance.py
+
+# Build intermediates only; manuscript.pdf stays.
 clean:
-	rm -rf .quarto manuscript_files manuscript_executed_files \
-	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb*
+	rm -rf .quarto assets manuscript_files manuscript_executed_files \
+	       manuscript.tex manuscript.fdb_latexmk manuscript.quarto_ipynb* comment.cut
+	find scripts -name __pycache__ -type d -prune -exec rm -rf {} +

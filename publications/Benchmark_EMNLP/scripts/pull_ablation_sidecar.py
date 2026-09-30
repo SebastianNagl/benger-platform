@@ -48,8 +48,8 @@ PROJECTS = json.loads('__PROJECTS__')
 PREFIXES = json.loads('__PREFIXES__')
 
 def _scrub(obj):
-    """Recursively drop account/billing identifiers from nested payloads
-    (judge evaluations embed their own call metadata)."""
+    # Recursively drop account/billing identifiers from nested payloads
+    # (judge evaluations embed their own call metadata).
     if isinstance(obj, dict):
         return {k: _scrub(v) for k, v in obj.items()
                 if k not in ("billed_user_id", "billed_organization_id")}

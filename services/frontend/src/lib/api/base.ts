@@ -5,6 +5,7 @@
  * Issue #171:  with connection pooling and request management
  */
 
+import { sebRequestHeaders } from '@/lib/seb'
 import logger from '@/lib/utils/logger'
 
 /**
@@ -342,7 +343,7 @@ export class BaseApiClient {
     const isFormData = options.body instanceof FormData
     const method = options.method || 'GET'
 
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = { ...sebRequestHeaders() }
 
     // Only set Content-Type for JSON requests, not for FormData
     if (!isFormData) {
@@ -504,8 +505,9 @@ export class BaseApiClient {
     await this.waitForRequestSlot(requestId)
 
     try {
-      // API Request in progress
-      const headers: Record<string, string> = {}
+      // API Request in progress. Safe Exam Browser proof first, so SEB exams
+      // verify on macOS / iOS too (see lib/seb.ts).
+      const headers: Record<string, string> = { ...sebRequestHeaders() }
 
       // Only set Content-Type for JSON requests, not for FormData
       if (!isFormData) {
@@ -791,7 +793,7 @@ export class BaseApiClient {
   ): Promise<Response> {
     const url = `${getApiBaseUrl()}${endpoint}`
     const isFormData = options.body instanceof FormData
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = { ...sebRequestHeaders() }
 
     if (!isFormData) {
       headers['Content-Type'] = 'application/json'

@@ -17,8 +17,8 @@ from auth_module import User, require_user
 from database import get_async_db, get_db
 from grade_scale_history import (
     GRADE_SCALE_KEY,
-    HISTORY_KEY as GRADE_SCALE_HISTORY_KEY,
-    append_grade_scale_change,
+    apply_grade_scale_write,
+    grade_scale_changed,
 )
 from services.eval_subject_pools import count_eval_subject_pools
 from services.evaluation.config import update_project_evaluation_config as generate_evaluation_config
@@ -28,6 +28,7 @@ from routers.evaluations.helpers import extract_metric_name
 from routers.projects.helpers import (
     check_project_accessible_async,
 )
+from task_rubric_service import remirror_project_rubrics_sync
 from utils.json_merge import deep_merge_dicts
 
 logger = logging.getLogger(__name__)
@@ -577,9 +578,9 @@ def validate_eval_config_grade_scale(config) -> None:
     whatever the graded sheet totals, so no point total is known (or needed)
     here; an absolute ``unit: "BE"`` key is only checked for shape.
 
-    Called from the eval-config PUT, which deep-merges the WHOLE document —
-    so the key is validated whenever the body carries it. An explicit
-    ``null`` clears the key and is accepted.
+    Called by :func:`validate_evaluation_config_write` on the MERGED
+    document (the key as it will be stored) whenever the body carries the
+    key. An explicit ``null`` clears the key and is accepted.
     """
     if not isinstance(config, dict) or config.get("grade_scale") is None:
         return
@@ -591,6 +592,139 @@ def validate_eval_config_grade_scale(config) -> None:
             status_code=422,
             detail="Invalid Notenschlüssel: " + "; ".join(problems),
         )
+
+
+def merge_evaluation_config(stored_config: Any, body: Any) -> Dict[str, Any]:
+    """The ``evaluation_config`` document a write of ``body`` produces.
+
+    Deep-merge (issue #289): nested dicts merge recursively, lists are
+    replaced wholesale, explicit nulls delete keys. One exception: the
+    Notenschlüssel (``grade_scale``) is one unit. Its thresholds only mean
+    something together with its ``unit`` and ``preset``, so a key in the body
+    REPLACES the stored one as a whole and ``null`` deletes it. Merged field
+    by field, a valid body and a valid stored key could combine into an
+    invalid one (absolute thresholds merged into a stored percent key). Every
+    caller sends the full key: the extended Notenschlüssel card and the
+    wizard's post-create hook (``saveProjectGradeScale``).
+
+    Shared by both writers of the document, the eval-config PUT and
+    ``PATCH /projects/{id}``. Returns a new dict; neither input is mutated.
+    A top-level null never ends up stored: ``deep_merge_dicts`` copies the
+    body as is when the stored document is empty, nulls included, so they
+    are dropped here too.
+    """
+    stored = stored_config if isinstance(stored_config, dict) else {}
+    patch = body if isinstance(body, dict) else {}
+    merged = deep_merge_dicts(stored, patch)
+    for key, value in patch.items():
+        if value is None:
+            merged.pop(key, None)
+    if patch.get(GRADE_SCALE_KEY) is not None:
+        merged[GRADE_SCALE_KEY] = patch[GRADE_SCALE_KEY]
+    return merged
+
+
+def _validate_selected_methods(config: Dict[str, Any]) -> None:
+    """Legacy ``selected_methods`` against ``available_methods`` (raises 400)."""
+    selected_methods = config.get("selected_methods")
+    available_methods = config.get("available_methods")
+    if not isinstance(selected_methods, dict) or not isinstance(available_methods, dict):
+        return
+
+    # All available field names from the detected answer types (warnings only)
+    available_field_names = set()
+    for answer_type in config.get("detected_answer_types") or []:
+        if not isinstance(answer_type, dict):
+            continue
+        available_field_names.add(answer_type.get("name", ""))
+        to_name = answer_type.get("to_name", "")
+        if to_name:
+            available_field_names.add(to_name)
+
+    for field_name, selections in selected_methods.items():
+        if field_name not in available_methods:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Field '{field_name}' not found in available methods",
+            )
+        if not isinstance(selections, dict):
+            continue
+
+        available = available_methods[field_name] or {}
+
+        # Validate field mappings if present
+        if "field_mapping" in selections:
+            field_mapping = selections["field_mapping"] or {}
+            pred_field = field_mapping.get("prediction_field", "")
+            ref_field = field_mapping.get("reference_field", "")
+
+            # Validate that mapped fields exist in available fields
+            if pred_field and pred_field not in available_field_names:
+                logger.warning(
+                    f"Prediction field '{pred_field}' not found in detected answer types for field '{field_name}'"
+                )
+            if ref_field and ref_field not in available_field_names:
+                logger.warning(
+                    f"Reference field '{ref_field}' not found in detected answer types for field '{field_name}'"
+                )
+
+        # Validate automated metrics
+        for metric in selections.get("automated", []):
+            metric_name = extract_metric_name(metric)
+            if metric_name not in available.get("available_metrics", []):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Metric '{metric_name}' not available for field '{field_name}'",
+                )
+
+        # Validate human evaluation methods
+        for method in selections.get("human", []):
+            method_name = extract_metric_name(method)
+            if method_name not in available.get("available_human", []):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Human evaluation method '{method_name}' not available for field '{field_name}'",
+                )
+
+
+def validate_evaluation_config_write(body: Any, merged: Any) -> None:
+    """The contract checks of an ``evaluation_config`` write (raises 400/422).
+
+    Shared by both writers of the document, the eval-config PUT and
+    ``PATCH /projects/{id}``, so neither can store what the other rejects.
+    Runs on the MERGED document (:func:`merge_evaluation_config`), the one
+    that will be stored, and before anything is written. Only the keys the
+    body carries are checked: a stored legacy value must not block an
+    unrelated save such as the eval-defaults PATCH. A key the body sets to
+    ``null`` is deleted by the merge and so passes.
+    """
+    if not isinstance(body, dict) or not isinstance(merged, dict):
+        return
+
+    # Legacy format: selected methods must be offered by the available ones.
+    if "selected_methods" in body and "available_methods" in body:
+        _validate_selected_methods(merged)
+
+    # runs_per_task at project-default level (multi-run for non-judge or
+    # single-judge metrics). Bounded for the same fat-finger reason as the
+    # generation router.
+    if "runs_per_task" in body and merged.get("runs_per_task") is not None:
+        rpt = merged["runs_per_task"]
+        if not isinstance(rpt, int) or rpt < 1 or rpt > 25:
+            raise HTTPException(
+                status_code=422,
+                detail="evaluation_config.runs_per_task must be an integer between 1 and 25",
+            )
+
+    # Every evaluation_config entry (judges shape + per-metric rules). Lists
+    # replace wholesale, so the stored list is the body's list.
+    for key in ("evaluation_configs", "multi_field_evaluations"):
+        if key in body:
+            validate_evaluation_config_entries(merged.get(key))
+
+    # The exam-level Notenschlüssel, as it will be stored.
+    if GRADE_SCALE_KEY in body:
+        validate_eval_config_grade_scale(merged)
 
 
 @router.put("/projects/{project_id}/evaluation-config")
@@ -612,7 +746,8 @@ async def update_project_evaluation_config(
     recursively, lists are replaced wholesale, explicit nulls delete keys.
     Clients therefore send only the keys they own — e.g. the project page
     sends ``{"evaluation_configs": [...]}`` — and sibling keys survive
-    (issue #289).
+    (issue #289). The Notenschlüssel (``grade_scale``) is the one exception:
+    it is replaced as a whole (see :func:`merge_evaluation_config`).
     """
     try:
         # Verify project exists. FOR UPDATE: the deep-merge below is a
@@ -640,90 +775,17 @@ async def update_project_evaluation_config(
                 detail="You don't have permission to edit this project's evaluation config",
             )
 
-        # Validate selected methods against available methods
-        if "selected_methods" in config and "available_methods" in config:
-            # Get all available field names from detected answer types
-            available_field_names = set()
-            if "detected_answer_types" in config:
-                for answer_type in config["detected_answer_types"]:
-                    available_field_names.add(answer_type.get("name", ""))
-                    to_name = answer_type.get("to_name", "")
-                    if to_name:
-                        available_field_names.add(to_name)
-
-            for field_name, selections in config["selected_methods"].items():
-                if field_name not in config["available_methods"]:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail=f"Field '{field_name}' not found in available methods",
-                    )
-
-                available = config["available_methods"][field_name]
-
-                # Validate field mappings if present
-                if "field_mapping" in selections:
-                    field_mapping = selections["field_mapping"]
-                    pred_field = field_mapping.get("prediction_field", "")
-                    ref_field = field_mapping.get("reference_field", "")
-
-                    # Validate that mapped fields exist in available fields
-                    if pred_field and pred_field not in available_field_names:
-                        logger.warning(
-                            f"Prediction field '{pred_field}' not found in detected answer types for field '{field_name}'"
-                        )
-                    if ref_field and ref_field not in available_field_names:
-                        logger.warning(
-                            f"Reference field '{ref_field}' not found in detected answer types for field '{field_name}'"
-                        )
-
-                # Validate automated metrics
-                for metric in selections.get("automated", []):
-                    metric_name = extract_metric_name(metric)
-                    if metric_name not in available["available_metrics"]:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Metric '{metric_name}' not available for field '{field_name}'",
-                        )
-
-                # Validate human evaluation methods
-                for method in selections.get("human", []):
-                    method_name = extract_metric_name(method)
-                    if method_name not in available["available_human"]:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Human evaluation method '{method_name}' not available for field '{field_name}'",
-                        )
-
-        # Validate runs_per_task at project-default level (multi-run for
-        # non-judge or single-judge metrics). Bounded for the same fat-finger
-        # reason as the generation router.
-        if "runs_per_task" in config:
-            rpt = config["runs_per_task"]
-            if not isinstance(rpt, int) or rpt < 1 or rpt > 25:
-                raise HTTPException(
-                    status_code=422,
-                    detail="evaluation_config.runs_per_task must be an integer between 1 and 25",
-                )
-
-        # Validate every evaluation_config entry (judges shape + per-metric
-        # rules) — extracted so extension code that WRITES eval configs
-        # outside this PUT (e.g. the Bewertungsbogen setup) can round-trip
-        # the same rules in its tests.
-        eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
-        validate_evaluation_config_entries(eval_configs_list)
-
-        # The exam-level Notenschlüssel lives next to them in the same
-        # document and is deep-merged like everything else.
-        validate_eval_config_grade_scale(config)
-
-        # Deep-merge the body into the stored config — same contract as
-        # PATCH /projects/{id} (crud.py): nested dicts merge recursively,
-        # lists are replaced wholesale, explicit nulls delete keys. Lets
-        # callers send minimal bodies (e.g. only evaluation_configs) without
-        # clobbering sibling keys a concurrent eval-defaults PATCH wrote
-        # (issue #289 lost-update).
+        # Merge first, then validate the document as it will be stored
+        # (shared with PATCH /projects/{id}): nested dicts merge recursively,
+        # lists are replaced wholesale, explicit nulls delete keys, and the
+        # Notenschlüssel is replaced as one unit. Lets callers send minimal
+        # bodies (e.g. only evaluation_configs) without clobbering sibling
+        # keys a concurrent eval-defaults PATCH wrote (issue #289 lost-update).
+        # Nothing is written before the checks pass.
         stored_config = project.evaluation_config or {}
-        merged = deep_merge_dicts(stored_config, config)
+        merged = merge_evaluation_config(stored_config, config)
+        validate_evaluation_config_write(config, merged)
+        eval_configs_list = config.get("evaluation_configs") or config.get("multi_field_evaluations") or []
 
         # Every Notenschlüssel change is recorded — the key
         # retroactively rewrites grades people have already seen, so a grade
@@ -731,16 +793,8 @@ async def update_project_evaluation_config(
         # SERVER-OWNED: whatever the body said about `grade_scale_history` is
         # dropped and the stored list restored before the append, so this
         # endpoint cannot be used to rewrite the audit.
-        stored_history = stored_config.get(GRADE_SCALE_HISTORY_KEY)
-        if isinstance(stored_history, list):
-            merged[GRADE_SCALE_HISTORY_KEY] = list(stored_history)
-        else:
-            merged.pop(GRADE_SCALE_HISTORY_KEY, None)
-        merged = append_grade_scale_change(
-            merged,
-            old=stored_config.get(GRADE_SCALE_KEY),
-            new=merged.get(GRADE_SCALE_KEY),
-            actor_id=str(current_user.id),
+        merged = apply_grade_scale_write(
+            stored_config, merged, actor_id=str(current_user.id)
         )
 
         # IMPORTANT: Include label_config_version to prevent unnecessary regeneration on GET
@@ -759,6 +813,16 @@ async def update_project_evaluation_config(
         from sqlalchemy.orm.attributes import flag_modified
 
         flag_modified(project, "evaluation_config")
+
+        # The task-data mirror of every grading sheet ends in the key that
+        # grades the exam, and is otherwise refreshed only when a sheet is
+        # activated or edited. A key change re-renders them in the same
+        # transaction.
+        if grade_scale_changed(
+            stored_config.get(GRADE_SCALE_KEY),
+            (project.evaluation_config or {}).get(GRADE_SCALE_KEY),
+        ):
+            remirror_project_rubrics_sync(db, project.id, project.evaluation_config)
 
         db.commit()
         db.refresh(project)

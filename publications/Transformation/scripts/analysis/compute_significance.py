@@ -91,7 +91,7 @@ def wilcoxon_sens(diffs):
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             res = sps.wilcoxon(d, method="exact")
-    except Exception:
+    except (Warning, ValueError):
         method = "approx"
         res = sps.wilcoxon(d, method="approx", correction=True)
     return {"p": float(res.pvalue), "method": method, "n_nonzero": len(d),
@@ -465,7 +465,6 @@ def main() -> int:
         return statistics.mean(r[key] for r in common)
 
     ctrl_val = hol_ctrl_validity()
-    p01 = {r["pick_id"]: r for r in per_pick}["P01"]
     ctrl_p01_runs = None
     for line in (HERE / "data" / "interim" / "control_results_temp0.jsonl").read_text().splitlines():
         r = json.loads(line)

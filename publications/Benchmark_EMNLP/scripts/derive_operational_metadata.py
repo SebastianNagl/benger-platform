@@ -28,7 +28,7 @@ from pathlib import Path
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_superseded  # noqa: E402
+from _gen_dedup import dedup_superseded
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"

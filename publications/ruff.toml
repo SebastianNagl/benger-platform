@@ -1,0 +1,5 @@
+# The publication scripts are linted with ruff's default rule set of the
+# version pinned here and in ci.yml ("Lint publications"). A newer ruff can
+# turn on more rules by default, so bump both together and run the same
+# version locally: uvx ruff@0.16.9 check publications/
+required-version = "==0.16.9"

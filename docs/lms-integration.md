@@ -524,6 +524,38 @@ linked exam. Linking and relinking is for the course teachers and the admins.
 The exam's project page lists its LMS activities in the sidebar, below the
 quick actions.
 
+### Exams in Safe Exam Browser
+
+An exam can require [Safe Exam Browser](https://safeexambrowser.org) (SEB).
+SEB is a locked-down browser for Windows, macOS and iPad. During the exam it
+blocks other apps and websites. The database fields (migration `109`) and the
+server-side check are part of this repository. Generating the SEB
+configuration file and the settings screen are in the commercial edition.
+
+For an exam linked from an LMS:
+
+- **Start URL.** Set the LMS course page as the start URL. SEB keeps its own
+  cookies, and LMS students have no BenGER password. They sign in to the LMS
+  inside SEB and launch the activity from there. Saving the SEB settings
+  without a start URL is refused for linked exams.
+- **URL filter.** The generated configuration allows the BenGER hosts and
+  their subdomains. The start URL's host is added automatically. Add any other
+  host the students need, for example the LMS's single sign-on host.
+- **Launch.** The activity must open in a new window (see [§9](#9-requirements-on-your-lms)).
+  SEB then shows the consent page and the exam in the same kiosk window.
+- **Proof.** Every exam request carries a hash of the SEB configuration.
+  SEB for Windows sends it as HTTP headers. SEB for macOS and iOS exposes it
+  through its JavaScript API, and the BenGER frontend forwards it. Requests
+  without a valid proof get `403` with the code `seb_required`. With pinned
+  SEB versions, other builds get `seb_version_not_allowed`.
+- **After the exam.** A student who submitted a task can read it, the grade
+  and the correction in a normal browser. Grades travel back to the LMS as
+  usual.
+
+SEB raises the bar, but it is not remote proctoring. Anyone holding the
+configuration file can compute the configuration hash. Supervision in the room
+stays necessary. Students on Linux or Chromebooks need a loaner device.
+
 ## 8. Identity, data protection and what is stored
 
 ### 8.1 Accounts and names
@@ -1091,7 +1123,8 @@ fail unexpectedly carry the reference in their message.
 | `tool_not_configured` | The tool's signing key cannot be loaded. | Platform operator. |
 | `state_unavailable` | A temporary server problem. The sign-in could not be stored or read. It is not a browser or cookie problem. | Try again in a few minutes. |
 | `invalid_state` | The sign-in was older than 5 minutes or already used (back button, reload, double submit). | Reopen the activity. |
-| `invalid_token` | The LMS sign-in could not be verified (JWKS URL, client ID, new LMS keys, clock). | Reopen. If it repeats, LMS admin and org admin check the settings. |
+| `invalid_token` | The LMS sign-in could not be verified (client ID, new LMS keys, clock). | Reopen. If it repeats, LMS admin and org admin check the settings. |
+| `jwks_unreachable` | The tool could not load the LMS key set from the JWKS URL, usually because a firewall in front of the LMS blocks the tool server (the tool settings can be correct). | Try again later. If it repeats, the LMS admin opens the JWKS and token URLs to the tool server, or the org admin fixes the JWKS URL. |
 | `nonce_mismatch` | The LMS answer does not match the started sign-in. | Reopen the activity. |
 | `nonce_reused` | The same sign-in arrived twice. | Reopen the activity. |
 | `unsupported_message` | The LMS sent a request type the tool does not support, for example Deep Linking. | LMS admin switches Deep Linking off. |

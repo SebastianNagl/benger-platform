@@ -75,7 +75,13 @@ class EmailVerificationService:
         # 3. Default to English
         return "en"
 
-    def _auto_accept_invitations(self, db: Session, user_id: str, user_email: str) -> list[str]:
+    def _auto_accept_invitations(
+        self,
+        db: Session,
+        user_id: str,
+        user_email: str,
+        organization_id: str | None = None,
+    ) -> list[str]:
         """
         Automatically accept any pending invitations for the user
 
@@ -83,6 +89,9 @@ class EmailVerificationService:
             db: Database session
             user_id: User ID
             user_email: User's email address
+            organization_id: Only accept this organization's invitations
+                (an org admin's verification vouches for the address only
+                within their own organization)
 
         Returns:
             List of success messages for accepted invitations
@@ -92,19 +101,23 @@ class EmailVerificationService:
         from models import Invitation, Organization, OrganizationMembership
 
         messages = []
+        joined: list[tuple[str, str]] = []
 
         # Find pending invitations for this user (by email or pending_user_id)
+        filters = [
+            (
+                (func.lower(Invitation.email) == user_email.strip().lower())
+                | (Invitation.pending_user_id == user_id)
+            ),
+            Invitation.accepted == False,
+            Invitation.expires_at > datetime.now(timezone.utc),
+        ]
+        if organization_id is not None:
+            filters.append(Invitation.organization_id == organization_id)
         pending_invitations = (
             db.query(Invitation, Organization)
             .join(Organization, Invitation.organization_id == Organization.id)
-            .filter(
-                (
-                    (func.lower(Invitation.email) == user_email.strip().lower())
-                    | (Invitation.pending_user_id == user_id)
-                ),
-                Invitation.accepted == False,
-                Invitation.expires_at > datetime.now(timezone.utc),
-            )
+            .filter(*filters)
             .all()
         )
 
@@ -177,6 +190,7 @@ class EmailVerificationService:
                 messages.append(
                     f"You've been added to {organization.name} as {invitation.role.value}."
                 )
+                joined.append((organization.id, organization.name))
                 logger.info(
                     f"Auto-accepted invitation for user {user_id} to join {organization.name}"
                 )
@@ -193,7 +207,56 @@ class EmailVerificationService:
             db.commit()
             logger.info(f"Auto-accepted {len(messages)} invitations for user {user_id}")
 
+        # Tell the org admins, as the accept endpoint does.
+        if joined:
+            try:
+                from notification_service import notify_organization_invitation_accepted
+
+                user = db.query(User).filter(User.id == user_id).first()
+                for org_id, org_name in joined:
+                    notify_organization_invitation_accepted(
+                        db=db,
+                        organization_id=org_id,
+                        organization_name=org_name,
+                        new_member_name=(user.name if user else None) or user_email,
+                        new_member_email=user_email,
+                        new_member_user_id=user_id,
+                    )
+            except Exception as e:  # noqa: BLE001 - best-effort, logged
+                logger.error(f"Failed to notify org admins about auto-accept: {e}")
+
         return messages
+
+    def accept_pending_invitations(
+        self,
+        db: Session,
+        user: User,
+        organization_id: str | None = None,
+        *,
+        admin_vouched: bool = False,
+    ) -> list[str]:
+        """Join the orgs whose open invitations match a just-verified address.
+
+        For every path that marks an email verified outside the verification
+        link (admin verify, account activation, password reset): an account
+        someone signed up for on their own while an invitation to the same
+        address was open otherwise stays outside the org. The address must be
+        proven (``email_ownership_proven``) unless an admin vouched for it
+        (``admin_vouched``); an org admin vouches within their own org only,
+        which ``organization_id`` scopes to. Best-effort, never raises.
+        """
+        from account_activation import email_ownership_proven
+
+        if not getattr(user, "email_verified", False) or not user.email:
+            return []
+        if not admin_vouched and not email_ownership_proven(user):
+            return []
+        try:
+            return self._auto_accept_invitations(db, user.id, user.email, organization_id)
+        except Exception as e:  # noqa: BLE001 - best-effort, logged
+            logger.error(f"Error auto-accepting invitations for user {user.id}: {e}")
+            db.rollback()
+            return []
 
     def _log_email_event(
         self,

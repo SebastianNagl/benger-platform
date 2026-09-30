@@ -283,6 +283,7 @@ async def skip_task(
     project_id: str,
     task_id: str,
     skip_request: SkipTaskRequest,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -314,6 +315,7 @@ async def skip_task(
     )
     # None -> "Access denied"; attempted -> coded read-only 403 (a skip is a write).
     require_write_tier(tier)
+    await enforce_seb_async(db, current_user, project, request, tier=tier)
     # In 'ignore_skipped' mode a single SkippedTask row hides the task from
     # EVERY user's queue — a hostile share-joinee could blank the whole
     # cohort. Participants may only skip where skipping is self-scoped.

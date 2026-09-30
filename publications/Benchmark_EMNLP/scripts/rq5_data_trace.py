@@ -116,11 +116,6 @@ def main():
     # =========================================================================
     # 03 — Calderon §3 alt-test, per-judge summary
     # =========================================================================
-    JUDGE_DISPLAY = {
-        "gpt5":   "GPT-5-mini (Config B)",
-        "gemini": "Gemini-3.1-Pro (Config B)",
-        "opus":   "Opus-4.7 (Config B)",
-    }
     alt_summary_rows = []
     # Primary (baseline single-pass GPT-5-mini)
     for label, key, corpus in (

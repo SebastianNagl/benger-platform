@@ -281,6 +281,11 @@ async def verify_user_email_endpoint(
 
     # Return updated user
     updated_user = db.query(DBUser).filter(DBUser.id == user_id).first()
+    # Open invitations to the address count as accepted, as when the user
+    # clicks their own verification link.
+    email_verification_service.accept_pending_invitations(
+        db, updated_user, admin_vouched=True
+    )
     return updated_user
 
 

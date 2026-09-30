@@ -55,9 +55,9 @@ OUT = PROCESSED / "metric_vs_human.json"
 REAL = RAW / "benchathon" / "Benchathon_export.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _stats import pearson, spearman  # noqa: E402
-from compute_agreement import index_judge_on_humans, load_json  # noqa: E402
-from derive_paper_exports import _response_text, count_tokens  # noqa: E402
+from _stats import pearson, spearman
+from compute_agreement import index_judge_on_humans, load_json
+from derive_paper_exports import _response_text, count_tokens
 
 BOOTSTRAP_B = 2000
 BOOTSTRAP_SEED = 42
@@ -236,9 +236,9 @@ def build_picks():
         text = text_by_sol.get(sol_id)
         n_tokens = count_tokens(text) if text is not None else None
         n_chars = len(text) if text is not None else None
-        if provenance == "llm_generated" and n_tokens is not None:
-            if output_tokens_by_gen.get(sol_id) not in (None, n_tokens):
-                token_crosscheck_mismatches += 1
+        if (provenance == "llm_generated" and n_tokens is not None
+                and output_tokens_by_gen.get(sol_id) not in (None, n_tokens)):
+            token_crosscheck_mismatches += 1
         picks.append({
             "solution_id": sol_id,
             "solution_type": stype,
@@ -403,17 +403,17 @@ def main():
                 "length_token_crosscheck_mismatches": tok_mismatch,
             },
             "caveats": [
-                "Small n throughout (<= 45); CIs are wide and cells with n <= 7 "
+                ("Small n throughout (<= 45); CIs are wide and cells with n <= 7 "
                 "(semantic_similarity / moverscore on human picks) are at best "
-                "directional.",
-                "Pooled cells mix two provenances with different judge "
+                "directional."),
+                ("Pooled cells mix two provenances with different judge "
                 "calibration offsets (judge over-scores LLM picks by ~+27 raw); "
                 "the split cells are the interpretable ones for the residual "
-                "diagnostic.",
-                "residual_analysis sign convention: residual = judge_raw - "
+                "diagnostic."),
+                ("residual_analysis sign convention: residual = judge_raw - "
                 "mean_blind_raw; positive correlation with a lexical metric "
                 "indicates judge reference-style bias, ~0 supports the "
-                "templatic-writing account.",
+                "templatic-writing account."),
             ],
         },
         "metric_vs_human": metric_vs_human(splits),

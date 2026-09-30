@@ -180,8 +180,9 @@ async def _resolve_data_scope(
       (``get_attempted_project_ids_async``); no tier = not listed;
     - read window: pre-open projects are hidden unless the caller can edit
       them or holds the attempted tier (``enforce_project_read_window``);
-    - task scoping: attempted tier → own submissions; org ANNOTATOR on a
-      manual / auto assignment project → own open assignments;
+    - task scoping: attempted tier, and non-editors on a Safe Exam Browser
+      exam → own submissions; org ANNOTATOR on a manual / auto assignment
+      project → own open assignments;
     - blinding: the effective role of ``resolve_project_roles_batch_async``
       through ``bound_fields_for_role`` (same decision as
       ``annotator_bound_fields_or_none_async``).
@@ -256,7 +257,10 @@ async def _resolve_data_scope(
             continue
         scope.project_ids.append(pid)
         scope.bound[pid] = bound_fields_for_role(role, project)
-        if tier == TIER_ATTEMPTED:
+        # Safe Exam Browser exams hand out their tasks inside SEB only (the
+        # exam page); here non-editors see just the tasks they submitted.
+        seb_locked = bool(getattr(project, "seb_required", False)) and not can_edit
+        if tier == TIER_ATTEMPTED or seb_locked:
             scope.attempted_only.add(pid)
         elif annotator_sees_assigned_only(
             listing_org_role(

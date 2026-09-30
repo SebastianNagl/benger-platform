@@ -20,18 +20,22 @@ One entry::
      "to":   {"preset": …, "thresholds": […], …} | null,    # null = back to the default
      "recomputed": <int|null>}                              # stamped by a later recompute
 
-TWO writers of the key exist and BOTH must append through this module —
-that is the whole reason it lives in ``/shared`` rather than in either
-router:
+Every writer of the key must append through this module. That is the
+whole reason it lives in ``/shared`` rather than in any one router:
 
 1. platform ``PUT /api/evaluations/projects/{id}/evaluation-config``
    (the project page's Notenschlüssel card and the wizard's post-create hook)
-2. extended ``benger_extended/api/routers/student_exams.py`` (exam create and
+2. platform ``PATCH /api/projects/{id}``, which deep-merges
+   ``evaluation_config`` too (both platform writers go through
+   :func:`apply_grade_scale_write`)
+3. extended ``benger_extended/api/routers/student_exams.py`` (exam create and
    the content PUT), which writes ``evaluation_config["grade_scale"]``
    straight onto the project
 
-If only the platform path appended, the history would silently lie for every
-exam edited in the Vertretbar modal.
+If only one path appended, the history would silently lie for every key
+changed through the others. :func:`grade_scale_changed` is the one test of
+"the key moved" that the writers use for their follow-ups (the task-data
+mirrors of the grading sheets show the key and are re-rendered on a change).
 
 Deliberately dependency-free (no pydantic, no SQLAlchemy, no
 ``rubric_structure``): the workers import ``/shared`` without pydantic, and
@@ -122,6 +126,17 @@ def _scale_snapshot(scale: Any) -> Optional[Dict[str, Any]]:
     return dict(scale)
 
 
+def grade_scale_changed(old: Any, new: Any) -> bool:
+    """True when ``new`` is a different Notenschlüssel than ``old``.
+
+    Compared normalised (see ``_comparable``): ``50`` and ``50.0`` are the
+    same threshold, a stray client field is no change, a renamed preset is.
+    ``None`` (or anything that is not a scale) means "no key, the platform
+    default applies".
+    """
+    return _comparable(old) != _comparable(new)
+
+
 def append_grade_scale_change(
     evaluation_config: Any,
     *,
@@ -141,7 +156,7 @@ def append_grade_scale_change(
     ``None`` (or anything that is not a scale) to mean "no key, the platform
     default applies".
     """
-    if _comparable(old) == _comparable(new):
+    if not grade_scale_changed(old, new):
         return dict(evaluation_config) if isinstance(evaluation_config, dict) else {}
 
     entry: Dict[str, Any] = {
@@ -153,6 +168,33 @@ def append_grade_scale_change(
     }
     entries = _entries(evaluation_config) + [entry]
     return _with_entries(evaluation_config, entries[-MAX_HISTORY_ENTRIES:])
+
+
+def apply_grade_scale_write(
+    stored_config: Any,
+    written_config: Any,
+    *,
+    actor_id: Optional[str],
+) -> Dict[str, Any]:
+    """The config document a platform write stores, with the trail kept honest.
+
+    ``stored_config`` is the document before the write, ``written_config``
+    the document the write produced (the body deep-merged into it). The
+    trail is SERVER-OWNED: whatever the written document says about
+    :data:`HISTORY_KEY` is dropped and the stored entries restored, so a
+    request cannot rewrite the audit. Then the key change, if the write
+    made one, is appended (see :func:`append_grade_scale_change`).
+
+    Returns a NEW document; neither input is mutated.
+    """
+    stored = stored_config if isinstance(stored_config, dict) else {}
+    written = _with_entries(written_config, _entries(stored))
+    return append_grade_scale_change(
+        written,
+        old=stored.get(GRADE_SCALE_KEY),
+        new=written.get(GRADE_SCALE_KEY),
+        actor_id=actor_id,
+    )
 
 
 def mark_recomputed(evaluation_config: Any, count: int) -> Dict[str, Any]:
@@ -206,7 +248,9 @@ __all__ = [
     "HISTORY_KEY",
     "MAX_HISTORY_ENTRIES",
     "append_grade_scale_change",
+    "apply_grade_scale_write",
     "carry_grade_scale_history",
+    "grade_scale_changed",
     "latest_grade_scale_change",
     "mark_recomputed",
 ]

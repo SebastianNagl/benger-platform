@@ -621,3 +621,91 @@ class TestProfileEmailChangeDropsMailedLinks:
         assert user.password_reset_token is None
         assert user.password_reset_expires is None
         assert user.email_verified is False
+
+
+def _open_invitation(db, email):
+    from models import Invitation, Organization, OrganizationRole
+
+    inviter = _make_user(db)
+    org = Organization(
+        id=f"org-{uuid.uuid4().hex[:10]}",
+        name="Inviting Org",
+        slug=f"inviting-{uuid.uuid4().hex[:8]}",
+        display_name="Inviting Org",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(org)
+    db.flush()
+    inv = Invitation(
+        id=f"inv-{uuid.uuid4().hex[:10]}",
+        organization_id=org.id,
+        email=email,
+        role=OrganizationRole.CONTRIBUTOR,
+        token=f"inv-{uuid.uuid4().hex}",
+        invited_by=inviter.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        accepted=False,
+    )
+    db.add(inv)
+    db.commit()
+    return org, inv
+
+
+def _is_member(db, user, org):
+    from models import OrganizationMembership
+
+    db.expire_all()
+    return (
+        db.query(OrganizationMembership)
+        .filter(
+            OrganizationMembership.user_id == user.id,
+            OrganizationMembership.organization_id == org.id,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
+        .first()
+        is not None
+    )
+
+
+class TestLinkUseAcceptsOpenInvitations:
+    """Using a link mailed to the address proves it, like the verification
+    link, so the address's open invitations are accepted."""
+
+    async def test_reset_password_of_unverified_self_signup_joins_org(
+        self, async_client, test_db
+    ):
+        token = f"tok-{uuid.uuid4().hex}"
+        user = _make_user(
+            test_db,
+            hashed_password="old-hash",
+            password_set=True,
+            token=token,
+            expires=datetime.now(timezone.utc) + timedelta(hours=1),
+            email_verified=False,
+        )
+        org, inv = _open_invitation(test_db, user.email)
+
+        r = await async_client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": _PASSWORD, "confirm_password": _PASSWORD},
+        )
+
+        assert r.status_code == 200, r.text
+        assert _is_member(test_db, user, org)
+        test_db.refresh(inv)
+        assert inv.accepted is True
+
+    async def test_activation_of_lms_claim_address_joins_org(
+        self, async_client, test_db
+    ):
+        user, token = _lms_claim_user(test_db)
+        org, _ = _open_invitation(test_db, user.email)
+
+        r = await async_client.post(
+            "/api/auth/activate-account",
+            json={"token": token, "new_password": _PASSWORD, "confirm_password": _PASSWORD},
+        )
+
+        assert r.status_code == 200, r.text
+        assert _is_member(test_db, user, org)

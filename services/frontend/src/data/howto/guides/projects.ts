@@ -310,6 +310,83 @@ export const PROJECT_GUIDES: HowToGuide[] = [
     },
   },
   {
+    id: 'safe-exam-browser',
+    category: 'projects',
+    title: {
+      de: 'Wie lasse ich eine Prüfung im Safe Exam Browser schreiben?',
+      en: 'How do I run an exam in Safe Exam Browser?',
+    },
+    summary: {
+      de: 'Mit **Safe Exam Browser erforderlich** schreiben Studierende die Prüfung im Safe Exam Browser (SEB). SEB sperrt während der Prüfung andere Programme und Webseiten, auch auf eigenen Geräten. BenGER erzeugt die SEB-Konfiguration selbst. Die Korrektur läuft danach wie gewohnt.',
+      en: 'With **Require Safe Exam Browser**, students write the exam in Safe Exam Browser (SEB). SEB locks other apps and websites during the exam, also on students’ own devices. BenGER generates the SEB configuration itself. Grading then works as usual.',
+    },
+    steps: {
+      de: [
+        'Projektseite → **Projekteinstellungen** → **Safe Exam Browser** → **Safe Exam Browser erforderlich** anhaken.',
+        'Bei Prüfungen aus Moodle oder ILIAS die Kursseite als **Start-URL** eintragen (Pflicht), damit sich Studierende dort in SEB anmelden. Erlaubte Zusatzseiten (z.B. eine Gesetzesdatenbank) unter **Weitere erlaubte Domains** eintragen.',
+        'Optional: ein **Beenden-Passwort** setzen, das die Aufsicht im Raum nennt.',
+        '**Speichern**. Danach stehen der Link zum Starten in SEB, die Konfigurationsdatei und die freigegebenen Domains für die IT zum Kopieren bereit.',
+        'Den Studierenden den Link zur Prüfung geben. Wer sie in einem normalen Browser öffnet, sieht eine Anleitung und den Knopf **Prüfung in SEB öffnen**.',
+        'Vor der echten Prüfung eine Probeprüfung mit denselben Einstellungen ansetzen, damit alle SEB installieren und testen.',
+      ],
+      en: [
+        'Project page → **Project settings** → **Safe Exam Browser** → tick **Require Safe Exam Browser**.',
+        'For exams from Moodle or ILIAS enter the course page as **Start URL** (required), so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.',
+        'Optional: set a **quit password** that the supervisors announce in the room.',
+        '**Save**. The link to start in SEB, the configuration file and the allowed domains for IT are then ready to copy.',
+        'Give students the link to the exam. Opened in a normal browser, it shows instructions and the **Open exam in SEB** button.',
+        'Before the real exam, run a practice exam with the same settings so everyone installs and tests SEB.',
+      ],
+    },
+    tips: {
+      de: [
+        'Organisatoren, Admins und Korrigierende brauchen kein SEB. Abgegebene Arbeiten, Noten und Korrekturen sehen Studierende danach auch im normalen Browser.',
+        'Jede Änderung erzeugt eine neue Konfiguration. Wer SEB schon geöffnet hat, startet über den Link neu. Schreiben gerade Studierende und würde eine Änderung sie aussperren, fragt BenGER vor dem Speichern nach.',
+        'In SEB bleiben Studierende auf der Prüfung: Andere Seiten der App führen zurück zur Prüfungsseite.',
+        'Unter **Erweitert** lassen sich bestimmte SEB-Versionen erzwingen (Browser Exam Keys). Ohne Einträge ist jede SEB-Version mit dieser Konfiguration erlaubt.',
+      ],
+      en: [
+        'Organizers, admins and graders do not need SEB. Submitted work, grades and corrections stay visible to students in a normal browser afterwards.',
+        'Every change creates a new configuration. Anyone who already opened SEB restarts via the link. If students are writing and a change would lock them out, BenGER asks before saving.',
+        'Inside SEB students stay on the exam: other pages of the app lead back to the exam page.',
+        'Under **Advanced** you can require specific SEB versions (Browser Exam Keys). Without entries any SEB version with this configuration is allowed.',
+      ],
+    },
+    pitfalls: {
+      de: [
+        'SEB gibt es für Windows, macOS und iPad, nicht für Linux oder Chromebooks. Halten Sie Leihgeräte bereit.',
+        'SEB verhindert keine Zweitgeräte wie Smartphones. Eine Aufsicht im Raum bleibt nötig.',
+        'Passwort-Links aus E-Mails lassen sich in SEB nicht öffnen. Studierende brauchen ihre Zugangsdaten vor der Prüfung.',
+      ],
+      en: [
+        'SEB exists for Windows, macOS and iPad, not for Linux or Chromebooks. Keep loaner devices ready.',
+        'SEB does not stop second devices such as phones. Supervision in the room is still needed.',
+        'Password links from emails cannot be opened inside SEB. Students need their sign-in details before the exam.',
+      ],
+    },
+    keywords: {
+      de: [
+        'SEB',
+        'Safe Exam Browser',
+        'Prüfung',
+        'Klausur',
+        'Sperre',
+        'Kiosk',
+        'BYOD',
+        'E-Klausur',
+      ],
+      en: [
+        'SEB',
+        'Safe Exam Browser',
+        'exam',
+        'lockdown',
+        'kiosk',
+        'BYOD',
+        'proctoring',
+      ],
+    },
+  },
+  {
     id: 'archive-delete-restore',
     category: 'projects',
     title: {

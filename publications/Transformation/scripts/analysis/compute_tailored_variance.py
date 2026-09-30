@@ -136,7 +136,7 @@ def main() -> int:
         runs = cells[pid].get(j) or {}
         if not runs:
             return None
-        return runs[min(runs)] if j == PRIMARY else list(runs.values())[0]
+        return runs[min(runs)] if j == PRIMARY else next(iter(runs.values()))
 
     complete = {
         pid: {j: judge_score(pid, j) for j in JUDGES}
@@ -159,8 +159,8 @@ def main() -> int:
 
     # Repeats: primary judge, 3 passes.
     repeat_stdevs = []
-    for pid in cells:
-        runs = cells[pid].get(PRIMARY) or {}
+    for cell in cells.values():
+        runs = cell.get(PRIMARY) or {}
         if len(runs) > 1:
             repeat_stdevs.append(statistics.pstdev(list(runs.values())))
 

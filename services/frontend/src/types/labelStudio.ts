@@ -69,6 +69,9 @@ export interface Project {
   annotation_time_limit_seconds?: number | null
   strict_timer_enabled?: boolean
 
+  // Safe Exam Browser gate (extended feature; read-only on the project)
+  seb_required?: boolean
+
   // Restorable draft checkpoints (opt-in)
   restorable_checkpoints_enabled?: boolean
   checkpoint_interval_seconds?: number

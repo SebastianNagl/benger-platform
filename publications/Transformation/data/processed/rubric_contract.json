@@ -1,5 +1,5 @@
 {
-  "source": "/home/pschorr95/Code/BenGER/benger-extended/benger_extended/workers/bewertungsbogen_constants.py",
+  "source": "benger-extended/benger_extended/workers/bewertungsbogen_constants.py",
   "contract_version": 3,
   "bounds": {
     "total_points": 100,

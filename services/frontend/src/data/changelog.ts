@@ -7,6 +7,38 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-30',
+    audience: 'both',
+    text: {
+      de: 'Wer sich selbst registriert, während eine Einladung an dieselbe Adresse offen ist, tritt der einladenden Organisation jetzt auch bei, wenn die Adresse von einer Administration bestätigt oder über „Passwort vergessen“ bzw. die Kontoaktivierung nachgewiesen wird. Bisher klappte das nur über den Bestätigungslink. Einladungen lassen sich außerdem annehmen, wenn die Adresse in anderer Groß- und Kleinschreibung eingetragen wurde.',
+      en: 'If you sign up yourself while an invitation to the same address is open, you now also join the inviting organization when an administrator verifies your address or you prove it via “Forgot password” or account activation. Until now this only worked through the verification link. Invitations can also be accepted when the address was entered in different upper and lower case.',
+    },
+  },
+  {
+    date: '2026-09-30',
+    audience: 'both',
+    text: {
+      de: 'Kann die Plattform beim Start aus Moodle oder ILIAS die Schlüssel der Lernplattform nicht laden, etwa weil eine Firewall sie nicht durchlässt, zeigt die Fehlerseite jetzt den eigenen Code jwks_unreachable. Bisher erschien dafür invalid_token, obwohl die Tool-Einstellungen oft richtig waren. Die Hilfe nennt, welche Adressen die Administration der Lernplattform freigeben muss.',
+      en: 'When the platform cannot load the keys of the learning platform during a launch from Moodle or ILIAS, for example because a firewall blocks it, the error page now shows its own code jwks_unreachable. Until now this appeared as invalid_token, although the tool settings were often correct. The help names the addresses the learning platform administration has to open.',
+    },
+  },
+  {
+    date: '2026-09-26',
+    audience: 'both',
+    text: {
+      de: 'Bewertungsbögen mit Gliederung, etwa hochgeladene oder im Editor erstellte, nennen in den Aufgabendaten jetzt den Notenschlüssel, nach dem die Klausur bewertet wird. Bisher stand dort der Standardschlüssel, wenn der Bogen keinen eigenen hatte, auch wenn die Klausur einen anderen Schlüssel verwendet. Die Angabe wird beim Aktivieren oder Bearbeiten des Bogens aktualisiert und jetzt auch, sobald sich der Notenschlüssel der Klausur ändert. KI-generierte Bögen stehen dort weiterhin als generierter Text ohne Notenschlüssel.',
+      en: 'Grading sheets with an outline, such as uploaded sheets or sheets made in the editor, now name the grade key the exam is graded with in the task data. Until now they showed the standard key when the sheet had none of its own, even if the exam uses a different key. The entry updates when the sheet is activated or edited, and now also whenever the exam’s grade key changes. AI-generated sheets still appear there as their generated text, without the grade key.',
+    },
+  },
+  {
+    date: '2026-09-26',
+    audience: 'both',
+    text: {
+      de: 'Die KI-Korrektur mit Bewertungsbogen prüft Zitate aus der Bearbeitung strenger auf Verneinungen, gegenteilige Ergebnisse, Zahlen und bloße Normzitate. Zitate, die mehrere Stellen zusammensetzen oder über eine Silbentrennung laufen, kann sie jetzt häufiger zuordnen. Die KI ist außerdem angewiesen, richtige Ausführungen unter einer anderen Überschrift derselben Aufgabe beim passenden Schritt zu berücksichtigen.',
+      en: 'AI grading with a grading sheet checks quotes from the answer more strictly for negations, contrary results, numbers and bare norm citations. It can now match more quotes that combine several passages or run across a hyphenation break. The AI is also instructed to credit correct work under another heading of the same question to the matching step.',
+    },
+  },
+  {
     date: '2026-09-24',
     audience: 'benger',
     text: {

@@ -63,8 +63,8 @@ OUT = PROCESSED / "agreement_stats.json"
 REAL = RAW / "benchathon" / "Benchathon_export.json"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _stats import mae, pearson, spearman  # noqa: E402
-from derive_paper_exports import BASELINE_JUDGE_FIELD_PREFIX  # noqa: E402
+from _stats import mae, pearson, spearman
+from derive_paper_exports import BASELINE_JUDGE_FIELD_PREFIX
 
 # Isolated bootstrap RNG: reproducible regardless of how many or in what order
 # other np.random.* calls run in this module.
@@ -728,7 +728,7 @@ def rq5_human_irr(humans):
     else:
         k_modal_gp = None
     rows_modal_raw, (icc1_raw, iccK_raw) = _icc_at_k(rows_raw_all, k_modal_raw) if k_modal_raw else ([], (None, None))
-    rows_modal_gp, (icc1_gp, iccK_gp) = _icc_at_k(rows_gp_all, k_modal_gp) if k_modal_gp else ([], (None, None))
+    _rows_modal_gp, (icc1_gp, iccK_gp) = _icc_at_k(rows_gp_all, k_modal_gp) if k_modal_gp else ([], (None, None))
 
     # Balanced-subset ICC (rater-identity-aware)
     bal_icc1_raw, bal_iccK_raw, bal_subset_raw, bal_raters_raw = _balanced_icc_long(rows_raw_with_ids)
@@ -745,9 +745,9 @@ def rq5_human_irr(humans):
         k_max_balanced_raw, rows_maxk_raw, icc1_raw_max, iccK_raw_max = None, [], None, None
     if rows_gp_ge3:
         k_max_balanced_gp = _Counter(len(r) for r in rows_gp_ge3).most_common(1)[0][0]
-        rows_maxk_gp, (icc1_gp_max, iccK_gp_max) = _icc_at_k(rows_gp_ge3, k_max_balanced_gp)
+        _rows_maxk_gp, (icc1_gp_max, iccK_gp_max) = _icc_at_k(rows_gp_ge3, k_max_balanced_gp)
     else:
-        k_max_balanced_gp, rows_maxk_gp, icc1_gp_max, iccK_gp_max = None, [], None, None
+        k_max_balanced_gp, _rows_maxk_gp, icc1_gp_max, iccK_gp_max = None, [], None, None
 
     return {
         "n_annotations": len(rows_modal_raw),
@@ -1370,7 +1370,7 @@ def rq4_cocreation_blind_human(canonical_grades):
     trad, ai = [], []
     by_user_trad: dict[str, list[float]] = defaultdict(list)
     by_user_ai:   dict[str, list[float]] = defaultdict(list)
-    for sol_id, raters in blind.items():
+    for raters in blind.values():
         raws = [r["raw_score"] for r in raters if r["raw_score"] is not None]
         if not raws:
             continue
@@ -1432,7 +1432,7 @@ def rq5_creator_vs_blind(canonical_grades):
             continue
         by_sol_gp[r["solution_id"]][r["role"]].append(r["grade_points"])
 
-    for sol_id, pools in by_sol.items():
+    for pools in by_sol.values():
         if not pools["creator"] or not pools["blind"]:
             continue
         c_raw = statistics.mean(pools["creator"])
@@ -1440,7 +1440,7 @@ def rq5_creator_vs_blind(canonical_grades):
         pairs_c.append(c_raw)
         pairs_b.append(b_raw)
         diffs_raw.append(c_raw - b_raw)
-    for sol_id, pools in by_sol_gp.items():
+    for pools in by_sol_gp.values():
         if not pools["creator"] or not pools["blind"]:
             continue
         c_gp = statistics.mean(pools["creator"])
