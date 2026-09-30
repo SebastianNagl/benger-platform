@@ -51,7 +51,8 @@ class UnsupportedDocumentError(Exception):
 # Neither means anything outside the Word file, and both end up verbatim in the
 # Musterlösung the judge and the students read.
 _EMPTY_ANCHOR_RE = re.compile(r"<a\s+(?:name|id)\s*=\s*(?:\"[^\"]*\"|'[^']*')\s*>\s*</a>", re.IGNORECASE)
-_INTERNAL_LINK_RE = re.compile(r"\[((?:[^\[\]\\]|\\.)*)\]\(#[^()\s]*\)")
+# mammoth 1.13 escapes the target ("(\\#\\_Toc…)"), older versions do not.
+_INTERNAL_LINK_RE = re.compile(r"\[((?:[^\[\]\\]|\\.)*)\]\(\\?#[^()\s]*\)")
 
 
 def _clean_docx_markdown(text: str) -> str:

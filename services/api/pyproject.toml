@@ -81,7 +81,9 @@ dependencies = [
     # Document text extraction for comfortable exam setup (issue #35): Word
     # (.docx via mammoth -> Markdown) and text-layer PDF (pdfplumber) uploads
     # become editable exam-field text. api-only.
-    "mammoth>=1.6,<2.0",
+    # <1.13: mammoth 1.13 backslash-escapes punctuation in text and URLs
+    # (`www\.gesetze\-bayern\.de`), noise in every extracted Musterlösung.
+    "mammoth>=1.6,<1.13",
     "pdfplumber>=0.10,<1.0",
     # Vertretbar billing (extended-only; community never imports). stripe 15
     # made StripeObject non-dict: extended reads fields via _stripe_compat.get.
