@@ -19,14 +19,12 @@ import uuid
 sys.path.insert(0, "/app")
 sys.path.insert(0, "/shared")
 
-from sqlalchemy import text
-
-from database import SessionLocal
-
 import models  # noqa: F401  (register User before project_models relationships)
+from database import SessionLocal
 from export_stream import stream_export_json
 from import_stream import run_nested_import
 from project_models import Project
+from sqlalchemy import text
 
 SOURCE_ID = "e529779b-300f-48c0-89cb-90f3f4b72a51"
 EXPORT_PATH = "/tmp/temp0_export.json"

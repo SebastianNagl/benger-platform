@@ -28,7 +28,7 @@ AUDIT_DIR = HERE / "data" / "interim" / "audit"
 LOG = HERE / "data" / "interim" / "automated_audit_runs.jsonl"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import AUDIT_CRITERIA, Client  # noqa: E402
+from setup_audit_project import AUDIT_CRITERIA, Client
 
 PROJECT_ID = "687cc09b-7589-44cd-8450-62b85eefd1da"
 ORG_ID = "ee3064db-276e-404c-9cfb-4fe594506196"

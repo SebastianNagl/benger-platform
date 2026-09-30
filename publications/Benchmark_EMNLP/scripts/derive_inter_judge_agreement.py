@@ -56,8 +56,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_superseded  # noqa: E402
-from _stats import kendall_tau, mae, pearson, spearman  # noqa: E402
+from _gen_dedup import dedup_superseded
+from _stats import kendall_tau, mae, pearson, spearman
 
 HERE = Path(__file__).resolve().parent.parent
 REAL_EXPORT = HERE / "data" / "raw" / "benchathon" / "Benchathon_export.json"
@@ -198,15 +198,15 @@ def write_judge_swap(all_judge_cells: dict[str, dict[str, float]],
                 ),
             },
             "notes": [
-                "Subset = the n_cells_with_all_judges intersection from "
+                ("Subset = the n_cells_with_all_judges intersection from "
                 f"benchathon_inter_judge_agreement.json "
                 f"({len(all_judge_cells)} generations), final-run-only "
                 "(superseded April-round attempts dropped via "
-                "_gen_dedup.dedup_superseded before collection).",
-                "Excluded off-leaderboard generations (raw model_id not in "
-                f"systems.json): {dict(sorted(excluded.items()))}.",
-                "Per-judge n equals coverage for every judge by construction "
-                "(the subset requires all six judges per cell).",
+                "_gen_dedup.dedup_superseded before collection)."),
+                ("Excluded off-leaderboard generations (raw model_id not in "
+                f"systems.json): {dict(sorted(excluded.items()))}."),
+                ("Per-judge n equals coverage for every judge by construction "
+                "(the subset requires all six judges per cell)."),
                 "Kendall tau is tau-b, which handles tied per-system means.",
             ],
         },

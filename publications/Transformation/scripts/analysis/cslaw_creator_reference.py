@@ -639,16 +639,16 @@ def main() -> int:
         },
         "caveats": [
             "The creator graded un-blind: they wrote the case and the model solution and knew both while grading.",
-            "The creator graded with the same 10-dimension scheme the holistic instrument uses, so the holistic "
-            "arms share the reference's grading frame.",
-            "The generated sheets (zero-shot and few-shot) are built from the same model solution the creator "
-            "wrote, so the sheet arms and the reference draw on one source.",
-            f"{humans.n_creators} creators cover the 15 exams. The reference is one grade per answer, so creator "
-            "and exam effects are confounded and the reference carries no measured repeat noise.",
-            f"{len(humans.blind_who_created)} of the {len(humans.blind_graders)} blind graders created other exams; "
-            "no blind grade comes from the exam's own creator.",
-            f"The alt-test has m = {len(n_j)} blind annotators with {min(n_j)} to {max(n_j)} answers each on the "
-            "30 human-written answers, so omega moves in steps of 1/m and its Clopper-Pearson CI is wide.",
+            ("The creator graded with the same 10-dimension scheme the holistic instrument uses, so the holistic "
+            "arms share the reference's grading frame."),
+            ("The generated sheets (zero-shot and few-shot) are built from the same model solution the creator "
+            "wrote, so the sheet arms and the reference draw on one source."),
+            (f"{humans.n_creators} creators cover the 15 exams. The reference is one grade per answer, so creator "
+            "and exam effects are confounded and the reference carries no measured repeat noise."),
+            (f"{len(humans.blind_who_created)} of the {len(humans.blind_graders)} blind graders created other exams; "
+            "no blind grade comes from the exam's own creator."),
+            (f"The alt-test has m = {len(n_j)} blind annotators with {min(n_j)} to {max(n_j)} answers each on the "
+            "30 human-written answers, so omega moves in steps of 1/m and its Clopper-Pearson CI is wide."),
         ],
         "notes": {
             "control_primary_rows_differ_from_export": (
@@ -667,8 +667,8 @@ def main() -> int:
                     "Benchathon_export.json (ignored)", "benchathon_model_evaluations.json",
                     "benchathon_superseded_evaluations.json", "agreement_stats.json (anchors)",
                     "compute_agreement.py (alt-test code)", "picks_temp0.json", "clone_d6_actives.json",
-                    *LOCAL_INPUTS, "weight_sensitivity.json, reliability_conditions.json, agreement_bias.json, "
-                    "bootstrap_cis.json, first_iteration.json, first_iteration_local.json (anchors)"],
+                    *LOCAL_INPUTS, ("weight_sensitivity.json, reliability_conditions.json, agreement_bias.json, "
+                    "bootstrap_cis.json, first_iteration.json, first_iteration_local.json (anchors)")],
         "seed": SEED, "n_boot": N_BOOT, "epsilon": EPS, "epsilon_sensitivity": EPS_SENS,
         "design": {"n_answers": 45, "n_human_written": 30, "n_exams": 15, "n_creators": humans.n_creators,
                    "n_blind_graders": len(humans.blind_graders), "blind_grades_per_answer": 3},

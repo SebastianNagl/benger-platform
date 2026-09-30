@@ -29,7 +29,7 @@ def model_decision(response_content):
     if isinstance(response_content, str):
         try:
             return normalise_decision(json.loads(response_content).get("kurzantwort"))
-        except Exception:
+        except (ValueError, AttributeError):  # not JSON, or JSON without fields
             return normalise_decision(response_content)
     if isinstance(response_content, dict):
         return normalise_decision(response_content.get("kurzantwort"))

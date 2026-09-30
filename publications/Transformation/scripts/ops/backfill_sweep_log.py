@@ -24,7 +24,7 @@ import json
 import re
 import subprocess
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
@@ -65,6 +65,7 @@ def main() -> int:
             ["docker", "logs", worker, "--since", args.since],
             capture_output=True,
             text=True,
+            check=False,
         )
         task_ids.extend(RECEIVED.findall(out.stdout + out.stderr))
     task_ids = list(dict.fromkeys(task_ids))
@@ -114,7 +115,7 @@ def main() -> int:
                 "celery_task_id": celery_id,
                 "outcome": "completed" if state == "completed" else "failed",
                 "attempts": result.get("attempts"),
-                "ts": datetime.now(timezone.utc).isoformat(),
+                "ts": datetime.now(UTC).isoformat(),
                 "backfilled": True,
             }
             if state == "completed":

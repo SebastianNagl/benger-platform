@@ -58,7 +58,7 @@ from scipy import stats as sps
 
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path[:0] = [str(HERE / "scripts")]
-import local_config  # noqa: E402
+import local_config
 
 DATA = local_config.data_root()
 LOCAL_INTERIM = DATA / "interim"

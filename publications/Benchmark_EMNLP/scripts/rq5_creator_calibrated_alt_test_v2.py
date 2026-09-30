@@ -48,7 +48,7 @@ PROCESSED = HERE / "data" / "processed"
 CSV_DIR = PROCESSED / "csv"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import (  # noqa: E402
+from compute_agreement import (
     REAL,
     _alt_test_blind_pool,
     _build_blind_pool_inputs,
@@ -56,16 +56,15 @@ from compute_agreement import (  # noqa: E402
     humans_by_solution,
     index_judge_on_humans,
     load_json,
-    pearson,
 )
-from derive_paper_exports import (  # noqa: E402
+from derive_paper_exports import (
     CONFIG_B_FIELD_PREFIX,
     CONFIG_DEEPSEEK_FIELD_PREFIX,
     CONFIG_GPT54MINI_FIELD_PREFIX,
     CONFIG_QWEN_FIELD_PREFIX,
     CONFIG_SONNET_FIELD_PREFIX,
 )
-from rq5_judge_calibration import index_judge_per_config  # noqa: E402
+from rq5_judge_calibration import index_judge_per_config
 
 EPS_VALUES = (0.15, 0.20)
 BOOTSTRAP_REPS = 500
@@ -321,9 +320,9 @@ def stacked_bootstrap_omega(anchor_pairs, judge_scores, humans, *,
         anchor_samp = [anchor_pairs[rng.randrange(n_anchor)] for _ in range(n_anchor)]
         a_s, a_a, b_a = fit_calibration([(yj, yc) for (_, _, yj, yc, _) in anchor_samp])
         if tier == "scalar":
-            apply_one = lambda y: clip01_100(y + a_s)
+            apply_one = lambda y, a_s=a_s: clip01_100(y + a_s)
         elif tier == "affine":
-            apply_one = lambda y: clip01_100(a_a + b_a * y)
+            apply_one = lambda y, a_a=a_a, b_a=b_a: clip01_100(a_a + b_a * y)
         else:  # raw
             apply_one = lambda y: y
         cal = {sid: apply_one(y) for sid, y in judge_scores.items()}
@@ -630,7 +629,7 @@ def main():
     print("=" * 140)
     print(f"V2 — GLOO + pure-creator + stacked bootstrap, ε ∈ {EPS_VALUES}, reps={BOOTSTRAP_REPS}")
     print("=" * 140)
-    print(f"\n[1/4] GLOO (grader-leave-one-out) — leak-clean. ε=0.15.")
+    print("\n[1/4] GLOO (grader-leave-one-out) — leak-clean. ε=0.15.")
     print(f"{'judge':28s} {'pool':6s} {'tier':7s} "
           f"{'ω':>5s} {'CI_clopper':>14s} {'CI_stacked':>14s} {'n_inst':>6s}  pass(pt/boot)")
     for r in gloo_omega_rows:
@@ -647,7 +646,7 @@ def main():
               f"{'PASS' if r['passes_point'] else 'fail'}/"
               f"{'PASS' if r['passes_boot_lo'] else 'fail'}")
 
-    print(f"\n[2/4] Pure-creator anchors only (graders 03, 06). ε=0.15.")
+    print("\n[2/4] Pure-creator anchors only (graders 03, 06). ε=0.15.")
     print(f"{'judge':28s} {'pool':6s} {'tier':7s} {'ω':>5s} "
           f"{'CI_clopper':>14s} {'n_inst':>6s} {'n_anc(h/l)':>10s}  pass")
     for r in pure_omega_rows:
@@ -661,7 +660,7 @@ def main():
               f"{ome:>5s} {ci:>14s} {r['n_instances']:>6d} {anc:>10s}  "
               f"{'PASS' if r['passes_point'] else 'fail'}")
 
-    print(f"\n[3/4] Stacked bootstrap (anchor + test) on v1 pooled LOO. ε=0.15.")
+    print("\n[3/4] Stacked bootstrap (anchor + test) on v1 pooled LOO. ε=0.15.")
     print(f"{'judge':28s} {'pool':6s} {'tier':7s} {'ω':>5s} {'stacked_CI95':>14s} pass(pt/boot)")
     for r in stacked_rows:
         if r["epsilon"] != 0.15:
@@ -674,18 +673,18 @@ def main():
               f"{'PASS' if r['passes_point'] else 'fail'}/"
               f"{'PASS' if r['passes_stacked_boot_lo'] else 'fail'}")
 
-    print(f"\n[4/4] ε=0.20 sensitivity (GLOO only).")
+    print("\n[4/4] ε=0.20 sensitivity (GLOO only).")
     print(f"{'judge':28s} {'pool':6s} {'tier':7s} {'ω(0.15)':>8s} {'ω(0.20)':>8s}")
     omega_by = {(r['judge'], r['pool'], r['tier'], r['epsilon']): r['omega']
                 for r in gloo_omega_rows}
-    for jkey in JUDGE_NAMES:
+    for jkey, jname in JUDGE_NAMES.items():
         for pool in ("human", "llm"):
             for tier in ("raw", "scalar", "affine"):
                 w15 = omega_by.get((jkey, pool, tier, 0.15))
                 w20 = omega_by.get((jkey, pool, tier, 0.20))
                 if w15 is None:
                     continue
-                print(f"  {JUDGE_NAMES[jkey]:26s} {pool:6s} {tier:7s} "
+                print(f"  {jname:26s} {pool:6s} {tier:7s} "
                       f"{w15:>8.2f} {w20:>8.2f}")
 
     print()

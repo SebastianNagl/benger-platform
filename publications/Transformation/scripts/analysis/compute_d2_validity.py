@@ -62,8 +62,13 @@ from scipy.stats import t as student_t
 
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path[:0] = [str(HERE / "scripts"), str(HERE / "scripts" / "analysis")]
-import local_config  # noqa: E402
-from d2_labels import D2_CODE_VERSIONS, arm_label, is_numbered_sheet, rubric_labels  # noqa: E402
+import local_config
+from d2_labels import (
+    D2_CODE_VERSIONS,
+    arm_label,
+    is_numbered_sheet,
+    rubric_labels,
+)
 
 DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 ROWS = DATA / "interim" / "human" / "pilot" / "d2-judge.jsonl"
@@ -319,9 +324,9 @@ def main() -> int:
             "complete_passes": len(cell.by_pass),
             "case_years": dict(sorted(years.items())),
             "mae": rnd(cell.per_pass(_mae)),
-            "mae_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae, idx), rng_for(judge, label, "mae")),
+            "mae_ci95": boot_ci(n, lambda idx, cell=cell: cell.per_pass(_mae, idx), rng_for(judge, label, "mae")),
             "bias": rnd(cell.per_pass(_bias)),
-            "bias_ci95": boot_ci(n, lambda idx: cell.per_pass(_bias, idx), rng_for(judge, label, "bias")),
+            "bias_ci95": boot_ci(n, lambda idx, cell=cell: cell.per_pass(_bias, idx), rng_for(judge, label, "bias")),
             "pearson": rnd(cell.per_pass(pearson), 3),
             "spearman": rnd(cell.per_pass(_spearman), 3),
             "pass_agreement": rnd(cell.per_pass(_agree), 3),
@@ -336,7 +341,7 @@ def main() -> int:
             "wrong_pass_by_run": [int(v) for v in cell.per_pass_values(_wrong_pass)],
             "wrong_fail_by_run": [int(v) for v in cell.per_pass_values(_wrong_fail)],
             "mae_grade_points": rnd(cell.per_pass(_mae_np), 2),
-            "mae_grade_points_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae_np, idx),
+            "mae_grade_points_ci95": boot_ci(n, lambda idx, cell=cell: cell.per_pass(_mae_np, idx),
                                              rng_for(judge, label, "mae_np")),
             "within_one_grade": rnd(cell.per_pass(_within_one), 3),
             "judge_mean_total": round(statistics.fmean(means), 2),

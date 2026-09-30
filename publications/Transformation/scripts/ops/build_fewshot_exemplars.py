@@ -39,7 +39,7 @@ CLONE_PROJECT = "81e474b8-d226-4bf8-bc2e-fb744d25cba5"
 MAX_EXEMPLAR_CHARS = 30_000
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 FRAMING = (
     "Der folgende BEWERTUNGSBOGEN stammt aus einer ANDEREN Klausur desselben "
@@ -59,15 +59,15 @@ def main() -> int:
     FEWSHOT.mkdir(parents=True, exist_ok=True)
 
     # id chains
-    ro = json.load(open(HERE / "data" / "processed" / "rubric_outcomes.json"))["luna"]["per_rubric"]
-    sp = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks.json"))["resolved"]}
-    cp = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks_temp0.json"))["resolved"]}
+    ro = json.loads((HERE / "data" / "processed" / "rubric_outcomes.json").read_text(encoding="utf-8"))["luna"]["per_rubric"]
+    sp = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks.json").read_text(encoding="utf-8"))["resolved"]}
+    cp = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks_temp0.json").read_text(encoding="utf-8"))["resolved"]}
     clone2src = {cp[pid]: sp[pid] for pid in cp}
-    e2l = json.load(open(INTERIM / "benchathon_local_task_map.json"))["task_id_map"]
+    e2l = json.loads((INTERIM / "benchathon_local_task_map.json").read_text(encoding="utf-8"))["task_id_map"]
     l2e = {v: k for k, v in e2l.items()}
-    exams = {e["task_id"]: e for e in json.load(open(INTERIM / "exams.json"))}
+    exams = {e["task_id"]: e for e in json.loads((INTERIM / "exams.json").read_text(encoding="utf-8"))}
     srcrub = {(r["task_id"], r["generator_model_id"]): r
-              for r in json.load(open(HERE / "data" / "raw" / "local" / "task_rubrics.json"))
+              for r in json.loads((HERE / "data" / "raw" / "local" / "task_rubrics.json").read_text(encoding="utf-8"))
               if (r.get("generation_metadata") or {}).get("contract_version") == 3}
 
     # per clone exam → winner under the MAE-median filter, with full_document

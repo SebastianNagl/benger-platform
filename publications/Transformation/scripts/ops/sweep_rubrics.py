@@ -25,13 +25,15 @@ Stdlib-only on purpose (urllib + cookiejar) — no new project deps.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import http.client
 import http.cookiejar
 import json
 import os
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
@@ -92,12 +94,10 @@ def _request(opener, method: str, path: str, payload=None, retries: int = 5):
         except urllib.error.HTTPError as exc:
             last_exc = exc
             if exc.code in (401, 403):
-                try:
+                with contextlib.suppress(OSError, http.client.HTTPException, ValueError):
                     _login(opener)
-                except Exception:
-                    pass
             time.sleep(5 * (attempt + 1))
-        except Exception as exc:  # timeouts, 5xx, transient proxy errors
+        except (OSError, http.client.HTTPException, ValueError) as exc:  # timeouts, 5xx, transient proxy errors
             last_exc = exc
             time.sleep(5 * (attempt + 1))
     raise last_exc
@@ -105,7 +105,7 @@ def _request(opener, method: str, path: str, payload=None, retries: int = 5):
 
 def _log_row(row: dict) -> None:
     LOG.parent.mkdir(parents=True, exist_ok=True)
-    row["ts"] = datetime.now(timezone.utc).isoformat()
+    row["ts"] = datetime.now(UTC).isoformat()
     with LOG.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
 
@@ -136,7 +136,7 @@ def run_generator(opener, generator: str) -> dict:
                     "GET",
                     f"/api/projects/{PROJECT_ID}/bewertungsbogen/status/{celery_id}",
                 )
-            except Exception as exc:  # transient poll failure: retry next tick
+            except (OSError, http.client.HTTPException, ValueError) as exc:  # transient poll failure: retry next tick
                 print(f"[{generator}] poll error ({task_id}): {exc}", flush=True)
                 continue
             state = status.get("status")

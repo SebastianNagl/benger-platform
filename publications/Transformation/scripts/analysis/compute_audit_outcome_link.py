@@ -35,8 +35,8 @@ N_BOOT = 10_000
 
 
 def main() -> int:
-    src = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks.json"))["resolved"]}
-    clo = {p["pick_id"]: p["task_id"] for p in json.load(open(INTERIM / "picks_temp0.json"))["resolved"]}
+    src = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks.json").read_text(encoding="utf-8"))["resolved"]}
+    clo = {p["pick_id"]: p["task_id"] for p in json.loads((INTERIM / "picks_temp0.json").read_text(encoding="utf-8"))["resolved"]}
     src_to_clone = {}
     for pid, s in src.items():
         src_to_clone[s] = clo[pid]
@@ -75,11 +75,10 @@ def main() -> int:
     by_exam = defaultdict(list)
     for r in rows:
         by_exam[r["exam"]].append(r)
-    exams = sorted(by_exam)
 
     def centered(vals_by_exam):
         out = []
-        for exam, pairs in vals_by_exam.items():
+        for pairs in vals_by_exam.values():
             if len(pairs) < 2:
                 continue
             mx = statistics.mean(x for x, _ in pairs)

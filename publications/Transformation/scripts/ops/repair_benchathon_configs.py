@@ -21,15 +21,13 @@ the same id are kept as-is.
 import re
 from collections import Counter, defaultdict
 
-from sqlalchemy import text
-from sqlalchemy.orm.attributes import flag_modified
-
-from database import SessionLocal
-
 # Import order matters: models registers User before project_models'
 # relationships reference it (see CLAUDE.md one-shot-script rule).
 import models  # noqa: F401
+from database import SessionLocal
 from project_models import Project
+from sqlalchemy import text
+from sqlalchemy.orm.attributes import flag_modified
 
 PROJECT_ID = "e529779b-300f-48c0-89cb-90f3f4b72a51"
 KORREKTUR_CFG_ID = "korrektur_falloesung-imported-benchathon"

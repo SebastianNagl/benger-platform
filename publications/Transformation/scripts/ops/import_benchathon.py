@@ -22,7 +22,8 @@ def main() -> int:
     db = SessionLocal()
     try:
         # Slim project header sits at the top of the file.
-        buf = open(PATH, encoding="utf-8").read(600000)
+        with open(PATH, encoding="utf-8") as f:
+            buf = f.read(600000)
         dec = json.JSONDecoder()
         start = buf.index("{", buf.index('"project"'))
         proj, _ = dec.raw_decode(buf[start:])
@@ -39,7 +40,7 @@ def main() -> int:
             print(f"reusing empty project row {project_id} (prior aborted run)")
 
         admin = (
-            db.query(User).filter(User.is_superadmin == True).first()  # noqa: E712
+            db.query(User).filter(User.is_superadmin == True).first()
             or db.query(User).first()
         )
         if admin is None:

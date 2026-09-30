@@ -115,8 +115,8 @@ def main() -> int:
 
     mini_panel = panel_sd(panel_cells, MINI)
     luna_panel = panel_sd(luna_cells, LUNA)
-    common = sorted(set(mini_panel) & set(luna_panel) & set(
-        pid for pid in ctrl if all(j in ctrl[pid] for j in PANEL_BASE + (MINI,))))
+    common = sorted(set(mini_panel) & set(luna_panel) & {
+        pid for pid in ctrl if all(j in ctrl[pid] for j in PANEL_BASE + (MINI,))})
     ctrl_sd = {pid: statistics.pstdev([ctrl[pid][j] for j in PANEL_BASE + (MINI,)]) for pid in common}
 
     payload = {

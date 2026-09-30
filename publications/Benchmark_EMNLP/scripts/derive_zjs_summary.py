@@ -43,9 +43,9 @@ from pathlib import Path
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_superseded  # noqa: E402
-from _stats import pearson as _pearson  # noqa: E402
-from _stats import spearman as _spearman  # noqa: E402
+from _gen_dedup import dedup_superseded
+from _stats import pearson as _pearson
+from _stats import spearman as _spearman
 
 HERE = Path(__file__).resolve().parent.parent
 SRC = HERE / "data" / "raw" / "zjs" / "zjs_faelle_full_export.json"
@@ -154,7 +154,6 @@ def main() -> None:
                     fn = ev.get("field_name") or ""
                     # Only count evals from the GPT-5.4-mini primary-judge run;
                     # skip the legacy gpt-5-nano scoring also present in this file.
-                    is_judge_ev = "llm_judge_falloesung" in (ev.get("metrics") or {})
                     is_primary_judge = fn.startswith(ZJS_PRIMARY_JUDGE_PREFIX)
                     m = ev.get("metrics") or {}
                     if "llm_judge_falloesung" in m and is_primary_judge:

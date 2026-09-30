@@ -33,8 +33,8 @@ import numpy as np
 from scipy import stats as sp_stats
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_superseded  # noqa: E402
-from _gp_decision import decision_accuracy  # noqa: E402
+from _gen_dedup import dedup_superseded
+from _gp_decision import decision_accuracy
 
 HERE = Path(__file__).resolve().parent.parent
 RAW = HERE / "data" / "raw"

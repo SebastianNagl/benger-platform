@@ -8,15 +8,15 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import (  # noqa: E402
+from compute_agreement import (
     REAL,
     _alt_test_blind_pool,
     _build_blind_pool_inputs,
     humans_by_solution,
     load_json,
 )
-from derive_paper_exports import CONFIG_B_FIELD_PREFIX  # noqa: E402
-from rq5_judge_calibration import index_judge_per_config  # noqa: E402
+from derive_paper_exports import CONFIG_B_FIELD_PREFIX
+from rq5_judge_calibration import index_judge_per_config
 
 HERE = Path(__file__).resolve().parent.parent
 PROCESSED = HERE / "data" / "processed"
@@ -34,7 +34,7 @@ def main():
     judges = ("gpt-5-mini", "claude-opus-4-7", "gemini-3.1-pro-preview")
     sets = [set(inter_h[j].keys()) for j in judges]
     intersection = set.intersection(*sets)
-    print(f"Per-judge coverage: " + ", ".join(f"{j}={len(inter_h[j])}" for j in judges))
+    print("Per-judge coverage: " + ", ".join(f"{j}={len(inter_h[j])}" for j in judges))
     print(f"Intersection across all three: {len(intersection)} picks")
     print()
 

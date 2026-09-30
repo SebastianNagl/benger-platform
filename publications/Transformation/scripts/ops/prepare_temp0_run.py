@@ -29,7 +29,7 @@ INTERIM = HERE / "data" / "interim"
 SOURCE_PROJECT = "e529779b-300f-48c0-89cb-90f3f4b72a51"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 PANEL = [
     {"judge_model_id": "gpt-5.4-mini", "runs": 3},

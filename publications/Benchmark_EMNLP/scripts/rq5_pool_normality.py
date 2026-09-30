@@ -33,7 +33,7 @@ PROCESSED = HERE / "data" / "processed"
 ASSETS = HERE / "assets"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import (  # noqa: E402
+from compute_agreement import (
     REAL,
     humans_by_solution,
     index_judge_on_humans,
@@ -84,7 +84,7 @@ def report(label, full, sub):
         wilcoxon = stats.wilcoxon(sub, full)
         print(f"  Wilcoxon (paired):  W={wilcoxon.statistic:.3f}, p={wilcoxon.pvalue:.4f}")
     except ValueError:
-        print(f"  Wilcoxon (paired):  undefined (all differences zero)")
+        print("  Wilcoxon (paired):  undefined (all differences zero)")
     out.update({
         "sw_full": {"W": float(sw_full.statistic), "p": float(sw_full.pvalue)},
         "sw_sub":  {"W": float(sw_sub.statistic),  "p": float(sw_sub.pvalue)},

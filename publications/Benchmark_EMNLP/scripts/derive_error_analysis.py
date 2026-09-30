@@ -37,8 +37,8 @@ from pathlib import Path
 import ijson
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_superseded  # noqa: E402
-from _gp_decision import decision_accuracy  # noqa: E402
+from _gen_dedup import dedup_superseded
+from _gp_decision import decision_accuracy
 
 HERE = Path(__file__).resolve().parent.parent
 PROCESSED = HERE / "data" / "processed"
@@ -100,7 +100,7 @@ def _ff(dims, key, dim_max, default):
 def load_tiers():
     out = {}
     if SYSTEMS.exists():
-        for s in json.load(open(SYSTEMS, encoding="utf-8")):
+        for s in json.loads(SYSTEMS.read_text(encoding="utf-8")):
             mid, t = s.get("model_id"), s.get("tier")
             if mid:
                 out[mid] = t
@@ -223,7 +223,7 @@ def gp_modes(gens, judge):
     acc = [g["accuracy"] for g in scored]
     # per-tier Ja/Nein accuracy as well (the headline GP metric)
     acc_by_tier = {}
-    for t in set(g["tier"] for g in scored):
+    for t in sorted({g["tier"] for g in scored}):
         vals = [g["accuracy"] for g in scored if g["tier"] == t]
         acc_by_tier[t] = {"n": len(vals), "accuracy": statistics.mean(vals) if vals else None}
     return ({"judge": judge, "rubric": "custom_4dim", "n": len(gens),
@@ -236,8 +236,8 @@ def gp_modes(gens, judge):
 
 # ---- extractors -------------------------------------------------------------
 def load_benchathon(tiers):
-    evals = json.load(open(BENCH_EVALS, encoding="utf-8"))
-    raw = json.load(open(BENCH_RAW, encoding="utf-8"))
+    evals = json.loads(BENCH_EVALS.read_text(encoding="utf-8"))
+    raw = json.loads(BENCH_RAW.read_text(encoding="utf-8"))
     text = {g.get("id"): g.get("response_content")
             for t in raw.get("tasks", []) for g in (t.get("generations") or [])}
     gens = []
@@ -302,7 +302,7 @@ def load_gp(tiers):
     if not GP_RAW.exists():
         print("  GP source missing; skipping", file=sys.stderr)
         return None
-    export = json.load(open(GP_RAW, encoding="utf-8"))
+    export = json.loads(GP_RAW.read_text(encoding="utf-8"))
     gens = []
     for t in export.get("tasks", []):
         tid = t.get("id")
@@ -392,7 +392,7 @@ def main():
             head += (f", sub~ergebnis r={r['coupling_subsumtion_ergebnis_pearson']:.3f}"
                      f", overlap={r['overlap_longshallow_wrongnorm']}")
         print(f"\n{head}  tiers={r['tier_n']}")
-        for k, m in r["modes"].items():
+        for m in r["modes"].values():
             rate = m["rate"] or 0
             bt = " ".join(f"{t[:4]}={100*(m['by_tier'].get(t, {}).get('rate') or 0):.1f}%" for t in TIER_ORDER)
             keep = "rev" if rate > REVIEW_MIN_RATE else "om "

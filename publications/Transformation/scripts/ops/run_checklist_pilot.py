@@ -74,8 +74,8 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import inspect
 import hashlib
+import inspect
 import json
 import os
 import signal

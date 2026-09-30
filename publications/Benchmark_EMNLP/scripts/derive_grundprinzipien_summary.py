@@ -54,10 +54,10 @@ from collections import defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _stats import pearson as _pearson  # noqa: E402
-from _stats import spearman as _spearman  # noqa: E402
-from _stats import welford_update as _welford_update  # noqa: E402
-from _gp_decision import decision_accuracy  # noqa: E402
+from _gp_decision import decision_accuracy
+from _stats import pearson as _pearson
+from _stats import spearman as _spearman
+from _stats import welford_update as _welford_update
 
 HERE = Path(__file__).resolve().parent.parent
 SRC = HERE / "data" / "raw" / "grundprinzipien" / "grundprinzipien_Grundprinzipien_full_export.json"

@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
 
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 
 def main() -> int:

@@ -25,7 +25,7 @@ HERE = Path(__file__).resolve().parent.parent
 PROCESSED = HERE / "data" / "processed"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import (  # noqa: E402
+from compute_agreement import (
     REAL,
     _alt_test_blind_pool,
     _build_blind_pool_inputs,
@@ -33,13 +33,13 @@ from compute_agreement import (  # noqa: E402
     index_judge_on_humans,
     load_json,
 )
-from derive_paper_exports import (  # noqa: E402
+from derive_paper_exports import (
     CONFIG_B_FIELD_PREFIX,
     CONFIG_DEEPSEEK_FIELD_PREFIX,
     CONFIG_QWEN_FIELD_PREFIX,
     CONFIG_SONNET_FIELD_PREFIX,
 )
-from rq5_judge_calibration import index_judge_per_config  # noqa: E402
+from rq5_judge_calibration import index_judge_per_config
 
 
 def run_alt_test_for_judge(judge_by_sol, humans, *, eps=0.15):

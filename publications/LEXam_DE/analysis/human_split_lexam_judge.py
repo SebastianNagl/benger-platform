@@ -20,9 +20,9 @@ Reference output (2026-08-14, judge gpt-5.4-mini, scores x100):
   1 judged annotation absent from the export's task annotations (excluded).
 """
 
+import collections
 import json
 import statistics as st
-import collections
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -30,7 +30,7 @@ EXPORT = HERE / ".." / ".." / "Benchmark_EMNLP" / "data" / "raw" / "benchathon" 
 
 
 def main() -> None:
-    exp = json.load(open(EXPORT))
+    exp = json.loads(EXPORT.read_text(encoding="utf-8"))
     amap = {}
     for tk in exp["tasks"]:
         for a in tk.get("annotations", []):

@@ -124,6 +124,11 @@ jobs:
       - name: Lint API, Workers, Shared
         run: ruff check --select=F821,F823 --exclude="*/scripts/*" services/api/ services/workers/ services/shared/
 
+      # Publication scripts: ruff's default rules at the version pinned in
+      # publications/ruff.toml (git-ignored WIP folders are skipped).
+      - name: Lint publications
+        run: pipx run ruff==0.16.9 check publications/
+
       # Every Celery queue must be consumed by exactly one worker pool. A
       # stranded queue fails silently in production -- tasks just never run --
       # so it is checked here, on a runner that has the Helm chart. The workers

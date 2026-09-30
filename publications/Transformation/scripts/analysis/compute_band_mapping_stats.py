@@ -39,7 +39,7 @@ def iter_steps(doc):
 
 
 def main() -> int:
-    rubrics = json.load(open(RAW))
+    rubrics = json.loads(RAW.read_text(encoding="utf-8"))
     v3 = [r for r in rubrics
           if (r.get("generation_metadata") or {}).get("contract_version") == 3
           and (r.get("generation_metadata") or {}).get("full_document")
@@ -59,7 +59,6 @@ def main() -> int:
     for r in v3:
         gm = r["generation_metadata"]
         full, derived = gm["full_document"], gm["derived_document"]
-        d_steps = {id(st): st for st in iter_steps(derived)}
         d_list = list(iter_steps(derived))
         f_list = list(iter_steps(full))
         # full and derived documents share step order by construction

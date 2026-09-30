@@ -28,8 +28,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path[:0] = [str(HERE / "scripts"), str(HERE / "scripts" / "analysis")]
-import local_config  # noqa: E402
-from d2_labels import D2_VALIDATOR  # noqa: E402
+import local_config
+from d2_labels import D2_VALIDATOR
 
 DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 ROWS = DATA / "interim" / "human" / "pilot" / "d2-generate.jsonl"

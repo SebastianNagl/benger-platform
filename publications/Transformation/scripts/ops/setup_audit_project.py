@@ -30,7 +30,6 @@ import http.cookiejar
 import json
 import mimetypes
 import os
-import sys
 import time
 import urllib.error
 import urllib.parse
@@ -200,7 +199,6 @@ def main() -> int:
             real_id = None
         kandidat = Client(args.base_url)
         try:
-            admin_lookup_needed = real_id is None
             if real_id:
                 admin.request("PATCH", f"/api/users/{real_id}/verify-email", {})
             login = kandidat.login(u["email"], u["password"])

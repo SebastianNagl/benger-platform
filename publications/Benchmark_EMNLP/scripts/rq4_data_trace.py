@@ -40,7 +40,7 @@ RAW = HERE / "data" / "raw"
 ASSETS = HERE / "assets" / "rq4"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from derive_paper_exports import BASELINE_JUDGE_FIELD_PREFIX  # noqa: E402
+from derive_paper_exports import BASELINE_JUDGE_FIELD_PREFIX
 
 
 def index_judge_on_humans(real):

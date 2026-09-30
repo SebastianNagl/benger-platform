@@ -76,7 +76,7 @@ def fetch_via_kubectl() -> list[dict]:
         "kubectl -n benger exec -i deployment/benger-api -- python3 -",
     ]
     proc = subprocess.run(
-        cmd, input=REMOTE_SCRIPT, capture_output=True, text=True, timeout=120,
+        cmd, input=REMOTE_SCRIPT, capture_output=True, text=True, timeout=120, check=False,
     )
     if proc.returncode != 0:
         raise SystemExit(

@@ -37,7 +37,7 @@ CLONE = "81e474b8-d226-4bf8-bc2e-fb744d25cba5"
 CROSS_CONFIG = "llm_judge_rubric-msc0vokl-mmdi-cross"
 
 sys.path.insert(0, str(HERE / "scripts" / "ops"))
-from setup_audit_project import Client  # noqa: E402
+from setup_audit_project import Client
 
 log_lock = threading.Lock()
 print_lock = threading.Lock()
@@ -100,9 +100,8 @@ def exam_worker(client: Client, task_id: str, spec: dict, rubrics: list, active_
                 "evaluation_id": eval_id, "status": status,
                 "n_rows": n_rows, "verified": verified,
             }
-            with log_lock:
-                with LOG.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(row) + "\n")
+            with log_lock, LOG.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(row) + "\n")
             results.append(row)
             if not verified:
                 say(f"[{prefix}] ABORT: rubric verification failed on {eval_id} "

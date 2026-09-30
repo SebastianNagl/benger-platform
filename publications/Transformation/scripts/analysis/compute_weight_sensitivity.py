@@ -157,13 +157,17 @@ def main() -> int:
         jc = {p: runs for (j, p), runs in cells.items() if j == judge}
         out = {}
         for name, fn in schemes.items():
-            out[name] = evaluate(jc, lambda row, fn=fn: (lambda k, t=info(row): fn(t[k])), hmean, ann)
+            def scheme_weight(row, fn=fn):
+                t = info(row)
+                return lambda k: fn(t[k])
+
+            out[name] = evaluate(jc, scheme_weight, hmean, ann)
         rnd = random.Random(20260926)
         perm_r, perm_sd = [], []
         for _ in range(N_PERMUTATIONS):
             shuffled = {}
 
-            def weight_for_row(row):
+            def weight_for_row(row, shuffled=shuffled, rnd=rnd):
                 t = info(row)
                 key = id(t)
                 if key not in shuffled:

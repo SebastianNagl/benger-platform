@@ -277,7 +277,7 @@ def main() -> int:
         for task_id, gens in by_task.items():
             if len(gens) < 2:
                 continue
-            counts = [len((r.get("criteria") or {})) for r in gens.values()]
+            counts = [len(r.get("criteria") or {}) for r in gens.values()]
             per_task.append(
                 {
                     "task_id": task_id,

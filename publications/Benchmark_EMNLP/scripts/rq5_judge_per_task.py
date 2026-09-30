@@ -34,9 +34,9 @@ HERE = Path(__file__).resolve().parent.parent
 PROCESSED = HERE / "data" / "processed"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from compute_agreement import REAL, humans_by_solution, load_json  # noqa: E402
-from derive_paper_exports import CONFIG_B_FIELD_PREFIX  # noqa: E402
-from rq5_judge_calibration import index_judge_per_config  # noqa: E402
+from compute_agreement import REAL, load_json
+from derive_paper_exports import CONFIG_B_FIELD_PREFIX
+from rq5_judge_calibration import index_judge_per_config
 
 JUDGES = ("gpt-5-mini", "claude-opus-4-7", "gemini-3.1-pro-preview")
 SOLUTION_TYPES = ("human_traditional", "human_co_creation", "llm_system")
@@ -84,7 +84,7 @@ def main():
         sid = r.get("solution_id")
         if not (tid and st in SOLUTION_TYPES and sid):
             continue
-        prev_sid, raws = by_task_soltype[tid][st]
+        _, raws = by_task_soltype[tid][st]
         raws.append(float(r["raw_score"]))
         by_task_soltype[tid][st] = (sid, raws)
         bereich_by_task[tid] = r.get("bereich")

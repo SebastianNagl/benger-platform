@@ -163,8 +163,8 @@ def main() -> int:
     stored["lens_ranking_spearman"] = rho_all
     stored["lens_ranking_spearman_basis"] = "spearman of unrounded per-generator MAE, both lenses"
     stored["lens_ranking_spearman_full_coverage"] = rho_full
-    for g in spreads:
-        stored["sonnet_lens"].setdefault(g, {})["luna_sonnet_spread"] = round(spreads[g], 1)
+    for g, spread in spreads.items():
+        stored["sonnet_lens"].setdefault(g, {})["luna_sonnet_spread"] = round(spread, 1)
     stored["ranking"] = {
         "note": "paired_dmae = per-(rubric,pick) |Luna first pass − human mean| minus the "
                 "pick's cross-source mean, averaged per generator; main = full-coverage "

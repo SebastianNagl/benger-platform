@@ -34,8 +34,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent.parent
 sys.path[:0] = [str(HERE / "scripts"), str(HERE / "scripts" / "analysis")]
-import local_config  # noqa: E402
-from d2_labels import arm_label, rubric_labels  # noqa: E402
+import local_config
+from d2_labels import arm_label, rubric_labels
 
 DATA = Path(os.environ.get("PILOT_DATA_ROOT") or local_config.data_root())
 GATE = DATA / "interim" / "pilot" / "gate_d2-probes.json"

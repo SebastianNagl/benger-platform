@@ -33,7 +33,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _gen_dedup import dedup_export_view  # noqa: E402
+from _gen_dedup import dedup_export_view
 
 try:
     import tiktoken
@@ -41,7 +41,7 @@ try:
 
     def count_tokens(text: str) -> int:
         return len(_ENC.encode(text or ""))
-except Exception:
+except (ImportError, OSError, ValueError):  # no tiktoken, or its encoding cannot be fetched
     def count_tokens(text: str) -> int:  # type: ignore[misc]
         return len((text or "").split())
 
