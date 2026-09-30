@@ -62,7 +62,7 @@ abstract: |
   sheet, we test whether sheets make grades steadier and closer to the examiner's, which models write
   and use sheets well, and whether the pipeline meets German examination law. First runs on 15 scripts
   suggest that a sheet does not make repeated runs steadier, but brings the grades much closer to the
-  examiner's. \pending{results of the full benchmark and the recommended pipeline}
+  grades given on the examiner's sheet. \pending{\#todo: results of the full benchmark and the recommended pipeline}
 jupyter: benger-transformation
 ---
 
@@ -316,11 +316,11 @@ Our contributions are:
    counting the students an LLM would wrongly pass or fail (RQ2), and a small benchmark of generators
    and judges (RQ3).
 4. A legal analysis, co-written with the exam's author, that maps each requirement of examination law
-   to a design feature and a test (@sec-practice, RQ4).
+   to a design feature and a test (Table \ref{tab:requirements} in @sec-practice, RQ4).
 
-\pending{one plain sentence per research question once E1 to E5 have run}
+\pending{\#todo: one plain sentence per research question once E1 to E5 have run}
 Most analyses are exploratory; one test is fixed in advance and will be published before the
-examiner grades the `{python} D2["d2b"]["n_students"]` held-back scripts. \pending{OSF registration link}
+examiner grades the `{python} D2["d2b"]["n_students"]` held-back scripts. \pending{\#todo: OSF registration link}
 
 # Grading practice in German law exams {#sec-practice}
 
@@ -338,7 +338,59 @@ Two principles bind any sheet. A defensible solution (*vertretbare Lösung*), co
 weighty reasons, must not be marked as wrong, which for exams that control access to a profession
 follows from Art. 12(1) GG [@bverfge84_34, p. 55]. And a follow-on error (*Folgefehler*) should cost
 points only once, so a later step that correctly builds on the candidate's own earlier decision still
-earns credit. \pending{exam author: source for the follow-on-error principle}
+earns credit. \pending{\#todo: exam author: source for the follow-on-error principle} Table
+\ref{tab:requirements} lists these and the other requirements we build against, the feature of the
+sheet that answers each, and the experiment that tests it; the rest of this section gives the practice
+behind them.
+
+```{python}
+#| output: asis
+# Requirements of examination law, the design feature that answers each, and the test.
+# Sources are the decisions and literature the running text cites; pins to be confirmed by the exam author.
+RREQ = [
+    ["R1 Uniform standards: the examiner's standards, once set, apply to every script alike",
+     r"\cite[p.~52]{bverfge84_34}; \cite{bverwg2018_6B71_17}",
+     "one sheet per exam, fixed before grading and used unchanged for every script; all arithmetic by code",
+     "E1: spread between runs and between the sheets of one generator; pass/fail flips"],
+    ["R2 A defensible solution, consistently argued, must not be marked as wrong",
+     r"\cite[p.~55]{bverfge84_34}",
+     "outcome-neutral requirements for local disputes; structural forks with their own paths, defensibility "
+     "requirements and equal BE; unforeseen paths flagged for review",
+     "E4: the reference solution rewritten along another path; designs A0 to A2"],
+    ["R3 A follow-on error costs points only once",
+     r"\pending{exam author: source}",
+     "the consistent standard (\\emph{folgerichtig}) per requirement; a judge rule against charging an error twice",
+     "E4: a consistent follow-on error written by the author"],
+    ["R4 The pass mark is the examiner's, set with regard to average results and then applied alike",
+     r"\cite[p.~51]{bverfge84_34}; \cite{bverwg2018_6B71_17}",
+     "the exam's own key, applied by code; no pass mark is generated",
+     "E2: students wrongly passed or failed at pass marks from 35\\% to 55\\%"],
+    ["R5 Every point rests on the candidate's text and can be given reasons",
+     r"\pending{exam author: source}",
+     "a word-for-word quote per credit, checked by code; feedback per requirement",
+     "E4: 200 quotes checked by hand; quote-check replays"],
+    ["R6 The examiner evaluates personally and independently",
+     r"\cite[II.1.a]{bverwg2002_6C7_02}",
+     "the examiner approves the sheet; model grades support the examiner's evaluation and never replace it",
+     "none: a legal limit that fixes the permitted uses (Section~\\ref{sec-discussion})"],
+    ["R7 Cardinal errors are defined in advance",
+     r"\cite[pp.~15\,f.]{strecker2026ki} (literature)",
+     "none yet; the follow-on-error rule and the standard per requirement decide how far an early error carries",
+     "E4: cardinal errors with the losses the author expects"],
+    ["R8 AI that evaluates learning outcomes is high-risk and needs human oversight",
+     r"\cite{aiact2024}, Annex III 3(b); \cite{omnibus2026}",
+     "the examiner stays in the loop by design; scripts on unforeseen paths are flagged for review",
+     "none: regulatory; the duties apply from December 2027"],
+]
+write_table(
+    "tbl_requirements",
+    "Requirements of German examination law, the feature of the sheet that answers each, and the experiment "
+    "that tests it. Sources are the decisions and the literature cited in the text; pins to be confirmed by the "
+    "exam author. \\pending{one result line per row after E1 to E5}",
+    "tab:requirements", ["Requirement", "Source", "Design feature", "Test"], RREQ,
+    colspec="".join(r">{\raggedright\arraybackslash}p{%.2f\textwidth}" % w for w in (0.25, 0.15, 0.28, 0.2)),
+    size=r"\footnotesize\setlength{\tabcolsep}{3pt}")
+```
 
 *Three paradigms.* We compare three ways of grading with our sheet (Table \ref{tab:paradigms} in
 Appendix \ref{sec-app-paradigms}). The exam author's sheet (D2) is a list of steps with absolute BE,
@@ -348,19 +400,20 @@ gets a grade from `{python} num(Z2["leaf_grade_range"][0], 0)` to
 `{python} num(Z2["leaf_grade_range"][1], 0)`, and the final grade is their average weighted by these
 percentages, so the method needs no key [@strecker2026ki, p. 12]. A third practice is common as well:
 about `{python} pct(PF["fixed_share"])` of the BE go to steps, and the grader distributes the remaining
-`{python} pct(PF["free_share"])` freely, for instance for structure or the overall impression. We do
-not adopt it, because the free share is tied to nothing in the answer that a second grader or a judge
-could check, so it invites variance and cannot be reproduced. Our sheet follows the first paradigm:
+`{python} pct(PF["free_share"])` freely, for instance for structure or the overall impression; the
+literature proposes 15 to 25 percent for such method points [@strecker2026ki, p. 14]. We do not adopt
+it, because the free share is tied to nothing in the answer that a second grader or a judge could
+check, so it invites variance and cannot be reproduced. Our sheet follows the first paradigm:
 every BE, in half points, belongs to a step, each step lists the requirements that earn it, and code
 does all arithmetic (@sec-pipeline).
 
 *Q1: How should the BE be distributed?* The author's sheet spreads `{python} D2["sheet"]["total_be"]`
 BE over `{python} D2["sheet"]["n_steps"]` steps with at most `{python} num(D2["sheet"]["max_step_be"], 0)`
-BE per step, and some step weights changed between years (@sec-d2) \pending{exam author: why}. We took
+BE per step, and some step weights changed between years (@sec-d2) \pending{\#todo: exam author: why}. We took
 the step-size guidance of our generator (`{python} num(GEN["step_be_guidance"][0], 1)` to
 `{python} num(GEN["step_be_guidance"][1], 0)` BE per step, at most `{python} num(GEN["max_step_be"], 0)`
 BE) from the two expert sheets, so step size is an input of our design, not a finding. E3 compares the
-BE distributions of generated sheets with the author's sheet and E5 with Roth's. \pending{BE
+BE distributions of generated sheets with the author's sheet and E5 with Roth's. \pending{\#todo: BE
 distribution of the expert sheet and of generated sheets (E3)}
 
 *Q2: What earns credit, including method?* In the author's sheet every step credits an issue spotted
@@ -368,7 +421,7 @@ or an argument made. No step credits a bare result, although some step titles st
 generator follows the same rule: a result earns credit only with the reasoning that carries it, and
 where several results are defensible, the requirements credit the argument [@bverfge84_34, p. 55].
 The exam author credits method (structure, appraisal style, precise language) inside each section
-rather than as a separate block [@strecker2026ki, p. 14]. \pending{exam author: confirm for D2}
+rather than as a separate block [@strecker2026ki, p. 14]. \pending{\#todo: exam author: confirm for D2}
 
 *Q3: Where is the pass mark?* The author's key passes a script at
 `{python} pct(D2["sheet"]["pass_share"])` of the BE. Where the pass mark lies is part of the examiner's
@@ -376,19 +429,19 @@ own evaluation; it cannot be fixed rigidly without regard to average results [@b
 and once set it applies to every script alike [@bverwg2018_6B71_17]. The mark decides which students
 a judge passes or fails differently from the examiner, and E2 sweeps it from
 `{python} pct(EXP["E2"]["pass_mark_sweep"][0])` to `{python} pct(EXP["E2"]["pass_mark_sweep"][1])` on
-stored outputs. \pending{E2}
+stored outputs. \pending{\#todo: E2}
 
 *Q4: Is the key linear or curved?* The author's key is piecewise linear with a kink at the pass mark:
 below it a grade point spans `{python} D2["sheet"]["key_be_per_grade_below_pass"]` BE, and from the
 pass mark upwards `{python} D2["sheet"]["key_be_per_grade_from_pass"]` BE, up to grade 18 at
 `{python} D2["sheet"]["key_top_grade_be"]` BE. The same shape, with passing costing more BE per grade
-than the top grades, is proposed in [@strecker2026ki, p. 15]. \pending{exam author: confirm the
+than the top grades, is proposed in [@strecker2026ki, p. 15]. \pending{\#todo: exam author: confirm the
 reasons for D2} Roth's paradigm needs no key, since it averages statutory grades and passes from
 grade `{python} Z2["workbook"]["pass_from_grade"]`.
 
 *Q5: How are cardinal errors treated?* A cardinal error (*Kardinalfehler*) is one that by itself can
 make a script fail. Examiners disagree on what counts, and the literature asks each sheet to define
-it in advance, with minus points or a grade cap [@strecker2026ki, pp. 15 f.]. \pending{exam author:
+it in advance, with minus points or a grade cap [@strecker2026ki, pp. 15 f.]. \pending{\#todo:exam author:
 examples and expected loss for D2} Our sheet has no such cap yet; the follow-on-error rule and the
 standard of each requirement decide how far an early error carries (@sec-judge). E4 tests
 `{python} EXP["E4"]["kardinalfehler_probes"]` fake answers with the losses the author expects.
@@ -413,9 +466,9 @@ write as a source of differences of its own.
 checklist breaks it into yes-or-no items. Such items can make LLM grading more consistent
 [@ye2024flask; @kim2024prometheus; @lee2025checkeval; @cook2024ticking; @chen2026holistic], and rubrics
 written for one question work better than general ones [@jonsson2007use; @pathak2025rubric;
-@tang2026designing]. Human graders, too, agree more when they score an answer part by part than when
-they form one overall impression, at a cost in time [@klein1998analytic]; for an LLM, the time becomes
-computing cost. Models can write such rubrics: they derive weighted criteria from a reference answer
+@tang2026designing]. Human graders, too, agree more on the parts when they score an answer part by part than when
+they form one overall impression, at a cost in time, although the totals were no more reliable
+[@klein1998analytic]; for an LLM, the time becomes computing cost. Models can write such rubrics: they derive weighted criteria from a reference answer
 [@gunjal2025rubrics; @fan2024sedareval; @li2026rubrichub] and point schemes for exam questions and
 proofs [@golchin2025grading; @xie2025grade; @mahdavi2025refgrader; @ma2026proofbench]. Generated
 rubrics still fall short of expert ones [@zhou2026rubricbench; @wu2026unveiling], and a regenerated
@@ -452,7 +505,7 @@ Figure \ref{fig:pipeline} shows the pipeline. Models do two things only: the gen
 sheet and says how much each part weighs, and the judge grades an answer against the sheet and quotes
 the answer for every credit. Plain code, a fixed program rather than a model, does everything that can
 be computed or checked. Since models that add up points themselves make mistakes
-[@kortemeyer2024grading; @pires2025automatic], no model ever states points.
+[@kortemeyer2024grading; @pires2025automatic], no model sets what a step is worth or adds up a total.
 
 ```{python}
 #| output: asis
@@ -573,7 +626,7 @@ The check has limits. It tests that a quote exists, not that it proves the requi
 sentence can be quoted for the wrong requirement. Correct work that the judge paraphrases earns
 nothing, a sentence copied from the case text passes, and the strict rules at the edges also reject
 some correct quotes.
-\pending{regression replays at the freeze: quotes re-checked on D1 and D2, and how many flip}
+\pending{\#todo: regression replays at the freeze: quotes re-checked on D1 and D2, and how many flip}
 
 # Data and design {#sec-design}
 
@@ -592,7 +645,7 @@ drows = [
      f"one grader per script, step by step on the author's sheet (grader of {d2a['grader_pending']} "
      "to be confirmed)", "Study 2, development data and first results (Section~\\ref{sec-prelim})"],
     ["D2b", f"{d2b['n_students']} scripts of the same exam, {d2b['year']}",
-     "the author, blind \\pending{}", "Study 2, held out for one registered test"],
+     "the author, blind \\pending{grades}", "Study 2, held out for one registered test"],
     ["Z2", "Gregor Roth's sheet and grading workbook for a civil-law exam", "none",
      "Study 2, sheet comparison (E5)"],
 ]
@@ -612,9 +665,10 @@ The blind graders often disagree: their highest and lowest grade for an answer l
 `{python} V["spread"]` points apart on average. @sec-first compares with the mean of all
 `{python} V["pool"]` grades on the `{python} V["n_ann"]` answers written by people, as the prior study
 did, whereas E2 uses the blind grades as the main reference and the creator's grade as a second one.
-The prior study's judge was `{python} V["prior_mae"]` points (`{python} V["prior_mae_np"]` grade
-points) from the mean human grade on average and ranked the answers much as the humans did ($r$ =
-`{python} V["prior_r"]`). D1 is our only data across many exams, but its reference is noisy.
+The prior study's judge, GPT-5.4 Mini in a single run, was `{python} V["prior_mae"]` points
+(`{python} V["prior_mae_np"]` grade points) from the mean human grade on average and ranked the answers
+much as the humans did ($r$ = `{python} V["prior_r"]`). D1 is our only data across many exams, but its
+reference is noisy.
 
 ## D2: the expert exam {#sec-d2}
 
@@ -633,7 +687,7 @@ current one.
   a practice exam; we drop `{python} D2["d2b"]["n_excluded"]` uploads from the author's own account (a
   test upload and a copy of a D2a script). The platform graded the scripts on submission with GPT-5.4
   Mini, and the students saw these grades. The author grades them blind, without seeing any model
-  grade. \pending{blind expert grades for D2b}
+  grade. \pending{\#todo: blind expert grades for D2b}
 
 D2 thus has `{python} D2["distinct_scripts"]` distinct scripts, or
 `{python} D2["n_counting_dependent_pair_once"]` if one pair that shares text counts once. We lack the
@@ -647,13 +701,13 @@ contain no terms from the author's sheet or exam.
 
 *Z2* is Gregor Roth's sheet and grading workbook for a civil-law exam, so far without case, reference
 solution or scripts. E5 generates sheets for this exam and compares them with Roth's sheet.
-\pending{case and reference solution from Roth}
+\pending{\#todo: case and reference solution from Roth}
 
 ## Experiments {#sec-experiments}
 
 D1 and D2a are development data. D2b is held out: it holds new scripts of the same exam, not a new
 exam, which the author grades from exported files before seeing any generated sheet or model grade,
-and one registered test runs on them once. \pending{the registered hypothesis and its success
+and one registered test runs on them once. \pending{\#todo: the registered hypothesis and its success
 criterion} Stability needs no human grade, so E1 uses all `{python} D2["distinct_scripts"]` D2
 scripts. Table \ref{tab:experiments} lists the experiments. The baselines are grading without a sheet,
 on the prior study's `{python} V["n_dims"]` general criteria, and grading on the exam author's own
@@ -830,8 +884,17 @@ def _n1(v):
     return t[:-2] if t.endswith(".0") else t
 
 
+def _cnt(x, key):
+    """Students per run, as the range over the runs when the runs differ."""
+    runs = x.get(f"{key}_by_run")
+    if runs:
+        lo, hi = min(runs), max(runs)
+        return str(lo) if lo == hi else f"{lo}–{hi}"
+    return _n1(x[key])
+
+
 def _wrong(x):
-    return f"{_n1(x['wrong_pass'])} / {_n1(x['wrong_fail'])}"
+    return f"{_cnt(x, 'wrong_pass')} / {_cnt(x, 'wrong_fail')}"
 
 
 def val_table(name, label, arms, extra):
@@ -847,22 +910,23 @@ def val_table(name, label, arms, extra):
             mark = "$^\\dagger$" if not gated else ("" if gated["battery"] == "pass" else "$^\\ddagger$")
             rows.append([lbl, SHORT.get(j, NAME.get(j, j)) + mark, str(x["complete_passes"]),
                          num(x["mae"], 1) + (f' [{num(c[0], 1)}, {num(c[1], 1)}]' if c[0] is not None else ""),
-                         num(x["mae_grade_points"], 1), sgn(x["bias"], 1), cor(x["pearson"]), _wrong(x),
-                         num(x["mean_abs_pass_diff"], 1) if x.get("mean_abs_pass_diff") is not None else "--"])
+                         num(x["mae_grade_points"], 1), sgn(x["bias"], 1), cor(x["pearson"]),
+                         cor(x["pass_kappa"]) if x.get("pass_kappa") is not None else "--", _wrong(x)])
     write_table(
         name,
         f"Expert exam: judge totals against the reference grades of the {D2['d2a']['n_scripts']} D2a scripts, in "
         f"points out of 100 (from the pass mark of {num(VAL2['pass_mark_be'], 0) if VAL2 else ''} points up, "
         f"{D2['sheet']['key_be_per_grade_from_pass']} points make one grade point). {extra}Each value is computed "
-        "per run and averaged over the runs. Grade points: the average error on the 0 to 18 scale under the "
-        "exam's key. Wrongly passed: students the judge passes whom the reference fails, and wrongly failed the "
-        "reverse. Run to run: the average difference between two runs on the same script. "
+        "per run and averaged over the runs; the student counts give the range over the runs. Grade points: the "
+        "average error on the 0 to 18 scale under the exam's key. $\\kappa$: agreement on pass or fail beyond "
+        "chance. Wrongly passed: students the judge passes whom the reference fails, and wrongly failed the "
+        "reverse. Stability between runs: Table \\ref{tab:var2}. "
         "$^\\dagger$ not checked with the fake answers. $^\\ddagger$ failed that check (Table \\ref{tab:gate2}).",
         label,
         ["Grading basis", "Judge", "Runs", "Average error [95\\%]", "Grade points", "Generous (+), strict ($-$)",
-         "$r$", "Wrongly passed / failed", "Run to run"],
+         "$r$", "$\\kappa$", "Wrongly passed / failed"],
         rows or [[r"\tbd"] * 9],
-        colspec="p{0.28\\textwidth}lr" + "".join(RP(w) for w in (0.12, 0.06, 0.09)) + "r" + RP(0.08) + RP(0.05),
+        colspec="p{0.26\\textwidth}lr" + "".join(RP(w) for w in (0.12, 0.06, 0.09)) + "rr" + RP(0.1),
         size=r"\scriptsize\setlength{\tabcolsep}{3.5pt}")
 
 
@@ -982,7 +1046,8 @@ stab_table("tbl_var2", "tab:var2", True)
 #| output: asis
 _I = LV.get("instruments") or {}
 _hol, _exp = _I.get(NOS), _I.get(EXS)
-_gen_b = [b for a, b in _I.items() if a not in (NOS, EXS)]
+_n_full = max([b["n_scripts"] for b in _I.values()] or [0])
+_gen_b = [b for a, b in _I.items() if a not in (NOS, EXS) and b["n_scripts"] == _n_full]
 _fresh = list((LV.get("generators") or {}).values())
 _k3 = ((LV.get("equal_cost") or {}).get("no_sheet_mean_of_k") or {}).get("3")
 if not (_hol and _exp and _gen_b):
@@ -1025,7 +1090,7 @@ own reasoning, which E4 fixes with the examiner in advance.
 
 ## Study 2: experiments E1 to E5 {#sec-e1e5}
 
-\pending{results of E1 to E5, each error given in grade points and as students wrongly passed or failed}
+\pending{\#todo: results of E1 to E5, each error given in grade points and as students wrongly passed or failed}
 
 # Discussion {#sec-discussion}
 
@@ -1054,15 +1119,18 @@ else:
            if _nos_gate and _nos_gate["battery"] != "pass" else "")
         + ". Generated sheets came close to the examiner's sheet "
         f"({num(min(x['mae'] for x in _gm), 0)} to {num(max(x['mae'] for x in _gm), 0)} points off), though "
-        "mostly more generous. On this exam, then, a sheet did not make the judge steadier, but it made its "
-        "grades far more accurate. The platform's default judge was about "
+        "mostly more generous. On this exam, then, a sheet did not make the judge steadier, but it brought its "
+        "grades far closer to the reference. The platform's default judge was about "
         f"{num(_m['mae'], 0)} points off even on the examiner's sheet. Because a new sheet from the same "
         "generator moved a script's total more than a new run did, a sheet should be fixed and approved once "
-        "per exam. These are first readings on the scripts of one exam, and they favour the examiner's sheet "
-        "(@sec-limitations).")
+        "per exam. Across both studies a sheet changed the level of the grades, and on the expert exam their "
+        "scale, but not their run-to-run spread, a pattern known from human graders, whose part-by-part scores "
+        "agree more without making the totals more reliable [@klein1998analytic]: a sheet changes what the judge "
+        "measures, not how noisily it measures. These are first readings on the scripts of one exam, and they "
+        "favour the examiner's sheet (@sec-limitations).")
 ```
 
-*Answers to the research questions.* \pending{one paragraph per research question after E1 to E5:
+*Answers to the research questions.* \pending{\#todo: one paragraph per research question after E1 to E5:
 first a plain answer (yes, no, partly, not yet), then what it means in grade points and in students
 wrongly passed or failed, then the number and its interval}
 
@@ -1075,14 +1143,14 @@ calibrated on a few scripts the examiner has graded. *Reasons.* Each point comes
 code has found in the answer, so an examiner or a student can see where it was earned. The code
 confirms only that the words are there, not that they meet the requirement, so the quotes can support
 the examiner's reasons but cannot replace the examiner's own evaluation, which the examiner must make
-personally [@bverwg2002_6C7_02]. The evidence so far supports feedback on practice exams with these
+personally [@bverwg2002_6C7_02, II.1.a]. The evidence so far supports feedback on practice exams with these
 safeguards. A second reader that points the examiner to scripts where the totals differ is plausible
 but untested, and the evidence does not support grading exams that count towards a degree without an
 examiner. EU law classes AI that evaluates learning outcomes as high-risk (AI Act, Annex III, point
 3(b)), with the duties applying from December 2027 [@aiact2024; @omnibus2026]. Grading one script once
 costs about `{python} num(100 * min(COST["judge_call_usd"].values()), 0)` to
 `{python} num(100 * max(COST["judge_call_usd"].values()), 0)` US cents with the judges we priced
-(Appendix \ref{sec-app-datastatement}). \pending{recommended pipeline and its cost per script}
+(Appendix \ref{sec-app-datastatement}). \pending{\#todo: recommended pipeline and its cost per script}
 
 # Limitations {#sec-limitations}
 
@@ -1128,55 +1196,15 @@ correct it or simply accept it.
 
 # Ethics {#sec-ethics}
 
-*Consent and personal data.* The students whose D2 scripts we use consented to research use, for the
-`{python} D2["d2a"]["n_scripts"]` scripts of D2a and the `{python} D2["d2b"]["n_uploads"]` platform
-submissions of D2b. The consent does not extend to sending their personal data to model providers.
-All D2 texts are therefore pseudonymized and checked for personal data before any research call
-(@sec-d2). The platform grades that the D2b students saw were produced in the normal use of the
-platform, before this study. \pending{owner to confirm the wording on the platform-side grading and the providers' data terms}
-D1 reuses the prior study's corpus under the consent obtained there, with pseudonymized graders
-[@nagl2026bengerdata].
-
-*Students who saw LLM grades.* The D2b students received LLM grades as feedback on a practice exam.
-\pending{owner: whether and how students learn the expert grades}
-
-*Roth's sheet.* Gregor Roth agreed to be named and to have his sheet and workbook used. We report
-only their structure, not their content.
+tbd - Consent and personal data
 
 # Data and code availability {#sec-availability}
 
-The platform is open source under the Apache 2.0 license at
-<https://github.com/SebastianNagl/benger-platform> \pending{tagged release or commit, archived with a
-DOI}. It contains the judge, the quote check and the aggregation, whereas the generator's instructions
-and output specification, the validator, the allocation of points and the rendering of generated sheets
-belong to a proprietary extension of the platform. \pending{owner decision: release of the generator
-instructions, output specification and validator rules} The folder `publications/Transformation`
-holds the analysis scripts and every aggregate this paper reports, and every run records the hashes of
-its code, prompts and validator. Recomputing the aggregates needs data we do not release: the per-call
-records of D1, which contain third-party exam text, and the private D2 and Z2 material. D1's exam texts
-and the generated sheets, which restate the reference solutions, are not redistributed, and for D2 and
-Z2 we publish only aggregates (Appendix \ref{sec-app-datastatement}).
+tbd
 
 # AI usage {#sec-ai}
 
-This section covers AI tools used to do the research and write the paper, not the models under
-study. For Study 1, the authors used OpenAI GPT-5.6 Sol to discuss approaches and Anthropic Claude
-Fable 5 to help write code and text. For Study 2, Anthropic Claude Opus 5.5 worked as a coding agent in
-the authors' repositories under the first author's direction. It wrote the pipeline of
-@sec-pipeline (output specification and validator, checklist judge, quote check), the experiment
-runner and all analysis scripts, and it ran the experiments within budgets the first author approved
-one by one. It also drafted most of the text, tables and appendices, including this section, and it
-searched the literature and checked the references it added against their sources. Further instances of the same
-model, given identical instructions, reviewed the code, the data handling, the statistics and the text
-in `{python} DZ["statistics"]["review_rounds"]` rounds, simulated a peer review, and reviewed each
-section for readability and missing literature. Because the agent ran the scripts that extracted and
-pseudonymized the D2 texts on the authors' machine, parts of the raw scripts may have reached
-Anthropic's service before pseudonymization. \pending{authors: confirm, and name the terms under which
-this happened} \pending{authors: who wrote Section 2 and the legal parts of the discussion} The authors
-checked \pending{every reference against its source; every number in the abstract, discussion and
-tables; the quote check and the allocation code}. The authors set the research questions and the
-design, supplied the exam, its grades and the sheets, decided every change of scope and spending, and
-take full responsibility for the paper.
+tbd - Opus 5.5, Fable 5.1, Astra 6
 
 ::: {.acks}
 BenGER is generously funded by the Daimler Benz Foundation as part of project TITAN (*Technologische
@@ -1184,8 +1212,8 @@ Intelligenz zur Transformation, Automatisierung und Nutzerorientierung des Justi
 German Federal Ministry of Justice as part of the *Digitalisierungsinitiative des Bundes für die
 Justiz* under the GSJ project (*Generatives Sprachmodell der Justiz*), a collaboration between the
 justice ministries of North Rhine-Westphalia and Bavaria, TU Munich, and the University of Cologne.
-We thank Gregor Roth \pending{affiliation} for sharing a grading sheet and workbook, the second
-grader \pending{name}, and the students who allowed us to use their scripts.
+We thank Gregor Roth \pending{\#todo: affiliation} for sharing a grading sheet and workbook, the second
+grader \pending{\#todo:name}, and the students who allowed us to use their scripts.
 :::
 
 ```{=latex}
@@ -1286,8 +1314,8 @@ rows = [
      "the exam's key"],
     ["Adjustment", "\\tbd", "manual bonus or malus", f"the free {pct(PF['free_share'])}", "none"],
     ["Credit for bare results", "none (some titles state results)",
-     f"{Z2['result_rows_weighted']} of {Z2['result_rows']} weighted", "--", "only with its reasoning"],
-    ["Graders per script", "one (see Section 5)", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)",
+     f"{Z2['result_rows_weighted']} of {Z2['result_rows']} result items weighted", "--", "only with its reasoning"],
+    ["Graders per script", "one (Section~\\ref{sec-d2})", f"\\tbd{{}} ({len(ZW['final_grade_fields'])} final-grade fields)",
      "--", "one LLM judge, run $k$ times"],
     ["Alternatives", "\\tbd", "\\tbd", "--", "requirements or forks"],
 ]
@@ -1383,6 +1411,8 @@ write_table(
     f"({FI['reliability']['repeat_n']} answers). The other columns compare the first run with the mean of the "
     f"four human grades (three blind graders and the exam's creator) on the {FI['reliability']['agreement_n']} "
     "answers written by people. "
+    + ("Luna and GPT-5.4 Mini without a sheet have the same average error by coincidence; their errors differ "
+       "on every answer. " if abs(REL["holistic_luna"]["mae"] - REL["holistic_mini"]["mae"]) < 1e-6 else "")
     + (f"{DAG}Stored total. " if any(REL[k]["basis"] in ("step_sum", "stored_pending") for k in REL) else ""),
     "tab:reliability", ["Judge, grading basis", "Run-to-run spread", "Same order ($r$)", "Average error",
                         "Too generous (+) / strict ($-$)"], rows,
@@ -1445,8 +1475,8 @@ but not with the sheet ($r$ = `{python} cor(AG["mini"]["zs_step_sum"]["r"])`, MA
 `{python} sgn(AG["mini"]["mae_zs_minus_hol"]["point"], 1)`
 `{python} ci(AG["mini"]["mae_zs_minus_hol"]["ci95"], 1)`), and few-shot sheets left it there ($r$ =
 `{python} cor(AG["mini"]["fs_stored"]["r"])`, MAE `{python} num(AG["mini"]["fs_stored"]["mae"], 1)`).
-Leave-one-exam-out bias correction shows that the error of the prior study's control judge was mostly
-a level shift (MAE `{python} num(C["legacy_control"]["mae"], 1)` to
+Leave-one-exam-out bias correction shows that the error of Study 1's control judge (GPT-5 Mini, repeated
+runs) was mostly a level shift (MAE `{python} num(C["legacy_control"]["mae"], 1)` to
 `{python} num(AG["loeo_calibrated_mae"]["holistic_control"], 1)`), whereas Luna's zero-shot error was
 not (`{python} num(AG["luna"]["zs_step_sum"]["mae"], 1)` to
 `{python} num(AG["loeo_calibrated_mae"]["tailored_luna"], 1)`).
@@ -1649,8 +1679,9 @@ for name, judge, x in grows:
     row = [name, judge, str(x["runs"] if x.get("skipped_probes") else x["complete_passes"])]
     if not const:
         row += [x["battery"], _gcell(x, "battery_max_score")]
+    expected = "--" if name == INSTR[NOS] else _gcell(x, "section_ablation_expected")
     row += [_gcell(x, "model_proposed_median_on_negatives"), _gcell(x, "musterloesung_median"),
-            f'{_gcell(x, "section_ablation_drop")} / {_gcell(x, "section_ablation_expected")}',
+            f'{_gcell(x, "section_ablation_drop")} / {expected}',
             _gcell(x, "misplacement_drop"), _gcell(x, "negation_flip_drop")]
     rows.append(row)
 head = ["Grading basis", "Judge", "Runs"] + ([] if const else ["Fake answers", "Max"]) + [
@@ -1669,7 +1700,7 @@ write_table(
     + "Proposed: the most points the judge proposed for a fake answer before the quote check removed "
     "unsupported credit. Answer key: the reference solution graded as an answer. Part removed: points lost "
     "when one part of the answer key is deleted, against the points the sheet gives that part (matched by "
-    "heading, a heuristic). Paragraph moved: points lost when a correct paragraph moves under another "
+    "heading, a heuristic; without a sheet there is no expected value). Paragraph moved: points lost when a correct paragraph moves under another "
     "heading. Results reversed: points lost when the answer key's results are negated.",
     "tab:gate2", head, rows or [[r"\tbd"] * len(head)],
     colspec="p{0.23\\textwidth}lr" + ("" if const else "lr") + "".join(RP(w) for w in (0.08, 0.06, 0.1, 0.08, 0.07)),

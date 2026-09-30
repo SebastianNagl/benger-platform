@@ -161,6 +161,10 @@ class Cell:
         vals = [v for v in vals if v is not None]
         return statistics.fmean(vals) if vals else None
 
+    def per_pass_values(self, stat) -> list:
+        """The statistic of every complete pass, in pass order."""
+        return [stat(p, self.ref) for p in self.by_pass]
+
     def abs_err(self) -> list[float]:
         """Per script: absolute error, averaged over the complete passes."""
         return [statistics.fmean(abs(p[i] - self.ref[i]) for p in self.by_pass) for i in range(len(self.sids))]
@@ -328,6 +332,9 @@ def main() -> int:
             "reference_n_fail": sum(v < PASS_MARK for v in cell.ref),
             "wrong_pass": rnd(cell.per_pass(_wrong_pass), 2),
             "wrong_fail": rnd(cell.per_pass(_wrong_fail), 2),
+            # the same counts per complete pass, so a table can show their range instead of a mean
+            "wrong_pass_by_run": [int(v) for v in cell.per_pass_values(_wrong_pass)],
+            "wrong_fail_by_run": [int(v) for v in cell.per_pass_values(_wrong_fail)],
             "mae_grade_points": rnd(cell.per_pass(_mae_np), 2),
             "mae_grade_points_ci95": boot_ci(n, lambda idx: cell.per_pass(_mae_np, idx),
                                              rng_for(judge, label, "mae_np")),

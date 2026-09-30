@@ -44,6 +44,12 @@
     "reference_n_fail": 5,
     "wrong_pass": 0.0,
     "wrong_fail": 1.0,
+    "wrong_pass_by_run": [
+     0
+    ],
+    "wrong_fail_by_run": [
+     1
+    ],
     "mae_grade_points": 0.87,
     "mae_grade_points_ci95": [
      0.4,
@@ -91,6 +97,12 @@
     "reference_n_fail": 5,
     "wrong_pass": 3.0,
     "wrong_fail": 2.0,
+    "wrong_pass_by_run": [
+     3
+    ],
+    "wrong_fail_by_run": [
+     2
+    ],
     "mae_grade_points": 1.73,
     "mae_grade_points_ci95": [
      1.07,
@@ -138,6 +150,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 1.0,
     "wrong_fail": 0.33,
+    "wrong_pass_by_run": [
+     1,
+     1,
+     1
+    ],
+    "wrong_fail_by_run": [
+     1,
+     0,
+     0
+    ],
     "mae_grade_points": 1.11,
     "mae_grade_points_ci95": [
      0.62,
@@ -187,6 +209,12 @@
     "reference_n_fail": 5,
     "wrong_pass": 3.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     3
+    ],
+    "wrong_fail_by_run": [
+     0
+    ],
     "mae_grade_points": 1.4,
     "mae_grade_points_ci95": [
      0.87,
@@ -234,6 +262,12 @@
     "reference_n_fail": 5,
     "wrong_pass": 4.0,
     "wrong_fail": 1.0,
+    "wrong_pass_by_run": [
+     4
+    ],
+    "wrong_fail_by_run": [
+     1
+    ],
     "mae_grade_points": 2.33,
     "mae_grade_points_ci95": [
      1.53,
@@ -281,6 +315,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 2.33,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     3,
+     2,
+     2
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.31,
     "mae_grade_points_ci95": [
      0.82,
@@ -330,6 +374,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 2.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     2,
+     2,
+     2
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.29,
     "mae_grade_points_ci95": [
      0.73,
@@ -379,6 +433,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 3.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     2,
+     4,
+     3
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.62,
     "mae_grade_points_ci95": [
      0.98,
@@ -428,6 +492,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 4.33,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     5
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.91,
     "mae_grade_points_ci95": [
      1.38,
@@ -477,6 +551,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 4.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     4
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.69,
     "mae_grade_points_ci95": [
      1.07,
@@ -526,6 +610,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 4.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     4,
+     4,
+     4
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 1.56,
     "mae_grade_points_ci95": [
      0.96,
@@ -575,6 +669,12 @@
     "reference_n_fail": 5,
     "wrong_pass": 5.0,
     "wrong_fail": 2.0,
+    "wrong_pass_by_run": [
+     5
+    ],
+    "wrong_fail_by_run": [
+     2
+    ],
     "mae_grade_points": 3.0,
     "mae_grade_points_ci95": [
      2.0,
@@ -622,6 +722,16 @@
     "reference_n_fail": 5,
     "wrong_pass": 5.0,
     "wrong_fail": 0.0,
+    "wrong_pass_by_run": [
+     5,
+     5,
+     5
+    ],
+    "wrong_fail_by_run": [
+     0,
+     0,
+     0
+    ],
     "mae_grade_points": 3.27,
     "mae_grade_points_ci95": [
      2.24,
