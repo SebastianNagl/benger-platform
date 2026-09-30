@@ -1123,7 +1123,8 @@ fail unexpectedly carry the reference in their message.
 | `tool_not_configured` | The tool's signing key cannot be loaded. | Platform operator. |
 | `state_unavailable` | A temporary server problem. The sign-in could not be stored or read. It is not a browser or cookie problem. | Try again in a few minutes. |
 | `invalid_state` | The sign-in was older than 5 minutes or already used (back button, reload, double submit). | Reopen the activity. |
-| `invalid_token` | The LMS sign-in could not be verified (JWKS URL, client ID, new LMS keys, clock). | Reopen. If it repeats, LMS admin and org admin check the settings. |
+| `invalid_token` | The LMS sign-in could not be verified (client ID, new LMS keys, clock). | Reopen. If it repeats, LMS admin and org admin check the settings. |
+| `jwks_unreachable` | The tool could not load the LMS key set from the JWKS URL, usually because a firewall in front of the LMS blocks the tool server (the tool settings can be correct). | Try again later. If it repeats, the LMS admin opens the JWKS and token URLs to the tool server, or the org admin fixes the JWKS URL. |
 | `nonce_mismatch` | The LMS answer does not match the started sign-in. | Reopen the activity. |
 | `nonce_reused` | The same sign-in arrived twice. | Reopen the activity. |
 | `unsupported_message` | The LMS sent a request type the tool does not support, for example Deep Linking. | LMS admin switches Deep Linking off. |

@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-09-30',
+    audience: 'both',
+    text: {
+      de: 'Kann die Plattform beim Start aus Moodle oder ILIAS die Schlüssel der Lernplattform nicht laden, etwa weil eine Firewall sie nicht durchlässt, zeigt die Fehlerseite jetzt den eigenen Code jwks_unreachable. Bisher erschien dafür invalid_token, obwohl die Tool-Einstellungen oft richtig waren. Die Hilfe nennt, welche Adressen die Administration der Lernplattform freigeben muss.',
+      en: 'When the platform cannot load the keys of the learning platform during a launch from Moodle or ILIAS, for example because a firewall blocks it, the error page now shows its own code jwks_unreachable. Until now this appeared as invalid_token, although the tool settings were often correct. The help names the addresses the learning platform administration has to open.',
+    },
+  },
+  {
     date: '2026-09-26',
     audience: 'both',
     text: {
