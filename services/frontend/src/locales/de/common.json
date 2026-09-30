@@ -3300,10 +3300,12 @@
       "title": "Gruppe & Netzwerk",
       "subtitle": "Das Team hinter BenGER, alle Mitwirkenden am Datensatz und unsere Partner in der juristischen KI-Forschung.",
       "networkTitle": "Netzwerk & Partner",
-      "teamPlatform": [
+      "showAll": "Alle anzeigen",
+      "showLess": "Weniger anzeigen",
+      "members": [
         {
           "name": "Sebastian Nagl",
-          "role": "Projektleiter & Entwickler",
+          "role": "Produktleitung & Entwickler",
           "institution": "Technische Universität München",
           "url": "https://legalplusplus.net",
           "image": "/people/sebastian-nagl.jpg"
@@ -3314,31 +3316,41 @@
           "institution": "Technische Universität München",
           "url": "",
           "image": "/people/matthias-grabmair.jpg"
-        }
-      ],
-      "teamDatasetCore": [
+        },
         {
-          "name": "Sebastian Nagl",
-          "role": "Projektleiter & Entwickler",
+          "name": "Sofija Milijas",
+          "role": "Projektkoordination",
           "institution": "Technische Universität München",
-          "url": "https://legalplusplus.net",
-          "image": "/people/sebastian-nagl.jpg"
-        }
-      ],
-      "teamDatasetContribution": [
+          "url": "",
+          "image": "/people/sofija-milijas.jpg"
+        },
         {
           "name": "Ann-Kristin Mayrhofer",
           "role": "Zivilrecht",
           "institution": "LMU München",
           "url": "",
-          "image": ""
+          "image": "/people/ann-kristin-mayrhofer.jpg"
         },
         {
           "name": "Martin Heidebach",
           "role": "Öffentliches Recht",
           "institution": "LMU München",
           "url": "",
-          "image": ""
+          "image": "/people/martin-heidebach.jpg"
+        },
+        {
+          "name": "Liane Wörner",
+          "role": "Strafrecht",
+          "institution": "Universität Konstanz",
+          "url": "",
+          "image": "/people/liane-woerner.jpg"
+        },
+        {
+          "name": "Philipp Reuß",
+          "role": "Zivilrecht",
+          "institution": "Universität Göttingen",
+          "url": "",
+          "image": "/people/philipp-reuss.jpg"
         },
         {
           "name": "Anne Zettelmeier",
@@ -3350,7 +3362,7 @@
         {
           "name": "Aleyna Kocak",
           "role": "Strafrecht",
-          "institution": "Universität Freiburg",
+          "institution": "Universität Konstanz",
           "url": "",
           "image": ""
         },
@@ -3369,31 +3381,6 @@
           "image": "/people/elly-breu.jpg"
         },
         {
-          "name": "Sofija Milijas",
-          "role": "Projektkoordination",
-          "institution": "Technische Universität München",
-          "url": "",
-          "image": "/people/sofija-milijas.jpg"
-        }
-      ],
-      "teamDatasetSenior": [
-        {
-          "name": "Matthias Grabmair",
-          "role": "Projektleitung",
-          "institution": "Technische Universität München",
-          "url": "",
-          "image": "/people/matthias-grabmair.jpg"
-        }
-      ],
-      "acknowledgements": [
-        {
-          "name": "Liane Wörner",
-          "role": "Strafrecht",
-          "institution": "Universität Freiburg",
-          "url": "",
-          "image": ""
-        },
-        {
           "name": "Sarah Rachut",
           "role": "Öffentliches Recht",
           "institution": "TU Braunschweig",
@@ -3404,13 +3391,6 @@
           "name": "Dominik Brodowski",
           "role": "Strafrecht",
           "institution": "Universität des Saarlandes",
-          "url": "",
-          "image": ""
-        },
-        {
-          "name": "Philipp Reuß",
-          "role": "Zivilrecht",
-          "institution": "Universität Göttingen",
           "url": "",
           "image": ""
         },

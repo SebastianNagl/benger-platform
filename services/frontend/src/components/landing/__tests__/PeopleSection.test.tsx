@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { PeopleSection } from '../PeopleSection'
 
 jest.mock('@/contexts/I18nContext', () => ({
@@ -23,7 +23,7 @@ jest.mock('@/components/shared/Card', () => ({
 const mockUseI18n = require('@/contexts/I18nContext').useI18n
 
 describe('PeopleSection', () => {
-  const mockTeamPlatform = [
+  const mockMembers = [
     {
       name: 'Sebastian Nagl',
       role: 'Project Lead',
@@ -36,36 +36,18 @@ describe('PeopleSection', () => {
       institution: 'TUM',
       url: '',
     },
-  ]
-
-  const mockTeamDatasetCore = [
-    {
-      name: 'Sebastian Nagl',
-      role: 'Project Lead',
-      institution: 'TUM',
-      url: 'https://legalplusplus.net',
-    },
-  ]
-
-  const mockTeamDatasetContribution = [
     {
       name: 'Team Member',
       role: 'Research Associate',
       institution: 'TUM',
       url: '',
     },
-  ]
-
-  const mockTeamDatasetSenior = [
     {
       name: 'Senior Author',
       role: 'Criminal Law',
       institution: 'University',
       url: '',
     },
-  ]
-
-  const mockAcknowledgements = [
     {
       name: 'Acknowledged Person',
       role: 'Coordination',
@@ -93,11 +75,7 @@ describe('PeopleSection', () => {
       'landing.people.title': 'Group & Network',
       'landing.people.subtitle': 'Meet the team behind BenGER.',
       'landing.people.networkTitle': 'Network & Partners',
-      'landing.people.teamPlatform': mockTeamPlatform,
-      'landing.people.teamDatasetCore': mockTeamDatasetCore,
-      'landing.people.teamDatasetContribution': mockTeamDatasetContribution,
-      'landing.people.teamDatasetSenior': mockTeamDatasetSenior,
-      'landing.people.acknowledgements': mockAcknowledgements,
+      'landing.people.members': mockMembers,
       'landing.people.network': mockNetwork,
     }
     return translations[key] || key
@@ -144,21 +122,13 @@ describe('PeopleSection', () => {
     it('renders correct number of cards', () => {
       render(<PeopleSection />)
       const cards = screen.getAllByTestId('card')
-      // People are merged into one list and de-duplicated by name:
-      // Sebastian (platform + dataset core) once, Matthias, Team Member,
-      // Senior Author, Acknowledged Person = 5, plus 2 network = 7.
+      // 5 people (all fit in the collapsed view) plus 2 network = 7.
       expect(cards).toHaveLength(7)
-    })
-
-    it('lists a person appearing in several source lists only once', () => {
-      render(<PeopleSection />)
-      expect(screen.getAllByText('Sebastian Nagl')).toHaveLength(1)
     })
 
     it('renders team member names', () => {
       render(<PeopleSection />)
-      // Sebastian appears in platform and dataset core
-      expect(screen.getAllByText('Sebastian Nagl').length).toBeGreaterThan(0)
+      expect(screen.getByText('Sebastian Nagl')).toBeInTheDocument()
       expect(screen.getByText('Matthias Grabmair')).toBeInTheDocument()
       expect(screen.getByText('Team Member')).toBeInTheDocument()
       expect(screen.getByText('Senior Author')).toBeInTheDocument()
@@ -258,14 +228,51 @@ describe('PeopleSection', () => {
       expect(mockT).toHaveBeenCalledWith('landing.people.title')
       expect(mockT).toHaveBeenCalledWith('landing.people.subtitle')
       expect(mockT).toHaveBeenCalledWith('landing.people.networkTitle')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamPlatform')
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetCore')
-      expect(mockT).toHaveBeenCalledWith(
-        'landing.people.teamDatasetContribution',
-      )
-      expect(mockT).toHaveBeenCalledWith('landing.people.teamDatasetSenior')
-      expect(mockT).toHaveBeenCalledWith('landing.people.acknowledgements')
+      expect(mockT).toHaveBeenCalledWith('landing.people.members')
       expect(mockT).toHaveBeenCalledWith('landing.people.network')
+    })
+  })
+
+  describe('collapse', () => {
+    const people = Array.from({ length: 8 }, (_, i) => ({
+      name: `Person ${i + 1}`,
+      role: 'Role',
+      institution: 'Uni',
+      url: '',
+    }))
+    const renderWith = () => {
+      const strings: Record<string, any> = {
+        'landing.people.members': people,
+        'landing.people.showAll': 'Show all',
+        'landing.people.showLess': 'Show less',
+      }
+      mockUseI18n.mockReturnValue({ t: (key: string) => strings[key] ?? key })
+      render(<PeopleSection />)
+    }
+    const names = () =>
+      screen
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent)
+        .filter((n) => n?.startsWith('Person'))
+
+    it('shows the first six people in list order', () => {
+      renderWith()
+      expect(names()).toEqual(people.slice(0, 6).map((p) => p.name))
+    })
+
+    it('expands to everyone and collapses again', () => {
+      renderWith()
+      const button = screen.getByRole('button', { name: 'Show all (8)' })
+      expect(button).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(button)
+      expect(names()).toEqual(people.map((p) => p.name))
+      fireEvent.click(screen.getByRole('button', { name: 'Show less' }))
+      expect(screen.queryByText('Person 7')).not.toBeInTheDocument()
+    })
+
+    it('shows no button when everyone fits', () => {
+      render(<PeopleSection />)
+      expect(screen.queryByRole('button')).not.toBeInTheDocument()
     })
   })
 
