@@ -164,17 +164,12 @@ describe('API Client Method Bindings', () => {
       expect(apiClient.acceptInvitation).toBeDefined()
       expect(apiClient.createInvitation).toBeDefined()
 
-      // Test feature flag methods
-      expect(apiClient.getFeatureFlags).toBeDefined()
-      expect(apiClient.checkFeatureFlag).toBeDefined()
-
       // Verify they are functions
       expect(typeof apiClient.getCurrentUser).toBe('function')
       expect(typeof apiClient.getOrganizations).toBe('function')
       expect(typeof apiClient.getProjects).toBe('function')
       expect(typeof apiClient.getNotifications).toBe('function')
       expect(typeof apiClient.getInvitationByToken).toBeDefined()
-      expect(typeof apiClient.getFeatureFlags).toBe('function')
     })
 
     it('should have invitations client be an instance of InvitationsApiClient', () => {

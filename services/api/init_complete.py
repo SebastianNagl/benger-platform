@@ -743,7 +743,7 @@ def setup_user_api_keys(db):
 
 
 def main():
-    """Initialize database with tables, demo users, organization, and feature flags"""
+    """Initialize database with tables, demo users and the demo organization"""
     print("🚀 BenGER Complete Database Initialization")
     print("=" * 50)
 
@@ -787,8 +787,8 @@ def main():
         finally:
             db.close()
 
-        # Setup organization and feature flags
-        print("\n🏢 Step 3: Setting up TUM organization and feature flags...")
+        # Setup organization
+        print("\n🏢 Step 3: Setting up TUM organization...")
         setup_demo_organization()
 
         # E2E test data (Steps 4-7) only in test/e2e environments
@@ -859,13 +859,6 @@ def main():
             print("✅ Mock annotations created by multiple users")
             print("✅ Mock generation data created (3 models x 5 tasks)")
             print("✅ Mock evaluation data created with sample results")
-        print("✅ Feature flags enabled:")
-        print("   - reports")
-        print("   - data")
-        print("   - generations")
-        print("   - evaluations")
-        print("   - how-to")
-        print("   - leaderboards")
         print("\n🚀 You can now access the application at:")
         print("   http://benger.localhost")
         print("   Login: admin/admin")

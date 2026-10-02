@@ -11,15 +11,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { AuthButton } from '../AuthButton'
 
 const mockUseAuth = jest.fn()
-const mockUseFeatureFlags = jest.fn()
 const mockUseHydration = jest.fn()
 
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
-}))
-
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => mockUseFeatureFlags(),
 }))
 
 jest.mock('@/contexts/HydrationContext', () => ({
@@ -107,7 +102,6 @@ jest.mock('@heroicons/react/24/outline', () => ({
 describe('AuthButton', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUseFeatureFlags.mockReturnValue({ isEnabled: () => false })
   })
 
   it('shows loading button when isLoading=true and isClient=false (SSR fallback)', () => {
@@ -209,7 +203,7 @@ describe('AuthButton', () => {
     expect(screen.getByText('Notification Settings')).toBeInTheDocument()
   })
 
-  it('shows Feature Flags link for superadmin', () => {
+  it('has no platform Feature Flags link for superadmin', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, username: 'admin', is_superadmin: true },
       logout: jest.fn(),
@@ -222,7 +216,8 @@ describe('AuthButton', () => {
 
     render(<AuthButton />)
     fireEvent.click(screen.getByText('admin'))
-    expect(screen.getByText('Feature Flags')).toBeInTheDocument()
+    expect(screen.getByText('Profile Settings')).toBeInTheDocument()
+    expect(screen.queryByText('Feature Flags')).not.toBeInTheDocument()
   })
 
   it('does not show Feature Flags link for non-superadmin', () => {

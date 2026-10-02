@@ -15,10 +15,11 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import extensions
+from core_version import CORE_API_VERSION
 
 
 class _FakeExtended:
-    COMPATIBLE_CORE_VERSIONS = ["2.26"]
+    COMPATIBLE_CORE_VERSIONS = [CORE_API_VERSION]
 
     def __init__(self, hooks=None, configure_app=None):
         self._hooks = hooks or {}

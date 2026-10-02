@@ -117,7 +117,6 @@ Test ports (isolated from dev): PostgreSQL 5433, Redis 6380, API 8002, Frontend 
 - [Environment Variables](docs/setup/environment-variables.md)
 - [Deployment Guide](docs/setup/deployment/DEPLOYMENT.md)
 - [Testing Guide](docs/development/TESTING.md)
-- [Feature Flags](docs/setup/feature-flags.md)
 - [Documentation Index](docs/README.md)
 
 ## License

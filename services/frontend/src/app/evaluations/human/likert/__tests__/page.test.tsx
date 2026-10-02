@@ -31,11 +31,6 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: jest.fn(),
 }))
 
-// Mock FeatureFlag to render children
-jest.mock('@/components/shared/FeatureFlag', () => ({
-  FeatureFlag: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
 // Mock AuthContext
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({

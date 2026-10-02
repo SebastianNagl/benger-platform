@@ -90,10 +90,6 @@ jest.mock('@heroicons/react/24/outline', () => ({
   XMarkIcon: () => <div data-testid="x-mark-icon" />,
 }))
 
-jest.mock('@/components/shared/FeatureFlag', () => ({
-  FeatureFlag: ({ children }: any) => <>{children}</>,
-}))
-
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">

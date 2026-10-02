@@ -609,11 +609,7 @@ export class BaseApiClient {
 
         // Handle 401 errors - attempt token refresh before triggering logout
         // Skip refresh attempt for certain endpoints where 401 is expected
-        const skipAuthFailureEndpoints = [
-          '/auth/refresh',
-          '/auth/logout',
-          '/feature-flags', // Feature flags should not trigger auth failure
-        ]
+        const skipAuthFailureEndpoints = ['/auth/refresh', '/auth/logout']
 
         const shouldSkipAuthFailure = skipAuthFailureEndpoints.some((path) =>
           endpoint.includes(path),

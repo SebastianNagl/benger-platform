@@ -10,14 +10,11 @@ live as two divergent copies — ``services/api/services/email/email_service.py`
 and ``services/workers/email_service.py`` — which both now re-export from here.
 The two former copies are reconciled here as a behavioral *superset*:
 
-* ``__init__(check_feature_flag=True)`` — the api copy queried the
-  ``API_MAIL_SERVICE`` feature flag via a short-lived ``SessionLocal`` to
-  decide ``mail_enabled``; the worker copy hardcoded ``mail_enabled = True``
-  (no DB to query during a Celery task that builds the service eagerly at
-  module import). The flag check is kept as the default; pass
-  ``check_feature_flag=False`` to skip the DB query and force-enable (the
-  worker's old behavior). The check also fails safe to enabled if the DB is
-  unreachable, so ``check_feature_flag=True`` never crashes a worker.
+* ``mail_enabled`` is always True at construction. The api copy used to
+  consult an ``API_MAIL_SERVICE`` feature-flag row to set it; that row never
+  existed in production and was deleted with the platform flag system
+  (core 2.27), so construction never touches the database. Tests and
+  callers may still set ``mail_enabled = False`` on an instance.
 * ``send_notification_email`` keeps the worker's enum-or-string
   ``notification.type`` handling — ``send_notification_batch_task`` hydrates
   an unattached ``Notification`` with ``type`` as a plain string from the
@@ -44,47 +41,18 @@ logger = logging.getLogger(__name__)
 class EmailService:
     """Service for sending emails via SendGrid."""
 
-    def __init__(self, check_feature_flag: bool = True):
-        """Initialize the email service.
-
-        Args:
-            check_feature_flag: When True (default, the api's historical
-                behavior) consult the ``API_MAIL_SERVICE`` feature flag to set
-                ``mail_enabled``. When False (the worker's historical
-                behavior) skip the DB query entirely and enable unconditionally
-                — used where no DB session is appropriate at construction time.
-        """
+    def __init__(self):
+        """Initialize the email service. Never touches the database."""
         self.from_email = os.getenv("EMAIL_FROM_ADDRESS", "noreply@what-a-benger.net")
         self.from_name = os.getenv("EMAIL_FROM_NAME", "BenGER Platform")
 
-        # Check if mail service is enabled via feature flag (unless skipped).
-        self.mail_enabled = self._is_mail_enabled() if check_feature_flag else True
+        self.mail_enabled = True
 
         # Initialize SendGrid client for email delivery
         self.mail_client = SendGridClient()
 
         # Initialize template environment
         self.template_env = self._init_template_environment()
-
-        if not self.mail_enabled:
-            logger.info("Mail service is disabled via feature flag")
-
-    def _is_mail_enabled(self) -> bool:
-        """Check if mail service is enabled via feature flag"""
-        try:
-            from database import SessionLocal
-            from models import FeatureFlag
-
-            db = SessionLocal()
-            try:
-                # Check for mail service feature flag
-                flag = db.query(FeatureFlag).filter(FeatureFlag.name == "API_MAIL_SERVICE").first()
-                return flag.is_enabled if flag else True  # Default to enabled
-            finally:
-                db.close()
-        except Exception as e:
-            logger.warning(f"Could not check mail service feature flag: {e}")
-            return True  # Default to enabled if check fails
 
     def _init_template_environment(self) -> Environment:
         """Initialize Jinja2 template environment for email templates"""
@@ -722,11 +690,9 @@ class EmailService:
             return False
 
 
-# Global email service instance. Constructed with check_feature_flag=False so
-# importing this module never triggers a DB query at import time — matching the
-# worker's historical eager construction. The api flips mail_enabled via the
-# feature-flag check at request time where needed (and tests set it directly).
-email_service = EmailService(check_feature_flag=False)
+# Global email service instance. Construction never queries the database, so
+# importing this module is side-effect free for both the api and the workers.
+email_service = EmailService()
 
 
 # Convenience functions for backward compatibility

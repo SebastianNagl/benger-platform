@@ -534,7 +534,7 @@ def delete_user(db: Session, user_id: str) -> bool:
             UserNotificationPreference.user_id == user_id
         ).delete(synchronize_session=False)
         db.query(FeatureFlag).filter(FeatureFlag.created_by == user_id).update(
-            {"created_by": FALLBACK_SUPERADMIN_ID}, synchronize_session=False
+            {"created_by": None}, synchronize_session=False
         )
 
         # Cleanup Phase 3: every users.id reference with no ON DELETE rule
@@ -620,46 +620,6 @@ def delete_user(db: Session, user_id: str) -> bool:
 def get_all_users(db: Session) -> List[User]:
     """Get all users"""
     return db.query(User).all()
-
-
-def init_feature_flags(db: Session, created_by_user_id: str):
-    """Initialize essential feature flags for the application."""
-    import uuid
-    from datetime import datetime
-
-    from models import FeatureFlag
-
-    print("Initializing feature flags...")
-
-    feature_flags = [
-        {"name": "data", "description": "Enable access to Data Management features and page", "is_enabled": True},
-        {"name": "generations", "description": "Enable access to Generation features and page", "is_enabled": True},
-        {"name": "evaluations", "description": "Enable access to Evaluation features and page", "is_enabled": True},
-        {"name": "reports", "description": "Enable access to Reports page", "is_enabled": True},
-        {"name": "how-to", "description": "Enable access to How-To page", "is_enabled": True},
-        {"name": "leaderboards", "description": "Enable access to Leaderboards page with pseudonymized annotation rankings (Issue #790)", "is_enabled": True},
-    ]
-
-    for flag_data in feature_flags:
-        existing_flag = db.query(FeatureFlag).filter(FeatureFlag.name == flag_data["name"]).first()
-        if not existing_flag:
-            try:
-                flag = FeatureFlag(
-                    id=str(uuid.uuid4()),
-                    name=flag_data["name"],
-                    description=flag_data["description"],
-                    is_enabled=flag_data["is_enabled"],
-                    created_by=created_by_user_id,
-                    created_at=datetime.utcnow(),
-                )
-                db.add(flag)
-                db.commit()
-                print(f"  Created feature flag: {flag_data['name']}")
-            except Exception as e:
-                print(f"  Failed to create feature flag {flag_data['name']}: {e}")
-                db.rollback()
-
-    print("Feature flags initialization complete!")
 
 
 def _complete_demo_user_profile(db: Session, user):
@@ -786,8 +746,6 @@ def init_demo_users(db: Session):
                 return
     else:
         print("Demo user already exists: admin")
-
-    init_feature_flags(db, admin_user.id)
 
     demo_users = [
         {"username": "org_admin", "email": "org_admin@example.com", "name": "Organization Administrator", "password": "admin", "is_superadmin": False, "org_role": "ORG_ADMIN"},

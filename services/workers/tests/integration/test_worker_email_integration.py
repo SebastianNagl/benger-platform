@@ -18,14 +18,13 @@ def email_service_integration():
     """Create EmailService with real dependencies mocked at integration points"""
     # EmailService is the canonical impl in mailer.email_service; patch the
     # SendGridClient name in that module's namespace (the local email_service
-    # module is a re-export shim). check_feature_flag=False skips the DB-backed
-    # feature-flag lookup the worker has no session for.
+    # module is a re-export shim).
     with patch('mailer.email_service.SendGridClient') as mock_sg_class:
         mock_sg_client = Mock()
         mock_sg_client.api_key = "test_api_key"
         mock_sg_class.return_value = mock_sg_client
 
-        service = EmailService(check_feature_flag=False)
+        service = EmailService()
         service.mail_enabled = True
         service.mail_client = mock_sg_client
         return service
@@ -279,7 +278,7 @@ class TestEmailServiceResilience:
             assert result is True
 
     @pytest.mark.asyncio
-    async def test_feature_flag_disabled_scenario(self):
+    async def test_mail_disabled_scenario(self):
         """Test email service behavior when mail is disabled"""
         service = EmailService()
         service.mail_enabled = False

@@ -106,7 +106,7 @@ export default function EmailVerificationManagement() {
     loadInitialData()
   }, [loadInitialData])
 
-  // Superadmin self-gate (parity with /admin/feature-flags — this page had
+  // Superadmin self-gate (parity with /admin/lti — this page had
   // none; the API endpoints behind it are superadmin-gated, so non-admins
   // only ever saw a broken shell, but the page must deny like its siblings).
   if (!user?.is_superadmin) {

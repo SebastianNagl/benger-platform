@@ -25,7 +25,6 @@ import Highlighter from 'react-highlight-words'
 import { navigation } from '@/components/layout/Navigation'
 import { SearchIcon } from '@/components/shared/SearchIcon'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { useHowToGuides } from '@/lib/howto'
@@ -47,7 +46,6 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   let id = useId()
   let router = useRouter()
   const { user, organizations } = useAuth()
-  const { flags } = useFeatureFlags()
   const { t, locale, isReady } = useI18n()
   let [autocompleteState, setAutocompleteState] = useState<
     AutocompleteState<Result> | EmptyObject
@@ -75,15 +73,15 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   // the extended package registers its guides after initial load.
   const guides = useHowToGuides()
 
-  // Get localized search results: the static page index (feature flags +
-  // roles applied) plus the how-to guides — see lib/search for the list.
+  // Get localized search results: the static page index (roles applied)
+  // plus the how-to guides; see lib/search for the list.
   const getLocalizedResults = useCallback(() => {
     // Wait for translations to be ready to avoid displaying raw translation keys
     if (!isReady) {
       return []
     }
-    return buildSearchIndex({ t, locale, flags, user, organizations, guides })
-  }, [t, locale, flags, user, organizations, isReady, guides])
+    return buildSearchIndex({ t, locale, user, organizations, guides })
+  }, [t, locale, user, organizations, isReady, guides])
 
   // Memoize the localized results to prevent unnecessary re-translations
   const localizedResults = useMemo(() => {
@@ -91,7 +89,7 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   }, [getLocalizedResults])
 
   // Use a ref to provide current localizedResults to autocomplete getSources
-  // This avoids stale closure issues when feature flags load after initial render
+  // This avoids stale closure issues when translations or guides load after initial render
   const localizedResultsRef = useRef(localizedResults)
   useEffect(() => {
     localizedResultsRef.current = localizedResults

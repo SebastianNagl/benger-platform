@@ -50,19 +50,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: mockUser, organizations: mockOrganizations }),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: {
-      reports: true,
-      leaderboards: true,
-      data: true,
-      generations: true,
-      evaluations: true,
-      'how-to': true,
-    },
-  }),
-}))
-
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string) => {

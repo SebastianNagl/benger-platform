@@ -38,28 +38,13 @@ class TestEmailService:
         assert email_service.from_name == 'BenGER Platform'  # Default
         assert email_service.mail_client != None  # noqa: E711
 
-    def test_feature_flag_check(self, mock_db_session):
-        """Test email service feature flag checking"""
-        # Test with feature flag enabled
-        mock_flag = MagicMock()
-        mock_flag.is_enabled = True
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_flag
-
-        with patch('database.SessionLocal', return_value=mock_db_session):
+    def test_construction_does_not_query_db(self, mock_db_session):
+        """Mail starts enabled and construction never opens a DB session."""
+        with patch('database.SessionLocal', return_value=mock_db_session) as mock_factory:
             service = EmailService()
             assert service.mail_enabled == True  # noqa: E712
-
-        # Test with feature flag disabled
-        mock_flag.is_enabled = False
-        with patch('database.SessionLocal', return_value=mock_db_session):
-            service = EmailService()
-            assert service.mail_enabled == False  # noqa: E712
-
-        # Test with no feature flag (default to enabled)
-        mock_db_session.query.return_value.filter.return_value.first.return_value = None
-        with patch('database.SessionLocal', return_value=mock_db_session):
-            service = EmailService()
-            assert service.mail_enabled == True  # noqa: E712
+            mock_factory.assert_not_called()
+        mock_db_session.query.assert_not_called()
 
     def test_template_environment_initialization(self, email_service):
         """Test Jinja2 template environment initialization"""

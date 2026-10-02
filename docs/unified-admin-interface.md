@@ -10,13 +10,11 @@ All code components have been successfully implemented:
 
 ### ✅ Completed Items
 
-1. **Feature Flag Migration**: Created Alembic migration for `ADMIN_UNIFIED_USER_ORG_INTERFACE` feature flag
-2. **Permission Service**: Implemented `UserOrganizationPermissions` class with comprehensive role-based access control
-3. **Unified Interface**: Created `/admin/users-organizations` page with tab-based navigation
-4. **Component Extraction**: Refactored into `GlobalUsersTab` and `OrganizationsTab` components
-5. **Navigation Updates**: Updated admin dashboard to support both old and new interfaces
-6. **URL Redirects**: Implemented automatic redirects when feature flag is enabled
-7. **Comprehensive Tests**: Added unit tests for all permission scenarios
+1. **Permission Service**: Implemented `UserOrganizationPermissions` class with comprehensive role-based access control
+2. **Unified Interface**: Created `/admin/users-organizations` page with tab-based navigation
+3. **Component Extraction**: Refactored into `GlobalUsersTab` and `OrganizationsTab` components
+4. **Navigation Updates**: Updated admin dashboard to link the unified interface
+5. **Comprehensive Tests**: Added unit tests for all permission scenarios
 
 ## Architecture
 
@@ -37,33 +35,9 @@ Centralized permission logic that determines user capabilities:
     └── OrganizationsTab.tsx    # Role-aware organization management
 ```
 
-## Deployment Instructions
+## Availability
 
-### Step 1: Apply Database Migration
-
-The feature flag must be added to the database before the feature can be enabled:
-
-```bash
-# From the API service directory
-cd services/api
-alembic upgrade head
-```
-
-This will create the `ADMIN_UNIFIED_USER_ORG_INTERFACE` feature flag in disabled state.
-
-### Step 2: Enable Feature Flag
-
-1. Navigate to `/admin/feature-flags` as a superadmin
-2. Find `ADMIN_UNIFIED_USER_ORG_INTERFACE`
-3. Toggle the flag to "Enabled"
-
-### Step 3: Verify Functionality
-
-Once enabled, the system will:
-- Redirect `/admin/users` → `/admin/users-organizations`
-- Redirect `/organizations` → `/admin/users-organizations`
-- Show "User & Organization Management" in admin dashboard
-- Display appropriate tabs based on user permissions
+The unified interface at `/admin/users-organizations` is always on; it is no longer behind a feature flag.
 
 ## User Access Patterns
 
@@ -117,32 +91,6 @@ cd services/frontend
 npm test -- userOrganizationPermissions.test.ts
 ```
 
-## Rollback Instructions
-
-If issues arise, the feature can be instantly disabled:
-
-1. Navigate to `/admin/feature-flags`
-2. Find `ADMIN_UNIFIED_USER_ORG_INTERFACE`
-3. Toggle to "Disabled"
-4. Users will immediately see the old interfaces
-
-## Migration Path
-
-### Phase 1: Testing (Current)
-- Feature flag disabled by default
-- Test with select users/organizations
-- Gather feedback
-
-### Phase 2: Gradual Rollout
-- Enable for specific organizations
-- Monitor for issues
-- Collect user feedback
-
-### Phase 3: Full Deployment
-- Enable globally
-- Deprecate old interfaces
-- Remove feature flag in future release
-
 ## Performance Considerations
 
 - **Lazy Loading**: Tab content loads only when accessed
@@ -158,14 +106,11 @@ If issues arise, the feature can be instantly disabled:
 
 ## Known Limitations
 
-1. Feature flag must be manually enabled (no auto-migration)
-2. Organization creation remains superadmin-only
-3. No bulk operations for organization admins
+1. Organization creation remains superadmin-only
+2. No bulk operations for organization admins
 
 ## Future Enhancements
 
-- Percentage-based feature flag rollout
-- User-specific feature flag overrides
 - Advanced filtering and search in unified interface
 - Bulk invitation sending
 - Organization templates

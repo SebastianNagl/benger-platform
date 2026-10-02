@@ -3,7 +3,6 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import {
@@ -47,9 +46,6 @@ jest.mock('@/components/shared/Select', () => ({
 
 // Mock modules
 jest.mock('@/contexts/AuthContext')
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(),
-}))
 jest.mock('@/contexts/I18nContext')
 jest.mock('@/hooks/useDialogs', () => ({
   useErrorAlert: jest.fn(),
@@ -183,20 +179,6 @@ describe('AdminUsersPage', () => {
       refresh: jest.fn(),
       prefetch: jest.fn(),
       pathname: '/admin/users',
-    })
-
-    // Mock feature flags
-    const mockUseFeatureFlags = useFeatureFlags as jest.MockedFunction<
-      typeof useFeatureFlags
-    >
-    mockUseFeatureFlags.mockReturnValue({
-      flags: {},
-      isLoading: false,
-      error: null,
-      isEnabled: jest.fn().mockReturnValue(true),
-      refreshFlags: jest.fn(),
-      checkFlag: jest.fn(),
-      lastUpdate: Date.now(),
     })
 
     // Mock auth context

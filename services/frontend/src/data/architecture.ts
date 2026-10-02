@@ -96,14 +96,14 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
     },
     bullets: {
       de: [
-        'Rund 36 Router-Module: Projekte und Aufgaben, Import/Export, Generierung, Evaluation und Sofort-Evaluation, Organisationen mit Gruppen und Einladungen, API-Schlüssel (persönlich, Organisation, Gruppe), eigene Modelle, Prompt-Strukturen, Bestenlisten, Berichte, Läufe, Benachrichtigungen, Objektspeicher, LTI-Administration, Feature-Flags, Health.',
+        'Rund 36 Router-Module: Projekte und Aufgaben, Import/Export, Generierung, Evaluation und Sofort-Evaluation, Organisationen mit Gruppen und Einladungen, API-Schlüssel (persönlich, Organisation, Gruppe), eigene Modelle, Prompt-Strukturen, Bestenlisten, Berichte, Läufe, Benachrichtigungen, Objektspeicher, LTI-Administration, Health.',
         'Alembic-Migrationen laufen beim Start unter einem Advisory-Lock; ein Schema-Validator prüft danach Modell und Datenbank gegeneinander.',
         'Der Modellkatalog (`llm_models.yaml`) ist die einzige Quelle für Modelle, Preise und Parameter-Constraints und wird beim Start in die Datenbank geseedet.',
         'Die Erweiterungen laden über `extensions.py`: zusätzliche Router und Lifecycle-Hooks (nach Annotation, nach Entwurf, nach Speichern einer Evaluationskonfiguration, bei Registrierung) mit einem Versions-Handshake zwischen Kern und Erweiterung.',
         '`/health` prüft Postgres und Redis (Pflicht) sowie die Worker (weich); Drittanbieter werden bewusst nicht in der Liveness-Probe abgefragt.',
       ],
       en: [
-        'Around 36 router modules: projects and tasks, import/export, generation, evaluation and immediate evaluation, organizations with groups and invitations, API keys (personal, organization, group), custom models, prompt structures, leaderboards, reports, runs, notifications, object storage, LTI administration, feature flags, health.',
+        'Around 36 router modules: projects and tasks, import/export, generation, evaluation and immediate evaluation, organizations with groups and invitations, API keys (personal, organization, group), custom models, prompt structures, leaderboards, reports, runs, notifications, object storage, LTI administration, health.',
         'Alembic migrations run at startup under an advisory lock; a schema validator then checks models against the database.',
         'The model catalog (`llm_models.yaml`) is the single source for models, prices and parameter constraints and is seeded into the database at startup.',
         'Extensions load through `extensions.py`: additional routers and lifecycle hooks (after annotation, after draft, after saving an evaluation config, on signup) with a version handshake between core and extension.',
@@ -190,13 +190,11 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
         'Sichtbarkeit von Projekten: privat, Organisation (optional eine Gruppe) oder öffentlich; zusätzlich Freigabe-Links mit Passwort und ein Verzeichnis (*Entdecken*) für Studierende. Wer über Link oder Verzeichnis beitritt, bekommt die schmale Teilnehmer-Stufe ohne Referenzdaten.',
         'API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person. Bei Klausuren, die mit einer Lernplattform verknüpft sind, zahlt die Organisation der Anbindung die KI-Korrektur ihrer Studierenden aus der Lernplattform und ihres Personals. Fehlt ihr ein Schlüssel, läuft keine Korrektur.',
         'Einladungen per E-Mail mit siebentägigem Token, optional gruppenbezogen; Benachrichtigungen in der App und per E-Mail (SendGrid) mit Ruhezeiten und Digest.',
-        'Feature-Flags (datenbankgestützt, von Superadmins geschaltet) blenden ganze Bereiche ein oder aus.',
       ],
       en: [
         'Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.',
         'API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.',
         'Invitations by email with a seven-day token, optionally group-scoped; notifications in-app and by email (SendGrid) with quiet hours and digests.',
-        'Feature flags (database-backed, switched by superadmins) show or hide whole sections.',
       ],
     },
   },
