@@ -59,18 +59,9 @@ When generating prompts for LLMs:
 3. Nested sensitive data is detected and excluded
 4. Field names are validated against security patterns
 
-## Feature Flag Control
+## Availability
 
-The feature is controlled by the existing `generation` feature flag (no separate flag needed):
-
-1. **Enable the feature**:
-   - Navigate to `/admin/feature-flags`
-   - Find "generation"
-   - Toggle to enable
-
-2. **Default state**: Controlled by generation flag state
-
-3. **When disabled**: Original interpolation behavior is used
+Safe interpolation is always on. Projects without a generation structure keep the original interpolation behavior.
 
 ## Configuration Guide
 
@@ -143,10 +134,9 @@ You can add additional fields to exclude using the `exclude_fields` array in you
 
 ## Backward Compatibility
 
-- **Feature flag disabled**: Original behavior maintained
 - **No generation structure defined**: Falls back to original interpolation
 - **Existing projects**: Continue to work without modification
-- **Migration path**: Enable feature flag and define generation structures as needed
+- **Migration path**: Define generation structures as needed
 
 ## Testing
 
@@ -165,7 +155,6 @@ Located in: `/services/workers/tests/test_generation_structure_integration.py`
 
 Tests cover:
 - Full generation pipeline with filtering
-- Feature flag enable/disable behavior
 - Backward compatibility
 - Performance with large datasets
 
@@ -180,9 +169,8 @@ python -m pytest tests/test_generation_structure_integration.py -v
 
 ### Generation structure not being applied
 
-1. **Check feature flag**: Ensure `generation` is enabled
-2. **Validate JSON**: Use the validation tool in the UI
-3. **Check logs**: Look for parser errors in worker logs
+1. **Validate JSON**: Use the validation tool in the UI
+2. **Check logs**: Look for parser errors in worker logs
 
 ### Fields not appearing in prompts
 
@@ -228,11 +216,10 @@ prompt = parser.build_prompt_context(
 
 ## Migration from Unsafe Interpolation
 
-1. **Enable generation feature flag** in `/admin/feature-flags`
-2. **Define generation structures** for each project
-3. **Test generation** with a few tasks first
-4. **Monitor logs** for any filtering issues
-5. **Gradually roll out** to all projects
+1. **Define generation structures** for each project
+2. **Test generation** with a few tasks first
+3. **Monitor logs** for any filtering issues
+4. **Gradually roll out** to all projects
 
 ## Related Documentation
 

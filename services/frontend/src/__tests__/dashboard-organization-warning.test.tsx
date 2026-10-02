@@ -44,9 +44,6 @@ jest.mock('@/contexts/AuthContext', () => ({
 jest.mock('@/stores/projectStore', () => ({
   useProjectStore: jest.fn(),
 }))
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(),
-}))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: jest.fn(),
 }))
@@ -67,7 +64,6 @@ jest.mock('next/link', () => {
 // Import components and hooks after all mocks are set up
 import DashboardPage from '@/app/dashboard/page'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProjectStore } from '@/stores/projectStore'
 
@@ -132,13 +128,6 @@ describe('Dashboard Organization Warning', () => {
       projects: mockProjects,
       fetchProjects: jest.fn().mockResolvedValue(undefined),
       loading: false,
-    })
-    ;(useFeatureFlags as jest.Mock).mockReturnValue({
-      flags: {
-        data: true,
-        generations: false,
-        evaluations: false,
-      },
     })
   })
 

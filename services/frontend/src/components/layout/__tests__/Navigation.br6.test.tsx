@@ -111,22 +111,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
-const mockUseFeatureFlags = jest.fn(() => ({
-  flags: {
-    data: true,
-    generations: true,
-    evaluations: true,
-    reports: true,
-    'how-to': true,
-    leaderboards: true,
-  },
-  lastUpdate: Date.now(),
-}))
-
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => mockUseFeatureFlags(),
-}))
-
 // KEY: Mock hydration as FALSE to trigger SSR branches
 const mockUseHydration = jest.fn(() => false)
 
@@ -199,33 +183,6 @@ describe('Navigation br6 - SSR and edge case branches', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, is_superadmin: false },
       organizations: [{ id: 'o1', slug: 'test-org', role: 'ORG_ADMIN' }],
-    })
-
-    render(<Navigation />)
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-  })
-
-  it('renders with all feature flags disabled', () => {
-    mockUseFeatureFlags.mockReturnValue({
-      flags: {
-        data: false,
-        generations: false,
-        evaluations: false,
-        reports: false,
-        'how-to': false,
-        leaderboards: false,
-      },
-      lastUpdate: Date.now(),
-    })
-
-    render(<Navigation />)
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-  })
-
-  it('renders with flags=undefined (null-safe access)', () => {
-    mockUseFeatureFlags.mockReturnValue({
-      flags: undefined,
-      lastUpdate: Date.now(),
     })
 
     render(<Navigation />)

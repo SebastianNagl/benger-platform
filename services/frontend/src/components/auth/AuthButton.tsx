@@ -4,7 +4,6 @@ import { LoginModal } from '@/components/auth/LoginModal'
 import { SignupModal } from '@/components/auth/SignupModal'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
@@ -13,7 +12,6 @@ import { getAccountMenuName } from '@/lib/utils/displayName'
 import {
   AcademicCapIcon,
   ArrowRightOnRectangleIcon,
-  BeakerIcon,
   BellIcon,
   BuildingOfficeIcon,
   ChevronDownIcon,
@@ -37,7 +35,6 @@ export function AuthButton() {
   // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
   const AuthMenuExtended = useSlot('AuthMenuExtended')
   const viewMode = useViewModeSwitch()
-  const { isEnabled } = useFeatureFlags()
   const isClient = useHydration()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
@@ -182,22 +179,10 @@ export function AuthButton() {
                   ? t('admin.usersOrganizations')
                   : 'Users & Organizations'}
               </Link>
-              {/* Feature Flags - superadmins only */}
-              {user?.is_superadmin && (
-                <Link
-                  href="/admin/feature-flags"
-                  className="flex items-center px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <BeakerIcon className="mr-3 h-4 w-4" />
-                  {isClient ? t('admin.featureFlags') : 'Feature Flags'}
-                </Link>
-              )}
-
               {/* Student⇄expert view switch (issue #35) — only for users with
                   expert-view capability in the extended edition. Sits with the
-                  admin links below Feature Flags (2026-08-25 request), not at
-                  the top of the dropdown. */}
+                  admin links (2026-08-25 request), not at the top of the
+                  dropdown. */}
               {viewMode.status === 'ready' && (
                 <button
                   onClick={() => {

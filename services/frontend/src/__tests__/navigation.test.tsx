@@ -17,19 +17,6 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: { data: true, evaluations: true },
-    isLoading: false,
-    error: null,
-    isEnabled: (flagName: string) =>
-      flagName === 'data' || flagName === 'evaluations',
-    refreshFlags: jest.fn(),
-    checkFlag: jest.fn(),
-    lastUpdate: Date.now(),
-  }),
-}))
-
 jest.mock('@/components/layout/SectionProvider', () => ({
   useSectionStore: jest.fn(() => ({
     sections: [],

@@ -38,18 +38,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: mockUser, organizations: mockOrganizations }),
 }))
 
-const mockFlags = {
-  reports: true,
-  leaderboards: true,
-  data: true,
-  generations: true,
-  evaluations: true,
-  'how-to': true,
-}
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({ flags: mockFlags }),
-}))
-
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     // Return the key itself so we can assert against deterministic strings.

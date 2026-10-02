@@ -661,22 +661,6 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       expect(mockAuthFailure).not.toHaveBeenCalled()
     })
 
-    it('should not trigger auth failure for /feature-flags endpoint', async () => {
-      const mockAuthFailure = jest.fn()
-      client.setAuthFailureHandler(mockAuthFailure)
-      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        statusText: 'Unauthorized',
-        headers: new Headers(),
-        text: async () => '',
-      })
-
-      await expect(client.get('/feature-flags')).rejects.toThrow()
-
-      expect(mockAuthFailure).not.toHaveBeenCalled()
-    })
-
     it('should use valid access token from localStorage', async () => {
       const validToken = `header.${btoa(
         JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 }),

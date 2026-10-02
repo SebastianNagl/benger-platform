@@ -40,8 +40,8 @@ class TestCheckOrgRolePermission:
     def test_org_admin_no_admin_view(self):
         assert not self.service._check_org_role_permission("org_admin", Permission.ADMIN_VIEW)
 
-    def test_org_admin_no_feature_flag(self):
-        assert not self.service._check_org_role_permission("org_admin", Permission.FEATURE_FLAG_MANAGE)
+    def test_org_admin_no_admin_edit(self):
+        assert not self.service._check_org_role_permission("org_admin", Permission.ADMIN_EDIT)
 
     def test_org_admin_no_org_delete(self):
         assert not self.service._check_org_role_permission("org_admin", Permission.ORG_DELETE)
@@ -420,8 +420,7 @@ class TestPermissionEnum:
         assert Permission.ORG_MANAGE_MEMBERS.value == "organization:manage_members"
         assert Permission.ADMIN_VIEW.value == "admin:view"
         assert Permission.ADMIN_EDIT.value == "admin:edit"
-        assert Permission.FEATURE_FLAG_MANAGE.value == "feature_flag:manage"
 
     def test_permission_count(self):
         """Ensure all expected permissions are defined."""
-        assert len(Permission) == 24
+        assert len(Permission) == 23

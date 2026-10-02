@@ -25,7 +25,6 @@ describe('ApiClient', () => {
       expect(apiClient.organizations).toBeDefined()
       expect(apiClient.notifications).toBeDefined()
       expect(apiClient.invitations).toBeDefined()
-      expect(apiClient.featureFlags).toBeDefined()
     })
 
     it('should bind authentication methods', () => {
@@ -81,11 +80,13 @@ describe('ApiClient', () => {
       expect(typeof apiClient.cancelInvitation).toBe('function')
     })
 
-    it('should bind feature flag methods', () => {
-      expect(typeof apiClient.getFeatureFlags).toBe('function')
-      expect(typeof apiClient.getAllFeatureFlagsForAdmin).toBe('function')
-      expect(typeof apiClient.updateFeatureFlag).toBe('function')
-      expect(typeof apiClient.checkFeatureFlag).toBe('function')
+    it('has no feature flag methods (the flag system lives in extended)', () => {
+      const client = apiClient as unknown as Record<string, unknown>
+      expect(client.getFeatureFlags).toBeUndefined()
+      expect(client.getAllFeatureFlagsForAdmin).toBeUndefined()
+      expect(client.updateFeatureFlag).toBeUndefined()
+      expect(client.checkFeatureFlag).toBeUndefined()
+      expect(client.featureFlags).toBeUndefined()
     })
 
     it('should bind HTTP convenience methods', () => {
@@ -346,10 +347,6 @@ describe('ApiClient', () => {
     it('should provide access to invitations client', () => {
       expect(apiClient.invitations).toBeDefined()
     })
-
-    it('should provide access to featureFlags client', () => {
-      expect(apiClient.featureFlags).toBeDefined()
-    })
   })
 
   describe('Type Safety', () => {
@@ -433,7 +430,6 @@ describe('ApiClient', () => {
         OrganizationsClient,
         NotificationsClient,
         InvitationsApiClient,
-        FeatureFlagsClient,
       } = await import('../index')
 
       expect(AuthClient).toBeDefined()
@@ -442,7 +438,6 @@ describe('ApiClient', () => {
       expect(OrganizationsClient).toBeDefined()
       expect(NotificationsClient).toBeDefined()
       expect(InvitationsApiClient).toBeDefined()
-      expect(FeatureFlagsClient).toBeDefined()
     })
   })
 

@@ -4,7 +4,7 @@ Integration tests for remaining untested API routers (Phases 2.3, 2.4, 2.5).
 Covers:
   Group 1 — Generation routers: generation.py, generation_task_list.py
   Group 2 — Auth & User Management: auth.py, users.py, invitations.py
-  Group 3 — Admin & System routers: notifications.py, feature_flags.py,
+  Group 3 — Admin & System routers: notifications.py,
             dashboard.py, health.py, prompt_structures.py, reports.py,
             llm_models.py
 
@@ -23,7 +23,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from models import (
-    FeatureFlag,
     Invitation,
     LLMModel,
     Notification,
@@ -52,7 +51,7 @@ def _uid() -> str:
 # Shared async auth + seeding helpers
 #
 # Many routers exercised below (auth /me & profile reads, users mgmt, the
-# invitations list/validate/cancel, dashboard, reports, async feature flags)
+# invitations list/validate/cancel, dashboard, reports)
 # were migrated to the async DB lane (``Depends(get_async_db)``). The sync
 # auth dependency (``require_user`` → ``Depends(get_db)``) can't see the async
 # test transaction, and ``async_test_client`` only overrides ``get_async_db``
@@ -64,7 +63,7 @@ def _uid() -> str:
 #
 # Tests whose endpoint is still on the SYNC lane (POST /auth/login, PUT
 # /auth/profile, DELETE /users/{id}, POST invitation create, all of
-# notifications, and the sync feature-flag handlers /all, PUT, /check) keep
+# and notifications) keep
 # the sync ``client`` + ``auth_headers`` fixtures — converting them would
 # break them, because ``get_db`` is NOT overridden under ``async_test_client``
 # (it would resolve to a real, non-isolated session).
@@ -1425,130 +1424,22 @@ class TestNotificationEndpoints:
         assert "period_days" in body
 
 
-class TestFeatureFlagEndpoints:
-    """Tests for /api/feature-flags endpoints.
+class TestFeatureFlagRouterRemoved:
+    """The flag admin API moved to the extended edition (core 2.27).
 
-    The list / get-single / delete handlers are on the async DB lane
-    (require_superadmin; seed via ``async_test_db`` + ``_as_user``). The /all,
-    PUT and /check handlers stay on the SYNC lane (sync-only
-    ``FeatureFlagService``), so their tests keep the sync ``client`` +
-    ``auth_headers`` fixtures.
+    The community edition no longer mounts /api/feature-flags; extended
+    serves its own router under /api/ext/feature-flags.
     """
 
-    def _create_flag(self, test_db, admin):
-        flag = FeatureFlag(
-            id=_uid(),
-            name=f"test_flag_{_uid()[:8]}",
-            description="A test flag",
-            is_enabled=False,
-            created_by=admin.id,
-        )
-        test_db.add(flag)
-        test_db.flush()
-        test_db.commit()
-        return flag
+    def test_feature_flags_routes_not_mounted(self):
+        from main import app
 
-    async def _create_flag_async(self, db, admin):
-        flag = FeatureFlag(
-            id=_uid(),
-            name=f"test_flag_{_uid()[:8]}",
-            description="A test flag",
-            is_enabled=False,
-            created_by=admin.id,
-        )
-        db.add(flag)
-        await db.flush()
-        return flag
+        paths = set(app.openapi()["paths"])
+        assert not any(p.startswith("/api/feature-flags") for p in paths)
 
-    @pytest.mark.asyncio
-    async def test_list_feature_flags_as_admin(self, async_test_client, async_test_db):
-        admin = await _make_user(async_test_db, is_superadmin=True, prefix="admin")
-        await self._create_flag_async(async_test_db, admin)
-        await async_test_db.commit()
-        with _as_user(admin):
-            resp = await async_test_client.get("/api/feature-flags")
-        assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
-
-    @pytest.mark.asyncio
-    async def test_list_feature_flags_as_non_admin_returns_403(
-        self, async_test_client, async_test_db
-    ):
-        annotator = await _make_user(
-            async_test_db, is_superadmin=False, prefix="annotator"
-        )
-        await async_test_db.commit()
-        with _as_user(annotator):
-            resp = await async_test_client.get("/api/feature-flags")
-        assert resp.status_code == 403
-
-    def test_get_all_flags_as_regular_user(self, client, test_db, test_users, auth_headers):
-        """The /all endpoint is available to any authenticated user.
-
-        /all is on the SYNC DB lane — keep sync fixtures.
-        """
-        admin = test_users[0]
-        self._create_flag(test_db, admin)
-        resp = client.get("/api/feature-flags/all", headers=auth_headers["annotator"])
-        assert resp.status_code == 200
-
-    @pytest.mark.asyncio
-    async def test_get_single_flag(self, async_test_client, async_test_db):
-        admin = await _make_user(async_test_db, is_superadmin=True, prefix="admin")
-        flag = await self._create_flag_async(async_test_db, admin)
-        flag_id, flag_name = flag.id, flag.name
-        await async_test_db.commit()
-        with _as_user(admin):
-            resp = await async_test_client.get(f"/api/feature-flags/{flag_id}")
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["name"] == flag_name
-        assert body["is_enabled"] == False  # noqa: E712
-
-    @pytest.mark.asyncio
-    async def test_get_nonexistent_flag_returns_404(
-        self, async_test_client, async_test_db
-    ):
-        admin = await _make_user(async_test_db, is_superadmin=True, prefix="admin")
-        await async_test_db.commit()
-        with _as_user(admin):
-            resp = await async_test_client.get("/api/feature-flags/nonexistent-id")
+    def test_feature_flags_list_returns_404(self, client, test_db, test_users, auth_headers):
+        resp = client.get("/api/feature-flags", headers=auth_headers["admin"])
         assert resp.status_code == 404
-
-    def test_update_feature_flag(self, client, test_db, test_users, auth_headers):
-        # PUT /{id} is on the SYNC DB lane — keep sync fixtures.
-        admin = test_users[0]
-        flag = self._create_flag(test_db, admin)
-        resp = client.put(
-            f"/api/feature-flags/{flag.id}",
-            json={"is_enabled": True},
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        assert resp.json()["is_enabled"] == True  # noqa: E712
-
-    @pytest.mark.asyncio
-    async def test_delete_feature_flag(self, async_test_client, async_test_db):
-        admin = await _make_user(async_test_db, is_superadmin=True, prefix="admin")
-        flag = await self._create_flag_async(async_test_db, admin)
-        flag_id = flag.id
-        await async_test_db.commit()
-        with _as_user(admin):
-            resp = await async_test_client.delete(f"/api/feature-flags/{flag_id}")
-        assert resp.status_code == 204
-
-    def test_check_flag_by_name(self, client, test_db, test_users, auth_headers):
-        # GET /check/{name} is on the SYNC DB lane — keep sync fixtures.
-        admin = test_users[0]
-        flag = self._create_flag(test_db, admin)
-        resp = client.get(
-            f"/api/feature-flags/check/{flag.name}",
-            headers=auth_headers["admin"],
-        )
-        assert resp.status_code == 200
-        body = resp.json()
-        assert body["flag_name"] == flag.name
-        assert "is_enabled" in body
 
 
 class TestDashboardEndpoints:

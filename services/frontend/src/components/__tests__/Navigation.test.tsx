@@ -28,14 +28,6 @@ const mockI18nContext = {
   currentLanguage: 'en',
 }
 
-// Mock FeatureFlagContext
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlag: jest.fn(() => false),
-  useFeatureFlags: jest.fn(() => ({
-    refreshFlags: jest.fn(),
-  })),
-}))
-
 // Mock required dependencies
 jest.mock('@/stores', () => ({
   useUIStore: () => ({ theme: 'light', setTheme: jest.fn() }),
@@ -111,13 +103,7 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 )
 
 describe('Navigation RSC Prefetch Fix', () => {
-  it('should disable prefetch for /data route links when data page is enabled', () => {
-    // Enable the data page feature flag for this test
-    const useFeatureFlagMock = jest.requireMock(
-      '@/contexts/FeatureFlagContext',
-    ).useFeatureFlag
-    useFeatureFlagMock.mockImplementation((flag: string) => flag === 'data')
-
+  it('should disable prefetch for /data route links', () => {
     render(
       <TestWrapper>
         <Navigation />
@@ -136,9 +122,6 @@ describe('Navigation RSC Prefetch Fix', () => {
         expect(linkElement).toHaveAttribute('data-prefetch', 'false')
       }
     })
-
-    // Reset the mock
-    useFeatureFlagMock.mockImplementation(() => false)
   })
 
   it('should allow default prefetch for non-data routes', () => {

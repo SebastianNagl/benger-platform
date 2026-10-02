@@ -7,7 +7,6 @@
 import { configureAdminDefaultsClient } from './admin-defaults'
 import { AuthClient } from './auth'
 import { EvaluationsClient } from './evaluations'
-import { FeatureFlagsClient } from './feature-flags'
 import { InvitationsApiClient } from './invitations'
 import { LeaderboardsClient } from './leaderboards'
 import { NotificationsClient } from './notifications'
@@ -87,7 +86,6 @@ export class ApiClient {
   private organizationsClient: OrganizationsClient
   private notificationsClient: NotificationsClient
   private invitationsClient: InvitationsApiClient
-  private featureFlagsClient: FeatureFlagsClient
   private leaderboardsClientInstance: LeaderboardsClient
 
   // Expose leaderboards client
@@ -103,7 +101,6 @@ export class ApiClient {
     this.organizationsClient?.clearCache?.()
     this.notificationsClient?.clearCache?.()
     this.invitationsClient?.clearCache?.()
-    this.featureFlagsClient?.clearCache?.()
     this.leaderboardsClientInstance?.clearCache?.()
   }
 
@@ -118,7 +115,6 @@ export class ApiClient {
     this.organizationsClient?.invalidateCache?.(pattern)
     this.notificationsClient?.invalidateCache?.(pattern)
     this.invitationsClient?.invalidateCache?.(pattern)
-    this.featureFlagsClient?.invalidateCache?.(pattern)
     this.leaderboardsClientInstance?.invalidateCache?.(pattern)
   }
 
@@ -130,7 +126,6 @@ export class ApiClient {
     this.organizationsClient?.clearUserCache?.(userId)
     this.notificationsClient?.clearUserCache?.(userId)
     this.invitationsClient?.clearUserCache?.(userId)
-    this.featureFlagsClient?.clearUserCache?.(userId)
     this.leaderboardsClientInstance?.clearUserCache?.(userId)
   }
 
@@ -144,7 +139,6 @@ export class ApiClient {
       this.organizationsClient = new OrganizationsClient()
       this.notificationsClient = new NotificationsClient()
       this.invitationsClient = new InvitationsApiClient()
-      this.featureFlagsClient = new FeatureFlagsClient()
       this.leaderboardsClientInstance = new LeaderboardsClient()
     } catch (error) {
       // In test environments, clients might not initialize properly
@@ -156,7 +150,6 @@ export class ApiClient {
       this.organizationsClient = createStub()
       this.notificationsClient = createStub()
       this.invitationsClient = createStub()
-      this.featureFlagsClient = createStub()
       this.leaderboardsClientInstance = createStub()
     }
     // Initialize all method bindings with safe binding helper
@@ -450,20 +443,6 @@ export class ApiClient {
       'getProjectResultsByTaskModel',
     )
 
-    this.getFeatureFlags = safeBind(this.featureFlagsClient, 'getFeatureFlags')
-    this.getAllFeatureFlagsForAdmin = safeBind(
-      this.featureFlagsClient,
-      'getAllFeatureFlagsForAdmin',
-    )
-    this.updateFeatureFlag = safeBind(
-      this.featureFlagsClient,
-      'updateFeatureFlag',
-    )
-    this.checkFeatureFlag = safeBind(
-      this.featureFlagsClient,
-      'checkFeatureFlag',
-    )
-
     // Set up aliases
     this.uploadTaskData = this.uploadData // Alias for backward compatibility
     this.listInvitations = this.getOrganizationInvitations // Alias
@@ -501,7 +480,6 @@ export class ApiClient {
     this.organizationsClient?.setAuthFailureHandler?.(handler)
     this.notificationsClient?.setAuthFailureHandler?.(handler)
     this.invitationsClient?.setAuthFailureHandler?.(handler)
-    this.featureFlagsClient?.setAuthFailureHandler?.(handler)
     // Configure admin-defaults client
     configureAdminDefaultsClient(handler)
     // Note: annotationApiClient doesn't need auth failure handler as it uses the base client
@@ -658,14 +636,6 @@ export class ApiClient {
 
   // Task-related methods removed - now using project-based API
 
-  // Feature flag methods
-  getFeatureFlags: any
-  getAllFeatureFlagsForAdmin: any
-  updateFeatureFlag: any
-  checkFeatureFlag: any
-
-  // User and organization overrides removed - feature flags are global
-
   /**
    * Access to individual resource clients for more complex operations
    */
@@ -700,10 +670,6 @@ export class ApiClient {
   get annotations() {
     return null
   }
-
-  get featureFlags() {
-    return this.featureFlagsClient
-  }
 }
 
 /**
@@ -730,7 +696,6 @@ export { apiClient as api }
 export {
   AuthClient,
   EvaluationsClient,
-  FeatureFlagsClient,
   InvitationsApiClient,
   NotificationsClient,
   OrganizationsClient,

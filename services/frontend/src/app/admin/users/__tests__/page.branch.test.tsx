@@ -9,7 +9,6 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
 import { api, ApiClient } from '@/lib/api'
@@ -18,9 +17,6 @@ import { render, screen, waitFor } from '@testing-library/react'
 import AdminUsersPage from '../page'
 
 jest.mock('@/contexts/AuthContext')
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(),
-}))
 jest.mock('@/contexts/I18nContext')
 jest.mock('@/hooks/useDialogs', () => ({
   useErrorAlert: jest.fn(),
@@ -68,15 +64,6 @@ const mockOrg = {
 }
 
 function setupMocks(overrides: Record<string, any> = {}) {
-  ;(useFeatureFlags as jest.Mock).mockReturnValue({
-    flags: {},
-    isLoading: false,
-    error: null,
-    isEnabled: jest.fn().mockReturnValue(true),
-    refreshFlags: jest.fn(),
-    checkFlag: jest.fn(),
-    lastUpdate: Date.now(),
-  })
   ;(useI18n as jest.Mock).mockReturnValue({
     locale: 'en',
     t: (key: string) => key,

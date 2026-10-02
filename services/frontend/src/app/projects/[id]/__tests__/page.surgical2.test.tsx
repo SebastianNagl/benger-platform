@@ -5,7 +5,6 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlag } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
@@ -31,7 +30,6 @@ jest.mock('next/navigation', () => ({
 // Mock contexts
 jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/I18nContext')
-jest.mock('@/contexts/FeatureFlagContext')
 
 // Mock hooks
 jest.mock('@/hooks/useModels')
@@ -120,12 +118,6 @@ jest.mock('@/components/shared/Tooltip', () => ({
   ),
 }))
 
-jest.mock('@/components/shared/FeatureFlag', () => ({
-  FeatureFlag: ({ children, flag }: any) => (
-    <div data-flag={flag}>{children}</div>
-  ),
-}))
-
 jest.mock('@/components/projects/LabelConfigEditor', () => ({
   LabelConfigEditor: ({ initialConfig, onSave, onCancel }: any) => (
     <div data-testid="label-config-editor">
@@ -205,7 +197,6 @@ describe('ProjectDetailPage - Surgical Branch Coverage 2', () => {
         return key
       },
     })
-    ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
     ;(useUIStore as jest.Mock).mockReturnValue({
       isSidebarHidden: false,
     })

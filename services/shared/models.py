@@ -2707,30 +2707,73 @@ class HumanEvaluationDimension(Base):
 
 
 class FeatureFlag(Base):
-    """Feature flag configuration for controlling feature access"""
+    """A feature flag row.
+
+    Persistence only: the extended edition owns the flag registry, the
+    evaluation rules and the admin API. ``state`` is one of ``off``,
+    ``everyone`` or ``allowlist``; for ``allowlist`` the matching
+    ``FeatureFlagTarget`` rows name the users and organizations it applies to.
+    """
 
     __tablename__ = "feature_flags"
+    __table_args__ = (
+        CheckConstraint(
+            "state IN ('off', 'everyone', 'allowlist')",
+            name="ck_feature_flags_state",
+        ),
+    )
 
     id = Column(String, primary_key=True, index=True)
-    name = Column(String, nullable=False, unique=True, index=True)  # Unique feature flag name
-    description = Column(Text, nullable=True)  # Human-readable description
-    is_enabled = Column(Boolean, nullable=False, default=False)  # Global enable/disable
+    name = Column(String, nullable=False, unique=True, index=True)
+    description = Column(Text, nullable=True)
+    state = Column(String(16), nullable=False, default="off", server_default="off")
 
-    # Configuration (JSON format for flexibility)
-    configuration = Column(JSON, nullable=True)  # Additional configuration data
-
-    # Simple binary feature flag - no rollout percentages needed
-
-    # Metadata
-    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
     creator = relationship("User", back_populates="created_feature_flags")
+    targets = relationship(
+        "FeatureFlagTarget",
+        back_populates="flag",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self):
-        return f"<FeatureFlag(id={self.id}, name={self.name}, is_enabled={self.is_enabled})>"
+        return f"<FeatureFlag(id={self.id}, name={self.name}, state={self.state})>"
+
+
+class FeatureFlagTarget(Base):
+    """One allowlist entry of a feature flag: a user or an organization."""
+
+    __tablename__ = "feature_flag_targets"
+    __table_args__ = (
+        CheckConstraint(
+            "(user_id IS NULL) <> (organization_id IS NULL)",
+            name="ck_feature_flag_targets_one_target",
+        ),
+        UniqueConstraint("flag_id", "user_id", name="uq_feature_flag_targets_user"),
+        UniqueConstraint(
+            "flag_id", "organization_id", name="uq_feature_flag_targets_org"
+        ),
+    )
+
+    id = Column(String, primary_key=True)
+    flag_id = Column(
+        String,
+        ForeignKey("feature_flags.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    organization_id = Column(
+        String, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=True
+    )
+    created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    flag = relationship("FeatureFlag", back_populates="targets")
 
 
 # UserFeatureFlag and OrganizationFeatureFlag classes removed

@@ -22,10 +22,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   AuthProvider: ({ children }: any) => <>{children}</>,
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  FeatureFlagProvider: ({ children }: any) => <>{children}</>,
-}))
-
 jest.mock('@/contexts/HydrationContext', () => ({
   HydrationProvider: ({ children }: any) => <>{children}</>,
 }))

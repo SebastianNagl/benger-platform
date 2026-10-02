@@ -25,18 +25,27 @@ const guide: HowToGuide = {
 }
 
 describe('buildPageIndex', () => {
-  it('hides flag-gated and role-gated pages for a plain user', () => {
+  it('shows core pages and hides role-gated pages for a plain user', () => {
     const urls = buildPageIndex({
       t,
       locale: 'de',
-      flags: {},
       user: {},
       organizations: [],
     }).map((p) => p.url)
     expect(urls).toContain('/dashboard')
     expect(urls).toContain('/runs')
     expect(urls).toContain('/settings/models')
-    expect(urls).not.toContain('/reports')
+    // Core pages are not feature flags: always listed.
+    for (const core of [
+      '/reports',
+      '/leaderboards',
+      '/data',
+      '/generations',
+      '/evaluations',
+      '/how-to',
+    ]) {
+      expect(urls).toContain(core)
+    }
     expect(urls).not.toContain('/organizations')
     expect(urls).not.toContain('/admin/users')
   })
@@ -45,7 +54,6 @@ describe('buildPageIndex', () => {
     const orgAdmin = buildPageIndex({
       t,
       locale: 'de',
-      flags: {},
       user: {},
       organizations: [{ role: 'ORG_ADMIN' }],
     }).map((p) => p.url)
@@ -54,7 +62,6 @@ describe('buildPageIndex', () => {
     const superadmin = buildPageIndex({
       t,
       locale: 'de',
-      flags: { reports: true },
       user: { is_superadmin: true },
       organizations: [],
     }).map((p) => p.url)
@@ -67,13 +74,14 @@ describe('buildPageIndex', () => {
         '/reports',
       ]),
     )
+    // The flags admin lives in the extended edition and is not searchable.
+    expect(superadmin).not.toContain('/admin/feature-flags')
   })
 
   it('omits signed-in-only pages for anonymous visitors', () => {
     const urls = buildPageIndex({
       t,
       locale: 'de',
-      flags: {},
       user: null,
       organizations: null,
     }).map((p) => p.url)
@@ -87,7 +95,6 @@ describe('buildGuideIndex / buildSearchIndex', () => {
     const [entry] = buildGuideIndex({
       t,
       locale: 'en',
-      flags: {},
       user: {},
       organizations: [],
       guides: [guide],
@@ -102,7 +109,6 @@ describe('buildGuideIndex / buildSearchIndex', () => {
     const all = buildSearchIndex({
       t,
       locale: 'de',
-      flags: {},
       user: {},
       organizations: [],
       guides: [guide],
@@ -116,7 +122,6 @@ describe('ranking', () => {
   const entries = buildSearchIndex({
     t,
     locale: 'de',
-    flags: { 'how-to': true },
     user: {},
     organizations: [],
     guides: [guide],
@@ -130,7 +135,7 @@ describe('ranking', () => {
   it('finds pages through the static keyword list (German synonym for an English title key)', () => {
     // Titles are raw keys in this test; the keyword list still matches.
     const results = rankSearchResults(entries, 'bestenliste')
-    expect(results.map((r) => r.url)).not.toContain('/leaderboards') // flag off
+    expect(results.map((r) => r.url)).toContain('/leaderboards')
     expect(
       rankSearchResults(entries, 'lernstatistik').map((r) => r.url),
     ).toContain('/learning-stats')

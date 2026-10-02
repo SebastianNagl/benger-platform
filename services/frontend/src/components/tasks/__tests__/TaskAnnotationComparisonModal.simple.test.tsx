@@ -17,10 +17,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'test-user', username: 'Test User' } }),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlag: jest.fn().mockReturnValue(true),
-}))
-
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn() }),
   usePathname: () => '/',

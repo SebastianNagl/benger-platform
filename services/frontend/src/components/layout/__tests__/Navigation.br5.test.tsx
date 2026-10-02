@@ -10,7 +10,7 @@
  * - hasAccessToRoute private mode paths (lines 489-493)
  * - hasAccessToRoute org mode ANNOTATOR role for /data (lines 497-501)
  * - buildNavigation with isClient=false (line 513)
- * - Feature flags disabled paths (lines 468-473)
+ * - Entries without a role gate are never disabled
  * - user=null path (line 483)
  * - parseSubdomain with isPrivateMode=true (line 476)
  */
@@ -126,20 +126,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(() => ({
-    flags: {
-      data: true,
-      generations: true,
-      evaluations: true,
-      reports: true,
-      'how-to': true,
-      leaderboards: true,
-    },
-    lastUpdate: Date.now(),
-  })),
-}))
-
 jest.mock('@/contexts/HydrationContext', () => ({
   useHydration: jest.fn(() => true),
 }))
@@ -181,8 +167,6 @@ jest.mock('@/lib/remToPx', () => ({
 
 const mockUsePathname = require('next/navigation').usePathname
 const mockUseAuth = require('@/contexts/AuthContext').useAuth
-const mockUseFeatureFlags =
-  require('@/contexts/FeatureFlagContext').useFeatureFlags
 const mockParseSubdomain = require('@/lib/utils/subdomain').parseSubdomain
 
 import { Navigation } from '../Navigation'
@@ -193,32 +177,17 @@ describe('Navigation - br5 branch coverage', () => {
     mockUsePathname.mockReturnValue('/dashboard')
   })
 
-  it('renders with disabled feature flags (reports, leaderboards off)', () => {
+  it('keeps reports, leaderboards and how-to enabled for a user without orgs', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, is_superadmin: false },
       organizations: [],
     })
-    mockUseFeatureFlags.mockReturnValue({
-      flags: {
-        data: true,
-        generations: true,
-        evaluations: true,
-        reports: false,
-        'how-to': false,
-        leaderboards: false,
-      },
-      lastUpdate: Date.now(),
-    })
 
-    render(<Navigation />)
+    const { container } = render(<Navigation />)
 
-    // Dashboard should be enabled
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-
-    // Reports and Leaderboards should be disabled (rendered but with disabled styling)
-    // They still appear in the DOM but as disabled NavLinks
-    expect(screen.getByText('Reports')).toBeInTheDocument()
-    expect(screen.getByText('Leaderboards')).toBeInTheDocument()
+    for (const href of ['/dashboard', '/reports', '/leaderboards', '/how-to']) {
+      expect(container.querySelector(`a[href="${href}"]`)).not.toBeNull()
+    }
   })
 
   it('renders in private mode without org (all standard routes visible)', () => {

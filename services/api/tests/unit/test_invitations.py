@@ -609,19 +609,15 @@ class TestAcceptInvitation:
         mock_db.query.return_value.filter.return_value.first.side_effect = [
             mock_invitation,  # Invitation exists
             None,  # No existing membership
-            mock_db_user,  # DBUser for feature flag check
+            mock_db_user,  # DBUser for the profile-setup check
             Mock(name="Test Org"),  # Organization for notification
         ]
 
-        # Mock feature flag service
-        with patch("services.feature_flag_service.FeatureFlagService") as mock_flag_service:
-            mock_flag_service.return_value.is_enabled.return_value = True
-
-            # Mock notification service
-            with patch("routers.invitations.notify_organization_invitation_accepted"):
-                result = await accept_invitation(
-                    token="test-token-123", current_user=mock_user, db=mock_db
-                )
+        # Mock notification service
+        with patch("routers.invitations.notify_organization_invitation_accepted"):
+            result = await accept_invitation(
+                token="test-token-123", current_user=mock_user, db=mock_db
+            )
 
         assert result["message"] == "Invitation accepted successfully"
         assert result["organization_id"] == "org-123"

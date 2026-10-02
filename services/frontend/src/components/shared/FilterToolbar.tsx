@@ -14,7 +14,6 @@
  *   - app/evaluations/page.tsx
  *   - app/projects/[id]/my-tasks/page.tsx
  *   - app/projects/[id]/members/page.tsx
- *   - app/admin/feature-flags/page.tsx
  *   - components/projects/ProjectDataTab.tsx
  */
 

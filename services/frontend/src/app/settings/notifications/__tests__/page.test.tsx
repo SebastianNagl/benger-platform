@@ -4,16 +4,12 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import '@testing-library/jest-dom'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import NotificationSettingsPage from '../page'
-
-// Note: FeatureFlagContext is already globally mocked in jest.setup.js
-// We just need to mock the specific contexts we need to override
 
 // Mock API
 jest.mock('@/lib/api', () => ({
@@ -235,9 +231,6 @@ const mockPreferences = {
   annotation_assigned: { enabled: true, in_app: true, email: false },
 }
 
-// Setup default mocks for contexts
-const mockIsEnabled = jest.fn((flag: string) => true)
-
 jest.mock('@/contexts/AuthContext', () => {
   const mockUseAuth = jest.fn()
   return {
@@ -259,20 +252,11 @@ jest.mock('@/hooks/useResolvedUiMode', () => ({
   useResolvedUiMode: () => mockUiMode(),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => {
-  const mockUseFeatureFlags = jest.fn()
-  return {
-    useFeatureFlags: mockUseFeatureFlags,
-    FeatureFlagProvider: ({ children }: any) => children,
-  }
-})
-
 describe('NotificationSettingsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
 
     // Reset all mocks to default values
-    mockIsEnabled.mockImplementation((flag: string) => true)
     mockUiMode.mockReturnValue('expert')
 
     // Mock auth context
@@ -285,17 +269,6 @@ describe('NotificationSettingsPage', () => {
       t: mockT,
       changeLanguage: jest.fn(),
       currentLanguage: 'en',
-    })
-
-    // Mock feature flags context
-    ;(useFeatureFlags as jest.Mock).mockReturnValue({
-      flags: {},
-      isLoading: false,
-      error: null,
-      isEnabled: mockIsEnabled,
-      refreshFlags: jest.fn(),
-      checkFlag: jest.fn().mockResolvedValue(true),
-      lastUpdate: Date.now(),
     })
 
     // Mock API responses
