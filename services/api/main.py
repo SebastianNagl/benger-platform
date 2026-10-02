@@ -511,11 +511,12 @@ app.include_router(leaderboards_router)  # Leaderboards for annotation performan
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
 # Load extended features if available
-from extensions import load_extended, get_extended_routers  # noqa: E402
+from extensions import configure_app, load_extended, get_extended_routers  # noqa: E402
 
 if load_extended():
     for router, kwargs in get_extended_routers():
         app.include_router(router, **kwargs)
+    configure_app(app)
 
 
 # Root endpoint

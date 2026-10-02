@@ -172,13 +172,23 @@ class PasswordResetService:
         frontend_url = base_url or os.getenv("FRONTEND_URL", "")
         reset_link = f"{frontend_url}/reset-password/{token}"
 
+        from extensions import emit_ops_event
+
         email_service = EmailService()
-        return await email_service.send_password_reset_email(
-            to_email=user.email,
-            user_name=user.name or user.username,
-            reset_link=reset_link,
-            language=language,
+        try:
+            sent = await email_service.send_password_reset_email(
+                to_email=user.email,
+                user_name=user.name or user.username,
+                reset_link=reset_link,
+                language=language,
+            )
+        except Exception:
+            emit_ops_event("mail_outcome", mail_type="password_reset", outcome="failed")
+            raise
+        emit_ops_event(
+            "mail_outcome", mail_type="password_reset", outcome="sent" if sent else "failed"
         )
+        return sent
 
 
 # Create a singleton instance

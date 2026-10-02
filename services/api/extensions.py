@@ -118,6 +118,46 @@ def _register_extension_field_types():
         logger.exception("Failed to register extension field types")
 
 
+def configure_app(app):
+    """Let the extended package configure the FastAPI app itself.
+
+    Called once from ``main.py`` after :func:`load_extended`, before the
+    app serves. Routers go through :func:`get_extended_routers`; this hook
+    is for what a router cannot do (middleware, e.g. the extended
+    monitoring's HTTP metrics). No-op in the community edition. A failing
+    hook is logged and never stops the app from starting.
+    """
+    if _extended and hasattr(_extended, "configure_app"):
+        try:
+            _extended.configure_app(app)
+        except Exception:
+            logger.exception("Extended configure_app hook failed")
+
+
+def emit_ops_event(event, **labels):
+    """Report an operational event to the extended edition (monitoring).
+
+    Events and their labels (aggregate values only, never a recipient,
+    address or token):
+
+    - ``mail_outcome``: ``mail_type`` (``verification``, ``password_reset``)
+      and ``outcome`` (``sent``, ``failed``) for mail the API sends inline.
+      Mail sent by the workers is observed through Celery signals instead.
+    - ``health_check_failed``: ``dependency`` (``redis``, ``database``,
+      ``celery``) when ``/health`` answers 503 or degraded.
+
+    Optional hook ``on_ops_event(event, **labels)``. No-op in the community
+    edition; never raises, because monitoring must not break the caller.
+    """
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hook = _extended.get_hooks().get("on_ops_event")
+            if hook:
+                hook(event, **labels)
+        except Exception:
+            logger.exception("on_ops_event hook failed for %s", event)
+
+
 def get_extended_routers():
     """Return list of (router, kwargs) tuples to include in the app."""
     if _extended and hasattr(_extended, "get_routers"):

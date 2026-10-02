@@ -11,6 +11,7 @@ from typing import Any
 import jwt
 from account_activation import mask_email
 from email_service import EmailService
+from extensions import emit_ops_event
 from fastapi import HTTPException, status
 from localization import LanguageDetector
 from models import User
@@ -658,6 +659,11 @@ class EmailVerificationService:
                 )
                 logger.error(f"Failed to send verification email to user {user.id}")
 
+            emit_ops_event(
+                "mail_outcome",
+                mail_type="verification",
+                outcome="sent" if success else "failed",
+            )
             return success
 
         except HTTPException:
@@ -677,6 +683,7 @@ class EmailVerificationService:
             )
             logger.error(f"Error sending verification email: {e}")
             db.rollback()
+            emit_ops_event("mail_outcome", mail_type="verification", outcome="failed")
             return False
 
     def verify_email_with_token(self, db: Session, token: str) -> tuple[bool, str]:
