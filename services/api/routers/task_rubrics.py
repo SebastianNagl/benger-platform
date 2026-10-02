@@ -14,10 +14,13 @@ Platform owns the ``task_rubrics`` persistence, the structure contract
   cloned (response carries ``replaced_rubric_id``).
 - ``POST …/{rubric_id}/activate`` / ``…/archive``.
 
-Reads keep the project-view gate; writes use the
-editor gate (creator / superadmin / org ADMIN+CONTRIBUTOR). The AI
-generation workflow and the Vertretbar exam flows live in benger_extended
-and call the same shared service.
+Reads need the project-view gate, and a rubric is solution content: it is
+served to those who may see every task's content (editors and contributors,
+on a Safe Exam Browser exam editors only) and, on projects that reveal the
+solution after submitting, to a member for the tasks they have submitted.
+Writes use the editor gate (creator / superadmin / org ADMIN+CONTRIBUTOR).
+The AI generation workflow and the Vertretbar exam flows live in
+benger_extended and call the same shared service.
 """
 
 import logging
@@ -35,8 +38,10 @@ from auth_module import User, require_user
 from database import get_async_db
 from project_models import Project, Task, TaskRubric, project_is_deleted
 from routers.projects.helpers import (
+    can_read_all_task_content_async,
     check_user_can_edit_project_async,
 )
+from routers.projects.tasks.blinding import revealed_task_ids_async
 from rubric_structure import render_structure_text
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES, RubricImportError, parse_rubric_file
 from task_rubric_service import (
@@ -189,6 +194,39 @@ async def _get_project_rubric(db: AsyncSession, project_id: str, rubric_id: str)
     return rubric
 
 
+async def _readable_rubric_task_ids(
+    db: AsyncSession, user: User, project: Project, task_ids
+) -> Optional[set]:
+    """Which of ``task_ids`` the caller may read rubrics for, ``None`` = all.
+
+    A rubric spells out the expected solution, so a plain member or exam
+    participant gets it under the same rule as the unblinded task data: only
+    for a task they submitted, and only when the project reveals the solution
+    after submitting. They then see the sheet in force (see
+    :func:`_revealed_view`), not the drafts.
+    """
+    if await can_read_all_task_content_async(db, user, project):
+        return None
+    return await revealed_task_ids_async(db, user, project, task_ids)
+
+
+def _revealed_view(rubric: TaskRubric) -> Optional[TaskRubricResponse]:
+    """What a member sees of a revealed task's rubric: the active sheet,
+    without how it was made (generator, prompt, author). ``None`` for
+    candidates and archived versions, which are the editors' drafts."""
+    if rubric.status != "active":
+        return None
+    return TaskRubricResponse.model_validate(rubric).model_copy(
+        update={
+            "generator_model_id": None,
+            "prompt_key": None,
+            "prompt_version": None,
+            "generation_metadata": None,
+            "created_by": None,
+        }
+    )
+
+
 def _status_response(rubric: TaskRubric) -> RubricStatusResponse:
     return RubricStatusResponse(
         id=rubric.id,
@@ -265,9 +303,10 @@ async def list_task_rubrics(
     """List rubrics for a project, newest first.
 
     ``?task_id=`` scopes to one task; ``?status=active`` yields at most one
-    row per task (partial unique index).
+    row per task (partial unique index). Callers who may not see every
+    task's content get the rubrics of their revealed tasks only.
     """
-    await _get_viewable_project(project_id, current_user, db)
+    project = await _get_viewable_project(project_id, current_user, db)
 
     stmt = select(TaskRubric).where(TaskRubric.project_id == project_id)
     if task_id:
@@ -277,7 +316,14 @@ async def list_task_rubrics(
     stmt = stmt.order_by(TaskRubric.created_at.desc())
 
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    rubrics = list(result.scalars().all())
+    readable = await _readable_rubric_task_ids(
+        db, current_user, project, {r.task_id for r in rubrics}
+    )
+    if readable is None:
+        return rubrics
+    views = (_revealed_view(r) for r in rubrics if r.task_id in readable)
+    return [view for view in views if view is not None]
 
 
 @router.get("/{rubric_id}", response_model=TaskRubricResponse)
@@ -287,8 +333,20 @@ async def get_task_rubric(
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    await _get_viewable_project(project_id, current_user, db)
-    return await _get_project_rubric(db, project_id, rubric_id)
+    project = await _get_viewable_project(project_id, current_user, db)
+    rubric = await _get_project_rubric(db, project_id, rubric_id)
+    readable = await _readable_rubric_task_ids(
+        db, current_user, project, [rubric.task_id]
+    )
+    if readable is None:
+        return rubric
+    view = _revealed_view(rubric) if rubric.task_id in readable else None
+    if view is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to view this rubric",
+        )
+    return view
 
 
 # ---------------------------------------------------------------------------

@@ -577,3 +577,194 @@ async def test_next_done_counts_skipped_tasks(async_test_db, async_test_client):
         # The skipped task itself stays behind the gate.
         r = await async_test_client.get(f"/api/projects/tasks/{skipped.id}")
         assert r.status_code == 403
+
+
+# ── 5. channels, pinned builds and exports over HTTP (issue #135 follow-up) ──
+
+BEK = "b" * 64
+
+
+def _digest(url, key):
+    return hashlib.sha256((url + key).encode()).hexdigest()
+
+
+def _js_proof(page, *, load=None, hashed=None, bek=None):
+    """The headers ``lib/seb.ts`` sends: SEB's hash plus the page URLs.
+
+    ``hashed`` is the URL SEB computed the hash over (default: ``page``).
+    """
+    headers = {"X-Benger-SEB-CK": _digest(hashed or page, CK), "X-Benger-SEB-URL": page}
+    if load:
+        headers["X-Benger-SEB-Load-URL"] = load
+    if bek:
+        headers["X-Benger-SEB-BEK"] = _digest(hashed or page, bek)
+    return headers
+
+
+@pytest.mark.asyncio
+async def test_js_channel_passes_the_endpoints(async_test_db, async_test_client):
+    """macOS / iOS: the proof rides our own headers, hashed over the page URL."""
+    db = async_test_db
+    w = await _async_world(db)
+    p, task = w["project"], w["tasks"][0]
+    read = f"/api/projects/tasks/{task.id}"
+    draft = f"/api/projects/{p.id}/tasks/{task.id}/draft"
+    exam_page = f"{BASE}/projects/{p.id}/label"
+    student_page = f"{BASE}/student/exams/{p.id}"
+    elsewhere = f"{BASE}/dashboard"
+    client = async_test_client
+    with _as_user(w["student"]):
+        for page in (exam_page, student_page):
+            r = await client.get(read, headers=_js_proof(page))
+            assert r.status_code == 200, (page, r.text)
+        # After client-side navigation SEB may still hold the hash of the URL
+        # the document was loaded with: the load URL counts too.
+        r = await client.get(read, headers=_js_proof(elsewhere, load=exam_page, hashed=exam_page))
+        assert r.status_code == 200, r.text
+        # Neither URL is this exam's page: refused, although the hash is right.
+        r = await client.get(read, headers=_js_proof(elsewhere, load=elsewhere))
+        assert r.status_code == 403 and r.json()["detail"]["code"] == "seb_required"
+        # Another exam's page does not prove this one.
+        other = f"{BASE}/projects/{_uid()}/label"
+        r = await client.get(read, headers=_js_proof(other))
+        assert r.status_code == 403, r.text
+        # A hash over the right page with another key is refused.
+        wrong = {"X-Benger-SEB-CK": _digest(exam_page, "f" * 64), "X-Benger-SEB-URL": exam_page}
+        r = await client.get(read, headers=wrong)
+        assert r.status_code == 403 and r.json()["detail"]["code"] == "seb_required"
+        # Writes take the same proof.
+        body = {"result": [{"from_name": "x", "to_name": "text", "type": "textarea", "value": {}}]}
+        assert (await client.put(draft, json=body)).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_pinned_browser_exam_key_over_http(async_test_db, async_test_client):
+    """With a Browser Exam Key pinned, the right configuration in another SEB
+    build is refused with its own code, on both channels."""
+    db = async_test_db
+    w = await _async_world(db)
+    p, task = w["project"], w["tasks"][0]
+    p.seb_config = {
+        "generated_config_key": CK,
+        "browser_exam_keys": [{"key": BEK, "label": "SEB 3.7 macOS"}],
+    }
+    await db.flush()
+    read = f"/api/projects/tasks/{task.id}"
+    page = f"{BASE}/projects/{p.id}/label"
+    native = _proof(read)
+    cases = [
+        (native, 403),
+        ({**native, "X-SafeExamBrowser-RequestHash": _digest(BASE + read, "a" * 64)}, 403),
+        ({**native, "X-SafeExamBrowser-RequestHash": _digest(BASE + read, BEK)}, 200),
+        (_js_proof(page), 403),
+        (_js_proof(page, bek="a" * 64), 403),
+        (_js_proof(page, bek=BEK), 200),
+    ]
+    with _as_user(w["student"]):
+        for headers, expected in cases:
+            r = await async_test_client.get(read, headers=headers)
+            assert r.status_code == expected, (headers, r.text)
+            if expected == 403:
+                assert r.json()["detail"]["code"] == "seb_version_not_allowed", headers
+        # No configuration proof at all stays the plain "open in SEB" refusal.
+        r = await async_test_client.get(read)
+        assert r.json()["detail"]["code"] == "seb_required"
+    with _as_user(w["owner"]):
+        assert (await async_test_client.get(read)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_questionnaire_response_is_gated(async_test_db, async_test_client):
+    db = async_test_db
+    w = await _async_world(db)
+    p, task = w["project"], w["tasks"][0]
+    p.questionnaire_enabled = True
+    submission = _submission(w, task)
+    db.add(submission)
+    await db.flush()
+    path = f"/api/projects/{p.id}/tasks/{task.id}/questionnaire-response"
+    body = {"annotation_id": submission.id, "result": [{"from_name": "q", "value": {"rating": 3}}]}
+    with _as_user(w["student"]):
+        r = await async_test_client.post(path, json=body)
+        assert r.status_code == 403 and r.json()["detail"]["code"] == "seb_required"
+        r = await async_test_client.post(path, json=body, headers=_proof(path))
+        assert r.status_code == 200, r.text
+
+
+def _public_contributor_project(w):
+    visitor = User(
+        id=_uid(), username=f"v-{_uid()[:8]}", email=f"{_uid()[:8]}@example.com", name="V"
+    )
+    w["project"].is_public, w["project"].public_role = True, "CONTRIBUTOR"
+    return visitor
+
+
+@pytest.mark.parametrize("seb_required, allowed", [(False, True), (True, False)])
+def test_task_export_is_for_editors_on_seb_exams(test_db, client, seb_required, allowed):
+    """The per-project task export dumps unblinded task data. A public
+    project's CONTRIBUTOR visitors get it, except on a Safe Exam Browser exam."""
+    w = _sync_world(test_db, seb_required=seb_required)
+    visitor = _public_contributor_project(w)
+    test_db.add(visitor)
+    test_db.flush()
+    path = f"/api/projects/{w['project'].id}/tasks/bulk-export"
+    body = {"format": "json", "task_ids": [t.id for t in w["tasks"]]}
+    with _as_user(visitor):
+        r = client.post(path, json=body)
+        assert r.status_code == (200 if allowed else 403), r.text
+        assert ('"t1"' in r.text) is allowed
+    with _as_user(w["student"]):
+        r = client.post(path, json=body)
+        assert r.status_code == 403 and '"t1"' not in r.text
+    with _as_user(w["owner"]):
+        r = client.post(path, json=body)
+        assert r.status_code == 200 and '"t1"' in r.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seb_required, allowed", [(False, True), (True, False)])
+async def test_export_job_is_for_editors_on_seb_exams(
+    async_test_db, async_test_client, seb_required, allowed
+):
+    db = async_test_db
+    w = await _async_world(db, seb_required=seb_required)
+    visitor = _public_contributor_project(w)
+    db.add(visitor)
+    await db.flush()
+    path = f"/api/projects/{w['project'].id}/exports"
+    with _as_user(visitor):
+        r = await async_test_client.post(path, json={})
+        assert r.status_code == (202 if allowed else 403), r.text
+    with _as_user(w["owner"]):
+        r = await async_test_client.post(path, json={})
+        assert r.status_code == 202, r.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("seb_required, allowed", [(False, True), (True, False)])
+async def test_someone_elses_export_job_is_for_editors_on_seb_exams(
+    async_test_db, async_test_client, seb_required, allowed
+):
+    """Polling or downloading a colleague's export follows the same rule as
+    creating one: a public CONTRIBUTOR visitor may on a normal project, not
+    on a Safe Exam Browser exam."""
+    from models import ExportJob
+
+    db = async_test_db
+    w = await _async_world(db, seb_required=seb_required)
+    visitor = _public_contributor_project(w)
+    db.add(visitor)
+    job = ExportJob(
+        id=_uid(), project_id=w["project"].id, requested_by=w["owner"].id,
+        format="json", status="pending", progress=0,
+    )
+    db.add(job)
+    await db.flush()
+    path = f"/api/projects/{w['project'].id}/exports/{job.id}"
+    with _as_user(visitor):
+        r = await async_test_client.get(path)
+        assert r.status_code == (200 if allowed else 403), r.text
+    with _as_user(w["student"]):
+        assert (await async_test_client.get(path)).status_code == 403
+    with _as_user(w["owner"]):
+        assert (await async_test_client.get(path)).status_code == 200

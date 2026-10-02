@@ -569,7 +569,7 @@ class TestActivateArchiveList:
 # ---------------------------------------------------------------------------
 
 
-async def _make_org_exam(db, owner, *members):
+async def _make_org_exam(db, owner, *members, kind="exam"):
     """A NON-private exam attached org-wide; members are (user, role)."""
     from models import Organization, OrganizationMembership
     from project_models import ProjectOrganization
@@ -590,7 +590,7 @@ async def _make_org_exam(db, owner, *members):
         title="Org-Übungsklausur",
         created_by=owner.id,
         is_private=False,
-        kind="exam",
+        kind=kind,
         label_config=(
             '<View><Text name="sachverhalt" value="$sachverhalt"/>'
             '<TextArea name="loesung" toName="sachverhalt"/></View>'
@@ -659,3 +659,184 @@ class TestReadAccessOnOrgExams:
         with _as_user(owner):
             resp = await async_test_client.get(path)
         assert resp.status_code == 200, resp.text
+
+
+# ---------------------------------------------------------------------------
+# read access for plain members of a non-exam project
+# ---------------------------------------------------------------------------
+
+
+async def _submit(db, project, task, user):
+    from project_models import Annotation
+
+    db.add(
+        Annotation(
+            id=str(uuid.uuid4()),
+            task_id=task.id,
+            project_id=project.id,
+            completed_by=user.id,
+            result=[{"from_name": "loesung", "to_name": "sachverhalt", "type": "textarea", "value": {}}],
+        )
+    )
+    await db.flush()
+
+
+class TestReadAccessForPlainMembers:
+    """An org annotator holds the view permission on a normal project, but the
+    Bewertungsbogen is solution content: nothing before submitting, and after
+    it only on projects that reveal the solution, for the submitted task."""
+
+    async def _world(self, db, *, reveal, seb_required=False):
+        owner = await _make_user(db)
+        member = await _make_user(db)
+        colleague = await _make_user(db)
+        _org, project = await _make_org_exam(
+            db, owner, (member, "ANNOTATOR"), (colleague, "CONTRIBUTOR"), kind=None
+        )
+        project.annotator_full_visibility_after_submit = reveal
+        project.seb_required = seb_required
+        done = await _make_task(db, project, inner_id=1)
+        open_task = await _make_task(db, project, inner_id=2)
+        done_rubric = await _seed_rubric(db, project, done, status="active")
+        open_rubric = await _seed_rubric(db, project, open_task, status="active")
+        await db.flush()
+        return {
+            "owner": owner, "member": member, "colleague": colleague,
+            "project": project, "done": done, "open": open_task,
+            "done_rubric": done_rubric, "open_rubric": open_rubric,
+        }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reveal", [True, False])
+    async def test_nothing_before_submitting(self, async_test_client, async_test_db, reveal):
+        db = async_test_db
+        w = await self._world(db, reveal=reveal)
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            listed = await async_test_client.get(base)
+            assert listed.status_code == 200, listed.text
+            assert listed.json() == []
+            for rubric in (w["done_rubric"], w["open_rubric"]):
+                single = await async_test_client.get(f"{base}/{rubric.id}")
+                assert single.status_code == 403, single.text
+                assert "criteria" not in single.text
+
+    @pytest.mark.asyncio
+    async def test_submitted_task_is_revealed_and_only_that_one(self, async_test_client, async_test_db):
+        db = async_test_db
+        w = await self._world(db, reveal=True)
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            listed = await async_test_client.get(base)
+            assert [row["id"] for row in listed.json()] == [w["done_rubric"].id]
+            scoped = await async_test_client.get(base, params={"task_id": w["open"].id})
+            assert scoped.json() == []
+            assert (await async_test_client.get(f"{base}/{w['done_rubric'].id}")).status_code == 200
+            assert (await async_test_client.get(f"{base}/{w['open_rubric'].id}")).status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_revealed_view_is_the_active_sheet_without_its_provenance(
+        self, async_test_client, async_test_db
+    ):
+        db = async_test_db
+        w = await self._world(db, reveal=True)
+        draft = await _seed_rubric(
+            db, w["project"], w["done"], status="candidate", metadata={"cost": 1}
+        )
+        archived = await _seed_rubric(db, w["project"], w["done"], status="archived")
+        w["done_rubric"].generation_metadata = {"prompt": "SECRET-prompt"}
+        w["done_rubric"].prompt_key = "rubric_v3"
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            listed = await async_test_client.get(base)
+            assert [row["id"] for row in listed.json()] == [w["done_rubric"].id]
+            (row,) = listed.json()
+            assert row["criteria"] and row["status"] == "active"
+            for hidden in ("generation_metadata", "prompt_key", "generator_model_id", "created_by"):
+                assert row[hidden] is None, hidden
+            assert "SECRET-prompt" not in listed.text
+            for other in (draft, archived):
+                assert (await async_test_client.get(f"{base}/{other.id}")).status_code == 403
+            single = await async_test_client.get(f"{base}/{w['done_rubric'].id}")
+            assert single.status_code == 200 and single.json()["generation_metadata"] is None
+        # Editors keep the drafts and the provenance.
+        with _as_user(w["owner"]):
+            rows = {row["id"]: row for row in (await async_test_client.get(base)).json()}
+            assert {draft.id, archived.id, w["done_rubric"].id} <= set(rows)
+            assert rows[w["done_rubric"].id]["generation_metadata"] == {"prompt": "SECRET-prompt"}
+
+    @pytest.mark.asyncio
+    async def test_superadmin_reads_everything(self, async_test_client, async_test_db):
+        db = async_test_db
+        w = await self._world(db, reveal=False, seb_required=True)
+        admin = await _make_user(db, superadmin=True)
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(admin):
+            listed = await async_test_client.get(base)
+            assert {row["id"] for row in listed.json()} == {
+                w["done_rubric"].id, w["open_rubric"].id,
+            }
+            single = await async_test_client.get(f"{base}/{w['open_rubric'].id}")
+            assert single.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_submission_reveals_nothing_without_the_project_flag(self, async_test_client, async_test_db):
+        db = async_test_db
+        w = await self._world(db, reveal=False)
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            assert (await async_test_client.get(base)).json() == []
+            assert (await async_test_client.get(f"{base}/{w['done_rubric'].id}")).status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_someone_elses_submission_reveals_nothing(self, async_test_client, async_test_db):
+        db = async_test_db
+        w = await self._world(db, reveal=True)
+        await _submit(db, w["project"], w["done"], w["colleague"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            assert (await async_test_client.get(base)).json() == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("seb_required", [True, False])
+    async def test_contributors_and_the_author_read_everything(
+        self, async_test_client, async_test_db, seb_required
+    ):
+        db = async_test_db
+        w = await self._world(db, reveal=False, seb_required=seb_required)
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        expected = {w["done_rubric"].id, w["open_rubric"].id}
+        for reader in (w["owner"], w["colleague"]):
+            with _as_user(reader):
+                listed = await async_test_client.get(base)
+                assert {row["id"] for row in listed.json()} == expected
+                single = await async_test_client.get(f"{base}/{w['open_rubric'].id}")
+                assert single.status_code == 200, single.text
+
+    @pytest.mark.asyncio
+    async def test_public_contributor_visitors_lose_the_sheet_on_seb_exams(
+        self, async_test_client, async_test_db
+    ):
+        db = async_test_db
+        visitor = await _make_user(db)
+        base_by_flag = {}
+        for seb_required in (False, True):
+            w = await self._world(db, reveal=False, seb_required=seb_required)
+            w["project"].is_public, w["project"].public_role = True, "CONTRIBUTOR"
+            base_by_flag[seb_required] = f"/api/projects/{w['project'].id}/task-rubrics"
+        await db.commit()
+        with _as_user(visitor):
+            open_project = await async_test_client.get(base_by_flag[False])
+            assert open_project.status_code == 200 and len(open_project.json()) == 2
+            seb_exam = await async_test_client.get(base_by_flag[True])
+            assert seb_exam.status_code == 200 and seb_exam.json() == []
