@@ -317,11 +317,23 @@ whenever one is added, renamed or removed):
   extended timer and student-exam routes call them too).
   ``ProjectResponse.seb_required`` is exposed read-only; the extended edition
   owns the settings endpoint that writes both columns.
+
+2.26 (2026-10-02): monitoring hooks (extended issue #125). The optional
+  package-level ``benger_extended.configure_app(app)`` is called once after
+  the extended routers are included (``extensions.configure_app``; for
+  middleware such as HTTP metrics). The optional API hook
+  ``on_ops_event(event, **labels)`` receives ``mail_outcome`` (``mail_type``
+  verification or password_reset, ``outcome`` sent or failed) from the
+  API's inline mail and ``health_check_failed`` (``dependency`` redis,
+  database or celery) from ``/health``, through
+  ``extensions.emit_ops_event``. Worker mail is observed through Celery
+  signals. The api image carries ``prometheus-client`` for the extended
+  metrics endpoint.
 """
 
 import os
 
-CORE_API_VERSION = "2.25"
+CORE_API_VERSION = "2.26"
 
 
 def extended_required() -> bool:

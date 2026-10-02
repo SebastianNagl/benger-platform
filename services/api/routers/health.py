@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth_module import User, require_superadmin, require_user
 from database import get_async_db
+from extensions import emit_ops_event
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +72,13 @@ async def health(db: AsyncSession = Depends(get_async_db)):
         else:
             health_status["redis"] = "unavailable"
             health_status["status"] = "unhealthy"
+            emit_ops_event("health_check_failed", dependency="redis")
             return JSONResponse(status_code=503, content=health_status)
     except Exception as e:
         logger.warning(f"Health check: Redis ping failed: {e}")
         health_status["redis"] = "error"
         health_status["status"] = "unhealthy"
+        emit_ops_event("health_check_failed", dependency="redis")
         return JSONResponse(status_code=503, content=health_status)
 
     # Database check (required). Tight timeout via the async engine's
@@ -88,6 +91,7 @@ async def health(db: AsyncSession = Depends(get_async_db)):
         logger.warning(f"Health check: DB ping failed: {e}")
         health_status["database"] = "error"
         health_status["status"] = "unhealthy"
+        emit_ops_event("health_check_failed", dependency="database")
         return JSONResponse(status_code=503, content=health_status)
 
     # Celery worker check (soft — degraded but 200). Inspect.ping()
@@ -121,6 +125,8 @@ async def health(db: AsyncSession = Depends(get_async_db)):
         health_status["celery_workers"] = "error"
         health_status["status"] = "degraded"
 
+    if health_status["status"] == "degraded":
+        emit_ops_event("health_check_failed", dependency="celery")
     return health_status
 
 

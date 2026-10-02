@@ -88,6 +88,9 @@ dependencies = [
     # Vertretbar billing (extended-only; community never imports). stripe 15
     # made StripeObject non-dict: extended reads fields via _stripe_compat.get.
     "stripe>=15.0.0,<16.0.0",
+    # Extended monitoring (extended-only; community never imports): /internal/metrics
+    # and the HTTP metrics middleware run in multiprocess mode under uvicorn workers.
+    "prometheus-client>=0.21,<1.0",
 ]
 
 [project.optional-dependencies]

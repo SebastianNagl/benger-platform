@@ -123,7 +123,7 @@ class TestExtensionLoader:
         # access helpers and its request-header reader.
         # 2.24 drops the project_members table and ProjectMember model.
         # 2.25 adds the Safe Exam Browser columns, verifier and guards.
-        assert CORE_API_VERSION == "2.25"
+        assert CORE_API_VERSION == "2.26"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
