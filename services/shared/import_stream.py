@@ -77,6 +77,7 @@ from project_models import (
     TaskAssignment,
     TaskRubric,
 )
+import seb
 from serializers import _parse_iso
 
 # Shared batch helper extracted alongside the export side. See
@@ -123,22 +124,14 @@ _VALUE_OPENING_EVENTS = frozenset(
     {"start_map", "start_array", "null", "boolean", "number", "string"}
 )
 
-# seb_config keys tied to the exporting deployment (see imported_seb_config).
-_SEB_HOST_BOUND_KEYS = frozenset(
-    {"config_token", "base_url", "settings", "generated_config_key"}
-)
-
-
 def imported_seb_config(value: Any) -> Optional[dict]:
     """The Safe Exam Browser settings an imported copy starts with.
 
-    Only the organizer's choices carry over. The download token is per
-    project, and the base URL, generated .seb settings and their Config Key
-    name the source host; re-enabling the gate rebuilds them for this one.
+    Only the organizer's choices carry over (see
+    :func:`seb.portable_seb_config`); re-enabling the gate rebuilds the
+    host-bound rest for this deployment.
     """
-    if not isinstance(value, dict):
-        return None
-    return {k: v for k, v in value.items() if k not in _SEB_HOST_BOUND_KEYS}
+    return seb.portable_seb_config(value)
 
 
 def _add_catchall_judge_run(db, evaluation_id: str) -> str:

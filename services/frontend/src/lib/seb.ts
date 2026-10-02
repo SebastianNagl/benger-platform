@@ -37,8 +37,9 @@ function sebApi(): SafeExamBrowserApi | undefined {
 
 // SEB 3.0 for macOS / iOS only fills the key variables after updateKeys()
 // calls back, for the page URL at that moment. Later versions set them on
-// load and may not define the function. Requests that need the proof await
-// `sebKeysReady()` first, which asks again after client-side navigation.
+// load and may not define the function. The API client awaits
+// `sebKeysReady()` before every request made with the JavaScript API present,
+// which asks again after client-side navigation.
 let keysReady: Promise<void> = Promise.resolve()
 let keysUrl: string | null = null
 
@@ -75,6 +76,15 @@ export function sebKeysReady(): Promise<void> {
     keysReady = refreshKeys()
   }
   return keysReady
+}
+
+/**
+ * Whether SEB's JavaScript API is present, i.e. the proof rides our own
+ * headers. The API client then waits for `sebKeysReady()` before each
+ * request; everywhere else requests go out without that extra await.
+ */
+export function hasSebJsApi(): boolean {
+  return !!sebApi()?.security
 }
 
 /** Whether the page runs inside Safe Exam Browser. */
@@ -123,6 +133,34 @@ export function sebRequestHeaders(): Record<string, string> {
   headers['X-Benger-SEB-URL'] = window.location.href
   if (LOAD_URL) headers['X-Benger-SEB-Load-URL'] = LOAD_URL
   return headers
+}
+
+/** Fired on `window` when the API refuses a request at the SEB gate. */
+export const SEB_REFUSED_EVENT = 'benger:seb-refused'
+
+export type SebRefusalCode = 'seb_required' | 'seb_version_not_allowed'
+
+const SEB_REFUSAL_CODES: readonly string[] = [
+  'seb_required',
+  'seb_version_not_allowed',
+]
+
+/**
+ * Tells the page that the server refused a request at the SEB gate (a 403
+ * whose `detail.code` is one of the SEB codes), so the exam page can switch
+ * to its "open in SEB" screen even when the refusal comes mid-exam (settings
+ * changed, another SEB version). Anything else is ignored.
+ */
+export function reportSebRefusal(status: number, errorData: unknown): void {
+  if (status !== 403 || typeof window === 'undefined') return
+  const detail = (errorData as { detail?: unknown } | null)?.detail
+  const code = (detail as { code?: unknown } | null)?.code
+  if (typeof code !== 'string' || !SEB_REFUSAL_CODES.includes(code)) return
+  window.dispatchEvent(
+    new CustomEvent<{ code: SebRefusalCode }>(SEB_REFUSED_EVENT, {
+      detail: { code: code as SebRefusalCode },
+    }),
+  )
 }
 
 // Navigation lock inside SEB. SEB's URL filter allows the whole site, so the

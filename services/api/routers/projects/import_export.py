@@ -109,6 +109,7 @@ from routers.projects.helpers import (  # noqa: E402
     check_project_accessible_async,
     check_project_write_access_async,
     can_read_all_task_content,
+    can_read_all_task_content_async,
     enforce_project_read_window_async,
 )
 
@@ -147,10 +148,11 @@ async def _load_export_job_for_read(
 ) -> ExportJob:
     """Fetch an ExportJob enforcing scope + authz, or raise the right HTTP error.
 
-    A job is readable by its requester or by anyone with write access to the
-    project (so an admin can see a colleague's export). 404 (not 403) when the
-    job belongs to a different project so we don't leak job-id existence across
-    projects.
+    A job is readable by its requester or by anyone who may export the
+    project themselves (so an admin can see a colleague's export; on a Safe
+    Exam Browser exam that is its editors only, like creating one). 404 (not
+    403) when the job belongs to a different project so we don't leak job-id
+    existence across projects.
     """
     job = (
         await db.execute(select(ExportJob).where(ExportJob.id == job_id))
@@ -168,10 +170,12 @@ async def _load_export_job_for_read(
         ).scalar_one_or_none()
         if deleted is not None:
             raise HTTPException(status_code=404, detail="Export job not found")
-    if str(job.requested_by) != str(current_user.id) and not await check_project_write_access_async(
-        db, current_user, project_id
-    ):
-        raise HTTPException(status_code=403, detail="Access denied")
+    if str(job.requested_by) != str(current_user.id):
+        project = (
+            await db.execute(select(Project).where(Project.id == project_id))
+        ).scalar_one_or_none()
+        if not await can_read_all_task_content_async(db, current_user, project):
+            raise HTTPException(status_code=403, detail="Access denied")
     return job
 
 
@@ -211,8 +215,8 @@ async def create_export_job(
     # that see the full payload anyway: effective ORG_ADMIN / CONTRIBUTOR
     # (the blinding module's full-data roles; public CONTRIBUTOR visitors
     # keep it per the public_role contract, public ANNOTATOR visitors and org
-    # annotators do not).
-    if not await check_project_write_access_async(db, current_user, project_id):
+    # annotators do not). A Safe Exam Browser exam narrows this to its editors.
+    if not await can_read_all_task_content_async(db, current_user, project):
         raise HTTPException(
             status_code=403,
             detail="Only contributors or admins can export this project",

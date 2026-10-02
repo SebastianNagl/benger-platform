@@ -99,6 +99,29 @@ def accepted_browser_exam_keys(seb_config: Optional[Mapping]) -> List[str]:
     return _dedupe(keys)
 
 
+# seb_config keys that only mean something on the deployment that wrote them:
+# the download token is per project, the base URL, generated .seb settings and
+# their Config Key name the source host, and the config-file password is
+# encrypted with that deployment's key.
+HOST_BOUND_CONFIG_KEYS = frozenset(
+    {"config_token", "base_url", "settings", "generated_config_key", "config_password_enc"}
+)
+
+
+def portable_seb_config(seb_config: Any) -> Optional[dict]:
+    """The part of ``seb_config`` that may leave or enter a deployment.
+
+    Only the organizer's choices travel (extra hosts, pinned keys, the quit
+    password hash, ...). Exports drop the host-bound keys so no download token
+    or encrypted password ends up in a file, and imports drop them again in
+    case the file came from an older export; re-enabling the gate rebuilds
+    them for the importing host.
+    """
+    if not isinstance(seb_config, Mapping):
+        return None
+    return {k: v for k, v in seb_config.items() if k not in HOST_BOUND_CONFIG_KEYS}
+
+
 def _dedupe(keys: Iterable[Optional[str]]) -> List[str]:
     out: List[str] = []
     for key in keys:
