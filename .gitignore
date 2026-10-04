@@ -358,5 +358,3 @@ publications/LEXam_DE/analysis/data/
 # (see LEXam_DE/README.md) and must survive the generic *.json rule.
 !publications/LEXam_DE/configs/generated/*.json
 
-# WIP publications - not yet ready for the public repo
-publications/Watermark_Study/
