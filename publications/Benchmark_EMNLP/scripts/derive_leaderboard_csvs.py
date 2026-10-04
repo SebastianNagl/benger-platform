@@ -35,6 +35,8 @@ from scipy import stats as sp_stats
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _gen_dedup import dedup_superseded
 from _gp_decision import decision_accuracy
+from derive_grundprinzipien_summary import GP_PRIMARY_JUDGE_PREFIX
+from derive_zjs_summary import ZJS_PRIMARY_JUDGE_PREFIX
 
 HERE = Path(__file__).resolve().parent.parent
 RAW = HERE / "data" / "raw"
@@ -407,7 +409,11 @@ def build_zjs():
 
                 for ev in gen.get("evaluations") or []:
                     m = ev.get("metrics") or {}
-                    if "llm_judge_falloesung" in m and gen_judge["judge_raw"] is None:
+                    # Primary-judge run only; the export also carries a legacy
+                    # gpt-5-nano run under another field-name prefix.
+                    is_primary = str(ev.get("field_name") or "").startswith(ZJS_PRIMARY_JUDGE_PREFIX)
+                    if ("llm_judge_falloesung" in m and is_primary
+                            and gen_judge["judge_raw"] is None):
                         judge = m["llm_judge_falloesung"]
                         details = (judge.get("details")
                                    if isinstance(judge, dict) else None) or {}
@@ -495,6 +501,11 @@ def build_grundprinzipien():
 
             for ev in gen.get("evaluations") or []:
                 m = ev.get("metrics") or {}
+
+                # Primary-judge run only; the legacy gpt-5-mini scoring is ignored.
+                if "llm_judge_custom" in m and not str(
+                        ev.get("field_name") or "").startswith(GP_PRIMARY_JUDGE_PREFIX):
+                    continue
 
                 if ("raw_score" in m and "llm_judge_custom" in m
                         and gen_judge["judge_raw"] is None):

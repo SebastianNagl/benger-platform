@@ -14,7 +14,7 @@ The seven human graders of the Benchathon subset are referred to by stable codes
 
 ### ZJS IP-clearance
 
-The ZJS subset reproduces case texts from *Zeitschrift für das Juristische Studium*. Each case has an author whose IP-clearance status is recorded in `data/raw/zjs/ip_clearance.csv` (the roster) and normalised in `data/raw/zjs/ip_clearance.json` (the lookup). Two redacted variants are produced:
+The ZJS subset reproduces case texts from *Zeitschrift für das Juristische Studium*. Each case has an author whose IP-clearance status is recorded in `data/raw/zjs/ip_clearance_<DATE>.csv` (the roster) and normalised in `data/raw/zjs/ip_clearance.json` (the lookup). Two redacted variants are produced:
 
 - `data/raw/zjs/source_strict/` — only cases with status `Genehmigt` keep their full text; all others have `Aufgabe` and `Musterlösung` replaced with the ZJS search URL.
 - `data/raw/zjs/source_optimistic/` — only cases with status `Abgelehnt` are redacted.
@@ -64,9 +64,9 @@ The Makefile prefixes every script call with `uv run` so deps like `ijson` and `
 ```
 data/
 ├── raw/          immutable platform exports + corpus source material
-│   ├── benchathon/        Benchathon-tasks-*.json, benchathon_users.json
-│   ├── grundprinzipien/   Grundprinzipien-tasks-*.json + source/
-│   ├── zjs/               ZJS Fälle-tasks-*.json + source/
+│   ├── benchathon/        Benchathon_export.json, Benchathon-tasks-*.json, benchathon_users.json
+│   ├── grundprinzipien/   grundprinzipien_Grundprinzipien_full_export.json, Grundprinzipien-tasks-*.json + source/
+│   ├── zjs/               zjs_faelle_full_export.json, ZJS Fälle-tasks-*.json + source/
 │   ├── mock/              benchathon_mock.json
 │   └── archive/           superseded raw exports kept for provenance
 │
