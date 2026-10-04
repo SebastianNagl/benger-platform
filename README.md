@@ -80,8 +80,7 @@ BenGER/
     │   ├── manuscript.qmd  # Quarto source for the paper
     │   ├── data/           # Processed + interim data (raw lives on HF + Zenodo)
     │   └── scripts/        # Data preparation, IP clearance, anonymization
-    ├── Plattform_ICAIL/    # The ICAIL system-demonstration paper
-    └── Transformation/     # Follow-up study on task transformation
+    └── Plattform_ICAIL/    # The ICAIL system-demonstration paper
 ```
 
 ## Technology Stack
