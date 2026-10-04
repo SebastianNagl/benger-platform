@@ -230,17 +230,19 @@ def _build_multidim_judge_row_metrics(
     terminal failure instead of an unscored row.
     """
     if not multidim or multidim.get("error") or "scores" not in multidim:
+        error_details = {
+            "raw_output": _strip_control_chars((multidim or {}).get("_raw_output", "")),
+            "call_metadata": (multidim or {}).get("_call_metadata", {}),
+        }
+        # A structured "not_evaluable" verdict keeps its diagnosis on the row.
+        if isinstance((multidim or {}).get("assessment"), dict):
+            error_details["assessment"] = _scrub_control_chars(multidim["assessment"])
         return (
             {
                 metric: {
                     "value": None,
                     "method": metric,
-                    "details": {
-                        "raw_output": _strip_control_chars(
-                            (multidim or {}).get("_raw_output", "")
-                        ),
-                        "call_metadata": (multidim or {}).get("_call_metadata", {}),
-                    },
+                    "details": error_details,
                     "error": _strip_control_chars(
                         error_msg
                         or (multidim or {}).get("error_message")
@@ -268,6 +270,14 @@ def _build_multidim_judge_row_metrics(
     # criteria this row was scored against.
     if multidim.get("rubric_id"):
         details["rubric_id"] = multidim["rubric_id"]
+    # llm_judge_rubric structured_assessment: the diagnosis block (work
+    # products, Hilfsgutachten, error chains) plus its score status. A
+    # "review_required" row keeps its value but is marked provisional.
+    if isinstance(multidim.get("assessment"), dict):
+        assessment = _scrub_control_chars(multidim["assessment"])
+        details["assessment"] = assessment
+        details["score_status"] = assessment.get("score_status")
+        details["aggregation_eligible"] = assessment.get("aggregation_eligible")
     metrics: dict = {
         metric: {
             "value": float(normalized),

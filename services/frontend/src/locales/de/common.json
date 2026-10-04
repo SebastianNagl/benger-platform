@@ -10396,7 +10396,23 @@
     "headingHuman": "Korrektur durch eine Person",
     "headingLlm": "Korrektur durch die KI",
     "evidence": "Beleg",
-    "evidenceMissing": "Keine passende Stelle in der Bearbeitung gefunden; die KI hatte {score} BE vergeben, gewertet wird 0."
+    "evidenceMissing": "Keine passende Stelle in der Bearbeitung gefunden; die KI hatte {score} BE vergeben, gewertet wird 0.",
+    "assessmentTitle": "Befund zum Arbeitsergebnis",
+    "provisional": "Vorläufige Bewertung: die KI hat Punkte zur fachlichen Nachprüfung markiert.",
+    "reviewReasons": "Nachprüfungsgründe",
+    "workProducts": "Verlangte Arbeitsergebnisse",
+    "supplementaryReviews": "Hilfsgutachten und ergänzende Prüfungen",
+    "assumption": "Abweichende Prämisse",
+    "errorChains": "Folgefehler",
+    "improvements": "Verbesserungshinweise",
+    "status": {
+      "fulfilled": "erbracht",
+      "partial": "teilweise",
+      "missing": "fehlt",
+      "wrong_product": "falsches Dokument",
+      "unclear": "unklar",
+      "not_required": "nicht erforderlich"
+    }
   },
   "notenschluessel": {
     "partLabel": "Notenschlüssel",

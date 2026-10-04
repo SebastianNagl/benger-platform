@@ -343,11 +343,24 @@ whenever one is added, renamed or removed):
   serves ``/api/ext/feature-flags``. ``EmailService()`` no longer takes
   ``check_feature_flag``. The frontend drops its flag context and gates;
   ``/admin/feature-flags`` renders the ``FeatureFlagsAdmin`` slot.
+
+2.28 (2026-10-04): ``llm_judge_rubric`` rubric options. The workers expose
+  ``ml_evaluation.rubric_assessment`` with
+  ``register_rubric_prompt_profile(name, system_prompt, closing_rules)``;
+  ``metric_parameters.prompt_profile`` selects a registered profile (an
+  unknown one is a ``config_error`` row, never a silent default) and
+  ``metric_parameters.structured_assessment`` adds the diagnosis block
+  (``assessment_status``, ``work_products``, ``supplementary_reviews``,
+  ``error_chains``, ``review_reasons``, ``improvements``) to the strict
+  schema and to ``details.assessment`` of the row, with ``score_status`` /
+  ``aggregation_eligible``. ``not_evaluable`` is a terminal error row.
+  ``LLMJudgeEvaluator.bind_task_rubric`` takes the config's
+  ``metric_parameters`` as a second argument.
 """
 
 import os
 
-CORE_API_VERSION = "2.27"
+CORE_API_VERSION = "2.28"
 
 
 def extended_required() -> bool:

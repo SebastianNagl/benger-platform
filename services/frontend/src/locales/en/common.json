@@ -10407,7 +10407,23 @@
     "headingHuman": "Corrected by a person",
     "headingLlm": "Corrected by the AI",
     "evidence": "Evidence",
-    "evidenceMissing": "No matching passage found in the answer; the AI had given {score} BE, counted as 0."
+    "evidenceMissing": "No matching passage found in the answer; the AI had given {score} BE, counted as 0.",
+    "assessmentTitle": "Findings on the work product",
+    "provisional": "Provisional grading: the AI flagged points for expert review.",
+    "reviewReasons": "Reasons for review",
+    "workProducts": "Required work products",
+    "supplementaryReviews": "Supplementary opinions and additional checks",
+    "assumption": "Alternative premise",
+    "errorChains": "Consequential errors",
+    "improvements": "Suggestions",
+    "status": {
+      "fulfilled": "done",
+      "partial": "partial",
+      "missing": "missing",
+      "wrong_product": "wrong document",
+      "unclear": "unclear",
+      "not_required": "not required"
+    }
   },
   "notenschluessel": {
     "partLabel": "Grade scale",

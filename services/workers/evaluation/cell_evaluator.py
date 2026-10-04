@@ -612,7 +612,9 @@ def evaluate_generation_cell_impl(
                                     continue
 
                                 if task_rubric is not None:
-                                    jr_evaluator.bind_task_rubric(task_rubric)
+                                    jr_evaluator.bind_task_rubric(
+                                        task_rubric, config.get("metric_parameters")
+                                    )
 
                                 multidim_mode = (
                                     metric != "llm_judge_falloesung"
@@ -1237,7 +1239,9 @@ def evaluate_annotation_cell_impl(
                                         continue
 
                                     if task_rubric is not None:
-                                        jr_evaluator.bind_task_rubric(task_rubric)
+                                        jr_evaluator.bind_task_rubric(
+                                            task_rubric, config.get("metric_parameters")
+                                        )
 
                                     multidim_mode = (
                                         metric != "llm_judge_falloesung"

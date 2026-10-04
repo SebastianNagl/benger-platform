@@ -557,6 +557,29 @@ def validate_evaluation_config_entries(eval_configs_list) -> None:
                             f"({label}) must be a non-empty string when set"
                         ),
                     )
+            # Rubric options (core 2.25): the wording profile is resolved by
+            # the worker (editions register profiles there), so only the
+            # shape is checked here; an unknown name fails the cell loudly.
+            if "prompt_profile" in mp and mp["prompt_profile"] is not None:
+                profile = mp["prompt_profile"]
+                if not isinstance(profile, str) or not profile.strip():
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "llm_judge_rubric: metric_parameters.prompt_profile "
+                            "must be a non-empty string when set"
+                        ),
+                    )
+            if "structured_assessment" in mp and not isinstance(
+                mp["structured_assessment"], bool
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "llm_judge_rubric: metric_parameters.structured_assessment "
+                        "must be true or false"
+                    ),
+                )
             if mp.get("custom_criteria"):
                 raise HTTPException(
                     status_code=422,

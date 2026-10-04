@@ -134,7 +134,7 @@ def _evaluate_llm_judge_single_impl(
             raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
         # Criteria + rubric mode (fixed roles, tagged inputs, verified
         # evidence), exactly as the bulk cell paths bind them.
-        llm_judge.bind_task_rubric(task_rubric)
+        llm_judge.bind_task_rubric(task_rubric, params)
         # Grade against the Musterlösung when the task carries one — mirrors
         # the bulk cell path's ground-truth swap.
         muster = tasks._get_insensitive(

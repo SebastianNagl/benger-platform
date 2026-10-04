@@ -108,6 +108,7 @@ def _half_point_enum(max_score: float) -> List[float]:
 def _build_rubric_json_schema(
     custom_criteria: Dict[str, Dict[str, Any]],
     require_evidence: bool = False,
+    structured_assessment: bool = False,
 ) -> Dict[str, Any]:
     """Strict OpenAI JSON schema for single-call multi-dimension rubrics.
 
@@ -123,6 +124,10 @@ def _build_rubric_json_schema(
     also carries a required ``evidence`` string, placed first so the model
     quotes the answer before it scores. The server checks the quote against
     the answer (see :func:`_verify_evidence`).
+
+    With ``structured_assessment`` the body also carries the diagnosis
+    block of :mod:`ml_evaluation.rubric_assessment` (``assessment_status``,
+    ``work_products`` …) as further required top-level keys.
 
     OpenAI strict mode requires ``additionalProperties: false`` and
     enumerating every key under ``required``, so the schema is fully
@@ -169,19 +174,24 @@ def _build_rubric_json_schema(
         }
         score_required.append(key)
 
+    properties: Dict[str, Any] = {
+        "scores": {
+            "type": "object",
+            "properties": score_properties,
+            "required": score_required,
+            "additionalProperties": False,
+        },
+        "total_score": {"type": "number"},
+        "overall_assessment": {"type": "string"},
+    }
+    if structured_assessment:
+        from ml_evaluation.rubric_assessment import assessment_schema_properties
+
+        properties.update(assessment_schema_properties())
     return {
         "type": "object",
-        "properties": {
-            "scores": {
-                "type": "object",
-                "properties": score_properties,
-                "required": score_required,
-                "additionalProperties": False,
-            },
-            "total_score": {"type": "number"},
-            "overall_assessment": {"type": "string"},
-        },
-        "required": ["scores", "total_score", "overall_assessment"],
+        "properties": properties,
+        "required": list(properties),
         "additionalProperties": False,
     }
 
@@ -1500,6 +1510,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.rubric_mode = rubric_mode
         # Checklist scoring (research lane): set by configure_checklist().
         self.checklist: Optional[Dict[str, Any]] = None
+        # llm_judge_rubric options from metric_parameters (bind_task_rubric):
+        # the wrapper wording and the opt-in diagnosis block.
+        self.prompt_profile: Optional[str] = None
+        self.structured_assessment = False
 
         # Merge all criteria: defaults + type-specific + custom
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
@@ -1520,7 +1534,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         else:
             self.criteria = ["helpfulness", "correctness"]
 
-    def bind_task_rubric(self, rubric) -> None:
+    def bind_task_rubric(self, rubric, metric_parameters: Optional[Dict[str, Any]] = None) -> None:
         """Grade against a task's Bewertungsbogen (``llm_judge_rubric``).
 
         The rubric's criteria replace the config's, which flips
@@ -1534,6 +1548,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
         length, then bytes, not in outline order. The response schema and the
         score vector follow the dict order, so the steps are put back into
         Bewertungsbogen order (structure first, then the ``sNN_`` ordinals).
+
+        ``metric_parameters`` carries the rubric options of the config:
+        ``prompt_profile`` (wrapper wording, see
+        :mod:`ml_evaluation.rubric_assessment`) and ``structured_assessment``
+        (the diagnosis block). Both default off.
         """
         from rubric_structure import order_criteria_keys
 
@@ -1542,6 +1561,10 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.custom_criteria = {key: criteria[key] for key in ordered}
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
+        params = metric_parameters or {}
+        profile = params.get("prompt_profile")
+        self.prompt_profile = profile if isinstance(profile, str) and profile else None
+        self.structured_assessment = params.get("structured_assessment") is True
 
     def configure_checklist(
         self,
@@ -2360,6 +2383,37 @@ class LLMJudgeEvaluator(BaseEvaluator):
         prompt_template = _preprocess_jinja_placeholders(raw_template)
 
         rubric_mode = self.rubric_mode is True
+        # The checklist lane has its own schema, so the diagnosis block and
+        # the profile wording apply to the rubric lane only.
+        structured_assessment = rubric_mode and self.structured_assessment and not self.checklist
+        rubric_system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+        rubric_closing_rules = RUBRIC_JUDGE_CLOSING_RULES
+        if (
+            rubric_mode
+            and not self.checklist
+            and self.prompt_profile
+            and self.prompt_profile != "default"
+        ):
+            from ml_evaluation.rubric_assessment import (
+                get_rubric_prompt_profile,
+                registered_rubric_prompt_profiles,
+            )
+
+            profile = get_rubric_prompt_profile(self.prompt_profile)
+            if profile is None:
+                # Never fall back to the default wording: a second-exam file
+                # graded under first-exam framing would look like a valid score.
+                return {
+                    "error": True,
+                    "error_message": (
+                        f"Unknown rubric prompt_profile {self.prompt_profile!r}; "
+                        f"registered: {registered_rubric_prompt_profiles() or ['default']}"
+                    ),
+                    "_call_metadata": {"error_type": "config_error"},
+                    "_raw_output": "",
+                }
+            rubric_system_prompt = profile["system_prompt"]
+            rubric_closing_rules = profile["closing_rules"]
 
         # Built-ins first. No aliases — Issue #107.
         template_vars: Dict[str, str] = {
@@ -2436,8 +2490,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 prompt = f"{prompt.rstrip()}\n\n{key_map}\n\n{opts['closing_rules']}"
                 system_prompt = opts["system_prompt"]
             else:
-                prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-                system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
+                prompt = f"{prompt.rstrip()}\n\n{rubric_closing_rules}"
+                system_prompt = rubric_system_prompt
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
                 for value in (field_outputs or {}).values()
@@ -2453,7 +2507,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
             )
         else:
             json_schema = _build_rubric_json_schema(
-                self.custom_criteria, require_evidence=rubric_mode
+                self.custom_criteria,
+                require_evidence=rubric_mode,
+                structured_assessment=structured_assessment,
             )
         # Sum of max_scores; used to clamp total_score and to give callers
         # a 0..1 normalisation reference.
@@ -2480,6 +2536,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 k: self.checklist[k]
                 for k in ("score_unit", "alternatives", "total_mode", "grade_scale")
             }
+        if rubric_mode:
+            provenance["prompt_profile"] = self.prompt_profile or "default"
+            provenance["structured_assessment"] = structured_assessment
         # "api_default" says explicitly that no value was sent, so a row
         # graded at the provider's default is not mistaken for one whose
         # value went unrecorded.
@@ -2528,10 +2587,27 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "total_score": mock_total,
                 "overall_assessment": mock_reason,
             }
+            if structured_assessment:
+                mock_body.update(
+                    assessment_status="scored",
+                    work_products=[],
+                    supplementary_reviews=[
+                        {
+                            "subject": "Ergänzende Prüfung",
+                            "requirement_basis": mock_reason,
+                            "status": "not_required",
+                            "assumption": None,
+                            "reason": mock_reason,
+                        }
+                    ],
+                    error_chains=[],
+                    review_reasons=[],
+                    improvements=[],
+                )
             finalized, finalized_total, _zeroed = _finalize_multidim_scores(
                 mock_body, self.custom_criteria, evidence_index
             )
-            return {
+            mock_result = {
                 **mock_body,
                 "scores": finalized,
                 "total_score": finalized_total,
@@ -2544,6 +2620,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "_raw_output": json.dumps(mock_body, ensure_ascii=False),
                 "_judge_prompts_used": provenance,
             }
+            if structured_assessment:
+                from ml_evaluation.rubric_assessment import normalize_assessment
+
+                mock_result["assessment"] = normalize_assessment(mock_body)
+            return mock_result
 
         last_failure: Optional[Dict[str, Any]] = None
         # One entry per retry of this loop (a provider 429 / timeout, or a
@@ -2738,7 +2819,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             f"Rubric judge ({self.judge_model}): {zeroed} step(s) set to 0 "
                             "for missing or unverified evidence"
                         )
-                    return {
+                    result = {
                         "scores": clamped,
                         "total_score": float(total),
                         "total_max": float(total_max),
@@ -2747,6 +2828,31 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
+                    if structured_assessment:
+                        from ml_evaluation.rubric_assessment import (
+                            normalize_assessment,
+                            not_evaluable_message,
+                        )
+
+                        # Diagnosis only: scores and total above are final.
+                        assessment = normalize_assessment(parsed)
+                        result["assessment"] = assessment
+                        if assessment["assessment_status"] == "not_evaluable":
+                            # Inputs missing or broken: no score and no grade.
+                            # Returned as a terminal error so every lane stores
+                            # an error row (never retried, never a 0 score).
+                            return {
+                                "error": True,
+                                "error_message": not_evaluable_message(assessment),
+                                "assessment": assessment,
+                                "_call_metadata": {
+                                    **result["_call_metadata"],
+                                    "error_type": "not_evaluable",
+                                },
+                                "_raw_output": content,
+                                "_judge_prompts_used": provenance,
+                            }
+                    return result
 
                 base_meta = _extract_call_metadata(response)
                 if base_meta.get("truncated"):

@@ -833,6 +833,49 @@ class TestUpdateEvaluationConfig:
         assert resp.status_code == 422
         assert "rubric_prompt_key" in resp.json()["detail"]
 
+    def test_rubric_options_persist(
+        self, client, test_db, test_users, auth_headers, test_org
+    ):
+        """Core 2.25: the second-exam wording profile and the structured
+        assessment block are stored as given."""
+        project = _make_project(test_db, test_users[0], test_org)
+        config = self._rubric_config(
+            prompt_profile="zweites_examen", structured_assessment=True
+        )
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=config,
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 200, resp.text
+        test_db.expire_all()
+        stored = (
+            test_db.query(Project).filter(Project.id == project.id).first()
+        ).evaluation_config
+        mp = stored["evaluation_configs"][0]["metric_parameters"]
+        assert mp["prompt_profile"] == "zweites_examen"
+        assert mp["structured_assessment"] is True
+
+    @pytest.mark.parametrize(
+        "overrides, key",
+        [
+            ({"prompt_profile": "  "}, "prompt_profile"),
+            ({"prompt_profile": 3}, "prompt_profile"),
+            ({"structured_assessment": "yes"}, "structured_assessment"),
+        ],
+    )
+    def test_rubric_invalid_options_return_422(
+        self, client, test_db, test_users, auth_headers, test_org, overrides, key
+    ):
+        project = _make_project(test_db, test_users[0], test_org)
+        resp = client.put(
+            f"/api/evaluations/projects/{project.id}/evaluation-config",
+            json=self._rubric_config(**overrides),
+            headers=_org_headers(auth_headers, "admin", test_org),
+        )
+        assert resp.status_code == 422
+        assert key in resp.json()["detail"]
+
     def test_rubric_with_custom_criteria_returns_422(
         self, client, test_db, test_users, auth_headers, test_org
     ):
