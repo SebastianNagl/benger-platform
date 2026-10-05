@@ -3964,6 +3964,7 @@
     "userManagement": "User Management",
     "defaultConfiguration": "Default Configuration",
     "featureFlags": "Feature Flags",
+    "featureFlagsNotAvailable": "Feature flags are not available in this edition.",
     "orgManagement": "Organization Management",
     "createOrg": "Create Organization",
     "inviteUser": "Invite User",
@@ -4122,23 +4123,6 @@
         "totalUsers": "{count} total"
       }
     },
-    "featureFlagsPage": {
-      "title": "Feature Flags",
-      "description": "Manage application feature flags",
-      "searchPlaceholder": "Search feature flags...",
-      "name": "Name",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "created": "Created",
-      "applyChanges": "Apply Changes",
-      "applying": "Applying...",
-      "discardChanges": "Discard Changes",
-      "noFlags": "No feature flags found",
-      "sortByName": "Sort by Name",
-      "sortByDate": "Sort by Date",
-      "applied": "Changes applied successfully",
-      "applyFailed": "Failed to apply changes"
-    },
     "emailVerificationPage": {
       "title": "Email Verification",
       "description": "Manage user email verification",
@@ -4252,10 +4236,6 @@
         "emailVerification": {
           "title": "Email Verification",
           "description": "Monitor and manage email verification system"
-        },
-        "featureFlags": {
-          "title": "Feature Flags",
-          "description": "Manage feature toggles and rollout configurations"
         },
         "testNotifications": {
           "title": "Test Notifications",
@@ -4619,7 +4599,6 @@
     "copyLatex": "Copy LaTeX",
     "title": "Evaluation Dashboard",
     "subtitle": "Select a project to manage and monitor evaluation activities",
-    "notAvailable": "Evaluation System Not Available",
     "disabled": "The evaluation system is currently disabled.",
     "accessDenied": "Access Denied",
     "noMethodsConfigured": "No evaluation methods configured",
@@ -6154,10 +6133,6 @@
       "adminUsersOrganizations": {
         "title": "Users & organizations (admin)",
         "description": "Manage every user and organization on the platform"
-      },
-      "featureFlags": {
-        "title": "Feature flags",
-        "description": "Switch platform features on and off"
       },
       "lti": {
         "title": "LTI integrations",

@@ -36,21 +36,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }))
 
-// Mock FeatureFlagContext
-const mockFlags = {
-  reports: true,
-  data: true,
-  generations: true,
-  evaluations: true,
-  'how-to': true,
-}
-
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: mockFlags,
-  }),
-}))
-
 // Mock I18nContext
 const mockT = jest.fn((key: string) => {
   const translations: Record<string, string> = {
@@ -435,10 +420,6 @@ describe('Search Component', () => {
     })
 
     it('should handle undefined translation keys gracefully', () => {
-      expect(() => render(<Search />)).not.toThrow()
-    })
-
-    it('should render when feature flags are enabled', () => {
       expect(() => render(<Search />)).not.toThrow()
     })
 

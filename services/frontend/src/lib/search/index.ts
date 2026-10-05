@@ -26,7 +26,6 @@ type Translate = (key: string, fallback?: string) => string
 export interface SearchIndexContext {
   t: Translate
   locale: string
-  flags: Record<string, boolean> | null | undefined
   user: { is_superadmin?: boolean } | null | undefined
   organizations: Array<{ role?: string }> | null | undefined
   /** Injected for tests; defaults to the registry. */
@@ -54,9 +53,9 @@ function page(
   }
 }
 
-/** Static pages the current user may open, honoring feature flags and roles. */
+/** Static pages the current user may open, honoring roles. */
 export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
-  const { t, flags, user, organizations } = ctx
+  const { t, user, organizations } = ctx
   const cat = {
     benger: t('search.categories.benger'),
     projects: t('search.categories.projectsAndData'),
@@ -74,27 +73,24 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
     page(t, '/', 'landing', cat.benger, 'start home landing startseite'),
     page(t, '/dashboard', 'dashboard', cat.benger, 'übersicht overview home'),
   ]
-  if (flags?.reports)
-    pages.push(
-      page(
-        t,
-        '/reports',
-        'reports',
-        cat.benger,
-        'berichte report pdf csv export',
-      ),
-    )
-  if (flags?.leaderboards) {
-    pages.push(
-      page(
-        t,
-        '/leaderboards',
-        'leaderboards',
-        cat.benger,
-        'bestenliste rangliste ranking annotatoren llm co-creation',
-      ),
-    )
-  }
+  pages.push(
+    page(
+      t,
+      '/reports',
+      'reports',
+      cat.benger,
+      'berichte report pdf csv export',
+    ),
+  )
+  pages.push(
+    page(
+      t,
+      '/leaderboards',
+      'leaderboards',
+      cat.benger,
+      'bestenliste rangliste ranking annotatoren llm co-creation',
+    ),
+  )
   if (user) {
     pages.push(
       page(
@@ -157,62 +153,57 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
       'archiv archiviert archivierte projekte',
     ),
   )
-  if (flags?.data)
-    pages.push(
-      page(
-        t,
-        '/data',
-        'dataManagement',
-        cat.projects,
-        'daten upload import export csv json',
-      ),
-    )
-  if (flags?.generations)
-    pages.push(
-      page(
-        t,
-        '/generations',
-        'generations',
-        cat.projects,
-        'generierung generierungen llm prompt modelle',
-      ),
-    )
-  if (flags?.evaluations) {
-    pages.push(
-      page(
-        t,
-        '/evaluations',
-        'evaluations',
-        cat.projects,
-        'evaluation evaluierung bewertung metriken judge',
-      ),
-      page(
-        t,
-        '/evaluations/human/likert',
-        'humanLikert',
-        cat.projects,
-        'menschliche bewertung likert skala human evaluation',
-      ),
-      page(
-        t,
-        '/evaluations/human/preference',
-        'humanPreference',
-        cat.projects,
-        'menschliche bewertung präferenz vergleich a/b human evaluation',
-      ),
-    )
-  }
+  pages.push(
+    page(
+      t,
+      '/data',
+      'dataManagement',
+      cat.projects,
+      'daten upload import export csv json',
+    ),
+  )
+  pages.push(
+    page(
+      t,
+      '/generations',
+      'generations',
+      cat.projects,
+      'generierung generierungen llm prompt modelle',
+    ),
+  )
+  pages.push(
+    page(
+      t,
+      '/evaluations',
+      'evaluations',
+      cat.projects,
+      'evaluation evaluierung bewertung metriken judge',
+    ),
+    page(
+      t,
+      '/evaluations/human/likert',
+      'humanLikert',
+      cat.projects,
+      'menschliche bewertung likert skala human evaluation',
+    ),
+    page(
+      t,
+      '/evaluations/human/preference',
+      'humanPreference',
+      cat.projects,
+      'menschliche bewertung präferenz vergleich a/b human evaluation',
+    ),
+  )
 
-  if (flags?.['how-to'])
-    pages.push(
-      page(
-        t,
-        '/how-to',
-        'howTo',
-        cat.knowledge,
-        'anleitung anleitungen hilfe help faq guide tutorial',
-      ),
-    )
+  pages.push(
+    page(
+      t,
+      '/how-to',
+      'howTo',
+      cat.knowledge,
+      'anleitung anleitungen hilfe help faq guide tutorial',
+    ),
+  )
   pages.push(
     page(
       t,
@@ -286,13 +277,6 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
         'adminUsersOrganizations',
         cat.admin,
         'admin benutzer organisationen',
-      ),
-      page(
-        t,
-        '/admin/feature-flags',
-        'featureFlags',
-        cat.admin,
-        'feature flags funktionen freischalten',
       ),
       page(
         t,

@@ -56,7 +56,6 @@ class Permission(Enum):
     # Admin permissions
     ADMIN_VIEW = "admin:view"
     ADMIN_EDIT = "admin:edit"
-    FEATURE_FLAG_MANAGE = "feature_flag:manage"
 
 
 class AuthorizationService:
@@ -572,7 +571,6 @@ class AuthorizationService:
                 elif permission in [
                     Permission.ADMIN_VIEW,
                     Permission.ADMIN_EDIT,
-                    Permission.FEATURE_FLAG_MANAGE,
                 ]:
                     if not current_user.is_superadmin:
                         raise HTTPException(

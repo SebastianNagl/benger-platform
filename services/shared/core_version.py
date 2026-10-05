@@ -329,11 +329,25 @@ whenever one is added, renamed or removed):
   ``extensions.emit_ops_event``. Worker mail is observed through Celery
   signals. The api image carries ``prometheus-client`` for the extended
   metrics endpoint.
+
+2.27 (2026-10-02): the feature flag system moves to the extended edition.
+  ``feature_flags`` gets ``state`` (``off``, ``everyone`` or ``allowlist``)
+  in place of ``is_enabled``, loses ``configuration`` and has a nullable
+  ``created_by`` (``ON DELETE SET NULL``); the new ``feature_flag_targets``
+  table holds the allowlist (exactly one of ``user_id`` and
+  ``organization_id`` per row). Models ``FeatureFlag`` and
+  ``FeatureFlagTarget`` (migration 110, which also deletes the retired core
+  flags). The platform ``/api/feature-flags`` router,
+  ``FeatureFlagService``, ``init_feature_flags`` and
+  ``Permission.FEATURE_FLAG_MANAGE`` are removed; the extended edition
+  serves ``/api/ext/feature-flags``. ``EmailService()`` no longer takes
+  ``check_feature_flag``. The frontend drops its flag context and gates;
+  ``/admin/feature-flags`` renders the ``FeatureFlagsAdmin`` slot.
 """
 
 import os
 
-CORE_API_VERSION = "2.26"
+CORE_API_VERSION = "2.27"
 
 
 def extended_required() -> bool:

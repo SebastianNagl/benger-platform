@@ -3,7 +3,7 @@
  *
  * Branch coverage: AuthButton.tsx
  * Targets: L108-109 (setCurrentOrganization null), L123-124 (org check icon),
- *          L155 (superadmin feature flags link), L199-204 (signup modal)
+ *          no platform feature flags link, L199-204 (signup modal)
  */
 
 import '@testing-library/jest-dom'
@@ -46,10 +46,6 @@ jest.mock('@/contexts/I18nContext', () => ({
       return translations[key] || key
     },
   }),
-}))
-
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({ isEnabled: jest.fn(() => false) }),
 }))
 
 jest.mock('@/contexts/HydrationContext', () => ({
@@ -150,7 +146,8 @@ describe('AuthButton br4 - uncovered branches', () => {
     expect(screen.getByTestId('account-organizations')).toBeInTheDocument()
   })
 
-  it('shows feature flags link for superadmin (line 155)', async () => {
+  it('has no platform feature flags link for superadmin', async () => {
+    // The link is contributed by the extended AuthMenuExtended slot.
     mockUser = { id: 1, username: 'admin', is_superadmin: true }
     mockOrganizations = []
 
@@ -158,10 +155,11 @@ describe('AuthButton br4 - uncovered branches', () => {
     render(<AuthButton />)
 
     await user.click(screen.getByText('admin'))
-    expect(screen.getByText('Feature Flags')).toBeInTheDocument()
+    expect(screen.getByText('admin')).toBeInTheDocument()
+    expect(screen.queryByText('Feature Flags')).not.toBeInTheDocument()
   })
 
-  it('hides feature flags link for non-superadmin (line 151 false)', async () => {
+  it('has no feature flags link for non-superadmin', async () => {
     mockUser = { id: 1, username: 'regular', is_superadmin: false }
     mockOrganizations = []
 

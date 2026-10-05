@@ -3963,6 +3963,7 @@
     "userManagement": "Benutzerverwaltung",
     "defaultConfiguration": "Standard-Konfiguration",
     "featureFlags": "Feature Flags",
+    "featureFlagsNotAvailable": "Feature-Flags sind in dieser Edition nicht verfügbar.",
     "orgManagement": "Organisationsverwaltung",
     "createOrg": "Organisation erstellen",
     "inviteUser": "Benutzer einladen",
@@ -4121,23 +4122,6 @@
         "totalUsers": "{count} insgesamt"
       }
     },
-    "featureFlagsPage": {
-      "title": "Feature-Flags",
-      "description": "Anwendungs-Feature-Flags verwalten",
-      "searchPlaceholder": "Feature-Flags durchsuchen...",
-      "name": "Name",
-      "enabled": "Aktiviert",
-      "disabled": "Deaktiviert",
-      "created": "Erstellt",
-      "applyChanges": "Änderungen anwenden",
-      "applying": "Wird angewendet...",
-      "discardChanges": "Änderungen verwerfen",
-      "noFlags": "Keine Feature-Flags gefunden",
-      "sortByName": "Nach Name sortieren",
-      "sortByDate": "Nach Datum sortieren",
-      "applied": "Änderungen erfolgreich angewendet",
-      "applyFailed": "Fehler beim Anwenden der Änderungen"
-    },
     "emailVerificationPage": {
       "title": "E-Mail-Verifizierung",
       "description": "Benutzer-E-Mail-Verifizierung verwalten",
@@ -4251,10 +4235,6 @@
         "emailVerification": {
           "title": "E-Mail-Verifizierung",
           "description": "E-Mail-Verifizierungssystem überwachen und verwalten"
-        },
-        "featureFlags": {
-          "title": "Feature-Flags",
-          "description": "Feature-Umschaltungen und Rollout-Konfigurationen verwalten"
         },
         "testNotifications": {
           "title": "Test-Benachrichtigungen",
@@ -4618,7 +4598,6 @@
     "copyLatex": "LaTeX kopieren",
     "title": "Evaluierungs-Dashboard",
     "subtitle": "Wählen Sie ein Projekt aus, um Evaluierungsaktivitäten zu verwalten und zu überwachen",
-    "notAvailable": "Evaluierungssystem nicht verfügbar",
     "disabled": "Das Evaluierungssystem ist derzeit deaktiviert.",
     "accessDenied": "Zugriff verweigert",
     "noMethodsConfigured": "Keine Evaluierungsmethoden konfiguriert",
@@ -6154,10 +6133,6 @@
       "adminUsersOrganizations": {
         "title": "Benutzer & Organisationen (Admin)",
         "description": "Alle Benutzer und Organisationen der Plattform verwalten"
-      },
-      "featureFlags": {
-        "title": "Feature-Flags",
-        "description": "Funktionen der Plattform ein- und ausschalten"
       },
       "lti": {
         "title": "LTI-Integrationen",

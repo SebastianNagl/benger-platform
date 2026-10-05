@@ -1,6 +1,6 @@
 /**
  * fn3 function coverage for AuthButton.tsx
- * Targets: handleClickOutside, org switching callbacks, superadmin feature flags link
+ * Targets: handleClickOutside, org switching callbacks, superadmin menu
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react'
@@ -17,12 +17,6 @@ jest.mock('@/contexts/I18nContext', () => ({
 
 jest.mock('@/contexts/HydrationContext', () => ({
   useHydration: () => true,
-}))
-
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    isEnabled: () => false,
-  }),
 }))
 
 const mockLogout = jest.fn()
@@ -89,10 +83,11 @@ describe('AuthButton fn3', () => {
     expect(screen.getByText('Test Org')).toBeInTheDocument()
   })
 
-  it('shows feature flags link for superadmin', () => {
+  it('has no platform feature flags link for superadmin', () => {
     render(<AuthButton />)
     fireEvent.click(screen.getByText('testuser').closest('button')!)
-    expect(screen.getByText('admin.featureFlags')).toBeInTheDocument()
+    expect(screen.getByText('admin.usersOrganizations')).toBeInTheDocument()
+    expect(screen.queryByText('admin.featureFlags')).not.toBeInTheDocument()
   })
 
   it('calls logout on sign out click', () => {

@@ -81,7 +81,7 @@ Location: `src/__tests__/` and component-level `__tests__/` directories
 |----------|----------|
 | Components | `AnnotatorBadges.test.tsx`, `GenerationTaskList.test.tsx` |
 | Pages | `page.test.tsx` in each `app/*/` directory |
-| Contexts | `AuthContext.test.tsx`, `FeatureFlagContext.test.tsx` |
+| Contexts | `AuthContext.test.tsx` |
 | Hooks | `useAnnotationWebSocket.test.ts` |
 | API Client | `client.test.ts`, `evaluations.test.ts` |
 | Utils | `jsonUtils.test.ts`, `permissions.test.ts` |

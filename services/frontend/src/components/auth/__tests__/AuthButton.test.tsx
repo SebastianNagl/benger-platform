@@ -53,10 +53,6 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: jest.fn(),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(),
-}))
-
 jest.mock('@/contexts/HydrationContext', () => ({
   useHydration: jest.fn(() => true),
 }))
@@ -148,8 +144,6 @@ jest.mock('@heroicons/react/24/outline', () => {
 
 const mockUseAuth = require('@/contexts/AuthContext').useAuth
 const mockUseI18n = require('@/contexts/I18nContext').useI18n
-const mockUseFeatureFlags =
-  require('@/contexts/FeatureFlagContext').useFeatureFlags
 
 describe('AuthButton', () => {
   const mockLogout = jest.fn()
@@ -185,15 +179,6 @@ describe('AuthButton', () => {
       switchTo: mockViewSwitchTo,
     }
     mockUseI18n.mockReturnValue({ t: mockT })
-    mockUseFeatureFlags.mockReturnValue({
-      flags: {},
-      isLoading: false,
-      error: null,
-      isEnabled: jest.fn().mockReturnValue(true),
-      refreshFlags: jest.fn(),
-      checkFlag: jest.fn().mockResolvedValue(true),
-      lastUpdate: Date.now(),
-    })
   })
 
   describe('loading state', () => {
@@ -552,10 +537,10 @@ describe('AuthButton', () => {
       await user.click(screen.getByRole('button'))
 
       expect(screen.getByText(/users & organizations/i)).toBeInTheDocument()
-      expect(screen.getByText(/feature flags/i)).toBeInTheDocument()
+      expect(screen.queryByText(/feature flags/i)).not.toBeInTheDocument()
 
       expect(screen.getByTestId('users-icon')).toBeInTheDocument()
-      expect(screen.getByTestId('beaker-icon')).toBeInTheDocument()
+      expect(screen.queryByTestId('beaker-icon')).not.toBeInTheDocument()
     })
 
     it('shows organizations link for superadmin', async () => {
@@ -741,7 +726,7 @@ describe('AuthButton', () => {
       expect(mockT).toHaveBeenCalledWith('auth.profileSettings')
       expect(mockT).toHaveBeenCalledWith('auth.notificationSettings')
       expect(mockT).toHaveBeenCalledWith('admin.usersOrganizations')
-      expect(mockT).toHaveBeenCalledWith('admin.featureFlags')
+      expect(mockT).not.toHaveBeenCalledWith('admin.featureFlags')
       expect(mockT).toHaveBeenCalledWith('auth.signOut')
     })
   })
@@ -897,7 +882,7 @@ describe('AuthButton', () => {
       expect(usersLink).toHaveAttribute('href', '/users-organizations')
     })
 
-    it('feature flags link has correct href for superadmin', async () => {
+    it('has no platform feature flags link for superadmins', async () => {
       const user = userEvent.setup()
       mockUseAuth.mockReturnValue({
         user: {
@@ -917,8 +902,11 @@ describe('AuthButton', () => {
 
       await user.click(screen.getByRole('button'))
 
-      const flagsLink = screen.getByText(/feature flags/i).closest('a')
-      expect(flagsLink).toHaveAttribute('href', '/admin/feature-flags')
+      // The link moved to the extended AuthMenuExtended slot.
+      expect(screen.queryByText(/feature flags/i)).not.toBeInTheDocument()
+      expect(
+        document.querySelector('a[href="/admin/feature-flags"]'),
+      ).not.toBeInTheDocument()
     })
 
     it('closes dropdown when admin link is clicked', async () => {
@@ -1337,39 +1325,6 @@ describe('AuthButton', () => {
 
       const list = screen.getByTestId('account-organizations')
       expect(list.textContent).toMatch(/Org 1.*Org 2.*Org 3/)
-    })
-  })
-
-  describe('feature flag integration', () => {
-    it('calls isEnabled from feature flags context', async () => {
-      const mockIsEnabled = jest.fn().mockReturnValue(true)
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {},
-        isLoading: false,
-        error: null,
-        isEnabled: mockIsEnabled,
-        refreshFlags: jest.fn(),
-        checkFlag: jest.fn().mockResolvedValue(true),
-        lastUpdate: Date.now(),
-      })
-
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: '1',
-          username: 'testuser',
-          email: 'test@example.com',
-          is_superadmin: false,
-        },
-        logout: mockLogout,
-        isLoading: false,
-        currentOrganization: null,
-        organizations: [],
-        setCurrentOrganization: jest.fn(),
-      })
-
-      render(<AuthButton />)
-
-      expect(mockUseFeatureFlags).toHaveBeenCalled()
     })
   })
 })

@@ -285,76 +285,6 @@ docs/security-reports/
 .quarto/
 **/*.quarto_ipynb
 
-# Transformation publication: tracked, except the artifacts below.
-# Build artifacts (.venv/ and __pycache__/ are already covered repo-wide).
-publications/Transformation/.quarto/
-publications/Transformation/manuscript_files/
-publications/Transformation/manuscript_executed_files/
-publications/Transformation/manuscript.tex
-publications/Transformation/manuscript.fdb_latexmk
-# Internal decision log + study protocol, not audience-facing.
-publications/Transformation/DESIGN.md
-# Regenerable ops output from scripts/ops/: blind-coded rubric renderings for
-# the manual audit.
-publications/Transformation/data/interim/audit/exam_*.md
-# Run outputs from the judge/probe/audit dispatches — 23 MB of per-cell score
-# rows. Regenerable from the platform, and git is not a data store; they ship
-# with the dataset release. manuscript.qmd loads only tracked aggregates
-# in data/processed/, so the paper still renders from the tracked data alone;
-# `make analyze` is what needs these back.
-publications/Transformation/data/**/*.jsonl
-
-# The repo-wide `*.json` rule above hides every JSON in the project. This
-# publication's derived statistics are what the manuscript loads, so unignore
-# them - then re-block the sensitive and heavy files, because for git the
-# LAST matching pattern wins.
-!publications/Transformation/data/**/*.json
-# Plaintext what-a-benger.net account passwords for the audit + probe
-# fixtures. No analysis script reads them; setup_audit_project.py takes
-# credentials as CLI args.
-publications/Transformation/data/interim/audit/audit_users.json
-publications/Transformation/data/interim/probes/probe_users.json
-# Full Sachverhalt + Musterloesung for all 15 exams - corpus text we do not
-# hold redistribution rights for. Same call as the Benchmark_EMNLP ZJS source
-# trees below: ships via HF + Zenodo at release time, never via git.
-# exams.json is the extract_exam_pack.py output; manuscript.qmd does not read
-# it, so the paper still renders.
-publications/Transformation/data/interim/exams.json
-publications/Transformation/data/interim/audit/audit_import.json
-publications/Transformation/data/interim/audit/audit_import.resolved.json
-publications/Transformation/data/interim/probes/probe_texts.json
-# The blind-code -> rubric_id/generator_model_id key for the human audit.
-# Same category as Benchmark_EMNLP's .grader_map.json: publishing it alongside the
-# blind-coded audit sheet would undo the blinding. The de-blinded result the
-# paper reports lives in data/processed/audit_stats.json, which carries no
-# blind codes and is tracked.
-publications/Transformation/data/interim/audit/KEY.json
-# Dated eval-config backups from the dispatch runs — regenerable ops output.
-publications/Transformation/data/interim/clone_eval_config_backup_*.json
-# The 193 generated rubrics (21 MB) and the judge rows derived from them.
-# Their `criteria` enumerate the expected solution steps of each exam, so they
-# are a close derivative of the Musterloesungen — same redistribution call as
-# the corpus text above. Ships via HF + Zenodo with the dataset release.
-# Directory-level ignore: nothing under raw/ is publishable, and an excluded
-# directory cannot be re-included by the `!...*.json` rule above.
-publications/Transformation/data/raw/
-# Anything derived from the human expert material (student scripts, per-step
-# human grades, exam text): personal data and third-party exam text. The
-# `!...*.json` rule above would otherwise re-include these; only aggregate
-# statistics in data/processed/ are publishable.
-publications/Transformation/data/interim/human/
-# Pilot runs (judge rows with quoted evidence, raw model output, the spend
-# ledger). Directory-level ignore for the same reason as human/ above.
-publications/Transformation/data/interim/pilot/
-# Working notes (review decisions, manuscript change lists): they quote
-# study-exam terms and stay local.
-publications/Transformation/notes/
-# The pilot probe gate's output is a product-lane check, not evidence: it
-# lives in data/interim/pilot/ (the gate's default output), never here.
-publications/Transformation/data/processed/pilot_probe_gate.json
-# Machine-specific pilot settings (data root, org id); see scripts/local_config.py.
-publications/Transformation/.pilot.local.json
-
 # Benchmark_EMNLP publication: tracked, except large/private artifacts.
 # - raw subtrees hold 5 GB of platform exports + ZJS PDFs/source — ship via HF + Zenodo, not git
 # - .grader_map.json is the private grader-anonymization key — never commit
@@ -428,6 +358,3 @@ publications/LEXam_DE/analysis/data/
 # (see LEXam_DE/README.md) and must survive the generic *.json rule.
 !publications/LEXam_DE/configs/generated/*.json
 
-# WIP publications - not yet ready for the public repo
-publications/Watermark_Study/
-publications/Benchmark_v2/

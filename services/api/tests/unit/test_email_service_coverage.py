@@ -2,7 +2,7 @@
 Extended unit tests for email_service to cover uncovered lines.
 
 Covers:
-- _is_mail_enabled exception branch (lines 58-60)
+- construction enables mail without touching the DB
 - _init_template_environment when directory creation fails with OSError (lines 70-71)
 - _render_template exception fallback (lines 128-132)
 - is_available when mail_enabled=True and api_key exists (line 142)
@@ -54,20 +54,20 @@ def mock_notification():
 
 
 # ─────────────────────────────────────────────
-# _is_mail_enabled
+# Construction
 # ─────────────────────────────────────────────
 
-class TestIsMailEnabled:
+class TestConstruction:
 
-    def test_exception_returns_true(self):
-        """When the DB check throws, default to True (lines 58-60)."""
-        with patch("database.SessionLocal", side_effect=Exception("no DB")):
+    def test_construction_enables_mail_without_db(self):
+        """Construction never opens a DB session; mail starts enabled."""
+        with patch("database.SessionLocal") as mock_session:
             from email_service import EmailService
 
             with patch("mailer.email_service.SendGridClient"):
                 svc = EmailService()
-                # Should default to enabled on error
-                assert svc.mail_enabled == True  # noqa: E712
+            assert svc.mail_enabled is True
+            mock_session.assert_not_called()
 
 
 # ─────────────────────────────────────────────

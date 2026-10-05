@@ -84,9 +84,6 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }))
 
 // Mock all shared components
-jest.mock('@/components/shared/FeatureFlag', () => ({
-  FeatureFlag: ({ children }: any) => <>{children}</>,
-}))
 
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (

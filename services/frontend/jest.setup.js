@@ -266,21 +266,6 @@ if (typeof navigator !== 'undefined') {
   }
 }
 
-// Mock FeatureFlagContext
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: {},
-    isLoading: false,
-    error: null,
-    isEnabled: jest.fn().mockReturnValue(true),
-    refreshFlags: jest.fn(),
-    checkFlag: jest.fn().mockResolvedValue(true),
-    lastUpdate: Date.now(),
-  }),
-  useFeatureFlag: jest.fn().mockReturnValue(true),
-  FeatureFlagProvider: ({ children }) => children,
-}))
-
 // Mock other common contexts
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({

@@ -12,7 +12,6 @@
  */
 
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlag } from '@/contexts/FeatureFlagContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
@@ -36,7 +35,6 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/contexts/AuthContext')
 jest.mock('@/contexts/I18nContext')
-jest.mock('@/contexts/FeatureFlagContext')
 jest.mock('@/hooks/useModels')
 jest.mock('@/stores')
 jest.mock('@/stores/projectStore')
@@ -94,9 +92,6 @@ jest.mock('@/components/shared/Select', () => ({
 }))
 jest.mock('@/components/shared/Tooltip', () => ({
   Tooltip: ({ children }: any) => <div>{children}</div>,
-}))
-jest.mock('@/components/shared/FeatureFlag', () => ({
-  FeatureFlag: ({ children }: any) => <div>{children}</div>,
 }))
 jest.mock('@/components/projects/LabelConfigEditor', () => {
   const React = require('react')
@@ -207,7 +202,6 @@ describe('ProjectDetailPage — participant tier', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({ t: (key: string) => key })
-    ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
     ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],
@@ -419,7 +413,6 @@ describe('ProjectDetailPage — header icon editing', () => {
     ;(useI18n as jest.Mock).mockReturnValue({
       t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
     })
-    ;(useFeatureFlag as jest.Mock).mockReturnValue(true)
     ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
     ;(useModels as jest.Mock).mockReturnValue({
       models: [],

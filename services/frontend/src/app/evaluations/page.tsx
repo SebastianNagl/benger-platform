@@ -37,7 +37,6 @@ import { useMultiConfigChartData } from '@/components/evaluation/results/useMult
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
-import { FeatureFlag } from '@/components/shared/FeatureFlag'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import {
@@ -1121,640 +1120,616 @@ export default function EvaluationDashboard() {
   }
 
   return (
-    <FeatureFlag
-      flag="evaluations"
-      fallback={
-        <ResponsiveContainer
-          size="full"
-          className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-        >
-          <div className="py-12 text-center">
-            <h1 className="mb-4 text-2xl font-semibold text-gray-600">
-              {t('evaluation.notAvailable') ||
-                'Evaluation System Not Available'}
-            </h1>
-          </div>
-        </ResponsiveContainer>
-      }
+    <ResponsiveContainer
+      size="full"
+      className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
     >
-      <ResponsiveContainer
-        size="full"
-        className="px-4 pt-8 pb-10 sm:px-6 lg:px-8"
-      >
-        {/* Breadcrumb */}
-        <div className="mb-4">
-          <Breadcrumb
-            items={[
-              { label: t('navigation.dashboard'), href: '/dashboard' },
-              {
-                label: t('navigation.evaluation'),
-                href: '/evaluations',
-              },
-            ]}
-          />
-        </div>
+      {/* Breadcrumb */}
+      <div className="mb-4">
+        <Breadcrumb
+          items={[
+            { label: t('navigation.dashboard'), href: '/dashboard' },
+            {
+              label: t('navigation.evaluation'),
+              href: '/evaluations',
+            },
+          ]}
+        />
+      </div>
 
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">{t('evaluation.viewer.title')}</h1>
-          {!selectedProject && (
-            <p className="mt-1 text-gray-600 dark:text-gray-400">
-              {t('evaluation.viewer.selectProjectDescription')}
-            </p>
-          )}
-        </div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">{t('evaluation.viewer.title')}</h1>
+        {!selectedProject && (
+          <p className="mt-1 text-gray-600 dark:text-gray-400">
+            {t('evaluation.viewer.selectProjectDescription')}
+          </p>
+        )}
+      </div>
 
-        {/* Filter Bar - All dropdowns in one row */}
-        <Card className="mb-2 p-4">
-          <div className="flex flex-wrap items-end gap-3">
-            {/* Project Dropdown */}
-            <div className="relative" ref={projectDropdownRef}>
+      {/* Filter Bar - All dropdowns in one row */}
+      <Card className="mb-2 p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          {/* Project Dropdown */}
+          <div className="relative" ref={projectDropdownRef}>
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              {t('evaluation.viewer.filters.project')}
+            </label>
+            <Button
+              variant="outline"
+              onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+              className="w-40 justify-between"
+            >
+              <span className="truncate">
+                {selectedProject?.title ||
+                  t('evaluation.viewer.filters.selectProject')}
+              </span>
+              <ChevronDownIcon
+                className={`ml-2 h-4 w-4 opacity-70 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </Button>
+            {projectDropdownOpen && (
+              <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                {projects.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => {
+                      setSelectedProject(project)
+                      setProjectDropdownOpen(false)
+                    }}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                      selectedProject?.id === project.id
+                        ? 'bg-emerald-50 dark:bg-emerald-900/20'
+                        : ''
+                    }`}
+                  >
+                    <div className="font-medium">{project.title}</div>
+                    <div className="text-xs text-gray-500">
+                      {project.task_count || 0}{' '}
+                      {t('evaluation.viewer.filters.tasks')}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Models Dropdown */}
+          {selectedProject && evaluatedModels.length > 0 && (
+            <div className="relative" ref={modelsDropdownRef}>
               <label className="mb-1 block text-xs font-medium text-gray-500">
-                {t('evaluation.viewer.filters.project')}
+                {t('evaluation.viewer.filters.models')}
               </label>
               <Button
                 variant="outline"
-                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-                className="w-40 justify-between"
+                onClick={() => setModelsDropdownOpen(!modelsDropdownOpen)}
+                className="w-32 justify-between"
               >
                 <span className="truncate">
-                  {selectedProject?.title ||
-                    t('evaluation.viewer.filters.selectProject')}
+                  {selectedModels.length === 0
+                    ? t('evaluation.viewer.filters.allModels')
+                    : selectedModels.length === evaluatedModels.length
+                      ? t('evaluation.viewer.filters.allModels')
+                      : `${selectedModels.length} ${t('evaluation.viewer.filters.selected')}`}
                 </span>
                 <ChevronDownIcon
-                  className={`ml-2 h-4 w-4 opacity-70 transition-transform ${projectDropdownOpen ? 'rotate-180' : ''}`}
+                  className={`ml-2 h-4 w-4 opacity-70 transition-transform ${modelsDropdownOpen ? 'rotate-180' : ''}`}
                 />
               </Button>
-              {projectDropdownOpen && (
-                <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                  {projects.map((project) => (
-                    <button
-                      key={project.id}
-                      onClick={() => {
-                        setSelectedProject(project)
-                        setProjectDropdownOpen(false)
-                      }}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                        selectedProject?.id === project.id
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20'
-                          : ''
+              {modelsDropdownOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedModels(
+                        evaluatedModels
+                          .filter((m) => m.has_results !== false)
+                          .map((m) => m.model_id),
+                      )
+                    }
+                    className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                  >
+                    {t('evaluation.viewer.filters.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModels([])}
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  >
+                    {t('evaluation.viewer.filters.clearAll')}
+                  </button>
+                  {evaluatedModels.map((model) => (
+                    <label
+                      key={model.model_id}
+                      className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${
+                        model.has_results !== false
+                          ? 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                          : 'opacity-50'
                       }`}
                     >
-                      <div className="font-medium">{project.title}</div>
-                      <div className="text-xs text-gray-500">
-                        {project.task_count || 0}{' '}
-                        {t('evaluation.viewer.filters.tasks')}
-                      </div>
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={selectedModels.includes(model.model_id)}
+                        onChange={() => toggleModel(model.model_id)}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span
+                        className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}
+                      >
+                        {model.model_id.startsWith('annotator:')
+                          ? model.model_id.replace(/^annotator:/, '')
+                          : model.model_name || model.model_id}
+                      </span>
+                      {model.has_results === false && (
+                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
+                          <ExclamationTriangleIcon className="h-3 w-3" />
+                          {t('evaluation.viewer.filters.noResults')}
+                        </span>
+                      )}
+                      {model.is_configured && !model.has_generations && (
+                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-gray-400">
+                          <ExclamationTriangleIcon className="h-3 w-3" />
+                          {t('evaluation.viewer.filters.notRun')}
+                        </span>
+                      )}
+                    </label>
                   ))}
                 </div>
               )}
             </div>
+          )}
 
-            {/* Models Dropdown */}
-            {selectedProject && evaluatedModels.length > 0 && (
-              <div className="relative" ref={modelsDropdownRef}>
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.models')}
-                </label>
-                <Button
-                  variant="outline"
-                  onClick={() => setModelsDropdownOpen(!modelsDropdownOpen)}
-                  className="w-32 justify-between"
-                >
-                  <span className="truncate">
-                    {selectedModels.length === 0
-                      ? t('evaluation.viewer.filters.allModels')
-                      : selectedModels.length === evaluatedModels.length
-                        ? t('evaluation.viewer.filters.allModels')
-                        : `${selectedModels.length} ${t('evaluation.viewer.filters.selected')}`}
-                  </span>
-                  <ChevronDownIcon
-                    className={`ml-2 h-4 w-4 opacity-70 transition-transform ${modelsDropdownOpen ? 'rotate-180' : ''}`}
-                  />
-                </Button>
-                {modelsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedModels(
-                          evaluatedModels
-                            .filter((m) => m.has_results !== false)
-                            .map((m) => m.model_id),
-                        )
-                      }
-                      className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
-                    >
-                      {t('evaluation.viewer.filters.selectAll')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedModels([])}
-                      className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                    >
-                      {t('evaluation.viewer.filters.clearAll')}
-                    </button>
-                    {evaluatedModels.map((model) => (
-                      <label
-                        key={model.model_id}
-                        className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${
-                          model.has_results !== false
-                            ? 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                            : 'opacity-50'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedModels.includes(model.model_id)}
-                          onChange={() => toggleModel(model.model_id)}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span
-                          className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}
-                        >
-                          {model.model_id.startsWith('annotator:')
-                            ? model.model_id.replace(/^annotator:/, '')
-                            : model.model_name || model.model_id}
-                        </span>
-                        {model.has_results === false && (
-                          <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400">
-                            <ExclamationTriangleIcon className="h-3 w-3" />
-                            {t('evaluation.viewer.filters.noResults')}
-                          </span>
-                        )}
-                        {model.is_configured && !model.has_generations && (
-                          <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-gray-400">
-                            <ExclamationTriangleIcon className="h-3 w-3" />
-                            {t('evaluation.viewer.filters.notRun')}
-                          </span>
-                        )}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Metrics Dropdown - shows one entry per evaluation_config
+          {/* Metrics Dropdown - shows one entry per evaluation_config
                 (issue #111). Two configs sharing the same `metric` type
                 but distinct `display_name`s are independently selectable. */}
-            {selectedProject && metricsWithStatus.length > 0 && (
-              <div className="relative" ref={metricsDropdownRef}>
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.metrics')}
-                </label>
+          {selectedProject && metricsWithStatus.length > 0 && (
+            <div className="relative" ref={metricsDropdownRef}>
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                {t('evaluation.viewer.filters.metrics')}
+              </label>
+              <Button
+                variant="outline"
+                onClick={() => setMetricsDropdownOpen(!metricsDropdownOpen)}
+                className="w-36 justify-between"
+              >
+                <span className="truncate">
+                  {selectedConfigIds.length === 0
+                    ? t('evaluation.viewer.filters.selectMetrics')
+                    : selectedConfigIds.length === metricsWithStatus.length
+                      ? t('evaluation.viewer.filters.allMetrics')
+                      : `${selectedConfigIds.length} ${t('evaluation.viewer.filters.selected')}`}
+                </span>
+                <ChevronDownIcon
+                  className={`ml-2 h-4 w-4 opacity-70 transition-transform ${metricsDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </Button>
+              {metricsDropdownOpen && (
+                <div className="absolute z-50 mt-1 max-h-60 w-56 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedConfigIds(metricsWithStatus.map((m) => m.id))
+                    }
+                    className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                  >
+                    {t('evaluation.viewer.filters.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedConfigIds([])}
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  >
+                    {t('evaluation.viewer.filters.clearAll')}
+                  </button>
+                  {metricsWithStatus.map((metric) => (
+                    <label
+                      key={metric.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedConfigIds.includes(metric.id)}
+                        onChange={() => {
+                          if (selectedConfigIds.includes(metric.id)) {
+                            setSelectedConfigIds(
+                              selectedConfigIds.filter((m) => m !== metric.id),
+                            )
+                          } else {
+                            setSelectedConfigIds([
+                              ...selectedConfigIds,
+                              metric.id,
+                            ])
+                          }
+                        }}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="flex-1 truncate text-sm">
+                        {metric.label}
+                      </span>
+                      {metric.hasResults && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400">
+                          ✓
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aggregation Dropdown */}
+          {selectedProject && (
+            <div className="w-36">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                {t('evaluation.viewer.filters.aggregation')}
+              </label>
+              <AggregationSelector
+                levels={aggregationLevels}
+                onChange={setAggregationLevels}
+              />
+            </div>
+          )}
+
+          {/* Statistics Methods */}
+          {selectedProject && (
+            <div className="w-32">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                {t('evaluation.viewer.filters.statistics')}
+              </label>
+              <StatisticsSelector
+                selectedMethods={statisticalMethods}
+                onChange={setStatisticalMethods}
+              />
+            </div>
+          )}
+
+          {/* View Type Selector - inline with dropdowns */}
+          {selectedProject && (
+            <div className="flex flex-col">
+              <label className="mb-1 block text-xs font-medium text-gray-500">
+                {t('evaluation.viewer.filters.view')}
+              </label>
+              <ChartTypeSelector
+                selectedType={chartType}
+                onChange={setChartType}
+                disabledTypes={chartDisabledInfo.disabledTypes}
+                disabledReasons={chartDisabledInfo.disabledReasons}
+                size="sm"
+              />
+            </div>
+          )}
+
+          {selectedProject &&
+            (() => {
+              const anyFilterSet =
+                selectedModels.length !== evaluatedModels.length ||
+                selectedConfigIds.length !== availableConfigIds.length ||
+                aggregationLevels.length !== 1 ||
+                aggregationLevels[0] !== 'model' ||
+                statisticalMethods.length > 0 ||
+                chartType !== 'data'
+              return (
                 <Button
                   variant="outline"
-                  onClick={() => setMetricsDropdownOpen(!metricsDropdownOpen)}
-                  className="w-36 justify-between"
+                  onClick={() => {
+                    setChartType('data')
+                    setAggregationLevels(['model'])
+                    setStatisticalMethods([])
+                    setSelectedModels(evaluatedModels.map((m) => m.model_id))
+                    setSelectedConfigIds(availableConfigIds)
+                    setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
+                  }}
+                  disabled={!anyFilterSet}
+                  aria-label={t('evaluation.viewer.filters.clearAllFilters')}
+                  title={t('evaluation.viewer.filters.clearAllFilters')}
+                  className={
+                    anyFilterSet
+                      ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700'
+                      : ''
+                  }
                 >
-                  <span className="truncate">
-                    {selectedConfigIds.length === 0
-                      ? t('evaluation.viewer.filters.selectMetrics')
-                      : selectedConfigIds.length === metricsWithStatus.length
-                        ? t('evaluation.viewer.filters.allMetrics')
-                        : `${selectedConfigIds.length} ${t('evaluation.viewer.filters.selected')}`}
-                  </span>
-                  <ChevronDownIcon
-                    className={`ml-2 h-4 w-4 opacity-70 transition-transform ${metricsDropdownOpen ? 'rotate-180' : ''}`}
-                  />
+                  <XMarkIcon className="h-4 w-4" />
                 </Button>
-                {metricsDropdownOpen && (
-                  <div className="absolute z-50 mt-1 max-h-60 w-56 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setSelectedConfigIds(metricsWithStatus.map((m) => m.id))
+              )
+            })()}
+        </div>
+      </Card>
+
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <LoadingSpinner />
+        </div>
+      )}
+
+      {/* Results Section - Only show when project selected and not loading */}
+      {selectedProject && !loading && (
+        <div className="space-y-6">
+          {/* Score Cards — issue #111: render one card per selected
+           * (config × metric) pair so multiple configs of the same metric
+           * type stay distinct. The card's value comes from the per-
+           * (model, config, metric) aggregate in `runs_by_model_metric`
+           * (3-part key) when available; otherwise we fall back to the
+           * legacy per-result metric value (which collapses configs of
+           * the same type — acceptable when statistics haven't loaded
+           * yet). Card label uses the config's display_name. */}
+          {filteredResults.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {(() => {
+                const result = filteredResults[0]
+                const block = (statisticsData as any)?.runs_by_model_metric as
+                  | Record<
+                      string,
+                      {
+                        n_runs: number
+                        mean_of_means?: number
+                        std_of_means?: number
                       }
-                      className="mb-1 w-full px-2 py-1 text-left text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
                     >
-                      {t('evaluation.viewer.filters.selectAll')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedConfigIds([])}
-                      className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
-                    >
-                      {t('evaluation.viewer.filters.clearAll')}
-                    </button>
-                    {metricsWithStatus.map((metric) => (
-                      <label
-                        key={metric.id}
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedConfigIds.includes(metric.id)}
-                          onChange={() => {
-                            if (selectedConfigIds.includes(metric.id)) {
-                              setSelectedConfigIds(
-                                selectedConfigIds.filter(
-                                  (m) => m !== metric.id,
-                                ),
-                              )
-                            } else {
-                              setSelectedConfigIds([
-                                ...selectedConfigIds,
-                                metric.id,
-                              ])
-                            }
-                          }}
-                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                        <span className="flex-1 truncate text-sm">
-                          {metric.label}
-                        </span>
-                        {metric.hasResults && (
-                          <span className="text-xs text-emerald-600 dark:text-emerald-400">
-                            ✓
-                          </span>
-                        )}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Aggregation Dropdown */}
-            {selectedProject && (
-              <div className="w-36">
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.aggregation')}
-                </label>
-                <AggregationSelector
-                  levels={aggregationLevels}
-                  onChange={setAggregationLevels}
-                />
-              </div>
-            )}
-
-            {/* Statistics Methods */}
-            {selectedProject && (
-              <div className="w-32">
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.statistics')}
-                </label>
-                <StatisticsSelector
-                  selectedMethods={statisticalMethods}
-                  onChange={setStatisticalMethods}
-                />
-              </div>
-            )}
-
-            {/* View Type Selector - inline with dropdowns */}
-            {selectedProject && (
-              <div className="flex flex-col">
-                <label className="mb-1 block text-xs font-medium text-gray-500">
-                  {t('evaluation.viewer.filters.view')}
-                </label>
-                <ChartTypeSelector
-                  selectedType={chartType}
-                  onChange={setChartType}
-                  disabledTypes={chartDisabledInfo.disabledTypes}
-                  disabledReasons={chartDisabledInfo.disabledReasons}
-                  size="sm"
-                />
-              </div>
-            )}
-
-            {selectedProject &&
-              (() => {
-                const anyFilterSet =
-                  selectedModels.length !== evaluatedModels.length ||
-                  selectedConfigIds.length !== availableConfigIds.length ||
-                  aggregationLevels.length !== 1 ||
-                  aggregationLevels[0] !== 'model' ||
-                  statisticalMethods.length > 0 ||
-                  chartType !== 'data'
-                return (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setChartType('data')
-                      setAggregationLevels(['model'])
-                      setStatisticalMethods([])
-                      setSelectedModels(evaluatedModels.map((m) => m.model_id))
-                      setSelectedConfigIds(availableConfigIds)
-                      setSelectedEvalTypes(['automated', 'llm-judge', 'human'])
-                    }}
-                    disabled={!anyFilterSet}
-                    aria-label={t('evaluation.viewer.filters.clearAllFilters')}
-                    title={t('evaluation.viewer.filters.clearAllFilters')}
-                    className={
-                      anyFilterSet
-                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-300 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-300 dark:ring-emerald-700'
-                        : ''
-                    }
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </Button>
+                  | undefined
+                const configs =
+                  projectEvalConfig?.evaluation_configs?.filter((c) =>
+                    selectedConfigIds.includes(c.id),
+                  ) ?? []
+                // Stable ordering: same as the metric selector dropdown.
+                // Cap at 4 cards to keep the grid tidy.
+                const pairs = configs.slice(0, 4).map((cfg) => {
+                  const exactKey = `${result.model_id}|${cfg.id}|${cfg.metric}`
+                  const agg = block?.[exactKey]
+                  // Prefer the multi-run mean (config-scoped) when present;
+                  // fall back to the legacy per-result metric value.
+                  const value =
+                    typeof agg?.mean_of_means === 'number'
+                      ? agg.mean_of_means
+                      : (result.metrics?.[cfg.metric] ?? null)
+                  const runsAggregate =
+                    agg && agg.n_runs > 1
+                      ? {
+                          runs: agg.n_runs,
+                          stdAcrossRuns: agg.std_of_means ?? 0,
+                        }
+                      : undefined
+                  return { cfg, value, runsAggregate }
+                })
+                return pairs.map(({ cfg, value, runsAggregate }) =>
+                  value === null ? null : (
+                    <ScoreCard
+                      key={`${cfg.id}|${cfg.metric}`}
+                      metric={cfg.display_name || cfg.metric}
+                      value={value}
+                      description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
+                      higherIsBetter={true}
+                      formatAs="decimal"
+                      sampleSize={result.samples_evaluated}
+                      runsAggregate={runsAggregate}
+                    />
+                  ),
                 )
               })()}
-          </div>
-        </Card>
+            </div>
+          )}
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <LoadingSpinner />
-          </div>
-        )}
-
-        {/* Results Section - Only show when project selected and not loading */}
-        {selectedProject && !loading && (
-          <div className="space-y-6">
-            {/* Score Cards — issue #111: render one card per selected
-             * (config × metric) pair so multiple configs of the same metric
-             * type stay distinct. The card's value comes from the per-
-             * (model, config, metric) aggregate in `runs_by_model_metric`
-             * (3-part key) when available; otherwise we fall back to the
-             * legacy per-result metric value (which collapses configs of
-             * the same type — acceptable when statistics haven't loaded
-             * yet). Card label uses the config's display_name. */}
-            {filteredResults.length > 0 && (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {(() => {
-                  const result = filteredResults[0]
-                  const block = (statisticsData as any)
-                    ?.runs_by_model_metric as
-                    | Record<
-                        string,
-                        {
-                          n_runs: number
-                          mean_of_means?: number
-                          std_of_means?: number
-                        }
-                      >
-                    | undefined
-                  const configs =
-                    projectEvalConfig?.evaluation_configs?.filter((c) =>
-                      selectedConfigIds.includes(c.id),
-                    ) ?? []
-                  // Stable ordering: same as the metric selector dropdown.
-                  // Cap at 4 cards to keep the grid tidy.
-                  const pairs = configs.slice(0, 4).map((cfg) => {
-                    const exactKey = `${result.model_id}|${cfg.id}|${cfg.metric}`
-                    const agg = block?.[exactKey]
-                    // Prefer the multi-run mean (config-scoped) when present;
-                    // fall back to the legacy per-result metric value.
-                    const value =
-                      typeof agg?.mean_of_means === 'number'
-                        ? agg.mean_of_means
-                        : (result.metrics?.[cfg.metric] ?? null)
-                    const runsAggregate =
-                      agg && agg.n_runs > 1
-                        ? {
-                            runs: agg.n_runs,
-                            stdAcrossRuns: agg.std_of_means ?? 0,
-                          }
-                        : undefined
-                    return { cfg, value, runsAggregate }
-                  })
-                  return pairs.map(({ cfg, value, runsAggregate }) =>
-                    value === null ? null : (
-                      <ScoreCard
-                        key={`${cfg.id}|${cfg.metric}`}
-                        metric={cfg.display_name || cfg.metric}
-                        value={value}
-                        description={`${cfg.display_name || cfg.metric} — ${result.model_id}`}
-                        higherIsBetter={true}
-                        formatAs="decimal"
-                        sampleSize={result.samples_evaluated}
-                        runsAggregate={runsAggregate}
-                      />
-                    ),
-                  )
-                })()}
-              </div>
-            )}
-
-            {/* Dynamic Chart Rendering - use evaluationChartData when filteredResults is empty */}
-            {/* For 'data' view, only show the view selector and table - no charts */}
-            {(filteredResults.length > 0 || evaluationChartData.length > 0) &&
-              selectedConfigIds.length > 0 &&
-              chartType !== 'data' && (
-                <Card className="p-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-medium dark:text-white">
-                      {t('evaluation.viewer.chart.title')}
-                    </h3>
-                    <ChartTypeSelector
-                      selectedType={chartType}
-                      onChange={setChartType}
-                      disabledTypes={chartDisabledInfo.disabledTypes}
-                      disabledReasons={chartDisabledInfo.disabledReasons}
-                      size="sm"
-                    />
-                  </div>
-                  <DynamicChartRenderer
-                    chartType={chartType}
-                    models={chartModels}
-                    metrics={chartMetrics}
-                    significanceData={significanceData}
-                    height={400}
-                    showErrorBars={true}
-                    emptyMessage={t('evaluation.viewer.chart.noData')}
-                  />
-                </Card>
-              )}
-
-            {/* Results Table */}
-            {filteredResults.length > 0 && (
+          {/* Dynamic Chart Rendering - use evaluationChartData when filteredResults is empty */}
+          {/* For 'data' view, only show the view selector and table - no charts */}
+          {(filteredResults.length > 0 || evaluationChartData.length > 0) &&
+            selectedConfigIds.length > 0 &&
+            chartType !== 'data' && (
               <Card className="p-6">
-                <h3 className="mb-4 text-lg font-medium dark:text-white">
-                  {t('evaluation.viewer.results.title')}
-                </h3>
-                <EvaluationResultsTable
-                  results={filteredResults.map((r, idx) => ({
-                    modelId: r.model_id,
-                    metrics: r.metrics || {},
-                    rank: idx + 1,
-                  }))}
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-medium dark:text-white">
+                    {t('evaluation.viewer.chart.title')}
+                  </h3>
+                  <ChartTypeSelector
+                    selectedType={chartType}
+                    onChange={setChartType}
+                    disabledTypes={chartDisabledInfo.disabledTypes}
+                    disabledReasons={chartDisabledInfo.disabledReasons}
+                    size="sm"
+                  />
+                </div>
+                <DynamicChartRenderer
+                  chartType={chartType}
+                  models={chartModels}
+                  metrics={chartMetrics}
+                  significanceData={significanceData}
+                  height={400}
+                  showErrorBars={true}
+                  emptyMessage={t('evaluation.viewer.chart.noData')}
                 />
               </Card>
             )}
 
-            {/* Statistical Results Panel - hidden in data view (stats shown inline there) */}
-            {chartType !== 'data' &&
-              (statisticsData || statisticsLoading || statisticsError) && (
-                <StatisticalResultsPanel
-                  data={statisticsData}
-                  loading={statisticsLoading}
-                  error={statisticsError}
-                  showBonferroniInfo={true}
-                  selectedStatistics={statisticalMethods}
-                />
-              )}
+          {/* Results Table */}
+          {filteredResults.length > 0 && (
+            <Card className="p-6">
+              <h3 className="mb-4 text-lg font-medium dark:text-white">
+                {t('evaluation.viewer.results.title')}
+              </h3>
+              <EvaluationResultsTable
+                results={filteredResults.map((r, idx) => ({
+                  modelId: r.model_id,
+                  metrics: r.metrics || {},
+                  rank: idx + 1,
+                }))}
+              />
+            </Card>
+          )}
 
-            {/* Historical Trend Chart - hidden in data view.
+          {/* Statistical Results Panel - hidden in data view (stats shown inline there) */}
+          {chartType !== 'data' &&
+            (statisticsData || statisticsLoading || statisticsError) && (
+              <StatisticalResultsPanel
+                data={statisticsData}
+                loading={statisticsLoading}
+                error={statisticsError}
+                showBonferroniInfo={true}
+                selectedStatistics={statisticalMethods}
+              />
+            )}
+
+          {/* Historical Trend Chart - hidden in data view.
                 Issue #111: the endpoint now returns `{ series: [...] }`
                 with one entry per (metric, evaluation_config_id) pair.
                 Render one chart per series so two configs of the same
                 metric type don't collapse into a single misleading line. */}
-            {historicalData?.series?.length > 0 &&
-              selectedConfigIds.length > 0 &&
-              chartType !== 'data' && (
-                <Card className="p-6">
-                  <h3 className="mb-4 text-lg font-medium dark:text-white">
-                    {t('evaluation.viewer.results.historicalTrends')}
-                  </h3>
-                  <div className="space-y-6">
-                    {historicalData.series.map((s: any) => (
-                      <div
-                        key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
-                      >
-                        <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {s.display_name}
-                        </h4>
-                        <HistoricalTrendChart
-                          data={s.data || []}
-                          modelIds={selectedModels}
-                          metric={s.display_name || s.metric}
-                          height={400}
-                          showConfidenceIntervals={true}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
-
-            {/* Significance Heatmap - hidden in data view */}
-            {selectedModels.length > 1 && chartType !== 'data' && (
+          {historicalData?.series?.length > 0 &&
+            selectedConfigIds.length > 0 &&
+            chartType !== 'data' && (
               <Card className="p-6">
                 <h3 className="mb-4 text-lg font-medium dark:text-white">
-                  {t('evaluation.viewer.results.statisticalSignificance')}
+                  {t('evaluation.viewer.results.historicalTrends')}
                 </h3>
-                {significanceError && (
-                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
-                    <strong>
-                      {t('evaluation.viewer.results.significanceError')}
-                    </strong>{' '}
-                    {significanceError}
-                  </div>
-                )}
-                {significanceData.length > 0 ? (
-                  <SignificanceHeatmap
-                    modelIds={selectedModels}
-                    metric={
-                      selectedMetricNames[0] ||
-                      t('evaluation.viewer.results.score')
-                    }
-                    significanceData={significanceData}
-                    height={500}
-                  />
-                ) : !significanceError ? (
-                  <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-                    {t('evaluation.viewer.results.noSignificanceData')}
-                  </div>
-                ) : null}
+                <div className="space-y-6">
+                  {historicalData.series.map((s: any) => (
+                    <div
+                      key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
+                    >
+                      <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {s.display_name}
+                      </h4>
+                      <HistoricalTrendChart
+                        data={s.data || []}
+                        modelIds={selectedModels}
+                        metric={s.display_name || s.metric}
+                        height={400}
+                        showConfidenceIntervals={true}
+                      />
+                    </div>
+                  ))}
+                </div>
               </Card>
             )}
 
-            {/* Evaluation Results - only show Card when configured or has results */}
-            {(hasAnyConfiguration || hasEvaluationResults) && (
-              <Card className="p-6">
-                <EvaluationResults
-                  projectId={selectedProject.id}
-                  selectedModels={selectedModels}
-                  selectedConfigIds={selectedConfigIds}
-                  selectedEvalTypes={selectedEvalTypes}
-                  onRefresh={() =>
-                    fetchProjectData(selectedProject.id.toString())
-                  }
-                  hasConfiguration={hasAnyConfiguration}
-                  onRunEvaluation={() => setShowEvaluationModal(true)}
-                  isRunningEvaluation={runningEvaluation}
-                  onResultsLoaded={setHasEvaluationResults}
-                  onDataLoaded={setEvaluationChartData}
-                  viewType={chartType === 'data' ? 'data' : 'chart'}
-                  statisticsData={statisticsData}
-                  selectedStatistics={statisticalMethods}
-                  refreshKey={resultsRefreshKey}
-                  modelNames={Object.fromEntries(
-                    evaluatedModels.map((m: any) => [
-                      m.model_id,
-                      m.model_name || m.model_id,
-                    ]),
-                  )}
-                  evaluationConfigs={
-                    projectEvalConfig?.evaluation_configs || []
-                  }
-                />
-              </Card>
-            )}
-
-            {/* Empty State - only show when no config exists (EvaluationResults handles its own empty state when configured) */}
-            {filteredResults.length === 0 &&
-              !hasEvaluationResults &&
-              !hasAnyConfiguration && (
-                <Card className="p-12 text-center">
-                  <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
-                    {t('evaluation.viewer.emptyStates.notConfigured.title')}
-                  </h3>
-                  <p className="mt-2 text-gray-500 dark:text-gray-400">
-                    {t(
-                      'evaluation.viewer.emptyStates.notConfigured.description',
-                    )}
-                  </p>
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      router.push(`/projects/${selectedProject?.id}`)
-                    }
-                    className="mt-4"
-                  >
-                    {t('evaluation.viewer.emptyStates.notConfigured.action')}
-                  </Button>
-                </Card>
+          {/* Significance Heatmap - hidden in data view */}
+          {selectedModels.length > 1 && chartType !== 'data' && (
+            <Card className="p-6">
+              <h3 className="mb-4 text-lg font-medium dark:text-white">
+                {t('evaluation.viewer.results.statisticalSignificance')}
+              </h3>
+              {significanceError && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                  <strong>
+                    {t('evaluation.viewer.results.significanceError')}
+                  </strong>{' '}
+                  {significanceError}
+                </div>
               )}
-          </div>
-        )}
+              {significanceData.length > 0 ? (
+                <SignificanceHeatmap
+                  modelIds={selectedModels}
+                  metric={
+                    selectedMetricNames[0] ||
+                    t('evaluation.viewer.results.score')
+                  }
+                  significanceData={significanceData}
+                  height={500}
+                />
+              ) : !significanceError ? (
+                <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                  {t('evaluation.viewer.results.noSignificanceData')}
+                </div>
+              ) : null}
+            </Card>
+          )}
 
-        {/* No Project Selected */}
-        {!selectedProject && !loading && (
-          <Card className="p-12 text-center">
-            <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
-              {t('evaluation.viewer.emptyStates.selectProject.title')}
-            </h3>
-            <p className="mt-2 text-gray-500 dark:text-gray-400">
-              {t('evaluation.viewer.emptyStates.selectProject.description')}
-            </p>
-          </Card>
-        )}
+          {/* Evaluation Results - only show Card when configured or has results */}
+          {(hasAnyConfiguration || hasEvaluationResults) && (
+            <Card className="p-6">
+              <EvaluationResults
+                projectId={selectedProject.id}
+                selectedModels={selectedModels}
+                selectedConfigIds={selectedConfigIds}
+                selectedEvalTypes={selectedEvalTypes}
+                onRefresh={() =>
+                  fetchProjectData(selectedProject.id.toString())
+                }
+                hasConfiguration={hasAnyConfiguration}
+                onRunEvaluation={() => setShowEvaluationModal(true)}
+                isRunningEvaluation={runningEvaluation}
+                onResultsLoaded={setHasEvaluationResults}
+                onDataLoaded={setEvaluationChartData}
+                viewType={chartType === 'data' ? 'data' : 'chart'}
+                statisticsData={statisticsData}
+                selectedStatistics={statisticalMethods}
+                refreshKey={resultsRefreshKey}
+                modelNames={Object.fromEntries(
+                  evaluatedModels.map((m: any) => [
+                    m.model_id,
+                    m.model_name || m.model_id,
+                  ]),
+                )}
+                evaluationConfigs={projectEvalConfig?.evaluation_configs || []}
+              />
+            </Card>
+          )}
 
-        {/* Operation Toasts for evaluation status */}
-        {renderToasts()}
+          {/* Empty State - only show when no config exists (EvaluationResults handles its own empty state when configured) */}
+          {filteredResults.length === 0 &&
+            !hasEvaluationResults &&
+            !hasAnyConfiguration && (
+              <Card className="p-12 text-center">
+                <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                  {t('evaluation.viewer.emptyStates.notConfigured.title')}
+                </h3>
+                <p className="mt-2 text-gray-500 dark:text-gray-400">
+                  {t('evaluation.viewer.emptyStates.notConfigured.description')}
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    router.push(`/projects/${selectedProject?.id}`)
+                  }
+                  className="mt-4"
+                >
+                  {t('evaluation.viewer.emptyStates.notConfigured.action')}
+                </Button>
+              </Card>
+            )}
+        </div>
+      )}
 
-        {/* Evaluation Control Modal — passes the same projectId +
+      {/* No Project Selected */}
+      {!selectedProject && !loading && (
+        <Card className="p-12 text-center">
+          <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+            {t('evaluation.viewer.emptyStates.selectProject.title')}
+          </h3>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">
+            {t('evaluation.viewer.emptyStates.selectProject.description')}
+          </p>
+        </Card>
+      )}
+
+      {/* Operation Toasts for evaluation status */}
+      {renderToasts()}
+
+      {/* Evaluation Control Modal — passes the same projectId +
             evaluationConfigs as `/projects/[id]` so the metric / model /
             annotator scope and the inline cost-estimate panel render
             identically across both entry points. The HEAD version
             replaces main's untyped pass-through filter — strict
             field projection matches the modal's typed prop interface
             introduced by the targeted-reevaluate-scope feature. */}
-        <EvaluationControlModal
-          isOpen={showEvaluationModal}
-          projectId={selectedProject?.id?.toString()}
-          evaluationConfigs={(projectEvalConfig?.evaluation_configs ?? [])
-            .filter((e) => e.enabled)
-            .map((e) => ({
-              id: e.id,
-              metric: e.metric,
-              display_name: e.display_name,
-              prediction_fields: e.prediction_fields,
-              reference_fields: e.reference_fields,
-              metric_parameters: e.metric_parameters,
-            }))}
-          onClose={() => setShowEvaluationModal(false)}
-          onRunWithMode={handleRunEvaluation}
-          onSuccess={() => setShowEvaluationModal(false)}
-        />
-      </ResponsiveContainer>
-    </FeatureFlag>
+      <EvaluationControlModal
+        isOpen={showEvaluationModal}
+        projectId={selectedProject?.id?.toString()}
+        evaluationConfigs={(projectEvalConfig?.evaluation_configs ?? [])
+          .filter((e) => e.enabled)
+          .map((e) => ({
+            id: e.id,
+            metric: e.metric,
+            display_name: e.display_name,
+            prediction_fields: e.prediction_fields,
+            reference_fields: e.reference_fields,
+            metric_parameters: e.metric_parameters,
+          }))}
+        onClose={() => setShowEvaluationModal(false)}
+        onRunWithMode={handleRunEvaluation}
+        onSuccess={() => setShowEvaluationModal(false)}
+      />
+    </ResponsiveContainer>
   )
 }

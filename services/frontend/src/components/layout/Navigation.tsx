@@ -11,7 +11,6 @@ import { useSectionStore } from '@/components/layout/SectionProvider'
 import { Button } from '@/components/shared/Button'
 import { Tag } from '@/components/shared/Tag'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/contexts/FeatureFlagContext'
 import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
@@ -477,16 +476,6 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const { user, organizations } = useAuth()
   const { t } = useI18n()
   const isClient = useHydration()
-  const { flags, lastUpdate } = useFeatureFlags()
-
-  // Directly use flags from context - no local state needed
-  const isDataPageEnabled = Boolean(flags?.data)
-  const isGenerationPageEnabled = Boolean(flags?.generations)
-  const isEvaluationPageEnabled = Boolean(flags?.evaluations)
-  const isReportsPageEnabled = Boolean(flags?.reports)
-  const isHowToPageEnabled = Boolean(flags?.['how-to'])
-  const isLeaderboardsPageEnabled = Boolean(flags?.leaderboards)
-
   // Extended edition: the personal learning-statistics page (slot-backed;
   // community edition registers nothing and the entry stays hidden).
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
@@ -506,7 +495,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     return true
   }
 
-  // Build navigation data directly - React will re-render when flags change
+  // Core pages are always on; an entry is disabled only by a role gate.
   const buildNavigation = () => {
     const bengerLinks = [
       {
@@ -518,7 +507,6 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         title: isClient ? t('navigation.reports') : 'Reports',
         href: '/reports',
         icon: <ReportsIcon />,
-        disabled: !isReportsPageEnabled,
       },
       ...(hasLearningStats
         ? [
@@ -535,7 +523,6 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         title: isClient ? t('navigation.leaderboards') : 'Leaderboards',
         href: '/leaderboards',
         icon: <LeaderboardIcon />,
-        disabled: !isLeaderboardsPageEnabled,
       },
     ]
 
@@ -549,19 +536,19 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         title: isClient ? t('navigation.dataManagement') : 'Data Management',
         href: '/data',
         icon: <DataIcon />,
-        disabled: !isDataPageEnabled || !hasAccessToRoute('/data'),
+        disabled: !hasAccessToRoute('/data'),
       },
       {
         title: isClient ? t('navigation.generation') : 'Generation',
         href: '/generations',
         icon: <GenerationIcon />,
-        disabled: !isGenerationPageEnabled || !hasAccessToRoute('/generations'),
+        disabled: !hasAccessToRoute('/generations'),
       },
       {
         title: isClient ? t('navigation.evaluation') : 'Evaluation',
         href: '/evaluations',
         icon: <EvaluationIcon />,
-        disabled: !isEvaluationPageEnabled || !hasAccessToRoute('/evaluations'),
+        disabled: !hasAccessToRoute('/evaluations'),
       },
     ]
 
@@ -570,7 +557,6 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
         title: isClient ? t('navigation.howTo') : 'How-To',
         href: '/how-to',
         icon: <HowToIcon />,
-        disabled: !isHowToPageEnabled,
       },
       {
         title: isClient ? t('navigation.models') : 'Models',
@@ -617,7 +603,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
       <ul role="list">
         {baseNavigation.map((group, groupIndex) => (
           <NavigationGroup
-            key={`${group.title}-${lastUpdate}`}
+            key={group.title}
             group={group}
             className={groupIndex === 0 ? 'md:mt-0' : ''}
           />

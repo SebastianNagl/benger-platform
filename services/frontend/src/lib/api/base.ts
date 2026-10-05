@@ -5,7 +5,12 @@
  * Issue #171:  with connection pooling and request management
  */
 
-import { sebRequestHeaders } from '@/lib/seb'
+import {
+  hasSebJsApi,
+  reportSebRefusal,
+  sebKeysReady,
+  sebRequestHeaders,
+} from '@/lib/seb'
 import logger from '@/lib/utils/logger'
 
 /**
@@ -343,6 +348,7 @@ export class BaseApiClient {
     const isFormData = options.body instanceof FormData
     const method = options.method || 'GET'
 
+    if (hasSebJsApi()) await sebKeysReady()
     const headers: Record<string, string> = { ...sebRequestHeaders() }
 
     // Only set Content-Type for JSON requests, not for FormData
@@ -506,7 +512,9 @@ export class BaseApiClient {
 
     try {
       // API Request in progress. Safe Exam Browser proof first, so SEB exams
-      // verify on macOS / iOS too (see lib/seb.ts).
+      // verify on macOS / iOS too (see lib/seb.ts). Inside SEB the keys are
+      // read only once SEB has computed them for the current page.
+      if (hasSebJsApi()) await sebKeysReady()
       const headers: Record<string, string> = { ...sebRequestHeaders() }
 
       // Only set Content-Type for JSON requests, not for FormData
@@ -575,6 +583,9 @@ export class BaseApiClient {
           logger.debug('Could not read error text from response')
         }
 
+        // A refusal at the Safe Exam Browser gate: let the exam page react.
+        reportSebRefusal(response.status, errorData)
+
         // API Error occurred
 
         // Handle 502/503 errors during service restarts - retry with backoff
@@ -598,11 +609,7 @@ export class BaseApiClient {
 
         // Handle 401 errors - attempt token refresh before triggering logout
         // Skip refresh attempt for certain endpoints where 401 is expected
-        const skipAuthFailureEndpoints = [
-          '/auth/refresh',
-          '/auth/logout',
-          '/feature-flags', // Feature flags should not trigger auth failure
-        ]
+        const skipAuthFailureEndpoints = ['/auth/refresh', '/auth/logout']
 
         const shouldSkipAuthFailure = skipAuthFailureEndpoints.some((path) =>
           endpoint.includes(path),
@@ -793,6 +800,7 @@ export class BaseApiClient {
   ): Promise<Response> {
     const url = `${getApiBaseUrl()}${endpoint}`
     const isFormData = options.body instanceof FormData
+    if (hasSebJsApi()) await sebKeysReady()
     const headers: Record<string, string> = { ...sebRequestHeaders() }
 
     if (!isFormData) {
@@ -822,6 +830,7 @@ export class BaseApiClient {
         if (errorText) {
           try {
             const errorData = JSON.parse(errorText)
+            reportSebRefusal(response.status, errorData)
             errorMessage =
               formatErrorDetail(errorData.detail) ||
               errorData.message ||

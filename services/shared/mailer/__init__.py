@@ -14,9 +14,8 @@ Consolidated here:
   workers use ``status_code`` for Celery retry decisions; the api ignores
   the extra key).
 * ``email_service`` — the ``EmailService`` + module-level helpers. Unified as
-  a superset of the api and worker copies: ``EmailService(check_feature_flag)``
-  controls whether ``__init__`` consults the ``API_MAIL_SERVICE`` feature flag
-  (api behavior) or force-enables without a DB query (worker behavior); the
+  a superset of the api and worker copies: construction never queries the
+  database (mail is enabled unless a caller sets ``mail_enabled = False``); the
   enum-or-string ``notification.type`` handling and ``is_available()`` are both
   preserved.
 * ``notification_service`` — the full ORM ``NotificationService`` and the

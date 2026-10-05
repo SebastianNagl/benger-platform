@@ -410,7 +410,6 @@ async def reject_oversized_requests(request, call_next):
 
 # Other routers
 from routers.api_keys import router as api_key_router  # noqa: E402
-from routers.feature_flags import router as feature_flags_router  # noqa: E402
 from routers.file_uploads import router as file_upload_router  # noqa: E402
 from routers.invitations import router as invitations_router  # noqa: E402
 from routers.org_api_keys import router as org_api_key_router  # noqa: E402
@@ -482,7 +481,6 @@ app.include_router(grading_feedback_router)  # Solver feedback on gradings: own 
 app.include_router(storage_router)  # Storage and CDN
 app.include_router(organizations_router)  # Organizations
 app.include_router(invitations_router)  # Invitations
-app.include_router(feature_flags_router)  # Feature flags
 app.include_router(notifications_router)  # Notifications
 # Legacy /api/debug router: gated so it is not exposed in production by default.
 # Mounted when ENABLE_DEBUG_ROUTES is truthy, or (unset) in any non-production

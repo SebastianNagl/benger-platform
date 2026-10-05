@@ -9,13 +9,9 @@ The invitation onboarding system provides two distinct user registration paths:
 1. **Self-Registered Users**: Traditional signup with immediate password creation → Email verification → Login
 2. **Invited Users**: Invitation email → Email verification → Profile completion (username/password setup) → Organization access
 
-## Feature Flags
+## Availability
 
-This functionality is controlled by three feature flags that must be enabled through the admin interface (`/admin/feature-flags`):
-
-- `AUTH_INVITATION_PROFILE_COMPLETION`: Enable profile completion flow for invited users
-- `AUTH_ENHANCED_VERIFICATION_SUCCESS`: Enable enhanced email verification success pages
-- `AUTH_PASSWORDLESS_INVITATION`: Allow users to be invited without initial password
+The invitation onboarding flow is always on; there are no feature flags for it.
 
 ## Database Schema Changes
 
@@ -165,43 +161,37 @@ Updated to handle invitation tokens in URL parameters for seamless flow.
 ### Profile Completion Errors
 
 - **Username already taken**: Returns 400 with descriptive message
-- **Feature flag disabled**: Returns 403 with feature unavailable message
 - **Not an invited user**: Returns 400 indicating profile completion not needed
 - **Profile already complete**: Returns success with existing data
 
 ### Invitation Acceptance Errors
 
 - **Profile incomplete**: Returns redirect to profile completion instead of error
-- **Feature flags disabled**: Falls back to standard behavior
 
 ## Security Considerations
 
 1. **Token Validation**: All invitation tokens are validated for expiry and authenticity
 2. **Email Matching**: Ensures invitation email matches the user attempting to accept
-3. **Feature Flag Protection**: All new functionality is behind feature flags for safe rollout
-4. **Password Requirements**: Profile completion enforces same password strength as registration
+3. **Password Requirements**: Profile completion enforces same password strength as registration
 
 ## Testing
 
 ### Unit Tests
 Located in `services/api/tests/test_invitation_onboarding.py`:
 - Profile completion flow
-- Feature flag behavior
 - Username conflict handling
 - Enhanced email verification
 - Database schema changes
 
 ### Integration Testing
 - Full invitation → verification → profile completion → organization access flow
-- Fallback behavior when feature flags are disabled
 - Cross-browser compatibility
 
 ### Manual Testing
-1. Enable feature flags in `/admin/feature-flags`
-2. Create organization and send invitation
-3. Register with invitation token
-4. Verify email and complete profile
-5. Accept organization invitation
+1. Create organization and send invitation
+2. Register with invitation token
+3. Verify email and complete profile
+4. Accept organization invitation
 
 ## Deployment
 
@@ -210,28 +200,19 @@ Located in `services/api/tests/test_invitation_onboarding.py`:
 2. Restart API container to load new endpoints
 3. Deploy frontend with new pages
 
-### Feature Flag Rollout
-1. Deploy code with flags disabled (default)
-2. Test in staging environment
-3. Enable flags one by one in production
-4. Monitor for issues and rollback if needed
-
 ### Rollback Plan
-1. Disable feature flags immediately
-2. Users fall back to standard password reset flow
-3. Database changes are backward compatible
+1. Revert the deployment
+2. Database changes are backward compatible
 
 ## Monitoring
 
 Monitor the following metrics after deployment:
 - Profile completion success rate
 - Time between invitation and profile completion
-- Feature flag usage and errors
 - User feedback on new flow
 
 Check logs for:
 - Profile completion failures
-- Feature flag access denials
 - Email verification issues
 - API endpoint errors
 

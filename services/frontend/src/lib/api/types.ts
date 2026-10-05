@@ -671,43 +671,6 @@ export interface HumanEvaluationResultSummary {
 
 // Prompt types removed in Issue #759 - use generation_structure in project settings instead
 
-// Feature Flag Types
-export interface FeatureFlag {
-  id: string
-  name: string
-  description?: string
-  is_enabled: boolean
-  target_criteria?: Record<string, any>
-  rollout_percentage: number
-  created_by: string
-  created_at: string
-  updated_at?: string
-}
-
-export interface FeatureFlagCreate {
-  name: string
-  description?: string
-  is_enabled: boolean
-  target_criteria?: Record<string, any>
-  rollout_percentage: number
-}
-
-export interface FeatureFlagUpdate {
-  description?: string
-  is_enabled?: boolean
-  target_criteria?: Record<string, any>
-  rollout_percentage?: number
-}
-
-export interface FeatureFlagStatus {
-  flag_name: string
-  is_enabled: boolean
-  source: 'user_override' | 'org_override' | 'global' | 'default'
-}
-
-// User and organization feature flag overrides removed
-// Feature flags are global and controlled only by superadmins
-
 // Missing types that are expected by various components
 export interface EvaluationUpdate {
   id: string

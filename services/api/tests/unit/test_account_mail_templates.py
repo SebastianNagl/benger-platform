@@ -23,7 +23,7 @@ def service():
     with patch("mailer.email_service.SendGridClient"):
         from mailer.email_service import EmailService
 
-        yield EmailService(check_feature_flag=False)
+        yield EmailService()
 
 
 def _link_mail(service, **overrides):

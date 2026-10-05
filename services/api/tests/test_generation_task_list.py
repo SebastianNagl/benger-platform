@@ -385,18 +385,6 @@ class TestHelperFunctions:
 class TestPaginatedTaskGenerationEndpoint:
     """Test the paginated task generation status endpoint."""
 
-    @patch('services.feature_flag_service.FeatureFlagService')
-    def test_get_task_generation_status_feature_disabled(
-        self, mock_flag_service, mock_db, mock_user
-    ):
-        """Test that endpoint returns 403 when feature flag is disabled."""
-        mock_flag_service.return_value.is_enabled.return_value = False
-
-        # This would need to be tested through the actual FastAPI app
-        # Here we just verify the flag service would be called correctly
-        flag_service = mock_flag_service(mock_db)
-        assert not flag_service.is_enabled("generation", mock_user)
-
     def test_paginated_response_structure(self):
         """Test the structure of paginated response."""
         tasks = [

@@ -1,7 +1,7 @@
 """
 Unit tests for uncovered lines in auth_module/user_service.py.
 
-Targets: delete_user, get_all_users, init_feature_flags, update_user_profile,
+Targets: delete_user, get_all_users, update_user_profile,
 change_user_password, confirm_profile, _complete_demo_user_profile,
 and various branches in create_user.
 """
@@ -152,50 +152,6 @@ class TestGetAllUsers:
         result = get_all_users(db)
         assert result == users
         assert len(result) == 3
-
-
-# ---------------------------------------------------------------------------
-# init_feature_flags (lines 604-618)
-# ---------------------------------------------------------------------------
-
-class TestInitFeatureFlags:
-    """Test init_feature_flags function covering lines 604-618."""
-
-    def test_creates_new_flags(self):
-        from auth_module.user_service import init_feature_flags
-
-        db = MagicMock()
-        # No existing flags
-        db.query.return_value.filter.return_value.first.return_value = None
-
-        init_feature_flags(db, "admin-id")
-
-        # Should have called db.add for each flag
-        assert db.add.call_count >= 6  # 6 feature flags defined
-        assert db.commit.call_count >= 6
-
-    def test_skips_existing_flags(self):
-        from auth_module.user_service import init_feature_flags
-
-        db = MagicMock()
-        # All flags exist already
-        db.query.return_value.filter.return_value.first.return_value = Mock()
-
-        init_feature_flags(db, "admin-id")
-
-        # Should not add any new flags
-        assert db.add.call_count == 0
-
-    def test_handles_exception_during_flag_creation(self):
-        from auth_module.user_service import init_feature_flags
-
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = None
-        db.commit.side_effect = Exception("Duplicate key")
-
-        # Should not raise - logs error and continues
-        init_feature_flags(db, "admin-id")
-        assert db.rollback.called
 
 
 # ---------------------------------------------------------------------------

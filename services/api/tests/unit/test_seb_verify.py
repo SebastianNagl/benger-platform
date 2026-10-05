@@ -223,3 +223,38 @@ def test_import_keeps_only_organizer_choices():
     }
     assert imported_seb_config(None) is None
     assert imported_seb_config("x") is None
+
+
+def test_export_leaves_host_bound_settings_behind():
+    """No download token, encrypted file password or generated settings in an
+    export file; the organizer's choices and the flag still travel."""
+    from project_models import Project
+    from stream_io.serialization import build_project_export_data
+
+    project = Project(
+        id="p1",
+        title="SEB exam",
+        created_by="u1",
+        seb_required=True,
+        seb_config={
+            "base_url": "https://what-a-benger.net",
+            "settings": {"startURL": "https://what-a-benger.net/projects/p1/label"},
+            "generated_config_key": CK,
+            "config_token": "tok",
+            "config_password_enc": "gAAAA-ciphertext",
+            "extra_hosts": ["lms.example.org"],
+            "quit_password_hash": "f" * 64,
+            "browser_exam_keys": [{"key": BEK, "label": "SEB 3.9"}],
+        },
+    )
+    exported = build_project_export_data(project, None)
+    assert exported["seb_required"] is True
+    assert exported["seb_config"] == {
+        "extra_hosts": ["lms.example.org"],
+        "quit_password_hash": "f" * 64,
+        "browser_exam_keys": [{"key": BEK, "label": "SEB 3.9"}],
+    }
+    # A project that never had SEB settings exports none.
+    assert build_project_export_data(Project(id="p2", title="t", created_by="u1"), None)[
+        "seb_config"
+    ] is None

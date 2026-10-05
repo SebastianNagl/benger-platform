@@ -217,17 +217,6 @@ export const mockUseI18n = (overrides = {}) => {
 
 // Create mock provider contexts
 
-export const createMockFeatureFlagContext = (overrides = {}) => ({
-  flags: {},
-  isLoading: false,
-  error: null,
-  isEnabled: jest.fn().mockReturnValue(true),
-  refreshFlags: jest.fn(),
-  checkFlag: jest.fn().mockResolvedValue(true),
-  lastUpdate: Date.now(),
-  ...overrides,
-})
-
 export const createMockProgressContext = (overrides = {}) => ({
   startProgress: jest.fn(),
   updateProgress: jest.fn(),
@@ -249,7 +238,6 @@ export const createMockToastContext = (overrides = {}) => ({
 interface EnhancedRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   authContextValue?: ReturnType<typeof createMockAuthContext>
   i18nContextValue?: ReturnType<typeof createMockI18nContext>
-  featureFlagContextValue?: ReturnType<typeof createMockFeatureFlagContext>
   progressContextValue?: ReturnType<typeof createMockProgressContext>
   toastContextValue?: ReturnType<typeof createMockToastContext>
   includeAllProviders?: boolean
@@ -282,7 +270,6 @@ export function renderWithAllProviders(
   {
     authContextValue = createMockAuthContext(),
     i18nContextValue = createMockI18nContext(),
-    featureFlagContextValue = createMockFeatureFlagContext(),
     progressContextValue = createMockProgressContext(),
     toastContextValue = createMockToastContext(),
     ...renderOptions
@@ -292,20 +279,6 @@ export function renderWithAllProviders(
   const MockSectionProvider = ({ children }: { children: React.ReactNode }) => (
     <div data-testid="section-provider">{children}</div>
   )
-
-  const MockFeatureFlagProvider = ({
-    children,
-  }: {
-    children: React.ReactNode
-  }) => {
-    // Create a mock context that provides the FeatureFlagContext
-    const FeatureFlagContext = React.createContext(featureFlagContextValue)
-    return (
-      <FeatureFlagContext.Provider value={featureFlagContextValue}>
-        <div data-testid="feature-flag-provider">{children}</div>
-      </FeatureFlagContext.Provider>
-    )
-  }
 
   const MockProgressProvider = ({
     children,
@@ -323,9 +296,7 @@ export function renderWithAllProviders(
         <I18nContext.Provider value={i18nContextValue}>
           <MockToastProvider>
             <MockProgressProvider>
-              <MockFeatureFlagProvider>
-                <MockSectionProvider>{children}</MockSectionProvider>
-              </MockFeatureFlagProvider>
+              <MockSectionProvider>{children}</MockSectionProvider>
             </MockProgressProvider>
           </MockToastProvider>
         </I18nContext.Provider>
@@ -354,22 +325,6 @@ jest.mock('@/contexts/I18nContext', () => ({
 }))
 
 // Mock additional context providers with inline values
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: {},
-    isLoading: false,
-    error: null,
-    isEnabled: jest.fn().mockReturnValue(true),
-    refreshFlags: jest.fn(),
-    checkFlag: jest.fn().mockResolvedValue(true),
-    lastUpdate: Date.now(),
-  }),
-  useFeatureFlag: () => true,
-  FeatureFlagProvider: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-}))
-
 jest.mock('@/contexts/ProgressContext', () => ({
   useProgress: () => ({
     startProgress: jest.fn(),

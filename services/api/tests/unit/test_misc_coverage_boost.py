@@ -695,21 +695,23 @@ class TestRequirePermissionDecorator:
             assert exc_info.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_require_permission_feature_flag_manage(self):
+    async def test_require_permission_admin_edit(self):
         from app.core.authorization import AuthorizationService, Permission
         from fastapi import HTTPException
 
         svc = AuthorizationService()
 
-        @svc.require_permission(Permission.FEATURE_FLAG_MANAGE)
-        async def flag_endpoint(current_user=None, db=None):
+        @svc.require_permission(Permission.ADMIN_EDIT)
+        async def admin_endpoint(current_user=None, db=None):
             return "ok"
 
         user = Mock(is_superadmin=False)
         db = Mock()
 
-        with pytest.raises(HTTPException):
-            await flag_endpoint(current_user=user, db=db)
+        with pytest.raises(HTTPException) as exc_info:
+            await admin_endpoint(current_user=user, db=db)
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail == "Admin access required"
 
 
 class TestConvenienceDecorators:

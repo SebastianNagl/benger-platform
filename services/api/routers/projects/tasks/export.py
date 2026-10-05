@@ -1,4 +1,6 @@
 """Bulk export endpoint (streaming JSON/CSV/TSV)."""
+from routers.projects.helpers import can_read_all_task_content
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 
@@ -41,7 +43,8 @@ def bulk_export_tasks(
     # payload anyway: effective ORG_ADMIN / CONTRIBUTOR (the blinding module's
     # full-data roles). Public ANNOTATOR visitors and org annotators are
     # blinded on the task endpoints and must not get the unblinded dump here.
-    if not check_project_write_access(db, current_user, project_id):
+    # A Safe Exam Browser exam narrows this to its editors.
+    if not can_read_all_task_content(db, current_user, project):
         raise HTTPException(
             status_code=403,
             detail="Only contributors or admins can export tasks from this project",

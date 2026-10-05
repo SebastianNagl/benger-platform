@@ -138,6 +138,56 @@ describe('sebRequestHeaders', () => {
   })
 })
 
+describe('hasSebJsApi', () => {
+  it('is true only when SEB exposes its security object', () => {
+    expect(loadSeb().hasSebJsApi()).toBe(false)
+    // Windows SEB: recognisable by its user agent, proof in its own headers.
+    setUserAgent('Mozilla/5.0 (Windows NT 10.0) Chrome/130 SEB/3.9')
+    expect(loadSeb().hasSebJsApi()).toBe(false)
+    ;(window as any).SafeExamBrowser = { version: '3.9.0' }
+    expect(loadSeb().hasSebJsApi()).toBe(false)
+    ;(window as any).SafeExamBrowser = { security: {} }
+    expect(loadSeb().hasSebJsApi()).toBe(true)
+  })
+})
+
+describe('reportSebRefusal', () => {
+  function heard(run: (seb: SebModule) => void): string[] {
+    const seb = loadSeb()
+    const codes: string[] = []
+    const handler = (event: Event) =>
+      codes.push((event as CustomEvent).detail.code)
+    window.addEventListener(seb.SEB_REFUSED_EVENT, handler)
+    run(seb)
+    window.removeEventListener(seb.SEB_REFUSED_EVENT, handler)
+    return codes
+  }
+
+  it('fires for the two SEB codes on a 403', () => {
+    expect(
+      heard((seb) => {
+        seb.reportSebRefusal(403, { detail: { code: 'seb_required' } })
+        seb.reportSebRefusal(403, {
+          detail: { code: 'seb_version_not_allowed' },
+        })
+      }),
+    ).toEqual(['seb_required', 'seb_version_not_allowed'])
+  })
+
+  it('ignores other statuses, codes and shapes', () => {
+    expect(
+      heard((seb) => {
+        seb.reportSebRefusal(401, { detail: { code: 'seb_required' } })
+        seb.reportSebRefusal(403, { detail: { code: 'window_closed' } })
+        seb.reportSebRefusal(403, { detail: 'Access denied' })
+        seb.reportSebRefusal(403, { detail: [{ msg: 'x' }] })
+        seb.reportSebRefusal(403, null)
+        seb.reportSebRefusal(403, 'seb_required')
+      }),
+    ).toEqual([])
+  })
+})
+
 describe('sebNavigationTarget', () => {
   beforeEach(() => window.sessionStorage.clear())
 

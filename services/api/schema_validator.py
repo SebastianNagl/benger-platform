@@ -218,7 +218,14 @@ def get_expected_schema() -> Dict[str, List[str]]:
         "feature_flags": [
             "id",
             "name",
-            "is_enabled",
+            "state",
+            "created_at",
+        ],
+        "feature_flag_targets": [
+            "id",
+            "flag_id",
+            "user_id",
+            "organization_id",
             "created_at",
         ],
         "notifications": [

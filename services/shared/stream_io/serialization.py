@@ -29,6 +29,7 @@ Scope note (what is and isn't here):
   name, email or username (``serialize_user_row``).
 """
 
+import seb
 from user_display import masked_name
 
 
@@ -105,11 +106,12 @@ def build_project_export_data(project, organization_id) -> dict:
         # Timed access window (nullable timestamps) — survive export/import.
         "window_start_at": _iso(project.window_start_at),
         "window_end_at": _iso(project.window_end_at),
-        # Safe Exam Browser settings travel with the exam; the import leaves
-        # the gate off (see import_stream) because the generated Config Key
-        # is bound to the source deployment's host.
+        # Safe Exam Browser: the organizer's choices travel with the exam,
+        # the host-bound rest (download token, generated settings and their
+        # Config Key, encrypted file password) stays here. The import leaves
+        # the gate off (see import_stream).
         "seb_required": project.seb_required,
-        "seb_config": project.seb_config,
+        "seb_config": seb.portable_seb_config(project.seb_config),
         # Project kind + per-project settings. Without these a re-imported
         # exam came back as a plain project (kind NULL drops it from student
         # discovery) with its timer / checkpoint / feature toggles reset.

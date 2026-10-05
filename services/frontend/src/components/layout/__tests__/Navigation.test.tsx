@@ -130,20 +130,6 @@ jest.mock('@/contexts/AuthContext', () => ({
   })),
 }))
 
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: jest.fn(() => ({
-    flags: {
-      data: true,
-      generations: true,
-      evaluations: true,
-      reports: true,
-      'how-to': true,
-      leaderboards: true,
-    },
-    lastUpdate: Date.now(),
-  })),
-}))
-
 jest.mock('@/contexts/HydrationContext', () => ({
   useHydration: jest.fn(() => true),
 }))
@@ -185,8 +171,6 @@ jest.mock('@/lib/remToPx', () => ({
 
 const mockUsePathname = require('next/navigation').usePathname
 const mockUseAuth = require('@/contexts/AuthContext').useAuth
-const mockUseFeatureFlags =
-  require('@/contexts/FeatureFlagContext').useFeatureFlags
 
 describe('Navigation', () => {
   beforeEach(() => {
@@ -201,17 +185,6 @@ describe('Navigation', () => {
       organizations: [
         { id: 1, name: 'Test Org', slug: 'test-org', role: 'ORG_ADMIN' },
       ],
-    })
-    mockUseFeatureFlags.mockReturnValue({
-      flags: {
-        data: true,
-        generations: true,
-        evaluations: true,
-        reports: true,
-        'how-to': true,
-        leaderboards: true,
-      },
-      lastUpdate: Date.now(),
     })
   })
 
@@ -557,16 +530,11 @@ describe('Navigation', () => {
 
   describe('Edge Cases', () => {
     it('handles disabled links correctly', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: false,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ANNOTATOR' },
+        ],
       })
 
       render(<Navigation />)
@@ -655,47 +623,24 @@ describe('Navigation', () => {
       expect(screen.getByText('Knowledge')).toBeInTheDocument()
     })
 
-    it('handles all feature flags disabled', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: false,
-          generations: false,
-          evaluations: false,
-          reports: false,
-          'how-to': false,
-          leaderboards: false,
-        },
-        lastUpdate: Date.now(),
-      })
+    it('renders every core entry as a link for a superadmin', () => {
+      const { container } = render(<Navigation />)
 
-      render(<Navigation />)
-
-      // Should still render but with disabled links
-      expect(screen.getByRole('navigation')).toBeInTheDocument()
-    })
-
-    it('handles undefined feature flags', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: undefined,
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      // Should render with fallback behavior
-      expect(screen.getByRole('navigation')).toBeInTheDocument()
-    })
-
-    it('handles null feature flags', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: null,
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      // Should render with fallback behavior
-      expect(screen.getByRole('navigation')).toBeInTheDocument()
+      for (const href of [
+        '/dashboard',
+        '/reports',
+        '/leaderboards',
+        '/projects',
+        '/data',
+        '/generations',
+        '/evaluations',
+        '/how-to',
+        '/models',
+        '/architecture',
+      ]) {
+        expect(container.querySelector(`a[href="${href}"]`)).not.toBeNull()
+      }
+      expect(container.querySelector('.cursor-not-allowed')).toBeNull()
     })
 
     it('updates when pathname changes', () => {
@@ -769,16 +714,11 @@ describe('Navigation', () => {
     })
 
     it('includes dark mode classes for disabled links', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: false,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ANNOTATOR' },
+        ],
       })
 
       render(<Navigation />)
@@ -799,153 +739,75 @@ describe('Navigation', () => {
     })
   })
 
-  describe('Feature Flags', () => {
-    it('disables Data Management when feature flag is off', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: false,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
+  describe('Core entries are not feature flags', () => {
+    const linkFor = (container: HTMLElement, href: string) =>
+      container.querySelector(`a[href="${href}"]`)
+
+    it('never disables entries without a role gate, even for an annotator', () => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ANNOTATOR' },
+        ],
+      })
+
+      const { container } = render(<Navigation />)
+
+      for (const href of [
+        '/dashboard',
+        '/reports',
+        '/leaderboards',
+        '/projects',
+        '/how-to',
+        '/models',
+        '/architecture',
+      ]) {
+        expect(linkFor(container, href)).not.toBeNull()
+      }
+    })
+
+    it('disables only the role-gated entries for an annotator', () => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ANNOTATOR' },
+        ],
       })
 
       render(<Navigation />)
 
-      const dataLinkText = screen.getByText('Data Management')
-      expect(dataLinkText).toBeInTheDocument()
-      const disabledDiv = dataLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
+      for (const label of ['Data Management', 'Generation', 'Evaluation']) {
+        const div = screen.getByText(label).closest('div')
+        expect(div?.className).toContain('cursor-not-allowed')
+      }
+      const disabled = document.querySelectorAll('.cursor-not-allowed')
+      expect(disabled).toHaveLength(3)
     })
 
-    it('disables Generation when feature flag is off', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: true,
-          generations: false,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      const generationLinkText = screen.getByText('Generation')
-      expect(generationLinkText).toBeInTheDocument()
-      const disabledDiv = generationLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
-    })
-
-    it('disables Evaluation when feature flag is off', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: true,
-          generations: true,
-          evaluations: false,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      const evaluationLinkText = screen.getByText('Evaluation')
-      expect(evaluationLinkText).toBeInTheDocument()
-      const disabledDiv = evaluationLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
-    })
-
-    it('disables Reports when feature flag is off', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: true,
-          generations: true,
-          evaluations: true,
-          reports: false,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      const reportsLinkText = screen.getByText('Reports')
-      expect(reportsLinkText).toBeInTheDocument()
-      const disabledDiv = reportsLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
-    })
-
-    it('disables How-To when feature flag is off', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: true,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': false,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
-      })
-
-      render(<Navigation />)
-
-      const howToLinkText = screen.getByText('How-To')
-      expect(howToLinkText).toBeInTheDocument()
-      const disabledDiv = howToLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
-    })
-
-    it('re-renders when feature flags change', () => {
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: false,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now(),
+    it('enables the role-gated entries once the user gains a contributor role', () => {
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'ANNOTATOR' },
+        ],
       })
 
       const { rerender } = render(<Navigation />)
+      expect(
+        screen.getByText('Data Management').closest('div')?.className,
+      ).toContain('cursor-not-allowed')
 
-      let dataLinkText = screen.getByText('Data Management')
-      expect(dataLinkText).toBeInTheDocument()
-      let disabledDiv = dataLinkText.closest('div')
-      expect(disabledDiv?.className).toContain('cursor-not-allowed')
-
-      // Enable feature
-      mockUseFeatureFlags.mockReturnValue({
-        flags: {
-          data: true,
-          generations: true,
-          evaluations: true,
-          reports: true,
-          'how-to': true,
-          leaderboards: true,
-        },
-        lastUpdate: Date.now() + 1000,
+      mockUseAuth.mockReturnValue({
+        user: { id: 2, email: 'annotator@example.com', is_superadmin: false },
+        organizations: [
+          { id: 1, name: 'Test Org', slug: 'test-org', role: 'CONTRIBUTOR' },
+        ],
       })
-
       rerender(<Navigation />)
 
-      dataLinkText = screen.getByText('Data Management')
-      const dataLink = dataLinkText.closest('a')!
-      expect(dataLink).toBeInTheDocument()
-      // When enabled, the link should be clickable (not have cursor-not-allowed)
-      const linkClasses = dataLink?.className || ''
-      expect(linkClasses).not.toContain('cursor-not-allowed')
+      const dataLink = screen.getByText('Data Management').closest('a')
+      expect(dataLink).toHaveAttribute('href', '/data')
+      expect(document.querySelectorAll('.cursor-not-allowed')).toHaveLength(0)
     })
   })
 

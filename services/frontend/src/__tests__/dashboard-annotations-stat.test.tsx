@@ -77,18 +77,6 @@ jest.mock('@/contexts/I18nContext', () => ({
   }),
 }))
 
-// Mock the feature flags context
-jest.mock('@/contexts/FeatureFlagContext', () => ({
-  useFeatureFlags: () => ({
-    flags: {
-      data: true,
-      generations: true,
-      evaluations: true,
-    },
-    loading: false,
-  }),
-}))
-
 // Mock the project store
 jest.mock('@/stores/projectStore', () => ({
   useProjectStore: () => ({
