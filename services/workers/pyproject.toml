@@ -35,7 +35,7 @@ dependencies = [
     # not ship (psycopg2 only): every worker crashed at import on 2026-09-30
     # after the weekly base rebuild pulled 2.1.1. Move with the api pin.
     "sqlalchemy>=2.0.49,<2.1",
-    "python-dotenv==1.2.3",
+    "python-dotenv==1.2.4",
     "httpx==0.28.1",
     # transformers 5 / sentence-transformers 6 are BLOCKED by optimum: the
     # ONNX backend (optimum[onnxruntime] -> optimum-onnx 0.1.0) pins
@@ -75,8 +75,8 @@ dependencies = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     # AI service dependencies
-    "openai==3.13.0",
-    "anthropic==1.5.0",
+    "openai==3.23.0",
+    "anthropic==1.11.0",
     "google-genai>=1.75.0",
     "mistralai>=1.12.4",  # Mistral AI models
     "cohere>=5.21.1",  # Cohere models
