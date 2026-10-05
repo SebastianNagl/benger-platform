@@ -41,6 +41,10 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # SQLAlchemy 2.1 resolves postgresql:// to psycopg 3; the sync engine
+      # ships psycopg2 only. Drop once the API moves off psycopg2.
+      - dependency-name: "sqlalchemy"
+        versions: [">=2.1"]
 
   - package-ecosystem: "pip"
     directory: "/services/workers"
@@ -67,6 +71,9 @@ updates:
       # Drop this once the numpy 2.x migration lands.
       - dependency-name: "spacy"
         versions: [">=3.8"]
+      # Same psycopg 3 switch as the api; workers ship psycopg2 only.
+      - dependency-name: "sqlalchemy"
+        versions: [">=2.1"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
