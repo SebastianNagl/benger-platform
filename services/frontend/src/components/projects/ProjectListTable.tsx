@@ -26,6 +26,7 @@ import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
+import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { projectIcon } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { Project } from '@/types/labelStudio'
@@ -126,16 +127,22 @@ export function ProjectListTable({
   // Where a create-new import lands, asked before the file picker opens (the
   // way the wizard names its target): the orgs the user may create in, plus
   // private. The only such org is preselected; with none the dialog is skipped.
+  // An org counts when the org role or one of the user's group roles there
+  // allows creating projects; the dialog then offers the eligible groups.
   const importTargetOrgs = useMemo(
     () =>
       (organizations ?? [])
-        .filter((o) => o.role === 'ORG_ADMIN' || o.role === 'CONTRIBUTOR')
-        .map((o) => ({ id: o.id, name: o.name })),
+        .filter(canCreateInOrganization)
+        .map((o) => ({ id: o.id, name: o.name, role: o.role })),
     [organizations],
   )
   const [importTargetOpen, setImportTargetOpen] = useState(false)
   const [importTarget, setImportTarget] = useState<string | null>(null)
+  // Group of the target org the imported project is scoped to (null =
+  // org-wide).
+  const [importGroupId, setImportGroupId] = useState<string | null>(null)
   const openImport = () => {
+    setImportGroupId(null)
     if (importTargetOrgs.length === 0) {
       setImportTarget(PRIVATE_IMPORT_TARGET)
       fileInputRef.current?.click()
@@ -395,11 +402,16 @@ export function ProjectListTable({
       // Async job flow: the file uploads straight to object storage via a
       // presigned URL, a worker stream-imports it (creating the project), and we
       // poll to completion. Keeps the multi-GB import off the API request path.
+      const importOrgId =
+        importTarget && importTarget !== PRIVATE_IMPORT_TARGET
+          ? importTarget
+          : null
       const job = await projectsAPI.runProjectImportJob(file, undefined, {
-        organizationId:
-          importTarget && importTarget !== PRIVATE_IMPORT_TARGET
-            ? importTarget
-            : null,
+        organizationId: importOrgId,
+        // Only a group-scoped import names the group (next to its org).
+        ...(importOrgId && importGroupId
+          ? { organizationGroupId: importGroupId }
+          : {}),
       })
       const importTime = ((Date.now() - startTime) / 1000).toFixed(1)
 
@@ -1245,6 +1257,9 @@ export function ProjectListTable({
         organizations={importTargetOrgs}
         value={importTarget}
         onChange={setImportTarget}
+        groupId={importGroupId}
+        onGroupChange={setImportGroupId}
+        isSuperadmin={Boolean(user?.is_superadmin)}
         onConfirm={confirmImportTarget}
         onClose={() => setImportTargetOpen(false)}
       />

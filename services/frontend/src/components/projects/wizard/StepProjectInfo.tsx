@@ -3,12 +3,14 @@
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
+import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
   type OrganizationGroup,
 } from '@/lib/api/organizations'
 import { useSlot } from '@/lib/extensions/slots'
+import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
@@ -69,6 +71,8 @@ export function StepProjectInfo({
   preselectedOrganization,
 }: StepProjectInfoProps) {
   const { t } = useI18n()
+  // Optional: the step also renders without an AuthProvider (tests).
+  const isSuperadmin = Boolean(useOptionalAuth()?.user?.is_superadmin)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [orgs, setOrgs] = useState<
     Array<{
@@ -147,19 +151,33 @@ export function StepProjectInfo({
     }
   }, [data.visibility, data.organizationIds, groupsByOrg])
 
-  // Default group scope: when the user belongs to exactly one group of a
-  // checked org, preselect it; otherwise the org stays org-wide (implicit
-  // null). Only fires while the org has no explicit choice yet.
+  // Default group scope. Where the user may not create org-wide projects
+  // (org role Annotator) but may create in groups, pin the first such group:
+  // there is no org-wide option for them. Otherwise, when the user belongs
+  // to exactly one group they may create in, preselect it; else the org
+  // stays org-wide (implicit null). Only fires while the org has no valid
+  // choice yet.
   useEffect(() => {
     if (data.visibility !== 'organization') return
     const defaults: Record<string, string | null> = {}
     for (const orgId of data.organizationIds) {
-      if (data.organizationGroupIds[orgId] !== undefined) continue
       const groups = groupsByOrg[orgId]
       if (groups === undefined) continue
-      const memberGroups = groups.filter(
-        (group) => group.is_active && group.is_member,
-      )
+      const org = orgs.find((o) => o.id === orgId)
+      if (!org) continue
+      const options = scopeableGroups(groups, org.role, isSuperadmin)
+      const current = data.organizationGroupIds[orgId]
+      if (!canScopeOrgWide(org.role, isSuperadmin)) {
+        if (
+          options.length > 0 &&
+          !options.some((group) => group.id === current)
+        ) {
+          defaults[orgId] = options[0].id
+        }
+        continue
+      }
+      if (current !== undefined) continue
+      const memberGroups = options.filter((group) => group.is_member)
       if (memberGroups.length === 1) {
         defaults[orgId] = memberGroups[0].id
       }
@@ -175,6 +193,8 @@ export function StepProjectInfo({
     data.organizationIds,
     data.organizationGroupIds,
     groupsByOrg,
+    orgs,
+    isSuperadmin,
   ])
 
   const toggleFeature = (key: keyof WizardFeatures) => {
@@ -197,17 +217,13 @@ export function StepProjectInfo({
   }
 
   // Groups offered for one org: org admins pick any active group, everyone
-  // else only active groups they belong to.
+  // else the active groups where their group role is Contributor or Admin
+  // (independent of the org role).
   const groupOptionsFor = (org: {
     id: string
     role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
-  }): OrganizationGroup[] => {
-    const groups = groupsByOrg[org.id] ?? []
-    const isOrgAdmin = org.role === 'ORG_ADMIN'
-    return groups.filter(
-      (group) => group.is_active && (isOrgAdmin || group.is_member),
-    )
-  }
+  }): OrganizationGroup[] =>
+    scopeableGroups(groupsByOrg[org.id] ?? [], org.role, isSuperadmin)
 
   return (
     <div className="space-y-6">
@@ -452,6 +468,13 @@ export function StepProjectInfo({
                 {orgs.map((org) => {
                   const isChecked = data.organizationIds.includes(org.id)
                   const groupOptions = isChecked ? groupOptionsFor(org) : []
+                  // The org-wide option needs org role Contributor or Admin.
+                  const orgWideAllowed = canScopeOrgWide(org.role, isSuperadmin)
+                  const noCreateRights =
+                    isChecked &&
+                    !orgWideAllowed &&
+                    groupsByOrg[org.id] !== undefined &&
+                    groupOptions.length === 0
                   return (
                     <div key={org.id}>
                       <label
@@ -491,11 +514,13 @@ export function StepProjectInfo({
                             data-testid={`wizard-organization-group-select-${org.id}`}
                             className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                           >
-                            <option value="">
-                              {t(
-                                'projects.creation.wizard.step1.groupScopeOrgWide',
-                              )}
-                            </option>
+                            {orgWideAllowed && (
+                              <option value="">
+                                {t(
+                                  'projects.creation.wizard.step1.groupScopeOrgWide',
+                                )}
+                              </option>
+                            )}
                             {groupOptions.map((group) => (
                               <option key={group.id} value={group.id}>
                                 {group.name}
@@ -506,6 +531,16 @@ export function StepProjectInfo({
                             {t('projects.creation.wizard.step1.groupScopeHelp')}
                           </p>
                         </div>
+                      )}
+                      {noCreateRights && (
+                        <p
+                          className="mt-2 ml-7 text-xs text-amber-700 dark:text-amber-400"
+                          data-testid={`wizard-organization-no-rights-${org.id}`}
+                        >
+                          {t(
+                            'projects.creation.wizard.step1.groupScopeNoRights',
+                          )}
+                        </p>
                       )}
                     </div>
                   )

@@ -61,6 +61,14 @@ jest.mock('@/lib/api/projects', () => ({
   },
 }))
 
+// Group lists for the import target dialog (per-group scoping).
+const mockGetGroups = jest.fn()
+jest.mock('@/lib/api/organizations', () => ({
+  organizationsAPI: {
+    getGroups: (...args: any[]) => mockGetGroups(...args),
+  },
+}))
+
 const mockConfirm = jest.fn()
 const mockAddToast = jest.fn()
 const mockRemoveToast = jest.fn()
@@ -89,7 +97,17 @@ jest.mock('@/contexts/ProgressContext', () => ({
 // Mock AuthContext with a user that has permission to create projects.
 // `mockOrganizations` is the membership list; the import target dialog reads
 // it. Reset to [] after every test.
-let mockOrganizations: Array<{ id: string; name: string; role: string }> = []
+let mockOrganizations: Array<{
+  id: string
+  name: string
+  role: string
+  groups?: Array<{
+    id: string
+    name: string
+    role: string
+    is_active?: boolean
+  }>
+}> = []
 jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
     organizations: mockOrganizations,
@@ -2434,6 +2452,7 @@ describe('ProjectListTable', () => {
 
     afterEach(() => {
       mockOrganizations = []
+      mockGetGroups.mockReset()
     })
 
     const openImport = () => {
@@ -2493,6 +2512,95 @@ describe('ProjectListTable', () => {
           expect.any(File),
           undefined,
           { organizationId: 'org-lmu' },
+        )
+      })
+    })
+
+    it('imports into the group of an org annotator who is group admin there', async () => {
+      mockOrganizations = [
+        {
+          id: 'org-lmu',
+          name: 'LMU',
+          role: 'ANNOTATOR',
+          groups: [
+            { id: 'grp-a', name: 'LS A', role: 'ANNOTATOR', is_active: true },
+            { id: 'grp-b', name: 'LS B', role: 'ORG_ADMIN', is_active: true },
+          ],
+        },
+      ]
+      mockGetGroups.mockResolvedValue([
+        {
+          id: 'grp-a',
+          name: 'LS A',
+          is_active: true,
+          is_member: true,
+          my_role: 'ANNOTATOR',
+        },
+        {
+          id: 'grp-b',
+          name: 'LS B',
+          is_active: true,
+          is_member: true,
+          my_role: 'ORG_ADMIN',
+        },
+      ])
+      render(<ProjectListTable />)
+
+      openImport()
+      await screen.findByTestId('project-import-target')
+      expect(screen.getByTestId('project-import-target-org-lmu')).toBeChecked()
+      const groupSelect = (await screen.findByTestId(
+        'project-import-target-group-select',
+      )) as HTMLSelectElement
+      // No org-wide option for an org annotator; only the admin group.
+      expect(Array.from(groupSelect.options).map((o) => o.value)).toEqual([
+        'grp-b',
+      ])
+      await waitFor(() => expect(groupSelect.value).toBe('grp-b'))
+      expect(mockGetGroups).toHaveBeenCalledWith('org-lmu')
+
+      fireEvent.click(screen.getByTestId('project-import-target-confirm'))
+      await uploadFile()
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalledWith(
+          expect.any(File),
+          undefined,
+          { organizationId: 'org-lmu', organizationGroupId: 'grp-b' },
+        )
+      })
+    })
+
+    it('lets an org contributor keep the import org-wide or pick a group', async () => {
+      mockOrganizations = [{ id: 'org-lmu', name: 'LMU', role: 'CONTRIBUTOR' }]
+      mockGetGroups.mockResolvedValue([
+        {
+          id: 'grp-b',
+          name: 'LS B',
+          is_active: true,
+          is_member: true,
+          my_role: 'CONTRIBUTOR',
+        },
+      ])
+      render(<ProjectListTable />)
+
+      openImport()
+      const groupSelect = (await screen.findByTestId(
+        'project-import-target-group-select',
+      )) as HTMLSelectElement
+      expect(Array.from(groupSelect.options).map((o) => o.value)).toEqual([
+        '',
+        'grp-b',
+      ])
+      fireEvent.change(groupSelect, { target: { value: 'grp-b' } })
+      fireEvent.click(screen.getByTestId('project-import-target-confirm'))
+      await uploadFile()
+
+      await waitFor(() => {
+        expect(projectsAPI.runProjectImportJob).toHaveBeenCalledWith(
+          expect.any(File),
+          undefined,
+          { organizationId: 'org-lmu', organizationGroupId: 'grp-b' },
         )
       })
     })
