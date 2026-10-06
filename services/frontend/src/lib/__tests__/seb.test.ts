@@ -174,6 +174,27 @@ describe('reportSebRefusal', () => {
     ).toEqual(['seb_required', 'seb_version_not_allowed'])
   })
 
+  it('names the refusing project when the API sends it', () => {
+    const seb = loadSeb()
+    const details: unknown[] = []
+    const handler = (event: Event) =>
+      details.push((event as CustomEvent).detail)
+    window.addEventListener(seb.SEB_REFUSED_EVENT, handler)
+    seb.reportSebRefusal(403, {
+      detail: { code: 'seb_required', project_id: 'p7' },
+    })
+    seb.reportSebRefusal(403, { detail: { code: 'seb_required' } })
+    seb.reportSebRefusal(403, {
+      detail: { code: 'seb_required', project_id: 42 },
+    })
+    window.removeEventListener(seb.SEB_REFUSED_EVENT, handler)
+    expect(details).toEqual([
+      { code: 'seb_required', projectId: 'p7' },
+      { code: 'seb_required' },
+      { code: 'seb_required' },
+    ])
+  })
+
   it('ignores other statuses, codes and shapes', () => {
     expect(
       heard((seb) => {

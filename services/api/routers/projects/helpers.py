@@ -2961,13 +2961,18 @@ async def enforce_project_write_window_async(db: AsyncSession, user, project) ->
 # pass through here.
 
 
-def _seb_403(code: str) -> HTTPException:
+def _seb_403(code: str, project_id: str) -> HTTPException:
+    """403 for the SEB gate. ``project_id`` lets the page tell which exam
+    refused when it shows more than one."""
     message = (
         "This exam must be opened in an approved Safe Exam Browser version."
         if code == seb.CODE_SEB_VERSION_NOT_ALLOWED
         else "This exam must be opened in Safe Exam Browser."
     )
-    return HTTPException(status_code=403, detail={"code": code, "message": message})
+    return HTTPException(
+        status_code=403,
+        detail={"code": code, "message": message, "project_id": project_id},
+    )
 
 
 def _seb_result(request, project) -> "seb.SebCheck":
@@ -3073,7 +3078,7 @@ def enforce_seb(
         return
     result = _seb_result(request, project)
     if not result.ok:
-        raise _seb_403(result.code)
+        raise _seb_403(result.code, str(project.id))
 
 
 async def enforce_seb_async(
@@ -3100,7 +3105,7 @@ async def enforce_seb_async(
         return
     result = _seb_result(request, project)
     if not result.ok:
-        raise _seb_403(result.code)
+        raise _seb_403(result.code, str(project.id))
 
 
 # NOTE: the canonical project-access dependency is `require_project_access` in

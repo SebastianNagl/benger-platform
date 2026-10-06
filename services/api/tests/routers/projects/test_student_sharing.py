@@ -637,6 +637,57 @@ async def test_srs_reads_allow_consented_member_deny_stranger(
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["exam", None])
+async def test_srs_routes_only_serve_flashcard_collections(
+    async_test_client, async_test_db, kind
+):
+    """The study queue hands out task fields; on an exam (or a generic
+    project) that would bypass blinding and the SEB gate, so only flashcard
+    collections are decks. A participant who joined the exam gets 404."""
+    from project_models import Task
+
+    owner = await _make_user(async_test_db)
+    member = await _make_user(async_test_db)
+    project = await _make_exam(async_test_db, owner)
+    async_test_db.add(
+        Task(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            data={"front": "Frage", "back": "Lösung"},
+            inner_id=1,
+        )
+    )
+    await async_test_db.commit()
+    with _as_user(owner):
+        token = (
+            await async_test_client.post(
+                f"/api/projects/{project.id}/shares",
+                json={"password": "pw12", "is_listed": True},
+            )
+        ).json()["token"]
+    with _as_user(member):
+        r = await async_test_client.post(
+            f"/api/shares/{token}/join",
+            json={"password": "pw12", "gdpr_consent": True},
+        )
+        assert r.status_code in (200, 201), r.text
+    # A generic project keeps the members it had when it was an exam.
+    project.kind = kind
+    await async_test_db.commit()
+
+    base = f"/api/projects/{project.id}/srs"
+    for user in (member, owner):
+        with _as_user(user):
+            for path in (f"{base}/due", f"{base}/stats", f"{base}/settings"):
+                r = await async_test_client.get(path)
+                assert r.status_code == 404, (path, r.text)
+                assert r.json()["detail"] == "Deck not found"
+            r = await async_test_client.put(f"{base}/settings", json={"new_per_day": 5})
+            assert r.status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_kind_origin_write_once_on_create(async_test_client, async_test_db):
     user = await _make_user(async_test_db)
     with _as_user(user):

@@ -49,6 +49,8 @@ REVIEW_PER_DAY_DEFAULT = 200
 # still counts as the previous day. Single-TZ audience → no per-user setting yet.
 ROLLOVER_HOUR = 4
 ROLLOVER_TZ = "Europe/Berlin"
+# The project kind that holds flashcards (created by the extended deck UI).
+DECK_KIND = "flashcard_collection"
 
 
 async def _require_deck_read_access(
@@ -69,7 +71,9 @@ async def _require_deck_read_access(
     project = (
         await db.execute(select(Project).where(Project.id == project_id))
     ).scalar_one_or_none()
-    if not project:
+    # Only flashcard collections are decks. Any other project (an exam above
+    # all) would hand out task fields here past blinding and the SEB gate.
+    if not project or project.kind != DECK_KIND:
         raise HTTPException(status_code=404, detail="Deck not found")
     if (
         await get_project_access_tier_async(

@@ -145,6 +145,13 @@ const SEB_REFUSAL_CODES: readonly string[] = [
   'seb_version_not_allowed',
 ]
 
+/** Detail of SEB_REFUSED_EVENT. `projectId` names the refusing exam; older
+ * API builds leave it out. */
+export interface SebRefusal {
+  code: SebRefusalCode
+  projectId?: string
+}
+
 /**
  * Tells the page that the server refused a request at the SEB gate (a 403
  * whose `detail.code` is one of the SEB codes), so the exam page can switch
@@ -153,13 +160,18 @@ const SEB_REFUSAL_CODES: readonly string[] = [
  */
 export function reportSebRefusal(status: number, errorData: unknown): void {
   if (status !== 403 || typeof window === 'undefined') return
-  const detail = (errorData as { detail?: unknown } | null)?.detail
-  const code = (detail as { code?: unknown } | null)?.code
+  const detail = (errorData as { detail?: unknown } | null)?.detail as {
+    code?: unknown
+    project_id?: unknown
+  } | null
+  const code = detail?.code
   if (typeof code !== 'string' || !SEB_REFUSAL_CODES.includes(code)) return
+  const refusal: SebRefusal = { code: code as SebRefusalCode }
+  if (typeof detail?.project_id === 'string') {
+    refusal.projectId = detail.project_id
+  }
   window.dispatchEvent(
-    new CustomEvent<{ code: SebRefusalCode }>(SEB_REFUSED_EVENT, {
-      detail: { code: code as SebRefusalCode },
-    }),
+    new CustomEvent<SebRefusal>(SEB_REFUSED_EVENT, { detail: refusal }),
   )
 }
 
