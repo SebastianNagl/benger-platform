@@ -372,11 +372,23 @@ whenever one is added, renamed or removed):
   an org member deletes their group rows in that org. ``lti_admin``: a
   group admin may grant up to ``org_admin`` (group Admin) on a group-scoped
   connection.
+
+2.29 (2026-10-06): LTI links bound to single tasks (issue #122).
+  ``LtiResourceLink.task_id`` (nullable FK ``tasks.id`` ON DELETE SET NULL,
+  index ``ix_lti_resource_links_task``, migration 112; links on exams with
+  exactly one task are backfilled). NULL is a whole-exam link (only valid
+  while the exam has one task); otherwise the link covers that task only.
+  Schemas: ``LtiResourceLinkTaskRead{id, inner_id}``; ``LtiResourceLinkRead``
+  and ``LtiResourceLinkAdminRead`` carry ``task_id`` and ``task``; the admin
+  ``GET /registrations/{id}/resource-links`` rows fill both. The import block
+  (``linked_exam_stmt``, ``_enforce_linked_exam_task_limit``, the API's
+  422 ``multi_task_unsupported``) applies only to exams with at least one
+  whole-exam link; exams whose links are all task-bound accept imports.
 """
 
 import os
 
-CORE_API_VERSION = "2.28"
+CORE_API_VERSION = "2.29"
 
 
 def extended_required() -> bool:

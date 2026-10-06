@@ -480,9 +480,13 @@ one, until the old account is anonymized.
    picker: **Or create a new exam** below the list, or **Create new exam**
    when the list is empty.
 5. Falllösung exams and Bewertungsbogen exams with an active sheet can be
-   linked. The picker shows other exams with the reason: no task yet, more
-   than one task, a grading that gives no Notenpunkte, or no active
-   Bewertungsbogen. **Exams with more than one task cannot be linked yet.**
+   linked. The picker shows other exams with the reason: no task yet, a
+   grading that gives no Notenpunkte, or no active Bewertungsbogen. Each
+   task of a collection (an exam with several tasks) can be bound to its own
+   activity: the teacher picks the task, and that activity receives only
+   that task's grade. Imports into a linked exam are allowed once every
+   link of the exam is bound to a task. An older link that covers the whole
+   exam blocks imports until it is bound to the exam's task.
 6. Click **Link**. Human Korrektur is switched on for the exam. The exam is
    attached to the connection's organization (or group), so its staff can
    open the exam and grade it.
