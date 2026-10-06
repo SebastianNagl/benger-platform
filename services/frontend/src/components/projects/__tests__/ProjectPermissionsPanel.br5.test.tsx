@@ -192,7 +192,7 @@ describe('ProjectPermissionsPanel — organization branches', () => {
         updated_at: null,
         member_count: 2,
         is_member: false,
-        is_group_admin: false,
+        my_role: null,
       },
     ])
     const user = userEvent.setup()
@@ -218,6 +218,60 @@ describe('ProjectPermissionsPanel — organization branches', () => {
         is_private: false,
         organization_attachments: [
           { organization_id: 'org-a', group_id: 'grp-1' },
+        ],
+      })
+    })
+  })
+
+  it('offers an org annotator only the groups they may create in, without org-wide', async () => {
+    // The project creator: org Annotator, Admin of Chair B, Annotator of A.
+    mockUseAuth.mockReturnValue({
+      user: { id: 'creator-1', email: 'c@test.com', is_superadmin: false },
+    })
+    ;(organizationsAPI.getOrganizations as jest.Mock).mockResolvedValue([
+      { id: 'org-a', name: 'Org A', slug: 'org-a', role: 'ANNOTATOR' },
+    ])
+    const group = (id: string, name: string, my_role: string) => ({
+      id,
+      organization_id: 'org-a',
+      name,
+      description: null,
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: null,
+      member_count: 2,
+      is_member: true,
+      my_role,
+    })
+    ;(organizationsAPI.getGroups as jest.Mock).mockResolvedValue([
+      group('grp-a', 'Chair A', 'ANNOTATOR'),
+      group('grp-b', 'Chair B', 'ORG_ADMIN'),
+    ])
+    const user = userEvent.setup()
+
+    render(
+      <ProjectPermissionsPanel
+        projectId="p1"
+        projectCreatorId="creator-1"
+        initialVisibility="organization"
+      />,
+    )
+
+    await user.click(await screen.findByTestId('organization-checkbox-org-a'))
+    const groupSelect = (await screen.findByTestId(
+      'organization-group-select-org-a',
+    )) as HTMLSelectElement
+    expect(Array.from(groupSelect.options).map((o) => o.value)).toEqual([
+      'grp-b',
+    ])
+    await waitFor(() => expect(groupSelect.value).toBe('grp-b'))
+
+    await user.click(screen.getByTestId('save-button'))
+    await waitFor(() => {
+      expect(projectsAPI.updateVisibility).toHaveBeenCalledWith('p1', {
+        is_private: false,
+        organization_attachments: [
+          { organization_id: 'org-a', group_id: 'grp-b' },
         ],
       })
     })

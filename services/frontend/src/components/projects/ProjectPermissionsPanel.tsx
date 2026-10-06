@@ -25,6 +25,7 @@ import {
   type OrganizationGroup,
 } from '@/lib/api/organizations'
 import { projectsAPI } from '@/lib/api/projects'
+import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { useEffect, useRef, useState } from 'react'
 
 interface Organization {
@@ -32,7 +33,9 @@ interface Organization {
   name: string
   slug?: string
   // Caller's role in the org (from GET /organizations); org admins may scope
-  // a project to any active group, others only to groups they belong to.
+  // a project to any active group, others only to groups where their group
+  // role is Contributor or Admin. The org-wide scope needs org role
+  // Contributor or Admin.
   role?: 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
   // Group scope of an existing attachment (project.organizations entries).
   group_id?: string | null
@@ -191,15 +194,34 @@ export function ProjectPermissionsPanel({
         if (next[orgId] !== undefined) continue
         const groups = orgGroupsById[orgId]
         if (groups === undefined) continue
-        const memberGroups = groups.filter(
-          (group) => group.is_active && group.is_member,
+        const org = availableOrganizations.find((o) => o.id === orgId)
+        // Wait for the org list: the caller's org role decides the default.
+        if (!org) continue
+        const options = scopeableGroups(
+          groups,
+          org.role,
+          Boolean(user?.is_superadmin),
         )
-        next[orgId] = memberGroups.length === 1 ? memberGroups[0].id : null
+        const memberGroups = options.filter((group) => group.is_member)
+        // Without org-wide rights the first eligible group is the only
+        // sensible default; otherwise the user's sole group, else org-wide.
+        next[orgId] =
+          !canScopeOrgWide(org.role, Boolean(user?.is_superadmin)) &&
+          options.length > 0
+            ? options[0].id
+            : memberGroups.length === 1
+              ? memberGroups[0].id
+              : null
         changed = true
       }
       return changed ? next : prev
     })
-  }, [selectedOrgIds, orgGroupsById])
+  }, [
+    selectedOrgIds,
+    orgGroupsById,
+    availableOrganizations,
+    user?.is_superadmin,
+  ])
 
   const toggleOrg = (orgId: string) => {
     if (lmsOrgIds.has(orgId)) return
@@ -211,13 +233,15 @@ export function ProjectPermissionsPanel({
   }
 
   // Groups offered in an org's scope select: org admins (and superadmins)
-  // pick any active group, everyone else only groups they belong to. A
-  // stored-but-hidden selection is appended so the select reflects reality.
+  // pick any active group, everyone else only groups where their group role
+  // is Contributor or Admin. A stored-but-hidden selection is appended so
+  // the select reflects reality.
   const groupOptionsFor = (org: Organization): OrganizationGroup[] => {
     const groups = orgGroupsById[org.id] ?? []
-    const isOrgAdmin = Boolean(user?.is_superadmin) || org.role === 'ORG_ADMIN'
-    const options = groups.filter(
-      (group) => group.is_active && (isOrgAdmin || group.is_member),
+    const options = scopeableGroups(
+      groups,
+      org.role,
+      Boolean(user?.is_superadmin),
     )
     const selected = selectedGroupByOrg[org.id]
     if (selected && !options.some((group) => group.id === selected)) {
@@ -455,6 +479,14 @@ export function ProjectPermissionsPanel({
                 const locked = lmsOrgIds.has(org.id)
                 const isChecked = locked || selectedOrgIds.includes(org.id)
                 const groupOptions = isChecked ? groupOptionsFor(org) : []
+                // Org-wide needs org role Contributor/Admin; an existing
+                // org-wide attachment keeps the option so the select shows
+                // what is stored.
+                const orgWideAllowed =
+                  canScopeOrgWide(org.role, Boolean(user?.is_superadmin)) ||
+                  initialOrganizations.some(
+                    (o) => o.id === org.id && !o.group_id,
+                  )
                 return (
                   <div key={org.id}>
                     <label
@@ -512,9 +544,11 @@ export function ProjectPermissionsPanel({
                           data-testid={`organization-group-select-${org.id}`}
                           className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         >
-                          <option value="">
-                            {t('project.permissions.groupScopeOrgWide')}
-                          </option>
+                          {orgWideAllowed && (
+                            <option value="">
+                              {t('project.permissions.groupScopeOrgWide')}
+                            </option>
+                          )}
                           {groupOptions.map((group) => (
                             <option key={group.id} value={group.id}>
                               {group.name}

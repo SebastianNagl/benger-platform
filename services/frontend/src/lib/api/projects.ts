@@ -679,15 +679,20 @@ export const projectsAPI = {
   /**
    * Create an async FULL-PROJECT import job for an already-uploaded artifact.
    * `organizationId` names the org that owns the new project; without it the
-   * project is the importer's private one.
+   * project is the importer's private one. `organizationGroupId` scopes the
+   * project to one group of that org (sent only together with the org).
    */
   createFullImportJob: async (
     objectKey: string,
     organizationId?: string | null,
+    organizationGroupId?: string | null,
   ): Promise<{ job_id: string; status: ImportJobState }> => {
     return apiClient.post('/projects/project-imports', {
       object_key: objectKey,
       ...(organizationId ? { organization_id: organizationId } : {}),
+      ...(organizationId && organizationGroupId
+        ? { organization_group_id: organizationGroupId }
+        : {}),
     })
   },
 
@@ -743,7 +748,8 @@ export const projectsAPI = {
    * Drive a FULL-PROJECT import (create-new) through the async job flow: presign
    * → upload → enqueue → poll. Resolves with the final (completed) job status;
    * the created project id is on `status.project_id` (and `status.result`).
-   * `options.organizationId` is the owning org (none: a private project).
+   * `options.organizationId` is the owning org (none: a private project);
+   * `options.organizationGroupId` optionally scopes it to one of its groups.
    *
    * Throws an Error if the job fails (message = the worker's error_message), or
    * a DOMException `AbortError` if the caller's signal is aborted while polling.
@@ -755,6 +761,7 @@ export const projectsAPI = {
       pollIntervalMs?: number
       signal?: AbortSignal
       organizationId?: string | null
+      organizationGroupId?: string | null
     },
   ): Promise<ImportJobStatus> => {
     const upload = await projectsAPI.createFullImportUploadUrl(file.name)
@@ -762,6 +769,7 @@ export const projectsAPI = {
     const { job_id } = await projectsAPI.createFullImportJob(
       upload.file_key,
       options?.organizationId,
+      options?.organizationGroupId,
     )
 
     let attempt = 0

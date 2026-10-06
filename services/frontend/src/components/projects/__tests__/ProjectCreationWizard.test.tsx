@@ -1255,6 +1255,39 @@ describe('ProjectCreationWizard: organization preselection', () => {
     expect(visibilityRadios()[0]).toBeChecked()
   })
 
+  it('ignores annotators whose groups grant no create rights either', () => {
+    mockAuthValue = {
+      organizations: [
+        {
+          ...LMU,
+          role: 'ANNOTATOR',
+          groups: [{ id: 'grp-a', name: 'LS A', role: 'ANNOTATOR' }],
+        },
+      ],
+    }
+    mockOrganizations = [LMU]
+    render(<ProjectCreationWizard />)
+    expect(visibilityRadios()[0]).toBeChecked()
+  })
+
+  it('preselects the organization of an org annotator who is group admin', async () => {
+    mockAuthValue = {
+      organizations: [
+        {
+          ...LMU,
+          role: 'ANNOTATOR',
+          groups: [
+            { id: 'grp-a', name: 'LS A', role: 'ANNOTATOR', is_active: true },
+            { id: 'grp-b', name: 'LS B', role: 'ORG_ADMIN', is_active: true },
+          ],
+        },
+      ],
+    }
+    mockOrganizations = [LMU]
+    render(<ProjectCreationWizard />)
+    await waitFor(() => expect(visibilityRadios()[1]).toBeChecked())
+  })
+
   it('names the organization next to Create and sends it as the creation target', async () => {
     const user = userEvent.setup()
     mockAuthValue = { organizations: [{ ...LMU, role: 'CONTRIBUTOR' }] }

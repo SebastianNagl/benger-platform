@@ -334,7 +334,8 @@
             "title": "Symbol",
             "help": "Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt. Ohne Auswahl gilt das Typ-Symbol.",
             "clickToEdit": "Klicken zum Bearbeiten"
-          }
+          },
+          "groupScopeNoRights": "Sie können in dieser Organisation keine Projekte anlegen: Ihre Rolle in der Organisation und in Ihren Gruppen ist Annotator."
         },
         "step2": {
           "title": "Daten importieren",
@@ -676,7 +677,9 @@
       },
       "kindDeck": "Kartenstapel",
       "kindExam": "Klausur",
-      "study": "Lernen"
+      "study": "Lernen",
+      "importTargetGroupLabel": "Gruppe",
+      "importTargetGroupOrgWide": "Gesamte Organisation"
     },
     "columns": {
       "label": "Spalten",
@@ -4281,7 +4284,6 @@
         "inactiveBadge": "Inaktiv",
         "activeLabel": "Gruppe ist aktiv",
         "memberCount": "{count} Mitglieder",
-        "groupAdminBadge": "Gruppen-Admin",
         "members": "Mitglieder",
         "membersTitle": "Mitglieder: {name}",
         "back": "Zurück zur Übersicht",
@@ -4290,7 +4292,6 @@
         "addMemberLabel": "Mitglied hinzufügen",
         "addMemberPlaceholder": "Mitglied auswählen…",
         "noAvailableMembers": "Alle Organisationsmitglieder sind bereits in dieser Gruppe.",
-        "addAsGroupAdmin": "Als Gruppen-Admin",
         "add": "Hinzufügen",
         "adding": "Wird hinzugefügt…",
         "memberAdded": "Mitglied hinzugefügt",
@@ -4299,11 +4300,19 @@
         "removeMemberFailed": "Mitglied konnte nicht entfernt werden",
         "memberUpdated": "Mitglied aktualisiert",
         "updateMemberFailed": "Mitglied konnte nicht aktualisiert werden",
-        "groupAdminToggle": "Gruppen-Admin",
         "remove": "Entfernen",
         "inviteGroupLabel": "Gruppe",
         "inviteGroupNone": "Keine (ganze Organisation)",
-        "inviteAsGroupAdmin": "Als Gruppen-Admin einladen"
+        "groupRoleLabel": "Rolle in der Gruppe",
+        "orgRoleLabel": "Rolle in der Organisation",
+        "roleScopeHint": "Die Rolle in der Organisation gilt für organisationsweite Projekte, die Rolle in der Gruppe für die Projekte der Gruppe.",
+        "groupOnlyOrgRoleHint": "In der Organisation werden neue Mitglieder Annotator; nur Admins der Organisation können das ändern. Die Rolle in der Gruppe gilt für die Projekte der Gruppe.",
+        "addUserGroupLabel": "Zusätzlich in Gruppe aufnehmen (optional)",
+        "memberChipTitle": "{group}: {role}",
+        "invitedGroupRole": "Rolle in der Gruppe: {role}",
+        "myRoleBadge": "Ihre Rolle: {role}",
+        "orgRoleShort": "Organisation: {role}",
+        "memberRoleAria": "Rolle von {name} in der Gruppe"
       },
       "createOrganization": "Organisation erstellen",
       "noDescription": "Keine Beschreibung",
@@ -4378,6 +4387,17 @@
         "verified": "Verifiziert",
         "unverified": "Nicht verifiziert",
         "noMatches": "Keine Mitglieder entsprechen deinen Filtern"
+      },
+      "bulkInviteSummaryWithGroup": "{queued} eingeladen, {added} zur Gruppe hinzugefügt, {skipped} übersprungen",
+      "inviteAddedToGroup": "{email} ist bereits Mitglied der Organisation und wurde zur Gruppe hinzugefügt",
+      "inviteAlreadyInGroup": "{email} ist bereits in der Gruppe",
+      "inviteStatus": {
+        "invalid": "ungültige E-Mail-Adresse",
+        "duplicate": "doppelt angegeben",
+        "already_member": "bereits Mitglied der Organisation",
+        "pending": "Einladung steht bereits aus",
+        "added_to_group": "zur Gruppe hinzugefügt",
+        "already_in_group": "bereits in der Gruppe"
       }
     },
     "usersPage": {
@@ -9102,9 +9122,9 @@
         "iliasWarningsTitle": "ILIAS-Hinweise",
         "instructorRole": "Org-Rolle für Lehrende",
         "instructorRoleCapHint": "Sie können Lehrenden keine höhere Org-Rolle geben, als Sie selbst haben.",
-        "instructorRoleGroupAdminWarning": "Lehrende werden damit Mitwirkende der Organisation und Admins der Gruppe. Sie können dann auch diese Anbindung verwalten.",
+        "instructorRoleGroupAdminWarning": "Lehrende werden damit Admins der Gruppe; in der Organisation werden neue Lehrende Annotator. Sie können dann auch diese Anbindung verwalten.",
         "instructorRoleContributor": "Mitwirkender (contributor)",
-        "instructorRoleHint": "Rolle, die Lehrende beim Start in der Organisation erhalten. Bei einer Gruppen-Verbindung wird Org-Admin zu Mitwirkender plus Gruppen-Admin.",
+        "instructorRoleHint": "Rolle, die Lehrende beim Start erhalten. Bei einer Gruppen-Verbindung ist das ihre Rolle in der Gruppe (Org-Admin = Gruppen-Admin); in der Organisation werden neue Lehrende Annotator.",
         "instructorRoleNone": "Keine Org-Rolle (none)",
         "instructorRoleOrgAdmin": "Org-Admin (org_admin)",
         "instructorRoleOrgAdminWarning": "Lehrende erhalten damit volle Admin-Rechte in der Organisation. Sie können dann auch diese Anbindung verwalten.",

@@ -12,7 +12,7 @@ import {
   type OrganizationGroup,
   type OrganizationGroupMember,
 } from '@/lib/api/organizations'
-import type { OrganizationMember } from '@/lib/api/types'
+import type { OrganizationMember, OrganizationRole } from '@/lib/api/types'
 import { Dialog } from '@headlessui/react'
 import {
   PencilIcon,
@@ -30,7 +30,8 @@ interface OrgGroupsProps {
   organizationId: string
   /** Org admin (or superadmin): full group CRUD + all member management. */
   isAdmin: boolean
-  /** Group admin of at least one group: member management for own groups. */
+  /** Group admin (group role Admin) of at least one group: member
+   *  management for own groups. */
   canManageGroups?: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -40,6 +41,18 @@ interface Message {
   type: 'success' | 'error'
   text: string
 }
+
+// Localized labels for the roles (org and group roles share the enum).
+const ROLE_LABEL_KEYS: Record<OrganizationRole, string> = {
+  ANNOTATOR: 'admin.organizations.roleAnnotator',
+  CONTRIBUTOR: 'admin.organizations.roleContributor',
+  ORG_ADMIN: 'admin.organizations.roleAdmin',
+}
+const GROUP_ROLES: OrganizationRole[] = [
+  'ANNOTATOR',
+  'CONTRIBUTOR',
+  'ORG_ADMIN',
+]
 
 const inputClassName =
   'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100'
@@ -52,6 +65,10 @@ export function OrgGroups({
   onOpenChange,
 }: OrgGroupsProps) {
   const { t } = useI18n()
+  const roleLabel = (role?: string | null) =>
+    role && role in ROLE_LABEL_KEYS
+      ? t(ROLE_LABEL_KEYS[role as OrganizationRole])
+      : (role ?? '')
 
   const [groups, setGroups] = useState<OrganizationGroup[]>([])
   const [groupsLoading, setGroupsLoading] = useState(false)
@@ -80,7 +97,7 @@ export function OrgGroups({
   const [membersLoading, setMembersLoading] = useState(false)
   const [orgMembers, setOrgMembers] = useState<OrganizationMember[]>([])
   const [addUserId, setAddUserId] = useState('')
-  const [addAsGroupAdmin, setAddAsGroupAdmin] = useState(false)
+  const [addRole, setAddRole] = useState<OrganizationRole>('ANNOTATOR')
   const [addingMember, setAddingMember] = useState(false)
   const [memberLoading, setMemberLoading] = useState<Record<string, boolean>>(
     {},
@@ -144,7 +161,7 @@ export function OrgGroups({
     setMessage(null)
     setSelectedGroup(group)
     setAddUserId('')
-    setAddAsGroupAdmin(false)
+    setAddRole('ANNOTATOR')
     fetchGroupMembers(group.id)
     fetchOrgMembers()
   }
@@ -259,14 +276,14 @@ export function OrgGroups({
     try {
       await organizationsAPI.addGroupMember(organizationId, selectedGroup.id, {
         user_id: addUserId,
-        is_group_admin: addAsGroupAdmin,
+        role: addRole,
       })
       setMessage({
         type: 'success',
         text: t('admin.organizations.groups.memberAdded'),
       })
       setAddUserId('')
-      setAddAsGroupAdmin(false)
+      setAddRole('ANNOTATOR')
       await fetchGroupMembers(selectedGroup.id)
     } catch (error: any) {
       setMessage({
@@ -280,8 +297,11 @@ export function OrgGroups({
     }
   }
 
-  const handleToggleGroupAdmin = async (member: GroupMemberRow) => {
-    if (!selectedGroup) return
+  const handleChangeMemberRole = async (
+    member: GroupMemberRow,
+    role: OrganizationRole,
+  ) => {
+    if (!selectedGroup || role === member.role) return
 
     setMemberLoading((prev) => ({ ...prev, [member.user_id]: true }))
     setMessage(null)
@@ -290,7 +310,7 @@ export function OrgGroups({
         organizationId,
         selectedGroup.id,
         member.user_id,
-        { is_group_admin: !member.is_group_admin },
+        { role },
       )
       setMessage({
         type: 'success',
@@ -337,9 +357,10 @@ export function OrgGroups({
     }
   }
 
-  // Group admins without org-admin rights only manage their own groups.
+  // Group admins (group role Admin) without org-admin rights only manage
+  // their own groups. Org admins are admin of every group.
   const canManageMembersOf = (group: OrganizationGroup) =>
-    isAdmin || (canManageGroups && group.is_group_admin)
+    isAdmin || (canManageGroups && group.my_role === 'ORG_ADMIN')
 
   const memberIds = new Set(members.map((m) => m.user_id))
   const addableMembers = orgMembers.filter((m) => !memberIds.has(m.user_id))
@@ -437,18 +458,23 @@ export function OrgGroups({
                           {t('admin.organizations.groups.noAvailableMembers')}
                         </p>
                       )}
-                      <div className="mt-3 flex items-center justify-between">
-                        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                          <input
-                            type="checkbox"
-                            checked={addAsGroupAdmin}
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                          {t('admin.organizations.groups.groupRoleLabel')}
+                          <select
+                            value={addRole}
                             onChange={(e) =>
-                              setAddAsGroupAdmin(e.target.checked)
+                              setAddRole(e.target.value as OrganizationRole)
                             }
-                            data-testid="group-add-member-admin-checkbox"
-                            className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 dark:border-zinc-600"
-                          />
-                          {t('admin.organizations.groups.addAsGroupAdmin')}
+                            data-testid="group-add-member-role-select"
+                            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                          >
+                            {GROUP_ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {roleLabel(role)}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                         <Button
                           type="submit"
@@ -490,13 +516,16 @@ export function OrgGroups({
                                   is_pseudonymized={member.is_pseudonymized}
                                   data-testid={`group-member-lms-badge-${member.user_id}`}
                                 />
-                                {member.is_group_admin && (
-                                  <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                    {t(
-                                      'admin.organizations.groups.groupAdminBadge',
-                                    )}
-                                  </span>
-                                )}
+                                <span
+                                  data-testid={`group-member-role-badge-${member.user_id}`}
+                                  className={`ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    member.role === 'ORG_ADMIN'
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                      : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
+                                  }`}
+                                >
+                                  {roleLabel(member.role)}
+                                </span>
                               </p>
                               <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                 {member.user_email ||
@@ -509,26 +538,35 @@ export function OrgGroups({
                                     {' · '}
                                   </>
                                 ) : null}
-                                {member.org_role}
+                                {t('admin.organizations.groups.orgRoleShort', {
+                                  role: roleLabel(member.org_role),
+                                })}
                               </p>
                             </div>
                             {canManageMembersOf(selectedGroup) && (
                               <div className="flex items-center gap-3">
-                                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-                                  <input
-                                    type="checkbox"
-                                    checked={member.is_group_admin}
-                                    onChange={() =>
-                                      handleToggleGroupAdmin(member)
-                                    }
-                                    disabled={isBusy}
-                                    data-testid={`group-member-admin-toggle-${member.user_id}`}
-                                    className="h-4 w-4 rounded border-zinc-300 accent-emerald-600 dark:border-zinc-600"
-                                  />
-                                  {t(
-                                    'admin.organizations.groups.groupAdminToggle',
+                                <select
+                                  value={member.role}
+                                  onChange={(e) =>
+                                    handleChangeMemberRole(
+                                      member,
+                                      e.target.value as OrganizationRole,
+                                    )
+                                  }
+                                  disabled={isBusy}
+                                  aria-label={t(
+                                    'admin.organizations.groups.memberRoleAria',
+                                    { name: member.user_name },
                                   )}
-                                </label>
+                                  data-testid={`group-member-role-select-${member.user_id}`}
+                                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                                >
+                                  {GROUP_ROLES.map((role) => (
+                                    <option key={role} value={role}>
+                                      {roleLabel(role)}
+                                    </option>
+                                  ))}
+                                </select>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveMember(member)}
@@ -685,10 +723,20 @@ export function OrgGroups({
                                         )}
                                       </span>
                                     )}
-                                    {group.is_group_admin && (
-                                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                    {group.my_role && (
+                                      <span
+                                        data-testid={`group-my-role-${group.id}`}
+                                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                          group.my_role === 'ORG_ADMIN'
+                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300'
+                                        }`}
+                                      >
                                         {t(
-                                          'admin.organizations.groups.groupAdminBadge',
+                                          'admin.organizations.groups.myRoleBadge',
+                                          {
+                                            role: roleLabel(group.my_role),
+                                          },
                                         )}
                                       </span>
                                     )}

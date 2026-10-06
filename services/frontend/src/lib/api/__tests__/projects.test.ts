@@ -798,6 +798,38 @@ describe('projectsAPI', () => {
       })
     })
 
+    it('createFullImportJob scopes the import to a group of that organization', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-4',
+        status: 'pending',
+      })
+
+      await projectsAPI.createFullImportJob(
+        'imports/k.json',
+        'org-lmu',
+        'grp-ls-b',
+      )
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
+        object_key: 'imports/k.json',
+        organization_id: 'org-lmu',
+        organization_group_id: 'grp-ls-b',
+      })
+    })
+
+    it('createFullImportJob never sends a group without its organization', async () => {
+      ;(apiClient.post as jest.Mock).mockResolvedValue({
+        job_id: 'job-5',
+        status: 'pending',
+      })
+
+      await projectsAPI.createFullImportJob('imports/k.json', null, 'grp-x')
+
+      expect(apiClient.post).toHaveBeenCalledWith('/projects/project-imports', {
+        object_key: 'imports/k.json',
+      })
+    })
+
     it('getImportJob / getFullImportJob poll the right status endpoints', async () => {
       ;(apiClient.get as jest.Mock).mockResolvedValue({
         job_id: 'job-1',

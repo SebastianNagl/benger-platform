@@ -33,7 +33,7 @@ export interface InvitationDetails {
   inviter_name?: string
   // Group-scoped invitations (organization groups)
   group_id?: string | null
-  invited_as_group_admin?: boolean
+  group_role?: OrganizationRole | null
   // Mail-delivery bookkeeping. Only the admin list endpoint returns these,
   // so they stay optional for the by-token and create shapes.
   email_status?: InvitationEmailStatus
@@ -56,7 +56,7 @@ export interface CreateInvitationRequest {
   email: string
   role: OrganizationRole
   group_id?: string | null
-  invited_as_group_admin?: boolean
+  group_role?: OrganizationRole | null
 }
 
 export class InvitationsApiClient extends BaseApiClient {

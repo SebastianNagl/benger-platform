@@ -346,7 +346,7 @@ describe('StepProjectInfo', () => {
       updated_at: null,
       member_count: 2,
       is_member: true,
-      is_group_admin: false,
+      my_role: 'CONTRIBUTOR',
       ...overrides,
     })
 
@@ -448,6 +448,106 @@ describe('StepProjectInfo', () => {
       expect(
         screen.queryByTestId('wizard-organization-group-select-org-1'),
       ).not.toBeInTheDocument()
+    })
+  })
+
+  describe('group roles (org annotator who is group admin)', () => {
+    const groupFixture = (overrides: Record<string, any> = {}) => ({
+      id: 'grp-1',
+      organization_id: 'org-1',
+      name: 'Chair A',
+      description: null,
+      is_active: true,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: null,
+      member_count: 2,
+      is_member: true,
+      my_role: 'ANNOTATOR',
+      ...overrides,
+    })
+
+    it('offers only the groups with Contributor/Admin group role and no org-wide option', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'ANNOTATOR' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        // Annotator in Chair A, Admin in Chair B, Contributor in Chair C.
+        groupFixture(),
+        groupFixture({ id: 'grp-2', name: 'Chair B', my_role: 'ORG_ADMIN' }),
+        groupFixture({ id: 'grp-3', name: 'Chair C', my_role: 'CONTRIBUTOR' }),
+        groupFixture({
+          id: 'grp-4',
+          name: 'Chair D',
+          my_role: null,
+          is_member: false,
+        }),
+      ])
+      const { onChange } = renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+      })
+
+      const select = (await screen.findByTestId(
+        'wizard-organization-group-select-org-1',
+      )) as HTMLSelectElement
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([
+        'grp-2',
+        'grp-3',
+      ])
+      // No org-wide scope for an org annotator: the first eligible group is
+      // pinned into the wizard state so the create request carries it.
+      await waitFor(() =>
+        expect(onChange).toHaveBeenCalledWith({
+          organizationGroupIds: { 'org-1': 'grp-2' },
+        }),
+      )
+      expect(
+        screen.queryByTestId('wizard-organization-no-rights-org-1'),
+      ).not.toBeInTheDocument()
+    })
+
+    it('says so when an org annotator has no group with create rights', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'ANNOTATOR' },
+      ])
+      mockGetGroups.mockResolvedValue([groupFixture()])
+      const { onChange } = renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+      })
+
+      expect(
+        await screen.findByTestId('wizard-organization-no-rights-org-1'),
+      ).toBeInTheDocument()
+      expect(
+        screen.queryByTestId('wizard-organization-group-select-org-1'),
+      ).not.toBeInTheDocument()
+      expect(onChange).not.toHaveBeenCalledWith(
+        expect.objectContaining({ organizationGroupIds: expect.anything() }),
+      )
+    })
+
+    it('keeps the org-wide option for an org contributor but hides annotator groups', async () => {
+      mockGetOrganizations.mockResolvedValue([
+        { id: 'org-1', name: 'Org One', role: 'CONTRIBUTOR' },
+      ])
+      mockGetGroups.mockResolvedValue([
+        groupFixture(),
+        groupFixture({ id: 'grp-2', name: 'Chair B', my_role: 'ORG_ADMIN' }),
+      ])
+      renderStep({
+        visibility: 'organization',
+        organizationIds: ['org-1'],
+        organizationGroupIds: { 'org-1': null },
+      })
+
+      const select = (await screen.findByTestId(
+        'wizard-organization-group-select-org-1',
+      )) as HTMLSelectElement
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([
+        '',
+        'grp-2',
+      ])
     })
   })
 
