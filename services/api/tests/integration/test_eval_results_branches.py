@@ -1481,6 +1481,43 @@ class TestSampleResultBranches:
         assert body["results"][0]["metrics"] == {"score": 0.55}
 
     @pytest.mark.asyncio
+    async def test_annotator_resolution_never_matches_behind_a_pseudonym(
+        self, async_test_client, async_test_db
+    ):
+        """An annotator shown by pseudonym resolves only by that pseudonym:
+        their real name or login finds nothing, so the endpoint cannot
+        confirm who is behind a pseudonym. Users who did not annotate the
+        task are no candidates either."""
+        owner = await _make_owner(async_test_db)
+        hidden = await _make_owner(async_test_db, name="Klara Klarname", is_superadmin=False)
+        hidden.pseudonym = f"Kluge Eule {uuid.uuid4().hex[:6]}"
+        hidden.use_pseudonym = True
+        org = await _make_org(async_test_db)
+        p, tasks = await _setup_project(async_test_db, owner, org, num_tasks=1)
+        task = tasks[0]
+        er = await _make_eval_run(async_test_db, p)
+        ann = await _make_annotation(async_test_db, task, p, hidden.id)
+        await _make_task_evaluation(
+            async_test_db, er, task, annotation=ann, field_name="answer",
+            metrics={"score": 0.7},
+        )
+        await async_test_db.commit()
+
+        async def _count(display):
+            with _as_user(owner):
+                resp = await async_test_client.get(
+                    f"{BASE}/sample-result?task_id={task.id}&model_id=annotator:{display}"
+                )
+            assert resp.status_code == 200, resp.text
+            return len(resp.json()["results"])
+
+        assert await _count(hidden.pseudonym) == 1
+        assert await _count(hidden.name) == 0
+        assert await _count(hidden.username) == 0
+        # The owner annotated nothing here: their name resolves to no rows.
+        assert await _count("Test Admin") == 0
+
+    @pytest.mark.asyncio
     async def test_annotator_unknown_display_empty(self, async_test_client, async_test_db):
         """An ``annotator:<display>`` that matches no user resolves to no rows
         → the empty envelope (the ``user is None`` → sample_results = []

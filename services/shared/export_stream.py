@@ -839,8 +839,12 @@ def stream_comprehensive_project_data_json(
     yield '"task_evaluations": ['
     first = True
     if eval_run_ids:
-        te_q = db.query(TaskEvaluation).filter(
-            TaskEvaluation.evaluation_id.in_(eval_run_ids)
+        # Ordered so two exports of the same project are identical: without
+        # it the heap order of the IN-query may differ between runs.
+        te_q = (
+            db.query(TaskEvaluation)
+            .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
+            .order_by(TaskEvaluation.id)
         )
         for te in _drain(te_q):
             yield ("" if first else ",") + json.dumps(
@@ -1182,9 +1186,9 @@ def stream_export_ndjson(
     # --- task_evaluations (very heavy: thousands of rows) ---
     if eval_run_ids:
         for te in _drain(
-            db.query(TaskEvaluation).filter(
-                TaskEvaluation.evaluation_id.in_(eval_run_ids)
-            )
+            db.query(TaskEvaluation)
+            .filter(TaskEvaluation.evaluation_id.in_(eval_run_ids))
+            .order_by(TaskEvaluation.id)
         ):
             yield _emit("task_evaluation", serialize_task_evaluation(te, mode="full"))
             stats["total_task_evaluations"] += 1

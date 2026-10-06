@@ -13,7 +13,12 @@ from models import OrganizationGroupMembership, OrganizationMembership, User
 from org_groups import attachment_role, best_role, group_member_fan_in_clause
 from project_models import Annotation, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
-from services.member_privacy import lms_account_ids, masked_name, project_name_mask
+from services.member_privacy import (
+    is_public_visitor,
+    lms_account_ids,
+    masked_name,
+    project_name_mask,
+)
 from user_display import prefers_pseudonym
 
 router = APIRouter()
@@ -173,19 +178,24 @@ async def get_project_annotators(
 
     # Pseudonym-first for everyone (research views key on this label). An
     # LMS account without a pseudonym gets the neutral label, never its
-    # real name (D8).
-    no_alias_lms = await lms_account_ids(
-        db,
-        [
-            r.user_id
-            for r in results
-            if not r.pseudonym and prefers_pseudonym(use_pseudonym=r.use_pseudonym)
-        ],
-    )
+    # real name (D8); so does every such account for a public visitor.
+    no_alias = [
+        r.user_id
+        for r in results
+        if not r.pseudonym and prefers_pseudonym(use_pseudonym=r.use_pseudonym)
+    ]
+    if no_alias and await is_public_visitor(db, current_user, project_id):
+        no_alias_lms = {str(uid) for uid in no_alias} - {str(current_user.id)}
+    else:
+        no_alias_lms = await lms_account_ids(db, no_alias)
 
     annotators = []
     for r in results:
-        display_name = r.pseudonym if r.use_pseudonym and r.pseudonym else r.name
+        display_name = (
+            r.pseudonym
+            if r.pseudonym and prefers_pseudonym(use_pseudonym=r.use_pseudonym)
+            else r.name
+        )
         if str(r.user_id) in no_alias_lms:
             display_name = masked_name(user_id=r.user_id, pseudonym=None)
         annotators.append(

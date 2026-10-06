@@ -1197,14 +1197,21 @@ async def get_generation_result(
         for g in all_individual:
             individual_map[g.generation_id].append(g)
 
-    # Batch-resolve created_by user IDs to display names
+    # Batch-resolve created_by user IDs to display names. Project-scoped
+    # mask: LMS accounts, and everyone shown by pseudonym for a public
+    # visitor, appear under their pseudonym.
+    from services.member_privacy import project_name_mask
+
     user_ids = {g.created_by for g in generations_to_process if g.created_by}
     user_map = {}
     if user_ids:
         users = (
             await db.execute(select(DBUser).where(DBUser.id.in_(user_ids)))
         ).scalars().all()
-        user_map = {u.id: u.name for u in users}
+        name_mask = await project_name_mask(
+            db, users, viewer=current_user, project_id=str(task.project_id)
+        )
+        user_map = {u.id: name_mask.label(u) for u in users}
 
     # Build response
     results = []

@@ -410,7 +410,6 @@ async def test_stop_owner_success_persists_stopped(async_test_client, async_test
         async_test_db, creator=owner, project=project, status="running"
     )
     gen_id = gen.id
-    owner_username = owner.username
     await async_test_db.commit()
 
     with _as_user(owner), patch("routers.generation.celery_app"):
@@ -426,7 +425,8 @@ async def test_stop_owner_success_persists_stopped(async_test_client, async_test
     ).scalar_one_or_none()
     assert refreshed.status == "stopped"
     assert refreshed.completed_at is not None
-    assert refreshed.error_message == f"Stopped by user {owner_username}"
+    # No login name: the status endpoints serve this text to every reader.
+    assert refreshed.error_message == "Stopped by user"
 
 
 @pytest.mark.asyncio

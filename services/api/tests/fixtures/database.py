@@ -373,6 +373,37 @@ def _create_tables():
                 )
             )
             conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS seb_config JSONB"))
+            # Migration 111: group roles. Same create_all drift; every group
+            # membership / invitation / import-job select names the new
+            # columns. Test rows are throwaway, so no backfill: the default
+            # only fills existing rows and is dropped again, as in prod.
+            conn.execute(
+                text(
+                    "ALTER TABLE organization_group_memberships ADD COLUMN IF NOT EXISTS "
+                    "role organizationrole NOT NULL DEFAULT 'ANNOTATOR'"
+                )
+            )
+            conn.execute(
+                text("ALTER TABLE organization_group_memberships ALTER COLUMN role DROP DEFAULT")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE organization_group_memberships "
+                    "DROP COLUMN IF EXISTS is_group_admin"
+                )
+            )
+            conn.execute(
+                text("ALTER TABLE invitations ADD COLUMN IF NOT EXISTS group_role organizationrole")
+            )
+            conn.execute(
+                text("ALTER TABLE invitations DROP COLUMN IF EXISTS invited_as_group_admin")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE import_jobs ADD COLUMN IF NOT EXISTS "
+                    "organization_group_id VARCHAR"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

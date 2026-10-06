@@ -1322,6 +1322,229 @@ async def test_project_annotators_never_fall_back_to_a_real_name(
 
 
 # --------------------------------------------------------------------------- #
+# Public projects: visitors see every pseudonym-preferring user by pseudonym
+# --------------------------------------------------------------------------- #
+async def _public_world(db, public_role="CONTRIBUTOR"):
+    """A public project of ``w['project']``'s org with ordinary (non-LMS)
+    annotators: ``plain`` (pseudonym on), ``nameless`` (pseudonym on but no
+    alias) and ``open_user`` (pseudonym off); ``visitor`` has no claim but
+    the public role."""
+    w = await _project_world(db)
+    project = w["project"]
+    project.is_public = True
+    project.public_role = public_role
+    nameless = await _person(db, "Ohne Alias", pseudonym=None)
+    open_user = await _person(db, "Offene Person", use_pseudonym=False)
+    visitor = await _person(db, "Fremder Besucher")
+    grader = await _person(db, "Gerda Gutachterin", pseudonym="Strenge Waage")
+    annotation_ids = {}
+    for user in (w["plain"], nameless, open_user):
+        annotation_ids[user.id] = str(uuid.uuid4())
+        db.add(
+            Annotation(
+                id=annotation_ids[user.id],
+                task_id=w["task_id"],
+                project_id=project.id,
+                completed_by=user.id,
+                result=[{"value": "x"}],
+                # The grader also reviewed plain's submission.
+                reviewed_by=grader.id if user is w["plain"] else None,
+            )
+        )
+    db.add(
+        TaskAssignment(
+            id=str(uuid.uuid4()),
+            task_id=w["task_id"],
+            user_id=w["plain"].id,
+            assigned_by=w["contrib"].id,
+            status="assigned",
+        )
+    )
+    # Item-level Korrektur grader assignment: the data page's "Graders"
+    # column.
+    db.add(
+        TaskAssignment(
+            id=str(uuid.uuid4()),
+            task_id=w["task_id"],
+            user_id=grader.id,
+            assigned_by=w["contrib"].id,
+            status="assigned",
+            target_type="annotation",
+            target_id=annotation_ids[w["plain"].id],
+        )
+    )
+    await db.commit()
+    w.update(nameless=nameless, open_user=open_user, visitor=visitor, grader=grader)
+    return w
+
+
+@pytest.mark.asyncio
+async def test_public_visitor_sees_ordinary_annotators_by_pseudonym(
+    async_test_client, async_test_db, viewers
+):
+    w = await _public_world(async_test_db)
+    plain, nameless, open_user = w["plain"], w["nameless"], w["open_user"]
+    base = f"/api/projects/{w['project'].id}"
+
+    with _as_user(w["visitor"]):
+        response = await async_test_client.get(f"{base}/tasks")
+    assert response.status_code == 200, response.text
+    item = {i["id"]: i for i in response.json()["items"]}[w["task_id"]]
+    names = {a["id"]: a["name"] for a in item["annotators"]}
+    assert names[plain.id] == plain.pseudonym
+    assert names[nameless.id] == f"User {nameless.id[:8]}"
+    assert names[open_user.id] == open_user.name
+    assignments = {a["user_id"]: a for a in item["assignments"]}
+    assignment = assignments[plain.id]
+    assert assignment["user_name"] == plain.pseudonym
+    assert assignment["user_email"] is None
+    grader = w["grader"]
+    grading = assignments[grader.id]
+    assert grading["target_type"] == "annotation"
+    assert grading["user_name"] == grader.pseudonym
+    assert grading["user_email"] is None
+    assert item["reviewers"] == [{"id": grader.id, "name": grader.pseudonym}]
+
+    with _as_user(w["visitor"]):
+        response = await async_test_client.get(f"{base}/members")
+    assert response.status_code == 200, response.text
+    row = _rows_by_user(response.json())[plain.id]
+    assert row["name"] == plain.pseudonym
+    assert row["email"] is None
+    assert row["is_lms_account"] is False
+    assert row["is_pseudonymized"] is True
+
+    with _as_user(w["visitor"]):
+        response = await async_test_client.get(f"{base}/annotators")
+    assert response.status_code == 200, response.text
+    names = {r["id"]: r["name"] for r in response.json()["annotators"]}
+    assert names[plain.id] == plain.pseudonym
+    assert names[nameless.id] == f"User {nameless.id[:8]}"
+    assert names[open_user.id] == open_user.name
+
+    bodies = []
+    with _as_user(w["visitor"]):
+        for path in ("tasks", "members", "annotators"):
+            bodies.append((await async_test_client.get(f"{base}/{path}")).json())
+    body = json.dumps(bodies)
+    assert plain.name not in body and plain.email not in body
+    assert nameless.name not in body and nameless.email not in body
+    assert grader.name not in body and grader.email not in body
+
+
+@pytest.mark.asyncio
+async def test_project_editors_keep_the_ordinary_names_on_a_public_project(
+    async_test_client, async_test_db, viewers
+):
+    w = await _public_world(async_test_db)
+    plain, nameless = w["plain"], w["nameless"]
+    base = f"/api/projects/{w['project'].id}"
+    for editor in (w["contrib"], w["superadmin"]):
+        with _as_user(editor):
+            response = await async_test_client.get(f"{base}/tasks")
+            members = await async_test_client.get(f"{base}/members")
+            annotators = await async_test_client.get(f"{base}/annotators")
+        item = {i["id"]: i for i in response.json()["items"]}[w["task_id"]]
+        names = {a["id"]: a["name"] for a in item["annotators"]}
+        assert names[plain.id] == plain.name
+        assert names[nameless.id] == nameless.name
+        grading = {a["user_id"]: a for a in item["assignments"]}[w["grader"].id]
+        assert grading["user_name"] == w["grader"].name
+        assert grading["user_email"] == w["grader"].email
+        assert item["reviewers"] == [{"id": w["grader"].id, "name": w["grader"].name}]
+        _assert_revealed(
+            _rows_by_user(members.json())[plain.id],
+            plain,
+            lms=False,
+            name_key="name",
+            email_key="email",
+        )
+        # The annotators list stays pseudonym-first for everyone.
+        got = {r["id"]: r["name"] for r in annotators.json()["annotators"]}
+        assert got[plain.id] == plain.pseudonym
+        assert got[nameless.id] == nameless.name
+
+
+@pytest.mark.asyncio
+async def test_public_visitor_sees_their_own_name(
+    async_test_client, async_test_db, viewers
+):
+    w = await _public_world(async_test_db)
+    with _as_user(w["plain"]):
+        response = await async_test_client.get(f"/api/projects/{w['project'].id}/members")
+    assert response.status_code == 200, response.text
+    _assert_revealed(
+        _rows_by_user(response.json())[w["plain"].id],
+        w["plain"],
+        lms=False,
+        name_key="name",
+        email_key="email",
+    )
+
+
+@pytest.mark.asyncio
+async def test_public_visitor_masks_in_the_bulk_form(async_test_db, viewers):
+    from services.member_privacy import project_name_masks, public_visitor_project_ids
+
+    db = async_test_db
+    w = await _public_world(db)
+    private = await _project_world(db)
+    visitor = w["visitor"]
+    assert await public_visitor_project_ids(
+        db, visitor, [w["project"].id, private["project"].id]
+    ) == {w["project"].id}
+    assert await public_visitor_project_ids(db, w["contrib"], [w["project"].id]) == set()
+
+    masks = await project_name_masks(
+        db,
+        {
+            w["project"].id: [w["plain"], w["open_user"]],
+            private["project"].id: [private["plain"]],
+        },
+        viewer=visitor,
+    )
+    assert masks[w["project"].id].label(w["plain"]) == w["plain"].pseudonym
+    assert masks[w["project"].id].label(w["open_user"]) == w["open_user"].name
+    assert masks[private["project"].id].label(private["plain"]) == private["plain"].name
+
+
+@pytest.mark.asyncio
+async def test_generation_result_creator_follows_the_public_mask(
+    async_test_client, async_test_db, viewers
+):
+    from models import ResponseGeneration
+
+    db = async_test_db
+    w = await _public_world(db)
+    db.add(
+        ResponseGeneration(
+            id=str(uuid.uuid4()),
+            project_id=w["project"].id,
+            task_id=w["task_id"],
+            model_id="gpt-test",
+            status="completed",
+            responses_generated=0,
+            runs_requested=1,
+            runs_completed=1,
+            runs_failed=0,
+            created_by=w["plain"].id,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    await db.commit()
+    url = f"/api/generation-tasks/generation-result?task_id={w['task_id']}&model_id=gpt-test"
+
+    async def _creator(viewer):
+        with _as_user(viewer):
+            response = await async_test_client.get(url)
+        assert response.status_code == 200, response.text
+        return response.json()["results"][0]["created_by_name"]
+
+    assert await _creator(w["visitor"]) == w["plain"].pseudonym
+    assert await _creator(w["contrib"]) == w["plain"].name
+
+
+# --------------------------------------------------------------------------- #
 # /auth/me and the login user
 # --------------------------------------------------------------------------- #
 @pytest.mark.asyncio

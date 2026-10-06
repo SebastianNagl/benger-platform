@@ -23,6 +23,12 @@ shown by pseudonym by default. This module applies the extension hooks
   connection whose students the viewer may see, so an org-wide member list
   of a linked exam never unmasks the rest of the university (or, on a
   platform-wide org, every other university's students).
+- **Public visitors**: on a public project, a viewer without edit rights
+  (who reaches it through ``public_role`` or as a plain member or
+  participant) sees EVERY user who shows their pseudonym by default under
+  that pseudonym, not only LMS users (:func:`public_visitor_project_ids`).
+  Sharing a project publicly must not hand its annotators' real names and
+  emails to everyone on the platform.
 
 A user is a masking candidate when they are an LMS user
 (``privacy_protected_member_ids(db, None, ids)``), show their pseudonym by
@@ -44,12 +50,14 @@ from user_display import masked_name, prefers_pseudonym
 
 __all__ = [
     "NameMask",
+    "is_public_visitor",
     "lms_account_ids",
     "masked_org_member_ids",
     "name_admin_org_ids",
     "org_name_mask",
     "project_name_mask",
     "project_name_masks",
+    "public_visitor_project_ids",
     "reveal_group_accounts",
     "staff_name_org_ids",
     "masked_name",
@@ -233,6 +241,56 @@ def _candidates(users_by_id: dict, lms_ids: set, viewer) -> set:
     }
 
 
+def _pseudonym_candidates(users_by_id: dict, viewer) -> set:
+    """Every user in ``users_by_id`` but the viewer who shows their
+    pseudonym by default (the candidate set for a public visitor)."""
+    viewer_id = _viewer_id(viewer)
+    return {
+        uid
+        for uid, user in users_by_id.items()
+        if uid != viewer_id and prefers_pseudonym(user)
+    }
+
+
+async def public_visitor_project_ids(db, viewer, project_ids: Iterable[Any]) -> set:
+    """The public projects among ``project_ids`` that ``viewer`` may not edit.
+
+    On those, every user who prefers their pseudonym is masked for the
+    viewer (module docstring). Editors (creator, superadmins, editor-tier
+    org members, LMS staff) keep the LMS-only rule.
+    """
+    ids = _clean(project_ids)
+    if not ids or viewer is None or _is_superadmin(viewer):
+        return set()
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from project_models import Project
+    from routers.projects.helpers import resolve_project_roles_batch_async
+
+    projects = (
+        (
+            await db.execute(
+                select(Project)
+                .options(selectinload(Project.project_organizations))
+                .where(Project.id.in_(ids), Project.is_public.is_(True))
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not projects:
+        return set()
+    roles = await resolve_project_roles_batch_async(db, viewer, projects)
+    return {pid for pid, (_role, can_edit) in roles.items() if not can_edit}
+
+
+async def is_public_visitor(db, viewer, project_id: Any) -> bool:
+    """Whether ``viewer`` sees ``project_id`` as a public visitor
+    (:func:`public_visitor_project_ids`)."""
+    return bool(await public_visitor_project_ids(db, viewer, [project_id]))
+
+
 def _by_id(users: Iterable[Any]) -> dict:
     return {str(u.id): u for u in users if u is not None and getattr(u, "id", None)}
 
@@ -269,6 +327,8 @@ async def project_name_mask(
     else:
         lms = {str(uid) for uid in lms_ids} & set(users_by_id)
     candidates = _candidates(users_by_id, lms, viewer)
+    if users_by_id and await is_public_visitor(db, viewer, project_id):
+        candidates |= _pseudonym_candidates(users_by_id, viewer)
     if not candidates or _is_superadmin(viewer):
         return NameMask(frozenset(lms), frozenset())
     ids = sorted(candidates)
@@ -316,6 +376,11 @@ async def project_name_masks(
         pid: _candidates(users_by_id, lms_by_project[pid], viewer)
         for pid, users_by_id in by_project.items()
     }
+    public = await public_visitor_project_ids(
+        db, viewer, [pid for pid, users_by_id in by_project.items() if users_by_id]
+    )
+    for pid in public:
+        candidates[pid] |= _pseudonym_candidates(by_project[pid], viewer)
     wanted = {pid: sorted(ids) for pid, ids in candidates.items() if ids}
     revealed: dict = {}
     if wanted and not _is_superadmin(viewer):
