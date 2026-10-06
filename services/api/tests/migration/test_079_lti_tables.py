@@ -63,6 +63,16 @@ SELF_SERVICE_MIGRATION_PATH = os.path.normpath(
     )
 )
 SELF_SERVICE_TABLES = ["lti_resource_link_users", "lti_admin_events"]
+TASK_LINKS_MIGRATION_PATH = os.path.normpath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "alembic",
+        "versions",
+        "112_lti_resource_link_task.py",
+    )
+)
 
 LTI_TABLES = [
     "lti_platform_registrations",
@@ -120,10 +130,12 @@ class TestMigration079Shape:
         mig = _load_migration()
         invites_mig = _load_migration(INVITES_MIGRATION_PATH, "mig_083")
         self_service_mig = _load_migration(SELF_SERVICE_MIGRATION_PATH, "mig_105")
+        task_links_mig = _load_migration(TASK_LINKS_MIGRATION_PATH, "mig_112")
 
-        # Walk the chain the way alembic would: the dependent FKs (105, 083)
-        # first.
+        # Walk the chain the way alembic would: the dependent FKs (112, 105,
+        # 083) first.
         with _op_context(conn):
+            task_links_mig.downgrade()
             self_service_mig.downgrade()
             invites_mig.downgrade()
             mig.downgrade()
@@ -136,6 +148,7 @@ class TestMigration079Shape:
             mig.upgrade()
             invites_mig.upgrade()
             self_service_mig.upgrade()
+            task_links_mig.upgrade()
         insp = inspect(conn)
         assert set(LTI_TABLES) <= set(insp.get_table_names())
         assert set(SELF_SERVICE_TABLES) <= set(insp.get_table_names())
