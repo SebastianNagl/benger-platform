@@ -1,14 +1,17 @@
-"""Linked exams hold exactly one task (owner decision D12).
+"""Exams with a whole-exam LMS link hold exactly one task (D12, issue #122).
 
-An exam an LMS activity points at sends one grade per activity to the LMS,
-so imports may not give it a second task:
+A whole-exam link (``lti_resource_links.task_id`` NULL) sends one grade for
+the exam to the LMS, so imports may not give such an exam a second task:
 
 * the import endpoints (upload URL, import job, cloud import) answer 422
-  ``multi_task_unsupported`` once the linked exam has its task;
-* the shared import drivers refuse a file that would leave a linked exam
-  with more than one task, before their single commit.
+  ``multi_task_unsupported`` once the exam has its task;
+* the shared import drivers refuse a file that would leave the exam with
+  more than one task, before their single commit.
 
-Unlinked exams and other projects import as before.
+A link bound to one task (``task_id`` set) only carries that task's grade,
+so exams whose links are all task-bound accept imports. One whole-exam link
+among task-bound ones still blocks. Unlinked exams and other projects import
+as before.
 """
 
 import io
@@ -63,8 +66,12 @@ def _as_user(db_user: User):
         app.dependency_overrides.pop(require_user, None)
 
 
-def _seed(db, *, kind="exam", linked=True, tasks=1):
+def _seed(db, *, kind="exam", linked=True, tasks=1, links=("whole",)):
     """Org + contributor + project (optionally linked) with ``tasks`` tasks.
+
+    ``links`` lists the activities pointing at the project: ``"whole"`` is a
+    whole-exam link (``task_id`` NULL), ``"task"`` one bound to the first
+    task.
 
     Works on a sync session; the async tests run it through ``run_sync``.
     """
@@ -92,11 +99,14 @@ def _seed(db, *, kind="exam", linked=True, tasks=1):
         id=_uid(), project_id=project.id, organization_id=org.id,
         assigned_by=user.id,
     ))
+    task_ids = []
     for index in range(tasks):
+        task_ids.append(_uid())
         db.add(Task(
-            id=_uid(), project_id=project.id, inner_id=index + 1,
+            id=task_ids[-1], project_id=project.id, inner_id=index + 1,
             data={"text": f"Fall {index + 1}"},
         ))
+    db.flush()
     if linked:
         registration = LtiPlatformRegistration(
             id=_uid(), organization_id=org.id, name="Moodle",
@@ -106,10 +116,12 @@ def _seed(db, *, kind="exam", linked=True, tasks=1):
         )
         db.add(registration)
         db.flush()
-        db.add(LtiResourceLink(
-            id=_uid(), registration_id=registration.id, deployment_id="1",
-            resource_link_id=f"rl-{_uid()[:8]}", project_id=project.id,
-        ))
+        for scope in links:
+            db.add(LtiResourceLink(
+                id=_uid(), registration_id=registration.id, deployment_id="1",
+                resource_link_id=f"rl-{_uid()[:8]}", project_id=project.id,
+                task_id=task_ids[0] if scope == "task" else None,
+            ))
     db.flush()
     return org, user, project
 
@@ -167,14 +179,38 @@ class TestLinkedExamImportEndpoints:
         send.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_one_whole_exam_link_among_task_bound_ones_still_refuses(
+        self, async_test_client, async_test_db
+    ):
+        org, user, project = await _seed_async(
+            async_test_db, links=("task", "whole")
+        )
+        with _as_user(user):
+            upload, job, cloud, send = await _post_all(
+                async_test_client, org, project
+            )
+        for response in (upload, job, cloud):
+            assert response.status_code == 422, response.text
+            assert response.json()["detail"]["code"] == "multi_task_unsupported"
+        send.assert_not_called()
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "seed",
         [
             {"linked": False},  # an exam no activity points at
             {"kind": None},  # a plain project with an activity row
             {"tasks": 0},  # an empty linked exam may take its one task
+            {"links": ("task",)},  # the only activity is bound to a task
+            {"tasks": 2, "links": ("task", "task")},  # a task-bound collection
         ],
-        ids=["unlinked", "not-an-exam", "empty-linked-exam"],
+        ids=[
+            "unlinked",
+            "not-an-exam",
+            "empty-linked-exam",
+            "task-bound-link",
+            "task-bound-collection",
+        ],
     )
     async def test_other_projects_import_as_before(
         self, async_test_client, async_test_db, seed
@@ -251,3 +287,31 @@ class TestLinkedExamImportDrivers:
 
         assert result["created_tasks"] == 3
         assert _task_count(test_db, project.id) == 4
+
+    def test_task_bound_exam_imports_many_tasks(self, test_db):
+        _org, user, project = _seed(test_db, links=("task",))
+        test_db.commit()
+
+        result = run_nested_import(test_db, project.id, _nested_payload(2), user.id)
+
+        assert result["created_tasks"] == 2
+        assert _task_count(test_db, project.id) == 3
+
+    def test_tabular_import_into_task_bound_exam(self, test_db):
+        _org, user, project = _seed(test_db, links=("task",))
+        test_db.commit()
+
+        run_tabular_import(
+            test_db, project.id, io.BytesIO(b"eine Zeile\n"), user.id, "txt"
+        )
+        assert _task_count(test_db, project.id) == 2
+
+    def test_whole_exam_link_among_task_bound_ones_refuses(self, test_db):
+        _org, user, project = _seed(test_db, links=("task", "whole"))
+        test_db.commit()
+
+        with pytest.raises(ImportValidationError) as exc_info:
+            run_nested_import(test_db, project.id, _nested_payload(1), user.id)
+        test_db.rollback()
+        assert "multi_task_unsupported" in exc_info.value.detail
+        assert _task_count(test_db, project.id) == 1

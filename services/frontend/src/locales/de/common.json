@@ -600,7 +600,7 @@
       "export": "Daten exportieren",
       "importSuccess": "Daten erfolgreich importiert",
       "importFailed": "Fehler beim Importieren der Daten",
-      "importLinkedExamSingleTask": "Diese Klausur ist mit einer Aktivität einer Lernplattform verknüpft. Verknüpfte Klausuren haben genau eine Aufgabe, daher können Sie keine weiteren Aufgaben importieren.",
+      "importLinkedExamSingleTask": "Diese Klausur ist als Ganzes mit einer Aktivität einer Lernplattform verknüpft und hat daher genau eine Aufgabe. Sie können keine weiteren Aufgaben importieren. Verknüpfen Sie die Aktivität zuerst mit der Aufgabe der Klausur.",
       "exportSuccess": "Daten erfolgreich exportiert",
       "exportFailed": "Fehler beim Exportieren der Daten"
     },

@@ -600,7 +600,7 @@
       "export": "Export Data",
       "importSuccess": "Data imported successfully",
       "importFailed": "Failed to import data",
-      "importLinkedExamSingleTask": "This exam is linked to a learning platform activity. Linked exams hold exactly one task, so no further tasks can be imported.",
+      "importLinkedExamSingleTask": "This exam is linked as a whole to a learning platform activity, so it holds exactly one task and no further tasks can be imported. Bind the activity to the exam's task first.",
       "exportSuccess": "Data exported successfully",
       "exportFailed": "Failed to export data"
     },

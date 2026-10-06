@@ -167,25 +167,36 @@ def _deduplicate_project_title(db, original_title: str) -> str:
     return new_title
 
 
-# An exam an LMS activity points at holds exactly one task (owner decision
-# D12): the LMS receives one grade per activity. Imports into such an exam
-# may not add a second one. The API checks this before it accepts an import;
-# the drivers check it again before their commit, with the real task count.
+# An LMS activity is either bound to one task of an exam
+# (``lti_resource_links.task_id`` set) or to the whole exam (``task_id``
+# NULL). A whole-exam link sends one grade for the exam, which only works
+# while the exam holds exactly one task (owner decision D12, narrowed by
+# issue #122). So an import may not add a second task to an exam that has at
+# least one whole-exam link. Exams whose links are all task-bound accept
+# imports: each activity keeps receiving only its own task's grade. The API
+# checks this before it accepts an import; the drivers check it again before
+# their commit, with the real task count.
 LINKED_EXAM_MAX_TASKS = 1
 MULTI_TASK_UNSUPPORTED = "multi_task_unsupported"
 MULTI_TASK_MESSAGE = (
-    "This exam is linked to a learning platform activity. Linked exams hold "
-    "exactly one task, so no further tasks can be imported."
+    "This exam is linked as a whole to a learning platform activity. Such an "
+    "exam holds exactly one task, so no further tasks can be imported. Bind "
+    "the activity to the exam's task first."
 )
 
 
 def linked_exam_stmt(project_id: str):
-    """Selects the id of ``project_id`` when it is an exam an LMS activity
-    points at (sync and async sessions)."""
+    """Selects the id of ``project_id`` when it is an exam with at least one
+    whole-exam LMS link (``task_id`` NULL), i.e. an exam that must keep
+    exactly one task (sync and async sessions). Task-bound links do not
+    count."""
     return select(Project.id).where(
         Project.id == project_id,
         Project.kind == "exam",
-        exists().where(LtiResourceLink.project_id == project_id),
+        exists().where(
+            LtiResourceLink.project_id == project_id,
+            LtiResourceLink.task_id.is_(None),
+        ),
     )
 
 
@@ -194,8 +205,8 @@ def task_count_stmt(project_id: str):
 
 
 def _enforce_linked_exam_task_limit(db, project_id: str) -> None:
-    """Refuse the import (422) when it leaves a linked exam with more than
-    one task. Runs before the drivers' single commit."""
+    """Refuse the import (422) when it leaves an exam with a whole-exam LMS
+    link with more than one task. Runs before the drivers' single commit."""
     if db.execute(linked_exam_stmt(project_id)).first() is None:
         return
     db.flush()
