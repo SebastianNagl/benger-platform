@@ -6,9 +6,10 @@ org admins and group admins both operate (LMS connections first):
 * an **org admin** holds an active ``ORG_ADMIN`` membership and covers the
   whole org, including every group;
 * a **group admin** covers only the groups they administer. The grant needs
-  all three of: ``is_group_admin`` on the group membership, an active
+  all three of: group role ``ORG_ADMIN`` on the group membership, an active
   membership in the org (any role; deactivating a member leaves the group
-  row in place) and an active group;
+  row in place) and an active group
+  (``org_groups.build_select_admin_group_ids``);
 * a **superadmin** covers everything.
 
 For everyone but superadmins the organization must exist and be active;
@@ -36,7 +37,6 @@ from sqlalchemy.orm import Session
 from models import (
     Organization,
     OrganizationGroup,
-    OrganizationGroupMembership,
     OrganizationMembership,
     OrganizationRole,
 )
@@ -113,19 +113,9 @@ def _select_membership_role(user_id: str, org_id: str):
 
 
 def _select_admin_group_ids(user_id: str, org_id: str):
-    return (
-        select(OrganizationGroup.id)
-        .join(
-            OrganizationGroupMembership,
-            OrganizationGroupMembership.group_id == OrganizationGroup.id,
-        )
-        .where(
-            OrganizationGroup.organization_id == org_id,
-            OrganizationGroup.is_active == True,  # noqa: E712
-            OrganizationGroupMembership.user_id == user_id,
-            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
-        )
-    )
+    from org_groups import build_select_admin_group_ids
+
+    return build_select_admin_group_ids(user_id, org_id)
 
 
 def _select_group(org_id: str, group_id: str):

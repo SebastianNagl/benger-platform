@@ -52,7 +52,8 @@ describe('UserOrganizationPermissions', () => {
     organizations: [],
   }
 
-  // Group admin of grp-1 in org-1, plain CONTRIBUTOR at the org level.
+  // Group admin of grp-1 and group annotator of grp-2 in org-1, plain
+  // CONTRIBUTOR at the org level.
   const mockGroupAdmin: UserWithOrganizations = {
     id: 'user-6',
     email: 'groupadmin@example.com',
@@ -68,13 +69,13 @@ describe('UserOrganizationPermissions', () => {
             id: 'grp-1',
             name: 'Chair A',
             is_active: true,
-            is_group_admin: true,
+            role: 'ORG_ADMIN',
           },
           {
             id: 'grp-2',
             name: 'Chair B',
             is_active: true,
-            is_group_admin: false,
+            role: 'ANNOTATOR',
           },
         ],
       },
@@ -294,6 +295,63 @@ describe('UserOrganizationPermissions', () => {
     })
   })
 
+  describe('getGroupRole', () => {
+    it('returns ORG_ADMIN for superadmins and org admins on any group', () => {
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockSuperadmin,
+          'org-9',
+          'grp-9',
+        ),
+      ).toBe('ORG_ADMIN')
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockOrgAdmin,
+          'org-1',
+          'grp-9',
+        ),
+      ).toBe('ORG_ADMIN')
+    })
+
+    it('returns the group role, independent of the org role', () => {
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockGroupAdmin,
+          'org-1',
+          'grp-1',
+        ),
+      ).toBe('ORG_ADMIN')
+      // Lower than the org role (CONTRIBUTOR) is allowed too.
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockGroupAdmin,
+          'org-1',
+          'grp-2',
+        ),
+      ).toBe('ANNOTATOR')
+    })
+
+    it('returns null for non-members and unknown orgs', () => {
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockGroupAdmin,
+          'org-1',
+          'grp-3',
+        ),
+      ).toBeNull()
+      expect(
+        UserOrganizationPermissions.getGroupRole(
+          mockGroupAdmin,
+          'org-2',
+          'grp-1',
+        ),
+      ).toBeNull()
+      expect(
+        UserOrganizationPermissions.getGroupRole(null, 'org-1', 'grp-1'),
+      ).toBeNull()
+    })
+  })
+
   describe('canManageAnyGroup', () => {
     it('returns true for superadmin', () => {
       expect(
@@ -319,13 +377,13 @@ describe('UserOrganizationPermissions', () => {
       ).toBe(false)
     })
 
-    it('returns false for a contributor without group-admin flags', () => {
+    it('returns false for a contributor without admin groups', () => {
       expect(
         UserOrganizationPermissions.canManageAnyGroup(mockContributor, 'org-1'),
       ).toBe(false)
     })
 
-    it('returns false for a member whose groups all lack the admin flag', () => {
+    it('returns false for a member whose groups all lack the admin role', () => {
       const memberOnly: UserWithOrganizations = {
         ...mockContributor,
         organizations: [
@@ -337,7 +395,7 @@ describe('UserOrganizationPermissions', () => {
                 id: 'grp-2',
                 name: 'Chair B',
                 is_active: true,
-                is_group_admin: false,
+                role: 'CONTRIBUTOR',
               },
             ],
           },

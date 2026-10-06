@@ -182,19 +182,19 @@ export const ARCHITECTURE_SECTIONS: ArchSection[] = [
       en: 'Organizations, groups and access',
     },
     intro: {
-      de: 'Nutzer:innen können mehreren **Organisationen** angehören; jede Organisation hat eine eigene Subdomain (`{slug}.what-a-benger.net`) und die Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden, Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.',
-      en: 'Users can belong to several **organizations**; each organization has its own subdomain (`{slug}.what-a-benger.net`) and the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group, and group admins manage their group without organization-wide rights.',
+      de: 'Nutzer:innen können mehreren **Organisationen** angehören; jede Organisation hat eine eigene Subdomain (`{slug}.what-a-benger.net`) und die Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden. Jede Gruppenmitgliedschaft hat eine eigene Rolle, unabhängig von der Rolle in der Organisation: Auf einem Gruppenprojekt entscheidet die Rolle in der Gruppe, auf organisationsweiten Projekten die Rolle in der Organisation. Org-Admins sind in jeder Gruppe Admin; Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.',
+      en: 'Users can belong to several **organizations**; each organization has its own subdomain (`{slug}.what-a-benger.net`) and the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group. Every group membership carries its own role, independent of the organization role: on a group project the group role decides, on organization-wide projects the organization role. Org admins are admin in every group; group admins manage their group without organization-wide rights.',
     },
     bullets: {
       de: [
         'Sichtbarkeit von Projekten: privat, Organisation (optional eine Gruppe) oder öffentlich; zusätzlich Freigabe-Links mit Passwort und ein Verzeichnis (*Entdecken*) für Studierende. Wer über Link oder Verzeichnis beitritt, bekommt die schmale Teilnehmer-Stufe ohne Referenzdaten.',
         'API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person. Bei Klausuren, die mit einer Lernplattform verknüpft sind, zahlt die Organisation der Anbindung die KI-Korrektur ihrer Studierenden aus der Lernplattform und ihres Personals. Fehlt ihr ein Schlüssel, läuft keine Korrektur.',
-        'Einladungen per E-Mail mit siebentägigem Token, optional gruppenbezogen; Benachrichtigungen in der App und per E-Mail (SendGrid) mit Ruhezeiten und Digest.',
+        'Einladungen per E-Mail mit siebentägigem Token, optional gruppenbezogen mit Rolle in der Gruppe (bestehende Mitglieder kommen direkt in die Gruppe); Benachrichtigungen in der App und per E-Mail (SendGrid) mit Ruhezeiten und Digest.',
       ],
       en: [
         'Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.',
         'API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.',
-        'Invitations by email with a seven-day token, optionally group-scoped; notifications in-app and by email (SendGrid) with quiet hours and digests.',
+        'Invitations by email with a seven-day token, optionally group-scoped with a group role (existing members are added to the group directly); notifications in-app and by email (SendGrid) with quiet hours and digests.',
       ],
     },
   },

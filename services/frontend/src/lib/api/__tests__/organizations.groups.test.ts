@@ -87,26 +87,26 @@ describe('OrganizationsClient — groups', () => {
     })
   })
 
-  it('addGroupMember POSTs user + admin flag', async () => {
+  it('addGroupMember POSTs user + group role', async () => {
     await client.addGroupMember('org-1', 'grp-1', {
       user_id: 'u-9',
-      is_group_admin: true,
+      role: 'ORG_ADMIN',
     })
     expect(calls[0]).toEqual({
       method: 'POST',
       endpoint: '/organizations/org-1/groups/grp-1/members',
-      data: { user_id: 'u-9', is_group_admin: true },
+      data: { user_id: 'u-9', role: 'ORG_ADMIN' },
     })
   })
 
-  it('updateGroupMember PATCHes the admin flag', async () => {
+  it('updateGroupMember PATCHes the group role', async () => {
     await client.updateGroupMember('org-1', 'grp-1', 'u-9', {
-      is_group_admin: false,
+      role: 'ANNOTATOR',
     })
     expect(calls[0]).toEqual({
       method: 'PATCH',
       endpoint: '/organizations/org-1/groups/grp-1/members/u-9',
-      data: { is_group_admin: false },
+      data: { role: 'ANNOTATOR' },
     })
   })
 

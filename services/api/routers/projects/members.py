@@ -9,8 +9,8 @@ from sqlalchemy.orm import joinedload
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_async_db
-from models import OrganizationMembership, User
-from org_groups import group_member_fan_in_clause
+from models import OrganizationGroupMembership, OrganizationMembership, User
+from org_groups import attachment_role, best_role, group_member_fan_in_clause
 from project_models import Annotation, ProjectOrganization
 from routers.projects.deps import ProjectAccess, require_project_access
 from services.member_privacy import lms_account_ids, masked_name, project_name_mask
@@ -45,7 +45,7 @@ async def list_project_members(
     # Get members from project organizations only. Grouped attachments
     # narrow the fan-in to the group's members + the org's ORG_ADMINs.
     org_result = await db.execute(
-        select(OrganizationMembership)
+        select(OrganizationMembership, ProjectOrganization.group_id)
         .join(
             ProjectOrganization,
             ProjectOrganization.organization_id
@@ -61,7 +61,39 @@ async def list_project_members(
             group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
         )
     )
-    org_members = org_result.scalars().unique().all()
+    org_rows = org_result.unique().all()
+    org_members = []
+    seen_membership_ids: set = set()
+    for om, _group_id in org_rows:
+        if om.id not in seen_membership_ids:
+            seen_membership_ids.add(om.id)
+            org_members.append(om)
+
+    # Effective role per member: the best attachment role over the rows that
+    # reach them (``org_groups.attachment_role``: the org role on an
+    # org-wide attachment, the group role on a grouped one, ORG_ADMIN for
+    # the org's admins).
+    group_ids = sorted({str(g) for _, g in org_rows if g})
+    group_roles: dict = {}
+    if group_ids:
+        gm_rows = await db.execute(
+            select(
+                OrganizationGroupMembership.user_id,
+                OrganizationGroupMembership.group_id,
+                OrganizationGroupMembership.role,
+            ).where(OrganizationGroupMembership.group_id.in_(group_ids))
+        )
+        for user_id, group_id, role in gm_rows.all():
+            group_roles.setdefault(str(user_id), {})[str(group_id)] = role
+    roles_by_user: dict = {}
+    for om, group_id in org_rows:
+        roles_by_user.setdefault(om.user_id, []).append(
+            attachment_role(
+                str(group_id) if group_id else None,
+                om.role,
+                group_roles.get(str(om.user_id)),
+            )
+        )
 
     mask = await project_name_mask(
         db,
@@ -92,7 +124,7 @@ async def list_project_members(
                     "id": f"org-{om.id}",
                     "user_id": om.user_id,
                     **_identity(om.user),
-                    "role": om.role,
+                    "role": best_role(roles_by_user.get(om.user_id)) or om.role,
                     "is_direct_member": False,
                     "organization_id": om.organization_id,
                     "organization_name": (om.organization.name if om.organization else "Unknown"),

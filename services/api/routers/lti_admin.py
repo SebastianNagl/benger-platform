@@ -274,14 +274,20 @@ async def _require_active_group(
 
 
 async def _max_instructor_role(
-    db: AsyncSession, user: Any, scope: OrgAdminScope
+    db: AsyncSession, user: Any, scope: OrgAdminScope, group_id: Optional[str] = None
 ) -> str:
-    """Highest instructor org role the caller may grant in this org.
+    """Highest instructor role the caller may grant on a connection.
 
-    Org admins and superadmins: any. Group admins: never ``org_admin``, and
-    ``contributor`` only when they are at least a contributor themselves.
+    Org admins and superadmins: any. On a group-scoped connection
+    (``group_id``) a group admin of that group may grant up to
+    ``org_admin``: on such a connection the instructor role is the role in
+    the group (``org_admin`` = group Admin), which a group admin can grant
+    by hand anyway. Otherwise a group admin gets ``contributor`` only when
+    they are at least a contributor of the org themselves.
     """
     if scope.org_wide:
+        return "org_admin"
+    if group_id is not None and scope.covers(group_id):
         return "org_admin"
     role = (
         await db.execute(
@@ -651,7 +657,7 @@ async def create_registration(
     scope = await _require_scope(db, current_user, body.organization_id, body.group_id)
     await _require_active_group(db, body.organization_id, body.group_id)
 
-    max_role = await _max_instructor_role(db, current_user, scope)
+    max_role = await _max_instructor_role(db, current_user, scope, body.group_id)
     instructor_org_role = body.instructor_org_role
     if "instructor_org_role" in body.model_fields_set:
         _check_role_cap(instructor_org_role, max_role)
@@ -997,7 +1003,7 @@ async def update_registration(
     ):
         _check_role_cap(
             data["instructor_org_role"],
-            await _max_instructor_role(db, current_user, scope),
+            await _max_instructor_role(db, current_user, scope, new_group),
         )
     if "tool_host" in data:
         data["tool_host"] = _validated_tool_host(data["tool_host"])

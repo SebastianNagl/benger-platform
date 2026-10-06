@@ -29,6 +29,7 @@ from models import (
     User,
 )
 from project_models import Project, Task
+from tests.fixtures.group_roles import legacy_group_role_async
 
 MAIN_URL = "https://main.example.test"
 STUDENT_URL = "https://student.example.test"
@@ -149,7 +150,7 @@ async def add_group_member(db, user, group, *, admin: bool):
             id=str(uuid.uuid4()),
             group_id=group.id,
             user_id=user.id,
-            is_group_admin=admin,
+            role=await legacy_group_role_async(db, group.id, user.id, admin),
         )
     )
     await db.flush()

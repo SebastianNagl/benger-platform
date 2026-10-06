@@ -310,68 +310,42 @@ async def test_group_admin_on_inactive_group_is_refused(
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_instructor_role_cap_for_group_admins(async_test_client, async_test_db):
+    """On a group-scoped connection the instructor role is the role in the
+    group, so a group admin may grant up to org_admin (group Admin), whatever
+    their org role (core 2.28). Org-wide connections stay org-admin only."""
     world = await build_world(async_test_db)
     client = async_test_client
     group_payload = lambda **kw: registration_payload(  # noqa: E731
         world.org.id, group_id=world.group_a.id, **kw
     )
 
-    # A contributor group admin: contributor and none, never org_admin.
-    with as_user(world.group_admin):
-        r = await client.post(
-            BASE + "/registrations", json=group_payload(instructor_org_role="org_admin")
-        )
-        assert r.status_code == 403
-        assert detail_code(r) == "instructor_role_cap"
-        assert r.json()["detail"]["max_role"] == "contributor"
-        r = await client.post(BASE + "/registrations", json=group_payload())
-        assert r.status_code == 201
-        assert r.json()["instructor_org_role"] == "contributor"
-        reg_id = r.json()["id"]
-        r = await client.put(
-            f"{BASE}/registrations/{reg_id}", json={"instructor_org_role": "org_admin"}
-        )
-        assert r.status_code == 403
-        r = await client.put(
-            f"{BASE}/registrations/{reg_id}", json={"instructor_org_role": "none"}
-        )
-        assert r.status_code == 200
-        assert r.json()["instructor_org_role"] == "none"
-
-    # An annotator group admin: only none. The default is capped instead of
-    # refused; an explicit contributor is refused.
-    with as_user(world.annotator_group_admin):
-        r = await client.post(
-            BASE + "/registrations",
-            json=group_payload(instructor_org_role="contributor"),
-        )
-        assert r.status_code == 403
-        assert r.json()["detail"]["max_role"] == "none"
-        r = await client.post(BASE + "/registrations", json=group_payload())
-        assert r.status_code == 201, r.text
-        assert r.json()["instructor_org_role"] == "none"
-        capped_id = r.json()["id"]
-        r = await client.put(
-            f"{BASE}/registrations/{capped_id}",
-            json={"instructor_org_role": "contributor"},
-        )
-        assert r.status_code == 403
-
-    # An org admin set contributor on a chair connection; the annotator
-    # group admin can still edit other fields and resend the same role.
-    with as_user(world.org_admin):
-        r = await client.put(
-            f"{BASE}/registrations/{capped_id}",
-            json={"instructor_org_role": "org_admin"},
-        )
-        assert r.status_code == 200
-    with as_user(world.annotator_group_admin):
-        r = await client.put(
-            f"{BASE}/registrations/{capped_id}",
-            json={"name": "Renamed", "instructor_org_role": "org_admin"},
-        )
-        assert r.status_code == 200, r.text
-        assert r.json()["name"] == "Renamed"
+    for admin in (world.group_admin, world.annotator_group_admin):
+        with as_user(admin):
+            r = await client.post(
+                BASE + "/registrations",
+                json=group_payload(instructor_org_role="org_admin"),
+            )
+            assert r.status_code == 201, r.text
+            assert r.json()["instructor_org_role"] == "org_admin"
+            reg_id = r.json()["id"]
+            r = await client.put(
+                f"{BASE}/registrations/{reg_id}", json={"instructor_org_role": "contributor"}
+            )
+            assert r.status_code == 200
+            r = await client.put(
+                f"{BASE}/registrations/{reg_id}", json={"instructor_org_role": "none"}
+            )
+            assert r.status_code == 200
+            assert r.json()["instructor_org_role"] == "none"
+            # The default is kept as is.
+            r = await client.post(BASE + "/registrations", json=group_payload())
+            assert r.status_code == 201, r.text
+            assert r.json()["instructor_org_role"] == "contributor"
+            # Org-wide connections stay out of reach.
+            r = await client.post(
+                BASE + "/registrations", json=registration_payload(world.org.id)
+            )
+            assert r.status_code == 403
 
 
 @pytest.mark.integration

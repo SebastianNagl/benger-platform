@@ -106,7 +106,10 @@ def _world():
     def group_member(uid, group, admin):
         rows.append(
             OrganizationGroupMembership(
-                id=_id("gm"), group_id=group, user_id=uid, is_group_admin=admin
+                id=_id("gm"),
+                group_id=group,
+                user_id=uid,
+                role=OrganizationRole.ORG_ADMIN if admin else OrganizationRole.CONTRIBUTOR,
             )
         )
 

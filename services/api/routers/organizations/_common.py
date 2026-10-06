@@ -54,8 +54,9 @@ def can_manage_group(user: User, organization_id: str, group_id: str, db: Sessio
     """Check if user can manage the specified organization group.
 
     Superadmin ∨ ORG_ADMIN of the org ∨ that group's admin
-    (``organization_group_memberships.is_group_admin``). Sync twin of the
-    async ``_require_can_manage_group`` gate in ``groups.py``.
+    (``org_groups.build_select_admin_group_ids``: group role ORG_ADMIN,
+    active group, active org membership). Sync twin of the async
+    ``_require_can_manage_group`` gate in ``groups.py``.
     """
     if not user:
         return False
@@ -63,16 +64,13 @@ def can_manage_group(user: User, organization_id: str, group_id: str, db: Sessio
         return True
 
     from models import OrganizationGroupMembership
+    from org_groups import build_select_admin_group_ids
 
-    group_admin = (
-        db.query(OrganizationGroupMembership)
-        .filter(
-            OrganizationGroupMembership.group_id == group_id,
-            OrganizationGroupMembership.user_id == user.id,
-            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+    group_admin = db.execute(
+        build_select_admin_group_ids(str(user.id), organization_id).where(
+            OrganizationGroupMembership.group_id == group_id
         )
-        .first()
-    )
+    ).first()
     return group_admin is not None
 
 
@@ -136,7 +134,8 @@ class MemberGroupInfo(BaseModel):
 
     id: str
     name: str
-    is_group_admin: bool = False
+    # The member's role in this group (independent of the org role).
+    role: Optional[OrganizationRole] = None
 
 
 class OrganizationMemberResponse(BaseModel):

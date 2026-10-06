@@ -10,7 +10,14 @@ from uuid import uuid4
 
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status  # noqa: E402
-from pydantic import BaseModel, EmailStr, TypeAdapter, ValidationError  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from pydantic import (  # noqa: E402
+    BaseModel,
+    EmailStr,
+    TypeAdapter,
+    ValidationError,
+    model_validator,
+)
 from sqlalchemy import func, select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
@@ -27,6 +34,7 @@ from models import (  # noqa: E402
     User,
 )
 from notification_service import (  # noqa: E402
+    notify_added_to_group,
     notify_organization_invitation_accepted,
     notify_organization_invitation_sent,
 )
@@ -45,14 +53,29 @@ logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 
+class _GroupScopedInvite(BaseModel):
+    """Optional group scope of an invitation: accepting also joins the group
+    with ``group_role`` (required with ``group_id``, ignored without one).
+    Group admins may invite ONLY into their own groups, with org role
+    ANNOTATOR and any group role."""
+
+    group_id: Optional[str] = None
+    group_role: Optional[OrganizationRole] = None
+
+    @model_validator(mode="after")
+    def _group_role_with_group(self):
+        if not self.group_id:
+            self.group_id = None
+            self.group_role = None
+        elif self.group_role is None:
+            raise ValueError("group_role is required when group_id is set")
+        return self
+
+
 # Pydantic models for API
-class InvitationCreate(BaseModel):
+class InvitationCreate(_GroupScopedInvite):
     email: EmailStr
     role: OrganizationRole
-    # Optional group scope: accepting also joins this group. Group admins may
-    # invite ONLY into their own group (role capped below ORG_ADMIN).
-    group_id: Optional[str] = None
-    invited_as_group_admin: bool = False
 
 
 class InvitationResponse(BaseModel):
@@ -69,7 +92,7 @@ class InvitationResponse(BaseModel):
     email: str
     role: OrganizationRole
     group_id: Optional[str] = None
-    invited_as_group_admin: bool = False
+    group_role: Optional[OrganizationRole] = None
     invited_by: str
     expires_at: datetime
     accepted_at: Optional[datetime]
@@ -175,28 +198,40 @@ class InvitationAccept(BaseModel):
 MAX_BULK_INVITES = 100
 
 
-class BulkInvitationCreate(BaseModel):
+class BulkInvitationCreate(_GroupScopedInvite):
     # List[str] (not List[EmailStr]) on purpose: we validate each address inside
     # the handler so one malformed entry yields a per-email "invalid" result
     # instead of 422-ing the whole batch.
     emails: List[str]
     role: OrganizationRole
-    group_id: Optional[str] = None
-    invited_as_group_admin: bool = False
 
 
 class BulkInvitationResultItem(BaseModel):
     email: str
-    # queued | invalid | already_member | pending | duplicate
+    # queued | invalid | duplicate | already_member | pending
+    # | added_to_group | already_in_group
     status: str
     detail: Optional[str] = None
 
 
 class BulkInvitationResponse(BaseModel):
     queued: int
+    # Existing active members put straight into the invitation's group.
+    added_to_group: int = 0
+    # Everything neither queued nor added_to_group.
     skipped: int
     total: int
     results: List[BulkInvitationResultItem]
+
+
+class GroupAddResult(BaseModel):
+    """Single create for an existing active member with a group scope: no
+    invitation, the member is put into the group directly (HTTP 200)."""
+
+    # added_to_group | already_in_group
+    status: str
+    email: str
+    group_id: str
 
 
 # Reuses the exact validator behind InvitationCreate.email so single and bulk
@@ -218,18 +253,22 @@ def _authorize_invitation(
 ) -> None:
     """Gate + group validation for invitation creation (single AND bulk).
 
-    Org admins / superadmins invite freely (with or without a group scope).
-    A GROUP admin may additionally invite — but only INTO their own group,
-    and never as ORG_ADMIN (group admins must not mint org-wide admins).
-    A group scope must reference an ACTIVE group of this org.
+    Org admins / superadmins invite freely (with or without a group scope,
+    any org role, any group role). A GROUP admin may additionally invite -
+    but only INTO a group they administer, with org role ANNOTATOR (org
+    roles are org-admin territory) and any group role up to ORG_ADMIN
+    (group Admin). A group scope must reference an ACTIVE group of this org.
     """
     if can_manage_organization(current_user, organization_id, db):
         pass
     elif group_id and can_manage_group(current_user, organization_id, group_id, db):
-        if role == OrganizationRole.ORG_ADMIN:
+        if role != OrganizationRole.ANNOTATOR:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Group admins cannot invite users as ORG_ADMIN",
+                detail=(
+                    "Group admins invite with the organization role ANNOTATOR; "
+                    "only organization admins can grant a higher organization role"
+                ),
             )
     else:
         raise HTTPException(
@@ -259,7 +298,93 @@ def _authorize_invitation(
             )
 
 
-@router.post("/organizations/{organization_id}/invitations", response_model=InvitationResponse)
+def _add_existing_member_to_group(
+    db: Session,
+    current_user: User,
+    organization: Organization,
+    user_id: str,
+    group_id: str,
+    group_role: OrganizationRole,
+) -> str:
+    """Put an existing ACTIVE org member into ``group_id`` with ``group_role``
+    (sync; flushes, the caller commits). Returns ``'added_to_group'``, or
+    ``'already_in_group'`` when a row exists (its role is NOT changed).
+
+    The member gets an in-app notice after the caller's commit
+    (:func:`_notify_added_to_group`).
+    """
+    existing = (
+        db.query(OrganizationGroupMembership)
+        .filter(
+            OrganizationGroupMembership.group_id == group_id,
+            OrganizationGroupMembership.user_id == user_id,
+        )
+        .first()
+    )
+    if existing is not None:
+        return "already_in_group"
+    db.add(
+        OrganizationGroupMembership(
+            id=str(uuid4()),
+            group_id=group_id,
+            user_id=user_id,
+            role=group_role,
+        )
+    )
+    db.flush()
+    return "added_to_group"
+
+
+def _notify_added_to_group(
+    db: Session,
+    current_user: User,
+    organization: Organization,
+    user_ids: List[str],
+    group_id: str,
+    group_role: OrganizationRole,
+) -> None:
+    """Best-effort in-app notice for members added straight to a group."""
+    if not user_ids:
+        return
+    group = db.query(OrganizationGroup).filter(OrganizationGroup.id == group_id).first()
+    for user_id in user_ids:
+        try:
+            notify_added_to_group(
+                db=db,
+                user_id=user_id,
+                organization_id=organization.id,
+                organization_name=organization.name,
+                group_id=group_id,
+                group_name=group.name if group is not None else "",
+                group_role=getattr(group_role, "value", str(group_role)),
+                added_by_name=current_user.name,
+            )
+        except Exception as e:
+            logger.error(f"Failed to notify group add for {user_id}: {e}")
+
+
+def _active_member_id(db: Session, organization_id: str, email_key: str) -> Optional[str]:
+    """The user id of the ACTIVE org member with this (lower-cased) email."""
+    existing_user = db.query(User).filter(func.lower(User.email) == email_key).first()
+    if existing_user is None:
+        return None
+    membership = (
+        db.query(OrganizationMembership.id)
+        .filter(
+            OrganizationMembership.user_id == existing_user.id,
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.is_active == True,  # noqa: E712
+        )
+        .first()
+    )
+    return existing_user.id if membership is not None else None
+
+
+@router.post(
+    "/organizations/{organization_id}/invitations",
+    response_model=InvitationResponse,
+    responses={200: {"model": GroupAddResult}},
+)
 async def create_invitation(
     organization_id: str,
     invitation_data: InvitationCreate,
@@ -294,27 +419,43 @@ async def create_invitation(
         invitation_data.group_id,
     )
 
-    # Check if user is already a member
-    existing_user = (
-        db.query(User)
-        .filter(func.lower(User.email) == invitation_data.email.strip().lower())
-        .first()
+    # Check if user is already a member. With a group scope an existing
+    # member is put straight into the group instead (no invitation mail).
+    member_id = _active_member_id(
+        db, organization_id, invitation_data.email.strip().lower()
     )
-    if existing_user:
-        existing_membership = (
-            db.query(OrganizationMembership)
-            .filter(
-                OrganizationMembership.user_id == existing_user.id,
-                OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.is_active == True,  # noqa: E712
-            )
-            .first()
-        )
-        if existing_membership:
+    if member_id is not None:
+        if not invitation_data.group_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is already a member of this organization",
             )
+        outcome = _add_existing_member_to_group(
+            db,
+            current_user,
+            organization,
+            member_id,
+            invitation_data.group_id,
+            invitation_data.group_role,
+        )
+        db.commit()
+        if outcome == "added_to_group":
+            _notify_added_to_group(
+                db,
+                current_user,
+                organization,
+                [member_id],
+                invitation_data.group_id,
+                invitation_data.group_role,
+            )
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content=GroupAddResult(
+                status=outcome,
+                email=invitation_data.email,
+                group_id=invitation_data.group_id,
+            ).model_dump(),
+        )
 
     # Check if there's already a pending invitation
     existing_invitation = (
@@ -340,7 +481,7 @@ async def create_invitation(
         email=invitation_data.email,
         role=invitation_data.role,
         group_id=invitation_data.group_id,
-        invited_as_group_admin=invitation_data.invited_as_group_admin,
+        group_role=invitation_data.group_role,
         token=generate_invitation_token(),
         invited_by=current_user.id,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),  # 7 days to accept
@@ -405,6 +546,7 @@ async def create_invitation(
             invitee_email=invitation_data.email,
             inviter_name=current_user.name,
             inviter_user_id=current_user.id,
+            organization_group_id=invitation.group_id,
         )
     except Exception as e:
         # Don't fail the invitation creation if notification fails
@@ -417,7 +559,7 @@ async def create_invitation(
         email=invitation.email,
         role=invitation.role,
         group_id=invitation.group_id,
-        invited_as_group_admin=invitation.invited_as_group_admin,
+        group_role=invitation.group_role,
         invited_by=invitation.invited_by,
         expires_at=invitation.expires_at,
         accepted_at=invitation.accepted_at,
@@ -462,6 +604,7 @@ async def create_bulk_invitations(
 
     results: List[BulkInvitationResultItem] = []
     created: List[Invitation] = []
+    added_user_ids: List[str] = []
     seen: set[str] = set()
 
     for raw_email in bulk_data.emails:
@@ -483,21 +626,25 @@ async def create_bulk_invitations(
             continue
         seen.add(key)
 
-        # Already an active member of this organization?
-        existing_user = db.query(User).filter(func.lower(User.email) == key).first()
-        if existing_user:
-            existing_membership = (
-                db.query(OrganizationMembership)
-                .filter(
-                    OrganizationMembership.user_id == existing_user.id,
-                    OrganizationMembership.organization_id == organization_id,
-                    OrganizationMembership.is_active == True,  # noqa: E712
-                )
-                .first()
-            )
-            if existing_membership:
+        # Already an active member of this organization? With a group scope
+        # they go straight into the group (no invitation mail).
+        member_id = _active_member_id(db, organization_id, key)
+        if member_id is not None:
+            if not bulk_data.group_id:
                 results.append(BulkInvitationResultItem(email=email, status="already_member"))
                 continue
+            outcome = _add_existing_member_to_group(
+                db,
+                current_user,
+                organization,
+                member_id,
+                bulk_data.group_id,
+                bulk_data.group_role,
+            )
+            if outcome == "added_to_group":
+                added_user_ids.append(member_id)
+            results.append(BulkInvitationResultItem(email=email, status=outcome))
+            continue
 
         # Pending (unaccepted, unexpired) invitation already out?
         existing_invitation = (
@@ -520,7 +667,7 @@ async def create_bulk_invitations(
             email=email,
             role=bulk_data.role,
             group_id=bulk_data.group_id,
-            invited_as_group_admin=bulk_data.invited_as_group_admin,
+            group_role=bulk_data.group_role,
             token=generate_invitation_token(),
             invited_by=current_user.id,
             expires_at=datetime.now(timezone.utc) + timedelta(days=7),
@@ -529,6 +676,9 @@ async def create_bulk_invitations(
         db.add(invitation)
         created.append(invitation)
         results.append(BulkInvitationResultItem(email=email, status="queued"))
+
+    if added_user_ids and not created:
+        db.commit()
 
     if created:
         db.commit()
@@ -590,14 +740,27 @@ async def create_bulk_invitations(
                     invitee_email=inv.email,
                     inviter_name=current_user.name,
                     inviter_user_id=current_user.id,
+                    organization_group_id=inv.group_id,
                 )
             except Exception as e:
                 logger.error(f"Failed to send bulk invitation notification: {e}")
 
+    if added_user_ids:
+        _notify_added_to_group(
+            db,
+            current_user,
+            organization,
+            added_user_ids,
+            bulk_data.group_id,
+            bulk_data.group_role,
+        )
+
     queued = sum(1 for item in results if item.status == "queued")
+    added = sum(1 for item in results if item.status == "added_to_group")
     return BulkInvitationResponse(
         queued=queued,
-        skipped=len(results) - queued,
+        added_to_group=added,
+        skipped=len(results) - queued - added,
         total=len(results),
         results=results,
     )
@@ -637,17 +800,10 @@ async def list_organization_invitations(
             )
         ).scalar_one_or_none()
         if not membership:
+            from org_groups import build_select_admin_group_ids
+
             group_rows = await db.execute(
-                select(OrganizationGroupMembership.group_id)
-                .join(
-                    OrganizationGroup,
-                    OrganizationGroup.id == OrganizationGroupMembership.group_id,
-                )
-                .where(
-                    OrganizationGroupMembership.user_id == current_user.id,
-                    OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
-                    OrganizationGroup.organization_id == organization_id,
-                )
+                build_select_admin_group_ids(str(current_user.id), organization_id)
             )
             admin_group_ids = [r[0] for r in group_rows.all()]
             if not admin_group_ids:
@@ -821,10 +977,27 @@ async def accept_invitation(
         .first()
     )
     if existing_membership is not None and existing_membership.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You are already a member of this organization",
-        )
+        if not invitation.group_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You are already a member of this organization",
+            )
+        # A group-scoped invitation for someone who is already a member: join
+        # the group with the invitation's group role, keep the org role.
+        from org_groups import ensure_invitation_group_membership
+
+        ensure_invitation_group_membership(db, invitation, current_user.id)
+        invitation.accepted = True
+        invitation.accepted_at = datetime.now(timezone.utc)
+        db.commit()
+        return {
+            "message": "Invitation accepted successfully",
+            "organization_id": invitation.organization_id,
+            "role": existing_membership.role,
+            "group_id": invitation.group_id,
+            "group_role": invitation.group_role,
+            "profile_completed": True,
+        }
 
     # Check if profile completion is required (for invited users without password)
     from models import User as DBUser
@@ -857,8 +1030,9 @@ async def accept_invitation(
     invitation.accepted = True
     invitation.accepted_at = datetime.now(timezone.utc)
 
-    # Group-scoped invitation: also join the group (shared with the
-    # register-with-token path in auth/session.py — silent degrade when the
+    # Group-scoped invitation: also join the group with the invitation's
+    # group role (shared with the register-with-token path in
+    # auth/session.py and email verification - silent degrade when the
     # group is gone/inactive, idempotent for existing memberships).
     from org_groups import ensure_invitation_group_membership
 
@@ -880,6 +1054,7 @@ async def accept_invitation(
             new_member_name=current_user.name,
             new_member_email=current_user.email,
             new_member_user_id=current_user.id,
+            organization_group_id=invitation.group_id,
         )
     except Exception as e:
         # Don't fail the invitation acceptance if notification fails
@@ -889,6 +1064,8 @@ async def accept_invitation(
         "message": "Invitation accepted successfully",
         "organization_id": invitation.organization_id,
         "role": invitation.role,
+        "group_id": invitation.group_id,
+        "group_role": invitation.group_role,
         "profile_completed": True,
     }
 

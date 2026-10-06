@@ -96,8 +96,14 @@ from models import (  # noqa: E402
     ImportJob,
     JobStatus,
     Organization,
+    OrganizationGroup,
     OrganizationMembership,
     OrgStorageConnection,
+)
+from org_groups import (  # noqa: E402
+    attachment_role,
+    get_user_group_context_async,
+    role_at_least,
 )
 from project_models import (  # noqa: E402
     Annotation,
@@ -795,19 +801,53 @@ async def _load_full_import_job_for_read(
 
 
 async def _resolve_import_target_org(
-    db: AsyncSession, current_user: AuthUser, organization_id: Optional[str]
-) -> Optional[str]:
-    """The org a create-new import should land in, as named in the request body.
+    db: AsyncSession,
+    current_user: AuthUser,
+    organization_id: Optional[str],
+    organization_group_id: Optional[str] = None,
+) -> "tuple[Optional[str], Optional[str]]":
+    """The ``(org, group)`` a create-new import should land in, as named in
+    the request body.
 
-    ``None`` imports a private project owned by the importer. A named org
-    follows the create-project rule: an ACTIVE ORG_ADMIN or CONTRIBUTOR
-    membership (403 otherwise); a superadmin may target any active org (404
-    when it doesn't exist). The worker re-checks at project creation time.
+    ``None`` imports a private project owned by the importer (a group without
+    an org is a 400). A named org follows the create-project rule
+    (``org_groups.attachment_role``): an ACTIVE membership whose role on the
+    attachment is CONTRIBUTOR or ORG_ADMIN - the org role without a group,
+    the group role with one (403 otherwise). The group must be an active
+    group of the org (400 otherwise). A superadmin may target any active org
+    (404 when it doesn't exist). The worker re-checks at project creation
+    time.
     """
+    if organization_group_id is not None and (
+        not isinstance(organization_group_id, str) or not organization_group_id
+    ):
+        raise HTTPException(
+            status_code=400, detail="organization_group_id must be a string"
+        )
     if organization_id is None:
-        return None
+        if organization_group_id:
+            raise HTTPException(
+                status_code=400,
+                detail="organization_group_id requires organization_id",
+            )
+        return None, None
     if not isinstance(organization_id, str) or not organization_id:
         raise HTTPException(status_code=400, detail="organization_id must be a string")
+    if organization_group_id:
+        group = (
+            await db.execute(
+                select(OrganizationGroup).where(
+                    OrganizationGroup.id == organization_group_id
+                )
+            )
+        ).scalar_one_or_none()
+        if group is None or str(group.organization_id) != organization_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Group does not belong to the target organization",
+            )
+        if not group.is_active:
+            raise HTTPException(status_code=400, detail="Group is not active")
     if current_user.is_superadmin:
         org = (
             await db.execute(
@@ -819,7 +859,7 @@ async def _resolve_import_target_org(
         ).scalar_one_or_none()
         if org is None:
             raise HTTPException(status_code=404, detail="Organization not found")
-        return organization_id
+        return organization_id, organization_group_id or None
     role = (
         await db.execute(
             select(OrganizationMembership.role).where(
@@ -834,12 +874,24 @@ async def _resolve_import_target_org(
             status_code=403,
             detail="You are not a member of the organization to import into",
         )
-    if getattr(role, "value", role) not in ("ORG_ADMIN", "CONTRIBUTOR"):
+    user_groups = (
+        await get_user_group_context_async(db, str(current_user.id))
+        if organization_group_id
+        else None
+    )
+    if not role_at_least(
+        attachment_role(organization_group_id or None, role, user_groups),
+        "CONTRIBUTOR",
+    ):
         raise HTTPException(
             status_code=403,
-            detail="Only ORG_ADMIN and CONTRIBUTOR members may import into this organization",
+            detail=(
+                "Only ORG_ADMIN and CONTRIBUTOR members may import into this "
+                "organization"
+                + (" group" if organization_group_id else "")
+            ),
         )
-    return organization_id
+    return organization_id, organization_group_id or None
 
 
 @router.post("/project-imports/upload-url")
@@ -874,10 +926,11 @@ async def create_full_import_job(
     """Create a full-project (create-new) import job and enqueue it.
 
     Body: ``{"object_key": "imports/.../{user_id}/...", "organization_id":
-    optional}``. The key must live under the import prefix AND be scoped to
+    optional, "organization_group_id": optional}``. The key must live under the import prefix AND be scoped to
     this user — both checked here so a client can't point the worker at
     someone else's upload. ``organization_id`` names the org that will own the
-    new project; without it the project is the importer's private project.
+    new project (``organization_group_id``: attached through that group of
+    it); without it the project is the importer's private project.
     The job's ``project_id`` is NULL until the worker creates the project.
     Returns 202.
     """
@@ -887,8 +940,11 @@ async def create_full_import_job(
     if not object_key.startswith("imports/") or f"/{current_user.id}/" not in object_key:
         raise HTTPException(status_code=400, detail="Invalid object_key")
 
-    organization_id = await _resolve_import_target_org(
-        db, current_user, (data or {}).get("organization_id")
+    organization_id, organization_group_id = await _resolve_import_target_org(
+        db,
+        current_user,
+        (data or {}).get("organization_id"),
+        (data or {}).get("organization_group_id"),
     )
 
     job = ImportJob(
@@ -897,6 +953,7 @@ async def create_full_import_job(
         requested_by=current_user.id,
         object_key=object_key,
         organization_id=organization_id,
+        organization_group_id=organization_group_id,
         status=JobStatus.PENDING.value,
         progress=0,
     )

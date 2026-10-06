@@ -26,6 +26,7 @@ from models import (
     User,
 )
 from project_models import Project, ProjectOrganization, Task
+from tests.fixtures.group_roles import legacy_group_role_async
 
 EXAM_CONFIG = (
     '<View><Text name="sv" value="$sachverhalt"/>'
@@ -96,7 +97,8 @@ async def _org(db, *members, settings=None) -> Organization:
 
 
 async def _group(db, org, name, *members) -> OrganizationGroup:
-    """members: (user, is_group_admin) tuples."""
+    """members: (user, group-admin flag or group role) tuples (flag as in
+    the migration-111 backfill, see tests/fixtures/group_roles)."""
     g = OrganizationGroup(
         id=str(uuid.uuid4()), organization_id=org.id, name=name, is_active=True,
     )
@@ -105,7 +107,7 @@ async def _group(db, org, name, *members) -> OrganizationGroup:
     for user, is_admin in members:
         db.add(OrganizationGroupMembership(
             id=str(uuid.uuid4()), group_id=g.id, user_id=user.id,
-            is_group_admin=is_admin,
+            role=await legacy_group_role_async(db, g.id, user.id, is_admin),
         ))
     await db.commit()
     return g
@@ -453,19 +455,19 @@ async def test_groups_router_crud_and_gates(async_test_client, async_test_db):
     with _as_user(w["gadmin_a"]):
         r = await async_test_client.post(
             f"/api/organizations/{org_id}/groups/{w['group_a'].id}/members",
-            json={"user_id": w["loose"].id, "is_group_admin": False},
+            json={"user_id": w["loose"].id, "role": "ANNOTATOR"},
         )
         assert r.status_code == 201, r.text
         r = await async_test_client.post(
             f"/api/organizations/{org_id}/groups/{w['group_b'].id}/members",
-            json={"user_id": w["loose"].id, "is_group_admin": False},
+            json={"user_id": w["loose"].id, "role": "ANNOTATOR"},
         )
         assert r.status_code == 403
         # Non-org-member target is rejected.
         outsider = await _user(db)
         r = await async_test_client.post(
             f"/api/organizations/{org_id}/groups/{w['group_a'].id}/members",
-            json={"user_id": outsider.id, "is_group_admin": False},
+            json={"user_id": outsider.id, "role": "ANNOTATOR"},
         )
         assert r.status_code == 400
         r = await async_test_client.delete(
@@ -484,7 +486,7 @@ async def test_groups_router_crud_and_gates(async_test_client, async_test_db):
         assert r.status_code == 409
         r = await async_test_client.post(
             f"/api/organizations/{org_id}/groups/{group_c['id']}/members",
-            json={"user_id": w["loose"].id, "is_group_admin": False},
+            json={"user_id": w["loose"].id, "role": "ANNOTATOR"},
         )
         assert r.status_code == 201
         r = await async_test_client.delete(
@@ -557,8 +559,8 @@ async def test_attachment_endpoints_group_scope(async_test_client, async_test_db
 async def test_org_annotator_group_admin_may_list_roster(
     async_test_client, async_test_db
 ):
-    """The org role (capability) and is_group_admin (delegation) are
-    orthogonal: an org-ANNOTATOR who administers a group needs the org
+    """The org role and the group role are independent: an org-ANNOTATOR
+    who administers a group needs the org
     roster for the add-member picker — plain ANNOTATORs stay blocked."""
     db = async_test_db
     w = await _world(db)
@@ -577,7 +579,7 @@ async def test_org_annotator_group_admin_may_list_roster(
             id=str(uuid.uuid4()),
             group_id=w["group_a"].id,
             user_id=annot_admin.id,
-            is_group_admin=True,
+            role=OrganizationRole.ORG_ADMIN,
         )
     )
     await db.commit()
@@ -651,8 +653,9 @@ async def test_invitation_gate_and_group_validation(async_test_db):
     # Org admin: free rein, with or without group.
     assert await db.run_sync(run(w["orgadmin"], OrganizationRole.ANNOTATOR, None)) is None
     assert await db.run_sync(run(w["orgadmin"], OrganizationRole.ORG_ADMIN, w["group_a"].id)) is None
-    # Group admin: only into their own group, never as ORG_ADMIN.
-    assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.CONTRIBUTOR, w["group_a"].id)) is None
+    # Group admin: only into their own group, org role ANNOTATOR only.
+    assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.ANNOTATOR, w["group_a"].id)) is None
+    assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.CONTRIBUTOR, w["group_a"].id)) == 403
     assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.ORG_ADMIN, w["group_a"].id)) == 403
     assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.ANNOTATOR, w["group_b"].id)) == 403
     assert await db.run_sync(run(w["gadmin_a"], OrganizationRole.ANNOTATOR, None)) == 403

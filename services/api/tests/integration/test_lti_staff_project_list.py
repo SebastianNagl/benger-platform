@@ -46,6 +46,7 @@ from routers.projects.helpers import (
     get_lti_staff_project_ids,
     get_lti_staff_project_ids_async,
 )
+from tests.fixtures.group_roles import legacy_group_role_async
 
 pytestmark = [pytest.mark.integration]  # asyncio_mode = auto
 
@@ -95,7 +96,7 @@ async def _member(db, user, org, role, *, active=True):
 
 
 async def _group(db, org, *members) -> OrganizationGroup:
-    """members: (user, is_group_admin) tuples."""
+    """members: (user, group-admin flag or group role) tuples."""
     group = OrganizationGroup(
         id=str(uuid.uuid4()), organization_id=org.id, name=f"G {_hex()}", is_active=True
     )
@@ -107,7 +108,7 @@ async def _group(db, org, *members) -> OrganizationGroup:
                 id=str(uuid.uuid4()),
                 group_id=group.id,
                 user_id=user.id,
-                is_group_admin=is_admin,
+                role=await legacy_group_role_async(db, group.id, user.id, is_admin),
             )
         )
     await db.flush()

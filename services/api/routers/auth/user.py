@@ -240,7 +240,7 @@ async def get_user_contexts(
                 OrganizationGroup.id,
                 OrganizationGroup.name,
                 OrganizationGroup.is_active,
-                OrganizationGroupMembership.is_group_admin,
+                OrganizationGroupMembership.role,
             )
             .join(
                 OrganizationGroupMembership,
@@ -250,13 +250,15 @@ async def get_user_contexts(
         )
     ).all()
     groups_by_org: dict = {}
-    for org_id, gid, gname, g_active, is_admin in group_rows:
+    for org_id, gid, gname, g_active, group_role in group_rows:
         groups_by_org.setdefault(org_id, []).append(
             {
                 "id": gid,
                 "name": gname,
                 "is_active": bool(g_active),
-                "is_group_admin": bool(is_admin),
+                # The caller's role in this group: 'ORG_ADMIN' | 'CONTRIBUTOR'
+                # | 'ANNOTATOR' (independent of the org role).
+                "role": getattr(group_role, "value", group_role),
             }
         )
 

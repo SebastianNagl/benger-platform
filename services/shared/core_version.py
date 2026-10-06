@@ -343,11 +343,40 @@ whenever one is added, renamed or removed):
   serves ``/api/ext/feature-flags``. ``EmailService()`` no longer takes
   ``check_feature_flag``. The frontend drops its flag context and gates;
   ``/admin/feature-flags`` renders the ``FeatureFlagsAdmin`` slot.
+
+2.28 (2026-10-06): per-group roles. ``OrganizationGroupMembership.role``
+  (OrganizationRole, NOT NULL) replaces ``is_group_admin`` and
+  ``Invitation.group_role`` (nullable, set iff ``group_id``) replaces
+  ``invited_as_group_admin`` (migration 111, backfill keeps every effective
+  right; ``ImportJob.organization_group_id`` added). In
+  ``shared/org_groups``: ``get_user_group_context(_async)`` return
+  ``{group_id: 'ORG_ADMIN'|'CONTRIBUTOR'|'ANNOTATOR'}``; the new pure
+  ``attachment_role(group_id, org_role, user_groups)`` is the one rule (org
+  role on an org-wide attachment, ORG_ADMIN for org admins, else the group
+  role, else None); ``attachment_eligible`` keeps its signature;
+  ``grants_full_tier(project_kind, role)`` takes the attachment role (two
+  arguments); ``ROLE_RANK``, ``best_role``, ``role_at_least``;
+  ``build_select_admin_group_ids(user_id, organization_id=None)`` is the
+  group-admin scope of every gate (group role ORG_ADMIN, active group,
+  active org membership) and ``build_select_group_admin_ids(group_id)``;
+  ``lti_staff_role`` / ``drop_protected_lti_attachments`` keep their
+  signatures on the new ``user_groups`` shape. The best role over all
+  eligible attachments wins everywhere. HTTP: group list items carry
+  ``my_role``; group member rows ``role`` (POST ``{user_id, role}``, PATCH
+  ``{role}``); org roster ``groups[].role``; ``/auth/me/contexts``
+  ``organizations[].groups[].role``; invitations take ``group_role`` with
+  ``group_id`` (group admins invite with org role ANNOTATOR only) and an
+  existing member of a group-scoped invite is added to the group
+  (``added_to_group`` / ``already_in_group``, bulk ``added_to_group``
+  count); the create-new import takes ``organization_group_id``; removing
+  an org member deletes their group rows in that org. ``lti_admin``: a
+  group admin may grant up to ``org_admin`` (group Admin) on a group-scoped
+  connection.
 """
 
 import os
 
-CORE_API_VERSION = "2.27"
+CORE_API_VERSION = "2.28"
 
 
 def extended_required() -> bool:

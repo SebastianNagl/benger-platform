@@ -36,16 +36,17 @@ from models import (
     LtiResourceLink,
     Organization,
     OrganizationGroup,
-    OrganizationGroupMembership,
     OrganizationMembership,
-    OrganizationRole,
     User,
 )
 from notification_service import notify_project_created, notify_project_deleted
 from org_groups import (
+    attachment_role,
     collapse_linking_groups,
     get_lti_attachment_map_async,
+    get_user_group_context_async,
     non_lti_attachment,
+    role_at_least,
 )
 from project_models import Project, ProjectOrganization, Task
 from project_schemas import PaginatedResponse, ProjectCreate, ProjectResponse, ProjectUpdate
@@ -68,7 +69,6 @@ from routers.projects.helpers import (
     TIER_ATTEMPTED,
     TIER_FULL,
     TIER_PARTICIPANT,
-    get_user_with_memberships_async,
     resolve_project_roles_batch_async,
 )
 from task_rubric_service import remirror_project_rubrics
@@ -90,15 +90,86 @@ def _notify_project_created_sync(**kwargs) -> None:
         sync_db.close()
 
 
+_CREATOR_ROLE_DETAIL = (
+    "User with role {role} is not authorized to create projects. "
+    "Only ORG_ADMIN and CONTRIBUTOR roles can create projects."
+)
+
+
+async def _require_attachment_creator_role(
+    db: AsyncSession, current_user, org_id: str, group_id: Optional[str] = None
+) -> None:
+    """403 unless the caller may attach a project to ``(org_id, group_id)``.
+
+    The rule of project creation, the create-new import and newly added
+    visibility attachments: an ACTIVE membership in the org, and the
+    attachment role (``org_groups.attachment_role``: the org role without a
+    group, the group role with one, ORG_ADMIN for org admins) at least
+    CONTRIBUTOR. A group Admin whose org role is ANNOTATOR may create in
+    their group but not org-wide. Superadmins pass.
+    """
+    if current_user.is_superadmin:
+        return
+    membership = (
+        await db.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.user_id == str(current_user.id),
+                OrganizationMembership.organization_id == str(org_id),
+                OrganizationMembership.is_active.is_(True),
+            )
+        )
+    ).scalars().first()
+    if membership is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of the target organization",
+        )
+    user_groups = (
+        await get_user_group_context_async(db, str(current_user.id)) if group_id else None
+    )
+    role = attachment_role(group_id or None, membership.role, user_groups)
+    if role is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only scope a project to a group you belong to",
+        )
+    if not role_at_least(role, "CONTRIBUTOR"):
+        raise HTTPException(
+            status_code=403,
+            detail=_CREATOR_ROLE_DETAIL.format(role=role),
+        )
+
+
+async def _require_attachment_member(db: AsyncSession, current_user, org_id: str) -> None:
+    """403 unless the caller holds an ACTIVE membership in ``org_id``
+    (superadmins pass)."""
+    if current_user.is_superadmin:
+        return
+    found = (
+        await db.execute(
+            select(OrganizationMembership.id).where(
+                OrganizationMembership.user_id == str(current_user.id),
+                OrganizationMembership.organization_id == str(org_id),
+                OrganizationMembership.is_active.is_(True),
+            )
+        )
+    ).first()
+    if found is None:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not a member of the target organization",
+        )
+
+
 async def _validate_group_attachment(
     db: AsyncSession, current_user, org_id: str, group_id: str
 ) -> None:
     """Validate scoping a project attachment to an organization group.
 
     The group must be an ACTIVE group of the target org, and the caller must
-    be allowed to scope to it: superadmin, ORG_ADMIN of the org, or a member
-    of the group (attachment policy v1 — anyone who can create org projects
-    may pick org-wide or any of their own groups).
+    hold at least CONTRIBUTOR there (:func:`_require_attachment_creator_role`:
+    superadmin, ORG_ADMIN of the org, or group role CONTRIBUTOR / ORG_ADMIN;
+    a group ANNOTATOR may not scope a project to the group).
     """
     group = (
         await db.execute(
@@ -112,33 +183,7 @@ async def _validate_group_attachment(
         )
     if not group.is_active:
         raise HTTPException(status_code=400, detail="Group is not active")
-    if current_user.is_superadmin:
-        return
-    admin = (
-        await db.execute(
-            select(OrganizationMembership.id).where(
-                OrganizationMembership.user_id == current_user.id,
-                OrganizationMembership.organization_id == str(org_id),
-                OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-                OrganizationMembership.is_active.is_(True),
-            )
-        )
-    ).first()
-    if admin is not None:
-        return
-    member = (
-        await db.execute(
-            select(OrganizationGroupMembership.id).where(
-                OrganizationGroupMembership.group_id == str(group_id),
-                OrganizationGroupMembership.user_id == current_user.id,
-            )
-        )
-    ).first()
-    if member is None:
-        raise HTTPException(
-            status_code=403,
-            detail="You can only scope a project to a group you belong to",
-        )
+    await _require_attachment_creator_role(db, current_user, org_id, group_id)
 
 
 def _notify_project_deleted_sync(**kwargs) -> None:
@@ -500,33 +545,15 @@ async def create_project(
     is_private = not is_public and not target_org_id
 
     if target_org_id:
-        # Organization mode: the caller names the org; membership and role
-        # are checked there, never in a selected context.
-        user_with_memberships = await get_user_with_memberships_async(db, current_user.id)
-        memberships = (
-            user_with_memberships.organization_memberships
-            if user_with_memberships
-            else []
-        ) or []
-        membership = next(
-            (
-                m
-                for m in memberships
-                if m.is_active and str(m.organization_id) == str(target_org_id)
-            ),
-            None,
-        )
-        if membership is None and not current_user.is_superadmin:
-            raise HTTPException(
-                status_code=403,
-                detail="You are not a member of the target organization",
-            )
-        if membership is not None and not current_user.is_superadmin:
-            if membership.role not in ["ORG_ADMIN", "CONTRIBUTOR"]:
-                raise HTTPException(
-                    status_code=403,
-                    detail=f"User with role {membership.role} is not authorized to create projects. Only ORG_ADMIN and CONTRIBUTOR roles can create projects.",
-                )
+        # Organization mode: the caller names the org (and optionally a
+        # group); membership and role are checked there, never in a
+        # selected context. With a group the group role decides
+        # (_validate_group_attachment below, after the group itself is
+        # validated); org-wide needs org role CONTRIBUTOR+.
+        if project.organization_group_id:
+            await _require_attachment_member(db, current_user, target_org_id)
+        else:
+            await _require_attachment_creator_role(db, current_user, target_org_id)
 
     # Validate label_config if provided (including empty strings)
     if project.label_config != None:  # noqa: E711
@@ -1319,6 +1346,19 @@ async def update_project_visibility(
         # carries none, so it never conflicts with an LMS attachment's group.
         group_aware = "organization_attachments" in visibility
         lti_attachments = await get_lti_attachment_map_async(db, project_id)
+        # Attachments the project already has are not re-checked; every
+        # newly added (org, group) needs the creator role there.
+        existing_attachments = {
+            (str(org), str(gid) if gid else None)
+            for org, gid in (
+                await db.execute(
+                    select(
+                        ProjectOrganization.organization_id,
+                        ProjectOrganization.group_id,
+                    ).where(ProjectOrganization.project_id == project_id)
+                )
+            ).all()
+        }
         seen_orgs = set()
         for att in attachments:
             org_id = (att or {}).get("organization_id")
@@ -1353,10 +1393,13 @@ async def update_project_visibility(
                         },
                     )
                 continue
-            if att.get("group_id"):
-                await _validate_group_attachment(
-                    db, current_user, org_id, att["group_id"]
-                )
+            group_id = att.get("group_id") or None
+            if (str(org_id), str(group_id) if group_id else None) in existing_attachments:
+                continue
+            if group_id:
+                await _validate_group_attachment(db, current_user, org_id, group_id)
+            else:
+                await _require_attachment_creator_role(db, current_user, org_id)
 
         new_attachments = [
             att for att in attachments if att["organization_id"] not in lti_attachments

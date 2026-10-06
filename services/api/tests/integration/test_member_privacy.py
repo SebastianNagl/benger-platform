@@ -408,7 +408,7 @@ async def test_protected_org_contributors_see_the_names_its_admins_see(
             id=str(uuid.uuid4()),
             group_id=w["group"].id,
             user_id=w["contrib"].id,
-            is_group_admin=True,
+            role=OrganizationRole.ORG_ADMIN,
         )
     )
     await async_test_db.commit()
@@ -655,7 +655,7 @@ async def test_admin_of_a_group_without_connections_sees_no_lms_names(
             id=str(uuid.uuid4()),
             group_id=w["group_b"].id,
             user_id=lead.id,
-            is_group_admin=True,
+            role=OrganizationRole.ORG_ADMIN,
         )
     )
     await async_test_db.commit()

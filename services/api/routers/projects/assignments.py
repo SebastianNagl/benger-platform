@@ -27,8 +27,8 @@ from services.member_privacy import project_name_mask
 from routers.projects.helpers import (
     check_project_accessible_async,
     seb_request_allowed,
+    get_effective_project_role,
     get_project_access_tier,
-    get_user_with_memberships,
 )
 
 router = APIRouter()
@@ -64,24 +64,12 @@ async def assign_tasks(
         raise HTTPException(status_code=404, detail="Project not found")
 
     # Check permission - only superadmin, org admin, or contributor can assign
-    user_with_memberships = get_user_with_memberships(db, current_user.id)
-    user_role = None
-
+    # The central effective-role resolution (best role over every eligible
+    # attachment; the group role decides on a grouped attachment).
     if current_user.is_superadmin:
         user_role = "superadmin"
-    elif user_with_memberships and user_with_memberships.organization_memberships:
-        # Get project organizations
-        project_orgs = (
-            db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
-        )
-        project_org_ids = [org[0] for org in project_orgs]
-
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
+    else:
+        user_role = get_effective_project_role(db, current_user, project)
 
     if user_role not in ["superadmin", "ORG_ADMIN", "CONTRIBUTOR"]:
         raise HTTPException(status_code=403, detail="Only admins and contributors can assign tasks")
@@ -465,24 +453,12 @@ async def remove_task_assignment(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    user_with_memberships = get_user_with_memberships(db, current_user.id)
-    user_role = None
-
+    # The central effective-role resolution (best role over every eligible
+    # attachment; the group role decides on a grouped attachment).
     if current_user.is_superadmin:
         user_role = "superadmin"
-    elif user_with_memberships and user_with_memberships.organization_memberships:
-        # Get project organizations
-        project_orgs = (
-            db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project_id)
-            .all()
-        )
-        project_org_ids = [org[0] for org in project_orgs]
-
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
+    else:
+        user_role = get_effective_project_role(db, current_user, project)
 
     if user_role not in ["superadmin", "ORG_ADMIN", "CONTRIBUTOR"]:
         raise HTTPException(

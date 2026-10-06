@@ -5,8 +5,11 @@ Groups partition project visibility and provider API keys inside an org
 module owns the generic CRUD + membership surface:
 
 - Group CRUD is org-admin territory (``can_manage_organization``).
-- Group MEMBER management extends to the group's own admins
-  (``is_group_admin`` on the membership row) via ``can_manage_group``.
+- Group MEMBER management (adding, removing, setting the per-group
+  ``role``, up to ORG_ADMIN = group Admin) extends to the group's own
+  admins (``org_groups.build_select_admin_group_ids``: group role
+  ORG_ADMIN, active group, active org membership) via ``can_manage_group``.
+  Org roles stay untouchable for group admins.
 - Any active org member may list the org's groups (names are needed for
   pickers); per-group member lists stay behind ``can_manage_group``.
 
@@ -37,6 +40,7 @@ from models import (
     OrganizationMembership,
     OrganizationRole,
 )
+from org_groups import build_select_admin_group_ids
 from project_models import ProjectOrganization
 from services.member_privacy import (
     name_admin_org_ids,
@@ -75,7 +79,8 @@ class GroupResponse(BaseModel):
     updated_at: Optional[datetime] = None
     member_count: Optional[int] = None
     is_member: bool = False
-    is_group_admin: bool = False
+    # The caller's own group role (None when not a member of the group).
+    my_role: Optional[OrganizationRole] = None
 
     class Config:
         from_attributes = True
@@ -83,18 +88,18 @@ class GroupResponse(BaseModel):
 
 class GroupMemberUpsert(BaseModel):
     user_id: str
-    is_group_admin: bool = False
+    role: OrganizationRole = OrganizationRole.ANNOTATOR
 
 
 class GroupMemberUpdate(BaseModel):
-    is_group_admin: bool
+    role: OrganizationRole
 
 
 class GroupMemberResponse(BaseModel):
     id: str
     group_id: str
     user_id: str
-    is_group_admin: bool
+    role: OrganizationRole
     created_at: datetime
     user_name: Optional[str] = None
     user_email: Optional[str] = None
@@ -167,17 +172,16 @@ async def _load_group_or_404(
 async def _require_can_manage_group(
     user: AuthUser, org_id: str, group_id: str, db: AsyncSession
 ):
-    """Superadmin ∨ org ORG_ADMIN ∨ that group's admin (async)."""
+    """Superadmin ∨ org ORG_ADMIN ∨ that group's admin (async; group admin
+    per ``org_groups.build_select_admin_group_ids``)."""
     if user.is_superadmin:
         return
     membership = await _get_membership(db, user.id, org_id)
     if membership is not None and membership.role == OrganizationRole.ORG_ADMIN:
         return
     result = await db.execute(
-        select(OrganizationGroupMembership.id).where(
-            OrganizationGroupMembership.group_id == group_id,
-            OrganizationGroupMembership.user_id == user.id,
-            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+        build_select_admin_group_ids(str(user.id), org_id).where(
+            OrganizationGroupMembership.group_id == group_id
         )
     )
     if result.first() is None:
@@ -235,7 +239,7 @@ async def list_organization_groups(
     own_rows = await db.execute(
         select(
             OrganizationGroupMembership.group_id,
-            OrganizationGroupMembership.is_group_admin,
+            OrganizationGroupMembership.role,
         ).where(
             OrganizationGroupMembership.user_id == current_user.id,
             OrganizationGroupMembership.group_id.in_([g.id for g in groups])
@@ -243,7 +247,7 @@ async def list_organization_groups(
             else False,
         )
     )
-    own = {gid: bool(admin) for gid, admin in own_rows.all()}
+    own = {gid: role for gid, role in own_rows.all()}
 
     return [
         GroupResponse(
@@ -256,7 +260,7 @@ async def list_organization_groups(
             updated_at=g.updated_at,
             member_count=counts.get(g.id, 0) if include_counts else None,
             is_member=g.id in own,
-            is_group_admin=own.get(g.id, False),
+            my_role=own.get(g.id),
         )
         for g in groups
     ]
@@ -308,7 +312,7 @@ async def create_organization_group(
         updated_at=group.updated_at,
         member_count=0,
         is_member=False,
-        is_group_admin=False,
+        my_role=None,
     )
 
 
@@ -517,16 +521,7 @@ async def list_group_members(
         admin_group_ids = (
             (
                 await db.execute(
-                    select(OrganizationGroupMembership.group_id)
-                    .join(
-                        OrganizationGroup,
-                        OrganizationGroup.id == OrganizationGroupMembership.group_id,
-                    )
-                    .where(
-                        OrganizationGroupMembership.user_id == current_user.id,
-                        OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
-                        OrganizationGroup.organization_id == organization_id,
-                    )
+                    build_select_admin_group_ids(str(current_user.id), organization_id)
                 )
             )
             .scalars()
@@ -540,7 +535,7 @@ async def list_group_members(
             id=m.id,
             group_id=m.group_id,
             user_id=m.user_id,
-            is_group_admin=m.is_group_admin,
+            role=m.role,
             created_at=m.created_at,
             user_name=mask.label(m.user),
             user_email=mask.email(m.user),
@@ -564,7 +559,9 @@ async def add_group_member(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Add an existing org member to the group (org admin / group admin)."""
+    """Add an existing org member to the group with a group ``role`` (org
+    admin / group admin; a group admin may grant any role up to ORG_ADMIN in
+    their group). An existing group member gets the new role."""
     group = await _load_group_or_404(db, organization_id, group_id)
     await _require_can_manage_group(current_user, organization_id, group_id, db)
     if not group.is_active:
@@ -586,7 +583,7 @@ async def add_group_member(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        existing.is_group_admin = payload.is_group_admin
+        existing.role = payload.role
         await db.commit()
         await db.refresh(existing)
         member = existing
@@ -595,7 +592,7 @@ async def add_group_member(
             id=str(uuid4()),
             group_id=group_id,
             user_id=payload.user_id,
-            is_group_admin=payload.is_group_admin,
+            role=payload.role,
         )
         db.add(member)
         await db.commit()
@@ -605,7 +602,7 @@ async def add_group_member(
         id=member.id,
         group_id=member.group_id,
         user_id=member.user_id,
-        is_group_admin=member.is_group_admin,
+        role=member.role,
         created_at=member.created_at,
         org_role=target_membership.role,
     )
@@ -623,7 +620,9 @@ async def update_group_member(
     current_user: AuthUser = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Toggle a member's group-admin flag (org admin / group admin)."""
+    """Set a member's group role (org admin / group admin). A group admin may
+    set any role up to ORG_ADMIN in their group, demoting other group admins
+    included; the org role is never touched here."""
     await _load_group_or_404(db, organization_id, group_id)
     await _require_can_manage_group(current_user, organization_id, group_id, db)
 
@@ -639,15 +638,17 @@ async def update_group_member(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Group member not found"
         )
-    member.is_group_admin = payload.is_group_admin
+    member.role = payload.role
     await db.commit()
     await db.refresh(member)
+    org_membership = await _get_membership(db, user_id, organization_id)
     return GroupMemberResponse(
         id=member.id,
         group_id=member.group_id,
         user_id=member.user_id,
-        is_group_admin=member.is_group_admin,
+        role=member.role,
         created_at=member.created_at,
+        org_role=org_membership.role if org_membership is not None else None,
     )
 
 

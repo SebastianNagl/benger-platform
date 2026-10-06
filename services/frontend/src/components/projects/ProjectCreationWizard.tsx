@@ -30,6 +30,7 @@ import {
   parseImportData,
 } from '@/lib/import/parseImportData'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
+import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
@@ -72,9 +73,10 @@ export function ProjectCreationWizard() {
   // an AuthProvider (tests, embeds).
   const organizations = useOptionalAuth()?.organizations ?? EMPTY_ORGANIZATIONS
   const activeOrganization = useMemo(() => {
-    const creatable = organizations.filter(
-      (o) => o.role === 'ORG_ADMIN' || o.role === 'CONTRIBUTOR',
-    )
+    // Org role Contributor/Admin (org-wide projects) or a group role
+    // Contributor/Admin (that group's projects; the step then pins the
+    // group for an org Annotator).
+    const creatable = organizations.filter(canCreateInOrganization)
     return creatable.length === 1 ? creatable[0] : null
   }, [organizations])
   // The membership list arrives after the first render. The preselection is

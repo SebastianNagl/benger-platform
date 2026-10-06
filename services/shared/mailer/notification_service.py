@@ -358,10 +358,17 @@ class NotificationService:
             NotificationType.ORGANIZATION_INVITATION_SENT,
             NotificationType.ORGANIZATION_INVITATION_ACCEPTED,
         ]:
-            # Notify org admins
+            # Notify org admins, plus the group's admins for a group-scoped
+            # invitation (they run the group's members).
             if context.get("organization_id"):
                 recipients.extend(
                     NotificationService._get_org_admin_recipients(db, context["organization_id"])
+                )
+            if context.get("organization_group_id"):
+                recipients.extend(
+                    NotificationService._get_group_admin_recipients(
+                        db, context["organization_group_id"]
+                    )
                 )
 
         elif event_type_enum in [
@@ -440,6 +447,12 @@ class NotificationService:
                 org_members = [m.user_id for m in memberships]
                 logger.info(f"  👥 Found {len(org_members)} organization members")
                 recipients.extend(org_members)
+                if group_id:
+                    # The group's admins hold admin powers on the group's
+                    # projects whatever their org role.
+                    recipients.extend(
+                        NotificationService._get_group_admin_recipients(db, group_id)
+                    )
             else:
                 logger.warning(f"  ⚠️ No organization_id in context for {event_type}")
 
@@ -482,6 +495,19 @@ class NotificationService:
             .all()
         )
         return [membership.user_id for membership in memberships]
+
+    @staticmethod
+    def _get_group_admin_recipients(db: Session, group_id: str) -> List[str]:
+        """The admins of an organization group (group role ORG_ADMIN with an
+        active org membership, ``org_groups.build_select_group_admin_ids``)."""
+        from org_groups import build_select_group_admin_ids
+
+        return [
+            str(user_id)
+            for user_id in db.execute(build_select_group_admin_ids(group_id))
+            .scalars()
+            .all()
+        ]
 
     @staticmethod
     def _get_task_creator(db: Session, task_id: str) -> Optional[str]:
@@ -1286,15 +1312,20 @@ def notify_organization_invitation_sent(
     invitee_email: str,
     inviter_name: str,
     inviter_user_id: Optional[str] = None,
+    organization_group_id: Optional[str] = None,
 ):
-    """Notify organization admins about invitation sent.
+    """Notify organization admins about invitation sent (and the group's
+    admins for a group-scoped one).
 
     ``inviter_user_id`` is stored with the name, so anonymizing the inviter
     finds the notice by id."""
     recipients = NotificationService.get_notification_recipients(
         db,
         NotificationType.ORGANIZATION_INVITATION_SENT,
-        {"organization_id": organization_id},
+        {
+            "organization_id": organization_id,
+            "organization_group_id": organization_group_id,
+        },
     )
 
     title = f"Invitation sent to {invitee_email}"
@@ -1324,15 +1355,20 @@ def notify_organization_invitation_accepted(
     new_member_name: str,
     new_member_email: str,
     new_member_user_id: Optional[str] = None,
+    organization_group_id: Optional[str] = None,
 ):
-    """Notify organization admins about invitation acceptance.
+    """Notify organization admins about invitation acceptance (and the
+    group's admins for a group-scoped one).
 
     ``new_member_user_id`` is stored with the name, so anonymizing the new
     member finds the notice by id."""
     recipients = NotificationService.get_notification_recipients(
         db,
         NotificationType.ORGANIZATION_INVITATION_ACCEPTED,
-        {"organization_id": organization_id},
+        {
+            "organization_id": organization_id,
+            "organization_group_id": organization_group_id,
+        },
     )
 
     title = f"{new_member_name} joined {organization_name}"
@@ -1382,6 +1418,39 @@ def notify_member_joined(
             },
             organization_id=organization_id,
         )
+
+
+def notify_added_to_group(
+    db: Session,
+    user_id: str,
+    organization_id: str,
+    organization_name: str,
+    group_id: str,
+    group_name: str,
+    group_role: str,
+    added_by_name: str,
+):
+    """Tell an existing org member they were added to an organization group
+    (a group-scoped invitation for someone who is already a member adds them
+    straight away instead of mailing a token). In-app, MEMBER_JOINED type."""
+    NotificationService.create_notification(
+        db=db,
+        user_ids=[str(user_id)],
+        notification_type=NotificationType.MEMBER_JOINED,
+        title=f"You were added to {group_name}",
+        message=(
+            f"{added_by_name} added you to the group {group_name} in "
+            f"{organization_name} as {group_role}."
+        ),
+        data={
+            "organization_id": organization_id,
+            "organization_name": organization_name,
+            "group_id": group_id,
+            "group_name": group_name,
+            "group_role": group_role,
+        },
+        organization_id=organization_id,
+    )
 
 
 # Phase 3A: Extended notification helper functions

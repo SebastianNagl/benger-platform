@@ -33,6 +33,7 @@ from routers.projects.helpers import (
     get_project_access_tier,
     get_project_access_tier_async,
 )
+from tests.fixtures.group_roles import legacy_group_role_async
 
 EXAM_CONFIG = (
     '<View><Text name="sv" value="$sachverhalt"/>'
@@ -131,7 +132,7 @@ async def _group(db, org, *members) -> OrganizationGroup:
                 id=str(uuid.uuid4()),
                 group_id=g.id,
                 user_id=user.id,
-                is_group_admin=is_admin,
+                role=await legacy_group_role_async(db, g.id, user.id, is_admin),
             )
         )
     await db.commit()

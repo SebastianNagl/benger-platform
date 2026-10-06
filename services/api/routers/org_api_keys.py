@@ -121,11 +121,11 @@ async def _require_scope_admin(
     )
     if admin.first() is not None:
         return
+    from org_groups import build_select_admin_group_ids
+
     group_admin = await db.execute(
-        select(OrganizationGroupMembership.id).where(
-            OrganizationGroupMembership.group_id == group_id,
-            OrganizationGroupMembership.user_id == user.id,
-            OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
+        build_select_admin_group_ids(str(user.id), org_id).where(
+            OrganizationGroupMembership.group_id == group_id
         )
     )
     if group_admin.first() is None:

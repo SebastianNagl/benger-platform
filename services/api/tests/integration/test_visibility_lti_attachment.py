@@ -31,6 +31,7 @@ from models import (
 )
 from project_models import Project, ProjectOrganization, Task
 from routers.projects.helpers import check_project_accessible_async
+from tests.fixtures.group_roles import legacy_group_role_async
 
 pytestmark = [pytest.mark.integration]  # asyncio_mode = auto
 
@@ -108,7 +109,7 @@ async def _group(db, org, *members) -> OrganizationGroup:
                 id=str(uuid.uuid4()),
                 group_id=group.id,
                 user_id=user.id,
-                is_group_admin=False,
+                role=await legacy_group_role_async(db, group.id, user.id, False),
             )
         )
     await db.flush()

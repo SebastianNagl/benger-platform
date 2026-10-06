@@ -245,8 +245,9 @@ async def signup(user_data: UserCreate, request: Request, db: Session = Depends(
 
             db.add(membership)
 
-            # Group-scoped invitation: the new user also joins the group
-            # (same helper as the accept endpoint — without this, an email
+            # Group-scoped invitation: the new user also joins the group with
+            # the invitation's group role (same helper as the accept endpoint
+            # and email verification - without this, an email
             # invite into a group would land a NEW registrant in the org but
             # outside the group, hiding every group-scoped project).
             from org_groups import ensure_invitation_group_membership

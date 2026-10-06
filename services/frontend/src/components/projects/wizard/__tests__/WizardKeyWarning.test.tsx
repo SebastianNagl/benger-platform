@@ -307,7 +307,7 @@ describe('WizardKeyWarning', () => {
         {
           ...LMU,
           groups: [
-            { id: 'group-lehrstuhl', name: 'Lehrstuhl', is_group_admin: false },
+            { id: 'group-lehrstuhl', name: 'Lehrstuhl', role: 'CONTRIBUTOR' },
           ],
         },
       ],

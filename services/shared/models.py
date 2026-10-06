@@ -487,11 +487,14 @@ class OrganizationGroup(Base):
 class OrganizationGroupMembership(Base):
     """A user's membership in an organization group.
 
-    Orthogonal to the org-level role: the ``organization_memberships.role``
-    stays the capability axis (ORG_ADMIN/CONTRIBUTOR/ANNOTATOR), while group
-    membership is the visibility axis. ``is_group_admin`` grants
-    ORG_ADMIN-equivalent powers scoped to projects attached via this group,
-    plus group member/key management — never org-wide powers.
+    Group membership is both visibility AND capability for grouped projects:
+    ``role`` (ORG_ADMIN / CONTRIBUTOR / ANNOTATOR) is the user's role on
+    every project attached via this group, independent of the org-level
+    ``organization_memberships.role`` (higher or lower), which keeps
+    applying to org-wide projects and org-level actions. Org admins hold
+    ORG_ADMIN in every group implicitly. A group ORG_ADMIN ("group Admin")
+    also manages the group's members, roles, invitations, API keys and LMS
+    connections - never org-wide powers (``shared/org_groups.py``).
     """
 
     __tablename__ = "organization_group_memberships"
@@ -503,7 +506,7 @@ class OrganizationGroupMembership(Base):
     user_id = Column(
         String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    is_group_admin = Column(Boolean, default=False, nullable=False)
+    role = Column(SQLEnum(OrganizationRole), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
@@ -518,7 +521,7 @@ class OrganizationGroupMembership(Base):
     def __repr__(self):
         return (
             f"<OrganizationGroupMembership(group_id={self.group_id}, "
-            f"user_id={self.user_id}, is_group_admin={self.is_group_admin})>"
+            f"user_id={self.user_id}, role={self.role})>"
         )
 
 
@@ -1388,15 +1391,16 @@ class Invitation(Base):
     organization_id = Column(String, ForeignKey("organizations.id"), nullable=False)
     email = Column(String, nullable=False)
     role = Column(SQLEnum(OrganizationRole), nullable=False)
-    # Optional group scope: accepting also joins this group. SET NULL on group
-    # deletion degrades the pending invite to a plain org invite.
+    # Optional group scope: accepting also joins this group with
+    # ``group_role`` (set iff group_id is set). SET NULL on group deletion
+    # degrades the pending invite to a plain org invite.
     group_id = Column(
         String,
         ForeignKey("organization_groups.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    invited_as_group_admin = Column(Boolean, default=False, nullable=False)
+    group_role = Column(SQLEnum(OrganizationRole), nullable=True)
     token = Column(String, unique=True, index=True, nullable=False)  # Secure invitation token
     invited_by = Column(String, ForeignKey("users.id"), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
@@ -3134,6 +3138,11 @@ class ImportJob(Base):
         ForeignKey("organizations.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # Optional group of ``organization_id`` the created project is attached
+    # through (migration 111). Deliberately no FK: a group deleted while the
+    # job is queued must fail the import, never widen it to org-wide (a SET
+    # NULL would). The worker re-validates group, org and role.
+    organization_group_id = Column(String, nullable=True)
     byte_size = Column(BigInteger, nullable=True)
     progress = Column(Integer, nullable=False, server_default=text("0"))
     error_message = Column(Text, nullable=True)

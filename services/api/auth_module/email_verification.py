@@ -139,7 +139,12 @@ class EmailVerificationService:
                 now = datetime.now(timezone.utc)
 
                 if existing_membership is not None and existing_membership.is_active:
-                    # User is already a member, just mark invitation as accepted
+                    # User is already a member: keep the org role, but a
+                    # group-scoped invitation still joins the group with its
+                    # group role (an existing group row stays as it is).
+                    from org_groups import ensure_invitation_group_membership
+
+                    ensure_invitation_group_membership(db, invitation, user_id)
                     invitation.accepted = True
                     invitation.accepted_at = now
                     changed = True

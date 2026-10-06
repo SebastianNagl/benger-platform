@@ -380,10 +380,16 @@ describe('LTI guides: statements users rely on', () => {
         }
       }
     }
-    // The group admin cap and the org_admin downgrade on group connections.
-    expect(body('lti-manage', 'de')).toMatch(/höchstens Mitwirkender/)
-    expect(body('lti-manage', 'en')).toMatch(/at most contributor/)
-    expect(body('lti-manage', 'de')).toMatch(/Mitwirkender plus Gruppen-Admin/)
+    // On group connections the teacher role is a group role: group admins
+    // grant up to group admin there, new teachers join the org as annotators.
+    expect(body('lti-manage', 'de')).toMatch(/bis zu Admin der Gruppe/)
+    expect(body('lti-manage', 'en')).toMatch(/up to group admin/)
+    expect(body('lti-manage', 'de')).toMatch(
+      /Neue Lehrende werden in der Organisation Annotator/,
+    )
+    expect(body('lti-manage', 'en')).toMatch(
+      /New teachers join the organization as annotators/,
+    )
     // Deleting needs the connection switched off first.
     expect(body('lti-manage', 'de')).toMatch(
       /Deaktivieren Sie die Anbindung zuerst/,

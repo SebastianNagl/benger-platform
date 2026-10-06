@@ -1,18 +1,34 @@
 """Single source of truth for organization-group scoping.
 
-Groups partition project visibility and provider API keys INSIDE an org
-(org → group → user). The rule, stated once:
+Groups partition project visibility, capability and provider API keys INSIDE
+an org (org -> group -> user). Every org member holds one org role
+(``organization_memberships.role``); every group membership carries its own
+role (``organization_group_memberships.role``, ORG_ADMIN / CONTRIBUTOR /
+ANNOTATOR), independent of the org role (higher or lower). The rule, stated
+once in :func:`attachment_role`:
 
-An attachment row ``(org O, group G)`` of project P is eligible for user U iff
-    G IS NULL                          (org-wide attachment — pre-groups behavior)
-    OR U is a superadmin
-    OR U is P's creator                (creators never lose sight of their project)
-    OR U holds an active ORG_ADMIN membership in O
-    OR U is a member of G.
+The role user U holds through an attachment row ``(org O, group G)`` of
+project P, given U's active org role R in O:
+    G IS NULL                 -> R            (org-wide attachment)
+    R == ORG_ADMIN            -> ORG_ADMIN    (org admins cover every group)
+    U is a member of G        -> U's role in G (in either direction)
+    else                      -> none         (attachment not eligible)
 
-Full tier on exams additionally requires a staff role — org role != ANNOTATOR
-OR U is a *group admin* of G (invariant: group admin ⇒ admin powers on the
-group's projects, regardless of org role).
+Superadmins and P's creator stay handled by the callers (creators never lose
+sight of their project). Across several attachments of one project the BEST
+role wins everywhere (``ROLE_RANK``, :func:`best_role`).
+
+Full tier on exams additionally requires a staff attachment role
+(:func:`grants_full_tier`): an ANNOTATOR role, from the org or from the
+group, reaches an exam only through the participant tier. A group Admin
+simply holds ORG_ADMIN on that group's attachments.
+
+Group-admin powers (member and role management inside the group, group
+invites, group API keys, group LMS connections) come from
+:func:`build_select_admin_group_ids`: group role ORG_ADMIN, the group still
+active, and an ACTIVE org membership in the group's org, so a removed org
+member keeps no group-admin power. Group CRUD and org roles stay with org
+admins.
 
 Private exams are creator-only, with one exception: an attachment created by
 linking the exam to an LMS activity (``attached_via='lti'``) gives that org's
@@ -31,9 +47,11 @@ workers, and the extended package import one implementation. No
 fastapi/pydantic imports (worker container constraint); sync + async
 variants follow the dual-mode pattern from the workspace CLAUDE.md.
 
-Group ``is_active`` is deliberately NOT consulted by any predicate here:
-deactivating a group hides it from pickers and blocks new attachments, but
-never silently changes visibility or key scope of existing rows.
+Group ``is_active`` is deliberately NOT consulted by the visibility
+predicates here: deactivating a group hides it from pickers and blocks new
+attachments, but never silently changes visibility or key scope of existing
+rows. Only the group-admin management gate (:func:`build_select_admin_group_ids`)
+requires an active group.
 """
 
 from typing import Dict, Iterable, Optional
@@ -46,9 +64,51 @@ def _role_value(role) -> Optional[str]:
     return str(getattr(role, "value", role)).upper()
 
 
+ROLE_RANK = {"ANNOTATOR": 0, "CONTRIBUTOR": 1, "ORG_ADMIN": 2}
+
+
+def best_role(roles) -> Optional[str]:
+    """The highest of ``roles`` (enums or strings, None skipped), or None."""
+    best: Optional[str] = None
+    for role in roles or ():
+        value = _role_value(role)
+        if value not in ROLE_RANK:
+            continue
+        if best is None or ROLE_RANK[value] > ROLE_RANK[best]:
+            best = value
+    return best
+
+
+def role_at_least(role, minimum: str) -> bool:
+    """Does ``role`` rank at or above ``minimum`` (upper strings)?"""
+    value = _role_value(role)
+    return value in ROLE_RANK and ROLE_RANK[value] >= ROLE_RANK[minimum]
+
+
 # ---------------------------------------------------------------------------
-# Pure predicates (no DB access) — shared by the sync/async decision lanes.
+# Pure predicates (no DB access) - shared by the sync/async decision lanes.
 # ---------------------------------------------------------------------------
+
+
+def attachment_role(
+    group_id: Optional[str],
+    org_role,
+    user_groups: Optional[Dict[str, str]] = None,
+) -> Optional[str]:
+    """The role one org attachment gives the user (the module-docstring rule).
+
+    ``org_role`` is the user's role in THAT org (enum or string; callers
+    pass only ACTIVE memberships). ``user_groups`` maps group_id -> group
+    role for the user's group memberships (any org: group ids are globally
+    unique and composite FKs guarantee an attachment's group belongs to the
+    attachment's org). Returns an upper string or None (not eligible).
+    """
+    org = _role_value(org_role)
+    if group_id is None:
+        return org
+    if org == "ORG_ADMIN":
+        return "ORG_ADMIN"
+    return _role_value((user_groups or {}).get(str(group_id)))
 
 
 def attachment_eligible(
@@ -57,52 +117,40 @@ def attachment_eligible(
     is_superadmin: bool = False,
     is_creator: bool = False,
     membership_role=None,
-    user_groups: Optional[Dict[str, bool]] = None,
+    user_groups: Optional[Dict[str, str]] = None,
 ) -> bool:
-    """Is one org attachment visible to the user? (the module-docstring rule)
+    """Is one org attachment visible to the user?
 
-    ``membership_role`` is the user's role in THAT org (None = not a member —
-    callers gate org membership separately, this only decides the group axis).
-    ``user_groups`` maps group_id → is_group_admin for the user's group
-    memberships (any org — group ids are globally unique and composite FKs
-    guarantee an attachment's group belongs to the attachment's org).
+    True for superadmins and the creator, else iff :func:`attachment_role`
+    gives a role. ``membership_role`` is the user's role in THAT org; callers
+    gate org membership separately, so an org-wide attachment (``group_id``
+    None) is always eligible here, also without a role.
     """
-    if group_id is None:
+    if group_id is None or is_superadmin or is_creator:
         return True
-    if is_superadmin or is_creator:
-        return True
-    if _role_value(membership_role) == "ORG_ADMIN":
-        return True
-    return group_id in (user_groups or {})
+    return attachment_role(group_id, membership_role, user_groups) is not None
 
 
-def grants_full_tier(
-    project_kind: Optional[str],
-    membership_role,
-    group_id: Optional[str] = None,
-    user_groups: Optional[Dict[str, bool]] = None,
-) -> bool:
-    """Does an (eligible) org membership grant the FULL tier on this project?
+def grants_full_tier(project_kind: Optional[str], role) -> bool:
+    """Does an (eligible) attachment role grant the FULL tier on this project?
 
-    Non-exams: always. Exams: staff only — ANNOTATORs reach org exams through
-    the narrow participant tier instead, EXCEPT when they group-admin the
-    attachment's group (group admin ⇒ admin on the group's projects).
+    Non-exams: always. Exams: staff only - an ANNOTATOR attachment role
+    (from the org or from the group) reaches org exams through the narrow
+    participant tier instead.
     """
     if project_kind != "exam":
         return True
-    if _role_value(membership_role) != "ANNOTATOR":
-        return True
-    return bool(group_id is not None and (user_groups or {}).get(group_id, False))
+    return _role_value(role) != "ANNOTATOR"
 
 
-_STAFF_ROLE_RANK = {"CONTRIBUTOR": 1, "ORG_ADMIN": 2}
+_STAFF_ROLES = ("CONTRIBUTOR", "ORG_ADMIN")
 
 
 def lti_staff_role(
     project_kind: Optional[str],
     memberships,
     lti_attachments: Optional[Dict[str, Optional[str]]],
-    user_groups: Optional[Dict[str, bool]] = None,
+    user_groups: Optional[Dict[str, str]] = None,
     protected_org_ids: Optional[Iterable[str]] = None,
 ) -> Optional[str]:
     """The staff role an LMS attachment grants on a PRIVATE exam, or None.
@@ -110,12 +158,11 @@ def lti_staff_role(
     Linking an exam to an LMS activity attaches it to the connection's org
     (``attached_via='lti'``, map from :func:`get_lti_attachment_map`). On a
     private exam that attachment is the only org path, and it is staff-only:
-    an ACTIVE membership in an attached org whose role is CONTRIBUTOR or
-    ORG_ADMIN, eligible for the attachment's group, gets the role back. A
-    group admin of the attachment's group counts as ``'ORG_ADMIN'`` whatever
-    their org role (an ANNOTATOR included); every other ANNOTATOR gets None,
-    so LMS students never reach the full tier this way. The best role over
-    all memberships wins.
+    an ACTIVE membership in an attached org whose :func:`attachment_role`
+    for the attachment is CONTRIBUTOR or ORG_ADMIN gets that role back (a
+    group Admin counts as ORG_ADMIN whatever their org role). An ANNOTATOR
+    attachment role gets None, so LMS students never reach the full tier
+    this way. The best role over all memberships wins.
 
     ``protected_org_ids`` are orgs whose LMS connections stay
     superadmin-run (``extensions.is_lti_protected_org``, resolved fail-closed
@@ -124,45 +171,35 @@ def lti_staff_role(
     its contributors get nothing from the attachment.
 
     The grant does not depend on the organization the client has selected
-    (every active membership counts). Callers handle the creator and superadmins. On private projects the
-    input is :func:`get_lti_attachment_map`. Non-private exams keep the
-    generic rules (every membership counts, whatever the client's context),
-    except that an LMS attachment of a protected org is first dropped for
-    everyone but its admins (:func:`drop_protected_lti_attachments`).
+    (every active membership counts). Callers handle the creator and
+    superadmins. On private projects the input is
+    :func:`get_lti_attachment_map`. Non-private exams keep the generic rules
+    (every membership counts, whatever the client's context), except that an
+    LMS attachment of a protected org is first dropped for everyone but its
+    admins (:func:`drop_protected_lti_attachments`).
     """
     if project_kind != "exam" or not lti_attachments:
         return None
     protected = {str(org_id) for org_id in (protected_org_ids or ()) if org_id}
-    best: Optional[str] = None
+    roles = []
     for membership in memberships or ():
         org_id = str(membership.organization_id)
         if org_id not in lti_attachments or not membership.is_active:
             continue
-        group_id = lti_attachments[org_id]
-        if not attachment_eligible(
-            group_id, membership_role=membership.role, user_groups=user_groups
-        ):
-            continue
-        if not grants_full_tier(project_kind, membership.role, group_id, user_groups):
-            continue
-        if group_id is not None and (user_groups or {}).get(group_id, False):
-            role = "ORG_ADMIN"
-        else:
-            role = _role_value(membership.role)
-        if role not in _STAFF_ROLE_RANK:
+        role = attachment_role(lti_attachments[org_id], membership.role, user_groups)
+        if role not in _STAFF_ROLES:
             continue
         if org_id in protected and role != "ORG_ADMIN":
             continue
-        if best is None or _STAFF_ROLE_RANK[role] > _STAFF_ROLE_RANK[best]:
-            best = role
-    return best
+        roles.append(role)
+    return best_role(roles)
 
 
 def drop_protected_lti_attachments(
     attachment_groups: Dict[str, Optional[str]],
     protected_lti_org_ids: Iterable[str],
     memberships,
-    user_groups: Optional[Dict[str, bool]] = None,
+    user_groups: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Optional[str]]:
     """``attachment_groups`` without the LMS attachments of protected orgs
     that do not count for this user (pure).
@@ -170,12 +207,12 @@ def drop_protected_lti_attachments(
     For someone else's NON-private exam. ``protected_lti_org_ids`` are the
     orgs among the project's ``attached_via='lti'`` rows (stale ones
     included) whose connections stay superadmin-run. Such a row counts only
-    for an active ORG_ADMIN of that org and for an active member who
-    group-admins the row's group; everyone else is treated as if the org
-    were not attached, the same rule :func:`lti_staff_role` applies to
-    private exams. Every pilot teacher is a CONTRIBUTOR of that org, so
-    without this the generic rules made them editors of each other's
-    linked exams.
+    for an active member whose :func:`attachment_role` on it is ORG_ADMIN
+    (an org admin of that org, or an Admin of the row's group); everyone
+    else is treated as if the org were not attached, the same rule
+    :func:`lti_staff_role` applies to private exams. Every pilot teacher is
+    a CONTRIBUTOR of that org, so without this the generic rules made them
+    editors of each other's linked exams.
     """
     protected = {str(org_id) for org_id in (protected_lti_org_ids or ()) if org_id}
     if not protected or not attachment_groups:
@@ -188,13 +225,10 @@ def drop_protected_lti_attachments(
         for membership in memberships or ():
             if str(membership.organization_id) != str(org_id) or not membership.is_active:
                 continue
-            if _role_value(membership.role) == "ORG_ADMIN" or (
-                group_id is not None and (user_groups or {}).get(group_id, False)
-            ):
+            if attachment_role(group_id, membership.role, user_groups) == "ORG_ADMIN":
                 kept[org_id] = group_id
                 break
     return kept
-
 
 # ---------------------------------------------------------------------------
 # SQL builders (core expressions — usable from both db.query and select lanes)
@@ -211,40 +245,109 @@ def non_lti_attachment(po):
 
 
 def build_select_user_group_ids(user_id: str, admin_only: bool = False):
-    """Select of the user's group ids (optionally only group-admin ones)."""
+    """Select of the user's group ids (``admin_only``: the groups the user
+    administers, see :func:`build_select_admin_group_ids`)."""
+    if admin_only:
+        return build_select_admin_group_ids(user_id)
     from sqlalchemy import select
 
     from models import OrganizationGroupMembership
 
-    stmt = select(OrganizationGroupMembership.group_id).where(
+    return select(OrganizationGroupMembership.group_id).where(
         OrganizationGroupMembership.user_id == str(user_id)
     )
-    if admin_only:
-        stmt = stmt.where(OrganizationGroupMembership.is_group_admin.is_(True))
+
+
+def build_select_admin_group_ids(user_id: str, organization_id: Optional[str] = None):
+    """Select of the ids of the groups the user ADMINISTERS.
+
+    The one group-admin scope every gate uses (group member management,
+    group invites, group API keys, group LMS connections, the ORG_ADMIN-only
+    project gates' group arm): group role ORG_ADMIN, the group active, and an
+    ACTIVE org membership in the group's org - a removed org member keeps no
+    group-admin power through a leftover group row. ``organization_id``
+    narrows to one org's groups.
+    """
+    from sqlalchemy import select
+
+    from models import (
+        OrganizationGroup,
+        OrganizationGroupMembership,
+        OrganizationMembership,
+        OrganizationRole,
+    )
+
+    stmt = (
+        select(OrganizationGroupMembership.group_id)
+        .join(
+            OrganizationGroup,
+            OrganizationGroup.id == OrganizationGroupMembership.group_id,
+        )
+        .join(
+            OrganizationMembership,
+            (OrganizationMembership.organization_id == OrganizationGroup.organization_id)
+            & (OrganizationMembership.user_id == OrganizationGroupMembership.user_id),
+        )
+        .where(
+            OrganizationGroupMembership.user_id == str(user_id),
+            OrganizationGroupMembership.role == OrganizationRole.ORG_ADMIN,
+            OrganizationGroup.is_active.is_(True),
+            OrganizationMembership.is_active.is_(True),
+        )
+    )
+    if organization_id is not None:
+        stmt = stmt.where(OrganizationGroup.organization_id == str(organization_id))
     return stmt
 
 
 def build_select_group_admin_on_attachments(user_id: str, project_id: str):
-    """Select yielding a row iff the user group-admins ANY of the project's
-    grouped attachments — the group-admin arm of the ORG_ADMIN-only gates
-    (Musterlösung edit, share-link management)."""
+    """Select yielding a row iff the user administers the group of ANY of the
+    project's grouped attachments (:func:`build_select_admin_group_ids`) -
+    the group-admin arm of the ORG_ADMIN-only gates (Musterloesung edit,
+    share-link management, soft delete)."""
     from sqlalchemy import select
 
-    from models import OrganizationGroupMembership
     from project_models import ProjectOrganization
 
     return (
-        select(OrganizationGroupMembership.id)
-        .join(
-            ProjectOrganization,
-            ProjectOrganization.group_id == OrganizationGroupMembership.group_id,
-        )
+        select(ProjectOrganization.id)
         .where(
             ProjectOrganization.project_id == str(project_id),
-            OrganizationGroupMembership.user_id == str(user_id),
-            OrganizationGroupMembership.is_group_admin.is_(True),
+            ProjectOrganization.group_id.in_(build_select_admin_group_ids(user_id)),
         )
         .limit(1)
+    )
+
+
+def build_select_group_admin_ids(group_id: str):
+    """Select of the user ids administering ``group_id`` (role ORG_ADMIN with
+    an active org membership in the group's org; the group itself may be
+    inactive - callers decide). Notification fan-in for grouped projects."""
+    from sqlalchemy import select
+
+    from models import (
+        OrganizationGroup,
+        OrganizationGroupMembership,
+        OrganizationMembership,
+        OrganizationRole,
+    )
+
+    return (
+        select(OrganizationGroupMembership.user_id)
+        .join(
+            OrganizationGroup,
+            OrganizationGroup.id == OrganizationGroupMembership.group_id,
+        )
+        .join(
+            OrganizationMembership,
+            (OrganizationMembership.organization_id == OrganizationGroup.organization_id)
+            & (OrganizationMembership.user_id == OrganizationGroupMembership.user_id),
+        )
+        .where(
+            OrganizationGroupMembership.group_id == str(group_id),
+            OrganizationGroupMembership.role == OrganizationRole.ORG_ADMIN,
+            OrganizationMembership.is_active.is_(True),
+        )
     )
 
 
@@ -297,22 +400,24 @@ def attachment_group_clause(po, user_id: str, *, membership=None, project=None):
 # ---------------------------------------------------------------------------
 
 
-def get_user_group_context(db, user_id: str) -> Dict[str, bool]:
-    """Sync: the user's group memberships as {group_id: is_group_admin}."""
+def get_user_group_context(db, user_id: str) -> Dict[str, str]:
+    """Sync: the user's group memberships as {group_id: role} (upper string
+    'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'), the ``user_groups`` input of
+    the pure deciders."""
     from models import OrganizationGroupMembership
 
     rows = (
         db.query(
             OrganizationGroupMembership.group_id,
-            OrganizationGroupMembership.is_group_admin,
+            OrganizationGroupMembership.role,
         )
         .filter(OrganizationGroupMembership.user_id == str(user_id))
         .all()
     )
-    return {str(r[0]): bool(r[1]) for r in rows}
+    return {str(r[0]): _role_value(r[1]) for r in rows}
 
 
-async def get_user_group_context_async(db, user_id: str) -> Dict[str, bool]:
+async def get_user_group_context_async(db, user_id: str) -> Dict[str, str]:
     """Async twin of :func:`get_user_group_context`."""
     from sqlalchemy import select
 
@@ -321,10 +426,10 @@ async def get_user_group_context_async(db, user_id: str) -> Dict[str, bool]:
     result = await db.execute(
         select(
             OrganizationGroupMembership.group_id,
-            OrganizationGroupMembership.is_group_admin,
+            OrganizationGroupMembership.role,
         ).where(OrganizationGroupMembership.user_id == str(user_id))
     )
-    return {str(gid): bool(admin) for gid, admin in result.all()}
+    return {str(gid): _role_value(role) for gid, role in result.all()}
 
 
 def get_attachment_group_map(db, project_id: str) -> Dict[str, Optional[str]]:
@@ -698,18 +803,28 @@ async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optiona
     return str(row) if row else None
 
 
+def invitation_group_role(invitation):
+    """The group role a group-scoped invitation grants (enum), ANNOTATOR when
+    the row carries none (cannot happen after migration 111, kept defensive)."""
+    from models import OrganizationRole
+
+    value = _role_value(getattr(invitation, "group_role", None))
+    return OrganizationRole(value) if value in ROLE_RANK else OrganizationRole.ANNOTATOR
+
+
 def ensure_invitation_group_membership(db, invitation, user_id: str) -> bool:
     """Join ``user_id`` to a group-scoped invitation's group (sync, no commit).
 
-    The single implementation behind BOTH invitation-consumption paths — the
-    accept endpoint (existing users) and register-with-token (new users) —
-    so a group-scoped email invite lands the invitee in the group either way.
+    The single implementation behind every invitation-consumption path - the
+    accept endpoint (existing users), register-with-token (new users) and
+    email verification - so a group-scoped email invite lands the invitee in
+    the group with the invitation's ``group_role`` either way.
 
     Skipped silently when the invitation carries no group or the group is
-    gone (FK SET NULL) / deactivated / re-parented to another org — the
+    gone (FK SET NULL) / deactivated / re-parented to another org - the
     invite then degrades to a plain org invite instead of failing.
-    Idempotent: an existing group membership is left untouched (its admin
-    flag is NOT escalated). Returns True iff a membership row was added.
+    Idempotent: an existing group membership is left untouched (its role is
+    NOT changed). Returns True iff a membership row was added.
     """
     group_id = getattr(invitation, "group_id", None)
     if not group_id:
@@ -744,7 +859,7 @@ def ensure_invitation_group_membership(db, invitation, user_id: str) -> bool:
             id=str(uuid4()),
             group_id=group_id,
             user_id=str(user_id),
-            is_group_admin=bool(getattr(invitation, "invited_as_group_admin", False)),
+            role=invitation_group_role(invitation),
         )
     )
     return True
