@@ -312,6 +312,54 @@ def _create_tables():
                     """
                 )
             )
+            # Migration 112: task-bound and collection LTI links. Same
+            # create_all drift on a long-lived test DB (lti_task_lineitems is
+            # a new table, so create_all adds it).
+            for ddl in (
+                "ALTER TABLE lti_resource_links ADD COLUMN IF NOT EXISTS "
+                "task_id VARCHAR REFERENCES tasks(id) ON DELETE SET NULL",
+                "CREATE INDEX IF NOT EXISTS ix_lti_resource_links_task "
+                "ON lti_resource_links (task_id)",
+                "ALTER TABLE lti_resource_links ADD COLUMN IF NOT EXISTS "
+                "grade_scope VARCHAR(16) NOT NULL DEFAULT 'exam' "
+                "CONSTRAINT ck_lti_resource_links_grade_scope "
+                "CHECK (grade_scope IN ('exam', 'task', 'collection'))",
+                "ALTER TABLE lti_grade_syncs ADD COLUMN IF NOT EXISTS "
+                "task_id VARCHAR REFERENCES tasks(id) ON DELETE CASCADE",
+                "CREATE INDEX IF NOT EXISTS ix_lti_grade_syncs_task "
+                "ON lti_grade_syncs (task_id)",
+            ):
+                conn.execute(text(ddl))
+            # Migration 112 widens uq_lti_grade_sync to (link, user, kind,
+            # task) with NULLS NOT DISTINCT.
+            conn.execute(
+                text(
+                    """
+                    DO $$
+                    BEGIN
+                      IF EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = 'lti_grade_syncs'::regclass
+                          AND conname = 'uq_lti_grade_sync'
+                          AND cardinality(conkey) <> 4
+                      ) THEN
+                        ALTER TABLE lti_grade_syncs
+                          DROP CONSTRAINT uq_lti_grade_sync;
+                      END IF;
+                      IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conrelid = 'lti_grade_syncs'::regclass
+                          AND conname = 'uq_lti_grade_sync'
+                      ) THEN
+                        ALTER TABLE lti_grade_syncs
+                          ADD CONSTRAINT uq_lti_grade_sync
+                          UNIQUE NULLS NOT DISTINCT
+                          (resource_link_id, user_id, kind, task_id);
+                      END IF;
+                    END $$;
+                    """
+                )
+            )
             # Migration 108 drops project_members. create_all never drops a
             # table the models no longer declare, so a long-lived test DB
             # would keep it (and its FKs to users/projects) forever.

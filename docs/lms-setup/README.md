@@ -20,5 +20,12 @@ Referenz [LMS integration (LTI 1.3)](../lms-integration.md).
 3. Nur ILIAS: Organisations-Admin trägt Client ID und Deployment ID ein.
 4. Lehrende: Aktivität im Kurs anlegen und eine Klausur verknüpfen.
 
+Eine Klausurensammlung (Klausur mit mehreren Aufgaben) lässt sich in Moodle
+und ILIAS Aufgabe für Aufgabe mit je einer Aktivität verknüpfen. Nur in
+Moodle geht auch die ganze Sammlung in einer Aktivität, mit einer Spalte je
+Aufgabe und dem Mittelwert in der Spalte der Aktivität. Dafür braucht das
+Tool in Moodle die Spaltenverwaltung. Details stehen in der
+[Anleitung für Lehrende](teacher.md).
+
 Studierende brauchen keine Anleitung. Sie öffnen die Aktivität, stimmen einmal
 zu und landen in der Klausur.

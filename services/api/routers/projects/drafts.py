@@ -116,8 +116,10 @@ def _require_task_access(
     """Shared access guard (mirrors save_draft); returns the Project or raises.
 
     ``write=True`` (checkpoint append) additionally refuses the read-only
-    attempted tier and applies the Safe Exam Browser guard (needs
-    ``request``); the checkpoint reads stay open to it (own rows only).
+    attempted tier; the checkpoint reads stay open to it (own rows only).
+    Both apply the Safe Exam Browser guard: a read of an unsubmitted task's
+    checkpoints needs the SEB proof like the task itself, once the task is
+    submitted they open anywhere.
     """
     tier = get_project_access_tier(db, current_user, project_id)
     if write:
@@ -127,8 +129,14 @@ def _require_task_access(
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
-    if write:
-        enforce_seb(db, current_user, project, request, tier=tier)
+    enforce_seb(
+        db,
+        current_user,
+        project,
+        request,
+        tier=tier,
+        read_task_id=None if write else task_id,
+    )
     return project
 
 
@@ -202,6 +210,7 @@ async def save_checkpoint(
 async def list_checkpoints(
     project_id: str,
     task_id: str,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
@@ -209,7 +218,9 @@ async def list_checkpoints(
 
     Metadata only — the full snapshot is fetched via the by-id endpoint.
     """
-    _require_task_access(db, current_user, project_id, task_id)
+    _require_task_access(
+        db, current_user, project_id, task_id, request=request
+    )
 
     rows = (
         db.query(TaskDraftCheckpoint)
@@ -237,11 +248,14 @@ async def get_checkpoint(
     project_id: str,
     task_id: str,
     checkpoint_id: str,
+    request: Request,
     current_user: AuthUser = Depends(require_user),
     db: Session = Depends(get_db),
 ):
     """Fetch a single checkpoint's full snapshot (scoped to the current user)."""
-    _require_task_access(db, current_user, project_id, task_id)
+    _require_task_access(
+        db, current_user, project_id, task_id, request=request
+    )
 
     checkpoint = (
         db.query(TaskDraftCheckpoint)

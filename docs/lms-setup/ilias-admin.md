@@ -60,6 +60,16 @@ Die drei URLs schickt Ihnen der Organisations-Admin; hier steht dafür
 
 Weiter mit der [Anleitung für Lehrende](teacher.md).
 
+### Klausurensammlungen in ILIAS
+
+Eine Klausurensammlung (Klausur mit mehreren Aufgaben) verknüpfen Lehrende
+in ILIAS Aufgabe für Aufgabe: ein LTI-Konsument je Aufgabe, und jedes
+Objekt erhält die Note seiner Aufgabe. Die ganze Sammlung in einem Objekt
+mit einer Spalte je Aufgabe gibt es in ILIAS nicht. ILIAS bietet dem Tool
+keinen Dienst zum Anlegen von Spalten (AGS-Line-Items), sondern nimmt je
+Objekt und Person nur einen Wert an, die Endnote. Sie müssen dafür nichts
+einstellen.
+
 ## Variante B: nur ein Kurs
 
 Für einen Test ohne globalen Provider. Der Organisations-Admin schickt Ihnen

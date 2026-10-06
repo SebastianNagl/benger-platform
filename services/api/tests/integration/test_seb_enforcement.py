@@ -411,6 +411,49 @@ def test_sync_write_endpoints_are_gated(test_db, client):
         assert client.put(draft, json={"result": result}).status_code == 200
 
 
+@pytest.mark.parametrize("seb_required", [True, False])
+def test_checkpoint_reads_follow_the_task_read_rule(test_db, client, seb_required):
+    """Own checkpoints of an unsubmitted task need the proof like the task
+    itself (no reading the draft on a second device); once the task is
+    submitted they open anywhere. Projects without SEB are unaffected."""
+    w = _sync_world(test_db, seb_required=seb_required)
+    p, task = w["project"], w["tasks"][0]
+    p.restorable_checkpoints_enabled = True
+    test_db.flush()
+    base = f"/api/projects/{p.id}/tasks/{task.id}"
+    result = [{"from_name": "x", "to_name": "text", "type": "textarea", "value": {"text": ["a"]}}]
+
+    with _as_user(w["student"]):
+        saved = client.post(
+            f"{base}/checkpoint", json={"result": result}, headers=_proof(f"{base}/checkpoint")
+        )
+        assert saved.status_code == 200, saved.text
+        reads = [f"{base}/checkpoints", f"{base}/checkpoints/{saved.json()['checkpoint_id']}"]
+
+        for path in reads:
+            r = client.get(path)
+            if not seb_required:
+                assert r.status_code == 200, (path, r.text)
+                continue
+            assert r.status_code == 403, (path, r.text)
+            assert r.json()["detail"] == {
+                "code": "seb_required",
+                "message": "This exam must be opened in Safe Exam Browser.",
+                "project_id": p.id,
+            }
+            assert client.get(path, headers=_proof(path)).status_code == 200, path
+
+        submit = f"/api/projects/tasks/{task.id}/annotations"
+        r = client.post(submit, json={"result": result}, headers=_proof(submit))
+        assert r.status_code == 200, r.text
+        for path in reads:
+            assert client.get(path).status_code == 200, path
+        assert len(client.get(reads[0]).json()["checkpoints"]) == 1
+
+    with _as_user(w["owner"]):
+        assert client.get(reads[0]).status_code == 200
+
+
 # ── 4. gaps found in the 2026-09-26 review ─────────────────────────────────
 
 

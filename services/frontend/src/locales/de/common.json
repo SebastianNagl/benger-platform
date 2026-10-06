@@ -600,7 +600,7 @@
       "export": "Daten exportieren",
       "importSuccess": "Daten erfolgreich importiert",
       "importFailed": "Fehler beim Importieren der Daten",
-      "importLinkedExamSingleTask": "Diese Klausur ist mit einer Aktivität einer Lernplattform verknüpft. Verknüpfte Klausuren haben genau eine Aufgabe, daher können Sie keine weiteren Aufgaben importieren.",
+      "importLinkedExamSingleTask": "Diese Klausur ist als Ganzes mit einer Aktivität einer Lernplattform verknüpft und hat daher genau eine Aufgabe. Verknüpfen Sie die Aktivität zuerst mit der Aufgabe der Klausur, danach können Sie weitere Aufgaben importieren.",
       "exportSuccess": "Daten erfolgreich exportiert",
       "exportFailed": "Fehler beim Exportieren der Daten"
     },
@@ -9200,7 +9200,8 @@
             "synced": "Übertragen"
           },
           "title": "Notenübertragungen",
-          "unknownStudent": "Unbekannte Person"
+          "unknownStudent": "Unbekannte Person",
+          "task": "Spalte: {v}"
         },
         "urlDefaults": "Standard-URLs übernehmen",
         "resendAllTitle": "Alle Noten erneut senden",
@@ -9596,13 +9597,27 @@
         "resendAllNothing": "Es gibt keine Noten zum Senden.",
         "resendAllSkippedNoGrade": "{count} ohne Note übersprungen.",
         "resendAllSkippedOther": "{count} ohne Zustimmung oder mit anonymisiertem Konto übersprungen.",
-        "resendAllDeploymentOff": "Die Deployment-ID dieser Aktivität ist in der Anbindung abgeschaltet oder nicht mehr eingetragen. Bitte wenden Sie sich an Ihren Organisations-Admin."
+        "resendAllDeploymentOff": "Die Deployment-ID dieser Aktivität ist in der Anbindung abgeschaltet oder nicht mehr eingetragen. Bitte wenden Sie sich an Ihren Organisations-Admin.",
+        "taskLabel": "Aufgabe {n}",
+        "taskLabelPlain": "Aufgabe",
+        "wholeCollection": "Ganze Sammlung",
+        "sourceMean": "Mittelwert der Aufgaben",
+        "meanValue": "Mittelwert: {points}",
+        "meanWaiting": "Mittelwert folgt, wenn alle Aufgaben bewertet sind ({graded} von {total})",
+        "collectionFinal": "Aktivitätsspalte: der Mittelwert der Endnoten aller Aufgaben. Er wird übertragen, sobald jede Aufgabe eine Endnote hat.",
+        "taskAiColumn": "KI-Bewertung:",
+        "taskColumnAiOff": "aus (KI-Noten werden nicht übertragen)",
+        "taskColumnReady": "angelegt",
+        "taskColumnDeleted": "in der Lernplattform gelöscht",
+        "taskColumnUnavailable": "nicht möglich",
+        "taskColumnError": "Fehler beim Anlegen",
+        "taskColumnPending": "wird mit der ersten Note angelegt",
+        "taskColumnsRecreate": "Fehlende Spalten neu anlegen"
       },
       "picker": {
         "blockEmpty": "Diese Klausur hat noch keine Aufgabe.",
         "blockEvalConfig": "Die Bewertung dieser Klausur liefert keine Notenpunkte. Öffnen Sie die Klausur einmal und speichern Sie sie. Danach können Sie sie verknüpfen.",
-        "blockMultiTask": "Klausuren mit mehreren Aufgaben können noch nicht verknüpft werden.",
-        "blockMultiTaskPlanned": "Das Verknüpfen einzelner Aufgaben ist bereits geplant.",
+        "blockMultiTask": "Die Aktivität ist mit der ganzen Klausur verknüpft, die Klausur hat aber mehrere Aufgaben. Verknüpfen Sie die Aktivität mit einer einzelnen Aufgabe.",
         "blockRubricMissing": "Für diese Klausur ist kein Bewertungsbogen aktiv. Legen Sie zuerst einen Bewertungsbogen an.",
         "byAuthor": "von {name}",
         "candidatesError": "Die Klausuren konnten nicht geladen werden.",
@@ -9633,7 +9648,17 @@
         "taskCount": "{count} Aufgabe(n)",
         "title": "Aktivität verknüpfen",
         "unavailableTitle": "Aktivität nicht verfügbar",
-        "waitingForInstructor": "Diese Aktivität wurde noch nicht mit einer Klausur verknüpft. Bitte warte, bis deine Dozentin oder dein Dozent die Verknüpfung eingerichtet hat, und öffne die Aktivität dann erneut aus deiner Lernplattform."
+        "waitingForInstructor": "Diese Aktivität wurde noch nicht mit einer Klausur verknüpft. Bitte warte, bis deine Dozentin oder dein Dozent die Verknüpfung eingerichtet hat, und öffne die Aktivität dann erneut aus deiner Lernplattform.",
+        "blockTaskRequired": "Diese Klausur hat mehrere Aufgaben. Wählen Sie die Aufgabe, deren Note die Aktivität erhält.",
+        "blockTaskNotInExam": "Die gewählte Aufgabe gehört nicht zu dieser Klausur.",
+        "collectionHint": "Klausurensammlung: Wählen Sie danach eine Aufgabe oder, wo möglich, die ganze Sammlung.",
+        "taskListLabel": "Aufgabe für diese Aktivität",
+        "taskListIntro": "Welche Aufgabe gehört zu dieser Aktivität? Die Aktivität erhält die Note dieser Aufgabe. Die anderen Aufgaben bleiben für die Studierenden erreichbar.",
+        "wholeCollection": "Ganze Sammlung (eine Spalte pro Aufgabe)",
+        "wholeCollectionHint": "Jede Aufgabe bekommt eine eigene Spalte in der Lernplattform. Die Spalte der Aktivität erhält den Mittelwert, sobald alle Aufgaben bewertet sind.",
+        "wholeCollectionUnavailable": "Die ganze Sammlung mit einer Spalte pro Aufgabe braucht in Moodle bei „IMS LTI Aufgaben und Bewertung“ die Einstellung „Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen“. Bis dahin verknüpfen Sie eine Aufgabe pro Aktivität.",
+        "blockTaskMissing": "Die Aufgabe, mit der die Aktivität verknüpft war, wurde gelöscht. Verknüpfen Sie die Aktivität mit einer anderen Aufgabe.",
+        "blockCollectionUnsupported": "Die ganze Sammlung braucht eine Lernplattform, die dem Tool eigene Spalten erlaubt. Wählen Sie eine einzelne Aufgabe."
       },
       "sessionMismatch": {
         "body": "In diesem Browser wurde inzwischen ein anderes Lernplattform-Konto angemeldet. Damit keine Abgabe im falschen Konto landet, ist diese Seite gesperrt. Bitte die Aktivität in der Lernplattform erneut öffnen, um mit dem richtigen Konto fortzufahren.",
