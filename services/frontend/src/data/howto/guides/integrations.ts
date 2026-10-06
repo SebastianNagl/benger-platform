@@ -490,7 +490,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Moodle: *Aktivität anlegen* → das Tool in der Aktivitätsauswahl wählen → Bewertung aktiv lassen. Zeigt die Aktivität keine Bewertung, setzen Sie zuerst den Haken **… erlauben, Bewertungen hinzuzufügen** (vorne steht der Name des Tools). Ohne den Haken hat die Aktivität keine Bewertung. Ein Maximum von 100 ist in Ordnung, das Tool liefert 0 bis 18 Notenpunkte und Moodle rechnet um. Den Startcontainer legt in Moodle die Administration für das Tool fest. ILIAS: *LTI-Konsument* mit dem Provider anlegen und bei *Optionen für den Start* **Neues Fenster** wählen. Unter *Optionen für den Lernfortschritt* sollte der *Mastery Score* **22** sein.',
         'Aktivität öffnen. Beim ersten Start bittet die Anbindung um Ihre Zustimmung, auch zur Forschungsnutzung. Gibt es schon ein Konto mit Ihrer E-Mail-Adresse, verknüpfen Sie es durch Anmelden oder über einen Link per E-Mail. Oder Sie wählen **Mit separatem Konto fortfahren**. ILIAS übermittelt keine E-Mail-Adresse. Dort entfällt dieser Schritt, und es entsteht immer ein eigenes Konto. Die Seite fragt Sie dann einmal nach Ihrer E-Mail-Adresse. Mit dem Link, den Sie daraufhin erhalten, legen Sie ein Passwort fest. Sie können den Schritt auch überspringen.',
         'Die Auswahl trägt den Titel Ihrer Aktivität. Sie zeigt Ihre eigenen Klausuren (*Eigene*) und die Klausuren der Mitwirkenden und Admins Ihrer Organisation, jeweils mit Autorin oder Autor. Bei einer Gruppen-Anbindung zählen nur die Mitwirkenden der Gruppe, die Gruppen-Admins und die Org-Admins. Auch private Klausuren lassen sich verknüpfen. Unter der Liste legen Sie mit **Oder neue Klausur anlegen** eine neue an. Gibt es noch keine Klausur, heißt die Schaltfläche **Neue Klausur anlegen**.',
-        'Verknüpfbar sind Klausuren mit Falllösung und Klausuren mit aktivem Bewertungsbogen. Klausuren ohne Aufgabe, mit mehreren Aufgaben oder ohne aktiven Bewertungsbogen lassen sich nicht wählen. Der Grund steht dabei.',
+        'Verknüpfbar sind Klausuren mit Falllösung und Klausuren mit aktivem Bewertungsbogen. Klausuren ohne Aufgabe oder ohne aktiven Bewertungsbogen lassen sich nicht wählen. Der Grund steht dabei. Hat die Klausur eine Aufgabe, wird die Aktivität automatisch mit ihr verknüpft. Bei einer Klausurensammlung mit mehreren Aufgaben wählen Sie eine Aufgabe oder in Moodle die ganze Sammlung, siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).',
         '**Verknüpfen**. Damit ist die menschliche Korrektur für die Klausur eingeschaltet, und die Mitarbeitenden Ihrer Organisation können die Abgaben ansehen und korrigieren.',
         'Studierende öffnen die Aktivität, stimmen einmal zu und landen direkt in der Klausur.',
         'Nach dem Verknüpfen und bei jedem weiteren Start landen Sie auf der Seite der Klausur: mit der BenGER-Adresse auf der Projektseite in der Expertenoberfläche, mit der Studierenden-Adresse auf der Klausurseite. Die Karte **Lernplattform-Aktivitäten** führt zur **Aktivitätsübersicht**. **Korrektur öffnen** führt immer in die Expertenoberfläche, auch mit der Studierenden-Adresse. Was die Übersicht zeigt, steht unter [Noten aus der Lernplattform](/how-to#lti-grades).',
@@ -500,7 +500,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
         'Moodle: *Add an activity* → pick the tool in the activity chooser → keep grading on. If the activity shows no grade settings, first tick **Allow … to add grades in the gradebook** (the tool’s name fills the gap). Without the tick the activity has no grade. A maximum of 100 is fine, the tool sends 0 to 18 grade points and Moodle rescales. In Moodle the administration sets the launch container for the tool. ILIAS: create an *LTI consumer* with the provider and choose **New window** as launch option. Under *Options for Learning Progress* the *Mastery Score* should be **22**.',
         'Open the activity. On the first launch the connection asks for your consent, including research use. If an account with your email address already exists, link it by signing in or through a link sent by email. Or choose **Continue with a separate account**. ILIAS sends no email address. There this step does not apply, and a separate account is always created. The page then asks you once for your email address. With the link you receive you set a password. You can also skip this step.',
         'The picker carries your activity’s title. It lists your own exams (*Own*) and the exams of your organization’s contributors and admins, each with its author. On a group connection only the group’s contributors, the group admins and the org admins count. Private exams can be linked too. Below the list, **Or create a new exam** creates a new one. If there is no exam yet, the button reads **Create new exam**.',
-        'Exams with a case solution (Falllösung) and exams with an active grading sheet (Bewertungsbogen) can be linked. Exams without a task, with several tasks or without an active grading sheet cannot be chosen. The reason is shown next to them.',
+        'Exams with a case solution (Falllösung) and exams with an active grading sheet (Bewertungsbogen) can be linked. Exams without a task or without an active grading sheet cannot be chosen. The reason is shown next to them. If the exam has one task, the activity is linked to it automatically. For an exam collection with several tasks you choose one task or, in Moodle, the whole collection, see [Linking an exam collection](/how-to#lti-collection).',
         '**Link**. This switches on human grading for the exam, and your organization’s staff can view and grade the submissions.',
         'Students open the activity, consent once and land directly in the exam.',
         'After linking and on every later launch you land on the exam’s page: with the BenGER address on the project page in the expert interface, with the Student address on the exam page. The **Learning platform activities** card leads to the **activity overview**. **Open grading** always leads to the expert interface, also with the Student address. What the overview shows is described under [Grades and the learning platform](/how-to#lti-grades).',
@@ -521,21 +521,28 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
     },
     pitfalls: {
       de: [
-        'Sobald eine Note an die Lernplattform übertragen wurde, lässt sich die Verknüpfung nicht mehr ändern. Legen Sie für eine andere Klausur eine neue Aktivität an.',
+        'Sobald eine Note an die Lernplattform übertragen wurde, lässt sich die Verknüpfung nicht mehr ändern. Legen Sie für eine andere Klausur oder Aufgabe eine neue Aktivität an.',
         '*Diese Aktivität kann keine Noten empfangen*: Die Notenübertragung ist nicht aktiv. Schalten Sie in Moodle die Bewertung ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*. In ILIAS schaltet die Administration beim Provider *Erweiterte Benotungsdienste* ein. Öffnen Sie die Aktivität dann neu.',
-        'Klausuren mit mehreren Aufgaben lassen sich noch nicht verknüpfen, und eine verknüpfte Klausur nimmt keine zweite Aufgabe an.',
+        'Ist eine ältere Aktivität mit der ganzen Klausur als einer Note verknüpft, nimmt die Klausur keine zweite Aufgabe an, auch nicht per Import. Verknüpfen Sie die Aktivität dann mit der Aufgabe der Klausur. Das geht immer, auch nach übertragenen Noten.',
         'Startet das Tool eingebettet (iframe), landen Sie auf der Anmeldeseite. In Moodle 4.5 ändern Sie das nicht in der Aktivität. Die Moodle-Administration stellt den *Standard-Startcontainer* des Tools auf **Neues Fenster**. In ILIAS wählen Sie beim Objekt **Neues Fenster**.',
         'Finden Sie das Tool nicht in der Moodle-Aktivitätsauswahl, bitten Sie die Moodle-Administration, beim Tool *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen** zu stellen.',
       ],
       en: [
-        'Once a grade has been sent to the learning platform, the link cannot be changed. Create a new activity for another exam.',
+        'Once a grade has been sent to the learning platform, the link cannot be changed. Create a new activity for another exam or task.',
         '*This activity cannot receive grades*: grade sync is off. Turn on grading in Moodle, if needed with the tick *Allow … to add grades in the gradebook*. In ILIAS the administration switches on *Advanced Grading Services* on the provider. Then open the activity again.',
-        'Exams with several tasks cannot be linked yet, and a linked exam does not accept a second task.',
+        'If an older activity is linked to the whole exam as one grade, the exam does not accept a second task, not even by import. Then link the activity to the exam’s task. This always works, also after grades were sent.',
         'If the tool starts embedded (iframe), you land on the login page. In Moodle 4.5 you cannot change this in the activity. The Moodle administration sets the tool’s *Default launch container* to **New window**. In ILIAS, choose **New window** on the object.',
         'If you cannot find the tool in the Moodle activity chooser, ask the Moodle administration to set the tool’s *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**.',
       ],
     },
     links: [
+      {
+        label: {
+          de: 'Klausurensammlung verknüpfen',
+          en: 'Linking an exam collection',
+        },
+        href: '/how-to#lti-collection',
+      },
       {
         label: {
           de: 'Noten aus der Lernplattform',
@@ -588,6 +595,113 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
     },
   },
   {
+    id: 'lti-collection',
+    category: 'integrations',
+    title: {
+      de: 'Wie verknüpfe ich eine Klausurensammlung mit mehreren Aufgaben?',
+      en: 'How do I link an exam collection with several tasks?',
+    },
+    summary: {
+      de: 'Es gibt zwei Wege. **Eine Aktivität je Aufgabe** geht in Moodle und ILIAS: Jede Aktivität erhält die Note ihrer Aufgabe. **Die ganze Sammlung in einer Aktivität** geht nur in Moodle: Jede Aufgabe erhält eine eigene Spalte, und die Spalte der Aktivität erhält den Mittelwert der Endnoten, sobald jede Aufgabe eine Endnote hat.',
+      en: 'There are two ways. **One activity per task** works in Moodle and ILIAS: each activity receives the grade of its task. **The whole collection on one activity** works in Moodle only: each task gets its own column, and the activity column receives the mean of the final grades once every task has a final grade.',
+    },
+    steps: {
+      de: [
+        '**Eine Aktivität je Aufgabe (Moodle und ILIAS)**: Legen Sie für jede Aufgabe eine eigene Aktivität an, am besten mit der Aufgabe im Titel. Öffnen Sie die Aktivität, klappen Sie in der Auswahl die Sammlung auf, wählen Sie die Aufgabe und klicken Sie auf **Verknüpfen**. Wiederholen Sie das für jede Aufgabe. Jede Aktivität erhält nur die Note ihrer Aufgabe. Die Studierenden erreichen trotzdem alle Aufgaben der Sammlung.',
+        '**Die ganze Sammlung in einer Aktivität (nur Moodle)**: Legen Sie eine Aktivität an, öffnen Sie sie und wählen Sie in der Auswahl statt einer Aufgabe die ganze Sammlung. Klicken Sie auf **Verknüpfen**.',
+        'BenGER legt dann im Moodle-Notenbuch je Aufgabe eine Spalte *Aufgabe N: Titel der Aktivität* an. Sie erhält die Endnote der Aufgabe: die Korrektur, sonst die KI-Note, wenn die Aktivität KI-Noten überträgt. Solange KI-Noten übertragen werden, kommt je Aufgabe eine Spalte *KI-Bewertung: Aufgabe N* dazu. Die Spalten erscheinen mit der ersten Note der Aufgabe.',
+        'Die Spalte der Aktivität erhält den **Mittelwert der Endnoten aller Aufgaben**. Er wird erst gesendet, wenn jede Aufgabe eine Endnote hat. Bis dahin bleibt die Spalte der Aktivität für diese Person leer.',
+        'Prüfen Sie die Kursgesamtbewertung. Moodle zählt jede Spalte in *Kurs gesamt* mit, also den Mittelwert, jede Aufgabenspalte und jede Spalte KI-Bewertung. Soll nur der Mittelwert zählen, öffnen Sie *Bewertungen* → *Setup für Bewertungen*, haken Sie bei jeder Spalte *Aufgabe N* und *KI-Bewertung* das Kästchen in der Spalte *Gewichtungen* an, tragen Sie 0 ein und klicken Sie auf *Änderungen speichern*.',
+      ],
+      en: [
+        '**One activity per task (Moodle and ILIAS)**: create one activity per task, ideally with the task in its title. Open the activity, expand the collection in the picker, choose the task and click **Link**. Repeat this for every task. Each activity receives only its task’s grade. Students still reach every task of the collection.',
+        '**The whole collection on one activity (Moodle only)**: create one activity, open it and choose the whole collection instead of a task in the picker. Click **Link**.',
+        'BenGER then creates one column per task in the Moodle gradebook, *Aufgabe N: activity title*. It receives the task’s final grade: the human grade, otherwise the AI grade if the activity sends AI grades. While AI grades are sent, each task also gets a column *KI-Bewertung: Aufgabe N*. The columns appear with the task’s first grade.',
+        'The activity column receives the **mean of the final grades of all tasks**. It is sent only once every task has a final grade. Until then the activity column stays empty for that person.',
+        'Check the course total. Moodle counts every column in the *Course total*: the mean, each task column and each KI-Bewertung column. If only the mean should count, open *Grades* → *Gradebook setup*, tick the box in the *Weights* column of every *Aufgabe N* and *KI-Bewertung* column, enter 0 and click *Save changes*.',
+      ],
+    },
+    tips: {
+      de: [
+        'Eine Klausur mit einer Aufgabe verknüpft BenGER automatisch mit dieser Aufgabe. Aktivitäten, die früher mit der ganzen Klausur verknüpft wurden, sind beim Update mit der einzigen Aufgabe ihrer Klausur verknüpft worden.',
+        'Fügen Sie der Sammlung später eine Aufgabe hinzu, erhält sie bei der ganzen Sammlung ihre Spalten mit der nächsten Übertragung ihrer Noten. Bis sie bewertet ist, wartet der Mittelwert.',
+        'Importe in die Klausur sind möglich, sobald keine Aktivität mehr die ganze Klausur als eine Note erhält. Aktivitäten je Aufgabe und die ganze Sammlung blockieren keinen Import.',
+        'Die ganze Sammlung braucht in Moodle beim Tool *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Sonst bietet die Auswahl sie nicht an.',
+      ],
+      en: [
+        'BenGER links an exam with one task to that task automatically. Activities that were linked to the whole exam earlier were linked to the only task of their exam during the update.',
+        'If you add a task to the collection later, it gets its columns on the whole collection with the next transfer of its grades. Until it is graded, the mean waits.',
+        'Imports into the exam are possible once no activity receives the whole exam as one grade any more. Activities per task and the whole collection do not block imports.',
+        'The whole collection needs the Moodle tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**. Otherwise the picker does not offer it.',
+      ],
+    },
+    pitfalls: {
+      de: [
+        'In ILIAS gibt es nur den Weg mit einer Aktivität je Aufgabe. ILIAS lässt das Tool keine Spalten anlegen und nimmt je Objekt und Person nur einen Wert an, die Endnote.',
+        'Die Verknüpfung lässt sich ändern (andere Klausur, andere Aufgabe, Wechsel zwischen einer Aufgabe und der ganzen Sammlung), bis die erste Note der Aktivität in der Lernplattform angekommen ist. Danach lehnt BenGER die Änderung ab, weil eine Spalte sonst Noten verschiedener Aufgaben mischt. Legen Sie dann eine neue Aktivität an. Ausnahme: Eine ältere Aktivität, die die ganze Klausur verknüpft, lässt sich immer mit der einzigen Aufgabe ihrer Klausur verknüpfen.',
+        'Löschen Sie eine Aufgabenspalte in Moodle, legt BenGER sie nicht von selbst wieder an. Löschen Sie eine Aufgabe in BenGER, bleibt ihre Spalte in Moodle stehen. BenGER löscht nie eine Spalte in der Lernplattform.',
+        'Wird die Aufgabe einer Aktivität je Aufgabe gelöscht, erhält die Aktivität keine Noten mehr. Verknüpfen Sie sie mit einer anderen Aufgabe oder legen Sie eine neue Aktivität an.',
+      ],
+      en: [
+        'In ILIAS only the way with one activity per task exists. ILIAS does not let the tool create columns and takes only one value per object and person, the final grade.',
+        'The link can be changed (another exam, another task, a switch between one task and the whole collection) until the activity’s first grade has reached the learning platform. After that BenGER refuses the change, because a column would otherwise mix grades of different tasks. Then create a new activity. Exception: an older activity that links the whole exam can always be linked to the only task of its exam.',
+        'If you delete a task column in Moodle, BenGER does not create it again by itself. If you delete a task in BenGER, its column stays in Moodle. BenGER never deletes a column in the learning platform.',
+        'If the task of a one-task activity is deleted, the activity receives no more grades. Link it to another task or create a new activity.',
+      ],
+    },
+    links: [
+      {
+        label: {
+          de: 'Klausur mit einer Aktivität verknüpfen',
+          en: 'Linking an exam to an activity',
+        },
+        href: '/how-to#lti-teacher',
+      },
+      {
+        label: {
+          de: 'Noten aus der Lernplattform',
+          en: 'Grades and the learning platform',
+        },
+        href: '/how-to#lti-grades',
+      },
+      {
+        label: {
+          de: 'Sammlung lässt sich nicht verknüpfen oder Spalte bleibt leer',
+          en: 'Collection cannot be linked or a column stays empty',
+        },
+        href: '/how-to#ts-lti-collection',
+      },
+      TECH_REFERENCE_LINK,
+    ],
+    keywords: {
+      de: [
+        'Klausurensammlung',
+        'mehrere Aufgaben',
+        'Aufgabe verknüpfen',
+        'ganze Sammlung',
+        'Spalte je Aufgabe',
+        'Mittelwert',
+        'Hauptspalte',
+        'Aufgabenspalte',
+        'Notenbuch',
+        'Import',
+      ],
+      en: [
+        'exam collection',
+        'several tasks',
+        'link task',
+        'whole collection',
+        'column per task',
+        'mean',
+        'average',
+        'main column',
+        'task column',
+        'gradebook',
+        'import',
+      ],
+    },
+  },
+  {
     id: 'lti-grades',
     category: 'integrations',
     title: {
@@ -620,6 +734,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
       de: [
         'Moodle erhält zwei Spalten. Die Aktivitätsspalte hat die Endnote (die Korrektur, sonst die KI-Note), umgerechnet auf das Maximum der Aktivität. Die Spalte **KI-Bewertung** hat immer die KI-Note auf der Skala 0 bis 18. Sie heißt *KI-Bewertung: Titel der Aktivität*, so lassen sich mehrere Aktivitäten eines Kurses unterscheiden. Ältere Spalten heißen nur *KI-Bewertung*. Dafür muss beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen** stehen, sonst erhält Moodle nur die Endnote.',
         'ILIAS erhält je Person einen Wert, die Endnote. ILIAS zeigt sie als Lernfortschritt. Den Kommentar zur Note zeigt ILIAS nicht an.',
+        'Ist in Moodle eine ganze Klausurensammlung mit der Aktivität verknüpft, kommen je Aufgabe die Spalten *Aufgabe N* und *KI-Bewertung: Aufgabe N* dazu. Die Aktivitätsspalte erhält dann den Mittelwert der Endnoten, erst wenn jede Aufgabe eine Endnote hat. Siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).',
         'Eine Korrektur löscht nichts. Die KI-Note bleibt in der Übersicht und in der Spalte KI-Bewertung. Bei mehreren Korrekturen gilt die zuletzt bearbeitete.',
         'Ändert sich eine Note nachträglich, etwa durch einen neuen Notenschlüssel, geht der neue Wert spätestens nach etwa einer Stunde an die Lernplattform.',
         'Während der Korrektur ist die KI-Note standardmäßig ausgeblendet, bis Sie Ihre eigene Note abgegeben haben.',
@@ -629,6 +744,7 @@ export const INTEGRATION_GUIDES: HowToGuide[] = [
       en: [
         'Moodle gets two columns. The activity column holds the final grade (the human grade, otherwise the AI grade), rescaled to the activity’s maximum. The **KI-Bewertung** column always holds the AI grade on the 0 to 18 scale. It is named *KI-Bewertung: activity title*, so several activities in one course can be told apart. Older columns are named *KI-Bewertung* only. This needs the tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**, otherwise Moodle gets the final grade only.',
         'ILIAS gets one value per person, the final grade. ILIAS shows it as learning progress. ILIAS does not show the comment on the grade.',
+        'If a whole exam collection is linked to the activity in Moodle, each task adds the columns *Aufgabe N* and *KI-Bewertung: Aufgabe N*. The activity column then receives the mean of the final grades, only once every task has a final grade. See [Linking an exam collection](/how-to#lti-collection).',
         'Grading deletes nothing. The AI grade stays in the overview and in the KI-Bewertung column. With several human grades, the most recently edited one counts.',
         'If a grade changes later, for example through a new grading key, the new value reaches the learning platform within about an hour.',
         'By default the AI grade is hidden while you grade, until you have submitted your own grade.',
