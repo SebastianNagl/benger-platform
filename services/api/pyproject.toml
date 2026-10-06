@@ -28,7 +28,7 @@ dependencies = [
     # Stay on 2.0: SQLAlchemy 2.1 resolves postgresql:// to psycopg 3, but the
     # sync engine (database.py) ships psycopg2 only. Same break as the workers
     # on 2026-09-30; dependabot.yml ignores 2.1+ until the driver moves.
-    "sqlalchemy==2.0.52",
+    "sqlalchemy==2.0.54",
     "psycopg2-binary==2.9.13",
     # asyncpg is the asyncio Postgres driver for the new async engine
     # (database.async_engine). 0.30.x verified against PG 18.3 on prod
