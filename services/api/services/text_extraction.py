@@ -53,17 +53,26 @@ class UnsupportedDocumentError(Exception):
 _EMPTY_ANCHOR_RE = re.compile(r"<a\s+(?:name|id)\s*=\s*(?:\"[^\"]*\"|'[^']*')\s*>\s*</a>", re.IGNORECASE)
 # mammoth 1.13 escapes the target ("(\\#\\_Toc…)"), older versions do not.
 _INTERNAL_LINK_RE = re.compile(r"\[((?:[^\[\]\\]|\\.)*)\]\(\\?#[^()\s]*\)")
+# mammoth 1.13 also escapes external link targets ("(https://www\.x\-y\.de/)").
+# Markdown renderers undo that, but the raw text reaches the judge verbatim, so
+# drop the escapes; ``\(`` and ``\)`` stay so the target keeps balanced parens.
+_LINK_TARGET_RE = re.compile(r"\]\(((?:[^()\s\\]|\\.)*)\)")
+_TARGET_ESCAPE_RE = re.compile(r"\\([!-'*-/:-@\[\]^_`{|}~])")
 
 
 def _clean_docx_markdown(text: str) -> str:
     """Drop bookmark anchors and unwrap in-document links to their text.
 
-    External links (``[text](https://…)``) stay untouched. TOC entries join
-    heading and page number with tabs; those become single spaces.
+    External links (``[text](https://…)``) stay, with backslash escapes
+    removed from their target. TOC entries join heading and page number with
+    tabs; those become single spaces.
     """
     text = _EMPTY_ANCHOR_RE.sub("", text)
-    return _INTERNAL_LINK_RE.sub(
+    text = _INTERNAL_LINK_RE.sub(
         lambda m: re.sub(r"[ \t]*\t[ \t]*", " ", m.group(1)).strip(), text
+    )
+    return _LINK_TARGET_RE.sub(
+        lambda m: "](" + _TARGET_ESCAPE_RE.sub(r"\1", m.group(1)) + ")", text
     )
 
 
