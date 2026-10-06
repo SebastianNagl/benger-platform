@@ -9588,13 +9588,14 @@
         "resendAllNothing": "There are no grades to send.",
         "resendAllSkippedNoGrade": "{count} without a grade skipped.",
         "resendAllSkippedOther": "{count} without consent or with an anonymized account skipped.",
-        "resendAllDeploymentOff": "The deployment ID of this activity is switched off or no longer registered in the connection. Please contact your organization admin."
+        "resendAllDeploymentOff": "The deployment ID of this activity is switched off or no longer registered in the connection. Please contact your organization admin.",
+        "taskLabel": "Task {n}",
+        "taskLabelPlain": "Task"
       },
       "picker": {
         "blockEmpty": "This exam has no task yet.",
         "blockEvalConfig": "This exam's grading gives no grade points. Open the exam once and save it. Then you can link it.",
-        "blockMultiTask": "Exams with more than one task cannot be linked yet.",
-        "blockMultiTaskPlanned": "Linking single tasks is already planned.",
+        "blockMultiTask": "The activity is linked to the whole exam, but the exam has several tasks. Link the activity to a single task.",
         "blockRubricMissing": "This exam has no active grading sheet. Add a grading sheet first.",
         "byAuthor": "by {name}",
         "candidatesError": "The exams could not be loaded.",
@@ -9625,7 +9626,12 @@
         "taskCount": "{count} task(s)",
         "title": "Link activity",
         "unavailableTitle": "Activity unavailable",
-        "waitingForInstructor": "This activity has not been linked to an exam yet. Please wait until your instructor has set up the link, then open the activity again from your learning platform."
+        "waitingForInstructor": "This activity has not been linked to an exam yet. Please wait until your instructor has set up the link, then open the activity again from your learning platform.",
+        "blockTaskRequired": "This exam has several tasks. Choose the task whose grade the activity receives.",
+        "blockTaskNotInExam": "The chosen task does not belong to this exam.",
+        "collectionHint": "Exam collection: the activity receives the grade of one task, which you choose next.",
+        "taskListLabel": "Task for this activity",
+        "taskListIntro": "Which task belongs to this activity? The activity receives this task's grade. The other tasks stay available to the students."
       },
       "sessionMismatch": {
         "body": "A different learning platform account has since signed in in this browser. This page is locked so that no submission ends up in the wrong account. Please open the activity in the learning platform again to continue with the right account.",

@@ -9596,13 +9596,14 @@
         "resendAllNothing": "Es gibt keine Noten zum Senden.",
         "resendAllSkippedNoGrade": "{count} ohne Note übersprungen.",
         "resendAllSkippedOther": "{count} ohne Zustimmung oder mit anonymisiertem Konto übersprungen.",
-        "resendAllDeploymentOff": "Die Deployment-ID dieser Aktivität ist in der Anbindung abgeschaltet oder nicht mehr eingetragen. Bitte wenden Sie sich an Ihren Organisations-Admin."
+        "resendAllDeploymentOff": "Die Deployment-ID dieser Aktivität ist in der Anbindung abgeschaltet oder nicht mehr eingetragen. Bitte wenden Sie sich an Ihren Organisations-Admin.",
+        "taskLabel": "Aufgabe {n}",
+        "taskLabelPlain": "Aufgabe"
       },
       "picker": {
         "blockEmpty": "Diese Klausur hat noch keine Aufgabe.",
         "blockEvalConfig": "Die Bewertung dieser Klausur liefert keine Notenpunkte. Öffnen Sie die Klausur einmal und speichern Sie sie. Danach können Sie sie verknüpfen.",
-        "blockMultiTask": "Klausuren mit mehreren Aufgaben können noch nicht verknüpft werden.",
-        "blockMultiTaskPlanned": "Das Verknüpfen einzelner Aufgaben ist bereits geplant.",
+        "blockMultiTask": "Die Aktivität ist mit der ganzen Klausur verknüpft, die Klausur hat aber mehrere Aufgaben. Verknüpfen Sie die Aktivität mit einer einzelnen Aufgabe.",
         "blockRubricMissing": "Für diese Klausur ist kein Bewertungsbogen aktiv. Legen Sie zuerst einen Bewertungsbogen an.",
         "byAuthor": "von {name}",
         "candidatesError": "Die Klausuren konnten nicht geladen werden.",
@@ -9633,7 +9634,12 @@
         "taskCount": "{count} Aufgabe(n)",
         "title": "Aktivität verknüpfen",
         "unavailableTitle": "Aktivität nicht verfügbar",
-        "waitingForInstructor": "Diese Aktivität wurde noch nicht mit einer Klausur verknüpft. Bitte warte, bis deine Dozentin oder dein Dozent die Verknüpfung eingerichtet hat, und öffne die Aktivität dann erneut aus deiner Lernplattform."
+        "waitingForInstructor": "Diese Aktivität wurde noch nicht mit einer Klausur verknüpft. Bitte warte, bis deine Dozentin oder dein Dozent die Verknüpfung eingerichtet hat, und öffne die Aktivität dann erneut aus deiner Lernplattform.",
+        "blockTaskRequired": "Diese Klausur hat mehrere Aufgaben. Wählen Sie die Aufgabe, deren Note die Aktivität erhält.",
+        "blockTaskNotInExam": "Die gewählte Aufgabe gehört nicht zu dieser Klausur.",
+        "collectionHint": "Klausurensammlung: Die Aktivität erhält die Note einer Aufgabe, die Sie danach wählen.",
+        "taskListLabel": "Aufgabe für diese Aktivität",
+        "taskListIntro": "Welche Aufgabe gehört zu dieser Aktivität? Die Aktivität erhält die Note dieser Aufgabe. Die anderen Aufgaben bleiben für die Studierenden erreichbar."
       },
       "sessionMismatch": {
         "body": "In diesem Browser wurde inzwischen ein anderes Lernplattform-Konto angemeldet. Damit keine Abgabe im falschen Konto landet, ist diese Seite gesperrt. Bitte die Aktivität in der Lernplattform erneut öffnen, um mit dem richtigen Konto fortzufahren.",
