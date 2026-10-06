@@ -373,17 +373,36 @@ whenever one is added, renamed or removed):
   group admin may grant up to ``org_admin`` (group Admin) on a group-scoped
   connection.
 
-2.29 (2026-10-06): LTI links bound to single tasks (issue #122).
+2.29 (2026-10-06): LTI links bound to single tasks or to a whole
+  collection (issue #122), migration 112.
   ``LtiResourceLink.task_id`` (nullable FK ``tasks.id`` ON DELETE SET NULL,
-  index ``ix_lti_resource_links_task``, migration 112; links on exams with
-  exactly one task are backfilled). NULL is a whole-exam link (only valid
-  while the exam has one task); otherwise the link covers that task only.
+  index ``ix_lti_resource_links_task``; links on exams with exactly one task
+  are backfilled). ``LtiResourceLink.grade_scope`` (String(16) NOT NULL,
+  default ``'exam'``, CHECK ``ck_lti_resource_links_grade_scope`` in
+  ``exam | task | collection``; backfilled ``'task'`` where ``task_id`` is
+  set): ``exam`` is the legacy whole-exam link (only valid while the exam
+  has one task), ``task`` grades ``task_id`` only (NULL ``task_id`` there
+  means the task was deleted), ``collection`` has one gradebook column per
+  task and NULL ``task_id``. ``LtiGradeSync.task_id`` (nullable FK
+  ``tasks.id`` ON DELETE CASCADE, index ``ix_lti_grade_syncs_task``): the
+  task column a row feeds, NULL for the activity's own column.
+  ``uq_lti_grade_sync`` keeps its name and becomes ``UNIQUE NULLS NOT
+  DISTINCT (resource_link_id, user_id, kind, task_id)``; upserts target it
+  with ``on_conflict_do_*(constraint="uq_lti_grade_sync")``. New
+  ``LtiTaskLineitem`` (``lti_task_lineitems``: resource_link_id and task_id
+  FKs ON DELETE CASCADE, ``kind`` final | ai, ``lineitem_url``, ``status``
+  ready | unavailable | error | deleted, ``error``; unique
+  ``uq_lti_task_lineitem`` on (resource_link_id, task_id, kind), indexes
+  ``ix_lti_task_lineitems_resource_link`` and ``ix_lti_task_lineitems_task``).
   Schemas: ``LtiResourceLinkTaskRead{id, inner_id}``; ``LtiResourceLinkRead``
-  and ``LtiResourceLinkAdminRead`` carry ``task_id`` and ``task``; the admin
-  ``GET /registrations/{id}/resource-links`` rows fill both. The import block
-  (``linked_exam_stmt``, ``_enforce_linked_exam_task_limit``, the API's
-  422 ``multi_task_unsupported``) applies only to exams with at least one
-  whole-exam link; exams whose links are all task-bound accept imports.
+  and ``LtiResourceLinkAdminRead`` carry ``grade_scope``, ``task_id`` and
+  ``task``; the admin ``GET /registrations/{id}/resource-links`` rows fill
+  them. ``LtiGradeSyncRead`` carries ``task_id``; the admin ``GET
+  /grade-syncs`` rows (and the retry answer) carry ``task {id, inner_id}``.
+  The import block (``linked_exam_stmt``, ``_enforce_linked_exam_task_limit``,
+  the API's 422 ``multi_task_unsupported``) applies only to exams with at
+  least one ``grade_scope = 'exam'`` link; task and collection links accept
+  imports.
 """
 
 import os
