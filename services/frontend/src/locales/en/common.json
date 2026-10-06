@@ -9192,7 +9192,8 @@
             "synced": "Sent"
           },
           "title": "Grade transfers",
-          "unknownStudent": "Unknown person"
+          "unknownStudent": "Unknown person",
+          "task": "Column: {v}"
         },
         "urlDefaults": "Apply default URLs",
         "resendAllTitle": "Send all grades again",
@@ -9590,7 +9591,20 @@
         "resendAllSkippedOther": "{count} without consent or with an anonymized account skipped.",
         "resendAllDeploymentOff": "The deployment ID of this activity is switched off or no longer registered in the connection. Please contact your organization admin.",
         "taskLabel": "Task {n}",
-        "taskLabelPlain": "Task"
+        "taskLabelPlain": "Task",
+        "wholeCollection": "Whole collection",
+        "sourceMean": "mean of the tasks",
+        "meanValue": "Mean: {points}",
+        "meanWaiting": "Mean follows once every task is graded ({graded} of {total})",
+        "collectionFinal": "Activity column: the mean of the final grades of every task. It is sent once every task has a final grade.",
+        "taskAiColumn": "AI grade:",
+        "taskColumnAiOff": "off (AI grades are not sent)",
+        "taskColumnReady": "created",
+        "taskColumnDeleted": "deleted in the learning platform",
+        "taskColumnUnavailable": "not possible",
+        "taskColumnError": "could not be created",
+        "taskColumnPending": "created with the first grade",
+        "taskColumnsRecreate": "Create missing columns again"
       },
       "picker": {
         "blockEmpty": "This exam has no task yet.",
@@ -9629,9 +9643,14 @@
         "waitingForInstructor": "This activity has not been linked to an exam yet. Please wait until your instructor has set up the link, then open the activity again from your learning platform.",
         "blockTaskRequired": "This exam has several tasks. Choose the task whose grade the activity receives.",
         "blockTaskNotInExam": "The chosen task does not belong to this exam.",
-        "collectionHint": "Exam collection: the activity receives the grade of one task, which you choose next.",
+        "collectionHint": "Exam collection: next, choose one task or, where possible, the whole collection.",
         "taskListLabel": "Task for this activity",
-        "taskListIntro": "Which task belongs to this activity? The activity receives this task's grade. The other tasks stay available to the students."
+        "taskListIntro": "Which task belongs to this activity? The activity receives this task's grade. The other tasks stay available to the students.",
+        "wholeCollection": "Whole collection (one column per task)",
+        "wholeCollectionHint": "Every task gets its own column in the learning platform. The activity's column receives the mean once every task is graded.",
+        "wholeCollectionUnavailable": "The whole collection with one column per task needs the Moodle tool setting \"Use this service for grade sync and column management\" (IMS LTI Assignment and Grade Services). Until then, link one task per activity.",
+        "blockTaskMissing": "The task the activity was linked to was deleted. Link the activity to another task.",
+        "blockCollectionUnsupported": "The whole collection needs a learning platform that lets the tool manage its own columns. Choose a single task."
       },
       "sessionMismatch": {
         "body": "A different learning platform account has since signed in in this browser. This page is locked so that no submission ends up in the wrong account. Please open the activity in the learning platform again to continue with the right account.",
