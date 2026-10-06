@@ -1016,6 +1016,11 @@ class LtiResourceLink(Base):
     ``sync_ai_grades`` is the per-activity opt-out for automatic score sync.
     ``ai_lineitem_*`` track the separate AI grade column the tool creates
     where the LMS allows column management.
+
+    ``task_id`` scopes the link to one task of the exam (one task of a
+    Klausurensammlung per activity). NULL is a whole-exam link, which is only
+    valid while the exam has exactly one task; SET NULL on task delete turns
+    the link back into a whole-exam link.
     """
 
     __tablename__ = "lti_resource_links"
@@ -1031,6 +1036,9 @@ class LtiResourceLink(Base):
     resource_link_id = Column(String(255), nullable=False)
     project_id = Column(
         String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
     context_id = Column(String(255), nullable=True)
     context_title = Column(String(500), nullable=True)
@@ -1058,6 +1066,7 @@ class LtiResourceLink(Base):
             name="uq_lti_resource_link",
         ),
         Index("ix_lti_resource_links_project", "project_id"),
+        Index("ix_lti_resource_links_task", "task_id"),
         CheckConstraint(
             "ai_lineitem_status IN ('ready', 'unavailable', 'error', 'deleted')",
             name="ck_lti_resource_links_ai_lineitem_status",
