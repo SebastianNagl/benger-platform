@@ -115,7 +115,7 @@ class AuthorizationService:
         Takes already-loaded data (project org ids + the user's memberships) so
         both lanes run byte-identical decision logic; only the reads differ
         between sync and async. ``attachment_groups`` ({org_id: group_id|None})
-        and ``user_groups`` ({group_id: is_group_admin}) carry the group axis
+        and ``user_groups`` ({group_id: group role}) carry the group axis
         (see shared/org_groups); omitted, every attachment counts as org-wide.
         ``lti_attachments`` ({org_id: group_id|None} of the rows LMS linking
         created) opens a private exam to those orgs' eligible staff with
@@ -132,9 +132,13 @@ class AuthorizationService:
         project-level permission on an exam-kind project, because for an exam
         those permissions expose the Musterlösung, the Bewertungsbogen
         criteria and the evaluation config. Students reach org exams through
-        the narrow participant tier instead (``get_student_read_access``). A
-        group admin of the attachment counts as staff, and the creator keeps
-        the role-based access to their own exam.
+        the narrow participant tier instead (``get_student_read_access``). The
+        role of a grouped attachment is the group role
+        (``org_groups.attachment_role``), so a group Admin counts as
+        ORG_ADMIN there whatever their org role, and an org CONTRIBUTOR who
+        is a group ANNOTATOR is an ANNOTATOR there. The best role over all
+        eligible attachments wins; the creator keeps the role-based access
+        to their own exam.
         """
         # Superadmins have all permissions
         if user.is_superadmin:
@@ -193,8 +197,9 @@ class AuthorizationService:
             return self._check_org_role_permission("ORG_ADMIN", permission)
 
         if project_org_ids:
-            from org_groups import attachment_eligible, grants_full_tier
+            from org_groups import attachment_role, best_role, grants_full_tier
 
+            roles = []
             for org_id in project_org_ids:
                 # Only an ACTIVE membership counts (same as the helpers
                 # deciders): a removed member keeps a soft-deleted row that
@@ -207,32 +212,28 @@ class AuthorizationService:
                     ),
                     None,
                 )
-                if membership:
-                    # Group axis: an ineligible grouped attachment is
-                    # skipped (the next attachment may still grant);
-                    # eligibility via a group the user group-admins
-                    # upgrades that attachment's role to ORG_ADMIN.
-                    group_id = (attachment_groups or {}).get(org_id)
-                    if not attachment_eligible(
-                        group_id,
-                        is_creator=is_creator,
-                        membership_role=membership.role,
-                        user_groups=user_groups,
-                    ):
-                        continue
-                    # Exam carve-out: an ANNOTATOR attachment is skipped too,
-                    # a staff membership through another org may still grant.
-                    if not grants_full_tier(
-                        project_kind, membership.role, group_id, user_groups
-                    ):
-                        continue
-                    role = (
-                        "ORG_ADMIN"
-                        if group_id is not None
-                        and (user_groups or {}).get(group_id, False)
-                        else membership.role
-                    )
-                    return self._check_org_role_permission(role, permission)
+                if not membership:
+                    continue
+                # Group axis: the attachment's role is the org role on an
+                # org-wide attachment, else the group role (org admins hold
+                # ORG_ADMIN in every group); an ineligible grouped
+                # attachment gives nothing.
+                role = attachment_role(
+                    (attachment_groups or {}).get(org_id),
+                    membership.role,
+                    user_groups,
+                )
+                if role is None:
+                    continue
+                # Exam carve-out: an ANNOTATOR attachment role is skipped,
+                # a staff role through another attachment may still grant.
+                if not grants_full_tier(project_kind, role):
+                    continue
+                roles.append(role)
+            # The best role over every eligible attachment decides.
+            role = best_role(roles)
+            if role is not None:
+                return self._check_org_role_permission(role, permission)
 
         return False
 

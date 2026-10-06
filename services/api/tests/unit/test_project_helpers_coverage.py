@@ -482,7 +482,7 @@ class TestPickMemberOrgProjects:
             self._row("other", "o1", group_id="g2"),
         ]
         contributor = self._active(o1="CONTRIBUTOR")
-        assert self._pick(rows, contributor, groups={"g1": False}) == ["wide", "mine"]
+        assert self._pick(rows, contributor, groups={"g1": "CONTRIBUTOR"}) == ["wide", "mine"]
         # ORG_ADMINs see through group boundaries.
         assert self._pick(rows, self._active(o1="ORG_ADMIN")) == ["wide", "mine", "other"]
         # A membership the rows do not belong to lists nothing.
@@ -504,14 +504,18 @@ class TestPickMemberOrgProjects:
             self._row("gexam", "o1", kind="exam", group_id="g1"),
         ]
         annotator = self._active(o1="ANNOTATOR")
-        assert self._pick(rows, annotator, groups={"g1": False}) == ["plain"]
-        # A group admin of the attachment's group is staff on its projects.
-        assert self._pick(rows, annotator, groups={"g1": True}) == ["plain", "gexam"]
+        assert self._pick(rows, annotator, groups={"g1": "ANNOTATOR"}) == ["plain"]
+        # A group Admin of the attachment's group is staff on its projects.
+        assert self._pick(rows, annotator, groups={"g1": "ORG_ADMIN"}) == ["plain", "gexam"]
+        # An org CONTRIBUTOR who is a group ANNOTATOR is an annotator there.
+        assert self._pick(
+            rows, self._active(o1="CONTRIBUTOR"), groups={"g1": "ANNOTATOR"}
+        ) == ["exam", "old", "plain"]
         # Staff through another attached org still lists the same rows.
         rows2 = rows + [self._row("exam", "o2", kind="exam")]
         two = self._active(o1="ANNOTATOR", o2="CONTRIBUTOR")
         assert self._pick(rows2, two) == ["plain", "exam"]
-        assert self._pick(rows, self._active(o1="CONTRIBUTOR"), groups={"g1": False}) == [
+        assert self._pick(rows, self._active(o1="CONTRIBUTOR"), groups={"g1": "CONTRIBUTOR"}) == [
             "exam",
             "old",
             "plain",
@@ -524,7 +528,7 @@ class TestPickMemberOrgProjects:
         assert self._pick(rows, self._active(o1="ORG_ADMIN"), protected={"o1"}) == ["linked"]
         grouped = [self._row("linked", "o1", kind="exam", attached_via="lti", group_id="g1")]
         assert self._pick(
-            grouped, self._active(o1="CONTRIBUTOR"), groups={"g1": True}, protected={"o1"}
+            grouped, self._active(o1="CONTRIBUTOR"), groups={"g1": "ORG_ADMIN"}, protected={"o1"}
         ) == ["linked"]
         # A manual row of the same org is not an LMS row: the generic rules.
         manual = [self._row("shared", "o1", kind="exam")]
@@ -767,129 +771,65 @@ class TestCheckTaskAssignedToUser:
 
         assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
 
+    # The role comes from the central resolver (get_effective_project_role:
+    # best attachment role, group roles included), patched here.
+    _RESOLVER = "routers.projects.helpers.get_effective_project_role"
+
+    def _assign_q(self, found):
+        assign_q = MagicMock()
+        assign_q.filter.return_value = assign_q
+        assign_q.first.return_value = found
+        return assign_q
+
     def test_non_annotator_role_bypass(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
-
-        membership = Mock(organization_id="org-1", is_active=True, role="CONTRIBUTOR")
-        user_with_mem = Mock(organization_memberships=[membership])
-
-        user_q = MagicMock()
-        user_q.options.return_value = user_q
-        user_q.filter.return_value = user_q
-        user_q.first.return_value = user_with_mem
-
-        org_q = MagicMock()
-        org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
-
-        db.query.side_effect = [user_q, org_q]
-
-        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
+        for role in ("CONTRIBUTOR", "ORG_ADMIN"):
+            with patch(self._RESOLVER, return_value=role):
+                assert check_task_assigned_to_user(db, user, "task-1", project) is True
+        db.query.assert_not_called()
 
     def test_annotator_with_assignment(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
+        db.query.side_effect = [self._assign_q(Mock())]
 
-        membership = Mock(organization_id="org-1", is_active=True, role="ANNOTATOR")
-        user_with_mem = Mock(organization_memberships=[membership])
-
-        user_q = MagicMock()
-        user_q.options.return_value = user_q
-        user_q.filter.return_value = user_q
-        user_q.first.return_value = user_with_mem
-
-        org_q = MagicMock()
-        org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
-
-        assignment = Mock()
-        assign_q = MagicMock()
-        assign_q.filter.return_value = assign_q
-        assign_q.first.return_value = assignment
-
-        db.query.side_effect = [user_q, org_q, assign_q]
-
-        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
+        with patch(self._RESOLVER, return_value="ANNOTATOR"):
+            assert check_task_assigned_to_user(db, user, "task-1", project) is True
 
     def test_annotator_without_assignment(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
-
-        membership = Mock(organization_id="org-1", is_active=True, role="ANNOTATOR")
-        user_with_mem = Mock(organization_memberships=[membership])
-
-        user_q = MagicMock()
-        user_q.options.return_value = user_q
-        user_q.filter.return_value = user_q
-        user_q.first.return_value = user_with_mem
-
-        org_q = MagicMock()
-        org_q.filter.return_value = org_q
-        org_row = Mock(organization_id="org-1")
-        org_q.all.return_value = [org_row]
-
-        assign_q = MagicMock()
-        assign_q.filter.return_value = assign_q
-        assign_q.first.return_value = None
-
-        db.query.side_effect = [user_q, org_q, assign_q]
+        db.query.side_effect = [self._assign_q(None)]
         # No own annotation either (the attempted-tier fallback).
         db.execute.return_value.first.return_value = None
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
+        with patch(self._RESOLVER, return_value="ANNOTATOR"):
+            assert check_task_assigned_to_user(db, user, "task-1", project) is False
 
     def test_annotator_without_assignment_but_own_annotation(self):
         """An own non-cancelled annotation counts as assigned (attempted tier)."""
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="manual", id="proj-1")
-
-        membership = Mock(organization_id="org-1", is_active=True, role="ANNOTATOR")
-        user_with_mem = Mock(organization_memberships=[membership])
-
-        user_q = MagicMock()
-        user_q.options.return_value = user_q
-        user_q.filter.return_value = user_q
-        user_q.first.return_value = user_with_mem
-
-        org_q = MagicMock()
-        org_q.filter.return_value = org_q
-        org_q.all.return_value = [Mock(organization_id="org-1")]
-
-        assign_q = MagicMock()
-        assign_q.filter.return_value = assign_q
-        assign_q.first.return_value = None
-
-        db.query.side_effect = [user_q, org_q, assign_q]
+        db.query.side_effect = [self._assign_q(None)]
         db.execute.return_value.first.return_value = ("ann-1",)
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) == True  # noqa: E712
+        with patch(self._RESOLVER, return_value="ANNOTATOR"):
+            assert check_task_assigned_to_user(db, user, "task-1", project) is True
 
     def test_no_memberships(self):
         db = Mock()
         user = Mock(is_superadmin=False, id="user-1")
         project = Mock(assignment_mode="auto", id="proj-1")
-
-        user_q = MagicMock()
-        user_q.options.return_value = user_q
-        user_q.filter.return_value = user_q
-        user_q.first.return_value = None
-
-        # Will need assignment query since user_role is None
-        assign_q = MagicMock()
-        assign_q.filter.return_value = assign_q
-        assign_q.first.return_value = None
-
-        db.query.side_effect = [user_q, assign_q]
+        db.query.side_effect = [self._assign_q(None)]
         db.execute.return_value.first.return_value = None
 
-        assert check_task_assigned_to_user(db, user, "task-1", project) == False  # noqa: E712
+        with patch(self._RESOLVER, return_value=None):
+            assert check_task_assigned_to_user(db, user, "task-1", project) is False
 
 
 # ============= check_user_can_edit_project =============

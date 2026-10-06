@@ -12,14 +12,15 @@ from sqlalchemy import exists
 from services.member_privacy import NameMask, project_name_mask
 
 
-def listing_org_role(memberships, project_org_ids):
-    """The org role the task listing scopes by: the first active membership
-    in one of the project's organizations (``None`` when there is none)."""
-    org_ids = set(project_org_ids)
-    for membership in memberships or ():
-        if membership.organization_id in org_ids and membership.is_active:
-            return membership.role
-    return None
+def listing_org_role(memberships, attachment_groups, user_groups=None):
+    """The role the task listing scopes by: the best attachment role of the
+    caller's active memberships over the project's attachments
+    (``attachment_groups``: {org_id: group_id|None}; the group role decides
+    on a grouped attachment, see ``org_groups.attachment_role``). ``None``
+    when no attachment gives one (participants, public visitors)."""
+    from routers.projects.helpers import _best_attachment_role
+
+    return _best_attachment_role(memberships, attachment_groups, user_groups)
 
 
 def annotator_sees_assigned_only(user_role, project) -> bool:
@@ -110,17 +111,15 @@ async def list_project_tasks(
     if current_user.is_superadmin:
         user_role = "superadmin"
     elif user_with_memberships and user_with_memberships.organization_memberships:
-        # Get project organizations
-        org_rows = (
-            await db.execute(
-                select(ProjectOrganization.organization_id).where(
-                    ProjectOrganization.project_id == project_id
-                )
-            )
-        ).all()
-        project_org_ids = [org_id[0] for org_id in org_rows]
+        from org_groups import (
+            get_attachment_group_map_async,
+            get_user_group_context_async,
+        )
+
         user_role = listing_org_role(
-            user_with_memberships.organization_memberships, project_org_ids
+            user_with_memberships.organization_memberships,
+            await get_attachment_group_map_async(db, project_id),
+            await get_user_group_context_async(db, str(current_user.id)),
         )
 
     query = select(Task).where(Task.project_id == project_id)

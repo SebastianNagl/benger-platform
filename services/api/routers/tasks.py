@@ -264,7 +264,12 @@ async def _resolve_data_scope(
             scope.attempted_only.add(pid)
         elif annotator_sees_assigned_only(
             listing_org_role(
-                memberships, [po.organization_id for po in project.project_organizations]
+                memberships,
+                {
+                    str(po.organization_id): (str(po.group_id) if po.group_id else None)
+                    for po in project.project_organizations
+                },
+                user_groups,
             ),
             project,
         ):

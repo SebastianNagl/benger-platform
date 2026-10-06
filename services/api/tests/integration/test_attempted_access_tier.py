@@ -251,7 +251,9 @@ async def test_tier_matrix_own_submission_survives_every_revocation(async_test_d
 
     group_a = OrganizationGroup(id=str(uuid.uuid4()), organization_id=org.id, name="A")
     group_b = OrganizationGroup(id=str(uuid.uuid4()), organization_id=org.id, name="B")
-    gm = OrganizationGroupMembership(id=str(uuid.uuid4()), group_id=group_a.id, user_id=annot.id)
+    gm = OrganizationGroupMembership(
+        id=str(uuid.uuid4()), group_id=group_a.id, user_id=annot.id, role=OrganizationRole.ANNOTATOR
+    )
     grouped = _new_project(owner, private=False, kind="exam")
     t_grouped = _new_task(grouped, owner)
     await _add_all(

@@ -45,6 +45,7 @@ from routers.projects.helpers import (
     get_project_access_tier,
     get_project_access_tier_async,
 )
+from tests.fixtures.group_roles import legacy_group_role_async
 
 pytestmark = [pytest.mark.integration]  # asyncio_mode = auto
 
@@ -97,7 +98,7 @@ async def _member(db, user, org, role, *, active=True):
 
 
 async def _group(db, org, *members) -> OrganizationGroup:
-    """members: (user, is_group_admin) tuples."""
+    """members: (user, group-admin flag or group role) tuples."""
     group = OrganizationGroup(
         id=str(uuid.uuid4()), organization_id=org.id, name=f"G {_hex()}", is_active=True
     )
@@ -109,7 +110,7 @@ async def _group(db, org, *members) -> OrganizationGroup:
                 id=str(uuid.uuid4()),
                 group_id=group.id,
                 user_id=user.id,
-                is_group_admin=is_admin,
+                role=await legacy_group_role_async(db, group.id, user.id, is_admin),
             )
         )
     await db.flush()
@@ -675,11 +676,11 @@ def test_lti_staff_role_on_protected_orgs():
     ) == "ORG_ADMIN"
     # A group admin of the attachment's group counts as ORG_ADMIN there.
     assert lti_staff_role(
-        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": True},
+        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": "ORG_ADMIN"},
         protected_org_ids=protected,
     ) == "ORG_ADMIN"
     assert lti_staff_role(
-        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": False},
+        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": "CONTRIBUTOR"},
         protected_org_ids=protected,
     ) is None
     # The protected set only affects its own orgs.
@@ -708,16 +709,22 @@ def test_lti_staff_role_matrix():
     assert lti_staff_role("exam", [_M("uni", OrganizationRole.ANNOTATOR)], lti) is None
     assert lti_staff_role("exam", [_M("uni", "CONTRIBUTOR", is_active=False)], lti) is None
     assert lti_staff_role("exam", [_M("other", "ORG_ADMIN")], lti) is None
-    # Group axis: member contributor yes, outsider no, org admin yes,
-    # group-admin annotator counts as ORG_ADMIN.
-    assert lti_staff_role("exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": False}) == "CONTRIBUTOR"
-    assert lti_staff_role("exam", [_M("chair", "CONTRIBUTOR")], lti, {"g2": True}) is None
+    # Group axis: the group role decides (group CONTRIBUTOR yes, outsider
+    # no, org admin yes, group Admin counts as ORG_ADMIN, group ANNOTATOR
+    # no whatever the org role).
+    assert lti_staff_role(
+        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": "CONTRIBUTOR"}
+    ) == "CONTRIBUTOR"
+    assert lti_staff_role(
+        "exam", [_M("chair", "CONTRIBUTOR")], lti, {"g1": "ANNOTATOR"}
+    ) is None
+    assert lti_staff_role("exam", [_M("chair", "CONTRIBUTOR")], lti, {"g2": "ORG_ADMIN"}) is None
     assert lti_staff_role("exam", [_M("chair", "ORG_ADMIN")], lti, {}) == "ORG_ADMIN"
-    assert lti_staff_role("exam", [_M("chair", "ANNOTATOR")], lti, {"g1": True}) == "ORG_ADMIN"
-    assert lti_staff_role("exam", [_M("chair", "ANNOTATOR")], lti, {"g1": False}) is None
+    assert lti_staff_role("exam", [_M("chair", "ANNOTATOR")], lti, {"g1": "ORG_ADMIN"}) == "ORG_ADMIN"
+    assert lti_staff_role("exam", [_M("chair", "ANNOTATOR")], lti, {"g1": "ANNOTATOR"}) is None
     # The best role over all memberships wins.
     both = [_M("uni", "CONTRIBUTOR"), _M("chair", "CONTRIBUTOR")]
-    assert lti_staff_role("exam", both, lti, {"g1": True}) == "ORG_ADMIN"
+    assert lti_staff_role("exam", both, lti, {"g1": "ORG_ADMIN"}) == "ORG_ADMIN"
     # Only exams, only with linking rows; the org context never matters.
     assert lti_staff_role("benchmark", [_M("uni", "ORG_ADMIN")], lti) is None
     assert lti_staff_role("exam", [_M("uni", "ORG_ADMIN")], {}) is None
@@ -965,6 +972,15 @@ async def test_visibility_patch_keeps_the_protected_rule(
     db = async_test_db
     w = await _world(db)
     url = f"/api/projects/{w.exam_wide.id}/visibility"
+    # A newly added attachment needs CONTRIBUTOR+ in that org.
+    with _as_user(w.creator):
+        response = await async_test_client.patch(
+            url,
+            json={"is_private": False, "organization_ids": [w.foreign.id]},
+        )
+    assert response.status_code == 403, response.text
+    await _member(db, w.creator, w.foreign, OrganizationRole.CONTRIBUTOR)
+    await db.commit()
     with _as_user(w.creator):
         response = await async_test_client.patch(
             url,

@@ -24,8 +24,10 @@ from models import (
     User,
 )
 from org_groups import (
-    attachment_eligible,
     attachment_group_clause,
+    attachment_role,
+    best_role,
+    build_select_admin_group_ids,
     build_select_group_admin_on_attachments,
     drop_protected_lti_attachments,
     get_attachment_group_map,
@@ -39,6 +41,7 @@ from org_groups import (
     grants_full_tier,
     lti_staff_role,
     non_lti_attachment,
+    role_at_least,
 )
 from project_models import (
     Annotation,
@@ -942,11 +945,6 @@ def _protected_candidate_orgs(rows, user_id) -> set:
     }
 
 
-def _role_name(role) -> str:
-    """'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR' from an enum or a string."""
-    return str(getattr(role, "value", role)).upper()
-
-
 def _pick_member_org_projects(
     rows, active_memberships, user_id, user_groups, lti_staff_ids, protected_org_ids
 ) -> List[str]:
@@ -956,21 +954,21 @@ def _pick_member_org_projects(
     ``active_memberships`` maps org id to the caller's active membership.
     Each rule mirrors a per-project decider:
 
-    - the attachment must be eligible (:func:`org_groups.attachment_eligible`:
-      org-wide, or the caller's group, or ORG_ADMIN, or the creator);
+    - the attachment must give a role (:func:`org_groups.attachment_role`:
+      the org role on an org-wide attachment, the group role on a grouped
+      one, ORG_ADMIN for org admins) unless the caller is the creator;
     - a private project in an org (only LMS linking attaches one) is listed
       for its creator and for the staff the LMS grant opens it to;
-    - an ANNOTATOR membership does not list exams (students reach org exams
-      through the participant tier) nor archived projects (the archive
+    - an ANNOTATOR attachment role does not list exams (students reach org
+      exams through the participant tier) nor archived projects (the archive
       carve-out of ``check_project_accessible``), unless the caller created
-      the project or group-admins the attachment's group; a staff membership
-      in another attached org may still list the same project;
+      the project; a staff role through another attachment may still list
+      the same project;
     - on an org whose connections stay superadmin-run, other authors' exams
-      attached only by an LMS link are for its admins and the attachment
-      group's admins.
+      attached only by an LMS link are for attachment roles ORG_ADMIN (its
+      admins and the attachment group's admins).
     """
     uid = str(user_id)
-    admin_groups = {str(g) for g, is_admin in (user_groups or {}).items() if is_admin}
     protected = {str(o) for o in (protected_org_ids or ()) if o}
     staff_ids = {str(i) for i in (lti_staff_ids or ())}
     picked: List[str] = []
@@ -978,20 +976,14 @@ def _pick_member_org_projects(
         membership = active_memberships.get(str(r.organization_id))
         if membership is None:
             continue
-        role = _role_name(membership.role)
         group_id = str(r.group_id) if r.group_id else None
         is_creator = str(r.created_by) == uid
-        group_admin = group_id is not None and group_id in admin_groups
-        if not attachment_eligible(
-            group_id,
-            is_creator=is_creator,
-            membership_role=membership.role,
-            user_groups=user_groups,
-        ):
+        role = attachment_role(group_id, membership.role, user_groups)
+        if role is None and not is_creator:
             continue
         if r.is_private and not is_creator and str(r.project_id) not in staff_ids:
             continue
-        if role == "ANNOTATOR" and not is_creator and not group_admin:
+        if role == "ANNOTATOR" and not is_creator:
             if r.kind == "exam" or bool(r.is_archived):
                 continue
         if (
@@ -1001,7 +993,6 @@ def _pick_member_org_projects(
             and not is_creator
             and str(r.organization_id) in protected
             and role != "ORG_ADMIN"
-            and not group_admin
         ):
             continue
         picked.append(str(r.project_id))
@@ -1035,23 +1026,25 @@ def _dedup_preserve_order(ids, extra=()):
 def _lti_staff_reach(memberships, user_groups):
     """Where the LMS staff grant can come from (pure; a pre-filter only).
 
-    Returns ``(staff_org_ids, admin_group_ids)``: the orgs with an active
-    CONTRIBUTOR or ORG_ADMIN membership, and the groups the user
-    group-admins. An attachment outside both never passes
-    :func:`org_groups.lti_staff_role`, so skipping it changes nothing.
+    Returns ``(staff_org_ids, staff_group_ids)``: the orgs with an active
+    CONTRIBUTOR or ORG_ADMIN membership, and the groups where the user's
+    group role is CONTRIBUTOR or ORG_ADMIN. An attachment outside both never
+    passes :func:`org_groups.lti_staff_role`, so skipping it changes nothing.
     """
     staff_org_ids = {
         str(m.organization_id)
         for m in memberships or ()
         if m.is_active and _role_rank(m.role) >= _role_rank("CONTRIBUTOR")
     }
-    admin_group_ids = {
-        str(gid) for gid, is_admin in (user_groups or {}).items() if is_admin
+    staff_group_ids = {
+        str(gid)
+        for gid, role in (user_groups or {}).items()
+        if _role_rank(role) >= _role_rank("CONTRIBUTOR")
     }
-    return staff_org_ids, admin_group_ids
+    return staff_org_ids, staff_group_ids
 
 
-def _build_select_lti_staff_candidates(user_id: str, staff_org_ids, admin_group_ids):
+def _build_select_lti_staff_candidates(user_id: str, staff_org_ids, staff_group_ids):
     """Shared SQL builder: LMS-linking attachments that may open another
     user's private exam to ``user_id``, as (project, org, group) rows.
 
@@ -1068,8 +1061,8 @@ def _build_select_lti_staff_candidates(user_id: str, staff_org_ids, admin_group_
     reach = []
     if staff_org_ids:
         reach.append(ProjectOrganization.organization_id.in_(sorted(staff_org_ids)))
-    if admin_group_ids:
-        reach.append(ProjectOrganization.group_id.in_(sorted(admin_group_ids)))
+    if staff_group_ids:
+        reach.append(ProjectOrganization.group_id.in_(sorted(staff_group_ids)))
     return (
         select(
             ProjectOrganization.project_id,
@@ -1131,11 +1124,11 @@ def get_lti_staff_project_ids(db: Session, user, memberships=None) -> set:
     if not memberships:
         return set()
     user_groups = get_user_group_context(db, str(user.id))
-    staff_org_ids, admin_group_ids = _lti_staff_reach(memberships, user_groups)
-    if not staff_org_ids and not admin_group_ids:
+    staff_org_ids, staff_group_ids = _lti_staff_reach(memberships, user_groups)
+    if not staff_org_ids and not staff_group_ids:
         return set()
     rows = db.execute(
-        _build_select_lti_staff_candidates(user.id, staff_org_ids, admin_group_ids)
+        _build_select_lti_staff_candidates(user.id, staff_org_ids, staff_group_ids)
     ).all()
     if not rows:
         return set()
@@ -1154,12 +1147,12 @@ async def get_lti_staff_project_ids_async(
     if not memberships:
         return set()
     user_groups = await get_user_group_context_async(db, str(user.id))
-    staff_org_ids, admin_group_ids = _lti_staff_reach(memberships, user_groups)
-    if not staff_org_ids and not admin_group_ids:
+    staff_org_ids, staff_group_ids = _lti_staff_reach(memberships, user_groups)
+    if not staff_org_ids and not staff_group_ids:
         return set()
     rows = (
         await db.execute(
-            _build_select_lti_staff_candidates(user.id, staff_org_ids, admin_group_ids)
+            _build_select_lti_staff_candidates(user.id, staff_org_ids, staff_group_ids)
         )
     ).all()
     if not rows:
@@ -1235,22 +1228,20 @@ async def get_accessible_project_ids_async(
 def _org_grants_full_tier(
     project, membership, attachment_group_id=None, user_groups=None
 ) -> bool:
-    """Whether an org membership confers the FULL project tier on ``project``.
+    """Whether an org membership confers the FULL project tier on ``project``
+    through the attachment ``attachment_group_id``.
 
-    ANNOTATOR org members never get the full tier on exam-kind projects —
-    for an exam, full tier means raw ``task.data`` (the Musterlösung),
-    exports, settings, and other students' attempts. Student-members reach
-    org-shared exams through the narrow participant tier instead
-    (``get_student_read_access``). Non-exam projects and staff roles are
-    unaffected, and a group admin of the attachment's group is staff on
-    that group's projects regardless of org role (see shared/org_groups).
+    An ANNOTATOR attachment role never gets the full tier on exam-kind
+    projects - for an exam, full tier means raw ``task.data`` (the
+    Musterloesung), exports, settings, and other students' attempts.
+    Student-members reach org-shared exams through the narrow participant
+    tier instead (``get_student_read_access``). Non-exam projects and staff
+    roles are unaffected. On a grouped attachment the group role decides
+    (``org_groups.attachment_role``): a group Admin is staff there whatever
+    their org role, a group ANNOTATOR is not whatever their org role.
     """
-    return grants_full_tier(
-        getattr(project, "kind", None),
-        membership.role,
-        attachment_group_id,
-        user_groups,
-    )
+    role = attachment_role(attachment_group_id, membership.role, user_groups)
+    return role is not None and grants_full_tier(getattr(project, "kind", None), role)
 
 
 def _decide_private_project(
@@ -1381,9 +1372,9 @@ def _decide_project_accessible(
 
     The creator always passes. Otherwise evaluated per attachment (not
     org-set intersection) so a group-scoped attachment only counts through
-    an eligible membership; the first eligible membership that grants the
+    an eligible membership; any eligible attachment role that grants the
     full tier wins. ``attachment_groups``
-    ({org_id: group_id|None}) and ``user_groups`` ({group_id: is_group_admin})
+    ({org_id: group_id|None}) and ``user_groups`` ({group_id: group role})
     carry the group axis; omitted (None) they fall back to "every attachment
     is org-wide". Private projects: the creator, plus LMS-linked staff when
     ``lti_attachments`` is given (``protected_org_ids``: linked orgs where
@@ -1417,12 +1408,6 @@ def _decide_project_accessible(
         if m.organization_id not in project_org_id_set or not m.is_active:
             continue
         group_id = (attachment_groups or {}).get(m.organization_id)
-        if not attachment_eligible(
-            group_id,
-            membership_role=m.role,
-            user_groups=user_groups,
-        ):
-            continue
         if _org_grants_full_tier(project, m, group_id, user_groups):
             return True
     return False
@@ -1773,8 +1758,10 @@ async def get_soft_deletable_project_ids_async(db: AsyncSession, user, projects)
     but never hands deletion to them, nor takes it from the creator, at any
     visibility. A private project is its creator's alone. Otherwise a
     project without manual org rows is the creator's, and a project with
-    them needs an active ORG_ADMIN membership in one of those orgs (a mere
-    CONTRIBUTOR creator cannot delete it out from under the org).
+    them needs an active ORG_ADMIN membership in one of those orgs or the
+    Admin role in the group of one of those rows
+    (``org_groups.build_select_admin_group_ids``; a mere CONTRIBUTOR creator
+    cannot delete it out from under the org or the group).
     """
     projects = [p for p in projects if p is not None]
     if getattr(user, "is_superadmin", False):
@@ -1791,16 +1778,20 @@ async def get_soft_deletable_project_ids_async(db: AsyncSession, user, projects)
     if not shared:
         return allowed
     orgs_by_project: Dict[str, set] = {}
+    groups_by_project: Dict[str, set] = {}
     rows = await db.execute(
         select(
             ProjectOrganization.project_id,
             ProjectOrganization.organization_id,
             non_lti_attachment(ProjectOrganization),
+            ProjectOrganization.group_id,
         ).where(ProjectOrganization.project_id.in_([p.id for p in shared]))
     )
-    for project_id, org_id, is_manual in rows.all():
+    for project_id, org_id, is_manual, group_id in rows.all():
         if is_manual:
             orgs_by_project.setdefault(str(project_id), set()).add(str(org_id))
+            if group_id:
+                groups_by_project.setdefault(str(project_id), set()).add(str(group_id))
     all_orgs = set().union(*orgs_by_project.values()) if orgs_by_project else set()
     admin_orgs = set()
     if all_orgs:
@@ -1813,6 +1804,14 @@ async def get_soft_deletable_project_ids_async(db: AsyncSession, user, projects)
             )
         )
         admin_orgs = {str(org_id) for org_id in admin_rows.scalars().all()}
+    admin_groups = set()
+    if groups_by_project:
+        admin_groups = {
+            str(group_id)
+            for group_id in (
+                await db.execute(build_select_admin_group_ids(uid))
+            ).scalars().all()
+        }
     for project in shared:
         org_ids = orgs_by_project.get(str(project.id))
         if not org_ids:
@@ -1820,50 +1819,26 @@ async def get_soft_deletable_project_ids_async(db: AsyncSession, user, projects)
                 allowed.add(project.id)
         elif org_ids & admin_orgs:
             allowed.add(project.id)
+        elif groups_by_project.get(str(project.id), set()) & admin_groups:
+            allowed.add(project.id)
     return allowed
 
 
 def check_user_can_edit_task_data(db: Session, user, project: Project) -> bool:
     """Whether a user may edit the `data` of a task within the given project.
 
-    Allowed: superadmins, the project creator, and active ORG_ADMIN members of
-    any organization the project belongs to. Mirrors the frontend notion of
-    getEffectiveProjectRole(...) == 'ORG_ADMIN'. This governs *who* may edit;
-    callers still verify project/task access separately.
+    Allowed: superadmins, the project creator, and whoever holds the
+    effective role ORG_ADMIN on the project (an active ORG_ADMIN of an
+    attached org, or an Admin of an attachment's group - the central
+    resolver :func:`get_effective_project_role`). Mirrors the frontend
+    notion of getEffectiveProjectRole(...) == 'ORG_ADMIN'. This governs
+    *who* may edit; callers still verify project/task access separately.
     """
     if user.is_superadmin:
         return True
     if str(user.id) == str(project.created_by):
         return True
-
-    project_org_ids = [
-        r.organization_id
-        for r in db.query(ProjectOrganization.organization_id)
-        .filter(ProjectOrganization.project_id == project.id)
-        .all()
-    ]
-    if not project_org_ids:
-        return False
-
-    admin_membership = (
-        db.query(OrganizationMembership.id)
-        .filter(
-            OrganizationMembership.user_id == user.id,
-            OrganizationMembership.organization_id.in_(project_org_ids),
-            OrganizationMembership.role == OrganizationRole.ORG_ADMIN,
-            OrganizationMembership.is_active == True,  # noqa: E712
-        )
-        .first()
-    )
-    if admin_membership is not None:
-        return True
-    # Group admins hold ORG_ADMIN-equivalent powers on projects attached via
-    # their group (the builder is inherently scoped to THIS project's
-    # grouped attachments).
-    return (
-        db.execute(build_select_group_admin_on_attachments(user.id, project.id)).first()
-        is not None
-    )
+    return get_effective_project_role(db, user, project) == "ORG_ADMIN"
 
 
 async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: Project) -> bool:
@@ -1872,21 +1847,7 @@ async def check_user_can_edit_task_data_async(db: AsyncSession, user, project: P
         return True
     if str(user.id) == str(project.created_by):
         return True
-
-    org_result = await db.execute(_build_select_project_org_ids(project.id))
-    project_org_ids = list(org_result.scalars().all())
-    if not project_org_ids:
-        return False
-
-    admin_result = await db.execute(
-        _build_select_org_admin_membership(user.id, project_org_ids)
-    )
-    if admin_result.first() is not None:
-        return True
-    group_admin_result = await db.execute(
-        build_select_group_admin_on_attachments(user.id, project.id)
-    )
-    return group_admin_result.first() is not None
+    return await get_effective_project_role_async(db, user, project) == "ORG_ADMIN"
 
 
 def check_task_assigned_to_user(
@@ -1903,7 +1864,8 @@ def check_task_assigned_to_user(
     Returns True if:
     - Project assignment_mode is 'open' (no restrictions)
     - User is superadmin
-    - User's org role is not ANNOTATOR (admins/contributors bypass)
+    - User's effective project role is not ANNOTATOR (admins/contributors
+      bypass; resolved centrally, so group roles apply)
     - User has an active assignment for this task
 
     Returns False only when an annotator tries to access an unassigned task
@@ -1915,23 +1877,8 @@ def check_task_assigned_to_user(
     if user.is_superadmin:
         return True
 
-    # Resolve user role from org memberships
-    user_with_memberships = get_user_with_memberships(db, str(user.id))
-    user_role = None
-    if user_with_memberships and user_with_memberships.organization_memberships:
-        project_org_ids = [
-            r.organization_id
-            for r in db.query(ProjectOrganization.organization_id)
-            .filter(ProjectOrganization.project_id == project.id)
-            .all()
-        ]
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
-
     # Non-annotator roles (admin, contributor) bypass assignment checks
-    if user_role and user_role.upper() not in ["ANNOTATOR"]:
+    if role_at_least(get_effective_project_role(db, user, project), "CONTRIBUTOR"):
         return True
 
     # Check if user has any assignment for this task (including completed)
@@ -1974,17 +1921,9 @@ async def check_task_assigned_to_user_async(
     if user.is_superadmin:
         return True
 
-    user_with_memberships = await get_user_with_memberships_async(db, str(user.id))
-    user_role = None
-    if user_with_memberships and user_with_memberships.organization_memberships:
-        org_result = await db.execute(_build_select_project_org_ids(project.id))
-        project_org_ids = list(org_result.scalars().all())
-        for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id in project_org_ids and membership.is_active:
-                user_role = membership.role
-                break
-
-    if user_role and user_role.upper() not in ["ANNOTATOR"]:
+    if role_at_least(
+        await get_effective_project_role_async(db, user, project), "CONTRIBUTOR"
+    ):
         return True
 
     # .scalars().first() (NOT scalar_one_or_none): the (task_id, user_id) key is
@@ -2034,35 +1973,30 @@ def _resolve_effective_role(
 
     Takes already-loaded data (no DB access) so both lanes share identical
     semantics — only the reads (memberships + attachment group map + user
-    group context) differ between sync and async. Group axis: a membership
-    only counts through an ELIGIBLE attachment, and eligibility via a group
-    the user group-admins upgrades that attachment's role to ORG_ADMIN. All
-    memberships are considered and the best eligible role wins — first-match
-    would be membership-order-dependent once ineligible attachments are
-    skipped. Group inputs omitted (None) = every attachment org-wide
-    (pre-groups behavior, kept for legacy callers).
+    group context) differ between sync and async. Group axis: each
+    attachment gives :func:`org_groups.attachment_role` (the org role on an
+    org-wide attachment, the group role on a grouped one, ORG_ADMIN for org
+    admins, nothing when not eligible). All memberships are considered and
+    the best role wins. Group inputs omitted (None) = every attachment
+    org-wide (pre-groups behavior, kept for legacy callers).
     """
     best: Optional[str] = None
     if user_with_memberships and user_with_memberships.organization_memberships:
         is_creator = str(getattr(user, "id", user)) == str(project.created_by)
+        project_org_set = {str(o) for o in project_org_ids or ()}
+        roles = []
         for membership in user_with_memberships.organization_memberships:
-            if membership.organization_id not in project_org_ids or not membership.is_active:
+            org_id = str(membership.organization_id)
+            if org_id not in project_org_set or not membership.is_active:
                 continue
-            group_id = (attachment_groups or {}).get(membership.organization_id)
-            if not attachment_eligible(
-                group_id,
-                is_creator=is_creator,
-                membership_role=membership.role,
-                user_groups=user_groups,
-            ):
-                continue
-            role = (
-                "ORG_ADMIN"
-                if group_id is not None and (user_groups or {}).get(group_id, False)
-                else membership.role
+            role = attachment_role(
+                (attachment_groups or {}).get(org_id), membership.role, user_groups
             )
-            if best is None or _role_rank(role) > _role_rank(best):
-                best = role
+            if role is None and is_creator:
+                # Creators never lose sight of their project.
+                role = membership.role
+            roles.append(role)
+        best = best_role(roles)
     if best is not None:
         return best
 
@@ -2734,23 +2668,26 @@ def _private_edit_role(user_with_memberships, lti_attachments, user_groups, prot
 def _membership_grants_edit(
     memberships, attachment_groups, user_groups, allowed_roles
 ) -> bool:
-    """Pure edit-role loop shared by the sync/async edit-project gates."""
-    for membership in memberships:
-        if membership.organization_id not in attachment_groups or not membership.is_active:
+    """Pure edit-role check shared by the sync/async edit-project gates: the
+    best attachment role (:func:`_best_attachment_role`) is in
+    ``allowed_roles``."""
+    role = _best_attachment_role(memberships, attachment_groups, user_groups)
+    return role is not None and role in allowed_roles
+
+
+def _best_attachment_role(memberships, attachment_groups, user_groups) -> Optional[str]:
+    """Pure: the best :func:`org_groups.attachment_role` over the caller's
+    ACTIVE memberships in the attached orgs (``attachment_groups``:
+    {org_id: group_id|None}), or None when no attachment is eligible."""
+    roles = []
+    for membership in memberships or ():
+        org_id = str(membership.organization_id)
+        if org_id not in (attachment_groups or {}) or not membership.is_active:
             continue
-        group_id = attachment_groups[membership.organization_id]
-        if not attachment_eligible(
-            group_id, membership_role=membership.role, user_groups=user_groups
-        ):
-            continue
-        role = (
-            "ORG_ADMIN"
-            if group_id is not None and (user_groups or {}).get(group_id, False)
-            else membership.role
+        roles.append(
+            attachment_role(attachment_groups[org_id], membership.role, user_groups)
         )
-        if role in allowed_roles:
-            return True
-    return False
+    return best_role(roles)
 
 
 async def resolve_project_roles_batch_async(
