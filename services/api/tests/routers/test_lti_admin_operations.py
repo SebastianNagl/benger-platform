@@ -24,7 +24,7 @@ from models import (
     LtiUserLink,
     User,
 )
-from project_models import MarketplaceEntitlement, ProjectOrganization
+from project_models import MarketplaceEntitlement, ProjectOrganization, Task
 from tests.fixtures.lti_admin_world import (
     LINEITEM_SCOPE,
     SCORE_SCOPE,
@@ -574,11 +574,18 @@ async def test_resource_links_list(async_test_client, async_test_db):
     )
     gone = await make_project(db, world.contributor, title="Deleted exam")
     gone.deleted_at = datetime.now(timezone.utc)
+    second_task_id = (
+        await db.execute(
+            select(Task.id).where(Task.project_id == exam.id, Task.inner_id == 2)
+        )
+    ).scalar_one()
     now = datetime.now(timezone.utc)
     graded = await make_resource_link(
         db,
         reg,
         project=exam,
+        # Bound to the second task of the two-task collection (issue #122).
+        task_id=second_task_id,
         context_title="A-Kurs",
         resource_title="Klausur 1",
         lineitem_url="https://lms.example/lineitems/1/lineitem",
@@ -621,6 +628,8 @@ async def test_resource_links_list(async_test_client, async_test_db):
         "task_count": 2,
         "deleted": False,
     }
+    assert first["task_id"] == second_task_id
+    assert first["task"] == {"id": second_task_id, "inner_id": 2}
     assert first["resource_title"] == "Klausur 1"
     assert first["grades_supported"] is True
     assert first["lineitems_available"] is True
@@ -636,6 +645,9 @@ async def test_resource_links_list(async_test_client, async_test_db):
     assert first["sync_ai_grades"] is True
 
     assert unbound["project"] is None
+    # Whole-exam links (and unbound activities) carry no task.
+    assert unbound["task_id"] is None and unbound["task"] is None
+    assert deleted["task"] is None
     assert unbound["grades_supported"] is False
     assert unbound["lineitems_available"] is False
     assert unbound["granted_scopes"] == [SCORE_SCOPE, LINEITEM_SCOPE]

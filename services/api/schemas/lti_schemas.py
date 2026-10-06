@@ -160,14 +160,31 @@ class LtiRegistrationRead(BaseModel):
         from_attributes = True
 
 
+class LtiResourceLinkTaskRead(BaseModel):
+    """The task of an exam an LMS activity is bound to.
+
+    ``inner_id`` is the task's 1-based number inside its exam ("Aufgabe N").
+    """
+
+    id: str
+    inner_id: Optional[int] = None
+
+
 class LtiResourceLinkRead(BaseModel):
-    """Read shape for a placed LTI resource link (Moodle activity)."""
+    """Read shape for a placed LTI resource link (Moodle activity).
+
+    ``task_id`` NULL is a whole-exam link (only valid while the exam has
+    exactly one task); otherwise the link covers that one task only.
+    ``task`` is filled by callers that resolve the task.
+    """
 
     id: str
     registration_id: str
     deployment_id: str
     resource_link_id: str
     project_id: Optional[str] = None
+    task_id: Optional[str] = None
+    task: Optional[LtiResourceLinkTaskRead] = None
     context_id: Optional[str] = None
     context_title: Optional[str] = None
     resource_title: Optional[str] = None
@@ -305,6 +322,9 @@ class LtiResourceLinkAdminRead(BaseModel):
     context_title: Optional[str] = None
     resource_title: Optional[str] = None
     project: Optional[LtiResourceLinkProjectRead] = None
+    # The task the activity is bound to; None for a whole-exam link.
+    task_id: Optional[str] = None
+    task: Optional[LtiResourceLinkTaskRead] = None
     linked_by_display: Optional[str] = None
     linked_at: Optional[datetime] = None
     # The launch carried a grade column (AGS line item) for this activity.

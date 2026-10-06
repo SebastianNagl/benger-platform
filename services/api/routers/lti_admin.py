@@ -95,6 +95,7 @@ from schemas.lti_schemas import (
     LtiRegistrationUpdate,
     LtiResourceLinkAdminRead,
     LtiResourceLinkProjectRead,
+    LtiResourceLinkTaskRead,
     LtiToolConfigRead,
     LtiToolHostRead,
     LtiUserLinkAdminPage,
@@ -1529,6 +1530,18 @@ async def list_resource_links(
         return []
     link_ids = [link.id for link in links]
     project_ids = sorted({link.project_id for link in links if link.project_id})
+    task_ids = sorted({link.task_id for link in links if link.task_id})
+
+    tasks: Dict[str, Any] = {}
+    if task_ids:
+        tasks = {
+            row.id: row
+            for row in (
+                await db.execute(
+                    select(Task.id, Task.inner_id).where(Task.id.in_(task_ids))
+                )
+            ).all()
+        }
 
     projects: Dict[str, Any] = {}
     task_counts: Dict[str, int] = {}
@@ -1595,6 +1608,13 @@ async def list_resource_links(
                 task_count=task_counts.get(link.project_id, 0),
                 deleted=row is None or row.deleted_at is not None,
             )
+        task = None
+        if link.task_id:
+            task_row = tasks.get(link.task_id)
+            task = LtiResourceLinkTaskRead(
+                id=link.task_id,
+                inner_id=task_row.inner_id if task_row else None,
+            )
         scopes = _granted_scopes(link.ags_scopes)
         stats = participation.get(link.id)
         linker = linkers.get(link.linked_by)
@@ -1607,6 +1627,8 @@ async def list_resource_links(
                 context_title=link.context_title,
                 resource_title=link.resource_title,
                 project=project,
+                task_id=link.task_id,
+                task=task,
                 linked_by_display=(
                     (display_name(linker, reveal) or None) if linker else None
                 ),
