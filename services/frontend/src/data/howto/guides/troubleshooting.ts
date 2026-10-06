@@ -401,6 +401,13 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
         label: { de: 'Anbindung einrichten', en: 'Setting up a connection' },
         href: '/how-to#lti-setup',
       },
+      {
+        label: {
+          de: 'Hauptspalte einer Klausurensammlung bleibt leer',
+          en: 'The main column of an exam collection stays empty',
+        },
+        href: '/how-to#ts-lti-collection',
+      },
     ],
     keywords: {
       de: [
@@ -429,6 +436,93 @@ export const TROUBLESHOOTING_GUIDES: HowToGuide[] = [
         'send again',
         'send all grades again',
         'outage',
+      ],
+    },
+  },
+  {
+    id: 'ts-lti-collection',
+    category: 'troubleshooting',
+    title: {
+      de: 'Klausurensammlung lässt sich nicht verknüpfen oder die Hauptspalte bleibt leer',
+      en: 'An exam collection cannot be linked or the main column stays empty',
+    },
+    summary: {
+      de: 'Eine Klausurensammlung hat mehrere Aufgaben. Wählen Sie in der Auswahl eine Aufgabe, oder in Moodle die ganze Sammlung. Die ganze Sammlung braucht in Moodle die Spaltenverwaltung. Ihre Hauptspalte, die Spalte der Aktivität, erhält den Mittelwert erst, wenn jede Aufgabe eine Endnote hat.',
+      en: 'An exam collection has several tasks. Choose one task in the picker, or, in Moodle, the whole collection. The whole collection needs column management in Moodle. Its main column, the activity column, receives the mean only once every task has a final grade.',
+    },
+    steps: {
+      de: [
+        '**Die Auswahl verlangt eine Aufgabe (`task_required`)**: Die Klausur hat mehrere Aufgaben. Klappen Sie die Sammlung auf und wählen Sie die Aufgabe, deren Note die Aktivität erhält. In Moodle können Sie stattdessen die ganze Sammlung wählen.',
+        '**Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`)**: Die Anbindung ist ILIAS, oder Moodle darf keine Spalten anlegen. In ILIAS legen Sie je Aufgabe eine eigene Aktivität an. In Moodle stellt die Administration beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Öffnen Sie die Aktivität danach neu, damit die Lernplattform die neuen Rechte mitschickt.',
+        '**Die Hauptspalte bleibt leer**: Bei der ganzen Sammlung erhält die Spalte der Aktivität den Mittelwert erst, wenn jede Aufgabe der Person eine Endnote hat. Prüfen Sie in den Spalten *Aufgabe N*, welche Aufgabe noch fehlt, und bewerten Sie sie. Überträgt die Aktivität keine KI-Noten, braucht jede Aufgabe eine Korrektur. Wurde der Sammlung eine Aufgabe hinzugefügt, wartet der Mittelwert auch auf diese Aufgabe.',
+        '**Eine Aufgabenspalte fehlt in Moodle**: Die Spalte erscheint mit der ersten Note der Aufgabe. Wurde sie in Moodle gelöscht, legt BenGER sie nicht von selbst wieder an.',
+        '**Die Verknüpfung lässt sich nicht ändern (`relink_blocked`)**: Eine Note der Aktivität ist schon in der Lernplattform angekommen. Legen Sie für die andere Klausur, die andere Aufgabe oder den anderen Weg eine neue Aktivität an.',
+        '**Import abgelehnt (`multi_task_unsupported`)**: Eine ältere Aktivität erhält die ganze Klausur als eine Note. Verknüpfen Sie sie mit der Aufgabe der Klausur. Danach sind Importe möglich.',
+      ],
+      en: [
+        '**The picker asks for a task (`task_required`)**: the exam has several tasks. Expand the collection and choose the task whose grade the activity receives. In Moodle you can choose the whole collection instead.',
+        '**The whole collection cannot be chosen (`collection_unsupported`)**: the connection is ILIAS, or Moodle does not let the tool create columns. In ILIAS, create one activity per task. In Moodle, the administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again so that the learning platform sends the new rights.',
+        '**The main column stays empty**: on the whole collection, the activity column receives the mean only once every task of the person has a final grade. Check in the *Aufgabe N* columns which task is still missing and grade it. If the activity does not send AI grades, every task needs a human grade. If a task was added to the collection, the mean also waits for that task.',
+        '**A task column is missing in Moodle**: the column appears with the task’s first grade. If it was deleted in Moodle, BenGER does not create it again by itself.',
+        '**The link cannot be changed (`relink_blocked`)**: a grade of the activity has already reached the learning platform. Create a new activity for the other exam, the other task or the other way.',
+        '**Import refused (`multi_task_unsupported`)**: an older activity receives the whole exam as one grade. Link it to the exam’s task. After that, imports are possible.',
+      ],
+    },
+    tips: {
+      de: [
+        'Eine Aktivität je Aufgabe funktioniert in Moodle und ILIAS. Die ganze Sammlung in einer Aktivität gibt es nur in Moodle.',
+      ],
+      en: [
+        'One activity per task works in Moodle and ILIAS. The whole collection on one activity exists in Moodle only.',
+      ],
+    },
+    links: [
+      {
+        label: {
+          de: 'Klausurensammlung verknüpfen',
+          en: 'Linking an exam collection',
+        },
+        href: '/how-to#lti-collection',
+      },
+      {
+        label: {
+          de: 'Noten kommen nicht in Moodle oder ILIAS an',
+          en: 'Grades do not arrive in Moodle or ILIAS',
+        },
+        href: '/how-to#ts-lti-grades',
+      },
+      {
+        label: {
+          de: 'Noten aus der Lernplattform',
+          en: 'Grades and the learning platform',
+        },
+        href: '/how-to#lti-grades',
+      },
+    ],
+    keywords: {
+      de: [
+        'Klausurensammlung',
+        'mehrere Aufgaben',
+        'Hauptspalte bleibt leer',
+        'Mittelwert fehlt',
+        'Aufgabenspalte',
+        'task_required',
+        'collection_unsupported',
+        'relink_blocked',
+        'multi_task_unsupported',
+        'Spaltenverwaltung',
+      ],
+      en: [
+        'exam collection',
+        'several tasks',
+        'main column empty',
+        'mean missing',
+        'task column',
+        'task_required',
+        'collection_unsupported',
+        'relink_blocked',
+        'multi_task_unsupported',
+        'column management',
       ],
     },
   },

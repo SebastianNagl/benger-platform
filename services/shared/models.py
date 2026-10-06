@@ -1016,6 +1016,14 @@ class LtiResourceLink(Base):
     ``sync_ai_grades`` is the per-activity opt-out for automatic score sync.
     ``ai_lineitem_*`` track the separate AI grade column the tool creates
     where the LMS allows column management.
+
+    ``grade_scope`` says what the activity's grade is: ``'exam'`` (legacy
+    whole-exam link, only valid while the exam has exactly one task),
+    ``'task'`` (the grade of ``task_id``, one task of a Klausurensammlung per
+    activity) or ``'collection'`` (one gradebook column per task, kept in
+    ``lti_task_lineitems``; ``task_id`` stays NULL). ``task_id`` is SET NULL
+    when the task is deleted; a ``'task'`` link with NULL ``task_id`` has lost
+    its task, which is why no constraint ties the scope to ``task_id``.
     """
 
     __tablename__ = "lti_resource_links"
@@ -1031,6 +1039,13 @@ class LtiResourceLink(Base):
     resource_link_id = Column(String(255), nullable=False)
     project_id = Column(
         String, ForeignKey("projects.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    # exam | task | collection
+    grade_scope = Column(
+        String(16), nullable=False, default="exam", server_default="exam"
     )
     context_id = Column(String(255), nullable=True)
     context_title = Column(String(500), nullable=True)
@@ -1058,9 +1073,14 @@ class LtiResourceLink(Base):
             name="uq_lti_resource_link",
         ),
         Index("ix_lti_resource_links_project", "project_id"),
+        Index("ix_lti_resource_links_task", "task_id"),
         CheckConstraint(
             "ai_lineitem_status IN ('ready', 'unavailable', 'error', 'deleted')",
             name="ck_lti_resource_links_ai_lineitem_status",
+        ),
+        CheckConstraint(
+            "grade_scope IN ('exam', 'task', 'collection')",
+            name="ck_lti_resource_links_grade_scope",
         ),
     )
 
@@ -1145,6 +1165,12 @@ class LtiGradeSync(Base):
     comparison and ``last_synced_source`` which grade (human or AI) was sent.
     ``ix_lti_grade_syncs_due`` serves the worker's due-scan
     (``status='pending' AND next_retry_at <= now()``).
+
+    ``task_id`` names the task whose column the row feeds on a collection
+    link (one column per task); NULL is the activity's own column.
+    ``uq_lti_grade_sync`` is ``UNIQUE NULLS NOT DISTINCT`` over (link, user,
+    kind, task), so NULL counts as one value: an upsert targets it with
+    ``on_conflict_do_*(constraint="uq_lti_grade_sync")``.
     """
 
     __tablename__ = "lti_grade_syncs"
@@ -1161,6 +1187,9 @@ class LtiGradeSync(Base):
     )
     # final | ai
     kind = Column(String(16), nullable=False, default="final", server_default="final")
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True
+    )
     # pending | synced | failed | idle | skipped
     status = Column(
         String(16), nullable=False, default="pending", server_default="pending"
@@ -1183,9 +1212,15 @@ class LtiGradeSync(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "resource_link_id", "user_id", "kind", name="uq_lti_grade_sync"
+            "resource_link_id",
+            "user_id",
+            "kind",
+            "task_id",
+            name="uq_lti_grade_sync",
+            postgresql_nulls_not_distinct=True,
         ),
         Index("ix_lti_grade_syncs_due", "status", "next_retry_at"),
+        Index("ix_lti_grade_syncs_task", "task_id"),
         CheckConstraint("kind IN ('final', 'ai')", name="ck_lti_grade_syncs_kind"),
     )
 
@@ -1193,6 +1228,57 @@ class LtiGradeSync(Base):
         return (
             f"<LtiGradeSync(id={self.id}, resource_link_id={self.resource_link_id}, "
             f"user_id={self.user_id}, status={self.status})>"
+        )
+
+
+class LtiTaskLineitem(Base):
+    """A tool-created gradebook column for one task of a collection link.
+
+    One row per (resource link, task, kind): ``kind`` is ``final`` (the
+    task's grade column) or ``ai`` (its AI grade column). ``lineitem_url`` is
+    the AGS line item, ``status`` its state ('ready' | 'unavailable' |
+    'error' | 'deleted'; NULL = not tried yet, same values as
+    ``lti_resource_links.ai_lineitem_status``) and ``error`` the reason for
+    the last non-ready state. CASCADE on both FKs: a deleted link or task
+    drops its columns' records.
+    """
+
+    __tablename__ = "lti_task_lineitems"
+
+    id = Column(String, primary_key=True)
+    resource_link_id = Column(
+        String,
+        ForeignKey("lti_resource_links.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    task_id = Column(
+        String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False
+    )
+    # final | ai
+    kind = Column(String(16), nullable=False)
+    lineitem_url = Column(Text, nullable=True)
+    status = Column(String(16), nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "resource_link_id", "task_id", "kind", name="uq_lti_task_lineitem"
+        ),
+        Index("ix_lti_task_lineitems_resource_link", "resource_link_id"),
+        Index("ix_lti_task_lineitems_task", "task_id"),
+        CheckConstraint("kind IN ('final', 'ai')", name="ck_lti_task_lineitems_kind"),
+        CheckConstraint(
+            "status IN ('ready', 'unavailable', 'error', 'deleted')",
+            name="ck_lti_task_lineitems_status",
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<LtiTaskLineitem(resource_link_id={self.resource_link_id}, "
+            f"task_id={self.task_id}, kind={self.kind}, status={self.status})>"
         )
 
 

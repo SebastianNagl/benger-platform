@@ -38,10 +38,12 @@ const LTI_GUIDE_IDS = [
   'lti-setup-ilias',
   'lti-manage',
   'lti-teacher',
+  'lti-collection',
   'lti-grades',
   'lti-privacy',
   'ts-lti-errors',
   'ts-lti-grades',
+  'ts-lti-collection',
 ] as const
 
 // Moodle 4.5.12 labels, checked against the German language pack
@@ -176,6 +178,7 @@ describe('LTI guides: structure', () => {
       'lti-setup-ilias',
       'lti-manage',
       'lti-teacher',
+      'lti-collection',
       'lti-grades',
       'lti-privacy',
     ])
@@ -184,6 +187,7 @@ describe('LTI guides: structure', () => {
     }
     expect(guide('ts-lti-errors').category).toBe('troubleshooting')
     expect(guide('ts-lti-grades').category).toBe('troubleshooting')
+    expect(guide('ts-lti-collection').category).toBe('troubleshooting')
   })
 
   it.each(LTI_GUIDE_IDS)('%s has parallel German and English lists', (id) => {
@@ -241,8 +245,21 @@ describe('LTI guides: structure', () => {
     expect(links('lti-grades')).toContain('/how-to#ts-lti-grades')
     expect(links('ts-lti-errors')).toContain('/how-to#ts-lti-grades')
     expect(links('ts-lti-grades')).toEqual(
-      expect.arrayContaining(['/how-to#lti-grades', '/how-to#lti-manage']),
+      expect.arrayContaining([
+        '/how-to#lti-grades',
+        '/how-to#lti-manage',
+        '/how-to#ts-lti-collection',
+      ]),
     )
+    expect(links('lti-teacher')).toContain('/how-to#lti-collection')
+    expect(links('lti-collection')).toEqual(
+      expect.arrayContaining([
+        '/how-to#lti-teacher',
+        '/how-to#lti-grades',
+        '/how-to#ts-lti-collection',
+      ]),
+    )
+    expect(links('ts-lti-collection')).toContain('/how-to#lti-collection')
   })
 })
 
@@ -601,6 +618,95 @@ describe('LTI guides: statements users rely on', () => {
     expect(de).not.toMatch(/weder Name noch E-Mail/)
     expect(de).not.toMatch(/Wir legen jede Registrierung deaktiviert an/)
     expect(en).not.toMatch(/neither name nor email/)
+  })
+})
+
+describe('LTI guides: exam collections (#122)', () => {
+  it('explains both ways and where each works', () => {
+    const de = body('lti-collection', 'de')
+    const en = body('lti-collection', 'en')
+    expect(de).toMatch(/Eine Aktivität je Aufgabe \(Moodle und ILIAS\)/)
+    expect(de).toMatch(/Die ganze Sammlung in einer Aktivität \(nur Moodle\)/)
+    expect(en).toMatch(/One activity per task \(Moodle and ILIAS\)/)
+    expect(en).toMatch(/The whole collection on one activity \(Moodle only\)/)
+    // The whole collection needs Moodle's column management.
+    for (const locale of LOCALES) {
+      const text = body('lti-collection', locale)
+      expect(text).toContain(MOODLE.agsField[locale])
+      expect(text).toContain(MOODLE.agsColumns[locale])
+      expect(text).toContain(MOODLE.gradebookSetup[locale])
+      expect(text).toContain(MOODLE.weights[locale])
+      expect(text).toContain(label(locale, 'extended.lti.picker.link'))
+    }
+    // ILIAS: one activity per task only, and why.
+    expect(de).toMatch(
+      /In ILIAS gibt es nur den Weg mit einer Aktivität je Aufgabe/,
+    )
+    expect(de).toMatch(/ILIAS lässt das Tool keine Spalten anlegen/)
+    expect(en).toMatch(
+      /In ILIAS only the way with one activity per task exists/,
+    )
+    expect(en).toMatch(/ILIAS does not let the tool create columns/)
+  })
+
+  it('states the mean rule, new tasks, automatic binding, relinks and imports', () => {
+    const de = body('lti-collection', 'de')
+    const en = body('lti-collection', 'en')
+    expect(de).toMatch(/Mittelwert der Endnoten aller Aufgaben/)
+    expect(de).toMatch(/erst gesendet, wenn jede Aufgabe eine Endnote hat/)
+    expect(en).toMatch(/mean of the final grades of all tasks/)
+    expect(en).toMatch(/sent only once every task has a final grade/)
+    expect(de).toMatch(/Spalten mit der nächsten Übertragung/)
+    expect(en).toMatch(/columns on the whole collection with the next transfer/)
+    expect(de).toMatch(
+      /Eine Klausur mit einer Aufgabe verknüpft BenGER automatisch/,
+    )
+    expect(en).toMatch(/links an exam with one task to that task automatically/)
+    expect(de).toMatch(
+      /bis die erste Note der Aktivität in der Lernplattform angekommen ist/,
+    )
+    expect(en).toMatch(
+      /until the activity’s first grade has reached the learning platform/,
+    )
+    expect(de).toMatch(
+      /lässt sich immer mit der einzigen Aufgabe ihrer Klausur verknüpfen/,
+    )
+    expect(en).toMatch(/can always be linked to the only task of its exam/)
+    expect(de).toMatch(
+      /Importe in die Klausur sind möglich, sobald keine Aktivität mehr die ganze Klausur/,
+    )
+    expect(en).toMatch(
+      /Imports into the exam are possible once no activity receives the whole exam/,
+    )
+    // The old "cannot be linked yet" statement is gone everywhere.
+    for (const id of LTI_GUIDE_IDS) {
+      expect(body(id, 'de')).not.toMatch(/lassen sich noch nicht verknüpfen/)
+      expect(body(id, 'en')).not.toMatch(/cannot be linked yet/)
+    }
+  })
+
+  it('ts-lti-collection covers the linking codes and the empty main column', () => {
+    for (const locale of LOCALES) {
+      const text = body('ts-lti-collection', locale)
+      for (const code of [
+        'task_required',
+        'collection_unsupported',
+        'relink_blocked',
+        'multi_task_unsupported',
+      ]) {
+        expect(text).toContain(`\`${code}\``)
+        expect(guideSearchText(guide('ts-lti-collection'), locale)).toContain(
+          normalizeForSearch(code),
+        )
+      }
+      expect(text).toContain(MOODLE.agsColumns[locale])
+    }
+    expect(body('ts-lti-collection', 'de')).toMatch(
+      /Die Hauptspalte bleibt leer/,
+    )
+    expect(body('ts-lti-collection', 'en')).toMatch(
+      /The main column stays empty/,
+    )
   })
 })
 

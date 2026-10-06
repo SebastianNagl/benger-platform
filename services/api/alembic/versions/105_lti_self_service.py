@@ -263,7 +263,8 @@ def _upgrade_grade_syncs() -> None:
     # Same constraint name, one more column (test_079 pins the name).
     wanted = ["resource_link_id", "user_id", "kind"]
     current = _unique_columns(_GRADE_SYNCS, _GRADE_SYNC_UNIQUE)
-    if current == wanted:
+    # Migration 112 widens it to (..., kind, task_id); keep that shape.
+    if current is not None and current[: len(wanted)] == wanted:
         return
     if current is not None:
         op.drop_constraint(_GRADE_SYNC_UNIQUE, _GRADE_SYNCS, type_="unique")

@@ -101,7 +101,8 @@ def _assert_full_shape(conn):
     for table, columns in NEW_COLUMNS.items():
         assert columns <= set(_columns(conn, table)), table
         assert NEW_CHECKS[table] in _checks(conn, table), table
-    assert _grade_sync_unique(conn) == ["resource_link_id", "user_id", "kind"]
+    # Migration 112 appends task_id; 105 owns the first three columns.
+    assert _grade_sync_unique(conn)[:3] == ["resource_link_id", "user_id", "kind"]
 
     link_users = inspect(conn)
     fks = {

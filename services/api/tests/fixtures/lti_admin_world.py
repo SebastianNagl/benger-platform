@@ -281,13 +281,14 @@ async def make_participation(db, link, user, *, instructor: bool = False):
 
 
 async def make_grade_sync(
-    db, link, user, *, status: str = "failed", kind: str = "final"
+    db, link, user, *, status: str = "failed", kind: str = "final", task_id=None
 ) -> LtiGradeSync:
     sync = LtiGradeSync(
         id=str(uuid.uuid4()),
         resource_link_id=link.id,
         user_id=user.id,
         kind=kind,
+        task_id=task_id,
         status=status,
         attempts=3 if status == "failed" else 0,
         last_error="AGS lineitem POST returned 500" if status == "failed" else None,

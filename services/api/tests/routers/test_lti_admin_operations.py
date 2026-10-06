@@ -24,7 +24,7 @@ from models import (
     LtiUserLink,
     User,
 )
-from project_models import MarketplaceEntitlement, ProjectOrganization
+from project_models import MarketplaceEntitlement, ProjectOrganization, Task
 from tests.fixtures.lti_admin_world import (
     LINEITEM_SCOPE,
     SCORE_SCOPE,
@@ -574,11 +574,19 @@ async def test_resource_links_list(async_test_client, async_test_db):
     )
     gone = await make_project(db, world.contributor, title="Deleted exam")
     gone.deleted_at = datetime.now(timezone.utc)
+    second_task_id = (
+        await db.execute(
+            select(Task.id).where(Task.project_id == exam.id, Task.inner_id == 2)
+        )
+    ).scalar_one()
     now = datetime.now(timezone.utc)
     graded = await make_resource_link(
         db,
         reg,
         project=exam,
+        # Bound to the second task of the two-task collection (issue #122).
+        task_id=second_task_id,
+        grade_scope="task",
         context_title="A-Kurs",
         resource_title="Klausur 1",
         lineitem_url="https://lms.example/lineitems/1/lineitem",
@@ -597,7 +605,9 @@ async def test_resource_links_list(async_test_client, async_test_db):
         # The spec's space-separated form.
         ags_scopes=f"{SCORE_SCOPE} {LINEITEM_SCOPE}",
     )
-    await make_resource_link(db, reg, project=gone, context_title="C-Kurs")
+    await make_resource_link(
+        db, reg, project=gone, context_title="C-Kurs", grade_scope="collection"
+    )
     learners = [await make_user(db), await make_user(db)]
     for learner in learners:
         await make_participation(db, graded, learner)
@@ -621,6 +631,11 @@ async def test_resource_links_list(async_test_client, async_test_db):
         "task_count": 2,
         "deleted": False,
     }
+    assert first["task_id"] == second_task_id
+    assert first["task"] == {"id": second_task_id, "inner_id": 2}
+    assert first["grade_scope"] == "task"
+    assert unbound["grade_scope"] == "exam"
+    assert deleted["grade_scope"] == "collection"
     assert first["resource_title"] == "Klausur 1"
     assert first["grades_supported"] is True
     assert first["lineitems_available"] is True
@@ -636,6 +651,9 @@ async def test_resource_links_list(async_test_client, async_test_db):
     assert first["sync_ai_grades"] is True
 
     assert unbound["project"] is None
+    # Whole-exam, collection links (and unbound activities) carry no task.
+    assert unbound["task_id"] is None and unbound["task"] is None
+    assert deleted["task"] is None
     assert unbound["grades_supported"] is False
     assert unbound["lineitems_available"] is False
     assert unbound["granted_scopes"] == [SCORE_SCOPE, LINEITEM_SCOPE]
@@ -1211,6 +1229,7 @@ async def test_retry_dispatches_through_the_hook(
     assert events[0].changes == {
         "grade_sync_id": sync.id,
         "kind": "final",
+        "task_id": None,
         "previous_status": "failed",
         "previous_attempts": 3,
     }
@@ -1227,6 +1246,82 @@ async def test_retry_dispatches_through_the_hook(
         assert r.status_code == 200
         assert r.json()["dispatched"] is False
         assert r.json()["status"] == "pending"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_grade_sync_rows_of_a_collection_carry_their_task(
+    async_test_client, async_test_db, monkeypatch
+):
+    """A collection link (#122) has one row per task column plus the
+    activity's own column (task NULL); reads and the retry carry the task."""
+    db = async_test_db
+    world = await build_world(db)
+    reg = await make_registration(db, world.org, name="Moodle")
+    exam = await make_project(db, world.org_admin, tasks=2, title="Sammlung")
+    first_task, second_task = (
+        (
+            await db.execute(
+                select(Task.id)
+                .where(Task.project_id == exam.id)
+                .order_by(Task.inner_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    link = await make_resource_link(
+        db, reg, project=exam, grade_scope="collection", resource_title="Alle"
+    )
+    student = await make_user(db)
+    main = await make_grade_sync(db, link, student, status="idle")
+    on_second = await make_grade_sync(db, link, student, task_id=second_task)
+    ai_first = await make_grade_sync(
+        db, link, student, kind="ai", task_id=first_task, status="synced"
+    )
+    await db.commit()
+    monkeypatch.setattr(
+        extensions,
+        "_extended",
+        FakeExtended({"dispatch_lti_grade_sync": lambda sync_id: True}),
+    )
+
+    with as_user(world.org_admin):
+        r = await async_test_client.get(
+            BASE + "/grade-syncs",
+            params={"organization_id": world.org.id, "project_id": exam.id},
+        )
+        assert r.status_code == 200, r.text
+        rows = {row["id"]: row for row in r.json()}
+        assert set(rows) == {main.id, on_second.id, ai_first.id}
+        assert rows[main.id]["task_id"] is None
+        assert rows[main.id]["task"] is None
+        assert rows[on_second.id]["task_id"] == second_task
+        assert rows[on_second.id]["task"] == {"id": second_task, "inner_id": 2}
+        assert rows[ai_first.id]["kind"] == "ai"
+        assert rows[ai_first.id]["task"] == {"id": first_task, "inner_id": 1}
+
+        r = await async_test_client.post(f"{BASE}/grade-syncs/{on_second.id}/retry")
+        assert r.status_code == 200, r.text
+        body = r.json()
+    assert body["dispatched"] is True
+    assert body["status"] == "pending"
+    assert body["task"] == {"id": second_task, "inner_id": 2}
+
+    events = await _events(db, registration_id=reg.id)
+    assert [e.action for e in events] == ["grade_sync_retried"]
+    assert events[0].changes["task_id"] == second_task
+    # The retry touched only the task row.
+    statuses = dict(
+        (
+            await db.execute(
+                select(LtiGradeSync.id, LtiGradeSync.status)
+                .where(LtiGradeSync.resource_link_id == link.id)
+                .execution_options(populate_existing=True)
+            )
+        ).all()
+    )
+    assert statuses == {main.id: "idle", on_second.id: "pending", ai_first.id: "synced"}
 
 
 @pytest.mark.parametrize(

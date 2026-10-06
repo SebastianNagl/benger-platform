@@ -29,6 +29,9 @@ LinkMethod = Literal["provisioned", "login_proof", "email_proof", "legacy_email"
 AiLineitemStatus = Literal["ready", "unavailable", "error", "deleted"]
 # LMS column a grade-sync row feeds.
 GradeSyncKind = Literal["final", "ai"]
+# exam = whole exam (one task only), task = one task, collection = one
+# gradebook column per task.
+GradeScope = Literal["exam", "task", "collection"]
 
 
 def _require_http_url(value: str) -> str:
@@ -160,14 +163,34 @@ class LtiRegistrationRead(BaseModel):
         from_attributes = True
 
 
+class LtiResourceLinkTaskRead(BaseModel):
+    """The task of an exam an LMS activity is bound to.
+
+    ``inner_id`` is the task's 1-based number inside its exam ("Aufgabe N").
+    """
+
+    id: str
+    inner_id: Optional[int] = None
+
+
 class LtiResourceLinkRead(BaseModel):
-    """Read shape for a placed LTI resource link (Moodle activity)."""
+    """Read shape for a placed LTI resource link (Moodle activity).
+
+    ``grade_scope`` is ``exam`` (whole exam, only valid while the exam has
+    exactly one task), ``task`` (the grade of ``task_id``; NULL ``task_id``
+    means the task was deleted) or ``collection`` (one gradebook column per
+    task, ``task_id`` NULL). ``task`` is filled by callers that resolve the
+    task.
+    """
 
     id: str
     registration_id: str
     deployment_id: str
     resource_link_id: str
     project_id: Optional[str] = None
+    grade_scope: GradeScope = "exam"
+    task_id: Optional[str] = None
+    task: Optional[LtiResourceLinkTaskRead] = None
     context_id: Optional[str] = None
     context_title: Optional[str] = None
     resource_title: Optional[str] = None
@@ -214,6 +237,9 @@ class LtiGradeSyncRead(BaseModel):
     resource_link_id: str
     user_id: str
     kind: GradeSyncKind = "final"
+    # The task whose column the row feeds (collection links); None is the
+    # activity's own column.
+    task_id: Optional[str] = None
     status: str
     attempts: int
     next_retry_at: Optional[datetime] = None
@@ -247,6 +273,9 @@ class LtiGradeSyncAdminRead(LtiGradeSyncRead):
     project_title: Optional[str] = None
     student_pseudonym: Optional[str] = None
     student_name: Optional[str] = None
+    # The task of ``task_id`` with its number in the exam; None for the
+    # activity's own column.
+    task: Optional[LtiResourceLinkTaskRead] = None
 
 
 class LtiGradeSyncRetryRead(LtiGradeSyncAdminRead):
@@ -305,6 +334,12 @@ class LtiResourceLinkAdminRead(BaseModel):
     context_title: Optional[str] = None
     resource_title: Optional[str] = None
     project: Optional[LtiResourceLinkProjectRead] = None
+    # exam | task | collection (see LtiResourceLinkRead).
+    grade_scope: GradeScope = "exam"
+    # The task the activity is bound to; None for a whole-exam or a
+    # collection link, or when the bound task was deleted.
+    task_id: Optional[str] = None
+    task: Optional[LtiResourceLinkTaskRead] = None
     linked_by_display: Optional[str] = None
     linked_at: Optional[datetime] = None
     # The launch carried a grade column (AGS line item) for this activity.

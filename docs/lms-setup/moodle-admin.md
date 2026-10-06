@@ -37,6 +37,14 @@ Prüfen, sonst nichts ändern:
 
 **Speichern**.
 
+Die Spaltenverwaltung braucht BenGER für die Spalte **KI-Bewertung** und
+dafür, dass Lehrende eine ganze Klausurensammlung mit einer Aktivität
+verknüpfen können. Dann legt BenGER je Aufgabe eine eigene Spalte an, und
+die Spalte der Aktivität erhält den Mittelwert. Mit **Service nur für
+Bewertungen nutzen** (*Use this service for grade sync only*) erhält Moodle
+nur die Endnote, und Lehrende können eine Sammlung nur Aufgabe für Aufgabe
+mit je einer Aktivität verknüpfen.
+
 **Fertig, wenn** der Organisations-Admin die Anbindung als **Anbindung
 aktiv** sieht. Weiter mit der [Anleitung für Lehrende](teacher.md).
 
@@ -48,4 +56,5 @@ aktiv** sieht. Weiter mit der [Anleitung für Lehrende](teacher.md).
 | Personen landen auf einer Anmeldeseite | Tool startet eingebettet | Standard-Startcontainer „Neues Fenster“ |
 | Aktivitäten haben keine Bewertung | Bewertungen werden an Lehrende delegiert | „Bewertungen aus dem Tool akzeptieren“ auf „Immer“ |
 | Nur die Endnote, keine Spalte „KI-Bewertung“ | AGS nur für die Synchronisation | „… und die Verwaltung der Spalten nutzen“ |
+| Lehrende können die ganze Klausurensammlung nicht wählen (`collection_unsupported`) | AGS nur für die Synchronisation | „… und die Verwaltung der Spalten nutzen“, dann die Aktivität neu öffnen |
 | Der Link ist abgelaufen oder verbraucht | Einmal-Link | Neuen Link beim Organisations-Admin anfordern |
