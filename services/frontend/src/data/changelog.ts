@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-06',
+    audience: 'both',
+    text: {
+      de: 'Jede Gruppe einer Organisation hat jetzt eigene Rollen: Admin, Mitwirkender oder Annotator, unabhängig von der Rolle in der Organisation. Auf Projekten einer Gruppe zählt die Rolle in der Gruppe, auf organisationsweiten Projekten die Rolle in der Organisation. So kann jemand in einem Lehrstuhl Klausuren schreiben und in einem anderen Projekte betreuen. Wer in einer Gruppe Admin ist, verwaltet deren Mitglieder und Rollen, lädt neue Personen in die Gruppe ein und legt dort Projekte an, auch als Annotator der Organisation. Beim Einladen in eine Gruppe wählen Sie die Rolle in der Gruppe; bestehende Mitglieder der Organisation kommen direkt in die Gruppe, und die Rückmeldung nennt jede übersprungene Adresse mit Grund. Projekte lassen sich auch beim Import einer Gruppe zuordnen.',
+      en: 'Every group of an organization now has its own roles: admin, contributor or annotator, independent of the organization role. On a group’s projects the group role counts, on organization-wide projects the organization role. So someone can sit exams in one chair and run projects in another. Whoever is admin of a group manages its members and roles, invites new people into the group and creates projects there, even as an annotator of the organization. When inviting into a group you choose the group role; existing organization members are added to the group directly, and the result names every skipped address with its reason. Imported projects can be assigned to a group too.',
+    },
+  },
+  {
     date: '2026-09-30',
     audience: 'both',
     text: {
