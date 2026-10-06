@@ -177,7 +177,7 @@ def _make_invitation(
     accepted_at=None,
     expires_in_days=7,
     group_id=None,
-    invited_as_group_admin=False,
+    group_role=None,
 ):
     inv = Invitation(
         id=_uid(),
@@ -185,7 +185,7 @@ def _make_invitation(
         email=email,
         role=role,
         group_id=group_id,
-        invited_as_group_admin=invited_as_group_admin,
+        group_role=group_role if group_role is not None else (role if group_id else None),
         token=token or _uid(),
         invited_by=invited_by,
         expires_at=datetime.now(timezone.utc) + timedelta(days=expires_in_days),
@@ -1024,7 +1024,7 @@ class TestAcceptGroupScopedInvitation:
             token=token,
             role=OrganizationRole.CONTRIBUTOR,
             group_id=group.id,
-            invited_as_group_admin=True,
+            group_role=OrganizationRole.ORG_ADMIN,
         )
 
         resp = client.post(
@@ -1041,7 +1041,7 @@ class TestAcceptGroupScopedInvitation:
             .first()
         )
         assert gm is not None
-        assert gm.is_group_admin is True
+        assert gm.role == OrganizationRole.ORG_ADMIN
         membership = (
             test_db.query(OrganizationMembership)
             .filter(
@@ -1112,7 +1112,7 @@ class TestAcceptGroupScopedInvitation:
             token=token,
             role=OrganizationRole.CONTRIBUTOR,
             group_id=group.id,
-            invited_as_group_admin=True,
+            group_role=OrganizationRole.ORG_ADMIN,
         )
 
         resp = client.post(
@@ -1149,7 +1149,7 @@ class TestAcceptGroupScopedInvitation:
             .first()
         )
         assert gm is not None
-        assert gm.is_group_admin is True
+        assert gm.role == OrganizationRole.ORG_ADMIN
 
     def test_signup_with_token_inactive_group_degrades(
         self, client, test_db, test_users, test_org
@@ -1780,3 +1780,329 @@ class TestResendInvitation:
         assert resp.json()["email_status"] == "failed"
         await async_test_db.refresh(inv)
         assert "broker down" in inv.email_last_error
+
+
+@pytest.mark.integration
+class TestGroupRoleInvitations:
+    """Per-group roles (migration 111): group-scoped invitations carry a
+    ``group_role``; group admins invite with org role ANNOTATOR only; an
+    existing member of a group-scoped invite is put into the group directly;
+    every acceptance path writes the group role."""
+
+    _URL = "/api/invitations/organizations/{org}/invitations"
+
+    def _group(self, test_db, org_id):
+        from models import OrganizationGroup
+
+        group = OrganizationGroup(
+            id=_uid(), organization_id=org_id, name=f"G-{_uid()[:6]}", is_active=True
+        )
+        test_db.add(group)
+        test_db.commit()
+        return group
+
+    def _group_member(self, test_db, group, user, role):
+        from models import OrganizationGroupMembership
+
+        test_db.add(
+            OrganizationGroupMembership(
+                id=_uid(), group_id=group.id, user_id=user.id, role=role
+            )
+        )
+        test_db.commit()
+
+    def _group_row(self, test_db, group, user):
+        from models import OrganizationGroupMembership
+
+        test_db.expire_all()
+        return (
+            test_db.query(OrganizationGroupMembership)
+            .filter(
+                OrganizationGroupMembership.group_id == group.id,
+                OrganizationGroupMembership.user_id == user.id,
+            )
+            .first()
+        )
+
+    def test_group_role_required_with_group(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        group = self._group(test_db, test_org.id)
+        with patch("routers.invitations.celery_app"):
+            resp = client.post(
+                self._URL.format(org=test_org.id),
+                json={"email": "norole@example.com", "role": "ANNOTATOR", "group_id": group.id},
+                headers=auth_headers["org_admin"],
+            )
+            assert resp.status_code == 422
+            resp = client.post(
+                self._URL.format(org=test_org.id) + "/bulk",
+                json={"emails": ["norole@example.com"], "role": "ANNOTATOR", "group_id": group.id},
+                headers=auth_headers["org_admin"],
+            )
+            assert resp.status_code == 422
+            # Without a group, group_role is ignored.
+            resp = client.post(
+                self._URL.format(org=test_org.id),
+                json={"email": "plain@example.com", "role": "ANNOTATOR", "group_role": "ORG_ADMIN"},
+                headers=auth_headers["org_admin"],
+            )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["group_id"] is None and resp.json()["group_role"] is None
+
+    def test_group_admin_invites_with_org_annotator_only(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        group = self._group(test_db, test_org.id)
+        other = self._group(test_db, test_org.id)
+        # test_users[2] is an org ANNOTATOR; make them Admin of the group.
+        self._group_member(test_db, group, test_users[2], OrganizationRole.ORG_ADMIN)
+        headers = auth_headers["annotator"]
+        with patch("routers.invitations.celery_app"):
+            refused = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": "chair-staff@example.com",
+                    "role": "CONTRIBUTOR",
+                    "group_id": group.id,
+                    "group_role": "CONTRIBUTOR",
+                },
+                headers=headers,
+            )
+            assert refused.status_code == 403
+            foreign = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": "chair-staff@example.com",
+                    "role": "ANNOTATOR",
+                    "group_id": other.id,
+                    "group_role": "ANNOTATOR",
+                },
+                headers=headers,
+            )
+            assert foreign.status_code == 403
+            ok = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": "chair-staff@example.com",
+                    "role": "ANNOTATOR",
+                    "group_id": group.id,
+                    "group_role": "ORG_ADMIN",
+                },
+                headers=headers,
+            )
+        assert ok.status_code == 200, ok.text
+        body = ok.json()
+        assert body["role"] == "ANNOTATOR"
+        assert body["group_id"] == group.id
+        assert body["group_role"] == "ORG_ADMIN"
+        assert "invited_as_group_admin" not in body
+        row = test_db.query(Invitation).filter(Invitation.email == "chair-staff@example.com").one()
+        assert row.group_role == OrganizationRole.ORG_ADMIN
+
+    def test_group_admin_of_removed_membership_cannot_invite(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        group = self._group(test_db, test_org.id)
+        self._group_member(test_db, group, test_users[2], OrganizationRole.ORG_ADMIN)
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == test_users[2].id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .one()
+        )
+        membership.is_active = False
+        test_db.commit()
+        with patch("routers.invitations.celery_app"):
+            resp = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": "late@example.com",
+                    "role": "ANNOTATOR",
+                    "group_id": group.id,
+                    "group_role": "ANNOTATOR",
+                },
+                headers=auth_headers["annotator"],
+            )
+        assert resp.status_code == 403
+
+    def test_single_invite_adds_existing_member_to_group(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        group = self._group(test_db, test_org.id)
+        contributor = test_users[1]
+        with patch("routers.invitations.celery_app") as celery:
+            resp = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": contributor.email,
+                    "role": "ANNOTATOR",
+                    "group_id": group.id,
+                    "group_role": "ORG_ADMIN",
+                },
+                headers=auth_headers["org_admin"],
+            )
+            assert resp.status_code == 200, resp.text
+            assert resp.json() == {
+                "status": "added_to_group",
+                "email": contributor.email,
+                "group_id": group.id,
+            }
+            assert not celery.send_task.called
+        row = self._group_row(test_db, group, contributor)
+        assert row is not None and row.role == OrganizationRole.ORG_ADMIN
+        # The org role is untouched and no invitation was stored.
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == contributor.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .one()
+        )
+        assert membership.role == OrganizationRole.CONTRIBUTOR
+        assert test_db.query(Invitation).filter(Invitation.email == contributor.email).count() == 0
+
+        # Again: already in the group, the role stays.
+        with patch("routers.invitations.celery_app"):
+            again = client.post(
+                self._URL.format(org=test_org.id),
+                json={
+                    "email": contributor.email,
+                    "role": "ANNOTATOR",
+                    "group_id": group.id,
+                    "group_role": "ANNOTATOR",
+                },
+                headers=auth_headers["org_admin"],
+            )
+        assert again.status_code == 200
+        assert again.json()["status"] == "already_in_group"
+        assert self._group_row(test_db, group, contributor).role == OrganizationRole.ORG_ADMIN
+
+    def test_bulk_group_invite_statuses(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        group = self._group(test_db, test_org.id)
+        self._group_member(test_db, group, test_users[2], OrganizationRole.ANNOTATOR)
+        with patch("routers.invitations.celery_app"):
+            resp = client.post(
+                self._URL.format(org=test_org.id) + "/bulk",
+                json={
+                    "emails": [
+                        test_users[1].email,  # member, not in the group
+                        test_users[2].email,  # member, already in the group
+                        "fresh-group@example.com",
+                        "not-an-email",
+                    ],
+                    "role": "ANNOTATOR",
+                    "group_id": group.id,
+                    "group_role": "CONTRIBUTOR",
+                },
+                headers=auth_headers["org_admin"],
+            )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        statuses = {item["email"]: item["status"] for item in body["results"]}
+        assert statuses == {
+            test_users[1].email: "added_to_group",
+            test_users[2].email: "already_in_group",
+            "fresh-group@example.com": "queued",
+            "not-an-email": "invalid",
+        }
+        assert body["queued"] == 1
+        assert body["added_to_group"] == 1
+        assert body["skipped"] == 2
+        assert body["total"] == 4
+        assert self._group_row(test_db, group, test_users[1]).role == OrganizationRole.CONTRIBUTOR
+        assert self._group_row(test_db, group, test_users[2]).role == OrganizationRole.ANNOTATOR
+        fresh = test_db.query(Invitation).filter(Invitation.email == "fresh-group@example.com").one()
+        assert fresh.group_id == group.id and fresh.group_role == OrganizationRole.CONTRIBUTOR
+
+    def test_bulk_without_group_keeps_already_member(
+        self, client, test_db, test_users, test_org, auth_headers
+    ):
+        with patch("routers.invitations.celery_app"):
+            resp = client.post(
+                self._URL.format(org=test_org.id) + "/bulk",
+                json={"emails": [test_users[1].email], "role": "ANNOTATOR"},
+                headers=auth_headers["org_admin"],
+            )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["results"][0]["status"] == "already_member"
+        assert body["added_to_group"] == 0 and body["skipped"] == 1
+
+    def test_accept_by_existing_member_joins_group_with_role(
+        self, client, test_db, test_users, test_org
+    ):
+        group = self._group(test_db, test_org.id)
+        member = test_users[1]  # active CONTRIBUTOR of test_org
+        token = _uid()
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=member.email,
+            token=token,
+            role=OrganizationRole.ANNOTATOR,
+            group_id=group.id,
+            group_role=OrganizationRole.ORG_ADMIN,
+        )
+        resp = client.post(f"/api/invitations/accept/{token}", headers=_bearer(member))
+        assert resp.status_code == 200, resp.text
+        assert self._group_row(test_db, group, member).role == OrganizationRole.ORG_ADMIN
+        membership = (
+            test_db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == member.id,
+                OrganizationMembership.organization_id == test_org.id,
+            )
+            .one()
+        )
+        assert membership.role == OrganizationRole.CONTRIBUTOR
+
+    def test_email_verification_joins_group_for_existing_member(
+        self, test_db, test_users, test_org
+    ):
+        from auth_module.email_verification import email_verification_service
+
+        group = self._group(test_db, test_org.id)
+        member = test_users[1]
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=member.email,
+            role=OrganizationRole.ANNOTATOR,
+            group_id=group.id,
+            group_role=OrganizationRole.CONTRIBUTOR,
+        )
+        email_verification_service._auto_accept_invitations(
+            test_db, member.id, member.email, test_org.id
+        )
+        test_db.commit()
+        assert self._group_row(test_db, group, member).role == OrganizationRole.CONTRIBUTOR
+
+    def test_email_verification_new_member_gets_group_role(
+        self, test_db, test_users, test_org
+    ):
+        from auth_module.email_verification import email_verification_service
+
+        group = self._group(test_db, test_org.id)
+        newcomer = _make_user(test_db, "verify-group@example.com", "Verify Group")
+        _make_invitation(
+            test_db,
+            test_org.id,
+            test_users[0].id,
+            email=newcomer.email,
+            role=OrganizationRole.ANNOTATOR,
+            group_id=group.id,
+            group_role=OrganizationRole.ORG_ADMIN,
+        )
+        email_verification_service._auto_accept_invitations(
+            test_db, newcomer.id, newcomer.email, None
+        )
+        test_db.commit()
+        assert self._group_row(test_db, group, newcomer).role == OrganizationRole.ORG_ADMIN

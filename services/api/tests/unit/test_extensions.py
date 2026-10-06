@@ -126,7 +126,9 @@ class TestExtensionLoader:
         # 2.26 adds the monitoring hooks (configure_app, on_ops_event).
         # 2.27 moves the feature flag system to extended (state + targets
         # schema stays here, /api/feature-flags router removed).
-        assert CORE_API_VERSION == "2.27"
+        # 2.28 gives every group membership its own role (group_role on
+        # invitations, attachment_role in org_groups).
+        assert CORE_API_VERSION == "2.28"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

@@ -17,6 +17,7 @@ from app.core.authorization import Permission, auth_service
 from auth_module.models import User as AuthUser
 from models import Organization, OrganizationMembership, User
 from project_models import Project, ProjectOrganization
+from tests.fixtures.group_roles import legacy_group_role_async
 
 
 def _uid() -> str:
@@ -213,7 +214,7 @@ BOTH_MODES = ("org", None)
 
 
 async def _make_group(db, org, *members):
-    """members: (user, is_group_admin) tuples."""
+    """members: (user, group-admin flag or group role) tuples."""
     from models import OrganizationGroup, OrganizationGroupMembership
 
     g = OrganizationGroup(
@@ -224,7 +225,10 @@ async def _make_group(db, org, *members):
     for user, is_admin in members:
         db.add(
             OrganizationGroupMembership(
-                id=_uid(), group_id=g.id, user_id=user.id, is_group_admin=is_admin
+                id=_uid(),
+                group_id=g.id,
+                user_id=user.id,
+                role=await legacy_group_role_async(db, g.id, user.id, is_admin),
             )
         )
     await db.flush()

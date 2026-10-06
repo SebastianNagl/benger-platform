@@ -591,7 +591,7 @@ class TestAcceptInvitation:
         # Plain org invite (no group scope) — the group-scoped accept path
         # is covered in tests/integration/test_invitations_branches.py.
         invitation.group_id = None
-        invitation.invited_as_group_admin = False
+        invitation.group_role = None
         return invitation
 
     @pytest.mark.asyncio

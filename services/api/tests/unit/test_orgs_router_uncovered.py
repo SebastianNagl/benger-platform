@@ -248,10 +248,10 @@ class TestListMembersSuccess:
 
         # Superadmin path: ``await db.execute(...).all()`` yielding
         # (membership, user) row tuples, then the group-chips query
-        # (user_id, group_id, group_name, is_group_admin).
+        # (user_id, group_id, group_name, group role).
         db = _async_db([
             _result(all_=[(member_mock, user_mock)]),
-            _result(all_=[("user-1", "grp-1", "LS A", True)]),
+            _result(all_=[("user-1", "grp-1", "LS A", "ORG_ADMIN")]),
         ])
 
         result = await list_organization_members(
@@ -277,8 +277,9 @@ class TestUpdateMemberRoleSuccess:
         target_membership = Mock()
         target_membership.role = OrganizationRole.ANNOTATOR
 
-        # Superadmin path: target_membership lookup then commit.
-        db = _async_db([_result(scalar_one_or_none=target_membership)])
+        # Superadmin path: target_membership lookup, the delete of the
+        # member's group rows in this org, then commit.
+        db = _async_db([_result(scalar_one_or_none=target_membership), _result()])
 
         result = await update_member_role(
             organization_id="org-1",
@@ -307,8 +308,9 @@ class TestRemoveMemberSuccess:
         target_membership = Mock()
         target_membership.is_active = True
 
-        # Superadmin path: target_membership lookup then commit.
-        db = _async_db([_result(scalar_one_or_none=target_membership)])
+        # Superadmin path: target_membership lookup, the delete of the
+        # member's group rows in this org, then commit.
+        db = _async_db([_result(scalar_one_or_none=target_membership), _result()])
 
         result = await remove_member(
             organization_id="org-1",

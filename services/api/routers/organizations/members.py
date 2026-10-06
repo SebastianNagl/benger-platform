@@ -37,6 +37,11 @@ class OrganizationMemberListItem(OrganizationMemberResponse):
 class AddUserToOrganization(BaseModel):
     user_id: str
     role: OrganizationRole = OrganizationRole.ANNOTATOR
+    # Optional: also put the user into this group of the org with
+    # ``group_role`` (ANNOTATOR when omitted). An existing group row keeps
+    # its role.
+    group_id: Optional[str] = None
+    group_role: Optional[OrganizationRole] = None
 
 
 
@@ -55,22 +60,13 @@ class BulkVerifyEmailRequest(BaseModel):
 
 
 async def _administers_a_group(db: AsyncSession, user_id: str, organization_id: str) -> bool:
-    """Whether the user is group admin of a group of the org."""
-    from models import OrganizationGroup, OrganizationGroupMembership
+    """Whether the user is group admin of a group of the org
+    (``org_groups.build_select_admin_group_ids``)."""
+    from org_groups import build_select_admin_group_ids
 
     row = (
         await db.execute(
-            select(OrganizationGroupMembership.id)
-            .join(
-                OrganizationGroup,
-                OrganizationGroup.id == OrganizationGroupMembership.group_id,
-            )
-            .where(
-                OrganizationGroupMembership.user_id == user_id,
-                OrganizationGroupMembership.is_group_admin == True,  # noqa: E712
-                OrganizationGroup.organization_id == organization_id,
-            )
-            .limit(1)
+            build_select_admin_group_ids(str(user_id), organization_id).limit(1)
         )
     ).first()
     return row is not None
@@ -113,11 +109,11 @@ async def list_organization_members(
             )
         # ANNOTATOR members (incl. every LTI-provisioned student) must not
         # enumerate the org roster — names and emails of the whole cohort and
-        # staff. Member visibility is a CONTRIBUTOR+ concern — or a GROUP
-        # admin's: the org role is the capability axis and is_group_admin is
-        # orthogonal, so an org-ANNOTATOR may legitimately administer a
-        # group (group-scoped invitation, admin toggle) and needs the roster
-        # to pick members for it.
+        # staff. Member visibility is a CONTRIBUTOR+ concern - or a GROUP
+        # admin's: the group role is independent of the org role, so an
+        # org-ANNOTATOR may legitimately administer a group (group-scoped
+        # invitation, group roles) and needs the roster to pick members
+        # for it.
         if membership.role == OrganizationRole.ANNOTATOR:
             if not await _administers_a_group(db, current_user.id, organization_id):
                 raise HTTPException(
@@ -149,7 +145,7 @@ async def list_organization_members(
                 OrganizationGroupMembership.user_id,
                 OrganizationGroup.id,
                 OrganizationGroup.name,
-                OrganizationGroupMembership.is_group_admin,
+                OrganizationGroupMembership.role,
             )
             .join(
                 OrganizationGroup,
@@ -159,9 +155,9 @@ async def list_organization_members(
         )
     ).all()
     groups_by_user: dict = {}
-    for user_id, gid, gname, is_admin in group_rows:
+    for user_id, gid, gname, group_role in group_rows:
         groups_by_user.setdefault(user_id, []).append(
-            MemberGroupInfo(id=gid, name=gname, is_group_admin=bool(is_admin))
+            MemberGroupInfo(id=gid, name=gname, role=group_role)
         )
 
     mask = await org_name_mask(
@@ -171,12 +167,17 @@ async def list_organization_members(
         admin_org_ids=name_admin_ids,
     )
     if mask.masked_ids and not name_admin_ids:
-        viewer_id = str(current_user.id)
-        admin_group_ids = {
-            gid
-            for uid, gid, _name, is_admin in group_rows
-            if str(uid) == viewer_id and is_admin
-        }
+        from org_groups import build_select_admin_group_ids
+
+        admin_group_ids = set(
+            (
+                await db.execute(
+                    build_select_admin_group_ids(str(current_user.id), organization_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
         if admin_group_ids:
             # The LMS users of the connections scoped to those groups, on
             # every row: who is in a group is up to the group admin, so it
@@ -303,6 +304,22 @@ async def remove_member(
     # Soft delete - deactivate membership
     target_membership.is_active = False
     target_membership.updated_at = datetime.utcnow()
+    # The user's group rows in this org go with it: a group role must never
+    # outlive the org membership it hangs off.
+    from sqlalchemy import delete
+
+    from models import OrganizationGroup, OrganizationGroupMembership
+
+    await db.execute(
+        delete(OrganizationGroupMembership).where(
+            OrganizationGroupMembership.user_id == user_id,
+            OrganizationGroupMembership.group_id.in_(
+                select(OrganizationGroup.id).where(
+                    OrganizationGroup.organization_id == organization_id
+                )
+            ),
+        )
+    )
 
     await db.commit()
 
@@ -360,6 +377,23 @@ async def add_user_to_organization(
             detail="User is already a member of this organization",
         )
 
+    group = None
+    if add_user.group_id:
+        from models import OrganizationGroup
+
+        group = (
+            await db.execute(
+                select(OrganizationGroup).where(
+                    OrganizationGroup.id == add_user.group_id,
+                    OrganizationGroup.organization_id == organization_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if group is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+        if not group.is_active:
+            raise HTTPException(status_code=400, detail="Group is not active")
+
     if existing_membership:
         # Reactivate previously removed membership
         existing_membership.is_active = True
@@ -375,6 +409,27 @@ async def add_user_to_organization(
             is_active=True,
         )
         db.add(membership)
+
+    if group is not None:
+        from models import OrganizationGroupMembership
+
+        in_group = (
+            await db.execute(
+                select(OrganizationGroupMembership.id).where(
+                    OrganizationGroupMembership.group_id == group.id,
+                    OrganizationGroupMembership.user_id == add_user.user_id,
+                )
+            )
+        ).first()
+        if in_group is None:
+            db.add(
+                OrganizationGroupMembership(
+                    id=str(uuid4()),
+                    group_id=group.id,
+                    user_id=add_user.user_id,
+                    role=add_user.group_role or OrganizationRole.ANNOTATOR,
+                )
+            )
 
     await db.commit()
 

@@ -342,6 +342,7 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
         # Owning org for a create-new import (request org context); None keeps
         # the first-active-membership fallback. Re-validated by the importer.
         organization_id = job.organization_id
+        organization_group_id = getattr(job, "organization_group_id", None)
 
         # Cloud import: the artifact lives in a customer bucket reached through
         # an org storage connection, not in our own object storage. Resolve the
@@ -411,8 +412,11 @@ def import_project_impl(self, job_id: str) -> Dict[str, Any]:
                 result = run_nested_import(db, project_id, spooled, requested_by)
                 detected_format = "nested"
             else:
+                import_kwargs = {"organization_id": organization_id}
+                if organization_group_id:
+                    import_kwargs["organization_group_id"] = organization_group_id
                 result = run_full_project_import(
-                    db, spooled, requested_by, organization_id=organization_id
+                    db, spooled, requested_by, **import_kwargs
                 )
                 detected_format = "comprehensive"
         finally:
