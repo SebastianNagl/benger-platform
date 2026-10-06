@@ -45,7 +45,7 @@ editions.
 
 | Part | Edition | Where |
 |---|---|---|
-| Database schema for all LTI state: eight tables, migrations `079`, `083`, `084`, `085`, `089`, `097`, `105` and `106` | Community (Apache-2.0) | `services/api/alembic/versions/` |
+| Database schema for all LTI state: nine tables, migrations `079`, `083`, `084`, `085`, `089`, `097`, `105`, `106` and `112` | Community (Apache-2.0) | `services/api/alembic/versions/` |
 | Connection management API (`/api/admin/lti/*`) for superadmins, org admins and group admins: connections, invites, deployments, tool sheet, activities, LMS accounts with unlink and anonymization, grade transfers with retry and "send all grades again" (the sending needs the extended edition), history | Community (Apache-2.0) | `services/api/routers/lti_admin.py` |
 | Account anonymization | Community (Apache-2.0) | `services/api/services/user_anonymization.py` |
 | Hiding LMS users' names in member lists, task lists and exports. The rule who may see a name comes from the commercial edition. | Community (Apache-2.0) | `services/api/services/member_privacy.py`, `services/shared/lms_name_masking.py` |
@@ -53,10 +53,11 @@ editions.
 | Admin panel for connections, consent page, account choice, exam picker, activity overview | **Commercial (BenGER Extended)** | not in this repository |
 | **LTI protocol and rules**: OIDC login, `id_token` validation, launch, consent and account linking, JWKS, grade transfer (AGS), Dynamic Registration, billing of linked exams | **Commercial (BenGER Extended)** | not in this repository |
 
-The eight tables are `lti_platform_registrations`, `lti_deployments`,
+The nine tables are `lti_platform_registrations`, `lti_deployments`,
 `lti_resource_links`, `lti_user_links` and `lti_grade_syncs` (migration 079),
-`lti_registration_invites` (083), and `lti_resource_link_users` and
-`lti_admin_events` (105). The other migrations add columns:
+`lti_registration_invites` (083), `lti_resource_link_users` and
+`lti_admin_events` (105), and `lti_task_lineitems` (112). The other
+migrations add columns:
 
 | Migration | Adds |
 |---|---|
@@ -66,6 +67,7 @@ The eight tables are `lti_platform_registrations`, `lti_deployments`,
 | `097` | the group scope of connections and invites |
 | `105` | the tool address of connections and invites, the research consent, link method and unlink marker of LMS identities, the AI grade column of activities, one grade transfer row per column |
 | `106` | the anonymization marker and the email state of LMS accounts, the change time of gradings, the origin of an exam's organization attachment |
+| `112` | what an activity grades (`grade_scope`: the whole exam, one task, or a whole collection with one column per task) and its task, the task of a grade transfer row, and the table of per-task columns |
 
 The routes an LMS talks to (`/api/lti/login`, `/api/lti/launch`,
 `/api/lti/jwks`, `/api/lti/register/init`) are served by the commercial
@@ -99,6 +101,11 @@ under NDA. Contact details are in [§12](#12-support-and-contact).
 Grades are sent as German *Notenpunkte*, 0 to 18, with `scoreMaximum: 18`.
 The LMS rescales the activity column to the activity's maximum grade. An
 activity graded out of 100 shows 12 of 18 points as 66.67.
+
+An activity carries an exam with one task, one task of a
+Klausurensammlung (an exam with several tasks), or, on Moodle only, a whole
+Klausurensammlung with one gradebook column per task. See
+[§7a](#7a-klausurensammlungen-one-task-per-activity-or-the-whole-collection).
 
 ## 3. Supported systems
 
@@ -144,7 +151,11 @@ These are properties of ILIAS 10, not of BenGER.
 - **ILIAS has no AGS line item service.** The tool works only with the
   `lineitem` URL from the launch. ILIAS therefore gets one value per student,
   the final grade. There is no "KI-Bewertung" column. The activity must carry
-  a grade. Every launch refreshes the `lineitem` URL. If the grade is added
+  a grade. Because the tool cannot create columns in ILIAS, a whole
+  Klausurensammlung on one activity is not available there. Link each task
+  to its own LTI consumer object instead (see
+  [§7a](#7a-klausurensammlungen-one-task-per-activity-or-the-whole-collection)).
+  Every launch refreshes the `lineitem` URL. If the grade is added
   later, open the activity once. Waiting grades then go out at the next
   hourly sweep. Transfers already marked `failed` are retried about six hours
   after their last attempt; **Send again** in the activity overview or
@@ -243,14 +254,18 @@ in your LMS.
 |---|---|
 | `https://purl.imsglobal.org/spec/lti-ags/scope/score` | Send a grade to a line item |
 | `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem.readonly` | Read line items |
-| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column per activity, "KI-Bewertung: <activity title>" |
+| `https://purl.imsglobal.org/spec/lti-ags/scope/lineitem` | Create one extra column per activity, "KI-Bewertung: <activity title>", and on a whole-collection activity the columns of the tasks |
 
-The tool uses `lineitem` only to find or create its own "KI-Bewertung" column.
-It never changes or deletes the activity's own column, and it never deletes a
-line item. Dynamic Registration asks Moodle for all three scopes and ILIAS for
+The tool uses `lineitem` only to find or create its own columns: the
+"KI-Bewertung" column and, on an activity that carries a whole
+Klausurensammlung, one column per task ("Aufgabe N: <activity title>") and
+its AI column ("KI-Bewertung: Aufgabe N"). It finds its columns by a tag
+(`benger-task-<task id>`, `benger-ai-<task id>`). It never changes or deletes
+the activity's own column, and it never deletes a line item. Dynamic Registration asks Moodle for all three scopes and ILIAS for
 `score` and `lineitem.readonly` only. When the LMS does not grant `lineitem`,
-the tool sends the final grade only, and the activity overview and the admin
-panel say why.
+the tool sends the final grade only, a whole Klausurensammlung cannot be
+linked to one activity, and the activity overview and the admin panel say
+why.
 
 The tool does not request `result.readonly` and does not use NRPS. It never
 reads course rosters.
@@ -481,12 +496,11 @@ one, until the old account is anonymized.
    when the list is empty.
 5. Falllösung exams and Bewertungsbogen exams with an active sheet can be
    linked. The picker shows other exams with the reason: no task yet, a
-   grading that gives no Notenpunkte, or no active Bewertungsbogen. Each
-   task of a collection (an exam with several tasks) can be bound to its own
-   activity: the teacher picks the task, and that activity receives only
-   that task's grade. Imports into a linked exam are allowed once every
-   link of the exam is bound to a task. An older link that covers the whole
-   exam blocks imports until it is bound to the exam's task.
+   grading that gives no Notenpunkte, or no active Bewertungsbogen. An exam
+   with one task is bound to that task automatically. For a
+   Klausurensammlung (an exam with several tasks) the teacher picks one
+   task, or, on Moodle, the whole collection with one column per task. See
+   [§7a](#7a-klausurensammlungen-one-task-per-activity-or-the-whole-collection).
 6. Click **Link**. Human Korrektur is switched on for the exam. The exam is
    attached to the connection's organization (or group), so its staff can
    open the exam and grade it.
@@ -527,6 +541,72 @@ admins, group admins of a group connection, and the staff who may grade the
 linked exam. Linking and relinking is for the course teachers and the admins.
 The exam's project page lists its LMS activities in the sidebar, below the
 quick actions.
+
+### 7a. Klausurensammlungen: one task per activity or the whole collection
+
+A Klausurensammlung is an exam with several tasks. It can reach the LMS in
+two ways.
+
+| | One task per activity | Whole collection on one activity |
+|---|---|---|
+| LMS | Moodle and ILIAS | Moodle only |
+| Activities | one per task | one for the collection |
+| Activity column | the grade of its task | the mean of the final task grades |
+| Extra columns | "KI-Bewertung: <activity title>" (Moodle) | per task "Aufgabe N: <activity title>" and, while AI grades are synced, "KI-Bewertung: Aufgabe N" |
+| Needs | a grade on the activity | Moodle's *Use this service for grade sync and column management* (see [§9](#9-requirements-on-your-lms)) |
+
+**One task per activity.** Create one activity per task. In the picker,
+open the collection and choose the task. The activity then receives only
+that task's grade, and a grade on another task never reaches it. Students
+still reach every task of the collection. This works on Moodle and on
+ILIAS.
+
+**Whole collection on one activity (Moodle only).** In the picker, choose
+the whole collection instead of a task. The tool then creates one column
+per task in the course gradebook, "Aufgabe N: <activity title>", with the
+task's final grade (the human grade, otherwise the AI grade if the activity
+syncs AI grades). While AI grades are synced, each task also gets an AI
+column "KI-Bewertung: Aufgabe N". The activity's own column receives the
+mean of the final task grades. The mean is sent only once every task of the
+collection has a final grade; until then the activity column stays empty
+for that student. The picker does not offer this choice on ILIAS, and on a
+Moodle connection that cannot manage columns (the grade service is set to
+grade sync only, the `lineitem` scope is missing, or the launch carries no
+line item container). The link request then answers
+`collection_unsupported`.
+
+**New and deleted tasks.** On a whole-collection activity, a task added
+later gets its columns on the next transfer of its grades. Until that task
+is graded too, the mean waits. A deleted task takes its transfer records
+with it; the tool never deletes a column in the LMS. If the teacher
+deletes a task column in Moodle, the tool does not create it again on its
+own. On a one-task activity whose task was deleted, the activity stays
+linked but receives no grades (`task_missing`); link it again.
+
+**Exams with one task.** The tool binds an exam with one task to that task
+automatically. Activities linked before this version that covered the whole
+exam were bound to the exam's only task during the update.
+
+**Changing the link.** The target of an activity is the exam plus its task,
+or the exam as a whole collection. The teacher can change it until the
+first grade of the activity reached the LMS. After that the tool refuses
+the change (`relink_blocked`), because one LMS column would then mix grades
+of different tasks or exams. Create a new activity instead. Binding an
+older whole-exam link to the only task of its exam is not a change and is
+always allowed. On a change before any grade was sent, the tool drops the
+activity's unsent transfer rows.
+
+**Imports.** An activity that covers the whole exam as one grade (the older
+link type) needs the exam to keep exactly one task, so an import into such
+an exam answers `multi_task_unsupported`. Imports are allowed once no such
+link remains: one-task activities and whole-collection activities do not
+block imports.
+
+**Course total in Moodle.** Moodle adds every column to the course total
+by default: the activity column (the mean), each "Aufgabe N" column and
+each "KI-Bewertung" column. Decide what should count. Usually the teacher
+keeps the activity column and sets the weight of every task column and
+every "KI-Bewertung" column to 0, as in step 9 of [§7](#7-course-setup-teacher).
 
 ### Exams in Safe Exam Browser
 
@@ -686,10 +766,11 @@ repository.
 | `lti_platform_registrations` | issuer, client ID, endpoint URLs, address, role policy, status | none |
 | `lti_deployments` | deployment IDs and their status | none |
 | `lti_registration_invites` | hash of the invite token, organization, group, address, expiry, creator | the creator's account ID |
-| `lti_resource_links` | activity to exam, course and activity title, AGS URLs and scopes, state of the "KI-Bewertung" column | course titles only |
+| `lti_resource_links` | activity to exam, what the activity grades (the whole exam, one task or the whole collection) and its task, course and activity title, AGS URLs and scopes, state of the "KI-Bewertung" column | course titles only |
 | `lti_user_links` | `sub` to account, consent time and version, research consent time, how the account was linked, unlink marker, last launch, a snapshot of name, email and roles | name, email and roles from the LMS |
 | `lti_resource_link_users` | who took part in which activity, as teacher or student, first and last launch. Written only after consent. | account IDs |
-| `lti_grade_syncs` | one row per activity, student and column (final grade or AI grade): status, attempts, last sent score and its source, last error | links an account to a score |
+| `lti_grade_syncs` | one row per activity, student and column (final grade or AI grade, on a whole-collection activity also per task): status, attempts, last sent score and its source, last error | links an account to a score |
+| `lti_task_lineitems` | the columns the tool created for the tasks of a whole-collection activity: task, kind (final or AI), line item URL, state, last error | none |
 | `lti_admin_events` | history of connection changes: action, time, changed settings | the acting admin's account ID and affected account IDs, never names or emails |
 
 The `users` table holds name, email, pseudonym and the email state. The
@@ -921,7 +1002,8 @@ fixed retention period instead, name it and we record it in the contract.
   **Service für die Synchronisation von Bewertungen und die Verwaltung der
   Spalten nutzen**). Dynamic Registration requests it. With *Use this
   service for grade sync only* (*Service nur für Bewertungen nutzen*),
-  Moodle gets the final grade only. ILIAS: tick *Erweiterte
+  Moodle gets the final grade only, and a whole Klausurensammlung cannot be
+  linked to one activity. ILIAS: tick *Erweiterte
   Benotungsdienste* (*Advanced Grading Services*) in the provider.
 - **ILIAS learning progress.** Tick *Provider unterstützt Outcome Service*
   and set the Mastery Score to 22, and switch on learning progress for the
@@ -1150,6 +1232,10 @@ fail unexpectedly carry the reference in their message.
 | Grading does not run, students see that their organization does not pay for AI grading yet or has no API key for the grading model | The organization does not provide keys, or has no key for the grading model's provider. Switch on **Organization provides API keys** and add the key. Waiting submissions are graded at the next hourly check, so within about an hour. |
 | The Moodle course total also counts the AI grade | Moodle treats "KI-Bewertung" as a normal grade item. The teacher sets its weight to 0 in **Gradebook setup** (see [§7](#7-course-setup-teacher)). |
 | An existing account was not offered for linking | The connection does not offer linking, the LMS sent no address, several accounts share the address, or the account is a platform administrator account or deactivated. If the person chose a separate account, an org admin can unlink it. The next launch then offers the choice again, as long as the existing account still has the address the LMS sends. |
+| The picker asks for a task (`task_required`) | The exam is a Klausurensammlung. Choose the task the activity grades, or, on Moodle, the whole collection (see [§7a](#7a-klausurensammlungen-one-task-per-activity-or-the-whole-collection)). |
+| The whole collection cannot be chosen (`collection_unsupported`) | The connection is ILIAS, or the Moodle tool cannot manage columns: set *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management** and open the activity again. Otherwise link each task to its own activity. |
+| The activity column of a whole-collection activity stays empty | The mean is sent only once every task has a final grade for the student. Check which task still lacks a final grade. A task added later holds the mean back until it is graded. If AI grades are not synced, every task needs a human grade. |
+| The link of an activity cannot be changed (`relink_blocked`) | A grade of the activity already reached the LMS. Create a new activity for the other exam, task or mode. |
 | A teacher's picker is empty | The teacher and the organization's staff have no exams yet, or all of them are archived. Create an exam from the picker. |
 | Teachers do not find the tool in the Moodle activity chooser | The tool's *Tool configuration usage* is still *Show as preconfigured tool*. Set it to **Show in activity chooser and as a preconfigured tool** (see [§6a](#6a-one-link-registration-dynamic-registration)). |
 | A Moodle activity has no grade settings | The tool's *Accept grades from the tool* delegates to the teacher, and the teacher did not tick *Allow ... to add grades in the gradebook*. Set the tool to **Always**, or tick the box in the activity. |
