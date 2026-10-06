@@ -167,35 +167,37 @@ def _deduplicate_project_title(db, original_title: str) -> str:
     return new_title
 
 
-# An LMS activity is either bound to one task of an exam
-# (``lti_resource_links.task_id`` set) or to the whole exam (``task_id``
-# NULL). A whole-exam link sends one grade for the exam, which only works
-# while the exam holds exactly one task (owner decision D12, narrowed by
-# issue #122). So an import may not add a second task to an exam that has at
-# least one whole-exam link. Exams whose links are all task-bound accept
-# imports: each activity keeps receiving only its own task's grade. The API
-# checks this before it accepts an import; the drivers check it again before
-# their commit, with the real task count.
+# An LMS activity grades either the whole exam (``lti_resource_links.
+# grade_scope = 'exam'``), one task of it (``'task'``) or the whole
+# Klausurensammlung with one gradebook column per task (``'collection'``).
+# Only a whole-exam link needs the exam to hold exactly one task (owner
+# decision D12, narrowed by issue #122): it sends one grade for the exam. So
+# an import may not add a second task to an exam with at least one
+# whole-exam link. Task and collection links accept imports: a task link
+# keeps receiving only its own task's grade, and a collection link gives a
+# new task its own column on the next transfer. The API checks this before
+# it accepts an import; the drivers check it again before their commit, with
+# the real task count.
 LINKED_EXAM_MAX_TASKS = 1
 MULTI_TASK_UNSUPPORTED = "multi_task_unsupported"
 MULTI_TASK_MESSAGE = (
-    "This exam is linked as a whole to a learning platform activity. Such an "
-    "exam holds exactly one task, so no further tasks can be imported. Bind "
-    "the activity to the exam's task first."
+    "This exam is linked as a whole to a learning platform activity, so it "
+    "holds exactly one task. Bind the activity to the exam's task first, then "
+    "you can import further tasks."
 )
 
 
 def linked_exam_stmt(project_id: str):
     """Selects the id of ``project_id`` when it is an exam with at least one
-    whole-exam LMS link (``task_id`` NULL), i.e. an exam that must keep
-    exactly one task (sync and async sessions). Task-bound links do not
-    count."""
+    whole-exam LMS link (``grade_scope = 'exam'``), i.e. an exam that must
+    keep exactly one task (sync and async sessions). Task and collection
+    links do not count."""
     return select(Project.id).where(
         Project.id == project_id,
         Project.kind == "exam",
         exists().where(
             LtiResourceLink.project_id == project_id,
-            LtiResourceLink.task_id.is_(None),
+            LtiResourceLink.grade_scope == "exam",
         ),
     )
 

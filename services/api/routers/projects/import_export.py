@@ -401,12 +401,12 @@ async def _load_import_job_for_read(
 
 async def _reject_import_into_linked_exam(db: AsyncSession, project: Project) -> None:
     """422 ``multi_task_unsupported`` for an import into an exam with a
-    whole-exam LMS link (``task_id`` NULL) that already holds its one task
-    (owner decision D12, narrowed by issue #122).
+    whole-exam LMS link (``grade_scope = 'exam'``) that already holds its one
+    task (owner decision D12, narrowed by issue #122).
 
     Any import adds at least one task. An empty exam with a whole-exam link
     may still take one; the import worker refuses a file that would add more.
-    Exams whose links are all bound to single tasks accept any import.
+    Exams whose links are all task or collection links accept any import.
     """
     if getattr(project, "kind", None) != "exam":
         return
