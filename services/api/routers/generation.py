@@ -242,7 +242,9 @@ async def stop_generation(
         # Update generation status
         generation.status = "stopped"
         generation.completed_at = datetime.now()
-        generation.error_message = f"Stopped by user {current_user.username}"
+        # No login name here: the status endpoints serve this text to
+        # everyone who can read the project (public visitors included).
+        generation.error_message = "Stopped by user"
 
         await db.commit()
 

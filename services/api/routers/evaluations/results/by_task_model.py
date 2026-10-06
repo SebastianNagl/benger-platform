@@ -1215,19 +1215,34 @@ async def get_sample_result_by_task_model(
             # display name comes from `name` or `pseudonym` (e.g. the
             # imported "Imported User <hash>" cohort) won't be found and the
             # detail modal renders empty.
-            from sqlalchemy import or_, and_
+            # Each field only matches when it IS the user's display label, and
+            # only users who annotated this task are candidates, as in the
+            # annotation filter (annotations.py): a real name or login never
+            # resolves a user shown by pseudonym, so this is no lookup of who
+            # is behind a pseudonym.
+            from sqlalchemy import and_, exists, or_
+
             from models import User as DBUser
 
             display = model_id.split(":", 1)[1]
+            shows_alias = and_(
+                DBUser.use_pseudonym.is_(True),
+                DBUser.pseudonym.isnot(None),
+                DBUser.pseudonym != "",
+            )
+            has_name = and_(DBUser.name.isnot(None), DBUser.name != "")
             user = (
                 await db.execute(
-                    select(DBUser)
-                    .where(
+                    select(DBUser).where(
+                        exists().where(
+                            Annotation.task_id == task_id,
+                            Annotation.completed_by == DBUser.id,
+                        ),
                         or_(
-                            and_(DBUser.use_pseudonym == True, DBUser.pseudonym == display),  # noqa: E712
-                            DBUser.name == display,
-                            DBUser.username == display,
-                        )
+                            and_(shows_alias, DBUser.pseudonym == display),
+                            and_(~shows_alias, has_name, DBUser.name == display),
+                            and_(~shows_alias, ~has_name, DBUser.username == display),
+                        ),
                     )
                 )
             ).scalars().first()
