@@ -1627,6 +1627,7 @@ async def list_resource_links(
                 context_title=link.context_title,
                 resource_title=link.resource_title,
                 project=project,
+                grade_scope=link.grade_scope or "exam",
                 task_id=link.task_id,
                 task=task,
                 linked_by_display=(
@@ -2103,6 +2104,7 @@ def _grade_sync_select():
             Project.title,
             User.pseudonym,
             User.name,
+            Task.inner_id,
         )
         .join(LtiResourceLink, LtiResourceLink.id == LtiGradeSync.resource_link_id)
         .join(
@@ -2111,13 +2113,24 @@ def _grade_sync_select():
         )
         .join(User, User.id == LtiGradeSync.user_id)
         .outerjoin(Project, Project.id == LtiResourceLink.project_id)
+        .outerjoin(Task, Task.id == LtiGradeSync.task_id)
     )
 
 
 def _grade_sync_read(
     row, scope: Optional[OrgAdminScope], model=LtiGradeSyncAdminRead, **extra
 ):
-    sync, link, reg_name, org_id, group_id, project_title, pseudonym, name = row
+    (
+        sync,
+        link,
+        reg_name,
+        org_id,
+        group_id,
+        project_title,
+        pseudonym,
+        name,
+        task_inner_id,
+    ) = row
     reveal = _reveals_names(scope, group_id)
     base = LtiGradeSyncRead.model_validate(sync).model_dump()
     base.update(
@@ -2130,6 +2143,11 @@ def _grade_sync_read(
         project_title=project_title,
         student_pseudonym=pseudonym,
         student_name=name if reveal else None,
+        task=(
+            LtiResourceLinkTaskRead(id=sync.task_id, inner_id=task_inner_id)
+            if sync.task_id
+            else None
+        ),
         **extra,
     )
     return model(**base)
@@ -2214,6 +2232,7 @@ async def retry_grade_sync(
         changes={
             "grade_sync_id": row.id,
             "kind": row.kind,
+            "task_id": row.task_id,
             "previous_status": row.status,
             "previous_attempts": row.attempts,
         },
