@@ -68,7 +68,14 @@ jest.mock('@/contexts/I18nContext', () => ({
         'admin.organizations.groups.inactiveBadge': 'Inactive',
         'admin.organizations.groups.activeLabel': 'Group is active',
         'admin.organizations.groups.memberCount': '{count} members',
-        'admin.organizations.groups.groupAdminBadge': 'Group admin',
+        'admin.organizations.groups.myRoleBadge': 'Your role: {role}',
+        'admin.organizations.groups.groupRoleLabel': 'Role in the group',
+        'admin.organizations.groups.orgRoleShort': 'Organization: {role}',
+        'admin.organizations.groups.memberRoleAria':
+          'Role of {name} in the group',
+        'admin.organizations.roleAnnotator': 'Annotator',
+        'admin.organizations.roleContributor': 'Contributor',
+        'admin.organizations.roleAdmin': 'Admin',
         'admin.organizations.groups.members': 'Members',
         'admin.organizations.groups.membersTitle': 'Members: {name}',
         'admin.organizations.groups.back': 'Back to overview',
@@ -80,7 +87,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'admin.organizations.groups.addMemberPlaceholder': 'Select a member…',
         'admin.organizations.groups.noAvailableMembers':
           'All organization members already belong to this group.',
-        'admin.organizations.groups.addAsGroupAdmin': 'As group admin',
         'admin.organizations.groups.add': 'Add',
         'admin.organizations.groups.adding': 'Adding…',
         'admin.organizations.groups.memberAdded': 'Member added',
@@ -91,7 +97,6 @@ jest.mock('@/contexts/I18nContext', () => ({
         'admin.organizations.groups.memberUpdated': 'Member updated',
         'admin.organizations.groups.updateMemberFailed':
           'Failed to update member',
-        'admin.organizations.groups.groupAdminToggle': 'Group admin',
         'admin.organizations.groups.remove': 'Remove',
         'common.done': 'Done',
       }
@@ -156,7 +161,7 @@ const groupFixture = (overrides: Record<string, any> = {}) => ({
   updated_at: null,
   member_count: 3,
   is_member: true,
-  is_group_admin: false,
+  my_role: 'CONTRIBUTOR',
   ...overrides,
 })
 
@@ -164,7 +169,7 @@ const memberFixture = (overrides: Record<string, any> = {}) => ({
   id: 'gm-1',
   group_id: 'grp-1',
   user_id: 'user-2',
-  is_group_admin: false,
+  role: 'CONTRIBUTOR',
   created_at: '2026-01-02T00:00:00Z',
   user_name: 'Grete Gruppe',
   user_email: 'grete@example.com',
@@ -294,7 +299,7 @@ describe('OrgGroups', () => {
     })
 
     it('does not offer the create form to group admins', async () => {
-      mockGetGroups.mockResolvedValue([groupFixture({ is_group_admin: true })])
+      mockGetGroups.mockResolvedValue([groupFixture({ my_role: 'ORG_ADMIN' })])
 
       renderOrgGroups({ isAdmin: false, canManageGroups: true })
 
@@ -401,7 +406,7 @@ describe('OrgGroups', () => {
       expect(mockGetGroupMembers).toHaveBeenCalledWith('org-1', 'grp-1')
       expect(mockGetOrganizationMembers).toHaveBeenCalledWith('org-1')
       expect(
-        screen.getByText('grete@example.com · CONTRIBUTOR'),
+        screen.getByText('grete@example.com · Organization: Contributor'),
       ).toBeInTheDocument()
     })
 
@@ -437,12 +442,12 @@ describe('OrgGroups', () => {
         'admin.organizations.memberPrivacy.pseudonymTitle',
       )
       expect(masked).toHaveTextContent(
-        'admin.organizations.memberPrivacy.emailHidden · ANNOTATOR',
+        'admin.organizations.memberPrivacy.emailHidden · Organization: Annotator',
       )
       expect(masked).not.toHaveTextContent('null')
 
       expect(screen.getByTestId('group-member-user-6')).toHaveTextContent(
-        'erika@uni.example · ANNOTATOR',
+        'erika@uni.example · Organization: Annotator',
       )
       expect(
         screen.getByTestId('group-member-lms-badge-user-6'),
@@ -469,7 +474,9 @@ describe('OrgGroups', () => {
       await openMembers()
 
       const row = screen.getByTestId('group-member-user-7')
-      expect(row).toHaveTextContent('Ohne AdresseANNOTATOR')
+      expect(row).toHaveTextContent(
+        'Ohne AdresseContributorOrganization: Annotator',
+      )
       expect(row).not.toHaveTextContent('·')
     })
 
@@ -520,25 +527,70 @@ describe('OrgGroups', () => {
       expect(optionValues).not.toContain('user-2')
     })
 
-    it('adds a member (optionally as group admin)', async () => {
+    it('adds a member with the default group role Annotator', async () => {
       mockAddGroupMember.mockResolvedValue(
-        memberFixture({ user_id: 'user-3', id: 'gm-2' }),
+        memberFixture({ user_id: 'user-3', id: 'gm-2', role: 'ANNOTATOR' }),
+      )
+      await openMembers()
+
+      const roleSelect = screen.getByTestId(
+        'group-add-member-role-select',
+      ) as HTMLSelectElement
+      expect(roleSelect.value).toBe('ANNOTATOR')
+      expect(Array.from(roleSelect.options).map((o) => o.value)).toEqual([
+        'ANNOTATOR',
+        'CONTRIBUTOR',
+        'ORG_ADMIN',
+      ])
+
+      fireEvent.change(screen.getByTestId('group-add-member-select'), {
+        target: { value: 'user-3' },
+      })
+      fireEvent.click(screen.getByTestId('group-add-member-submit'))
+
+      await waitFor(() => {
+        expect(mockAddGroupMember).toHaveBeenCalledWith('org-1', 'grp-1', {
+          user_id: 'user-3',
+          role: 'ANNOTATOR',
+        })
+      })
+      expect(screen.getByText('Member added')).toBeInTheDocument()
+    })
+
+    it('adds a member as group admin via the role select', async () => {
+      mockAddGroupMember.mockResolvedValue(
+        memberFixture({ user_id: 'user-3', id: 'gm-2', role: 'ORG_ADMIN' }),
       )
       await openMembers()
 
       fireEvent.change(screen.getByTestId('group-add-member-select'), {
         target: { value: 'user-3' },
       })
-      fireEvent.click(screen.getByTestId('group-add-member-admin-checkbox'))
+      fireEvent.change(screen.getByTestId('group-add-member-role-select'), {
+        target: { value: 'ORG_ADMIN' },
+      })
       fireEvent.click(screen.getByTestId('group-add-member-submit'))
 
       await waitFor(() => {
         expect(mockAddGroupMember).toHaveBeenCalledWith('org-1', 'grp-1', {
           user_id: 'user-3',
-          is_group_admin: true,
+          role: 'ORG_ADMIN',
         })
       })
-      expect(screen.getByText('Member added')).toBeInTheDocument()
+    })
+
+    it('shows the group role badge and the org role of each member', async () => {
+      mockGetGroupMembers.mockResolvedValue([
+        memberFixture({ role: 'ORG_ADMIN', org_role: 'ANNOTATOR' }),
+      ])
+      await openMembers()
+
+      expect(
+        screen.getByTestId('group-member-role-badge-user-2'),
+      ).toHaveTextContent('Admin')
+      expect(screen.getByTestId('group-member-user-2')).toHaveTextContent(
+        'Organization: Annotator',
+      )
     })
 
     it('removes a member', async () => {
@@ -557,27 +609,64 @@ describe('OrgGroups', () => {
       expect(screen.getByText('Member removed')).toBeInTheDocument()
     })
 
-    it('toggles the group-admin flag', async () => {
+    it('changes a member group role via the per-member select', async () => {
       mockUpdateGroupMember.mockResolvedValue(
-        memberFixture({ is_group_admin: true }),
+        memberFixture({ role: 'ORG_ADMIN' }),
       )
       await openMembers()
 
-      fireEvent.click(screen.getByTestId('group-member-admin-toggle-user-2'))
+      const select = screen.getByTestId(
+        'group-member-role-select-user-2',
+      ) as HTMLSelectElement
+      expect(select.value).toBe('CONTRIBUTOR')
+      fireEvent.change(select, { target: { value: 'ORG_ADMIN' } })
 
       await waitFor(() => {
         expect(mockUpdateGroupMember).toHaveBeenCalledWith(
           'org-1',
           'grp-1',
           'user-2',
-          { is_group_admin: true },
+          { role: 'ORG_ADMIN' },
+        )
+      })
+      expect(await screen.findByText('Member updated')).toBeInTheDocument()
+    })
+
+    it('lets a group admin (my_role Admin, no org admin) change roles in their group', async () => {
+      mockGetGroups.mockResolvedValue([groupFixture({ my_role: 'ORG_ADMIN' })])
+      mockUpdateGroupMember.mockResolvedValue(
+        memberFixture({ role: 'ANNOTATOR' }),
+      )
+
+      renderOrgGroups({ isAdmin: false, canManageGroups: true })
+      await waitFor(() => {
+        expect(screen.getByTestId('group-my-role-grp-1')).toHaveTextContent(
+          'Your role: Admin',
+        )
+      })
+      fireEvent.click(screen.getByTestId('group-members-grp-1'))
+      await waitFor(() => {
+        expect(
+          screen.getByTestId('group-member-role-select-user-2'),
+        ).toBeInTheDocument()
+      })
+      fireEvent.change(screen.getByTestId('group-member-role-select-user-2'), {
+        target: { value: 'ANNOTATOR' },
+      })
+
+      await waitFor(() => {
+        expect(mockUpdateGroupMember).toHaveBeenCalledWith(
+          'org-1',
+          'grp-1',
+          'user-2',
+          { role: 'ANNOTATOR' },
         )
       })
     })
 
     it('hides member controls on groups the group admin does not administrate', async () => {
       mockGetGroups.mockResolvedValue([
-        groupFixture({ is_group_admin: false, is_member: true }),
+        groupFixture({ my_role: 'CONTRIBUTOR', is_member: true }),
       ])
 
       renderOrgGroups({ isAdmin: false, canManageGroups: true })
@@ -646,7 +735,9 @@ describe('OrgGroups', () => {
         )
       })
 
-      fireEvent.click(screen.getByTestId('group-member-admin-toggle-user-2'))
+      fireEvent.change(screen.getByTestId('group-member-role-select-user-2'), {
+        target: { value: 'ANNOTATOR' },
+      })
       await waitFor(() => {
         expect(screen.getByTestId('org-groups-message')).toHaveTextContent(
           'Failed to update member',
@@ -733,7 +824,7 @@ describe('OrgGroups', () => {
     })
 
     it('does not offer edit or delete to non-admins', async () => {
-      mockGetGroups.mockResolvedValue([groupFixture({ is_group_admin: true })])
+      mockGetGroups.mockResolvedValue([groupFixture({ my_role: 'ORG_ADMIN' })])
 
       renderOrgGroups({ isAdmin: false, canManageGroups: true })
       await waitFor(() => {

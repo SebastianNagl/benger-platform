@@ -8,6 +8,7 @@ import type {
   BulkInvitationResponse,
   Invitation,
   InvitationCreate,
+  InvitationGroupAddResult,
   MemberPrivacyFlags,
   Organization,
   OrganizationCreate,
@@ -96,17 +97,20 @@ export class OrganizationsClient extends BaseApiClient {
   async sendInvitation(
     organizationId: string,
     data: InvitationCreate,
-  ): Promise<Invitation> {
+  ): Promise<Invitation | InvitationGroupAddResult> {
     return this.createInvitation(organizationId, data)
   }
 
   /**
-   * Create invitation
+   * Create invitation. A group-scoped invite for an address that already is
+   * an active org member creates no invitation: the API answers 200 with an
+   * InvitationGroupAddResult (`added_to_group` / `already_in_group`) instead
+   * of 201 with the Invitation.
    */
   async createInvitation(
     organizationId: string,
     data: InvitationCreate,
-  ): Promise<Invitation> {
+  ): Promise<Invitation | InvitationGroupAddResult> {
     return this.post(
       `/invitations/organizations/${organizationId}/invitations`,
       data,
@@ -286,12 +290,13 @@ export class OrganizationsClient extends BaseApiClient {
   }
 
   /**
-   * Add an existing org member to a group (upserts; org admin or group admin)
+   * Add an existing org member to a group with a group role (upserts; org
+   * admin or group admin)
    */
   async addGroupMember(
     organizationId: string,
     groupId: string,
-    data: { user_id: string; is_group_admin: boolean },
+    data: { user_id: string; role: OrganizationRole },
   ): Promise<OrganizationGroupMember> {
     return this.post(
       `/organizations/${organizationId}/groups/${groupId}/members`,
@@ -300,13 +305,13 @@ export class OrganizationsClient extends BaseApiClient {
   }
 
   /**
-   * Toggle a group member's group-admin flag
+   * Change a group member's group role
    */
   async updateGroupMember(
     organizationId: string,
     groupId: string,
     userId: string,
-    data: { is_group_admin: boolean },
+    data: { role: OrganizationRole },
   ): Promise<OrganizationGroupMember> {
     return this.patch(
       `/organizations/${organizationId}/groups/${groupId}/members/${userId}`,
@@ -679,7 +684,9 @@ export interface OrgStorageObjectPage {
 
 /**
  * An organization group (e.g. a university chair). `member_count` is null
- * for ANNOTATOR callers; `is_member` / `is_group_admin` are caller-relative.
+ * for ANNOTATOR callers; `is_member` / `my_role` are caller-relative.
+ * `my_role` is the caller's group role (null when not a member). Org admins
+ * are admin of every group; callers treat them as such client-side.
  */
 export interface OrganizationGroup {
   id: string
@@ -691,7 +698,7 @@ export interface OrganizationGroup {
   updated_at: string | null
   member_count: number | null
   is_member: boolean
-  is_group_admin: boolean
+  my_role: OrganizationRole | null
 }
 
 export interface OrganizationGroupCreate {
@@ -712,7 +719,8 @@ export interface OrganizationGroupMember extends MemberPrivacyFlags {
   id: string
   group_id: string
   user_id: string
-  is_group_admin: boolean
+  /** Group role, independent of the org role (`org_role`). */
+  role: OrganizationRole
   created_at: string
   user_name: string
   user_email: string | null

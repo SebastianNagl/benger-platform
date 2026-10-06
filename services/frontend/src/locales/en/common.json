@@ -334,7 +334,8 @@
             "title": "Icon",
             "help": "Shown in lists, the project header and under “Discover”. Without a choice the type icon is used.",
             "clickToEdit": "Click to edit"
-          }
+          },
+          "groupScopeNoRights": "You cannot create projects in this organization: your role in the organization and in your groups is annotator."
         },
         "step2": {
           "title": "Import Data",
@@ -676,7 +677,9 @@
       },
       "kindDeck": "Flashcard deck",
       "kindExam": "Exam",
-      "study": "Study"
+      "study": "Study",
+      "importTargetGroupLabel": "Group",
+      "importTargetGroupOrgWide": "Whole organization"
     },
     "columns": {
       "label": "Columns",
@@ -4282,7 +4285,6 @@
         "inactiveBadge": "Inactive",
         "activeLabel": "Group is active",
         "memberCount": "{count} members",
-        "groupAdminBadge": "Group admin",
         "members": "Members",
         "membersTitle": "Members: {name}",
         "back": "Back to overview",
@@ -4291,7 +4293,6 @@
         "addMemberLabel": "Add member",
         "addMemberPlaceholder": "Select a member…",
         "noAvailableMembers": "All organization members already belong to this group.",
-        "addAsGroupAdmin": "As group admin",
         "add": "Add",
         "adding": "Adding…",
         "memberAdded": "Member added",
@@ -4300,11 +4301,19 @@
         "removeMemberFailed": "Failed to remove member",
         "memberUpdated": "Member updated",
         "updateMemberFailed": "Failed to update member",
-        "groupAdminToggle": "Group admin",
         "remove": "Remove",
         "inviteGroupLabel": "Group",
         "inviteGroupNone": "None (whole organization)",
-        "inviteAsGroupAdmin": "Invite as group admin"
+        "groupRoleLabel": "Role in the group",
+        "orgRoleLabel": "Role in the organization",
+        "roleScopeHint": "The organization role applies to organization-wide projects, the group role to the group's projects.",
+        "groupOnlyOrgRoleHint": "New members join the organization as annotators; only organization admins can change that. The group role applies to the group's projects.",
+        "addUserGroupLabel": "Also add to a group (optional)",
+        "memberChipTitle": "{group}: {role}",
+        "invitedGroupRole": "Role in the group: {role}",
+        "myRoleBadge": "Your role: {role}",
+        "orgRoleShort": "Organization: {role}",
+        "memberRoleAria": "Role of {name} in the group"
       },
       "createOrganization": "Create Organization",
       "noDescription": "No description",
@@ -4379,6 +4388,17 @@
         "verified": "Verified",
         "unverified": "Unverified",
         "noMatches": "No members match your filters"
+      },
+      "bulkInviteSummaryWithGroup": "{queued} invited, {added} added to the group, {skipped} skipped",
+      "inviteAddedToGroup": "{email} is already a member of the organization and was added to the group",
+      "inviteAlreadyInGroup": "{email} is already in the group",
+      "inviteStatus": {
+        "invalid": "invalid email address",
+        "duplicate": "listed twice",
+        "already_member": "already a member of the organization",
+        "pending": "invitation already pending",
+        "added_to_group": "added to the group",
+        "already_in_group": "already in the group"
       }
     },
     "usersPage": {
@@ -9094,9 +9114,9 @@
         "iliasWarningsTitle": "ILIAS notes",
         "instructorRole": "Org role for teachers",
         "instructorRoleCapHint": "You cannot give teachers a higher org role than your own.",
-        "instructorRoleGroupAdminWarning": "Teachers become contributors of the organization and admins of the group. They can then also manage this connection.",
+        "instructorRoleGroupAdminWarning": "Teachers become admins of the group; new teachers join the organization as annotators. They can then also manage this connection.",
         "instructorRoleContributor": "Contributor (contributor)",
-        "instructorRoleHint": "Role teachers receive in the organization when they launch. For a group connection, org admin becomes contributor plus group admin.",
+        "instructorRoleHint": "Role teachers receive when they launch. For a group connection this is their role in the group (org admin = group admin); new teachers join the organization as annotators.",
         "instructorRoleNone": "No org role (none)",
         "instructorRoleOrgAdmin": "Org admin (org_admin)",
         "instructorRoleOrgAdminWarning": "Teachers get full admin rights in the organization. They can then also manage this connection.",

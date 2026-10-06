@@ -281,7 +281,11 @@ function ToastItemView({
             showPercentage={!progress.indeterminate}
           />
         ) : (
-          <p className="text-sm font-medium">{toast.message}</p>
+          // pre-line: multi-line messages (e.g. per-address invite
+          // results) keep their line breaks.
+          <p className="text-sm font-medium break-words whitespace-pre-line">
+            {toast.message}
+          </p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">

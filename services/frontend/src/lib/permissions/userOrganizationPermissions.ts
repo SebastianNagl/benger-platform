@@ -6,17 +6,18 @@
  * and organizational membership.
  */
 
-import { User } from '@/lib/api/types'
+import { OrganizationRole, User } from '@/lib/api/types'
 
 /**
- * The caller's membership in one organization group. `is_group_admin` is a
- * per-group flag orthogonal to the org role.
+ * The caller's membership in one organization group. `role` is the group
+ * role, independent of the org role: ORG_ADMIN makes the member a group
+ * admin, and the role decides what they may do on the group's projects.
  */
 export interface UserGroupMembership {
   id: string
   name?: string
   is_active?: boolean
-  is_group_admin: boolean
+  role: OrganizationRole
 }
 
 export interface UserWithOrganizations extends User {
@@ -56,9 +57,29 @@ export class UserOrganizationPermissions {
   }
 
   /**
+   * The user's effective role inside one group: ORG_ADMIN for superadmins
+   * and org admins (they are admin of every group), otherwise the group role
+   * of their membership, or null when they are not a member of the group.
+   */
+  static getGroupRole(
+    user: UserWithOrganizations | null,
+    organizationId: string,
+    groupId: string,
+  ): OrganizationRole | null {
+    if (!user) return null
+    if (user.is_superadmin === true) return 'ORG_ADMIN'
+
+    const userOrg = user.organizations?.find((org) => org.id === organizationId)
+    if (!userOrg) return null
+    if (userOrg.role === 'ORG_ADMIN') return 'ORG_ADMIN'
+
+    return userOrg.groups?.find((group) => group.id === groupId)?.role ?? null
+  }
+
+  /**
    * Check if user can manage a specific organization group
    * Superadmins and org admins can manage every group; otherwise the user
-   * needs the is_group_admin flag on that group's membership.
+   * needs the group role ORG_ADMIN (group admin) on that group.
    */
   static canManageGroup(
     user: UserWithOrganizations | null,
@@ -67,17 +88,7 @@ export class UserOrganizationPermissions {
   ): boolean {
     if (!user) return false
 
-    if (user.is_superadmin === true) return true
-
-    const userOrg = user.organizations?.find((org) => org.id === organizationId)
-    if (!userOrg) return false
-    if (userOrg.role === 'ORG_ADMIN') return true
-
-    return (
-      userOrg.groups?.some(
-        (group) => group.id === groupId && group.is_group_admin,
-      ) ?? false
-    )
+    return this.getGroupRole(user, organizationId, groupId) === 'ORG_ADMIN'
   }
 
   /**
@@ -93,13 +104,14 @@ export class UserOrganizationPermissions {
     if (this.canManageOrganization(user, organizationId)) return true
 
     const userOrg = user.organizations?.find((org) => org.id === organizationId)
-    return userOrg?.groups?.some((group) => group.is_group_admin) ?? false
+    return userOrg?.groups?.some((group) => group.role === 'ORG_ADMIN') ?? false
   }
 
   /**
    * Check if user can invite members to an organization
    * Superadmins and org admins invite freely; group admins may invite too
-   * (the backend restricts them to their own group and non-admin roles).
+   * (the backend restricts them to their own groups, with org role
+   * ANNOTATOR and any group role).
    */
   static canInviteToOrganization(
     user: UserWithOrganizations | null,

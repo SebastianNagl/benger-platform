@@ -211,7 +211,7 @@ export function OrgApiKeys({
   // group admins only their own admin groups (and no org-wide option).
   const manageableGroups = isAdmin
     ? groups
-    : groups.filter((group) => group.is_group_admin)
+    : groups.filter((group) => group.my_role === 'ORG_ADMIN')
 
   // Group-admin-only callers have no org-wide scope — pin the selector to
   // their first admin group once the group list is in.

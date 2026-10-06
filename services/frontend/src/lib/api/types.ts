@@ -20,14 +20,16 @@ export type OrganizationRole = 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
 
 /**
  * The caller's membership in one organization group, as embedded in
- * /auth/me/contexts org entries and permission checks. `is_group_admin` is
- * orthogonal to the org role (a group admin can be a plain CONTRIBUTOR).
+ * /auth/me/contexts org entries and permission checks. `role` is the group
+ * role, independent of the org role: it decides what the member may do on
+ * the group's projects (ORG_ADMIN = group admin), while the org role covers
+ * org-wide projects and org-level actions.
  */
 export interface OrganizationGroupMembershipSummary {
   id: string
   name: string
   is_active?: boolean
-  is_group_admin: boolean
+  role: OrganizationRole
 }
 
 export interface User {
@@ -195,8 +197,9 @@ export interface OrganizationMember extends MemberPrivacyFlags {
   email_verified?: boolean
   email_verification_method?:
     'self' | 'admin' | 'system' | 'activation' | 'lti_claim' | null
-  // Group memberships of this member within the organization.
-  groups?: Array<{ id: string; name: string; is_group_admin: boolean }>
+  // Group memberships of this member within the organization, each with
+  // its own group role.
+  groups?: Array<{ id: string; name: string; role: OrganizationRole }>
 }
 
 // No token field: the list and create endpoints never return the acceptance
@@ -215,36 +218,60 @@ export interface Invitation {
   organization_name?: string
   inviter_name?: string
   // Group-scoped invitations (organization groups): the invitee joins this
-  // group on accept; null/absent = plain org-wide invitation.
+  // group on accept with `group_role`; null/absent = plain org-wide
+  // invitation.
   group_id?: string | null
-  invited_as_group_admin?: boolean
+  group_role?: OrganizationRole | null
 }
 
 export interface InvitationCreate {
   email: string
   role: OrganizationRole
-  // Scope the invitation to one organization group. Group admins MUST set
-  // this (to one of their groups) and may not invite ORG_ADMINs.
+  // Scope the invitation to one organization group; `group_role` is then
+  // required. Group admins MUST set this (to one of their groups) and must
+  // send role ANNOTATOR (the org role); any group role is allowed.
   group_id?: string | null
-  invited_as_group_admin?: boolean
+  group_role?: OrganizationRole | null
 }
 
 export interface BulkInvitationCreate {
   emails: string[]
   role: OrganizationRole
   group_id?: string | null
-  invited_as_group_admin?: boolean
+  group_role?: OrganizationRole | null
 }
+
+export type BulkInvitationStatus =
+  | 'queued'
+  | 'invalid'
+  | 'duplicate'
+  | 'already_member'
+  | 'pending'
+  | 'added_to_group'
+  | 'already_in_group'
 
 export interface BulkInvitationResultItem {
   email: string
-  status: 'queued' | 'invalid' | 'already_member' | 'pending' | 'duplicate'
+  status: BulkInvitationStatus
   detail?: string
+}
+
+/**
+ * Response of a single group-scoped invite for an address that already is an
+ * active org member (HTTP 200): no invitation is created, the member is added
+ * to the group directly (or already was in it).
+ */
+export interface InvitationGroupAddResult {
+  status: 'added_to_group' | 'already_in_group'
+  email: string
+  group_id: string
 }
 
 export interface BulkInvitationResponse {
   queued: number
   skipped: number
+  // Existing org members added straight to the group (group-scoped invites).
+  added_to_group?: number
   total: number
   results: BulkInvitationResultItem[]
 }
