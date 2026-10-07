@@ -6,6 +6,7 @@
  */
 
 import { PostAnnotationQuestionnaireModal } from '@/components/labeling/PostAnnotationQuestionnaireModal'
+import { ServerDraftSyncWarning } from '@/components/labeling/ServerDraftSyncWarning'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
@@ -517,9 +518,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   // Periodic server draft sync for all projects (shared with the student exam
   // attempt via useServerDraftSync — one implementation, no duplicate logic).
-  useServerDraftSync(currentProject?.id, currentTask?.id, annotations, {
-    enabled: !readOnlyView,
-  })
+  const serverDraftSync = useServerDraftSync(
+    currentProject?.id,
+    currentTask?.id,
+    annotations,
+    { enabled: !readOnlyView },
+  )
 
   // Reset state when label configuration changes
   useEffect(() => {
@@ -1197,6 +1201,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     })}
               </div>
             )}
+            <ServerDraftSyncWarning sync={serverDraftSync} />
             {nonStrictOvertime && !readOnlyView && (
               <div
                 className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"

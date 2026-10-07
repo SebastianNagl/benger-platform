@@ -6359,6 +6359,13 @@
       "refresh": "Aktualisieren",
       "restored": "Zwischenstand wiederhergestellt."
     },
+    "serverDraft": {
+      "offlineTitle": "Keine Verbindung zum Server",
+      "offlineBody": "Ihr Text ist in diesem Browser gespeichert und wird automatisch übertragen, sobald die Verbindung wieder steht. Bitte schließen Sie diesen Tab nicht.",
+      "lastSaved": "Zuletzt auf dem Server gespeichert um {time} Uhr.",
+      "neverSaved": "In dieser Sitzung wurde noch nichts auf dem Server gespeichert.",
+      "restored": "Verbindung wiederhergestellt, Ihr Text ist wieder auf dem Server gespeichert."
+    },
     "taskLoadedFromUrl": "Aufgabe {taskNumber} aus URL geladen",
     "taskNotFound": "Aufgabe {taskNumber} nicht gefunden (max: {maxTasks}). Erste Aufgabe wird stattdessen geladen.",
     "viewTaskData": "Vollständige Aufgabendaten anzeigen",
