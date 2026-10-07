@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-07',
+    audience: 'both',
+    text: {
+      de: 'Neue Modelle zur Auswahl: Claude Opus 5.5 und Sonnet 5.5, GPT-6.1 Sol, GPT-6 Sol und GPT-6 Luna, Grok 4.7, Mistral Large 4 sowie DeepSeek V4 Pro (0813), MiMo V2.6 Pro und Flash, Qwen3.8 27B, gpt-oss-120b und wieder Llama 3.3 70B. Modelle, die ihr Anbieter abgeschaltet hat oder bald abschaltet, stehen nicht mehr zur Verfügung, darunter GLM-5 und 5.1, Kimi K2.5, MiniMax M2.7, Llama 4 Maverick, Devstral, o3-mini, o4-mini und GPT-4.1 nano. Die Preise von GLM-5.3, Gemma 4 31B und Nemotron 3.5 Lightning wurden korrigiert. Bei OpenAI-Modellen der GPT-5-Reihe wirkt die eingestellte Denkstufe jetzt auch bei Generierungen ohne strukturierte Ausgabe; bisher wurde sie dort ignoriert. GPT-6 Astra lässt sich jetzt verwenden; Anfragen an das Modell schlugen bisher fehl.',
+      en: 'New models to choose from: Claude Opus 5.5 and Sonnet 5.5, GPT-6.1 Sol, GPT-6 Sol and GPT-6 Luna, Grok 4.7, Mistral Large 4, plus DeepSeek V4 Pro (0813), MiMo V2.6 Pro and Flash, Qwen3.8 27B, gpt-oss-120b and Llama 3.3 70B again. Models their provider has shut down or is about to shut down are no longer available, among them GLM-5 and 5.1, Kimi K2.5, MiniMax M2.7, Llama 4 Maverick, Devstral, o3-mini, o4-mini and GPT-4.1 nano. The prices of GLM-5.3, Gemma 4 31B and Nemotron 3.5 Lightning were corrected. For OpenAI GPT-5 models the selected reasoning level now also applies to generations without structured output; until now it was ignored there. GPT-6 Astra can now be used; requests to it failed until now.',
+    },
+  },
+  {
     date: '2026-10-06',
     audience: 'both',
     text: {

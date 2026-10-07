@@ -658,6 +658,20 @@ def get_provider_summary(provider: str) -> Optional[Dict[str, Any]]:
 _GPT5_BASE_EFFORTS = frozenset({"minimal", "low", "medium", "high"})
 _GPT5_POINT_EFFORTS = frozenset({"none", "low", "medium", "high"})
 _O_SERIES_EFFORTS = frozenset({"low", "medium", "high"})
+# GPT-6 (verified against the live Chat Completions API 2026-10-07; the
+# model pages also list "max", which this endpoint rejects): gpt-6-sol and
+# gpt-6-luna take none..xhigh, gpt-6-astra and gpt-6.1-sol low..xhigh.
+_GPT6_EFFORTS = frozenset({"low", "medium", "high", "xhigh"})
+_GPT6_WITH_NONE_EFFORTS = _GPT6_EFFORTS | {"none"}
+_GPT6_WITH_NONE = ("gpt-6-sol", "gpt-6-luna")
+
+
+def is_openai_gpt5_or_later(model_name: Optional[str]) -> bool:
+    """GPT-5 and GPT-6 families: reasoning models on the Chat Completions
+    API that take ``max_completion_tokens`` and reject temperature/top_p/
+    penalties/seed."""
+    m = (model_name or "").lower()
+    return "gpt-5" in m or m.startswith("gpt-6")
 
 
 def openai_reasoning_efforts(model_name: Optional[str]) -> frozenset:
@@ -668,6 +682,8 @@ def openai_reasoning_efforts(model_name: Optional[str]) -> frozenset:
     * ``gpt-5.1`` and later point releases (``gpt-5.4-mini`` …):
       none / low / medium / high
     * o-series (``o1``, ``o3``, ``o3-mini``, ``o4-mini``): low / medium / high
+    * GPT-6: low / medium / high / xhigh, plus none for ``gpt-6-sol``
+      and ``gpt-6-luna``
     * ``*-pro`` tiers (Responses API, separate code path), ``*-chat*``
       variants and every non-reasoning model: empty
     """
@@ -680,4 +696,8 @@ def openai_reasoning_efforts(model_name: Optional[str]) -> frozenset:
         return _GPT5_BASE_EFFORTS
     if m.startswith("gpt-5."):
         return _GPT5_POINT_EFFORTS
+    if m.startswith(_GPT6_WITH_NONE):
+        return _GPT6_WITH_NONE_EFFORTS
+    if m.startswith("gpt-6"):
+        return _GPT6_EFFORTS
     return frozenset()

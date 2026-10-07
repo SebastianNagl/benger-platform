@@ -13,7 +13,11 @@ from typing import Any, Dict, Optional
 from openai import OpenAI
 
 from .base_service import BaseAIService, derive_truncated
-from .provider_capabilities import model_supports_seed, openai_reasoning_efforts
+from .provider_capabilities import (
+    is_openai_gpt5_or_later,
+    model_supports_seed,
+    openai_reasoning_efforts,
+)
 
 
 
@@ -216,10 +220,9 @@ class OpenAIService(BaseAIService):
         try:
             start_time = datetime.now()
 
-            # GPT-5 models use max_completion_tokens instead of max_tokens
-            # Check if model is GPT-5 (any variant)
+            # GPT-5/GPT-6 models use max_completion_tokens instead of max_tokens
             model_lower = model_name.lower()
-            is_gpt5 = "gpt-5" in model_lower
+            is_gpt5 = is_openai_gpt5_or_later(model_name)
 
             # Check if model is o-series (reasoning models)
             is_o_series = any(model_lower.startswith(prefix) for prefix in ["o1", "o3", "o4"])
@@ -278,14 +281,23 @@ class OpenAIService(BaseAIService):
             else:
                 api_params["max_tokens"] = max_tokens
 
-            # Add reasoning_effort for o-series models (o1, o3, o3-mini, o4-mini)
+            # Reasoning models (GPT-5/GPT-6 families, o-series) take the Chat
+            # Completions ``reasoning_effort``. Only values the model family
+            # accepts are sent, exactly as generate_structured() does;
+            # anything else keeps the API default and is logged.
             reasoning_effort = kwargs.get("reasoning_effort")
-            if is_o_series and reasoning_effort:
-                # Validate reasoning_effort value
-                valid_efforts = ["low", "medium", "high"]
-                if reasoning_effort in valid_efforts:
+            sent_effort = None
+            if reasoning_effort:
+                accepted_efforts = openai_reasoning_efforts(model_name)
+                if reasoning_effort in accepted_efforts:
                     api_params["reasoning_effort"] = reasoning_effort
+                    sent_effort = reasoning_effort
                     logger.info(f"🧠 Using reasoning_effort={reasoning_effort} for {model_name}")
+                elif accepted_efforts:
+                    logger.warning(
+                        f"Ignoring reasoning_effort={reasoning_effort!r} for {model_name}; "
+                        f"accepted: {sorted(accepted_efforts)}"
+                    )
 
             # Make OpenAI API call with deterministic settings
             response = self.client.chat.completions.create(**api_params)
@@ -341,6 +353,7 @@ class OpenAIService(BaseAIService):
                     "truncated": derive_truncated(finish_reason),
                     "error_type": None,
                     "created_at": end_time.isoformat(),
+                    "reasoning_effort": sent_effort,
                     "unsupported_params_dropped": unsupported_dropped,
                     "is_gpt5_series": is_gpt5,
                     "is_o_series": is_o_series,
@@ -624,7 +637,7 @@ Your response must be ONLY the JSON object, no other text before or after.
             start_time = datetime.now()
 
             model_lower = model_name.lower()
-            is_gpt5 = "gpt-5" in model_lower
+            is_gpt5 = is_openai_gpt5_or_later(model_name)
             is_o_series = any(model_lower.startswith(p) for p in ["o1", "o3", "o4"])
 
             # o-series and GPT-5 models require temperature=1 (API rejects
