@@ -182,10 +182,10 @@ def test_docx_drops_bookmark_anchors_and_unwraps_toc_links():
 @pytest.mark.parametrize(
     "raw, expected",
     [
-        ('<a id="_Toc179377815"></a>A\\. Zulässigkeit', "A\\. Zulässigkeit"),
+        ('<a id="_Toc179377815"></a>A\\. Zulässigkeit', "A. Zulässigkeit"),
         ("## <a id='_Ref1'></a>Titel", "## Titel"),
         ('<a name="bm"> </a>x', "x"),
-        ("[A\\.\tZulässigkeit\t3](#_Toc179377816)", "A\\. Zulässigkeit 3"),
+        ("[A\\.\tZulässigkeit\t3](#_Toc179377816)", "A. Zulässigkeit 3"),
         ("[Siehe \\[1\\]](#_Ref2)", "Siehe \\[1\\]"),
         ("[extern](https://example.org/#frag)", "[extern](https://example.org/#frag)"),
         ("[Gesetz](https://www\\.gesetze\\-bayern\\.de/)", "[Gesetz](https://www.gesetze-bayern.de/)"),
@@ -197,3 +197,74 @@ def test_docx_drops_bookmark_anchors_and_unwraps_toc_links():
 )
 def test_clean_docx_markdown_patterns(raw, expected):
     assert te._clean_docx_markdown(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        # Prose punctuation mammoth escapes reaches judges and graders clean.
+        ("Die Klage ist begründet\\.", "Die Klage ist begründet."),
+        ("§ 433 Abs\\. 1 S\\. 2", "§ 433 Abs. 1 S. 2"),
+        ("\\(1\\) Der Verkäufer", "(1) Der Verkäufer"),
+        ("§§ 433\\-435 \\{a\\} Satz\\!", "§§ 433-435 {a} Satz!"),
+        ("Nr\\. 3 \\#1 und 2 \\+ 2", "Nr. 3 #1 und 2 + 2"),
+        # Escapes that keep text from turning into Markdown syntax stay.
+        ("1\\. Teil", "1\\. Teil"),
+        ("  12\\. Abschnitt", "  12\\. Abschnitt"),
+        ("\\- kein Spiegelstrich", "\\- kein Spiegelstrich"),
+        ("\\+ kein Spiegelstrich", "\\+ kein Spiegelstrich"),
+        ("\\# keine Überschrift", "\\# keine Überschrift"),
+        ("\\*nicht fett\\* \\_nicht kursiv\\_ \\`kein Code\\`", "\\*nicht fett\\* \\_nicht kursiv\\_ \\`kein Code\\`"),
+        ("\\[kein Link\\]\\(x\\)", "\\[kein Link\\](x)"),
+        # A literal backslash (doubled by mammoth) does not escape what follows.
+        ("C:\\\\\\. Ende", "C:\\\\. Ende"),
+        # Link targets keep their escapes; text after a link is mid-line.
+        ("[p](https://x.org/a\\(1\\)) und \\(2\\)", "[p](https://x.org/a\\(1\\)) und (2)"),
+        ("[a](https://x.org)\\- b", "[a](https://x.org)- b"),
+    ],
+)
+def test_clean_docx_markdown_drops_inert_escapes(raw, expected):
+    assert te._clean_docx_markdown(raw) == expected
+
+
+def _docx_paragraphs(paragraphs) -> bytes:
+    """Minimal Word file with one plain paragraph per entry."""
+    import io
+    import zipfile
+    from xml.sax.saxutils import escape
+
+    body = "".join(f"<w:p><w:r><w:t>{escape(p)}</w:t></w:r></w:p>" for p in paragraphs)
+    document = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        f'<w:document xmlns:w="{_W_NS}"><w:body>{body}<w:sectPr/></w:body></w:document>'
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "[Content_Types].xml",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+            '<Default Extension="xml" ContentType="application/xml"/>'
+            '<Override PartName="/word/document.xml" '
+            'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+            "</Types>",
+        )
+        zf.writestr(
+            "_rels/.rels",
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            f'<Relationships xmlns="{_PKG_REL_NS}">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+            'Target="word/document.xml"/></Relationships>',
+        )
+        zf.writestr("word/document.xml", document)
+    return buffer.getvalue()
+
+
+def test_docx_prose_comes_out_without_escapes():
+    pytest.importorskip("mammoth")
+    out = extract_text(
+        "loesung.docx",
+        _docx_paragraphs(["Die Klage ist gem. § 433 Abs. 1 (BGB) begründet.", "1. Teil"]),
+    )
+    assert out["text"] == "Die Klage ist gem. § 433 Abs. 1 (BGB) begründet.\n\n1\\. Teil"

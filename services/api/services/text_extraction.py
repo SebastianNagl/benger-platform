@@ -60,20 +60,67 @@ _LINK_TARGET_RE = re.compile(r"\]\(((?:[^()\s\\]|\\.)*)\)")
 _TARGET_ESCAPE_RE = re.compile(r"\\([!-'*-/:-@\[\]^_`{|}~])")
 
 
+# mammoth escapes every character Markdown could ever treat as syntax
+# (\\ ` * _ { } [ ] ( ) # + - . !), wherever it stands. Most of those are
+# plain prose in a legal text ("Abs. 1", "(1)", "§§ 433-435") and the escapes
+# reach the judge and the graders verbatim ("Abs\\. 1", "\\(1\\)"). These
+# can never start Markdown syntax in mid-line, so their escape is dropped;
+# ``[ ] * _ `` and backslashes stay escaped. A backslash only escapes when an
+# even number of backslashes precedes it (mammoth doubles literal ones).
+_INERT_ESCAPE_RE = re.compile(r"(?<!\\)((?:\\\\)*)\\([(){}!])")
+# ``-``, ``+`` and ``#`` start a list or heading only as a line's first
+# character; ``.`` starts an ordered list only right after a leading number.
+_LINE_ESCAPE_RE = re.compile(r"(?<!\\)((?:\\\\)*)\\([-+#.])")
+_BLANK_PREFIX_RE = re.compile(r"^\s*$")
+_NUMBER_PREFIX_RE = re.compile(r"^\s*\d+$")
+
+
+def _unescape_line(line: str, at_line_start: bool = True) -> str:
+    """Drop inert escapes from ``line``; ``at_line_start`` is False for a
+    segment that continues a line (after a link), where nothing starts syntax."""
+
+    def keep_at_start(m: re.Match) -> str:
+        # The text before the escaping backslash decides.
+        prefix = line[: m.start() + len(m.group(1))]
+        starts_syntax = at_line_start and (
+            _NUMBER_PREFIX_RE.match(prefix)
+            if m.group(2) == "."
+            else _BLANK_PREFIX_RE.match(prefix)
+        )
+        return m.group(0) if starts_syntax else m.group(1) + m.group(2)
+
+    line = _INERT_ESCAPE_RE.sub(r"\1\2", line)
+    return _LINE_ESCAPE_RE.sub(keep_at_start, line)
+
+
 def _clean_docx_markdown(text: str) -> str:
     """Drop bookmark anchors and unwrap in-document links to their text.
 
     External links (``[text](https://…)``) stay, with backslash escapes
     removed from their target. TOC entries join heading and page number with
-    tabs; those become single spaces.
+    tabs; those become single spaces. Escapes mammoth puts on ordinary
+    punctuation are removed where they cannot start Markdown syntax.
     """
     text = _EMPTY_ANCHOR_RE.sub("", text)
     text = _INTERNAL_LINK_RE.sub(
         lambda m: re.sub(r"[ \t]*\t[ \t]*", " ", m.group(1)).strip(), text
     )
-    return _LINK_TARGET_RE.sub(
+    text = _LINK_TARGET_RE.sub(
         lambda m: "](" + _TARGET_ESCAPE_RE.sub(r"\1", m.group(1)) + ")", text
     )
+    return "\n".join(_unescape_prose(line) for line in text.split("\n"))
+
+
+def _unescape_prose(line: str) -> str:
+    """:func:`_unescape_line` outside link targets, which keep their escapes."""
+    parts = []
+    last = 0
+    for m in _LINK_TARGET_RE.finditer(line):
+        parts.append(_unescape_line(line[last : m.start()], at_line_start=last == 0))
+        parts.append(m.group(0))
+        last = m.end()
+    parts.append(_unescape_line(line[last:], at_line_start=last == 0))
+    return "".join(parts)
 
 
 def _extract_docx(data: bytes) -> str:
@@ -100,8 +147,8 @@ def _extract_pdf(data: bytes) -> str:
             code="pdf_no_text_layer",
             message=(
                 "Dieses PDF enthält keine Textebene (vermutlich ein Scan). "
-                "Bitte füge den Text direkt ein oder lade eine durchsuchbare "
-                "PDF-Version hoch."
+                "Bitte den Text direkt einfügen oder eine durchsuchbare "
+                "PDF-Version hochladen."
             ),
         )
     return text

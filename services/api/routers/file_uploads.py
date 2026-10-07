@@ -76,7 +76,7 @@ def extract_document_text(
             status_code=422,
             detail={
                 "code": "extraction_failed",
-                "message": "Der Text konnte nicht extrahiert werden. Bitte füge ihn direkt ein.",
+                "message": "Der Text konnte nicht extrahiert werden. Bitte den Text direkt einfügen.",
             },
         )
 
