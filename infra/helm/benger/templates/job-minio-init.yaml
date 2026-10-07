@@ -3,8 +3,9 @@
 #
 # Runs as a post-install/post-upgrade hook (after the MinIO Deployment is
 # applied), waits for the server to come up, then creates the exports bucket and
-# imports the export-expiry lifecycle rule that guards the shared node disk
-# against unbounded growth. Idempotent: `mc mb --ignore-existing` + `mc ilm
+# imports the expiry lifecycle rules for the temporary prefixes (exports/,
+# imports/, temp/) that guard the shared node disk against unbounded growth.
+# Uploaded files (uploads/, submissions/) and static/ do not expire. Idempotent: `mc mb --ignore-existing` + `mc ilm
 # import` re-apply cleanly on every upgrade.
 #
 # NOTE: We deliberately do NOT set an AbortIncompleteMultipartUpload lifecycle
@@ -77,7 +78,11 @@ spec:
               done
               mc mb --ignore-existing "local/$BUCKET"
               echo "Applying lifecycle rule (expire {{ .Values.minio.expiryDays | default 7 }}d) ..."
-              echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}}]}' | mc ilm import "local/$BUCKET"
+              # Only the temporary prefixes expire. Uploaded files (uploads/,
+              # submissions/: handed-in solutions that graders and the exam
+              # record need) and static/ must stay; an unfiltered rule deleted
+              # them after a week too.
+              echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{"Prefix":"exports/"},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}},{"ID":"expire-imports","Status":"Enabled","Filter":{"Prefix":"imports/"},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}},{"ID":"expire-temp","Status":"Enabled","Filter":{"Prefix":"temp/"},"Expiration":{"Days":{{ .Values.minio.expiryDays | default 7 }}}}]}' | mc ilm import "local/$BUCKET"
               echo "MinIO bucket + lifecycle initialized."
               mc ilm rule ls "local/$BUCKET" || true
           resources:

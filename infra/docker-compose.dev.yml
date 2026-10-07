@@ -239,7 +239,8 @@ services:
           sleep 2
         done
         mc mb --ignore-existing local/benger-exports
-        echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{},"Expiration":{"Days":7}}]}' | mc ilm import local/benger-exports
+        # Only temporary prefixes expire; uploads/, submissions/ and static/ stay.
+        echo '{"Rules":[{"ID":"expire-exports","Status":"Enabled","Filter":{"Prefix":"exports/"},"Expiration":{"Days":7}},{"ID":"expire-imports","Status":"Enabled","Filter":{"Prefix":"imports/"},"Expiration":{"Days":7}},{"ID":"expire-temp","Status":"Enabled","Filter":{"Prefix":"temp/"},"Expiration":{"Days":7}}]}' | mc ilm import local/benger-exports
         echo "MinIO bucket + lifecycle initialized."
         mc ilm rule ls local/benger-exports || true
     networks:
