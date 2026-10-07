@@ -603,3 +603,98 @@ class TestStructuredProvenance:
         assert meta["temperature_coerced"] is True
         # o-series is not the GPT-5 family: the penalties are still sent
         assert meta["unsupported_params_dropped"] == []
+
+
+# ===========================================================================
+# OPENAI — GPT-6 takes the GPT-5 request shape
+# ===========================================================================
+class TestOpenAIGpt6RequestShape:
+    """GPT-6 models are reasoning models like GPT-5: ``max_completion_tokens``,
+    temperature 1.0, no top_p/penalties/seed, and ``reasoning_effort`` only
+    with a value the model accepts."""
+
+    @pytest.fixture(autouse=True)
+    def _no_e2e_mock(self, monkeypatch):
+        monkeypatch.delenv("E2E_TEST_MODE", raising=False)
+
+    def _generate(self, model, **kwargs):
+        svc = _make_openai(_openai_response(content="ok"))
+        svc.generate(prompt="p", model_name=model, max_tokens=500, temperature=0.0, **kwargs)
+        return svc.client.chat.completions.create.call_args.kwargs
+
+    @pytest.mark.parametrize("model", ["gpt-6-astra", "gpt-6.1-sol", "gpt-6-sol", "gpt-6-luna"])
+    def test_generate_sends_the_reasoning_model_shape(self, model):
+        params = self._generate(model, reasoning_effort="high")
+        assert params["max_completion_tokens"] == 500
+        assert "max_tokens" not in params
+        assert params["temperature"] == 1.0
+        for key in ("top_p", "frequency_penalty", "presence_penalty", "seed"):
+            assert key not in params
+        assert params["reasoning_effort"] == "high"
+
+    def test_generate_drops_an_effort_the_model_rejects(self):
+        assert "reasoning_effort" not in self._generate("gpt-6.1-sol", reasoning_effort="none")
+        assert "reasoning_effort" not in self._generate("gpt-6-astra", reasoning_effort="max")
+        assert self._generate("gpt-6-luna", reasoning_effort="none")["reasoning_effort"] == "none"
+
+    def test_structured_sends_the_reasoning_model_shape(self):
+        svc = _make_openai(_openai_response(content='{"ok": "ok"}'))
+        out = svc.generate_structured(
+            prompt="p",
+            system_prompt="s",
+            json_schema={"type": "object", "properties": {}},
+            model_name="gpt-6-astra",
+            max_tokens=500,
+            temperature=0.0,
+            reasoning_effort="xhigh",
+        )
+        params = svc.client.chat.completions.create.call_args.kwargs
+        assert params["max_completion_tokens"] == 500
+        assert params["temperature"] == 1.0
+        assert "top_p" not in params
+        assert params["reasoning_effort"] == "xhigh"
+        assert out["metadata"]["is_gpt5_series"] is True
+
+
+# ===========================================================================
+# OPENAI — generate() reasoning_effort forwarding (same rule as structured)
+# ===========================================================================
+class TestOpenAIGenerateReasoningEffort:
+    """``generate()`` forwards ``reasoning_effort`` for every reasoning
+    family with a value the model accepts and records what it sent. It used
+    to forward it for the o-series only, so a configured effort on a GPT-5
+    model was silently dropped on the plain-text path."""
+
+    @pytest.fixture(autouse=True)
+    def _no_e2e_mock(self, monkeypatch):
+        monkeypatch.delenv("E2E_TEST_MODE", raising=False)
+
+    def _call(self, model, effort=None):
+        svc = _make_openai(_openai_response(content="ok"))
+        extra = {} if effort is None else {"reasoning_effort": effort}
+        out = svc.generate(prompt="p", model_name=model, **extra)
+        return svc.client.chat.completions.create.call_args.kwargs, out
+
+    @pytest.mark.parametrize(
+        "model,effort",
+        [("gpt-5-mini", "minimal"), ("gpt-5.4-mini", "none"), ("gpt-5.5", "high"), ("o3-mini", "high")],
+    )
+    def test_supported_values_are_sent_and_recorded(self, model, effort):
+        params, out = self._call(model, effort)
+        assert params["reasoning_effort"] == effort
+        assert out["metadata"]["reasoning_effort"] == effort
+
+    @pytest.mark.parametrize(
+        "model,effort",
+        [("gpt-5.4-mini", "minimal"), ("gpt-5-mini", "none"), ("gpt-4o", "low")],
+    )
+    def test_rejected_values_and_non_reasoning_models_send_nothing(self, model, effort):
+        params, out = self._call(model, effort)
+        assert "reasoning_effort" not in params
+        assert out["metadata"]["reasoning_effort"] is None
+        assert out["success"] is True
+
+    def test_unset_sends_nothing(self):
+        params, out = self._call("gpt-5.4-mini")
+        assert "reasoning_effort" not in params
+        assert out["metadata"]["reasoning_effort"] is None

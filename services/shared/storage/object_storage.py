@@ -121,6 +121,9 @@ class ObjectStorageService:
         # File organization prefixes
         self.PREFIXES = {
             "uploads": "uploads/{year}/{month}/{day}",
+            # Handed-in solution files: kept (no lifecycle expiry, unlike
+            # exports/, imports/ and temp/).
+            "submissions": "submissions/{year}/{month}",
             "exports": "exports/{year}/{month}",
             "imports": "imports/{year}/{month}",
             "static": "static/assets",

@@ -297,14 +297,15 @@ def _rubric_default_reasoning_effort(judge_model: Optional[str]) -> Optional[str
     Only OpenAI reasoning models that accept the value get it. GPT-5 point
     releases (``gpt-5.4-mini`` …) are left out: they finish in about 16 s
     at their API default, and at "low" the measured run credited a Frage 2
-    step with a sentence from Frage 1 again.
+    step with a sentence from Frage 1 again. GPT-6 stays on its API default
+    too until it has been measured the same way.
     """
     try:
         from ai_services.provider_capabilities import openai_reasoning_efforts
     except Exception:  # pragma: no cover - shared package not importable
         return None
     model = (judge_model or "").lower()
-    if model.startswith("gpt-5."):
+    if model.startswith(("gpt-5.", "gpt-6")):
         return None
     if RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT in openai_reasoning_efforts(judge_model):
         return RUBRIC_JUDGE_DEFAULT_REASONING_EFFORT

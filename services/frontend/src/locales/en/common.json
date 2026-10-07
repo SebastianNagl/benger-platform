@@ -6359,6 +6359,13 @@
       "refresh": "Refresh",
       "restored": "Checkpoint restored."
     },
+    "serverDraft": {
+      "offlineTitle": "No connection to the server",
+      "offlineBody": "Your text is stored in this browser and will be sent automatically once the connection is back. Please do not close this tab.",
+      "lastSaved": "Last saved on the server at {time}.",
+      "neverSaved": "Nothing has been saved on the server in this session yet.",
+      "restored": "Connection restored, your text is saved on the server again."
+    },
     "taskLoadedFromUrl": "Loaded task {taskNumber} from URL",
     "taskNotFound": "Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.",
     "viewTaskData": "View complete task data",
@@ -7211,6 +7218,21 @@
     "contentPolicyWarning": "May block legal/academic content due to strict content policies",
     "fetchFailed": "Failed to fetch models",
     "unknownError": "Unknown error",
+    "detail": {
+      "scoresByProject": "Scores by project",
+      "project": "Project",
+      "period": "Period",
+      "projectCount": "{count} projects",
+      "publicProject": "Public",
+      "noScoresTitle": "No evaluations yet",
+      "noScoresDescription": "This model has no evaluation results in any project you can access.",
+      "anonymousHint": "Only public projects are shown. Sign in to see scores from your own projects.",
+      "loadError": "Could not load evaluation scores.",
+      "retry": "Retry",
+      "technicalDetails": "Technical details (JSON)",
+      "samplesShort": "n = {count}",
+      "notAvailable": "n/a"
+    },
     "errors": {
       "noApiKeys": "No API keys configured",
       "noApiKeysDetails": "You need to configure at least one API key to access models",
@@ -8685,6 +8707,7 @@
     "list": {
       "edit": "Edit",
       "editVisibility": "Visibility",
+      "scores": "Scores",
       "delete": "Delete",
       "owner": "Owner",
       "perMillion": "per 1M tokens",

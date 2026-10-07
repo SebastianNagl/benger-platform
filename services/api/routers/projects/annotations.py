@@ -74,6 +74,31 @@ async def create_annotation(
         # must come from SEB; the server-side timer worker never lands here.
         enforce_seb(db, current_user, project, request, tier=tier)
 
+    return persist_annotation_submission(
+        db, task=task, project=project, user_id=current_user.id, annotation=annotation
+    )
+
+
+def persist_annotation_submission(
+    db: Session,
+    *,
+    task: Task,
+    project: Optional[Project],
+    user_id: str,
+    annotation: AnnotationCreate,
+) -> Annotation:
+    """Store ``annotation`` as ``user_id``'s submission for ``task``.
+
+    The persistence half of :func:`create_annotation`, shared with callers
+    that submit on someone's behalf (the extended solution upload): the
+    one-active-annotation guard, the maximum-annotations limit, the task
+    counters, draft cleanup, the ``on_annotation_created`` hook (timer
+    completion, immediate evaluation), assignment completion and the report
+    refresh. Access, window and SEB checks are the caller's job; this
+    function assumes the submission is allowed. Returns the stored row, a
+    fresh one or the existing active one updated in place.
+    """
+    task_id = task.id
     # ---- Duplicate-submit guard (one active annotation per task+user) -------
     # "Submitted is submitted": a given user has exactly one active annotation
     # per task. A strict-timer task has two concurrent writers — the client
@@ -99,13 +124,13 @@ async def create_annotation(
 
         db.execute(
             _sql_text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
-            {"k": f"annsubmit:{task_id}:{current_user.id}"},
+            {"k": f"annsubmit:{task_id}:{user_id}"},
         )
         existing_annotation = (
             db.query(Annotation)
             .filter(
                 Annotation.task_id == task_id,
-                Annotation.completed_by == current_user.id,
+                Annotation.completed_by == user_id,
                 Annotation.was_cancelled == False,  # noqa: E712
             )
             .order_by(Annotation.created_at.desc())
@@ -151,7 +176,7 @@ async def create_annotation(
             id=annotation_id,
             task_id=task_id,  # Already a string now
             project_id=task.project_id,
-            completed_by=current_user.id,
+            completed_by=user_id,
             result=annotation.result,
             draft=annotation.draft,
             was_cancelled=annotation.was_cancelled or False,
@@ -227,7 +252,7 @@ async def create_annotation(
 
     db.query(TaskDraft).filter(
         TaskDraft.task_id == task_id,
-        TaskDraft.user_id == current_user.id,
+        TaskDraft.user_id == user_id,
     ).delete()
 
     try:
@@ -244,7 +269,7 @@ async def create_annotation(
             db.query(Annotation)
             .filter(
                 Annotation.task_id == task_id,
-                Annotation.completed_by == current_user.id,
+                Annotation.completed_by == user_id,
                 Annotation.was_cancelled == False,  # noqa: E712
             )
             .order_by(Annotation.created_at.desc())
@@ -257,7 +282,7 @@ async def create_annotation(
         _apply_submission(db_annotation)
         db.query(TaskDraft).filter(
             TaskDraft.task_id == task_id,
-            TaskDraft.user_id == current_user.id,
+            TaskDraft.user_id == user_id,
         ).delete()
         db.commit()
 
@@ -265,7 +290,7 @@ async def create_annotation(
 
     # Notify extended features (e.g. timer session completion)
     from extensions import on_annotation_created
-    on_annotation_created(db, task_id, current_user.id, db_annotation.id, task.project_id)
+    on_annotation_created(db, task_id, user_id, db_annotation.id, task.project_id)
 
     # Mark task assignment as completed in manual/auto mode. Delegates to the
     # shared helper so the same status-flip semantics apply across annotation
@@ -280,7 +305,7 @@ async def create_annotation(
         # function-local imports of `utils.*` fail at request time because the
         # uvicorn worker's cwd doesn't keep /app on sys.path.
         _mark_assignment_completed(
-            db, task_id=task_id, user_id=current_user.id,
+            db, task_id=task_id, user_id=user_id,
         )
 
     # Report annotation section refresh (Issue #770) — dispatch to Celery so

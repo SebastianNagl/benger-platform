@@ -178,6 +178,19 @@ class TestOpenAIReasoningEfforts:
         for model in ("o1", "o3", "o3-mini", "o4-mini"):
             assert self.pc.openai_reasoning_efforts(model) == {"low", "medium", "high"}
 
+    def test_gpt6_family(self):
+        full = {"low", "medium", "high", "xhigh"}
+        for model in ("gpt-6-astra", "gpt-6.1-sol"):
+            assert self.pc.openai_reasoning_efforts(model) == full, model
+        for model in ("gpt-6-sol", "gpt-6-luna"):
+            assert self.pc.openai_reasoning_efforts(model) == full | {"none"}, model
+
+    def test_gpt5_or_later_detection(self):
+        for model in ("gpt-5", "gpt-5.4-mini", "gpt-6-astra", "gpt-6.1-sol", "GPT-6-luna"):
+            assert self.pc.is_openai_gpt5_or_later(model), model
+        for model in ("gpt-4.1", "gpt-4o", "o3", "openai/gpt-oss-120b", "", None):
+            assert not self.pc.is_openai_gpt5_or_later(model), model
+
     def test_models_without_the_parameter(self):
         for model in ("gpt-5.5-pro", "o3-pro", "gpt-5-chat-latest", "gpt-4o", "gpt-4.1", "", None):
             assert self.pc.openai_reasoning_efforts(model) == frozenset(), model

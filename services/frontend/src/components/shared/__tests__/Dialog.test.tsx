@@ -127,6 +127,17 @@ describe('Dialog Component', () => {
       expect(screen.getByTestId('child-1')).toBeInTheDocument()
       expect(screen.getByTestId('child-2')).toBeInTheDocument()
     })
+
+    it('anchors the close button to the panel (relative), not to the viewport', () => {
+      render(
+        <Dialog isOpen={true} onClose={jest.fn()} title="Titel">
+          <div data-testid="child">Inhalt</div>
+        </Dialog>,
+      )
+      const panel = screen.getByTestId('child').parentElement as HTMLElement
+      expect(panel.className).toMatch(/(^|\s)relative(\s|$)/)
+      expect(panel.querySelector('button.absolute')).not.toBeNull()
+    })
   })
 
   describe('Open/Close State', () => {

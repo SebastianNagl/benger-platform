@@ -742,7 +742,16 @@ also ignores addresses on reserved top-level domains such as `.invalid` or
 From the `id_token`: `sub`, `iss`, `aud`, `exp`, `iat`, `nonce`, the LTI
 `message_type`, `version`, `deployment_id`, `resource_link`, `context`,
 `roles`, `name`, `email` and the AGS endpoint claim. `name` and `email` are
-expected. ILIAS sends no usable `email` in the user id mode. The `custom` claim is not used.
+expected. ILIAS sends no usable `email` in the user id mode.
+
+Optionally, the person's LMS login name. The first of these that is set
+counts: a custom parameter `login` (or `username`, `user_login`), Moodle's
+`ext.user_username`, the OIDC `preferred_username` and the LIS
+`person_sourcedid`. An unexpanded substitution variable (a value starting with
+`$`) is ignored. In ILIAS you can add the custom parameter `login=$User.username`
+if your version expands that LTI variable. The login is used for one thing
+only: matching solution files that an admin uploads in bulk, named by login,
+to the right people. Nothing else of the `custom` claim is used.
 
 Roles are mapped narrowly. The instructor, content developer and
 administrator role markers make a person a teacher. Everyone else counts as a
@@ -767,7 +776,7 @@ repository.
 | `lti_deployments` | deployment IDs and their status | none |
 | `lti_registration_invites` | hash of the invite token, organization, group, address, expiry, creator | the creator's account ID |
 | `lti_resource_links` | activity to exam, what the activity grades (the whole exam, one task or the whole collection) and its task, course and activity title, AGS URLs and scopes, state of the "KI-Bewertung" column | course titles only |
-| `lti_user_links` | `sub` to account, consent time and version, research consent time, how the account was linked, unlink marker, last launch, a snapshot of name, email and roles | name, email and roles from the LMS |
+| `lti_user_links` | `sub` to account, consent time and version, research consent time, how the account was linked, unlink marker, last launch, a snapshot of name, email, roles and, when the LMS sends it, the login name | name, email, roles and login name from the LMS |
 | `lti_resource_link_users` | who took part in which activity, as teacher or student, first and last launch. Written only after consent. | account IDs |
 | `lti_grade_syncs` | one row per activity, student and column (final grade or AI grade, on a whole-collection activity also per task): status, attempts, last sent score and its source, last error | links an account to a score |
 | `lti_task_lineitems` | the columns the tool created for the tasks of a whole-collection activity: task, kind (final or AI), line item URL, state, last error | none |

@@ -5,7 +5,7 @@ Provides LLM model leaderboards based on evaluation metrics.
 Supports filtering by project and time period.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,7 +18,10 @@ from auth_module.dependencies import get_current_user
 from database import get_async_db
 from models import EvaluationRun, LLMModel, User
 from project_models import Annotation, Project, ProjectOrganization
-from routers.projects.helpers import check_project_accessible
+from routers.projects.helpers import (
+    check_project_accessible,
+    get_accessible_project_ids_async,
+)
 
 # Temporary trust gate for the LLM leaderboard: only projects assigned to
 # one of these orgs contribute to ranking. Other orgs (TITAN, LTV,
@@ -364,6 +367,38 @@ class LLMLeaderboardResponse(BaseModel):
     confidence_intervals_available: bool = STATS_AVAILABLE
     # Staleness hint — when the precomputed snapshot we read was built.
     # None for live-aggregation responses (no precomputed snapshot used).
+    computed_at: Optional[str] = None
+
+
+class LLMModelProjectMetric(BaseModel):
+    """One (project, metric) cell of the model detail view."""
+
+    mean: float
+    ci_lower: Optional[float] = None
+    ci_upper: Optional[float] = None
+    n: int
+
+
+class LLMModelProjectScores(BaseModel):
+    """One project row of the model detail view."""
+
+    project_id: str
+    project_name: str
+    project_kind: Optional[str] = None
+    is_public: bool = False
+    evaluation_count: int = 0
+    generation_count: int = 0
+    samples_evaluated: int = 0
+    last_evaluated: Optional[str] = None
+    metrics: Dict[str, LLMModelProjectMetric]
+
+
+class LLMModelProjectScoresResponse(BaseModel):
+    model_info: Dict[str, Any]
+    projects: List[LLMModelProjectScores]
+    available_metrics: List[str]
+    filters: Dict[str, Any]
+    # Always live-aggregated; the time the response was built.
     computed_at: Optional[str] = None
 
 
@@ -856,7 +891,154 @@ async def get_llm_leaderboard(
     )
 
 
-@router.get("/llm-models/{model_id}")
+async def _resolve_visible_model_info_async(
+    db: AsyncSession, model_id: str, user=None
+) -> Dict[str, str]:
+    """Model metadata for the per-model endpoints, or 404.
+
+    BYOM: the leaderboard surface shows official OR currently-public models.
+    A custom model's aggregates are readable by id only while it is public;
+    a private or org-shared custom model 404s here, matching the listing's
+    visibility invariant. Visibility alone governs this: privatizing or
+    soft-deleting a public custom model (which sets is_public=False) makes
+    this 404 again, with no retroactive score deletion. Ids absent from the
+    table fall through to the detected-provider shape.
+
+    `user`: when given, a private / org-shared custom model is ALSO visible
+    to callers who may see it on `/models` (creator, superadmin, members of
+    an org it is shared with — `check_model_accessible_async`). The shared
+    leaderboard passes no user (its rows are readable by everyone in scope);
+    the per-user model detail view passes the caller.
+    """
+    from routers.model_access import check_model_accessible_async
+
+    model = (
+        await db.execute(select(LLMModel).where(LLMModel.id == model_id))
+    ).scalar_one_or_none()
+    if model is not None and not model.is_official and not model.is_public:
+        if user is None or not await check_model_accessible_async(db, user, model):
+            raise HTTPException(status_code=404, detail="Model not found")
+    if model:
+        return {"id": model.id, "name": model.name, "provider": model.provider}
+    return {
+        "id": model_id,
+        "name": model_id,
+        "provider": detect_provider_from_model_id(model_id),
+    }
+
+
+# Model ids may contain slashes (`deepseek-ai/DeepSeek-V4-Pro`, BYOM
+# `org/model` ids). The Next proxy and uvicorn both decode `%2F` back into a
+# path separator before routing, so a plain `{model_id}` segment never
+# matches those ids. Both per-model routes therefore use the `:path`
+# convertor; this one is registered FIRST so `.../projects` is claimed here
+# and not swallowed by the details route's greedy match.
+@router.get(
+    "/llm-models/{model_id:path}/projects",
+    response_model=LLMModelProjectScoresResponse,
+)
+async def get_llm_model_project_scores(
+    model_id: str,
+    period: str = Query("overall", regex="^(overall|monthly|weekly)$"),
+    db: AsyncSession = Depends(get_async_db),
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """One model's evaluation scores broken down by project and metric.
+
+    Backs the model detail view opened from the model catalog and the LLM
+    leaderboard: every project the caller may read in which this model has
+    completed evaluations, with mean, 95% CI and sample count per metric.
+
+    Scope is the caller's standard read ACL
+    (`get_accessible_project_ids_async`: superadmins see every non-private
+    project plus their own private ones, everyone else their own, org and
+    public projects; anonymous callers get public projects only). The LLM
+    leaderboard's org allowlist (`_intersect_with_allowlisted_org_projects`)
+    deliberately does NOT apply: that gate keeps untrusted data out of the
+    cross-org *ranking*, whereas this view ranks nothing and only shows
+    per-project aggregates the caller can already open on each project's
+    evaluation page. The sibling `/llm-models/{id}` endpoint has no gate
+    either.
+
+    Model visibility follows the BYOM rule of `/llm-models/{id}`, extended
+    to custom models the caller may see on `/models` (own, org-shared).
+    Always live-aggregated (there is no per-user precomputed scope).
+    """
+    from aggregate_summaries import aggregate_model_project_rows_async
+
+    model_info = await _resolve_visible_model_info_async(
+        db, model_id, user=current_user
+    )
+
+    if current_user is None:
+        rows = (
+            await db.execute(
+                select(Project.id).where(
+                    Project.is_public.is_(True), Project.deleted_at.is_(None)
+                )
+            )
+        ).all()
+        project_ids: List[str] = [r[0] for r in rows]
+    else:
+        project_ids = await get_accessible_project_ids_async(db, current_user) or []
+
+    # An empty scope must stay empty: the aggregator short-circuits on it
+    # (an empty project filter would otherwise mean "every project").
+    per_project = await aggregate_model_project_rows_async(
+        db, model_id, project_ids, period
+    )
+
+    projects: List[LLMModelProjectScores] = []
+    if per_project:
+        meta_rows = (
+            await db.execute(
+                select(
+                    Project.id, Project.title, Project.kind, Project.is_public
+                ).where(Project.id.in_(list(per_project)))
+            )
+        ).all()
+        meta = {r.id: r for r in meta_rows}
+        for pid, agg in per_project.items():
+            m = meta.get(pid)
+            if m is None:
+                continue
+            last_at = agg.get("last_evaluated_at")
+            projects.append(
+                LLMModelProjectScores(
+                    project_id=pid,
+                    project_name=m.title or pid,
+                    project_kind=m.kind,
+                    is_public=bool(m.is_public),
+                    evaluation_count=agg.get("evaluation_count", 0),
+                    generation_count=agg.get("generation_count", 0),
+                    samples_evaluated=agg.get("samples_evaluated", 0),
+                    last_evaluated=last_at.isoformat() if last_at else None,
+                    metrics={
+                        k: LLMModelProjectMetric(**v)
+                        for k, v in agg["metrics"].items()
+                    },
+                )
+            )
+    projects.sort(key=lambda p: (p.project_name.lower(), p.project_id))
+
+    # Metrics ordered by how many projects carry them, then by name, so the
+    # most widely available columns come first in the table.
+    metric_freq: Dict[str, int] = {}
+    for p in projects:
+        for k in p.metrics:
+            metric_freq[k] = metric_freq.get(k, 0) + 1
+    available_metrics = sorted(metric_freq, key=lambda k: (-metric_freq[k], k))
+
+    return LLMModelProjectScoresResponse(
+        model_info=model_info,
+        projects=projects,
+        available_metrics=available_metrics,
+        filters={"period": period},
+        computed_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+@router.get("/llm-models/{model_id:path}")
 async def get_llm_model_details(
     model_id: str,
     project_ids: Optional[List[str]] = Query(None),
@@ -888,27 +1070,7 @@ async def get_llm_model_details(
         db, current_user, project_ids
     )
 
-    model = (
-        await db.execute(select(LLMModel).where(LLMModel.id == model_id))
-    ).scalar_one_or_none()
-    # BYOM: the leaderboard surface shows official OR currently-public models.
-    # A custom model's aggregates are readable by id only while it is public;
-    # a private or org-shared custom model 404s here, matching the listing's
-    # visibility invariant. Visibility alone governs this: privatizing or
-    # soft-deleting a public custom model (which sets is_public=False) makes
-    # this 404 again, with no retroactive score deletion. (model is None →
-    # fall through to the detected-provider path for ids absent from the table.)
-    if model is not None and not model.is_official and not model.is_public:
-        raise HTTPException(status_code=404, detail="Model not found")
-    model_info = (
-        {"id": model.id, "name": model.name, "provider": model.provider}
-        if model
-        else {
-            "id": model_id,
-            "name": model_id,
-            "provider": detect_provider_from_model_id(model_id),
-        }
-    )
+    model_info = await _resolve_visible_model_info_async(db, model_id)
 
     scope_key = _project_scope_key_for_request(project_ids, current_user)
 

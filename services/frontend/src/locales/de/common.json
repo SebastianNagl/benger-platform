@@ -6359,6 +6359,13 @@
       "refresh": "Aktualisieren",
       "restored": "Zwischenstand wiederhergestellt."
     },
+    "serverDraft": {
+      "offlineTitle": "Keine Verbindung zum Server",
+      "offlineBody": "Ihr Text ist in diesem Browser gespeichert und wird automatisch übertragen, sobald die Verbindung wieder steht. Bitte schließen Sie diesen Tab nicht.",
+      "lastSaved": "Zuletzt auf dem Server gespeichert um {time} Uhr.",
+      "neverSaved": "In dieser Sitzung wurde noch nichts auf dem Server gespeichert.",
+      "restored": "Verbindung wiederhergestellt, Ihr Text ist wieder auf dem Server gespeichert."
+    },
     "taskLoadedFromUrl": "Aufgabe {taskNumber} aus URL geladen",
     "taskNotFound": "Aufgabe {taskNumber} nicht gefunden (max: {maxTasks}). Erste Aufgabe wird stattdessen geladen.",
     "viewTaskData": "Vollständige Aufgabendaten anzeigen",
@@ -7328,6 +7335,21 @@
     "contentPolicyWarning": "Kann rechtliche/akademische Inhalte aufgrund strenger Inhaltsrichtlinien blockieren",
     "fetchFailed": "Modelle konnten nicht geladen werden",
     "unknownError": "Unbekannter Fehler",
+    "detail": {
+      "scoresByProject": "Ergebnisse nach Projekt",
+      "project": "Projekt",
+      "period": "Zeitraum",
+      "projectCount": "{count} Projekte",
+      "publicProject": "Öffentlich",
+      "noScoresTitle": "Noch keine Evaluationen",
+      "noScoresDescription": "Für dieses Modell liegen in keinem Projekt, auf das Sie Zugriff haben, Evaluationsergebnisse vor.",
+      "anonymousHint": "Es werden nur öffentliche Projekte angezeigt. Melden Sie sich an, um Ergebnisse aus Ihren eigenen Projekten zu sehen.",
+      "loadError": "Evaluationsergebnisse konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "technicalDetails": "Technische Details (JSON)",
+      "samplesShort": "n = {count}",
+      "notAvailable": "k. A."
+    },
     "errors": {
       "noApiKeys": "Keine API-Schlüssel konfiguriert",
       "noApiKeysDetails": "Sie müssen mindestens einen API-Schlüssel konfigurieren, um auf Modelle zuzugreifen",
@@ -8693,6 +8715,7 @@
     "list": {
       "edit": "Bearbeiten",
       "editVisibility": "Sichtbarkeit",
+      "scores": "Ergebnisse",
       "delete": "Löschen",
       "owner": "Besitzer",
       "perMillion": "pro 1 Mio. Tokens",

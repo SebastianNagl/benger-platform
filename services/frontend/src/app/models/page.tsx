@@ -2,6 +2,7 @@
 
 import { CustomModelsManager } from '@/components/models/CustomModelsManager'
 import { OfficialBadge, VisibilityBadge } from '@/components/models/ModelBadges'
+import { ModelDetailModal } from '@/components/models/ModelDetailModal'
 import { HeroPattern } from '@/components/shared'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
@@ -422,70 +423,11 @@ export default function ModelsPage() {
         )}
       </div>
 
-      {/* Model Settings Modal */}
-      {selectedModel && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setSelectedModel(null)}
-        >
-          <div
-            className="max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl dark:bg-zinc-900"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 dark:border-zinc-700">
-              <div>
-                <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
-                  {selectedModel.name}
-                </h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {selectedModel.id}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedModel(null)}
-                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-              >
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="max-h-[60vh] overflow-auto p-6">
-              <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-4 text-sm text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
-                {JSON.stringify(getModelSettings(selectedModel), null, 2)}
-              </pre>
-            </div>
-            <div className="flex justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    JSON.stringify(getModelSettings(selectedModel), null, 2),
-                  )
-                }}
-                className="mr-3 rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {t('models.copyJson')}
-              </button>
-              <button
-                onClick={() => setSelectedModel(null)}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                {t('models.close')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModelDetailModal
+        model={selectedModel}
+        settingsJson={selectedModel ? getModelSettings(selectedModel) : null}
+        onClose={() => setSelectedModel(null)}
+      />
     </>
   )
 }
