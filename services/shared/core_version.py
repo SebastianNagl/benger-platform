@@ -403,11 +403,26 @@ whenever one is added, renamed or removed):
   the API's 422 ``multi_task_unsupported``) applies only to exams with at
   least one ``grade_scope = 'exam'`` link; task and collection links accept
   imports.
+
+2.30 (2026-10-07): uploaded solution files (extended issue #149), migration
+  113. New ``SubmissionFile`` (``submission_files``: ``project_id``,
+  ``task_id``, ``user_id`` FKs ON DELETE CASCADE; ``uploaded_by`` and
+  ``annotation_id`` FKs ON DELETE SET NULL; ``storage_key``,
+  ``original_filename``, ``content_type``, ``size_bytes``, ``sha256``,
+  ``source_format`` pdf | docx | text, ``extracted_chars``,
+  ``replaced_result`` JSONB, ``created_at``; indexes
+  ``ix_submission_files_task_user`` (task_id, user_id, created_at) and
+  ``ix_submission_files_project``). New
+  ``routers.projects.annotations.persist_annotation_submission(db, *, task,
+  project, user_id, annotation)``: the persistence half of the annotation
+  POST (duplicate guard, limits, counters, draft cleanup,
+  ``on_annotation_created``, assignment completion, report refresh) without
+  its access, window and SEB checks.
 """
 
 import os
 
-CORE_API_VERSION = "2.29"
+CORE_API_VERSION = "2.30"
 
 
 def extended_required() -> bool:

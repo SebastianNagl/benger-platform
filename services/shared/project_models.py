@@ -1566,6 +1566,52 @@ class GradingFeedback(Base):
         )
 
 
+class SubmissionFile(Base):
+    """A file a person handed in as their answer to a task.
+
+    The person (``user_id``) or an admin on their behalf (``uploaded_by``)
+    uploads a text PDF, Word file, ``.txt`` or ``.md``; its extracted text
+    becomes the answer and the original stays in object storage under
+    ``storage_key`` so graders can open it. ``annotation_id`` points at the
+    submission the upload created or replaced (NULL for a student's own upload,
+    which only fills the editor and is submitted the normal way; those are
+    found by ``(task_id, user_id)``). ``replaced_result`` keeps the annotation
+    result an admin upload overwrote, for the audit trail.
+
+    Platform owns the table (migration 113); who may upload for whom and the
+    upload flow live in ``benger_extended.api.routers.submission_uploads``.
+    Not part of the project export/import round-trip yet.
+    """
+
+    __tablename__ = "submission_files"
+
+    id = Column(String, primary_key=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    uploaded_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    annotation_id = Column(
+        String, ForeignKey("annotations.id", ondelete="SET NULL"), nullable=True
+    )
+
+    storage_key = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    content_type = Column(String, nullable=True)
+    size_bytes = Column(Integer, nullable=False)
+    sha256 = Column(String(64), nullable=False)
+    # 'pdf' | 'docx' | 'text' (text_extraction.extract_text source_format)
+    source_format = Column(String(16), nullable=False)
+    extracted_chars = Column(Integer, nullable=False, default=0, server_default="0")
+    replaced_result = Column(JSONB, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        sa.Index("ix_submission_files_task_user", "task_id", "user_id", "created_at"),
+        sa.Index("ix_submission_files_project", "project_id"),
+    )
+
+
 def project_not_deleted():
     """Soft-delete predicate (migration 093): every visibility query excludes
     stamped projects; superadmin surfaces opt back in explicitly. Lives in
@@ -1576,3 +1622,4 @@ def project_not_deleted():
 def project_is_deleted(project) -> bool:
     """Instance twin of :func:`project_not_deleted`."""
     return getattr(project, "deleted_at", None) is not None
+

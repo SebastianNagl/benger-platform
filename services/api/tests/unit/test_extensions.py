@@ -130,7 +130,9 @@ class TestExtensionLoader:
         # invitations, attachment_role in org_groups).
         # 2.29 binds LTI resource links to single tasks (task_id) and limits
         # the linked-exam import block to whole-exam links.
-        assert CORE_API_VERSION == "2.29"
+        # 2.30 adds uploaded solution files (submission_files) and the shared
+        # persist_annotation_submission helper.
+        assert CORE_API_VERSION == "2.30"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
