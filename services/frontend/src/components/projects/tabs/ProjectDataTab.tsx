@@ -22,6 +22,7 @@ import { useColumnSettings } from '@/hooks/useColumnSettings'
 import { usePermissions } from '@/hooks/usePermissions'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
+import { useSlot } from '@/lib/extensions/slots'
 import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
@@ -197,6 +198,8 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [showImportModal, setShowImportModal] = useState(false)
+  // Extended: hand in solutions as files on members' behalf (button + modal).
+  const SolutionUploads = useSlot('project-data-solution-uploads')
 
   // Task Assignment Modal state
   const [showAssignmentModal, setShowAssignmentModal] = useState(false)
@@ -1002,6 +1005,12 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
             {/* Secondary Actions - Import/Export buttons */}
             <div className="flex items-center gap-2">
+              {SolutionUploads && currentProject && (
+                <SolutionUploads
+                  project={currentProject}
+                  onUploaded={reloadCurrentPage}
+                />
+              )}
               <Button
                 variant="outline"
                 onClick={() => setShowImportModal(true)}

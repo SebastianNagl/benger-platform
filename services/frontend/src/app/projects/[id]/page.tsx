@@ -368,7 +368,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   // Learning-platform (LMS) activities linked to this project, shown under the
   // quick actions. The slot renders nothing for projects outside an LMS.
   const ProjectLmsActivities = useSlot('project-lms-activities')
-  const ProjectSolutionUploads = useSlot('project-solution-uploads')
   const [advancedSettings, setAdvancedSettings] = useState({
     show_instruction: true,
     instructions_always_visible: false,
@@ -2973,14 +2972,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </ConfigCard>
             </>
           )}
-
-          {/* Solution uploads (extended): admins hand in answers as files
-              on members' behalf. In the main column because the bulk result
-              table needs the width; the slot hides itself for everyone else. */}
-          {ProjectSolutionUploads &&
-            currentProject.enable_annotation !== false && (
-              <ProjectSolutionUploads project={currentProject} />
-            )}
         </div>
 
         {/* Sidebar */}
