@@ -7218,6 +7218,21 @@
     "contentPolicyWarning": "May block legal/academic content due to strict content policies",
     "fetchFailed": "Failed to fetch models",
     "unknownError": "Unknown error",
+    "detail": {
+      "scoresByProject": "Scores by project",
+      "project": "Project",
+      "period": "Period",
+      "projectCount": "{count} projects",
+      "publicProject": "Public",
+      "noScoresTitle": "No evaluations yet",
+      "noScoresDescription": "This model has no evaluation results in any project you can access.",
+      "anonymousHint": "Only public projects are shown. Sign in to see scores from your own projects.",
+      "loadError": "Could not load evaluation scores.",
+      "retry": "Retry",
+      "technicalDetails": "Technical details (JSON)",
+      "samplesShort": "n = {count}",
+      "notAvailable": "n/a"
+    },
     "errors": {
       "noApiKeys": "No API keys configured",
       "noApiKeysDetails": "You need to configure at least one API key to access models",
@@ -8692,6 +8707,7 @@
     "list": {
       "edit": "Edit",
       "editVisibility": "Visibility",
+      "scores": "Scores",
       "delete": "Delete",
       "owner": "Owner",
       "perMillion": "per 1M tokens",

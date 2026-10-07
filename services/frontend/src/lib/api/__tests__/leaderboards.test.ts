@@ -322,4 +322,42 @@ describe('LeaderboardsClient', () => {
       expect((result as any)._url).toBe('/leaderboards/llm-models/gpt-4?')
     })
   })
+
+  // ============================================================================
+  // getLLMModelProjectScores
+  // ============================================================================
+
+  describe('getLLMModelProjectScores', () => {
+    it('should call the projects route without a query when no params', async () => {
+      const result = await client.getLLMModelProjectScores('gpt-4')
+      expect((result as any)._url).toBe(
+        '/leaderboards/llm-models/gpt-4/projects',
+      )
+    })
+
+    it('should encode slashes in the model id', async () => {
+      const result = await client.getLLMModelProjectScores(
+        'deepseek-ai/DeepSeek-V4-Pro',
+      )
+      expect((result as any)._url).toBe(
+        '/leaderboards/llm-models/deepseek-ai%2FDeepSeek-V4-Pro/projects',
+      )
+    })
+
+    it('should append the period', async () => {
+      const result = await client.getLLMModelProjectScores('gpt-4', {
+        period: 'weekly',
+      })
+      expect((result as any)._url).toBe(
+        '/leaderboards/llm-models/gpt-4/projects?period=weekly',
+      )
+    })
+
+    it('should ignore an empty params object', async () => {
+      const result = await client.getLLMModelProjectScores('gpt-4', {})
+      expect((result as any)._url).toBe(
+        '/leaderboards/llm-models/gpt-4/projects',
+      )
+    })
+  })
 })

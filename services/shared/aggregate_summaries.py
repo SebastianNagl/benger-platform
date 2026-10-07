@@ -499,6 +499,164 @@ def _eval_run_ids_for_scope(
     return [row[0] for row in db.execute(stmt).all()]
 
 
+def _leaderboard_src_sql(bucket_expr: str, *, model_filter: bool = False) -> str:
+    """Inner `src` subquery of the leaderboard aggregation: one row per
+    (bucket, metric_key, raw jsonb value).
+
+    `bucket_expr` is the SQL expression rows are grouped by downstream:
+    `g.model_id` for the per-model leaderboard, `er.project_id` for the
+    per-model-across-projects view. `model_filter=True` adds
+    `g.model_id = :model_id` to both branches (the `:model_id` bind only
+    exists in that case, so callers must not bind it otherwise).
+
+    The UNION ALL branch synthesises a `<base>_grade_points` triple per row
+    from `metrics.<base>.details.grade_points`, for every base metric whose
+    Notenpunkte twin is registered (`GRADE_POINT_LIFT_BASES`). Older rows
+    store grade points only inside `details` (next to raw_score), so
+    jsonb_each above sees just the parent (0-1 normalised score). The
+    frontend leaderboard defaults to the grade_points metric - without this
+    lift the column is always n/a even though the per-row value exists.
+    Newer rows ALSO carry the flat `<base>_grade_points` key, which the
+    first branch already emits; the lift skips those so a row is never
+    counted twice (doubled n narrows the CI, and doubles a `sum`).
+
+    When `:eval_types` is NULL the `... = ANY(:eval_types) OR :eval_types IS
+    NULL` shape collapses to a no-op via the IS NULL branch. Postgres typed
+    cast on the bind param so the comparison stays type-safe.
+    """
+    model_clause = "AND g.model_id = :model_id" if model_filter else ""
+    return f"""
+            SELECT
+                {bucket_expr} AS bucket,
+                kv.key   AS metric_key,
+                kv.value AS metric_val
+            FROM task_evaluations te
+            JOIN generations g ON g.id = te.generation_id
+            JOIN evaluation_runs er ON er.id = te.evaluation_id
+            CROSS JOIN LATERAL jsonb_each(te.metrics::jsonb) AS kv
+            WHERE te.evaluation_id = ANY(:run_ids)
+              AND te.generation_id IS NOT NULL
+              AND te.metrics IS NOT NULL
+              AND jsonb_typeof(te.metrics::jsonb) = 'object'
+              {model_clause}
+              AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
+
+            UNION ALL
+
+            SELECT
+                {bucket_expr} AS bucket,
+                gp.base || '_grade_points' AS metric_key,
+                te.metrics::jsonb->gp.base->'details'->'grade_points' AS metric_val
+            FROM task_evaluations te
+            JOIN generations g ON g.id = te.generation_id
+            JOIN evaluation_runs er ON er.id = te.evaluation_id
+            CROSS JOIN unnest(CAST(:gp_bases AS text[])) AS gp(base)
+            WHERE te.evaluation_id = ANY(:run_ids)
+              AND te.generation_id IS NOT NULL
+              AND te.metrics IS NOT NULL
+              AND jsonb_typeof(te.metrics::jsonb) = 'object'
+              {model_clause}
+              AND te.metrics::jsonb ? gp.base
+              AND NOT (te.metrics::jsonb ? (gp.base || '_grade_points'))
+              AND jsonb_typeof(te.metrics::jsonb->gp.base->'details'->'grade_points') = 'number'
+              AND (CAST(:eval_types AS text[]) IS NULL OR gp.base || '_grade_points' = ANY(:eval_types))
+    """
+
+
+def _leaderboard_bucket_stats_sql(src_sql: str) -> str:
+    """Outer coercion + per-(bucket, metric_key) COUNT / SUM / STDDEV_SAMP /
+    MIN / MAX over a `_leaderboard_src_sql` subquery.
+
+    Coerces each value once (`OFFSET 0` keeps the planner from inlining the
+    large coercion CASE into every aggregate argument) and aggregates per
+    bucket. `abs(v) < 'Infinity'` drops NULL (no value) as well as the NaN /
+    Infinity markers the coercion uses for values that must not reach the
+    sums. The subquery alias must stay `src`: `_LEADERBOARD_VALUE_SQL` is
+    built against `src.metric_val`.
+    """
+    return f"""
+        SELECT
+            bucket,
+            metric_key,
+            COUNT(*)       AS n,
+            SUM(v)         AS total,
+            STDDEV_SAMP(v) AS sd,
+            MIN(v)         AS min_v,
+            MAX(v)         AS max_v
+        FROM (
+            SELECT
+                src.bucket,
+                src.metric_key,
+                {_LEADERBOARD_VALUE_SQL} AS v
+            FROM (
+            {src_sql}
+            ) AS src
+            OFFSET 0
+        ) AS coerced
+        WHERE abs(v) < 'Infinity'::float8
+        GROUP BY bucket, metric_key
+        ORDER BY bucket, metric_key
+        """
+
+
+def _leaderboard_rollup_sql(bucket_expr: str, *, model_filter: bool = False) -> str:
+    """Per-bucket counters: distinct evaluation runs, distinct generations,
+    TaskEvaluation rows and the latest run completion. Same bucket / model
+    filter contract as `_leaderboard_src_sql`."""
+    model_clause = "AND g.model_id = :model_id" if model_filter else ""
+    return f"""
+        SELECT
+            {bucket_expr}                     AS bucket,
+            COUNT(DISTINCT te.evaluation_id)  AS evaluation_count,
+            COUNT(DISTINCT g.id)              AS generation_count,
+            COALESCE(COUNT(te.id), 0)         AS samples_evaluated,
+            MAX(er.completed_at)              AS last_evaluated_at
+        FROM task_evaluations te
+        JOIN generations g ON g.id = te.generation_id
+        JOIN evaluation_runs er ON er.id = te.evaluation_id
+        WHERE te.evaluation_id = ANY(:run_ids)
+          AND te.generation_id IS NOT NULL
+          {model_clause}
+        GROUP BY {bucket_expr}
+        """
+
+
+def _collect_metric_buckets(
+    db: Session, agg_sql
+) -> Dict[Tuple[str, str], Tuple[int, float, Optional[float]]]:
+    """Run a `_leaderboard_bucket_stats_sql` statement and return
+    `(bucket, metric_key) -> (count, sum, sample sd)`, applying the noise
+    filter and pinning sd=0 for constant buckets (Postgres' variance formula
+    can leave float noise there)."""
+    buckets: Dict[Tuple[str, str], Tuple[int, float, Optional[float]]] = {}
+    for bucket, metric_key, n, total, sd, min_v, max_v in db.execute(agg_sql).all():
+        if not bucket or not _metric_key_is_real(metric_key):
+            continue
+        if min_v == max_v:
+            sd = 0.0
+        buckets[(bucket, metric_key)] = (
+            int(n),
+            float(total),
+            None if sd is None else float(sd),
+        )
+    return buckets
+
+
+def _collect_bucket_meta(db: Session, rollup_sql) -> Dict[str, Dict[str, Any]]:
+    """Run a `_leaderboard_rollup_sql` statement and return the counters
+    keyed by bucket."""
+    return {
+        row.bucket: {
+            "evaluation_count": int(row.evaluation_count or 0),
+            "generation_count": int(row.generation_count or 0),
+            "samples_evaluated": int(row.samples_evaluated or 0),
+            "last_evaluated_at": row.last_evaluated_at,
+        }
+        for row in db.execute(rollup_sql).all()
+        if row.bucket
+    }
+
+
 def _aggregate_leaderboard_rows(
     db: Session,
     run_ids: List[str],
@@ -543,126 +701,21 @@ def _aggregate_leaderboard_rows(
     # Postgres typed cast on the bind param so the comparison stays type-safe.
     eval_types_bind = evaluation_types or None
 
-    # jsonb_each returns a record type; using text() for clarity.
-    #
-    # The UNION ALL branch synthesises a `<base>_grade_points` triple per row
-    # from `metrics.<base>.details.grade_points`, for every base metric whose
-    # Notenpunkte twin is registered (`GRADE_POINT_LIFT_BASES`). Older rows
-    # store grade points only inside `details` (next to raw_score), so
-    # jsonb_each above sees just the parent (0-1 normalised score). The
-    # frontend leaderboard defaults to the grade_points metric - without this
-    # lift the column is always n/a even though the per-row value exists.
-    # Newer rows ALSO carry the flat `<base>_grade_points` key, which the
-    # first branch already emits; the lift skips those so a row is never
-    # counted twice (doubled n narrows the CI, and doubles a `sum`).
-    #
-    # The outer query coerces each value once (`OFFSET 0` keeps the planner
-    # from inlining the large coercion CASE into every aggregate argument)
-    # and aggregates per bucket. `abs(v) < 'Infinity'` drops NULL (no value)
-    # as well as the NaN / Infinity markers the coercion uses for values
-    # that must not reach the sums.
     agg_sql = text(
-        f"""
-        SELECT
-            model_id,
-            metric_key,
-            COUNT(*)       AS n,
-            SUM(v)         AS total,
-            STDDEV_SAMP(v) AS sd,
-            MIN(v)         AS min_v,
-            MAX(v)         AS max_v
-        FROM (
-            SELECT
-                src.model_id,
-                src.metric_key,
-                {_LEADERBOARD_VALUE_SQL} AS v
-            FROM (
-            SELECT
-                g.model_id,
-                kv.key   AS metric_key,
-                kv.value AS metric_val
-            FROM task_evaluations te
-            JOIN generations g ON g.id = te.generation_id
-            JOIN evaluation_runs er ON er.id = te.evaluation_id
-            CROSS JOIN LATERAL jsonb_each(te.metrics::jsonb) AS kv
-            WHERE te.evaluation_id = ANY(:run_ids)
-              AND te.generation_id IS NOT NULL
-              AND te.metrics IS NOT NULL
-              AND jsonb_typeof(te.metrics::jsonb) = 'object'
-              AND (CAST(:eval_types AS text[]) IS NULL OR kv.key = ANY(:eval_types))
-
-            UNION ALL
-
-            SELECT
-                g.model_id,
-                gp.base || '_grade_points' AS metric_key,
-                te.metrics::jsonb->gp.base->'details'->'grade_points' AS metric_val
-            FROM task_evaluations te
-            JOIN generations g ON g.id = te.generation_id
-            JOIN evaluation_runs er ON er.id = te.evaluation_id
-            CROSS JOIN unnest(CAST(:gp_bases AS text[])) AS gp(base)
-            WHERE te.evaluation_id = ANY(:run_ids)
-              AND te.generation_id IS NOT NULL
-              AND te.metrics IS NOT NULL
-              AND jsonb_typeof(te.metrics::jsonb) = 'object'
-              AND te.metrics::jsonb ? gp.base
-              AND NOT (te.metrics::jsonb ? (gp.base || '_grade_points'))
-              AND jsonb_typeof(te.metrics::jsonb->gp.base->'details'->'grade_points') = 'number'
-              AND (CAST(:eval_types AS text[]) IS NULL OR gp.base || '_grade_points' = ANY(:eval_types))
-            ) AS src
-            OFFSET 0
-        ) AS coerced
-        WHERE abs(v) < 'Infinity'::float8
-        GROUP BY model_id, metric_key
-        ORDER BY model_id, metric_key
-        """
+        _leaderboard_bucket_stats_sql(_leaderboard_src_sql("g.model_id"))
     ).bindparams(
         run_ids=run_ids,
         eval_types=eval_types_bind,
         gp_bases=list(GRADE_POINT_LIFT_BASES),
     )
-
     # (model_id, metric_key) -> (count, sum, sample sd)
-    buckets: Dict[Tuple[str, str], Tuple[int, float, Optional[float]]] = {}
-    for model_id, metric_key, n, total, sd, min_v, max_v in db.execute(agg_sql).all():
-        if not model_id or not _metric_key_is_real(metric_key):
-            continue
-        # A constant bucket has zero spread by definition. Postgres'
-        # variance formula can leave float noise there, so pin it.
-        if min_v == max_v:
-            sd = 0.0
-        buckets[(model_id, metric_key)] = (
-            int(n),
-            float(total),
-            None if sd is None else float(sd),
-        )
+    buckets = _collect_metric_buckets(db, agg_sql)
 
     # Per-model rollups for evaluation_count / generation_count / last_at.
-    rollup_sql = text(
-        """
-        SELECT
-            g.model_id                  AS model_id,
-            COUNT(DISTINCT te.evaluation_id)  AS evaluation_count,
-            COUNT(DISTINCT g.id)        AS generation_count,
-            COALESCE(COUNT(te.id), 0)   AS samples_evaluated,
-            MAX(er.completed_at)        AS last_evaluated_at
-        FROM task_evaluations te
-        JOIN generations g ON g.id = te.generation_id
-        JOIN evaluation_runs er ON er.id = te.evaluation_id
-        WHERE te.evaluation_id = ANY(:run_ids)
-          AND te.generation_id IS NOT NULL
-        GROUP BY g.model_id
-        """
-    ).bindparams(run_ids=run_ids)
-    per_model_meta = {
-        row.model_id: {
-            "evaluation_count": int(row.evaluation_count or 0),
-            "generation_count": int(row.generation_count or 0),
-            "samples_evaluated": int(row.samples_evaluated or 0),
-            "last_evaluated_at": row.last_evaluated_at,
-        }
-        for row in db.execute(rollup_sql).all()
-    }
+    rollup_sql = text(_leaderboard_rollup_sql("g.model_id")).bindparams(
+        run_ids=run_ids
+    )
+    per_model_meta = _collect_bucket_meta(db, rollup_sql)
 
     rows: List[Dict[str, Any]] = []
     # Per-metric rows. The previously-emitted cross-metric 'average' row was
@@ -1279,6 +1332,133 @@ async def live_aggregate_leaderboard_async(
                 aggregation=aggregation,
                 evaluation_types=evaluation_types,
             )
+        finally:
+            sync_db.close()
+
+    return await run_in_threadpool(_heavy)
+
+
+# --------------------------------------------------------------------------- #
+# One model across projects (model detail view)                               #
+# --------------------------------------------------------------------------- #
+
+
+def _empty_bucket_meta() -> Dict[str, Any]:
+    return {
+        "evaluation_count": 0,
+        "generation_count": 0,
+        "samples_evaluated": 0,
+        "last_evaluated_at": None,
+    }
+
+
+def aggregate_model_project_rows(
+    db: Session, model_id: str, run_ids: List[str]
+) -> Dict[str, Dict[str, Any]]:
+    """Per-(project, metric) mean + 95% t-CI for ONE model over `run_ids`.
+
+    Same SQL as the leaderboard (`_leaderboard_src_sql` with the model
+    filter), bucketed by `evaluation_runs.project_id` instead of
+    `generations.model_id`. Only projects with at least one real metric
+    bucket appear.
+
+    Returns::
+
+        {project_id: {"metrics": {metric: {"mean", "ci_lower", "ci_upper", "n"}},
+                      "evaluation_count", "generation_count",
+                      "samples_evaluated", "last_evaluated_at"}}
+    """
+    if not run_ids:
+        return {}
+    agg_sql = text(
+        _leaderboard_bucket_stats_sql(
+            _leaderboard_src_sql("er.project_id", model_filter=True)
+        )
+    ).bindparams(
+        run_ids=run_ids,
+        eval_types=None,
+        gp_bases=list(GRADE_POINT_LIFT_BASES),
+        model_id=model_id,
+    )
+    buckets = _collect_metric_buckets(db, agg_sql)
+    if not buckets:
+        return {}
+    rollup_sql = text(
+        _leaderboard_rollup_sql("er.project_id", model_filter=True)
+    ).bindparams(run_ids=run_ids, model_id=model_id)
+    meta = _collect_bucket_meta(db, rollup_sql)
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for (project_id, metric_key), (n, total, sd) in buckets.items():
+        mean = total / n
+        ci_lower, ci_upper = _confidence_interval_from_stats(mean, sd, n)
+        entry = out.setdefault(
+            project_id,
+            {"metrics": {}, **meta.get(project_id, _empty_bucket_meta())},
+        )
+        entry["metrics"][metric_key] = {
+            "mean": round(mean, 4),
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "n": n,
+        }
+    return out
+
+
+async def aggregate_model_project_rows_async(
+    db: AsyncSession,
+    model_id: str,
+    project_ids: List[str],
+    period: str,
+) -> Dict[str, Dict[str, Any]]:
+    """Async entry point for `aggregate_model_project_rows`.
+
+    `project_ids` is the caller's ALREADY access-filtered scope. An empty
+    scope returns `{}` immediately: `_build_live_run_ids_stmt` treats an
+    empty list as "no project filter", so passing it through would leak
+    every run in the database to a user with zero accessible projects.
+
+    Two cheap async queries narrow the heavy scan: the projects where this
+    model actually generated anything (`response_generations`, indexed by
+    project), then the completed runs of those projects in `period`. The
+    aggregation itself runs like `live_aggregate_leaderboard_async`: sync,
+    in a threadpool, on its own `SessionLocal()` (reads committed data).
+    """
+    if not project_ids:
+        return {}
+    narrowed = [
+        row[0]
+        for row in (
+            await db.execute(
+                select(ResponseGeneration.project_id)
+                .where(
+                    ResponseGeneration.model_id == model_id,
+                    ResponseGeneration.project_id.in_(project_ids),
+                )
+                .distinct()
+            )
+        ).all()
+        if row[0]
+    ]
+    if not narrowed:
+        return {}
+    run_ids = [
+        row[0]
+        for row in (
+            await db.execute(_build_live_run_ids_stmt(narrowed, period, None))
+        ).all()
+    ]
+    if not run_ids:
+        return {}
+
+    from starlette.concurrency import run_in_threadpool
+
+    from database import SessionLocal
+
+    def _heavy() -> Dict[str, Dict[str, Any]]:
+        sync_db = SessionLocal()
+        try:
+            return aggregate_model_project_rows(sync_db, model_id, run_ids)
         finally:
             sync_db.close()
 

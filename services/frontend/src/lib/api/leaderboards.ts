@@ -71,6 +71,36 @@ export interface LLMLeaderboardEntry {
   last_evaluated: string | null
 }
 
+// Model detail view: one model's scores per project x metric
+// (GET /leaderboards/llm-models/{id}/projects). Scope is the caller's
+// standard project read ACL; always live-aggregated.
+export interface LLMModelProjectMetric {
+  mean: number
+  ci_lower: number | null
+  ci_upper: number | null
+  n: number
+}
+
+export interface LLMModelProjectScores {
+  project_id: string
+  project_name: string
+  project_kind: string | null
+  is_public: boolean
+  evaluation_count: number
+  generation_count: number
+  samples_evaluated: number
+  last_evaluated: string | null
+  metrics: Record<string, LLMModelProjectMetric>
+}
+
+export interface LLMModelProjectScoresResponse {
+  model_info: { id: string; name: string; provider: string }
+  projects: LLMModelProjectScores[]
+  available_metrics: string[]
+  filters: { period: string }
+  computed_at: string | null
+}
+
 export interface LLMLeaderboardResponse {
   leaderboard: LLMLeaderboardEntry[]
   total_models: number
@@ -318,6 +348,24 @@ export class LeaderboardsClient extends BaseApiClient {
 
     return this.get(
       `/leaderboards/llm-models/${encodeURIComponent(modelId)}?${queryParams.toString()}`,
+    )
+  }
+
+  /**
+   * One model's evaluation scores broken down by project and metric, for
+   * every project the caller may read.
+   */
+  async getLLMModelProjectScores(
+    modelId: string,
+    params?: { period?: 'overall' | 'monthly' | 'weekly' },
+  ): Promise<LLMModelProjectScoresResponse> {
+    const queryParams = new URLSearchParams()
+    if (params?.period) {
+      queryParams.append('period', params.period)
+    }
+    const query = queryParams.toString()
+    return this.get(
+      `/leaderboards/llm-models/${encodeURIComponent(modelId)}/projects${query ? `?${query}` : ''}`,
     )
   }
 }

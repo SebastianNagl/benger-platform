@@ -31,6 +31,7 @@ from models import (
 )
 from project_models import Annotation, Project, Task
 from aggregate_summaries import (
+    aggregate_model_project_rows,
     live_aggregate_leaderboard,
     read_dashboard_sum,
     read_llm_leaderboard,
@@ -1052,3 +1053,159 @@ class TestTumScope:
             LLMLeaderboardScore.project_scope_key == "tum",
         ).all()
         assert tum_rows == []
+
+
+# ---------------------------------------------------------------------------
+# aggregate_model_project_rows — one model across projects
+# ---------------------------------------------------------------------------
+
+
+class TestAggregateModelProjectRows:
+    """Per-(project, metric) rollup for ONE model, used by the model detail
+    view (`GET /leaderboards/llm-models/{id}/projects`)."""
+
+    def test_single_project_metrics_and_counts(self, test_db, seeded):
+        er = seeded["evaluation_run"]
+        project = seeded["project"]
+
+        out = aggregate_model_project_rows(test_db, "gpt-4o", [er.id])
+
+        assert list(out) == [project.id]
+        row = out[project.id]
+        # Only the real metric key survives the noise filter.
+        assert list(row["metrics"]) == ["accuracy"]
+        acc = row["metrics"]["accuracy"]
+        assert acc["mean"] == pytest.approx(0.9)
+        assert acc["n"] == 1
+        # One sample: no confidence interval.
+        assert acc["ci_lower"] is None and acc["ci_upper"] is None
+        assert row["evaluation_count"] == 1
+        assert row["generation_count"] == 1
+        assert row["samples_evaluated"] == 1
+        assert row["last_evaluated_at"] is not None
+
+    def test_other_model_gets_its_own_scores(self, test_db, seeded):
+        er = seeded["evaluation_run"]
+        out = aggregate_model_project_rows(test_db, "claude-sonnet-4-6", [er.id])
+        acc = out[seeded["project"].id]["metrics"]["accuracy"]
+        assert acc["mean"] == pytest.approx(0.6)
+
+    def test_unknown_model_and_empty_run_ids_are_empty(self, test_db, seeded):
+        er = seeded["evaluation_run"]
+        assert aggregate_model_project_rows(test_db, "no-such-model", [er.id]) == {}
+        assert aggregate_model_project_rows(test_db, "gpt-4o", []) == {}
+
+    def test_two_projects_bucket_separately_with_ci(self, test_db, seeded):
+        """A second project with two scored samples for the same model gets
+        its own bucket (own mean, n=2 → CI present) next to the first."""
+        user = seeded["user"]
+        p2 = Project(
+            id=str(uuid.uuid4()),
+            title="Second project",
+            created_by=user.id,
+            label_config="<View/>",
+            is_public=True,
+            public_role="ANNOTATOR",
+        )
+        test_db.add(p2)
+        test_db.flush()
+        rg = ResponseGeneration(
+            id=str(uuid.uuid4()),
+            project_id=p2.id,
+            model_id="gpt-4o",
+            status="completed",
+            created_by=user.id,
+        )
+        test_db.add(rg)
+        test_db.flush()
+        er2 = EvaluationRun(
+            id=str(uuid.uuid4()),
+            project_id=p2.id,
+            model_id="gpt-4o",
+            evaluation_type_ids=["accuracy"],
+            metrics={},
+            eval_metadata={},
+            status="completed",
+            samples_evaluated=2,
+            created_by=user.id,
+            created_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc),
+        )
+        test_db.add(er2)
+        test_db.flush()
+        jr = EvaluationJudgeRun(
+            id=str(uuid.uuid4()),
+            evaluation_id=er2.id,
+            judge_model_id=None,
+            run_index=0,
+            status="completed",
+        )
+        test_db.add(jr)
+        test_db.flush()
+        for i, score in enumerate((0.2, 0.4)):
+            task = Task(
+                id=str(uuid.uuid4()),
+                project_id=p2.id,
+                data={"text": f"p2 task {i}"},
+                inner_id=i + 1,
+            )
+            test_db.add(task)
+            test_db.flush()
+            gen = Generation(
+                id=str(uuid.uuid4()),
+                generation_id=rg.id,
+                task_id=task.id,
+                model_id="gpt-4o",
+                run_index=i,
+                response_content="r",
+                case_data=json.dumps({}),
+                status="completed",
+                parse_status="success",
+            )
+            test_db.add(gen)
+            test_db.flush()
+            test_db.add(
+                TaskEvaluation(
+                    id=str(uuid.uuid4()),
+                    evaluation_id=er2.id,
+                    judge_run_id=jr.id,
+                    task_id=task.id,
+                    generation_id=gen.id,
+                    field_name="answer",
+                    answer_type="choices",
+                    ground_truth={"value": "x"},
+                    prediction={"value": "x"},
+                    metrics={"accuracy": score},
+                    passed=True,
+                )
+            )
+        test_db.flush()
+
+        out = aggregate_model_project_rows(
+            test_db, "gpt-4o", [seeded["evaluation_run"].id, er2.id]
+        )
+
+        assert set(out) == {seeded["project"].id, p2.id}
+        assert out[seeded["project"].id]["metrics"]["accuracy"]["mean"] == pytest.approx(0.9)
+        acc2 = out[p2.id]["metrics"]["accuracy"]
+        assert acc2["mean"] == pytest.approx(0.3)
+        assert acc2["n"] == 2
+        assert acc2["ci_lower"] is not None and acc2["ci_lower"] < 0.3
+        assert acc2["ci_upper"] is not None and acc2["ci_upper"] > 0.3
+        assert out[p2.id]["samples_evaluated"] == 2
+        assert out[p2.id]["generation_count"] == 2
+
+    def test_grade_points_lifted_once(self, test_db, seeded_falloesung):
+        er = seeded_falloesung["evaluation_run"]
+        project = seeded_falloesung["project"]
+
+        out = aggregate_model_project_rows(test_db, "gpt-4o", [er.id])
+
+        metrics = out[project.id]["metrics"]
+        assert "llm_judge_falloesung" in metrics
+        assert "llm_judge_falloesung_grade_points" in metrics
+        gp = metrics["llm_judge_falloesung_grade_points"]
+        # Lifted from details.grade_points: as many rows as carry it, each
+        # counted once (the flat-key rows are skipped by the lift branch).
+        assert gp["n"] <= metrics["llm_judge_falloesung"]["n"]
+        assert gp["n"] >= 1

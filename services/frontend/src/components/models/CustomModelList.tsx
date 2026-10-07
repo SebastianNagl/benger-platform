@@ -19,6 +19,10 @@ import { ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { CustomModelCredentialRow } from './CustomModelCredentialRow'
 import { CustomBadge, VisibilityBadge } from './ModelBadges'
+import {
+  ModelDetailModal,
+  type ModelDetailModalModel,
+} from './ModelDetailModal'
 import { ModelPermissionsPanel } from './ModelPermissionsPanel'
 
 interface CustomModelListProps {
@@ -53,6 +57,10 @@ export function CustomModelList({
     null,
   )
   const [deleteTarget, setDeleteTarget] = useState<CustomModel | null>(null)
+  // Per-project evaluation scores of one model (same dialog as the catalog).
+  const [scoresModel, setScoresModel] = useState<ModelDetailModalModel | null>(
+    null,
+  )
   const [deleting, setDeleting] = useState(false)
 
   const toggleExpanded = (modelId: string) => {
@@ -179,6 +187,22 @@ export function CustomModelList({
                   )}
                 </div>
 
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() =>
+                      setScoresModel({
+                        id: model.id,
+                        name: model.name,
+                        provider: model.provider,
+                      })
+                    }
+                    data-testid={`custom-model-scores-${model.id}`}
+                  >
+                    {t('customModels.list.scores')}
+                  </Button>
+                </div>
                 {model.can_edit && (
                   <div className="flex items-center gap-2">
                     <Button
@@ -261,6 +285,15 @@ export function CustomModelList({
           </div>
         )
       })}
+
+      {/* Rendered only while open: the dialog needs the auth and query
+          providers, which keeps this list renderable without them. */}
+      {scoresModel && (
+        <ModelDetailModal
+          model={scoresModel}
+          onClose={() => setScoresModel(null)}
+        />
+      )}
 
       <ConfirmationDialog
         isOpen={deleteTarget !== null}

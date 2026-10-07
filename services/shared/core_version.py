@@ -418,11 +418,21 @@ whenever one is added, renamed or removed):
   POST (duplicate guard, limits, counters, draft cleanup,
   ``on_annotation_created``, assignment completion, report refresh) without
   its access, window and SEB checks.
+
+2.31 (2026-10-07): scores-by-project views. New
+  ``GET /api/leaderboards/llm-models/{model_id:path}/projects?period=``
+  (one model across the caller's readable projects; the per-model routes
+  accept slashes in ids); ``aggregate_summaries.aggregate_model_project_rows``
+  and the ``_leaderboard_src_sql`` / ``_leaderboard_bucket_stats_sql`` /
+  ``_leaderboard_rollup_sql`` builders. Frontend: shared
+  ``components/shared/ProjectScoresDialog`` (``ProjectScoreRow``,
+  ``ProjectScoreCell``, ``ScoresPeriod``), the project x metric dialog the
+  model catalog uses and the extended annotator leaderboard reuses.
 """
 
 import os
 
-CORE_API_VERSION = "2.30"
+CORE_API_VERSION = "2.31"
 
 
 def extended_required() -> bool:

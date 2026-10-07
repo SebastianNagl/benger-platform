@@ -8,6 +8,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-07',
+    audience: 'benger',
+    text: {
+      de: 'Ein Klick auf ein Modell in der Modellliste oder in der LLM-Rangliste öffnet jetzt eine Übersicht seiner Evaluationsergebnisse in allen Projekten, auf die Sie Zugriff haben: je Projekt und Metrik der Mittelwert mit Konfidenzintervall und Stichprobengröße, umschaltbar nach Zeitraum. Bisher zeigte der Klick nur die technischen Einstellungen als JSON; diese finden Sie weiterhin unter „Technische Details“.',
+      en: 'Clicking a model in the model list or on the LLM leaderboard now opens an overview of its evaluation scores across every project you can access: per project and metric the mean with confidence interval and sample size, switchable by period. Until now the click only showed the technical settings as JSON; those remain available under "Technical details".',
+    },
+  },
+  {
+    date: '2026-10-07',
     audience: 'both',
     text: {
       de: 'Beim Schreiben von Annotationen und Klausuren erscheint jetzt ein Hinweis, wenn der Zwischenstand nicht mehr auf dem Server gespeichert werden kann, etwa weil die Verbindung abgebrochen ist. Der Text bleibt im Browser erhalten und wird automatisch übertragen, sobald die Verbindung wieder steht. Bisher scheiterte das Speichern unbemerkt.',

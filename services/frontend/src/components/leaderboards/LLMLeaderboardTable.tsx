@@ -1,5 +1,9 @@
 'use client'
 
+import {
+  ModelDetailModal,
+  type ModelDetailModalModel,
+} from '@/components/models/ModelDetailModal'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
@@ -98,6 +102,9 @@ export function LLMLeaderboardTable() {
   const { t } = useI18n()
   const { projects, fetchProjects } = useProjects()
   const [period, setPeriod] = useState<TimePeriod>('overall')
+  // Clicking a row opens the per-project score view for that model.
+  const [selectedModel, setSelectedModel] =
+    useState<ModelDetailModalModel | null>(null)
   // Default to Notenpunkte (Falllösung) so the LLM leaderboard opens on the
   // same scoring axis as the human + co-creation leaderboards. Models
   // without judge results just show n/a and sort to the bottom.
@@ -461,6 +468,13 @@ export function LLMLeaderboardTable() {
     </>
   )
 
+  const openModel = (entry: LLMLeaderboardEntry) =>
+    setSelectedModel({
+      id: entry.model_id,
+      name: entry.model_name,
+      provider: entry.provider,
+    })
+
   return (
     <div className="space-y-4">
       <FilterToolbar
@@ -642,10 +656,20 @@ export function LLMLeaderboardTable() {
                 return (
                   <tr
                     key={entry.model_id}
+                    data-testid={`llm-leaderboard-row-${entry.model_id}`}
+                    tabIndex={0}
+                    role="button"
+                    onClick={() => openModel(entry)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        openModel(entry)
+                      }
+                    }}
                     className={
                       hasScore
-                        ? 'hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
-                        : 'bg-zinc-50/50 dark:bg-zinc-800/30'
+                        ? 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50'
+                        : 'cursor-pointer bg-zinc-50/50 dark:bg-zinc-800/30'
                     }
                   >
                     <td className="px-4 py-4 text-sm font-medium whitespace-nowrap">
@@ -732,6 +756,11 @@ export function LLMLeaderboardTable() {
             ` ${t('leaderboards.llm.andMore', { count: availableMetrics.length - 10 })}`}
         </div>
       )}
+
+      <ModelDetailModal
+        model={selectedModel}
+        onClose={() => setSelectedModel(null)}
+      />
     </div>
   )
 }

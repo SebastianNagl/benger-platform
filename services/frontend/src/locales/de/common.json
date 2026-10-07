@@ -7335,6 +7335,21 @@
     "contentPolicyWarning": "Kann rechtliche/akademische Inhalte aufgrund strenger Inhaltsrichtlinien blockieren",
     "fetchFailed": "Modelle konnten nicht geladen werden",
     "unknownError": "Unbekannter Fehler",
+    "detail": {
+      "scoresByProject": "Ergebnisse nach Projekt",
+      "project": "Projekt",
+      "period": "Zeitraum",
+      "projectCount": "{count} Projekte",
+      "publicProject": "Öffentlich",
+      "noScoresTitle": "Noch keine Evaluationen",
+      "noScoresDescription": "Für dieses Modell liegen in keinem Projekt, auf das Sie Zugriff haben, Evaluationsergebnisse vor.",
+      "anonymousHint": "Es werden nur öffentliche Projekte angezeigt. Melden Sie sich an, um Ergebnisse aus Ihren eigenen Projekten zu sehen.",
+      "loadError": "Evaluationsergebnisse konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "technicalDetails": "Technische Details (JSON)",
+      "samplesShort": "n = {count}",
+      "notAvailable": "k. A."
+    },
     "errors": {
       "noApiKeys": "Keine API-Schlüssel konfiguriert",
       "noApiKeysDetails": "Sie müssen mindestens einen API-Schlüssel konfigurieren, um auf Modelle zuzugreifen",
@@ -8700,6 +8715,7 @@
     "list": {
       "edit": "Bearbeiten",
       "editVisibility": "Sichtbarkeit",
+      "scores": "Ergebnisse",
       "delete": "Löschen",
       "owner": "Besitzer",
       "perMillion": "pro 1 Mio. Tokens",
