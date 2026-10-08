@@ -14,6 +14,7 @@ export type { DefaultConfig, DefaultPrompts } from './admin-defaults'
 // Exam layout preference lives in the labelConfig contract module; re-exported
 // here so API-client consumers can import it alongside User.
 import type { ExamLayoutPrefs } from '@/lib/labelConfig/examLayout'
+import type { BundeslandCode } from '@/lib/profile/bundeslaender'
 
 // Role type definitions for clarity
 export type OrganizationRole = 'ORG_ADMIN' | 'CONTRIBUTOR' | 'ANNOTATOR'
@@ -131,6 +132,26 @@ export interface User {
   // until first configured. Never read raw — resolve through
   // resolveExamLayoutPrefs() / useModernExamLayout().
   exam_layout_prefs?: ExamLayoutPrefs | null
+
+  // State the user writes the Staatsexamen in (two-letter code, see
+  // lib/profile/bundeslaender.ts); null until set. Profile data.
+  exam_bundesland?: BundeslandCode | null
+
+  // First-visit onboarding progress (extended setup modal + role tours);
+  // null until the user first saw it. Written via PUT /auth/me/onboarding.
+  onboarding_state?: OnboardingState | null
+}
+
+/** users.onboarding_state as stored (tier names are defined by extended). */
+export interface OnboardingState {
+  setup_completed_at?: string
+  setup_skipped?: boolean
+  tours?: Record<string, number>
+}
+
+/** Body of PUT /auth/me/onboarding (deep-merged server-side). */
+export interface OnboardingStateUpdate extends OnboardingState {
+  reset_tours?: boolean
 }
 
 export interface AuthResponse {

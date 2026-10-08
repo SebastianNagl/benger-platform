@@ -33,6 +33,9 @@ export function Layout({
   const { isLoading } = useAuth()
   const resolvedUiMode = useResolvedUiMode()
   const StudentShell = useSlot('StudentShell')
+  // First-visit setup modal + role tour (extended). Mounted in both shells;
+  // the slot decides itself whether there is anything to show.
+  const GlobalOnboarding = useSlot('GlobalOnboarding')
   const router = useRouter()
 
   // Inside Safe Exam Browser the session stays on its exam page.
@@ -90,6 +93,8 @@ export function Layout({
         <SectionProvider sections={allSections[pathname || '/'] ?? []}>
           {/* eslint-disable-next-line react-hooks/static-components */}
           <StudentShell>{children}</StudentShell>
+          {/* eslint-disable-next-line react-hooks/static-components */}
+          {GlobalOnboarding && <GlobalOnboarding shell="student" />}
         </SectionProvider>
       )
     }
@@ -137,6 +142,8 @@ export function Layout({
           </div>
         </div>
       </div>
+      {/* eslint-disable-next-line react-hooks/static-components */}
+      {GlobalOnboarding && <GlobalOnboarding shell="expert" />}
     </SectionProvider>
   )
 }

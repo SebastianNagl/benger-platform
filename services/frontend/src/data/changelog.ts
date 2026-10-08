@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-08',
+    audience: 'both',
+    text: {
+      de: 'Im Profil können Sie unter „Juristische Erfahrung“ jetzt das Bundesland angeben, in dem Sie Ihr Staatsexamen schreiben oder geschrieben haben.',
+      en: 'Under "Legal Experience" in your profile you can now enter the German state where you take or took your Staatsexamen.',
+    },
+  },
+  {
     date: '2026-10-07',
     audience: 'benger',
     text: {

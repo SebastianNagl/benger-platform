@@ -12,7 +12,11 @@ import { ProfileLegalExperienceSection } from '@/components/profile/ProfileLegal
 import { ProfilePersonalSection } from '@/components/profile/ProfilePersonalSection'
 import { ProfilePrivacySection } from '@/components/profile/ProfilePrivacySection'
 import { ProfileResearchSection } from '@/components/profile/ProfileResearchSection'
-import type { ProfileFormData, UserProfile } from '@/components/profile/types'
+import {
+  profileFormFromProfile,
+  type ProfileFormData,
+  type UserProfile,
+} from '@/components/profile/types'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
@@ -169,32 +173,7 @@ export default function ProfilePage() {
       }
 
       setProfile(profileData)
-      setProfileForm({
-        name: profileData.name,
-        email: profileData.email,
-        use_pseudonym: profileData.use_pseudonym ?? true,
-        age: profileData.age,
-        job: profileData.job || '',
-        years_of_experience: profileData.years_of_experience,
-        // Legal expertise fields (Issue #1085)
-        legal_expertise_level: profileData.legal_expertise_level,
-        german_proficiency: profileData.german_proficiency,
-        degree_program_type: profileData.degree_program_type,
-        current_semester: profileData.current_semester,
-        // Issue #1206 fields
-        gender: profileData.gender,
-        subjective_competence_civil: profileData.subjective_competence_civil,
-        subjective_competence_public: profileData.subjective_competence_public,
-        subjective_competence_criminal:
-          profileData.subjective_competence_criminal,
-        grade_zwischenpruefung: profileData.grade_zwischenpruefung,
-        grade_vorgeruecktenubung: profileData.grade_vorgeruecktenubung,
-        grade_first_staatsexamen: profileData.grade_first_staatsexamen,
-        grade_second_staatsexamen: profileData.grade_second_staatsexamen,
-        ati_s_scores: profileData.ati_s_scores,
-        ptt_a_scores: profileData.ptt_a_scores,
-        ki_experience_scores: profileData.ki_experience_scores,
-      })
+      setProfileForm(profileFormFromProfile(profileData))
 
       // Profile history is only needed for the superadmin audit view.
       if (profileData.is_superadmin) {
@@ -283,31 +262,7 @@ export default function ProfilePage() {
 
       setProfile(updatedProfile)
       // Update profileForm from the response to ensure displayed values match DB
-      setProfileForm({
-        name: updatedProfile.name,
-        email: updatedProfile.email,
-        use_pseudonym: updatedProfile.use_pseudonym ?? true,
-        age: updatedProfile.age,
-        job: updatedProfile.job || '',
-        years_of_experience: updatedProfile.years_of_experience,
-        legal_expertise_level: updatedProfile.legal_expertise_level,
-        german_proficiency: updatedProfile.german_proficiency,
-        degree_program_type: updatedProfile.degree_program_type,
-        current_semester: updatedProfile.current_semester,
-        gender: updatedProfile.gender,
-        subjective_competence_civil: updatedProfile.subjective_competence_civil,
-        subjective_competence_public:
-          updatedProfile.subjective_competence_public,
-        subjective_competence_criminal:
-          updatedProfile.subjective_competence_criminal,
-        grade_zwischenpruefung: updatedProfile.grade_zwischenpruefung,
-        grade_vorgeruecktenubung: updatedProfile.grade_vorgeruecktenubung,
-        grade_first_staatsexamen: updatedProfile.grade_first_staatsexamen,
-        grade_second_staatsexamen: updatedProfile.grade_second_staatsexamen,
-        ati_s_scores: updatedProfile.ati_s_scores,
-        ptt_a_scores: updatedProfile.ptt_a_scores,
-        ki_experience_scores: updatedProfile.ki_experience_scores,
-      })
+      setProfileForm(profileFormFromProfile(updatedProfile))
       // Skip the loadProfile re-fetch that updateUser will trigger
       skipLoadProfileRef.current = true
       updateUser(updatedProfile) // Update the auth context

@@ -3,11 +3,14 @@
  * Handles login, signup, and user authentication using HttpOnly cookies
  */
 
+import type { BundeslandCode } from '@/lib/profile/bundeslaender'
+
 import { BaseApiClient } from './base'
 import {
   AuthResponse,
   ExamLayoutPrefs,
   MandatoryProfileStatus,
+  OnboardingStateUpdate,
   Organization,
   ProfileConfirmationResponse,
   ProfileHistoryEntry,
@@ -192,6 +195,8 @@ export class AuthClient extends BaseApiClient {
       date: string
       grade: string
     }>
+    // State of the Staatsexamen (two-letter code)
+    exam_bundesland?: BundeslandCode
     // Gender (Issue #1206)
     gender?: string
     // Subjective competence (Issue #1206)
@@ -247,6 +252,19 @@ export class AuthClient extends BaseApiClient {
     return this.request('/auth/me/exam-layout', {
       method: 'PUT',
       body: JSON.stringify({ exam_layout_prefs: prefs }),
+    })
+  }
+
+  /**
+   * Record first-visit onboarding progress (extended setup modal + tours).
+   * The server deep-merges the given keys into users.onboarding_state, so
+   * each caller sends only what it owns; `reset_tours` clears the stored tour
+   * versions first. Rides the dedicated /api/auth/me/onboarding proxy route.
+   */
+  async setOnboardingState(update: OnboardingStateUpdate): Promise<User> {
+    return this.request('/auth/me/onboarding', {
+      method: 'PUT',
+      body: JSON.stringify(update),
     })
   }
 

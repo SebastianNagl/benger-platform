@@ -132,7 +132,9 @@ class TestExtensionLoader:
         # the linked-exam import block to whole-exam links.
         # 2.30 adds uploaded solution files (submission_files) and the shared
         # persist_annotation_submission helper.
-        assert CORE_API_VERSION == "2.31"
+        # 2.32 adds users.exam_bundesland + users.onboarding_state, PUT
+        # /auth/me/onboarding and the GlobalOnboarding slot.
+        assert CORE_API_VERSION == "2.32"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

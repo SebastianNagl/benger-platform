@@ -124,6 +124,8 @@ def _profile_kwargs(db_user, *, role) -> dict:
         # Exam interface layout preference (extended): the complete stored
         # object or None (= classic default).
         exam_layout_prefs=_ensure_dict(getattr(db_user, "exam_layout_prefs", None)),
+        exam_bundesland=getattr(db_user, "exam_bundesland", None),
+        onboarding_state=_ensure_dict(getattr(db_user, "onboarding_state", None)),
     )
 
 
@@ -150,7 +152,8 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
     carry: the Vertretbar plan-choice greeting stamp (the one-time
     VertretbarPlanModal gates on it), the exam interface layout preference
     (the labeling hosts resolve it from the boot fetch, no second request),
-    and the display-name fields: ``pseudonym``, ``use_pseudonym`` and
+    the exam Bundesland and the first-visit onboarding progress (the extended
+    onboarding decides on boot whether to greet), and the display-name fields: ``pseudonym``, ``use_pseudonym`` and
     ``is_lms_account`` (an LMS launch created the account, so its login name
     is generated; the header then shows the pseudonym instead. An existing
     account linked to an LMS identity by proof keeps its own header).
@@ -168,15 +171,24 @@ async def _get_me_pref_extras(user_id: str, db: AsyncSession) -> dict:
                 DBUser.exam_layout_prefs,
                 DBUser.pseudonym,
                 DBUser.use_pseudonym,
+                DBUser.exam_bundesland,
+                DBUser.onboarding_state,
             ).where(DBUser.id == str(user_id))
         )
     ).one_or_none()
-    onboarding_ts, exam_layout, pseudonym, use_pseudonym = (
-        tuple(row) if row else (None, None, None, None)
-    )
+    (
+        onboarding_ts,
+        exam_layout,
+        pseudonym,
+        use_pseudonym,
+        exam_bundesland,
+        onboarding_state,
+    ) = tuple(row) if row else (None,) * 6
     return {
         "vertretbar_onboarding_completed_at": _iso_or_none(onboarding_ts),
         "exam_layout_prefs": _ensure_dict(exam_layout),
+        "exam_bundesland": exam_bundesland,
+        "onboarding_state": _ensure_dict(onboarding_state),
         "pseudonym": pseudonym,
         # NULL means the column default (pseudonym on).
         "use_pseudonym": True if use_pseudonym is None else bool(use_pseudonym),
@@ -482,6 +494,7 @@ async def update_profile(
         legal_specializations=profile_data.legal_specializations,
         german_state_exams_count=profile_data.german_state_exams_count,
         german_state_exams_data=profile_data.german_state_exams_data,
+        exam_bundesland=profile_data.exam_bundesland,
         # Issue #1206: Mandatory profile fields
         gender=profile_data.gender,
         subjective_competence_civil=profile_data.subjective_competence_civil,
@@ -570,6 +583,42 @@ async def update_exam_layout_prefs(
         if body.exam_layout_prefs is not None
         else None
     )
+    await db.commit()
+    await db.refresh(db_user)
+
+    return await _build_user_profile_response_async(db_user, db)
+
+
+@router.put("/me/onboarding", response_model=UserProfile)
+async def update_onboarding_state(
+    body: OnboardingStateUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Record first-visit onboarding progress (extended setup modal + tours).
+
+    Deep-merges the given keys into ``users.onboarding_state`` so the setup
+    modal and each tour write only what they own; ``reset_tours`` drops the
+    stored tour versions first (the "restart the tour" action). Separate from
+    ``PUT /profile`` for the same reason as ``PUT /me/ui-mode``: no profile
+    history side effects for a UI progress marker. Never an authorization
+    input.
+    """
+    from models import User as DBUser
+    from utils.json_merge import deep_merge_dicts
+
+    db_user = (
+        await db.execute(select(DBUser).where(DBUser.id == str(current_user.id)))
+    ).scalar_one_or_none()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    current = dict(_ensure_dict(db_user.onboarding_state) or {})
+    if body.reset_tours:
+        current.pop("tours", None)
+    patch = body.model_dump(exclude_none=True, exclude={"reset_tours"})
+    # A fresh dict so SQLAlchemy sees the plain-JSON column as changed.
+    db_user.onboarding_state = deep_merge_dicts(current, patch)
     await db.commit()
     await db.refresh(db_user)
 

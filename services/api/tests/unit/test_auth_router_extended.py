@@ -254,6 +254,8 @@ class TestBuildUserProfileResponse:
             "notes_position": "right",
             "outline_position": "none",
         }
+        mock_user.exam_bundesland = "NW"
+        mock_user.onboarding_state = {"tours": {"contributor": 1}}
 
         with patch("routers.auth.user.get_user_primary_role") as mock_role:
             mock_role.return_value = "CONTRIBUTOR"
@@ -271,6 +273,8 @@ class TestBuildUserProfileResponse:
             "notes_position": "right",
             "outline_position": "none",
         }
+        assert result.exam_bundesland == "NW"
+        assert result.onboarding_state == {"tours": {"contributor": 1}}
 
     def test_builds_profile_with_none_dates(self):
         from routers.auth import _build_user_profile_response
@@ -289,6 +293,8 @@ class TestBuildUserProfileResponse:
         mock_user.preferred_ui_mode = None
         mock_user.vertretbar_onboarding_completed_at = None
         mock_user.exam_layout_prefs = None
+        mock_user.exam_bundesland = None
+        mock_user.onboarding_state = None
         mock_user.pseudonym = None
         mock_user.use_pseudonym = True
         mock_user.age = None

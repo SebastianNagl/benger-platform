@@ -12,6 +12,11 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import {
+  BUNDESLAND_CODES,
+  bundeslandName,
+  isBundeslandCode,
+} from '@/lib/profile/bundeslaender'
 
 import type { ProfileFormData, SetProfileForm } from './types'
 
@@ -55,7 +60,7 @@ export function ProfileLegalExperienceSection({
   expanded,
   onToggle,
 }: ProfileLegalExperienceSectionProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <div className="border-t border-zinc-200 pt-8 dark:border-zinc-700">
@@ -158,6 +163,46 @@ export function ProfileLegalExperienceSection({
                         </SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* State of the Staatsexamen (everyone) */}
+                  <div>
+                    <label
+                      htmlFor="exam_bundesland"
+                      className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                    >
+                      {t('profile.examBundesland')}
+                    </label>
+                    <Select
+                      value={profileForm.exam_bundesland ?? ''}
+                      onValueChange={(v) =>
+                        setProfileForm({
+                          ...profileForm,
+                          exam_bundesland: isBundeslandCode(v) ? v : undefined,
+                        })
+                      }
+                      displayValue={
+                        profileForm.exam_bundesland
+                          ? bundeslandName(profileForm.exam_bundesland, locale)
+                          : undefined
+                      }
+                    >
+                      <SelectTrigger data-testid="exam-bundesland-select">
+                        <SelectValue
+                          placeholder={t('profile.selectExamBundesland')}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {BUNDESLAND_CODES.map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {bundeslandName(code, locale)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t('profile.examBundeslandHelp')}
+                    </p>
                   </div>
 
                   {/* Degree Program Type (shown for law students only) */}
