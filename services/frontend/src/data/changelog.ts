@@ -10,7 +10,7 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-08',
     audience: 'both',
     text: {
-      de: 'Im Profil können Sie unter „Juristische Erfahrung“ jetzt das Bundesland angeben, in dem Sie Ihr Staatsexamen schreiben oder geschrieben haben.',
+      de: 'Im Profil kannst du unter „Juristische Erfahrung“ jetzt das Bundesland angeben, in dem du dein Staatsexamen schreibst oder geschrieben hast.',
       en: 'Under "Legal Experience" in your profile you can now enter the German state where you take or took your Staatsexamen.',
     },
   },
