@@ -252,6 +252,40 @@ async def test_list_and_detail_tag_participants_and_strip_config(async_test_clie
         assert r.json()["evaluation_config"] == {"judge": "secret-prompt"}
 
 
+async def test_patch_response_carries_caller_fields(async_test_client, async_test_db):
+    """The project page swaps in the PATCH response wholesale; without the
+    caller's fields an org admin was shown the participant view after any save."""
+    db = async_test_db
+    owner, admin = await _user(db), await _user(db)
+    org = await _org(db, (admin, OrganizationRole.ORG_ADMIN))
+    p = await _project(db, owner, private=False)
+    await _attach(db, p, org, owner)
+
+    with _as_user(admin):
+        detail = (await async_test_client.get(f"/api/projects/{p.id}")).json()
+        r = await async_test_client.patch(f"/api/projects/{p.id}", json={"title": "Neu"})
+        assert r.status_code == 200, r.text[:200]
+        body = r.json()
+        assert body["title"] == "Neu"
+        for field in ("access_tier", "effective_role", "can_edit", "can_manage_shares"):
+            assert body[field] == detail[field], field
+        assert body["access_tier"] == "full"
+        assert body["effective_role"] == "ORG_ADMIN"
+        assert body["can_edit"] is True
+
+    # The creation wizard puts the POST response into the store the same way.
+    with _as_user(owner):
+        r = await async_test_client.post(
+            "/api/projects/",
+            json={"title": "Neu", "label_config": EXAM_CONFIG, "is_private": True},
+        )
+        assert r.status_code in (200, 201), r.text[:200]
+        created = r.json()
+        assert created["access_tier"] == "full"
+        assert created["can_edit"] is True
+        assert created["effective_role"] == "ORG_ADMIN"
+
+
 async def test_participant_solver_endpoints_allowed_and_blinded(async_test_client, async_test_db):
     db = async_test_db
     owner, member, stranger = await _user(db), await _user(db), await _user(db)

@@ -679,6 +679,9 @@ async def create_project(
     else:
         response.organizations = []
 
+    tier = await get_project_access_tier_async(db, current_user, project_id, project=db_project)
+    await _apply_caller_fields(db, current_user, db_project, response, tier)
+
     return response
 
 
@@ -759,6 +762,26 @@ def _masked_creator_name(project, creator_masks: dict):
     return mask.label(creator) if mask is not None else creator.name
 
 
+async def _apply_caller_fields(db, current_user, project, response, tier) -> None:
+    """Set the caller's per-project fields on a single-project response.
+
+    The frontend replaces its project with every single-project response
+    and gates the whole page on these fields, so GET and PATCH must both
+    return them (a PATCH without them showed editors the participant view).
+    """
+    response.access_tier = tier
+    response.effective_role = await get_effective_project_role_async(db, current_user, project)
+    response.can_edit = await check_user_can_edit_project_async(db, current_user, str(project.id))
+    response.can_manage_shares = await check_user_can_manage_shares_async(
+        db, current_user, project
+    )
+    if tier == TIER_PARTICIPANT:
+        participant_map = await get_participant_project_ids_async(db, current_user.id)
+        response.participant_via = participant_map.get(str(project.id))
+    if tier in (TIER_PARTICIPANT, TIER_ATTEMPTED):
+        _strip_participant_fields(response)
+
+
 @router.get("/{project_id}", response_model=ProjectResponse)
 async def get_project(
     project_id: str,
@@ -803,17 +826,7 @@ async def get_project(
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
     response.created_by_name = await _creator_label(db, project, current_user)
-    response.access_tier = tier
-    response.effective_role = await get_effective_project_role_async(db, current_user, project)
-    response.can_edit = await check_user_can_edit_project_async(db, current_user, project_id)
-    response.can_manage_shares = await check_user_can_manage_shares_async(
-        db, current_user, project
-    )
-    if tier == TIER_PARTICIPANT:
-        participant_map = await get_participant_project_ids_async(db, current_user.id)
-        response.participant_via = participant_map.get(str(project.id))
-    if tier in (TIER_PARTICIPANT, TIER_ATTEMPTED):
-        _strip_participant_fields(response)
+    await _apply_caller_fields(db, current_user, project, response, tier)
 
     # Calculate statistics
     await calculate_project_stats_async(db, project.id, response, project=project)
@@ -1023,6 +1036,8 @@ async def update_project(
     # Build response with enriched fields
     response = ProjectResponse.from_orm(project)
     response.created_by_name = await _creator_label(db, project, current_user)
+    tier = await get_project_access_tier_async(db, current_user, project_id, project=project)
+    await _apply_caller_fields(db, current_user, project, response, tier)
 
     # Calculate statistics including generation_models_count
     await calculate_project_stats_async(db, project.id, response, project=project)
