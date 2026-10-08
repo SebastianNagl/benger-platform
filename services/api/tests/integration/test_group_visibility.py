@@ -788,3 +788,63 @@ async def test_group_key_resolution_matrix(async_test_db):
         )
     )
     assert got == "sk-orgwide2-" + "z" * 24
+
+
+async def test_group_key_before_the_project_exists(async_test_db):
+    """The creation wizard spends the group key of the group the new project
+    will be scoped to (``group_id``), the common setup where an org holds
+    keys only per group. Only a caller who may create a project in that
+    group gets it; everyone else falls back to the org-wide row (none here)."""
+    from services.org_api_key_service import org_api_key_service
+    from shared_org_api_key_service import org_api_key_service as worker_svc
+
+    db = async_test_db
+    w = await _world(db)
+    org_id = w["org"].id
+    org_row = await db.get(Organization, org_id)
+    org_row.settings = {"require_private_keys": False}
+    await db.commit()
+
+    group_key = "sk-group-a-" + "y" * 24
+    await db.run_sync(
+        lambda s: org_api_key_service.set_org_api_key(
+            s, org_id, "openai", group_key, w["orgadmin"].id, group_id=w["group_a"].id
+        )
+    )
+    other = await _org(db, (w["contrib_a"], OrganizationRole.CONTRIBUTOR))
+    foreign_group = await _group(db, other, "Elsewhere", (w["contrib_a"], False))
+    inactive = await _group(db, w["org"], "Old", (w["contrib_a"], False))
+    inactive_row = await db.get(OrganizationGroup, inactive.id)
+    inactive_row.is_active = False
+    await db.commit()
+    superadmin = await _user(db, superadmin=True)
+
+    def resolve(svc, user, group_id, project_id=None):
+        return lambda s: svc.resolve_api_key(
+            s, user.id, org_id, "openai", project_id=project_id, group_id=group_id
+        )
+
+    for svc in (org_api_key_service, worker_svc):
+        # A CONTRIBUTOR of the group, an org admin, a superadmin: may create there.
+        for user in (w["contrib_a"], w["gadmin_a"], w["orgadmin"], superadmin):
+            assert await db.run_sync(resolve(svc, user, w["group_a"].id)) == group_key
+        # A group ANNOTATOR, a member of another group, an org CONTRIBUTOR
+        # outside the group: may not, so the (missing) org-wide row it is.
+        for user in (w["annot_a"], w["contrib_b"], w["loose"]):
+            assert await db.run_sync(resolve(svc, user, w["group_a"].id)) is None
+        # A group of another org, or an inactive one, never counts.
+        assert await db.run_sync(resolve(svc, w["contrib_a"], foreign_group.id)) is None
+        assert await db.run_sync(resolve(svc, w["contrib_a"], inactive.id)) is None
+        # No group named: org-wide only, as before.
+        assert await db.run_sync(resolve(svc, w["contrib_a"], None)) is None
+        # Once a project exists its attachment decides; the hint is ignored.
+        assert (
+            await db.run_sync(
+                resolve(svc, w["contrib_a"], w["group_a"].id, project_id=w["p_org"].id)
+            )
+            is None
+        )
+        assert (
+            await db.run_sync(resolve(svc, w["contrib_b"], None, project_id=w["p_a"].id))
+            == group_key
+        )

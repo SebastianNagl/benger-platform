@@ -136,6 +136,7 @@ class UserAwareAIService:
         *,
         org_billing_authorized: bool = False,
         project_id: str = None,
+        group_id: str = None,
     ) -> Optional[Any]:
         """Get AI service instance configured with user's or org's API key.
 
@@ -151,6 +152,8 @@ class UserAwareAIService:
         falling back to the org-wide row. Omitting it resolves the org-wide
         row only — for a group whose org holds no org-wide key that means
         "no key configured", so worker call sites must thread it.
+        ``group_id`` is the pre-creation equivalent (the group a project
+        being created will be scoped to); see ``resolve_api_key``.
         """
         # Custom (BYOM) models cannot be resolved by provider name alone —
         # they need the model row (base_url, endpoint_model_name,
@@ -178,6 +181,7 @@ class UserAwareAIService:
                             provider,
                             org_billing_authorized=org_billing_authorized,
                             project_id=project_id,
+                            group_id=group_id,
                         )
                         # The org service returns either the org's shared
                         # key or falls through to the user's depending on
@@ -256,6 +260,7 @@ class UserAwareAIService:
         *,
         org_billing_authorized: bool = False,
         project_id: str = None,
+        group_id: str = None,
     ) -> Optional[Any]:
         """Resolve an AI service from an llm_models ROW (BYOM-aware).
 
@@ -286,6 +291,7 @@ class UserAwareAIService:
                 organization_id=organization_id,
                 org_billing_authorized=org_billing_authorized,
                 project_id=project_id,
+                group_id=group_id,
             )
         # v1 decision: consumer inheritance does NOT extend to org custom-model
         # credentials below — BYOM org secrets are per-(org, model) with their

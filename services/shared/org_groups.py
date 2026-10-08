@@ -54,8 +54,10 @@ rows. Only the group-admin management gate (:func:`build_select_admin_group_ids`
 requires an active group.
 """
 
+import logging
 from typing import Dict, Iterable, Optional
 
+logger = logging.getLogger(__name__)
 
 def _role_value(role) -> Optional[str]:
     """Normalize an OrganizationRole enum or bare string to its upper value."""
@@ -782,6 +784,62 @@ def resolve_project_group_for_org(db, project_id, org_id) -> Optional[str]:
         .first()
     )
     return str(row[0]) if row and row[0] else None
+
+
+def user_may_scope_to_group(db, user_id, org_id, group_id) -> bool:
+    """Sync: may ``user_id`` create a project scoped to ``(org_id, group_id)``?
+
+    The project-creation rule (``projects.crud._require_attachment_creator_role``
+    + ``_validate_group_attachment``) as a predicate: an ACTIVE group of that
+    org, an ACTIVE org membership, and an attachment role of at least
+    CONTRIBUTOR; superadmins pass the role part. Used where work for a
+    project that does not exist yet (the creation wizard) spends the group's
+    key: only someone who could create the project there may. Fail-closed.
+    """
+    if not user_id or not org_id or not group_id:
+        return False
+    try:
+        from models import OrganizationGroup, OrganizationMembership, User
+
+        group = (
+            db.query(OrganizationGroup)
+            .filter(OrganizationGroup.id == str(group_id))
+            .first()
+        )
+        if (
+            group is None
+            or str(group.organization_id) != str(org_id)
+            or not group.is_active
+        ):
+            return False
+        superadmin = (
+            db.query(User.is_superadmin).filter(User.id == str(user_id)).first()
+        )
+        if superadmin and superadmin[0]:
+            return True
+        membership = (
+            db.query(OrganizationMembership)
+            .filter(
+                OrganizationMembership.user_id == str(user_id),
+                OrganizationMembership.organization_id == str(org_id),
+                OrganizationMembership.is_active == True,  # noqa: E712
+            )
+            .first()
+        )
+        if membership is None:
+            return False
+        role = attachment_role(
+            str(group_id), membership.role, get_user_group_context(db, str(user_id))
+        )
+        return role is not None and role_at_least(role, "CONTRIBUTOR")
+    except Exception:
+        logger.warning(
+            "group scope check failed for user %s / group %s; refusing",
+            user_id,
+            group_id,
+            exc_info=True,
+        )
+        return False
 
 
 async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optional[str]:
