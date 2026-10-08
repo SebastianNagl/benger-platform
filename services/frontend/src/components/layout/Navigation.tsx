@@ -266,10 +266,13 @@ function NavLink({
 
   // Disable prefetch for client component routes that cause RSC 404 errors
   const shouldDisablePrefetch = href.includes('/data')
+  // Stable anchor for the extended onboarding tour, e.g. "nav-projects".
+  const tourAnchor = isAnchorLink ? undefined : `nav${href.replace(/\//g, '-')}`
 
   if (disabled) {
     return (
       <div
+        data-tour={tourAnchor}
         className={clsx(
           'flex cursor-not-allowed items-center gap-2 py-1 text-sm opacity-50',
           isAnchorLink ? 'pl-7' : 'pr-3 pl-4',
@@ -288,6 +291,7 @@ function NavLink({
       href={href}
       prefetch={shouldDisablePrefetch ? false : undefined}
       aria-current={active ? 'page' : undefined}
+      data-tour={tourAnchor}
       className={clsx(
         'group relative flex items-center gap-2 py-1 text-sm transition',
         isAnchorLink ? 'pl-7' : 'pr-3 pl-4',

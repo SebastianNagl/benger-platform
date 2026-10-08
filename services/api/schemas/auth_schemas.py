@@ -9,6 +9,12 @@ from pydantic import BaseModel, EmailStr, Field
 # Import existing auth models for consistency
 from auth_module import Token, TokenData, User, UserCreate, UserLogin
 
+# The 16 German states as two-letter codes (users.exam_bundesland). Same
+# codebook as the benchmark metadata's ``herkunft_bundesland``.
+Bundesland = Literal[
+    "BW", "BY", "BE", "BB", "HB", "HH", "HE", "MV",
+    "NI", "NW", "RP", "SL", "SN", "ST", "SH", "TH",
+]
 
 class UserUpdate(BaseModel):
     """Model for updating user profile information (Issue #1206)"""
@@ -34,6 +40,9 @@ class UserUpdate(BaseModel):
     # German state exam fields
     german_state_exams_count: Optional[int] = Field(None, ge=0, le=2)
     german_state_exams_data: Optional[List[dict]] = Field(None)
+
+    # State of the Staatsexamen (two-letter code)
+    exam_bundesland: Optional[Bundesland] = Field(None)
 
     # Gender (Issue #1206)
     gender: Optional[str] = Field(None)
@@ -102,6 +111,25 @@ class ExamLayoutUpdate(BaseModel):
     """
 
     exam_layout_prefs: Optional[ExamLayoutPrefs] = Field(None)
+
+
+class OnboardingStateUpdate(BaseModel):
+    """Body for ``PUT /auth/me/onboarding``, deep-merged into
+    users.onboarding_state.
+
+    Every key is optional so each step writes only what it owns (the setup
+    modal stamps ``setup_completed_at``, a finished tour writes its tier's
+    version under ``tours``). Tier names are opaque to the platform: the
+    extended edition defines them; the platform only bounds the shape.
+    ``reset_tours`` clears the stored ``tours`` before merging (the
+    "restart the tour" action). Unknown keys are dropped (``extra='ignore'``).
+    Never an authorization input.
+    """
+
+    setup_completed_at: Optional[str] = Field(None, max_length=40)
+    setup_skipped: Optional[bool] = None
+    tours: Optional[dict[str, int]] = Field(None, max_length=16)
+    reset_tours: bool = False
 
 
 class PasswordUpdate(BaseModel):
@@ -227,6 +255,10 @@ class UserProfile(BaseModel):
     # (see ExamLayoutPrefs) or None. Loose dict on read: write-side strictness
     # lives in ExamLayoutUpdate; a legacy/odd row must never 500 the profile.
     exam_layout_prefs: Optional[dict] = None
+    # State of the Staatsexamen (two-letter code) or None.
+    exam_bundesland: Optional[str] = None
+    # First-visit onboarding progress (extended); loose dict on read.
+    onboarding_state: Optional[dict] = None
 
     class Config:
         from_attributes = True

@@ -164,6 +164,7 @@ PROFILE_FIELDS = (
     "legal_specializations",
     "german_state_exams_count",
     "german_state_exams_data",
+    "exam_bundesland",
 )
 
 #: Credentials and tokens that die with the identity.

@@ -65,3 +65,21 @@ describe('AuthClient exam layout + ui mode preferences', () => {
     })
   })
 })
+
+describe('AuthClient onboarding state', () => {
+  beforeEach(() => {
+    mockRequest.mockReset()
+    mockRequest.mockResolvedValue({ id: 'u1' })
+  })
+
+  it('setOnboardingState PUTs the partial update to /auth/me/onboarding', async () => {
+    const client = new AuthClient()
+
+    await client.setOnboardingState({ tours: { annotator: 1 } })
+
+    expect(mockRequest).toHaveBeenCalledWith('/auth/me/onboarding', {
+      method: 'PUT',
+      body: JSON.stringify({ tours: { annotator: 1 } }),
+    })
+  })
+})

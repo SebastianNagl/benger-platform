@@ -6,6 +6,11 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 
+import {
+  isBundeslandCode,
+  type BundeslandCode,
+} from '@/lib/profile/bundeslaender'
+
 export interface UserProfile {
   id: string
   username: string
@@ -27,6 +32,8 @@ export interface UserProfile {
   german_proficiency?: string
   degree_program_type?: string
   current_semester?: number
+  // State of the Staatsexamen (two-letter code)
+  exam_bundesland?: BundeslandCode
   // Gender (Issue #1206)
   gender?: string
   // Subjective competence (Issue #1206)
@@ -61,6 +68,8 @@ export interface ProfileFormData {
   german_proficiency?: string
   degree_program_type?: string
   current_semester?: number
+  // State of the Staatsexamen (two-letter code)
+  exam_bundesland?: BundeslandCode
   // Gender (Issue #1206)
   gender?: string
   // Subjective competence (Issue #1206)
@@ -79,3 +88,52 @@ export interface ProfileFormData {
 }
 
 export type SetProfileForm = Dispatch<SetStateAction<ProfileFormData>>
+
+/** The editable form state for a loaded profile (the profile page and the
+ * extended onboarding modal share it). */
+export function profileFormFromProfile(
+  profile: Partial<UserProfile> &
+    Pick<UserProfile, 'name' | 'email'> & { exam_bundesland?: string | null },
+): ProfileFormData {
+  return {
+    name: profile.name,
+    email: profile.email,
+    use_pseudonym: profile.use_pseudonym ?? true,
+    age: profile.age,
+    job: profile.job || '',
+    years_of_experience: profile.years_of_experience,
+    legal_expertise_level: profile.legal_expertise_level,
+    german_proficiency: profile.german_proficiency,
+    degree_program_type: profile.degree_program_type,
+    current_semester: profile.current_semester,
+    exam_bundesland: isBundeslandCode(profile.exam_bundesland)
+      ? profile.exam_bundesland
+      : undefined,
+    gender: profile.gender,
+    subjective_competence_civil: profile.subjective_competence_civil,
+    subjective_competence_public: profile.subjective_competence_public,
+    subjective_competence_criminal: profile.subjective_competence_criminal,
+    grade_zwischenpruefung: profile.grade_zwischenpruefung,
+    grade_vorgeruecktenubung: profile.grade_vorgeruecktenubung,
+    grade_first_staatsexamen: profile.grade_first_staatsexamen,
+    grade_second_staatsexamen: profile.grade_second_staatsexamen,
+    ati_s_scores: profile.ati_s_scores,
+    ptt_a_scores: profile.ptt_a_scores,
+    ki_experience_scores: profile.ki_experience_scores,
+  }
+}
+
+/**
+ * A saved profile as a patch for the auth user (`updateUser`). Drops
+ * `preferred_ui_mode`: the boot user deliberately never carries it, so
+ * merging a stored value from the profile response would switch the shell
+ * (student/expert) as a side effect of saving unrelated profile fields.
+ */
+export function authUserPatchFromProfile<T extends object>(
+  profile: T,
+): Omit<T, 'preferred_ui_mode'> {
+  const { preferred_ui_mode: _ignored, ...rest } = profile as T & {
+    preferred_ui_mode?: unknown
+  }
+  return rest
+}

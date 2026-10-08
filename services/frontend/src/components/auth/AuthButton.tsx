@@ -70,6 +70,7 @@ export function AuthButton() {
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
+          data-tour="account-menu"
           className="inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-4 py-1.5 text-sm leading-tight font-medium text-zinc-700 ring-1 ring-zinc-900/10 transition ring-inset hover:bg-zinc-900/2.5 hover:text-zinc-900 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-white/5 dark:hover:text-white"
         >
           <span className="hidden sm:block">{getAccountMenuName(user)}</span>

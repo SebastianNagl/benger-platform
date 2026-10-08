@@ -1,0 +1,51 @@
+import { getInternalApiUrl } from '@/lib/utils/apiUrl'
+import { readJsonBody } from '@/lib/utils/jsonBody'
+import { NextRequest, NextResponse } from 'next/server'
+
+// Dedicated auth-write proxy for the first-visit onboarding progress
+// (extended setup modal + tours). The catch-all /api/[...path] handler rejects
+// `auth/*` writes with 400 "Use dedicated auth handler" because they carry
+// session cookies, so this generic cookie/authorization/body forwarder is
+// required for the client's PUT to reach the backend. No proprietary logic —
+// mirrors the vertretbar-onboarding proxy plus the profile proxy's body
+// forwarding.
+export async function PUT(request: NextRequest) {
+  try {
+    const apiBaseUrl = getInternalApiUrl(request)
+    const cookies = request.headers.get('cookie') || ''
+    const authorization = request.headers.get('authorization') || ''
+    const parsed = await readJsonBody(request)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.body
+
+    const backendResponse = await fetch(
+      `${apiBaseUrl}/api/auth/me/onboarding`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Cookie: cookies,
+          Authorization: authorization,
+        },
+        body: JSON.stringify(body),
+      },
+    )
+
+    if (!backendResponse.ok) {
+      const errorData = await backendResponse.text()
+      return NextResponse.json(
+        { error: errorData || 'Request failed' },
+        { status: backendResponse.status },
+      )
+    }
+
+    const data = await backendResponse.json()
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error('Onboarding proxy error:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 },
+    )
+  }
+}

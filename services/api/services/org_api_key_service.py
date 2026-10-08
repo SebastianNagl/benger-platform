@@ -259,6 +259,7 @@ class OrgApiKeyService:
         *,
         org_billing_authorized: bool = False,
         project_id: Optional[str] = None,
+        group_id: Optional[str] = None,
     ) -> Optional[str]:
         """
         Resolve which API key to use based on context.
@@ -281,8 +282,11 @@ class OrgApiKeyService:
         row (a group without its own key spends the org's shared pool, never
         another group's). The key follows the PROJECT's attachment, not the
         dispatching user's groups. Callers that omit ``project_id`` resolve
-        the org-wide row only. Kept in lockstep with
-        ``services/shared/shared_org_api_key_service.py``.
+        the org-wide row only. ``group_id`` is that choice before the project
+        exists (the creation wizard), honored only without ``project_id`` and
+        only for a caller who may create a project in that group
+        (``org_groups.user_may_scope_to_group``); otherwise ignored. Kept in
+        lockstep with ``services/shared/shared_org_api_key_service.py``.
         """
         from services.user_api_key_service import user_api_key_service
 
@@ -305,16 +309,22 @@ class OrgApiKeyService:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
         # Org pays - use org key only (None if not set = provider unavailable).
         # Group-scoped projects spend their group's key first.
+        attachment_group_id = None
         if project_id:
             from org_groups import resolve_project_group_for_org
 
             attachment_group_id = resolve_project_group_for_org(db, project_id, org_id)
-            if attachment_group_id:
-                group_key = self.get_org_api_key(
-                    db, org_id, provider, attachment_group_id
-                )
-                if group_key is not None:
-                    return group_key
+        elif group_id:
+            # Before the project exists (creation wizard): the group it will
+            # be scoped to, only for someone allowed to create it there.
+            from org_groups import user_may_scope_to_group
+
+            if user_may_scope_to_group(db, user_id, org_id, group_id):
+                attachment_group_id = str(group_id)
+        if attachment_group_id:
+            group_key = self.get_org_api_key(db, org_id, provider, attachment_group_id)
+            if group_key is not None:
+                return group_key
         return self.get_org_api_key(db, org_id, provider)
 
     def _user_group_ids_in_org(self, db: Session, user_id: str, org_id: str) -> List[str]:

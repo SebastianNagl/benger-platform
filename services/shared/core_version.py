@@ -428,11 +428,23 @@ whenever one is added, renamed or removed):
   ``components/shared/ProjectScoresDialog`` (``ProjectScoreRow``,
   ``ProjectScoreCell``, ``ScoresPeriod``), the project x metric dialog the
   model catalog uses and the extended annotator leaderboard reuses.
+
+2.32 (2026-10-08): first-visit onboarding + exam Bundesland. Migration 114
+  adds ``users.exam_bundesland`` (two-letter state code, written through
+  ``PUT /api/auth/profile``, validated by the ``Bundesland`` Literal) and
+  ``users.onboarding_state`` (JSON). New ``PUT /api/auth/me/onboarding``
+  (``OnboardingStateUpdate``: ``setup_completed_at``, ``setup_skipped``,
+  ``tours`` {tier: version}, ``reset_tours``; deep-merged). Both fields ride
+  on /auth/me[/contexts]. Frontend: the ``GlobalOnboarding`` slot (rendered in
+  both shells by ``Layout``), ``data-tour`` anchors on the expert navigation
+  links (``nav-<path>``) and the account menu (``account-menu``),
+  ``apiClient.setOnboardingState``, the ``BUNDESLAENDER``
+  codebook (``lib/profile/bundeslaender.ts``) and the ``driver.js`` dependency.
 """
 
 import os
 
-CORE_API_VERSION = "2.31"
+CORE_API_VERSION = "2.32"
 
 
 def extended_required() -> bool:

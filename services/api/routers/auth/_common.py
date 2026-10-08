@@ -34,6 +34,7 @@ from app.core.config import get_settings  # noqa: F401
 from schemas.auth_schemas import (  # noqa: F401
     EmailVerificationRequest,
     ExamLayoutUpdate,
+    OnboardingStateUpdate,
     PasswordResetConfirm,
     PasswordResetRequest,
     PasswordUpdate,
@@ -109,6 +110,7 @@ __all__ = [
     # schemas.auth_schemas
     "EmailVerificationRequest",
     "ExamLayoutUpdate",
+    "OnboardingStateUpdate",
     "PasswordResetConfirm",
     "PasswordResetRequest",
     "PasswordUpdate",

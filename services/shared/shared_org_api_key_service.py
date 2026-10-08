@@ -95,6 +95,7 @@ class OrgApiKeyService:
         *,
         org_billing_authorized: bool = False,
         project_id: Optional[str] = None,
+        group_id: Optional[str] = None,
     ) -> Optional[str]:
         """
         Resolve which API key to use based on context.
@@ -120,6 +121,14 @@ class OrgApiKeyService:
         dispatching user's groups — an org admin grading a group exam spends
         that group's key. Callers that omit ``project_id`` resolve the
         org-wide row only.
+
+        ``group_id`` is the same choice for work done BEFORE the project
+        exists (the creation wizard): the group the new project will be
+        scoped to. It counts only without ``project_id`` and only when the
+        caller may create a project in that group
+        (``org_groups.user_may_scope_to_group``, the project-creation rule);
+        otherwise it is ignored and the org-wide row is used, so naming a
+        group never spends a key its project could not have spent.
         """
         from user_api_key_service import user_api_key_service
 
@@ -142,14 +151,20 @@ class OrgApiKeyService:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
         # Org pays - use org key only (None if not set = provider unavailable).
         # Group-scoped projects spend their group's key first.
+        scope_group = None
         if project_id:
             from org_groups import resolve_project_group_for_org
 
-            group_id = resolve_project_group_for_org(db, project_id, org_id)
-            if group_id:
-                group_key = self._get_org_api_key(db, org_id, provider, group_id)
-                if group_key is not None:
-                    return group_key
+            scope_group = resolve_project_group_for_org(db, project_id, org_id)
+        elif group_id:
+            from org_groups import user_may_scope_to_group
+
+            if user_may_scope_to_group(db, user_id, org_id, group_id):
+                scope_group = str(group_id)
+        if scope_group:
+            group_key = self._get_org_api_key(db, org_id, provider, scope_group)
+            if group_key is not None:
+                return group_key
         return self._get_org_api_key(db, org_id, provider)
 
 

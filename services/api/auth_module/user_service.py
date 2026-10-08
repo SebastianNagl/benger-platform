@@ -837,6 +837,7 @@ def update_user_profile(
     # German state exam fields
     german_state_exams_count: Optional[int] = None,
     german_state_exams_data: Optional[list] = None,
+    exam_bundesland: Optional[str] = None,
     # Issue #1206: Mandatory profile fields
     gender: Optional[str] = None,
     subjective_competence_civil: Optional[int] = None,
@@ -860,7 +861,7 @@ def update_user_profile(
         "name", "email", "use_pseudonym", "age", "job", "years_of_experience",
         "legal_expertise_level", "german_proficiency", "degree_program_type",
         "current_semester", "legal_specializations",
-        "german_state_exams_count", "german_state_exams_data",
+        "german_state_exams_count", "german_state_exams_data", "exam_bundesland",
         "gender", "subjective_competence_civil", "subjective_competence_public",
         "subjective_competence_criminal", "grade_zwischenpruefung",
         "grade_vorgeruecktenubung", "grade_first_staatsexamen",
@@ -983,6 +984,9 @@ def update_user_profile(
         user.german_state_exams_count = german_state_exams_count
     if german_state_exams_data is not None:
         user.german_state_exams_data = german_state_exams_data
+    # Validated against the Bundesland codebook by the UserUpdate schema.
+    if exam_bundesland is not None:
+        user.exam_bundesland = exam_bundesland
 
     # Issue #1206: Gender
     if gender is not None:

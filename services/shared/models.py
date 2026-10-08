@@ -294,6 +294,16 @@ class User(Base):
     # writer is PUT /auth/me/exam-layout. Display preference only — never an
     # authorization or exam-integrity input.
     exam_layout_prefs = Column(JSON, nullable=True)
+    # German state the user writes the Staatsexamen in (two-letter code, e.g.
+    # "BY", "NW"; migration 114). Profile data written via PUT /auth/profile;
+    # later the default for the state-specific exam interface. Display/profile
+    # only — never an authorization input.
+    exam_bundesland = Column(String(2), nullable=True)
+    # First-visit onboarding progress (extended setup modal + role tours;
+    # migration 114). NULL = never seen. Shape enforced by Pydantic
+    # (OnboardingStateUpdate); the only writer is PUT /auth/me/onboarding,
+    # which deep-merges. Never an authorization input.
+    onboarding_state = Column(JSON, nullable=True)
     # Set when the account was anonymized (migration 106): name, email and
     # credentials are scrubbed and the account is deactivated, while answers
     # and grades stay as anonymous records. NULL = a normal account.

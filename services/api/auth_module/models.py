@@ -30,6 +30,10 @@ class User(BaseModel):
     # one-time Vertretbar plan-choice modal doesn't re-fire on fresh login.
     vertretbar_onboarding_completed_at: Optional[str] = None  # ISO-8601, matches /auth/me wire format
     exam_layout_prefs: Optional[dict] = None
+    # Exam Bundesland and first-visit onboarding progress: the extended
+    # onboarding decides on the login-time user, so it must match /auth/me.
+    exam_bundesland: Optional[str] = None
+    onboarding_state: Optional[dict] = None
     # Display-name fields, also on /auth/me: the header shows the pseudonym
     # of accounts an LMS launch created.
     pseudonym: Optional[str] = None
@@ -44,10 +48,15 @@ class User(BaseModel):
     def _coerce_onboarding_ts(cls, v):
         return v if v is None or isinstance(v, str) else iso_or_none(v)
 
-    @field_validator("exam_layout_prefs", mode="before")
+    @field_validator("exam_layout_prefs", "onboarding_state", mode="before")
     @classmethod
     def _coerce_exam_layout(cls, v):
         return ensure_dict(v)
+
+    @field_validator("exam_bundesland", mode="before")
+    @classmethod
+    def _coerce_exam_bundesland(cls, v):
+        return v if isinstance(v, str) else None
 
     # Raw ORM rows and unit-test doubles reach these too: anything that is
     # not a plain value degrades to the column default.

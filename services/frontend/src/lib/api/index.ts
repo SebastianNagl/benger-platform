@@ -179,6 +179,7 @@ export class ApiClient {
     this.getProfileHistory = safeBind(this.authClient, 'getProfileHistory')
     this.setUiMode = safeBind(this.authClient, 'setUiMode')
     this.setExamLayout = safeBind(this.authClient, 'setExamLayout')
+    this.setOnboardingState = safeBind(this.authClient, 'setOnboardingState')
     this.get = safeBind(this.authClient, 'get')
     this.post = safeBind(this.authClient, 'post')
     this.put = safeBind(this.authClient, 'put')
@@ -471,6 +472,7 @@ export class ApiClient {
   getProfileHistory: any
   setUiMode: any
   setExamLayout: any
+  setOnboardingState: any
 
   // Override setAuthFailureHandler to propagate to all clients
   setAuthFailureHandler(handler: () => void) {
