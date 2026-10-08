@@ -466,6 +466,11 @@ class OrganizationGroup(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    # Who pays for AI calls on the group's projects: NULL = follow the org's
+    # settings.require_private_keys, True = members pay with personal keys,
+    # False = the org provides keys (group key first, then the org-wide key).
+    # Read through org_groups.require_private_keys_for, never directly.
+    require_private_keys = Column(Boolean, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

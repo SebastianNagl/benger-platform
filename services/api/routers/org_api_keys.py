@@ -325,39 +325,102 @@ async def test_saved_org_api_key(
 # ===== Settings endpoints =====
 
 
+async def _load_group_of_org(db: AsyncSession, org_id: str, group_id: str) -> OrganizationGroup:
+    """The group ``group_id`` of ``org_id``, else 404."""
+    group = (
+        await db.execute(
+            select(OrganizationGroup).where(
+                OrganizationGroup.id == group_id,
+                OrganizationGroup.organization_id == org_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    return group
+
+
 @router.get("/{org_id}/api-keys/settings")
 async def get_org_api_key_settings(
     org_id: str,
+    group_id: Optional[str] = Query(
+        None, description="Key scope: omitted = the organization, set = that group"
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Get API key settings for an organization. Accessible by any member."""
+    """Get API key settings for an organization or one of its groups.
+    Accessible by any member.
+
+    With ``group_id`` the answer also carries the group's own setting
+    (``group_require_private_keys``, null = follows the organization) and the
+    organization's (``org_require_private_keys``); ``require_private_keys``
+    is always the effective value for the scope.
+    """
     await _require_org_exists(org_id, db)
     await _require_org_member(current_user, org_id, db)
 
-    require_private = await org_api_key_service._get_org_setting_require_private_keys_async(
+    org_require_private = await org_api_key_service._get_org_setting_require_private_keys_async(
         db, org_id
     )
-    return {"require_private_keys": require_private}
+    if group_id is None:
+        return {"require_private_keys": org_require_private}
+
+    group = await _load_group_of_org(db, org_id, group_id)
+    from org_groups import effective_require_private_keys
+
+    return {
+        "require_private_keys": effective_require_private_keys(
+            {"require_private_keys": org_require_private}, group.require_private_keys
+        ),
+        "group_require_private_keys": group.require_private_keys,
+        "org_require_private_keys": org_require_private,
+    }
 
 
 @router.put("/{org_id}/api-keys/settings")
 async def update_org_api_key_settings(
     org_id: str,
     request_body: Dict,
+    group_id: Optional[str] = Query(
+        None, description="Key scope: omitted = the organization, set = that group"
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Update API key settings for an organization. Admin only."""
-    await _require_org_exists(org_id, db)
-    await _require_org_admin(current_user, org_id, db)
+    """Update who pays for AI calls in an organization or one of its groups.
 
-    require_private_keys = request_body.get("require_private_keys")
-    if require_private_keys is None:
+    Organization scope: org admins only, ``require_private_keys`` a boolean.
+    Group scope: org admins and that group's admins; ``require_private_keys``
+    true / false overrides the organization for the group's projects, null
+    makes the group follow the organization again.
+    """
+    await _require_org_exists(org_id, db)
+    await _require_scope_admin(current_user, org_id, group_id, db)
+
+    if "require_private_keys" not in request_body or (
+        group_id is None and request_body.get("require_private_keys") is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="require_private_keys is required",
         )
+    require_private_keys = request_body.get("require_private_keys")
+
+    if group_id is not None:
+        group = await _load_group_of_org(db, org_id, group_id)
+        group.require_private_keys = (
+            None if require_private_keys is None else bool(require_private_keys)
+        )
+        await db.commit()
+        logger.info(
+            f"Group {group_id} of org {org_id}: require_private_keys -> "
+            f"{group.require_private_keys} (by {current_user.id})"
+        )
+        return {
+            "message": "Settings updated successfully",
+            "group_require_private_keys": group.require_private_keys,
+        }
 
     result = await db.execute(select(Organization).where(Organization.id == org_id))
     org = result.scalar_one_or_none()

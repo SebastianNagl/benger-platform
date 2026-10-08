@@ -861,6 +861,89 @@ async def resolve_project_group_for_org_async(db, project_id, org_id) -> Optiona
     return str(row) if row else None
 
 
+# ---------------------------------------------------------------------------
+# Who pays for AI calls: the org switch with an optional per-group override
+# ---------------------------------------------------------------------------
+#
+# ``organizations.settings.require_private_keys`` (default True) is the
+# org-wide switch: True = members pay with personal keys, False = the org
+# provides keys. ``organization_groups.require_private_keys`` overrides it for
+# the group's projects (NULL = follow the org). The scope is the PROJECT's
+# attachment group (or, before the project exists, the group it will be
+# scoped to), never the dispatching user's groups, so key resolution and
+# billing agree. A paying group spends its own key first, then the org-wide
+# key (owner decision 2026-10-08, also when the org itself does not pay).
+
+
+def effective_require_private_keys(org_settings, group_override) -> bool:
+    """The effective switch from the org's settings dict and the group's
+    override (None = follow the org). Pure; every reader goes through it."""
+    if group_override is not None:
+        return bool(group_override)
+    return bool((org_settings or {}).get("require_private_keys", True))
+
+
+def require_private_keys_for(db, org_id, group_id=None) -> bool:
+    """Sync: do members pay with personal keys in ``org_id`` (scoped to
+    ``group_id`` when given)? A missing org counts as members-pay; a group
+    of another org is ignored. Group ``is_active`` is not consulted (the
+    module rule: deactivating never changes key scope)."""
+    if not org_id:
+        return True
+    from models import Organization, OrganizationGroup
+
+    org = db.query(Organization).filter(Organization.id == str(org_id)).first()
+    if org is None:
+        return True
+    override = None
+    if group_id:
+        group = (
+            db.query(OrganizationGroup.require_private_keys)
+            .filter(
+                OrganizationGroup.id == str(group_id),
+                OrganizationGroup.organization_id == str(org_id),
+            )
+            .first()
+        )
+        override = group[0] if group is not None else None
+    return effective_require_private_keys(org.settings, override)
+
+
+async def require_private_keys_for_async(db, org_id, group_id=None) -> bool:
+    """Async twin of :func:`require_private_keys_for`."""
+    if not org_id:
+        return True
+    from sqlalchemy import select
+
+    from models import Organization, OrganizationGroup
+
+    settings_row = (
+        await db.execute(select(Organization.settings).where(Organization.id == str(org_id)))
+    ).first()
+    if settings_row is None:
+        return True
+    override = None
+    if group_id:
+        override = (
+            await db.execute(
+                select(OrganizationGroup.require_private_keys).where(
+                    OrganizationGroup.id == str(group_id),
+                    OrganizationGroup.organization_id == str(org_id),
+                )
+            )
+        ).scalar_one_or_none()
+    return effective_require_private_keys(settings_row[0], override)
+
+
+def org_pays_for_project(db, org_id, project=None) -> bool:
+    """Sync: does ``org_id`` provide keys for work on ``project`` (a Project
+    row or id; None = the org-wide scope)? Uses the project's attachment
+    group in that org."""
+    project_id = getattr(project, "id", project)
+    group_id = resolve_project_group_for_org(db, project_id, org_id) if project_id else None
+    return not require_private_keys_for(db, org_id, group_id)
+
+
 def invitation_group_role(invitation):
     """The group role a group-scoped invitation grants (enum), ANNOTATOR when
     the row carries none (cannot happen after migration 111, kept defensive)."""

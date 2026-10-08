@@ -61,6 +61,28 @@ describe('ProjectBillingCard', () => {
     ).toBeInTheDocument()
   })
 
+  it("asks for the group's effective setting on a group-scoped project", async () => {
+    mockGetSettings.mockResolvedValue({
+      require_private_keys: false,
+      group_require_private_keys: false,
+      org_require_private_keys: true,
+    })
+    render(
+      <ProjectBillingCard
+        project={{
+          id: 'p2',
+          organizations: [
+            { id: 'org-1', name: 'Uni Testhausen', group_id: 'g-ls' },
+          ],
+        }}
+      />,
+    )
+    expect(
+      await screen.findByText('project.billing.orgPays:Uni Testhausen'),
+    ).toBeInTheDocument()
+    expect(mockGetSettings).toHaveBeenCalledWith('org-1', 'g-ls')
+  })
+
   it('falls back to depends-on-access when the settings request fails', async () => {
     mockGetSettings.mockRejectedValue(new Error('403'))
     render(<ProjectBillingCard project={orgProject} />)

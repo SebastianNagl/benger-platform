@@ -294,8 +294,10 @@ async def get_available_models_for_user(
     if org_id:
         from services.org_api_key_service import org_api_key_service
 
+        # A project's scope is exact: its attachment group's setting decides
+        # whether the org's keys or the personal keys apply.
         available_providers = await org_api_key_service.get_available_providers_for_context_async(
-            db, current_user.id, org_id
+            db, current_user.id, org_id, project_id=project_id
         )
     else:
         available_providers = await user_api_key_service.get_user_available_providers_async(
@@ -358,7 +360,8 @@ async def get_available_models_for_user(
     # usable credential.
     #
     # Org context is honored here for the SHARED-credential case only: when
-    # the org runs shared-billing mode (require_private_keys False) and has
+    # the org provides keys in the scope (require_private_keys False for the
+    # org, or for the project's group via its override) and has
     # provisioned a shared key for the model, that satisfies has_credential
     # even when the user has none — mirroring the dispatch precedence in
     # user_aware_ai_service.get_ai_service_for_model_row. The user's own key
@@ -381,7 +384,7 @@ async def get_available_models_for_user(
         )
         custom_models = custom_result.scalars().all()
         resolutions = await resolve_custom_model_credentials_async(
-            db, current_user.id, custom_models, organization_id=org_id
+            db, current_user.id, custom_models, organization_id=org_id, project_id=project_id
         )
 
         for model in custom_models:

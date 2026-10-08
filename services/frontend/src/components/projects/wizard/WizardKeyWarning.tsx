@@ -22,6 +22,7 @@ import {
   neededModels,
   type OrganizationKeyFacts,
   organizationsToCheck,
+  projectGroupId,
 } from './keyReadiness'
 import type { WizardData } from './types'
 
@@ -78,15 +79,25 @@ export function parseRequiresPrivateKeys(value: unknown): boolean | null {
   return typeof flag === 'boolean' ? flag : null
 }
 
+/** Facts are per organization and the project's group there: the "who
+ * pays" setting is the group's effective one. */
+const factsKey = (organizationId: string, groupId: string | null): string =>
+  `${organizationId}::${groupId ?? ''}`
+
 async function loadOrganizationFacts(
   organizationId: string,
+  groupId: string | null,
 ): Promise<[string, OrganizationKeyFacts]> {
   const [models, settings] = await Promise.all([
     attempt(() => organizationsAPI.getOrgAvailableModels(organizationId)),
-    attempt(() => organizationsAPI.getOrgApiKeySettings(organizationId)),
+    attempt(() =>
+      groupId
+        ? organizationsAPI.getOrgApiKeySettings(organizationId, groupId)
+        : organizationsAPI.getOrgApiKeySettings(organizationId),
+    ),
   ])
   return [
-    organizationId,
+    factsKey(organizationId, groupId),
     {
       providers: parseProviders(models),
       requiresPrivateKeys: parseRequiresPrivateKeys(settings),
@@ -178,17 +189,40 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
     ],
   )
 
-  // Organizations already requested, so a re-render never fetches twice. The
-  // set lives for the component's lifetime; a dropped request is taken out
-  // again so the next selection asks anew.
+  // Each organization with the group the project gets there.
+  const toCheckScoped = useMemo(
+    () =>
+      toCheck.map((id) => ({
+        id,
+        groupId: projectGroupId(
+          {
+            visibility: data.visibility,
+            organizationIds: data.organizationIds,
+            organizationGroupIds: data.organizationGroupIds,
+          },
+          id,
+        ),
+      })),
+    [toCheck, data.visibility, data.organizationIds, data.organizationGroupIds],
+  )
+
+  // (Organization, group) pairs already requested, so a re-render never
+  // fetches twice. The set lives for the component's lifetime; a dropped
+  // request is taken out again so the next selection asks anew.
   const requested = useRef(new Set<string>())
   useEffect(() => {
-    const requestedIds = requested.current
-    const missing = toCheck.filter((id) => !requestedIds.has(id))
+    const requestedKeys = requested.current
+    const missing = toCheckScoped.filter(
+      ({ id, groupId }) => !requestedKeys.has(factsKey(id, groupId)),
+    )
     if (missing.length === 0) return
-    missing.forEach((id) => requestedIds.add(id))
+    missing.forEach(({ id, groupId }) =>
+      requestedKeys.add(factsKey(id, groupId)),
+    )
     let cancelled = false
-    void Promise.all(missing.map(loadOrganizationFacts)).then((entries) => {
+    void Promise.all(
+      missing.map(({ id, groupId }) => loadOrganizationFacts(id, groupId)),
+    ).then((entries) => {
       if (cancelled) return
       setOrganizationFacts((previous) => ({
         ...previous,
@@ -197,9 +231,21 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
     })
     return () => {
       cancelled = true
-      missing.forEach((id) => requestedIds.delete(id))
+      missing.forEach(({ id, groupId }) =>
+        requestedKeys.delete(factsKey(id, groupId)),
+      )
     }
-  }, [toCheck])
+  }, [toCheckScoped])
+
+  // The facts for the current selection, keyed by organization.
+  const currentFacts = useMemo(() => {
+    const result: Record<string, OrganizationKeyFacts> = {}
+    for (const { id, groupId } of toCheckScoped) {
+      const facts = organizationFacts[factsKey(id, groupId)]
+      if (facts) result[id] = facts
+    }
+    return result
+  }, [toCheckScoped, organizationFacts])
 
   const warnings = useMemo(
     () =>
@@ -213,7 +259,7 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
             organizationGroupIds: data.organizationGroupIds,
             memberships,
             isSuperadmin,
-            organizations: organizationFacts,
+            organizations: currentFacts,
           })
         : [],
     [
@@ -226,7 +272,7 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
       data.organizationGroupIds,
       memberships,
       isSuperadmin,
-      organizationFacts,
+      currentFacts,
     ],
   )
 

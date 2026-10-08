@@ -11,9 +11,11 @@ Route                        Conditions
                              (always wins)
 ``source="org"``             no personal credential AND a live
                              ``ModelOrganization`` share AND the user is an
-                             ACTIVE member of that org AND the org runs
-                             shared-billing mode (``require_private_keys``
-                             falsy) AND an org shared credential exists
+                             ACTIVE member of that org AND the org provides
+                             keys in the scope (``require_private_keys``
+                             falsy for the org or, with a group override, for
+                             the project's group / one of the user's groups)
+                             AND an org shared credential exists
 ``source=None``              no usable key; ``can_invoke`` is then
                              ``not requires_api_key``
 ===========================  ==================================================
@@ -66,15 +68,23 @@ async def resolve_custom_model_credentials_async(
     *,
     organization_id: Optional[str] = None,
     search_user_orgs: bool = False,
+    project_id: Optional[str] = None,
 ) -> Dict[str, CustomModelCredentialResolution]:
     """Batch resolution for ``models`` (rows with ``id``/``requires_api_key``).
 
-    At most 4 queries regardless of model count.
+    ``project_id`` (with ``organization_id``) makes the who-pays scope exact:
+    the project's attachment group in that org. Without it an org counts as
+    paying when the org itself or any of the user's groups in it provides
+    keys ("a usable route exists").
+
+    At most 6 queries regardless of model count.
     """
     from models import (
         CustomModelOrgCredential,
         ModelOrganization,
         Organization,
+        OrganizationGroup,
+        OrganizationGroupMembership,
         OrganizationMembership,
     )
 
@@ -108,8 +118,13 @@ async def resolve_custom_model_credentials_async(
     org_cred_pairs: set = set()
     candidate_org_ids = {oid for _, oid in org_route_candidates}
     if candidate_org_ids:
-        # Shared-billing orgs only (require_private_keys defaults to True) —
-        # same read as custom_model_org_credential_service.org_requires_private_keys.
+        # Orgs that provide keys in the scope (org_groups rule: the group's
+        # override, else the org's require_private_keys, default True).
+        from org_groups import (
+            effective_require_private_keys,
+            resolve_project_group_for_org_async,
+        )
+
         org_rows = (
             await db.execute(
                 select(Organization.id, Organization.settings).where(
@@ -117,10 +132,48 @@ async def resolve_custom_model_credentials_async(
                 )
             )
         ).all()
+        scope_overrides: Dict[str, List] = {oid: [None] for oid, _ in org_rows}
+        if project_id and organization_id:
+            scope_group = await resolve_project_group_for_org_async(
+                db, project_id, organization_id
+            )
+            if scope_group:
+                override = (
+                    await db.execute(
+                        select(OrganizationGroup.require_private_keys).where(
+                            OrganizationGroup.id == scope_group,
+                            OrganizationGroup.organization_id == str(organization_id),
+                        )
+                    )
+                ).scalar_one_or_none()
+                scope_overrides[str(organization_id)] = [override]
+        else:
+            group_rows = (
+                await db.execute(
+                    select(
+                        OrganizationGroup.organization_id,
+                        OrganizationGroup.require_private_keys,
+                    )
+                    .join(
+                        OrganizationGroupMembership,
+                        OrganizationGroupMembership.group_id == OrganizationGroup.id,
+                    )
+                    .where(
+                        OrganizationGroupMembership.user_id == user_id,
+                        OrganizationGroup.organization_id.in_(candidate_org_ids),
+                        OrganizationGroup.require_private_keys.isnot(None),
+                    )
+                )
+            ).all()
+            for oid, override in group_rows:
+                scope_overrides.setdefault(oid, [None]).append(override)
         paying_org_ids = {
             oid
             for oid, settings in org_rows
-            if not (settings or {}).get("require_private_keys", True)
+            if any(
+                not effective_require_private_keys(settings, override)
+                for override in scope_overrides.get(oid, [None])
+            )
         }
     if paying_org_ids:
         cred_rows = (

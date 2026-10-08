@@ -276,6 +276,10 @@ class UserAwareAIService:
         | present     | True (default)       | invoking user's own ONLY    | custom_model_user_credential  |
         | present     | False (org-pays)     | user's own, else org shared | custom_model_org_credential   |
 
+        ``require_private_keys`` is the effective value for the scope: the
+        project's attachment group (or the validated ``group_id`` of a
+        project being created) overrides the org's setting when it has one.
+
         The invoking user's own credential ALWAYS wins when present; the org
         shared key is a fallback consulted only in org-pays mode. This mirrors
         ``shared_org_api_key_service.resolve_api_key`` for provider keys.
@@ -334,7 +338,23 @@ class UserAwareAIService:
                         org_requires_private_keys,
                     )
 
-                    if not org_requires_private_keys(db, str(organization_id)):
+                    scope_group = None
+                    if project_id:
+                        from org_groups import resolve_project_group_for_org
+
+                        scope_group = resolve_project_group_for_org(
+                            db, project_id, organization_id
+                        )
+                    elif group_id:
+                        from org_groups import user_may_scope_to_group
+
+                        if user_may_scope_to_group(
+                            db, user_id, organization_id, group_id
+                        ):
+                            scope_group = str(group_id)
+                    if not org_requires_private_keys(
+                        db, str(organization_id), scope_group
+                    ):
                         org_key = get_org_credential(
                             db, str(organization_id), str(model.id)
                         )

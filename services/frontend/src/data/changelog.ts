@@ -8,6 +8,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
     date: '2026-10-08',
+    audience: 'benger',
+    text: {
+      de: 'Unter „API-Schlüssel“ lässt sich jetzt je Gruppe festlegen, wer KI-Aufrufe in den Projekten der Gruppe bezahlt: wie die Organisation, die Organisation (zuerst mit dem Gruppen-Schlüssel, sonst mit dem Organisations-Schlüssel) oder die Mitglieder mit ihren eigenen Schlüsseln. So kann eine Organisation etwa nur für einen Lehrstuhl Schlüssel bereitstellen. Organisations-Admins und die Admins der Gruppe können das ändern.',
+      en: 'Under "API keys" you can now set per group who pays for AI calls on the group\'s projects: the same as the organization, the organization (with the group key first, else the organization-wide key), or the members with their own keys. An organization can, for example, provide keys for a single chair only. Organization admins and the group\'s admins can change it.',
+    },
+  },
+  {
+    date: '2026-10-08',
     audience: 'both',
     text: {
       de: 'Im Profil kannst du unter „Juristische Erfahrung“ jetzt das Bundesland angeben, in dem du dein Staatsexamen schreibst oder geschrieben hast.',

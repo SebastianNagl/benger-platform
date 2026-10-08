@@ -404,6 +404,13 @@ def _create_tables():
                     "organization_group_id VARCHAR"
                 )
             )
+            # Migration 115: per-group "who pays" override (nullable).
+            conn.execute(
+                text(
+                    "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
+                    "require_private_keys BOOLEAN"
+                )
+            )
     except Exception as e:
         pytest.exit(
             f"Cannot connect to test PostgreSQL ({os.environ.get('DATABASE_URL')}). "

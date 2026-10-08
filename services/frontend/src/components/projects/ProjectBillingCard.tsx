@@ -8,10 +8,11 @@ import { useSlot } from '@/lib/extensions/slots'
 
 interface Props {
   // Loosely typed so the card works with the page's ProjectResponse shape
-  // without importing it: only id + linked orgs are read.
+  // without importing it: only id + linked orgs (with the group the project
+  // is scoped to there) are read.
   project: {
     id: string
-    organizations?: { id: string; name: string }[]
+    organizations?: { id: string; name: string; group_id?: string | null }[]
   }
 }
 
@@ -22,7 +23,8 @@ type BillingMessage =
 
 /**
  * "Abrechnung" sidebar card on the project detail page: says whose API key
- * pays for AI evaluations in this project. Community-edition-safe — it only
+ * pays for AI evaluations in this project. For a project scoped to a group,
+ * the group's effective "who pays" setting decides. Community-edition-safe — it only
  * reads the generic org api-key settings endpoint; the extended edition adds
  * the authoritative per-user line via the `project-billing-extended` slot.
  *
@@ -37,6 +39,7 @@ export function ProjectBillingCard({ project }: Props) {
   const org = project?.organizations?.[0] ?? null
   const orgId = org?.id ?? null
   const orgName = org?.name ?? ''
+  const groupId = org?.group_id ?? null
   // No org attached: the answer is static, so derive it instead of setting
   // state from the effect (the async org lookup below is the only setter).
   const message: BillingMessage | null = orgId
@@ -46,8 +49,10 @@ export function ProjectBillingCard({ project }: Props) {
   useEffect(() => {
     if (!orgId) return
     let cancelled = false
-    organizationsAPI
-      .getOrgApiKeySettings(orgId)
+    const settingsRequest = groupId
+      ? organizationsAPI.getOrgApiKeySettings(orgId, groupId)
+      : organizationsAPI.getOrgApiKeySettings(orgId)
+    settingsRequest
       .then((settings) => {
         if (cancelled) return
         if (settings.require_private_keys === false) {
@@ -63,7 +68,7 @@ export function ProjectBillingCard({ project }: Props) {
     return () => {
       cancelled = true
     }
-  }, [orgId, orgName])
+  }, [orgId, orgName, groupId])
 
   let line: string | null = null
   if (message?.kind === 'orgPays') {

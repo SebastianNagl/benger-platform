@@ -112,7 +112,13 @@ export function OrgApiKeys({
       descriptions[id] || providers.find((p) => p.id === id)?.description || ''
     )
   }
+  // Effective "members pay" for the selected scope, plus (group scope) the
+  // group's own setting (null = follows the org) and the org's.
   const [requirePrivateKeys, setRequirePrivateKeys] = useState(true)
+  const [groupRequirePrivateKeys, setGroupRequirePrivateKeys] = useState<
+    boolean | null
+  >(null)
+  const [orgRequirePrivateKeys, setOrgRequirePrivateKeys] = useState(true)
   const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, boolean>>({})
   const [newApiKeys, setNewApiKeys] = useState<Record<string, string>>({})
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({})
@@ -147,12 +153,23 @@ export function OrgApiKeys({
 
   const fetchSettings = useCallback(async () => {
     try {
-      const data = await organizationsAPI.getOrgApiKeySettings(organizationId)
+      const data = scopeGroupId
+        ? await organizationsAPI.getOrgApiKeySettings(
+            organizationId,
+            scopeGroupId,
+          )
+        : await organizationsAPI.getOrgApiKeySettings(organizationId)
       setRequirePrivateKeys(data.require_private_keys)
+      setGroupRequirePrivateKeys(data.group_require_private_keys ?? null)
+      setOrgRequirePrivateKeys(
+        data.org_require_private_keys ?? data.require_private_keys,
+      )
     } catch {
       setRequirePrivateKeys(true)
+      setGroupRequirePrivateKeys(null)
+      setOrgRequirePrivateKeys(true)
     }
-  }, [organizationId])
+  }, [organizationId, scopeGroupId])
 
   const fetchKeyStatus = useCallback(async () => {
     try {
@@ -233,16 +250,46 @@ export function OrgApiKeys({
     setTestResults({})
     setNewApiKeys({})
     setShowApiKeys({})
-    // fetchKeyStatus re-runs via the open-effect (its identity depends on
-    // the scope), so the status list always matches the selected scope.
+    // fetchKeyStatus and fetchSettings re-run via the open-effect (their
+    // identity depends on the scope), so the dialog always matches it.
   }
 
   // Provider keys are editable by org admins in every scope, and by group
   // admins within one of their group scopes.
   const canEditKeys = isAdmin || (canManageGroups && scopeGroupId !== null)
 
+  // Group scope: "who pays" for the group's projects, settable by org admins
+  // and that group's admins (only group scopes they may manage are listed).
+  const updateGroupRequirePrivateKeys = async (value: boolean | null) => {
+    if (!scopeGroupId || !canEditKeys) return
+    setSettingsLoading(true)
+    setMessage(null)
+    try {
+      await organizationsAPI.updateOrgApiKeySettings(
+        organizationId,
+        value,
+        scopeGroupId,
+      )
+      setGroupRequirePrivateKeys(value)
+      setRequirePrivateKeys(value ?? orgRequirePrivateKeys)
+      setMessage({
+        type: 'success',
+        text: t('organization.apiKeys.groupPaysSaved'),
+      })
+    } catch (error: any) {
+      setMessage({
+        type: 'error',
+        text:
+          error.response?.data?.detail ||
+          t('organization.apiKeys.updateFailed'),
+      })
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
   const toggleRequirePrivateKeys = async () => {
-    if (!isAdmin) return
+    if (!isAdmin || scopeGroupId) return
     setSettingsLoading(true)
     setMessage(null)
 
@@ -592,9 +639,56 @@ export function OrgApiKeys({
                 </div>
               )}
 
-              {/* Mode toggle (admin only; the setting is org-wide, so it is
-                  locked while a group scope is selected) */}
-              {isAdmin && (
+              {/* Group scope: who pays for the group's projects (org admins
+                  and the group's admins) */}
+              {scopeGroupId && canEditKeys && (
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  <label
+                    htmlFor="org-api-keys-group-pays"
+                    className="block text-sm font-medium text-zinc-900 dark:text-zinc-100"
+                  >
+                    {t('organization.apiKeys.groupPaysLabel')}
+                  </label>
+                  <select
+                    id="org-api-keys-group-pays"
+                    value={
+                      groupRequirePrivateKeys === null
+                        ? 'inherit'
+                        : groupRequirePrivateKeys
+                          ? 'members'
+                          : 'org'
+                    }
+                    onChange={(e) =>
+                      updateGroupRequirePrivateKeys(
+                        e.target.value === 'inherit'
+                          ? null
+                          : e.target.value === 'members',
+                      )
+                    }
+                    disabled={settingsLoading}
+                    data-testid="org-api-keys-group-pays-select"
+                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                  >
+                    <option value="inherit">
+                      {orgRequirePrivateKeys
+                        ? t('organization.apiKeys.groupPaysInheritMembers')
+                        : t('organization.apiKeys.groupPaysInheritOrg')}
+                    </option>
+                    <option value="org">
+                      {t('organization.apiKeys.groupPaysOrg')}
+                    </option>
+                    <option value="members">
+                      {t('organization.apiKeys.groupPaysMembers')}
+                    </option>
+                  </select>
+                  <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                    {t('organization.apiKeys.groupPaysHint')}
+                  </p>
+                </div>
+              )}
+
+              {/* Org-wide mode toggle (org admins, org-wide scope only) */}
+              {isAdmin && !scopeGroupId && (
                 <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                   <div className="flex items-center justify-between">
                     <div>
@@ -602,16 +696,14 @@ export function OrgApiKeys({
                         {t('organization.apiKeys.orgProvidesToggle')}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        {scopeGroupId
-                          ? t('organization.apiKeys.settingsOrgWideHint')
-                          : !requirePrivateKeys
-                            ? t('organization.apiKeys.sharedKeysActive')
-                            : t('organization.apiKeys.enableSharedKeys')}
+                        {!requirePrivateKeys
+                          ? t('organization.apiKeys.sharedKeysActive')
+                          : t('organization.apiKeys.enableSharedKeys')}
                       </p>
                     </div>
                     <button
                       onClick={toggleRequirePrivateKeys}
-                      disabled={settingsLoading || scopeGroupId !== null}
+                      disabled={settingsLoading}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none ${
                         !requirePrivateKeys
                           ? 'bg-emerald-600'

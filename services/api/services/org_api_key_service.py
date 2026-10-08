@@ -46,12 +46,14 @@ class OrgApiKeyService:
         self.encryption_service = encryption_service
         logger.info("OrgApiKeyService initialized")
 
-    def _get_org_setting_require_private_keys(self, db: Session, org_id: str) -> bool:
-        """Get the require_private_keys setting for an org. Defaults to True."""
-        org = db.query(Organization).filter(Organization.id == org_id).first()
-        if not org or not org.settings:
-            return True
-        return org.settings.get("require_private_keys", True)
+    def _get_org_setting_require_private_keys(
+        self, db: Session, org_id: str, group_id: Optional[str] = None
+    ) -> bool:
+        """Effective require_private_keys for the org, or for one of its
+        groups (the group's override, else the org's). Defaults to True."""
+        from org_groups import require_private_keys_for
+
+        return require_private_keys_for(db, org_id, group_id)
 
     @staticmethod
     def _group_scope_filter(query, group_id: Optional[str]):
@@ -265,21 +267,26 @@ class OrgApiKeyService:
         Resolve which API key to use based on context.
 
         - If org_id is None: use personal key (backward compat / private context)
-        - If org requires private keys: use personal key
-        - If org provides keys: use org key (None if org hasn't set it) — but
-          only for an active member or a superadmin; anyone else degrades to
-          their personal key ("individual pays") instead of spending org money.
+        - If members pay in the scope: use personal key
+        - If the org provides keys in the scope: use org key (None if not
+          set) — but only for an active member or a superadmin; anyone else
+          degrades to their personal key ("individual pays") instead of
+          spending org money.
+
+        The scope is the project's attachment group (or ``group_id`` below);
+        a group's own ``require_private_keys`` overrides the org's
+        (``org_groups.require_private_keys_for``).
 
         ``org_billing_authorized`` is a policy-asserted flag: set True ONLY
         by code that re-derived the caller's consumer entitlement from the
         DB in the same process — never from HTTP or task-payload input. It
         bypasses only the membership gate, never the require_private_keys
-        check: an org that requires private keys is never charged.
+        check: a scope whose members pay is never charged.
 
-        ``project_id`` selects WHICH org key row is spent: when the
-        project's attachment to ``org_id`` is scoped to an organization
-        group, that group's key is tried first, falling back to the org-wide
-        row (a group without its own key spends the org's shared pool, never
+        ``project_id`` selects the scope and WHICH org key row is spent: when
+        the project's attachment to ``org_id`` is scoped to an organization
+        group, that group's setting decides who pays and that group's key is
+        tried first, falling back to the org-wide row (a group without its own key spends the org's shared pool, never
         another group's). The key follows the PROJECT's attachment, not the
         dispatching user's groups. Callers that omit ``project_id`` resolve
         the org-wide row only. ``group_id`` is that choice before the project
@@ -294,7 +301,22 @@ class OrgApiKeyService:
             # Private context - always personal key
             return user_api_key_service.get_user_api_key(db, user_id, provider)
 
-        require_private = self._get_org_setting_require_private_keys(db, org_id)
+        # The scope: the project's attachment group, or the group a project
+        # being created will be scoped to (only for someone allowed to).
+        attachment_group_id = None
+        if project_id:
+            from org_groups import resolve_project_group_for_org
+
+            attachment_group_id = resolve_project_group_for_org(db, project_id, org_id)
+        elif group_id:
+            from org_groups import user_may_scope_to_group
+
+            if user_may_scope_to_group(db, user_id, org_id, group_id):
+                attachment_group_id = str(group_id)
+
+        require_private = self._get_org_setting_require_private_keys(
+            db, org_id, attachment_group_id
+        )
 
         if require_private:
             # Members pay - use personal key
@@ -309,18 +331,6 @@ class OrgApiKeyService:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
         # Org pays - use org key only (None if not set = provider unavailable).
         # Group-scoped projects spend their group's key first.
-        attachment_group_id = None
-        if project_id:
-            from org_groups import resolve_project_group_for_org
-
-            attachment_group_id = resolve_project_group_for_org(db, project_id, org_id)
-        elif group_id:
-            # Before the project exists (creation wizard): the group it will
-            # be scoped to, only for someone allowed to create it there.
-            from org_groups import user_may_scope_to_group
-
-            if user_may_scope_to_group(db, user_id, org_id, group_id):
-                attachment_group_id = str(group_id)
         if attachment_group_id:
             group_key = self.get_org_api_key(db, org_id, provider, attachment_group_id)
             if group_key is not None:
@@ -329,10 +339,18 @@ class OrgApiKeyService:
 
     def _user_group_ids_in_org(self, db: Session, user_id: str, org_id: str) -> List[str]:
         """Group ids the user belongs to WITHIN this org (sync)."""
+        return [gid for gid, _ in self._user_groups_in_org(db, user_id, org_id)]
+
+    def _user_groups_in_org(self, db: Session, user_id: str, org_id: str) -> list:
+        """``(group_id, require_private_keys override)`` of the user's groups
+        WITHIN this org (sync)."""
         from models import OrganizationGroup, OrganizationGroupMembership
 
         rows = (
-            db.query(OrganizationGroupMembership.group_id)
+            db.query(
+                OrganizationGroupMembership.group_id,
+                OrganizationGroup.require_private_keys,
+            )
             .join(
                 OrganizationGroup,
                 OrganizationGroup.id == OrganizationGroupMembership.group_id,
@@ -343,7 +361,31 @@ class OrgApiKeyService:
             )
             .all()
         )
-        return [r[0] for r in rows]
+        return [(r[0], r[1]) for r in rows]
+
+    @staticmethod
+    def _plan_provider_scopes(org_settings, scopes) -> tuple:
+        """Which key rows a member may spend across ``scopes`` and whether
+        personal keys apply somewhere.
+
+        ``scopes`` are ``(group_id or None, override)`` pairs; None is the
+        org-wide scope. A paying group spends its key, then the org-wide key;
+        a members-pay scope uses the personal keys. Returns
+        ``(personal, key_group_ids, include_org_wide)``.
+        """
+        from org_groups import effective_require_private_keys
+
+        personal = False
+        key_groups: List[str] = []
+        org_wide = False
+        for scope_group, override in scopes:
+            if effective_require_private_keys(org_settings, override):
+                personal = True
+                continue
+            org_wide = True
+            if scope_group:
+                key_groups.append(str(scope_group))
+        return personal, key_groups, org_wide
 
     def _providers_for_scopes(
         self, db: Session, org_id: str, group_ids: List[str]
@@ -370,33 +412,75 @@ class OrgApiKeyService:
         ]
 
     def get_available_providers_for_context(
-        self, db: Session, user_id: str, org_id: Optional[str]
+        self,
+        db: Session,
+        user_id: str,
+        org_id: Optional[str],
+        project_id: Optional[str] = None,
     ) -> List[str]:
         """
         Get provider display names based on context.
 
-        - Private context or org with require_private_keys=true: user's personal providers
-        - Org with require_private_keys=false: the union of the org-wide key
-          pool and the keys of the user's groups in that org (members only —
-          mirrors resolve_api_key so the UI never advertises a provider the
-          key resolution would refuse; an org whose keys are all group-scoped
-          must not report zero providers to group members). Deliberately does
-          NOT model consumer inheritance: key-management UI stays
-          member-scoped; the who-pays surface for consumers is the
-          billing/grading-payer endpoint.
+        - Private context or non-member: user's personal providers
+        - With ``project_id``: the project's scope only (its attachment
+          group's setting, else the org's) — the personal providers when
+          members pay there, else the group's keys plus the org-wide pool.
+        - Without: the union over the org-wide scope and every group the
+          user belongs to in that org, each by its own setting (an org whose
+          keys are all group-scoped must not report zero providers to group
+          members).
+
+        Members only — mirrors resolve_api_key so the UI never advertises a
+        provider the key resolution would refuse. Deliberately does NOT
+        model consumer inheritance: key-management UI stays member-scoped;
+        the who-pays surface for consumers is the billing/grading-payer
+        endpoint.
         """
+        from org_groups import resolve_project_group_for_org
         from services.user_api_key_service import user_api_key_service
 
-        if not org_id:
+        if not org_id or not self._user_may_spend_org_key(db, user_id, org_id):
             return user_api_key_service.get_user_available_providers(db, user_id)
 
-        require_private = self._get_org_setting_require_private_keys(db, org_id)
+        org = db.query(Organization).filter(Organization.id == org_id).first()
+        org_settings = org.settings if org is not None else None
+        if project_id:
+            scope_group = resolve_project_group_for_org(db, project_id, org_id)
+            override = self._group_override(db, org_id, scope_group) if scope_group else None
+            scopes = [(scope_group, override)]
+        else:
+            scopes = [(None, None)] + self._user_groups_in_org(db, user_id, org_id)
+        personal, key_groups, org_wide = self._plan_provider_scopes(org_settings, scopes)
 
-        if require_private or not self._user_may_spend_org_key(db, user_id, org_id):
-            return user_api_key_service.get_user_available_providers(db, user_id)
-        return self._providers_for_scopes(
-            db, org_id, self._user_group_ids_in_org(db, user_id, org_id)
+        providers = set()
+        if personal:
+            providers.update(user_api_key_service.get_user_available_providers(db, user_id))
+        if org_wide:
+            providers.update(self._providers_for_scopes(db, org_id, key_groups))
+        return self._ordered_display_names(providers)
+
+    def _group_override(self, db: Session, org_id: str, group_id: str):
+        """A group's require_private_keys override (None = follow the org)."""
+        from models import OrganizationGroup
+
+        row = (
+            db.query(OrganizationGroup.require_private_keys)
+            .filter(
+                OrganizationGroup.id == str(group_id),
+                OrganizationGroup.organization_id == str(org_id),
+            )
+            .first()
         )
+        return row[0] if row is not None else None
+
+    def _ordered_display_names(self, display_names) -> List[str]:
+        """Display names in SUPPORTED_PROVIDERS order, deduplicated."""
+        names = set(display_names)
+        return [
+            self.PROVIDER_DISPLAY_NAMES[p]
+            for p in self.SUPPORTED_PROVIDERS
+            if self.PROVIDER_DISPLAY_NAMES[p] in names
+        ]
 
     # ------------------------------------------------------------------
     # Async twins (async DB lane). Share pure ``_build_select_*`` builders
@@ -427,14 +511,12 @@ class OrgApiKeyService:
         return stmt.where(OrganizationApiKey.group_id.is_(None))
 
     async def _get_org_setting_require_private_keys_async(
-        self, db: AsyncSession, org_id: str
+        self, db: AsyncSession, org_id: str, group_id: Optional[str] = None
     ) -> bool:
         """Async twin of :meth:`_get_org_setting_require_private_keys`."""
-        result = await db.execute(self._build_select_org(org_id))
-        org = result.scalar_one_or_none()
-        if not org or not org.settings:
-            return True
-        return org.settings.get("require_private_keys", True)
+        from org_groups import require_private_keys_for_async
+
+        return await require_private_keys_for_async(db, org_id, group_id)
 
     async def set_org_api_key_async(
         self,
@@ -608,50 +690,76 @@ class OrgApiKeyService:
             return False
 
     async def get_available_providers_for_context_async(
-        self, db: AsyncSession, user_id: str, org_id: Optional[str]
+        self,
+        db: AsyncSession,
+        user_id: str,
+        org_id: Optional[str],
+        project_id: Optional[str] = None,
     ) -> List[str]:
         """Async twin of :meth:`get_available_providers_for_context`."""
         from sqlalchemy import or_ as _or
 
         from models import OrganizationGroup, OrganizationGroupMembership
+        from org_groups import resolve_project_group_for_org_async
         from services.user_api_key_service import user_api_key_service
 
-        if not org_id:
+        if not org_id or not await self._user_may_spend_org_key_async(db, user_id, org_id):
             return await user_api_key_service.get_user_available_providers_async(db, user_id)
 
-        require_private = await self._get_org_setting_require_private_keys_async(db, org_id)
+        org_settings = (
+            await db.execute(select(Organization.settings).where(Organization.id == org_id))
+        ).scalar_one_or_none()
+        if project_id:
+            scope_group = await resolve_project_group_for_org_async(db, project_id, org_id)
+            override = None
+            if scope_group:
+                override = (
+                    await db.execute(
+                        select(OrganizationGroup.require_private_keys).where(
+                            OrganizationGroup.id == scope_group,
+                            OrganizationGroup.organization_id == str(org_id),
+                        )
+                    )
+                ).scalar_one_or_none()
+            scopes = [(scope_group, override)]
+        else:
+            group_rows = await db.execute(
+                select(
+                    OrganizationGroupMembership.group_id,
+                    OrganizationGroup.require_private_keys,
+                )
+                .join(
+                    OrganizationGroup,
+                    OrganizationGroup.id == OrganizationGroupMembership.group_id,
+                )
+                .where(
+                    OrganizationGroupMembership.user_id == str(user_id),
+                    OrganizationGroup.organization_id == str(org_id),
+                )
+            )
+            scopes = [(None, None)] + [(r[0], r[1]) for r in group_rows.all()]
+        personal, key_groups, org_wide = self._plan_provider_scopes(org_settings, scopes)
 
-        if require_private or not await self._user_may_spend_org_key_async(
-            db, user_id, org_id
-        ):
-            return await user_api_key_service.get_user_available_providers_async(db, user_id)
-
-        group_rows = await db.execute(
-            select(OrganizationGroupMembership.group_id)
-            .join(
-                OrganizationGroup,
-                OrganizationGroup.id == OrganizationGroupMembership.group_id,
+        providers = set()
+        if personal:
+            providers.update(
+                await user_api_key_service.get_user_available_providers_async(db, user_id)
             )
-            .where(
-                OrganizationGroupMembership.user_id == str(user_id),
-                OrganizationGroup.organization_id == str(org_id),
+        if org_wide:
+            scope_clause = OrganizationApiKey.group_id.is_(None)
+            if key_groups:
+                scope_clause = _or(scope_clause, OrganizationApiKey.group_id.in_(key_groups))
+            records = await db.execute(
+                select(OrganizationApiKey.provider).where(
+                    OrganizationApiKey.organization_id == org_id, scope_clause
+                )
             )
-        )
-        group_ids = [r[0] for r in group_rows.all()]
-        scope_clause = OrganizationApiKey.group_id.is_(None)
-        if group_ids:
-            scope_clause = _or(scope_clause, OrganizationApiKey.group_id.in_(group_ids))
-        records = await db.execute(
-            select(OrganizationApiKey.provider).where(
-                OrganizationApiKey.organization_id == org_id, scope_clause
+            providers.update(
+                self.PROVIDER_DISPLAY_NAMES[r[0]]
+                for r in records.all()
+                if r[0] in self.PROVIDER_DISPLAY_NAMES
             )
-        )
-        providers_with_keys = {r[0] for r in records.all()}
-        return [
-            self.PROVIDER_DISPLAY_NAMES[p]
-            for p in self.SUPPORTED_PROVIDERS
-            if p in providers_with_keys
-        ]
+        return self._ordered_display_names(providers)
 
 
 # Create singleton instance
