@@ -122,3 +122,18 @@ export function profileFormFromProfile(
     ki_experience_scores: profile.ki_experience_scores,
   }
 }
+
+/**
+ * A saved profile as a patch for the auth user (`updateUser`). Drops
+ * `preferred_ui_mode`: the boot user deliberately never carries it, so
+ * merging a stored value from the profile response would switch the shell
+ * (student/expert) as a side effect of saving unrelated profile fields.
+ */
+export function authUserPatchFromProfile<T extends object>(
+  profile: T,
+): Omit<T, 'preferred_ui_mode'> {
+  const { preferred_ui_mode: _ignored, ...rest } = profile as T & {
+    preferred_ui_mode?: unknown
+  }
+  return rest
+}

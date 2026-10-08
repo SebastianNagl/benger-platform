@@ -89,6 +89,8 @@ class TestAuthModuleConsolidation:
         # degrade to None, not leak Mocks into the Pydantic model.
         assert user.vertretbar_onboarding_completed_at is None
         assert user.exam_layout_prefs is None
+        assert user.exam_bundesland is None
+        assert user.onboarding_state is None
 
     def test_db_user_to_user_carries_pref_fields(self):
         """The lean User mirrors the /auth/me pref extras: the Vertretbar
@@ -116,6 +118,26 @@ class TestAuthModuleConsolidation:
         # Legacy JSON-as-string row parses to a dict
         db_user.exam_layout_prefs = '{"mode": "modern"}'
         assert db_user_to_user(db_user).exam_layout_prefs == {"mode": "modern"}
+
+    def test_db_user_to_user_carries_onboarding_fields(self):
+        """The login-time user carries the onboarding state and Bundesland,
+        so the first-visit onboarding never re-opens on a fresh login."""
+        db_user = Mock(spec=DBUser)
+        db_user.id = "test-id"
+        db_user.username = "testuser"
+        db_user.email = "test@example.com"
+        db_user.name = "Test User"
+        db_user.is_superadmin = False
+        db_user.is_active = True
+        db_user.email_verified = True
+        db_user.created_at = datetime.now(timezone.utc)
+        db_user.organization_memberships = []
+        db_user.exam_bundesland = "NW"
+        db_user.onboarding_state = {"setup_skipped": True, "tours": {"student": 1}}
+
+        user = db_user_to_user(db_user)
+        assert user.exam_bundesland == "NW"
+        assert user.onboarding_state == {"setup_skipped": True, "tours": {"student": 1}}
 
     @patch("auth_module.service.db_authenticate_user")
     def test_authenticate_user_success(self, mock_db_auth):

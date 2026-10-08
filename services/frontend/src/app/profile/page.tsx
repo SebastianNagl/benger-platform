@@ -13,6 +13,7 @@ import { ProfilePersonalSection } from '@/components/profile/ProfilePersonalSect
 import { ProfilePrivacySection } from '@/components/profile/ProfilePrivacySection'
 import { ProfileResearchSection } from '@/components/profile/ProfileResearchSection'
 import {
+  authUserPatchFromProfile,
   profileFormFromProfile,
   type ProfileFormData,
   type UserProfile,
@@ -265,7 +266,8 @@ export default function ProfilePage() {
       setProfileForm(profileFormFromProfile(updatedProfile))
       // Skip the loadProfile re-fetch that updateUser will trigger
       skipLoadProfileRef.current = true
-      updateUser(updatedProfile) // Update the auth context
+      // Update the auth context (never the view mode, see the helper)
+      updateUser(authUserPatchFromProfile(updatedProfile))
       addToast(t('profile.updateSuccess'), 'success')
     } catch (error: unknown) {
       console.error('Failed to update profile:', error)

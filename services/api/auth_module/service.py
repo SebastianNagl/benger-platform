@@ -50,6 +50,8 @@ def db_user_to_user(db_user: DBUser) -> User:
             getattr(db_user, 'vertretbar_onboarding_completed_at', None)
         ),
         exam_layout_prefs=ensure_dict(getattr(db_user, 'exam_layout_prefs', None)),
+        exam_bundesland=getattr(db_user, 'exam_bundesland', None),
+        onboarding_state=ensure_dict(getattr(db_user, 'onboarding_state', None)),
         pseudonym=getattr(db_user, 'pseudonym', None),
         use_pseudonym=getattr(db_user, 'use_pseudonym', True),
     )
