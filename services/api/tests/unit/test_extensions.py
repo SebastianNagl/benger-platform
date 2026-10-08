@@ -134,7 +134,7 @@ class TestExtensionLoader:
         # persist_annotation_submission helper.
         # 2.32 adds users.exam_bundesland + users.onboarding_state, PUT
         # /auth/me/onboarding and the GlobalOnboarding slot.
-        assert CORE_API_VERSION == "2.32"
+        assert CORE_API_VERSION == "2.33"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""

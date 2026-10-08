@@ -20,10 +20,13 @@
  * warning needs the provider to be missing from all of them.
  *
  * Per organization, `GET /organizations/{id}/api-keys/available-models`
- * resolves providers the way `resolve_api_key` does for the caller, with one
- * blind spot: a project attached through a group the caller is not in spends
- * that group's own key first, and the endpoint does not report it. Absence is
- * only provable there when the organization requires private keys.
+ * lists the providers the caller can run in any of their scopes there (the
+ * organization-wide one and each of their groups, each by its own "who pays"
+ * setting), with one blind spot: a project attached through a group the
+ * caller is not in spends that group's own key first, and the endpoint does
+ * not report it. Absence is only provable there when members pay in that
+ * group (its own setting, else the organization's), and then from the
+ * personal keys.
  */
 
 import type { EvaluationConfig } from '@/lib/api/evaluation-types'
@@ -41,7 +44,9 @@ export interface NeededModels {
 export interface OrganizationKeyFacts {
   /** Providers the creator can run there, from available-models. */
   providers: string[] | null
-  /** The organization's `require_private_keys` setting. */
+  /** `require_private_keys` for the project's scope there: its group's
+   * effective setting when the project is scoped to a group, else the
+   * organization's. */
   requiresPrivateKeys: boolean | null
 }
 
@@ -132,6 +137,19 @@ export function hasNeededModels(needed: NeededModels): boolean {
   return needed.evaluation.length > 0 || needed.generation.length > 0
 }
 
+/** The group the project will be scoped to in `organizationId`, if any. */
+export function projectGroupId(
+  input: Pick<
+    KeyReadinessInput,
+    'visibility' | 'organizationIds' | 'organizationGroupIds'
+  >,
+  organizationId: string,
+): string | null {
+  return projectOrganizationIds(input).includes(organizationId)
+    ? (input.organizationGroupIds[organizationId] ?? null)
+    : null
+}
+
 /** The organizations the project will be attached to. The wizard's
  * visibility update replaces the attachments with exactly the selected ones,
  * and a private or public project gets none. */
@@ -210,15 +228,17 @@ function providerProvablyAbsentIn(
   if (facts.providers.some((p) => normalizeProvider(p) === provider)) {
     return false
   }
-  const group = projectOrganizationIds(input).includes(organizationId)
-    ? (input.organizationGroupIds[organizationId] ?? null)
-    : null
+  const group = projectGroupId(input, organizationId)
   if (!group) return true
   const memberGroups = hasOwn(input.memberships, organizationId)
     ? input.memberships[organizationId]
     : []
   if (memberGroups.includes(group)) return true
-  return facts.requiresPrivateKeys === true
+  // Members pay in that group: the creator's personal key decides.
+  return (
+    facts.requiresPrivateKeys === true &&
+    personalKeyProvablyMissing(provider, input)
+  )
 }
 
 /** True when every organization requires private keys, false when none

@@ -685,7 +685,7 @@ class TestOrgCredentialPrecedence:
     def patched_org_seams(self, monkeypatch):
         state = {"require_private": True, "org_key": None, "org_calls": []}
 
-        def _requires_private(db, org_id):
+        def _requires_private(db, org_id, group_id=None):
             return state["require_private"]
 
         def _get_org_credential(db, org_id, model_id):

@@ -30,21 +30,19 @@ from encryption_service import encryption_service
 logger = logging.getLogger(__name__)
 
 
-def org_requires_private_keys(db: Session, org_id: str) -> bool:
-    """Whether the org bills members individually (True) or provides shared
-    keys (False). Defaults to True.
+def org_requires_private_keys(db: Session, org_id: str, group_id: Optional[str] = None) -> bool:
+    """Whether members pay individually (True) or the org provides shared
+    keys (False) — for the org, or for one of its groups (the group's
+    override, else the org's). Defaults to True.
 
-    Same read as ``shared_org_api_key_service`` / ``org_api_key_service``:
-    ``Organization.settings.require_private_keys`` with a True default.
-    Kept here so the sync worker lane can resolve the shared-billing decision
-    without importing the org-api-key service.
+    Same rule as ``shared_org_api_key_service`` / ``org_api_key_service``
+    (``org_groups.require_private_keys_for``). Kept here so the sync worker
+    lane can resolve the shared-billing decision without importing the
+    org-api-key service.
     """
-    from models import Organization
+    from org_groups import require_private_keys_for
 
-    org = db.query(Organization).filter(Organization.id == org_id).first()
-    if not org or not org.settings:
-        return True
-    return org.settings.get("require_private_keys", True)
+    return require_private_keys_for(db, org_id, group_id)
 
 
 def get_org_credential(db: Session, org_id: str, model_id: str) -> Optional[str]:

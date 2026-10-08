@@ -394,13 +394,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [initializeAuth]) // Include initializeAuth to satisfy exhaustive deps
 
+  // Same source as initializeAuth: the /auth/me/contexts org entries carry
+  // the caller's group memberships (with group role), which /organizations
+  // lacks. Refreshing from /organizations dropped them, so a group admin who
+  // had just logged in saw no group, API key or invite controls until a
+  // full page reload.
   const refreshOrganizations = useCallback(async () => {
     try {
-      const orgs = await apiClient.getOrganizations()
-      setOrganizations(orgs)
-    } catch (error) {
-      // Failed to fetch organizations
-      setOrganizations([])
+      const contexts = await apiClient.getUserContexts()
+      setOrganizations(contexts.organizations)
+    } catch (ctxError) {
+      try {
+        const orgs = await apiClient.getOrganizations()
+        setOrganizations(orgs)
+      } catch (error) {
+        // Failed to fetch organizations
+        setOrganizations([])
+      }
     }
   }, [apiClient])
 

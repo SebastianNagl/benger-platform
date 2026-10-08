@@ -7595,7 +7595,6 @@
       "scopeLabel": "Geltungsbereich",
       "scopeOrgWide": "Gesamte Organisation",
       "scopeGroupHint": "Schlüssel dieser Gruppe. Gruppenprojekte verwenden zuerst die Gruppen-Schlüssel und fallen sonst auf die Organisations-Schlüssel zurück.",
-      "settingsOrgWideHint": "Diese Einstellung gilt für die gesamte Organisation und kann nur im Geltungsbereich „Gesamte Organisation“ geändert werden.",
       "scopeInactiveSuffix": " (inaktiv)",
       "orgProvidesToggle": "Organisation stellt API-Schlüssel bereit",
       "sharedKeysActive": "Gemeinsame API-Schlüssel sind aktiv. Mitglieder benötigen keine persönlichen Schlüssel.",
@@ -7651,7 +7650,14 @@
         }
       },
       "providerSection": "Provider-Schlüssel",
-      "customModelSection": "Schlüssel für eigene Modelle"
+      "customModelSection": "Schlüssel für eigene Modelle",
+      "groupPaysLabel": "Wer zahlt für KI-Aufrufe in Projekten dieser Gruppe?",
+      "groupPaysInheritOrg": "Wie die Organisation (derzeit: Organisation stellt Schlüssel bereit)",
+      "groupPaysInheritMembers": "Wie die Organisation (derzeit: Mitglieder nutzen eigene Schlüssel)",
+      "groupPaysOrg": "Organisation stellt Schlüssel bereit (Gruppen-Schlüssel, sonst Organisations-Schlüssel)",
+      "groupPaysMembers": "Mitglieder nutzen ihre eigenen Schlüssel",
+      "groupPaysHint": "Gilt nur für Projekte dieser Gruppe. Alle anderen Projekte der Organisation folgen der Einstellung unter „Gesamte Organisation“.",
+      "groupPaysSaved": "Einstellung für die Gruppe gespeichert"
     },
     "customModelKeys": {
       "dialogTitle": "Gemeinsame Schlüssel für eigene Modelle",

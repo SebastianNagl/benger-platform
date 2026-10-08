@@ -234,7 +234,10 @@ describe('AuthContext - coverage complement', () => {
     await waitForInit()
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+    mockApiClient.getUserContexts.mockResolvedValue({
+      user: mockUser,
+      organizations: [orgA],
+    })
     const before = window.location.href
     await act(async () => {
       await result.current.login('testuser', 'password123')
@@ -252,8 +255,11 @@ describe('AuthContext - coverage complement', () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
     mockApiClient.getUser.mockClear()
-    mockApiClient.getOrganizations.mockClear()
-    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+    mockApiClient.getUserContexts.mockClear()
+    mockApiClient.getUserContexts.mockResolvedValue({
+      user: mockUser,
+      organizations: [orgA],
+    })
 
     await act(async () => {
       await result.current.refreshAuth()
@@ -261,7 +267,47 @@ describe('AuthContext - coverage complement', () => {
     })
 
     expect(mockApiClient.getUser).toHaveBeenCalled()
-    expect(mockApiClient.getOrganizations).toHaveBeenCalled()
+    expect(mockApiClient.getUserContexts).toHaveBeenCalled()
+  })
+
+  it('refreshOrganizations keeps the group memberships from /auth/me/contexts', async () => {
+    // /organizations has no `groups`; refreshing from it hid every
+    // group-admin control until a full reload.
+    const withGroups = {
+      ...orgA,
+      groups: [{ id: 'g1', name: 'LS', is_active: true, role: 'ORG_ADMIN' }],
+    }
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitForInit()
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    mockApiClient.getOrganizations.mockClear()
+    mockApiClient.getUserContexts.mockResolvedValue({
+      user: mockUser,
+      organizations: [withGroups],
+    })
+
+    await act(async () => {
+      await result.current.refreshOrganizations()
+    })
+
+    expect(result.current.organizations).toEqual([withGroups])
+    expect(mockApiClient.getOrganizations).not.toHaveBeenCalled()
+  })
+
+  it('refreshOrganizations falls back to /organizations when contexts fail', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper })
+    await waitForInit()
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    mockApiClient.getUserContexts.mockRejectedValue(new Error('contexts down'))
+    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+
+    await act(async () => {
+      await result.current.refreshOrganizations()
+    })
+
+    expect(result.current.organizations).toEqual([orgA])
   })
 
   it('refreshAuth replaces the membership list', async () => {
@@ -269,7 +315,10 @@ describe('AuthContext - coverage complement', () => {
     await waitForInit()
     await waitFor(() => expect(result.current.isLoading).toBe(false))
 
-    mockApiClient.getOrganizations.mockResolvedValue([orgA])
+    mockApiClient.getUserContexts.mockResolvedValue({
+      user: mockUser,
+      organizations: [orgA],
+    })
 
     await act(async () => {
       await result.current.refreshAuth()

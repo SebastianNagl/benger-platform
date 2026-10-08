@@ -446,24 +446,40 @@ export class OrganizationsClient extends BaseApiClient {
   }
 
   /**
-   * Get API key settings for an organization
+   * Get API key settings for an organization, or for one of its groups.
+   * `require_private_keys` is the effective value for the scope; a group
+   * scope also returns the group's own setting (null = follows the org).
    */
   async getOrgApiKeySettings(
     orgId: string,
-  ): Promise<{ require_private_keys: boolean }> {
-    return this.get(`/organizations/${orgId}/api-keys/settings`)
+    groupId?: string,
+  ): Promise<{
+    require_private_keys: boolean
+    group_require_private_keys?: boolean | null
+    org_require_private_keys?: boolean
+  }> {
+    return this.get(
+      `/organizations/${orgId}/api-keys/settings${this.groupScopeQuery(groupId)}`,
+    )
   }
 
   /**
-   * Update API key settings for an organization
+   * Update who pays for AI calls in an organization, or in one of its groups
+   * (null = the group follows the organization again).
    */
   async updateOrgApiKeySettings(
     orgId: string,
-    requirePrivateKeys: boolean,
-  ): Promise<{ message: string; require_private_keys: boolean }> {
-    return this.put(`/organizations/${orgId}/api-keys/settings`, {
-      require_private_keys: requirePrivateKeys,
-    })
+    requirePrivateKeys: boolean | null,
+    groupId?: string,
+  ): Promise<{
+    message: string
+    require_private_keys?: boolean
+    group_require_private_keys?: boolean | null
+  }> {
+    return this.put(
+      `/organizations/${orgId}/api-keys/settings${this.groupScopeQuery(groupId)}`,
+      { require_private_keys: requirePrivateKeys },
+    )
   }
 
   /**

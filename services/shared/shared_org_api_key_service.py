@@ -18,14 +18,14 @@ class OrgApiKeyService:
     def __init__(self, encryption_service):
         self.encryption_service = encryption_service
 
-    def _get_org_setting_require_private_keys(self, db: Session, org_id: str) -> bool:
-        """Get the require_private_keys setting for an org. Defaults to True."""
-        from models import Organization
+    def _get_org_setting_require_private_keys(
+        self, db: Session, org_id: str, group_id: Optional[str] = None
+    ) -> bool:
+        """Effective require_private_keys for the org, or for one of its
+        groups (the group's override, else the org's). Defaults to True."""
+        from org_groups import require_private_keys_for
 
-        org = db.query(Organization).filter(Organization.id == org_id).first()
-        if not org or not org.settings:
-            return True
-        return org.settings.get("require_private_keys", True)
+        return require_private_keys_for(db, org_id, group_id)
 
     def _get_org_api_key(
         self, db: Session, org_id: str, provider: str, group_id: Optional[str] = None
@@ -101,23 +101,28 @@ class OrgApiKeyService:
         Resolve which API key to use based on context.
 
         - If org_id is None: use personal key
-        - If org requires private keys: use personal key
-        - If org provides keys: use org key (None if not set) — but only for
-          an active member or a superadmin; anyone else degrades to their
-          personal key ("individual pays") instead of spending org money.
+        - If members pay in the scope: use personal key
+        - If the org provides keys in the scope: use org key (None if not
+          set) — but only for an active member or a superadmin; anyone else
+          degrades to their personal key ("individual pays") instead of
+          spending org money.
+
+        The scope is the project's attachment group (or ``group_id`` below);
+        a group's own ``require_private_keys`` overrides the org's
+        (``org_groups.require_private_keys_for``).
 
         ``org_billing_authorized`` is a policy-asserted flag: set True ONLY
         by code that re-derived the caller's consumer entitlement from the
         DB in the same process (the extended dispatch policy / flashcard
         worker recompute) — never from HTTP or task-payload input. It
         bypasses only the membership gate, never the require_private_keys
-        check: an org that requires private keys is never charged.
+        check: a scope whose members pay is never charged.
 
-        ``project_id`` selects WHICH org key row is spent: when the
-        project's attachment to ``org_id`` is scoped to an organization
-        group, that group's key is tried first, falling back to the org-wide
-        row (a group without its own key spends the org's shared pool, never
-        another group's). The key follows the PROJECT's attachment, not the
+        ``project_id`` selects the scope and WHICH org key row is spent: when
+        the project's attachment to ``org_id`` is scoped to an organization
+        group, that group's setting decides who pays and that group's key is
+        tried first, falling back to the org-wide row (a group without its
+        own key spends the org's shared pool, never another group's). The key follows the PROJECT's attachment, not the
         dispatching user's groups — an org admin grading a group exam spends
         that group's key. Callers that omit ``project_id`` resolve the
         org-wide row only.
@@ -135,7 +140,22 @@ class OrgApiKeyService:
         if not org_id:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
 
-        require_private = self._get_org_setting_require_private_keys(db, org_id)
+        # The scope: the project's attachment group, or the group a project
+        # being created will be scoped to (only for someone allowed to).
+        scope_group = None
+        if project_id:
+            from org_groups import resolve_project_group_for_org
+
+            scope_group = resolve_project_group_for_org(db, project_id, org_id)
+        elif group_id:
+            from org_groups import user_may_scope_to_group
+
+            if user_may_scope_to_group(db, user_id, org_id, group_id):
+                scope_group = str(group_id)
+
+        require_private = self._get_org_setting_require_private_keys(
+            db, org_id, scope_group
+        )
 
         if require_private:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
@@ -151,16 +171,6 @@ class OrgApiKeyService:
             return user_api_key_service.get_user_api_key(db, user_id, provider)
         # Org pays - use org key only (None if not set = provider unavailable).
         # Group-scoped projects spend their group's key first.
-        scope_group = None
-        if project_id:
-            from org_groups import resolve_project_group_for_org
-
-            scope_group = resolve_project_group_for_org(db, project_id, org_id)
-        elif group_id:
-            from org_groups import user_may_scope_to_group
-
-            if user_may_scope_to_group(db, user_id, org_id, group_id):
-                scope_group = str(group_id)
         if scope_group:
             group_key = self._get_org_api_key(db, org_id, provider, scope_group)
             if group_key is not None:

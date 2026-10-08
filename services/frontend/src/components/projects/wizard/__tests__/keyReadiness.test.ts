@@ -429,8 +429,18 @@ describe('decideKeyWarnings: evaluation', () => {
       expect(decideKeyWarnings(grouped([], null))).toEqual([])
     })
 
-    it('can when the organization requires private keys', () => {
+    it('can when members pay in that group', () => {
       expect(decideKeyWarnings(grouped([], true))).toHaveLength(1)
+    })
+
+    it('then asks the personal keys, which the organization list may omit', () => {
+      // The organization pays for the creator's own scopes (so its list has
+      // no personal keys) while members pay in the project's group.
+      const withPersonal = (personalProviders: string[] | null) =>
+        decideKeyWarnings({ ...grouped([], true), personalProviders })
+      expect(withPersonal(['OpenAI'])).toEqual([])
+      expect(withPersonal(null)).toEqual([])
+      expect(withPersonal(['anthropic'])).toHaveLength(1)
     })
 
     it('can when the creator belongs to the group', () => {

@@ -440,11 +440,25 @@ whenever one is added, renamed or removed):
   links (``nav-<path>``) and the account menu (``account-menu``),
   ``apiClient.setOnboardingState``, the ``BUNDESLAENDER``
   codebook (``lib/profile/bundeslaender.ts``) and the ``driver.js`` dependency.
+
+2.33 (2026-10-08): who pays per group. Migration 115 adds
+  ``organization_groups.require_private_keys`` (nullable Boolean; NULL =
+  follow the org's ``settings.require_private_keys``). New ``org_groups``
+  helpers ``effective_require_private_keys(org_settings, group_override)``,
+  ``require_private_keys_for[_async](db, org_id, group_id=None)`` and
+  ``org_pays_for_project(db, org_id, project=None)``; key resolution, provider
+  availability, the BYOM org-credential fallback and the extended billing
+  policy read the effective value for the project's attachment group. A
+  paying group spends its own key, then the org-wide key.
+  ``GET/PUT /api/organizations/{id}/api-keys/settings`` take ``group_id``
+  (group scope: org admins and that group's admins; ``null`` = follow the
+  org). ``get_available_providers_for_context[_async]`` and
+  ``resolve_custom_model_credentials_async`` take ``project_id``.
 """
 
 import os
 
-CORE_API_VERSION = "2.32"
+CORE_API_VERSION = "2.33"
 
 
 def extended_required() -> bool:

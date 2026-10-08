@@ -437,7 +437,7 @@ async def test_available_models_scope_comes_from_the_request(
     w = await _world(db)
     seen = []
 
-    async def _providers(db_, user_id, org_id):
+    async def _providers(db_, user_id, org_id, project_id=None):
         seen.append(org_id)
         return []
 

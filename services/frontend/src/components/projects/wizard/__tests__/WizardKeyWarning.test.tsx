@@ -329,6 +329,42 @@ describe('WizardKeyWarning', () => {
     )
   })
 
+  it("asks for the who-pays setting of the project's group", async () => {
+    mockAuth = {
+      user: { is_superadmin: false },
+      organizations: [
+        {
+          ...LMU,
+          groups: [
+            { id: 'group-lehrstuhl', name: 'Lehrstuhl', role: 'CONTRIBUTOR' },
+          ],
+        },
+      ],
+    }
+    const data = judgedProject({
+      visibility: 'organization',
+      organizationIds: ['org-lmu'],
+      organizationGroupIds: { 'org-lmu': 'group-lehrstuhl' },
+    })
+    const { rerender } = render(<WizardKeyWarning data={data} />)
+
+    await waitFor(() =>
+      expect(mockGetOrgApiKeySettings).toHaveBeenCalledWith(
+        'org-lmu',
+        'group-lehrstuhl',
+      ),
+    )
+    // Moving the project to the whole organization asks again.
+    rerender(
+      <WizardKeyWarning
+        data={{ ...data, organizationGroupIds: { 'org-lmu': null } }}
+      />,
+    )
+    await waitFor(() =>
+      expect(mockGetOrgApiKeySettings).toHaveBeenCalledWith('org-lmu'),
+    )
+  })
+
   it('shows the organization id when its name is unknown', async () => {
     mockAuth = { user: { is_superadmin: true }, organizations: [] }
     render(

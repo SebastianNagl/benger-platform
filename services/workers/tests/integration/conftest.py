@@ -283,6 +283,10 @@ def _schema(_eager_celery):
             "ALTER TABLE projects ADD COLUMN IF NOT EXISTS "
             "seb_required BOOLEAN NOT NULL DEFAULT false",
             "ALTER TABLE projects ADD COLUMN IF NOT EXISTS seb_config JSONB",
+            # Migration 115: per-group "who pays" override; key resolution
+            # reads it for every group-scoped project.
+            "ALTER TABLE organization_groups ADD COLUMN IF NOT EXISTS "
+            "require_private_keys BOOLEAN",
         ):
             conn.execute(text(_ddl))
     yield

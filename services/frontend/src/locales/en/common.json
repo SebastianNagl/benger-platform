@@ -7477,7 +7477,6 @@
       "scopeLabel": "Scope",
       "scopeOrgWide": "Whole organization",
       "scopeGroupHint": "Keys of this group. Group projects use group keys first and fall back to the organization-wide keys.",
-      "settingsOrgWideHint": "This setting applies to the whole organization and can only be changed in the \"Whole organization\" scope.",
       "scopeInactiveSuffix": " (inactive)",
       "dialogDescription": "Configure how API keys are managed for this organization.",
       "orgProvidesToggle": "Organization provides API keys",
@@ -7534,7 +7533,14 @@
         }
       },
       "providerSection": "Provider keys",
-      "customModelSection": "Custom model keys"
+      "customModelSection": "Custom model keys",
+      "groupPaysLabel": "Who pays for AI calls on this group's projects?",
+      "groupPaysInheritOrg": "Same as the organization (currently: organization provides keys)",
+      "groupPaysInheritMembers": "Same as the organization (currently: members use their own keys)",
+      "groupPaysOrg": "Organization provides keys (group key, else the organization-wide key)",
+      "groupPaysMembers": "Members use their own keys",
+      "groupPaysHint": "Applies only to projects of this group. All other projects of the organization follow the \"Whole organization\" setting.",
+      "groupPaysSaved": "Group setting saved"
     },
     "customModelKeys": {
       "dialogTitle": "Shared Custom Model Keys",
