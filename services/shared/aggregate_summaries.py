@@ -523,8 +523,24 @@ def _leaderboard_src_sql(bucket_expr: str, *, model_filter: bool = False) -> str
     When `:eval_types` is NULL the `... = ANY(:eval_types) OR :eval_types IS
     NULL` shape collapses to a no-op via the IS NULL branch. Postgres typed
     cast on the bind param so the comparison stays type-safe.
+
+    With `model_filter`, the redundant `te.generation_id = ANY(ARRAY(...))`
+    init-plan makes Postgres fetch the model's rows through the
+    generation_id index. Without it the planner underestimates
+    `evaluation_id = ANY(:run_ids)` (~400 rows for a 500-run list that
+    really matches 240k), seq-scans every TaskEvaluation of those runs
+    (reading the large metrics JSON) and only then drops the other models
+    via the generations join: 16 s for one model in prod on 2026-10-08,
+    past the API's 15 s statement_timeout, against 2 s with the init-plan.
     """
-    model_clause = "AND g.model_id = :model_id" if model_filter else ""
+    model_clause = (
+        """AND g.model_id = :model_id
+              AND te.generation_id = ANY(ARRAY(
+                  SELECT gm.id FROM generations gm WHERE gm.model_id = :model_id
+              ))"""
+        if model_filter
+        else ""
+    )
     return f"""
             SELECT
                 {bucket_expr} AS bucket,
