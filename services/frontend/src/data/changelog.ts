@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-09',
     audience: 'benger',
     text: {
+      de: 'Unter „Meine Aufgaben“ zeigt jede Zeile jetzt das Ergebnis deiner Abgabe: Notenpunkte, bei einem Bewertungsbogen auch die Bewertungseinheiten, bestanden oder nicht und ob die Bewertung noch läuft. Ein Klick auf die Zeile öffnet die vollständige Korrektur dieser Aufgabe im Vollbild. Der Ergebnisblock über der Liste entfällt dafür.',
+      en: 'Under "My Tasks" every row now shows the result of your submission: grade points, for a grading sheet also the points per sheet, passed or not, and whether the grading is still running. Clicking the row opens the full grading of that task in full screen. The result block above the list is gone in return.',
+    },
+  },
+  {
+    date: '2026-10-09',
+    audience: 'benger',
+    text: {
       de: 'In den Projekteinstellungen lässt sich jetzt getrennt von der Musterlösung festlegen, ob Annotatoren nach ihrer Abgabe die einzelnen Schritte ihrer Bewertung sehen, also Punkte und Begründung je Schritt des Bewertungsbogens. So kann die Musterlösung verborgen bleiben, während die Bewertung nachvollziehbar ist.',
       en: 'The project settings now let you decide separately from the reference solution whether annotators see the individual steps of their grading after submitting, that is the points and reason for each step of the grading sheet. The reference solution can stay hidden while the grading remains easy to follow.',
     },

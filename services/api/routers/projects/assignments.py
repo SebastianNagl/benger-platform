@@ -621,6 +621,13 @@ async def get_my_tasks(
     evaluation_task_ids = extensions.tasks_with_evaluation_for_user(
         db, project_id, current_user.id, task_ids
     )
+    # Per-row result of the user's own submission (grade, pass, waiting for
+    # the grading, human Korrektur). Computed per page by the extended edition
+    # from the same source as its full review; empty in the community edition,
+    # where the row shows no result.
+    grade_summaries = extensions.task_grade_summaries_for_user(
+        db, project_id, current_user.id, task_ids
+    )
 
     # Bulk-fetch this user's TaskAssignments for the page. Replaces the
     # per-task SELECT that previously fired N+1 times.
@@ -647,6 +654,7 @@ async def get_my_tasks(
             "is_labeled": task.is_labeled,
             "has_feedback": task.id in feedback_task_ids,
             "has_evaluation": task.id in evaluation_task_ids,
+            "grade_summary": grade_summaries.get(str(task.id)),
             "assignment": (
                 {
                     "id": assignment.id,

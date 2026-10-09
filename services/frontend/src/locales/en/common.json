@@ -1673,8 +1673,16 @@
       "evaluationAvailable": "Evaluation",
       "due": "Due",
       "result": {
-        "pick": "Task",
-        "loadError": "The grading could not be loaded."
+        "points": "{points} / 18 points",
+        "be": "{score} / {max} BE",
+        "passed": "Passed",
+        "notPassed": "Not passed",
+        "graded": "Graded",
+        "pending": "Grading in progress",
+        "waiting": "Waiting for grading",
+        "submitted": "Submitted",
+        "sourceAi": "AI grading",
+        "sourceHuman": "Human grading"
       }
     },
     "review": {
@@ -10088,7 +10096,8 @@
           "ki": "AI grading",
           "human": "Human grading"
         },
-        "taskPicker": "Exam",
+        "tasksTitle": "Your exams",
+        "openTasks": "{count} of {total} exams still open",
         "taskFallback": "Exam {n}",
         "beLine": "{score} / {max} BE"
       },
