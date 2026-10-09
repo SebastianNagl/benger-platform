@@ -1221,6 +1221,9 @@ class TestRoundtripExtensions:
         project.is_public = True
         project.public_role = "ANNOTATOR"
         project.annotator_full_visibility_after_submit = True
+        # Explicitly the opposite of the reference switch, so a dropped key
+        # (NULL = follow it) would show.
+        project.annotator_step_detail_after_submit = False
         project.immediate_evaluation_enabled = True
         project.annotation_time_limit_enabled = True
         project.annotation_time_limit_seconds = 5400
@@ -1240,6 +1243,7 @@ class TestRoundtripExtensions:
         assert proj["icon"] == "📝"
         assert proj["annotation_time_limit_seconds"] == 5400
         assert proj["skip_queue"] == "ignore_skipped"
+        assert proj["annotator_step_detail_after_submit"] is False
         assert proj["enable_generation"] is False
         for key in ("is_private", "is_public", "public_role", "origin"):
             assert key not in proj, f"visibility/origin key exported: {key}"
@@ -1257,6 +1261,7 @@ class TestRoundtripExtensions:
         assert imported.kind == "exam"
         assert imported.icon == "📝"
         assert imported.annotator_full_visibility_after_submit is True
+        assert imported.annotator_step_detail_after_submit is False
         assert imported.immediate_evaluation_enabled is True
         assert imported.annotation_time_limit_enabled is True
         assert imported.annotation_time_limit_seconds == 5400

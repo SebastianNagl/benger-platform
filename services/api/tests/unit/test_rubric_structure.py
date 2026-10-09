@@ -720,3 +720,49 @@ class TestGradeForRubricWithProjectConfig:
         assert grade_for_rubric(row, 80, 100) == (13, True, "default")
         assert grade_for_rubric(row, 80, 100, None) == (13, True, "default")
         assert grade_for_rubric(row, 80, 100, {}) == (13, True, "default")
+
+
+class TestWithoutGuidance:
+    """Sheets served to a submitter who sees the grading steps but not the
+    reference (migration 116): no hints, notes or judge prose."""
+
+    def _structure(self):
+        return {
+            "version": 1,
+            "nodes": [
+                {"id": "n1", "level": 0, "kind": "section", "label": "A.", "title": "Zulässigkeit", "note": "Nur kurz"},
+                {"id": "n2", "level": 1, "kind": "step", "label": "I.", "title": "VRW", "key": "s01_vrw",
+                 "max_score": 4, "emphasis": "schwerpunkt", "note": None, "hints": ["§ 40 VwGO", "§ 54 BeamtStG"]},
+            ],
+        }
+
+    def test_structure_keeps_outline_drops_guidance(self):
+        from rubric_structure import structure_without_guidance
+
+        original = self._structure()
+        out = structure_without_guidance(original)
+        assert [n["title"] for n in out["nodes"]] == ["Zulässigkeit", "VRW"]
+        assert out["nodes"][1]["max_score"] == 4
+        assert out["nodes"][1]["key"] == "s01_vrw"
+        assert out["nodes"][1]["emphasis"] == "schwerpunkt"
+        assert out["nodes"][1]["hints"] == []
+        assert all(n["note"] is None for n in out["nodes"])
+        assert "hints" not in out["nodes"][0]
+        # The input is never mutated.
+        assert original["nodes"][1]["hints"] == ["§ 40 VwGO", "§ 54 BeamtStG"]
+        assert original["nodes"][0]["note"] == "Nur kurz"
+
+    def test_criteria_keep_name_and_budget(self):
+        from rubric_structure import criteria_from_structure, criteria_without_guidance
+
+        crit = criteria_from_structure(self._structure())
+        out = criteria_without_guidance(crit)
+        assert out == {"s01_vrw": {"name": "VRW", "description": "", "rubric": "", "max_score": 4}}
+        assert "§ 40 VwGO" in crit["s01_vrw"]["description"]
+
+    @pytest.mark.parametrize("value", [None, "x", []])
+    def test_non_dicts_pass_through(self, value):
+        from rubric_structure import criteria_without_guidance, structure_without_guidance
+
+        assert structure_without_guidance(value) == value
+        assert criteria_without_guidance(value) == value

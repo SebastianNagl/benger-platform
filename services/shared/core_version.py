@@ -454,11 +454,24 @@ whenever one is added, renamed or removed):
   (group scope: org admins and that group's admins; ``null`` = follow the
   org). ``get_available_providers_for_context[_async]`` and
   ``resolve_custom_model_credentials_async`` take ``project_id``.
+
+2.34 (2026-10-09): grading steps after submit, separate from the reference.
+  Migration 116 adds ``projects.annotator_step_detail_after_submit``
+  (nullable Boolean; NULL = follow ``annotator_full_visibility_after_submit``)
+  on ProjectUpdate/ProjectResponse and the project export/import. New shared
+  module ``solution_reveal`` (``reference_revealed(project)``,
+  ``step_detail_revealed(project)``) and the pure
+  ``rubric_structure.structure_without_guidance`` /
+  ``criteria_without_guidance`` (a sheet without step hints and section
+  notes). ``blinding.step_detail_task_ids_async`` /
+  ``submitted_task_ids_async``; the task-rubrics reads serve a submitter the
+  bare outline when only the steps are revealed. The extended student,
+  Korrektur and immediate-evaluation reads import both shared modules.
 """
 
 import os
 
-CORE_API_VERSION = "2.33"
+CORE_API_VERSION = "2.34"
 
 
 def extended_required() -> bool:

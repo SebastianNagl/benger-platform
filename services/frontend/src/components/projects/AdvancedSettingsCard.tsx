@@ -42,6 +42,8 @@ export interface AdvancedSettings {
   assignment_mode: 'open' | 'manual' | 'auto'
   randomize_task_order: boolean
   annotator_full_visibility_after_submit: boolean
+  // null = follow annotator_full_visibility_after_submit (server default)
+  annotator_step_detail_after_submit: boolean | null
   review_enabled: boolean
   review_mode: 'in_place' | 'independent' | 'both'
   allow_self_review: boolean
@@ -274,7 +276,7 @@ export function AdvancedSettingsCard({
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.annotationBehavior.annotatorFullVisibilityHelp',
-                        'When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden.',
+                        'When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden. The grading steps are controlled by the setting below.',
                       )}
                     </p>
                   </div>
@@ -288,6 +290,39 @@ export function AdvancedSettingsCard({
                         ...prev,
                         annotator_full_visibility_after_submit:
                           e.target.checked,
+                      }))
+                    }
+                    disabled={!editing}
+                    className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>
+                      {t(
+                        'project.settings.annotationBehavior.annotatorStepDetail',
+                        'Show grading steps after submission',
+                      )}
+                    </Label>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                      {t(
+                        'project.settings.annotationBehavior.annotatorStepDetailHelp',
+                        "When on, annotators see the points and reasons for each step of the grading sheet after submitting. The grade and the total points always show. The sheet's hints stay hidden unless the reference solution is shown. Until you change it, this follows the setting above.",
+                      )}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    data-testid="annotator-step-detail-toggle"
+                    checked={
+                      advancedSettings.annotator_step_detail_after_submit ??
+                      advancedSettings.annotator_full_visibility_after_submit
+                    }
+                    onChange={(e) =>
+                      setAdvancedSettings((prev: any) => ({
+                        ...prev,
+                        annotator_step_detail_after_submit: e.target.checked,
                       }))
                     }
                     disabled={!editing}

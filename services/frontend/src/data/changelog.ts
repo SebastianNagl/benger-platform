@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-09',
+    audience: 'benger',
+    text: {
+      de: 'In den Projekteinstellungen lässt sich jetzt getrennt von der Musterlösung festlegen, ob Annotatoren nach ihrer Abgabe die einzelnen Schritte ihrer Bewertung sehen, also Punkte und Begründung je Schritt des Bewertungsbogens. So kann die Musterlösung verborgen bleiben, während die Bewertung nachvollziehbar ist.',
+      en: 'The project settings now let you decide separately from the reference solution whether annotators see the individual steps of their grading after submitting, that is the points and reason for each step of the grading sheet. The reference solution can stay hidden while the grading remains easy to follow.',
+    },
+  },
+  {
     date: '2026-10-08',
     audience: 'benger',
     text: {

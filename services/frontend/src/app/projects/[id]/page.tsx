@@ -384,6 +384,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     assignment_mode: 'open' as 'open' | 'manual' | 'auto',
     randomize_task_order: false,
     annotator_full_visibility_after_submit: false,
+    // null = follow annotator_full_visibility_after_submit
+    annotator_step_detail_after_submit: null as boolean | null,
     review_enabled: false,
     review_mode: 'in_place' as 'in_place' | 'independent' | 'both',
     allow_self_review: false,
@@ -747,6 +749,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
         annotator_full_visibility_after_submit:
           (currentProject as any).annotator_full_visibility_after_submit ||
           false,
+        annotator_step_detail_after_submit:
+          (currentProject as any).annotator_step_detail_after_submit ?? null,
         review_enabled: currentProject.review_enabled || false,
         review_mode: currentProject.review_mode || 'in_place',
         allow_self_review: currentProject.allow_self_review || false,

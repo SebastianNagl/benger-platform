@@ -53,6 +53,7 @@ function makeSettings(
     assignment_mode: 'open',
     randomize_task_order: false,
     annotator_full_visibility_after_submit: false,
+    annotator_step_detail_after_submit: null,
     review_enabled: false,
     review_mode: 'in_place',
     allow_self_review: false,
@@ -245,6 +246,46 @@ describe('AdvancedSettingsCard', () => {
           annotator_full_visibility_after_submit: true,
         }),
       )
+    })
+
+    it('shows the step toggle following the reference switch while unset', () => {
+      render(
+        <Harness
+          initial={{
+            annotator_full_visibility_after_submit: true,
+            annotator_step_detail_after_submit: null,
+          }}
+        />,
+      )
+      expect(
+        checkboxForLabel(/Show grading steps after submission/i).checked,
+      ).toBe(true)
+    })
+
+    it('sets annotator_step_detail_after_submit explicitly, independent of the reference', async () => {
+      const user = userEvent.setup()
+      const onChange = jest.fn()
+      render(
+        <Harness
+          initial={{
+            annotator_full_visibility_after_submit: false,
+            annotator_step_detail_after_submit: null,
+          }}
+          onChange={onChange}
+        />,
+      )
+      const cb = checkboxForLabel(/Show grading steps after submission/i)
+      expect(cb.checked).toBe(false)
+      await user.click(cb)
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotator_full_visibility_after_submit: false,
+          annotator_step_detail_after_submit: true,
+        }),
+      )
+      expect(
+        checkboxForLabel(/Reveal all fields after submission/i).checked,
+      ).toBe(false)
     })
   })
 

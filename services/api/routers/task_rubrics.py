@@ -17,7 +17,9 @@ Platform owns the ``task_rubrics`` persistence, the structure contract
 Reads need the project-view gate, and a rubric is solution content: it is
 served to those who may see every task's content (editors and contributors,
 on a Safe Exam Browser exam editors only) and, on projects that reveal the
-solution after submitting, to a member for the tasks they have submitted.
+solution after submitting, to a member for the tasks they have submitted
+(on projects that reveal only the grading steps, without the step hints and
+section notes).
 Writes use the editor gate (creator / superadmin / org ADMIN+CONTRIBUTOR).
 The AI generation workflow and the Vertretbar exam flows live in
 benger_extended and call the same shared service.
@@ -41,8 +43,15 @@ from routers.projects.helpers import (
     can_read_all_task_content_async,
     check_user_can_edit_project_async,
 )
-from routers.projects.tasks.blinding import revealed_task_ids_async
-from rubric_structure import render_structure_text
+from routers.projects.tasks.blinding import (
+    revealed_task_ids_async,
+    step_detail_task_ids_async,
+)
+from rubric_structure import (
+    criteria_without_guidance,
+    render_structure_text,
+    structure_without_guidance,
+)
 from services.rubric_import import MAX_RUBRIC_FILE_BYTES, RubricImportError, parse_rubric_file
 from task_rubric_service import (
     UNSET,
@@ -196,35 +205,52 @@ async def _get_project_rubric(db: AsyncSession, project_id: str, rubric_id: str)
 
 async def _readable_rubric_task_ids(
     db: AsyncSession, user: User, project: Project, task_ids
-) -> Optional[set]:
+) -> Optional[Dict[str, bool]]:
     """Which of ``task_ids`` the caller may read rubrics for, ``None`` = all.
 
-    A rubric spells out the expected solution, so a plain member or exam
-    participant gets it under the same rule as the unblinded task data: only
-    for a task they submitted, and only when the project reveals the solution
-    after submitting. They then see the sheet in force (see
-    :func:`_revealed_view`), not the drafts.
+    A rubric's guidance (step hints, section notes) spells out the expected
+    solution, so a plain member or exam participant gets a sheet only for a
+    task they submitted, and then:
+
+    - with the guidance (``True``) when the project reveals the solution
+      after submitting, the same rule as the unblinded task data;
+    - as a bare outline (``False``: titles, budgets, structure) when the
+      project reveals only the grading steps
+      (``solution_reveal.step_detail_revealed``).
+
+    Either way they see the sheet in force (see :func:`_revealed_view`), not
+    the drafts.
     """
     if await can_read_all_task_content_async(db, user, project):
         return None
-    return await revealed_task_ids_async(db, user, project, task_ids)
+    ids = list(task_ids)
+    full = await revealed_task_ids_async(db, user, project, ids)
+    steps = await step_detail_task_ids_async(db, user, project, ids)
+    readable = {task_id: False for task_id in steps}
+    readable.update({task_id: True for task_id in full})
+    return readable
 
 
-def _revealed_view(rubric: TaskRubric) -> Optional[TaskRubricResponse]:
+def _revealed_view(
+    rubric: TaskRubric, *, with_guidance: bool = True
+) -> Optional[TaskRubricResponse]:
     """What a member sees of a revealed task's rubric: the active sheet,
-    without how it was made (generator, prompt, author). ``None`` for
-    candidates and archived versions, which are the editors' drafts."""
+    without how it was made (generator, prompt, author), and without its
+    guidance text unless ``with_guidance``. ``None`` for candidates and
+    archived versions, which are the editors' drafts."""
     if rubric.status != "active":
         return None
-    return TaskRubricResponse.model_validate(rubric).model_copy(
-        update={
-            "generator_model_id": None,
-            "prompt_key": None,
-            "prompt_version": None,
-            "generation_metadata": None,
-            "created_by": None,
-        }
-    )
+    update: Dict[str, Any] = {
+        "generator_model_id": None,
+        "prompt_key": None,
+        "prompt_version": None,
+        "generation_metadata": None,
+        "created_by": None,
+    }
+    if not with_guidance:
+        update["structure"] = structure_without_guidance(rubric.structure)
+        update["criteria"] = criteria_without_guidance(rubric.criteria)
+    return TaskRubricResponse.model_validate(rubric).model_copy(update=update)
 
 
 def _status_response(rubric: TaskRubric) -> RubricStatusResponse:
@@ -322,7 +348,11 @@ async def list_task_rubrics(
     )
     if readable is None:
         return rubrics
-    views = (_revealed_view(r) for r in rubrics if r.task_id in readable)
+    views = (
+        _revealed_view(r, with_guidance=readable[r.task_id])
+        for r in rubrics
+        if r.task_id in readable
+    )
     return [view for view in views if view is not None]
 
 
@@ -340,7 +370,11 @@ async def get_task_rubric(
     )
     if readable is None:
         return rubric
-    view = _revealed_view(rubric) if rubric.task_id in readable else None
+    view = (
+        _revealed_view(rubric, with_guidance=readable[rubric.task_id])
+        if rubric.task_id in readable
+        else None
+    )
     if view is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
