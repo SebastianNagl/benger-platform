@@ -497,22 +497,11 @@ _ROMAN_NUMERALS = frozenset({
     "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x",
     "xi", "xii", "xiii", "xiv", "xv", "xvi", "xvii", "xviii", "xix", "xx",
 })
-# Edge rules (see _edges_ok). Words that make the text after them a question
-# or a condition; words that cast doubt on it; words that open a clause whose
-# content the clause in front of it governs ("Es ist nicht ersichtlich, dass
-# …"); and the conjunctions that end a clause scan.
+# Edge rules (see _edges_ok). Question and condition words, which a token
+# match never steps over (see _tokens_in_order); words that open a clause
+# whose content the clause in front of it governs ("Es ist nicht
+# ersichtlich, dass …"); and the conjunctions that end a clause scan.
 _EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit", "inwieweit", "inwiefern"})
-_EDGE_CONDITION_WORDS = frozenset({"wenn", "sofern", "soweit", "falls"})
-# Modal verbs that leave a statement open ("könnte", "kann", "dürfte"); a
-# quote holding one is no result a following condition could limit.
-_HEDGE_TOKENS = frozenset({
-    "kann", "können", "könnte", "könnten", "dürfte", "dürften", "müsste", "müssten",
-    "würde", "würden", "wäre", "wären", "hätte", "hätten", "käme", "kämen", "mag", "möge",
-})
-_DOUBT_WORDS = frozenset({
-    "fraglich", "zweifelhaft", "unklar", "ungewiss", "problematisch", "streitig", "bestritten", "bestreitet",
-    "bezweifelt", "behauptet",
-})
 _CONTENT_CLAUSE_OPENERS = frozenset({"dass", "ob", "inwieweit", "inwiefern", "warum", "weshalb", "wieso"})
 # Subordinating conjunctions: they open a clause of their own, so a scan
 # around a match stops at them.
@@ -719,6 +708,10 @@ class EvidenceIndex:
         self.text = _normalize_evidence_text(answer)
         spans = [m.span() for m in _WORD_RE.finditer(self.text)]
         self.tokens = [self.text[s:e] for s, e in spans]
+        # Where each token occurs (for :func:`_substituted_fragment_in_answer`).
+        self.positions: Dict[str, List[int]] = {}
+        for pos, token in enumerate(self.tokens):
+            self.positions.setdefault(token, []).append(pos)
         self.starts = [s for s, _e in spans]
         self.ends = [e for _s, e in spans]
         # Position in ``text`` of every character of ``compact``.
@@ -794,18 +787,16 @@ def _gap_level(index: "EvidenceIndex", before: int, gap_start: int, gap_end: int
     return 1 if "," in gap else 0
 
 
-def _turns_round_after(index: "EvidenceIndex", j: int, hedged: bool = False) -> bool:
-    """Does token ``j``, standing after a match, negate or condition it? A
-    negation (but not "ohne Weiteres" or "ohne Zweifel"), "(-)" or a
-    condition word. A condition does not turn round a ``hedged`` match (see
-    :data:`_HEDGE_TOKENS`): "die Frist könnte ein Jahr betragen, wenn …"
-    states the condition the quote already leaves open."""
+def _turns_round_after(index: "EvidenceIndex", j: int) -> bool:
+    """Does token ``j``, standing after a match, negate it? A negation (but
+    not "ohne Weiteres" or "ohne Zweifel") or "(-)". A condition ("…, wenn",
+    "…, soweit") only limits the quote and does not count: the judge weighs
+    what the passage is worth, the check only guards against quotes the
+    answer turns into their opposite."""
     token = index.tokens[j]
     if token == "ohne" and j + 1 < len(index.tokens) and index.tokens[j + 1] in _AFFIRMING_AFTER_OHNE:
         return False
-    if hedged and token in _EDGE_CONDITION_WORDS:
-        return False
-    return _is_negation(token) or token == "negativ" or token in _EDGE_CONDITION_WORDS
+    return _is_negation(token) or token == "negativ"
 
 
 def _opens_clause(index: EvidenceIndex, k: int) -> bool:
@@ -818,8 +809,11 @@ def _opens_clause(index: EvidenceIndex, k: int) -> bool:
 
 
 def _turns_round_before(token: str) -> bool:
-    """A negation, a question or condition word, or a doubt word."""
-    return _is_negation(token) or token in _EDGE_BEFORE_WORDS or token in _DOUBT_WORDS
+    """A negation. Question, condition and doubt words ("Fraglich ist, ob
+    …", "wenn …") do not count: Gutachtenstil states nearly every point as a
+    question first, and whether a raised question earns points is the
+    judge's call."""
+    return _is_negation(token)
 
 
 def _parenthetical_before(index: EvidenceIndex, k: int, gap_end: int) -> Optional[int]:
@@ -908,20 +902,18 @@ def _governing_clause_ok(index: EvidenceIndex, opener: int, match_first: int) ->
 def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
     """The answer around a match at ``text[start:end]`` does not turn it round.
 
-    Before the match: no negation, question or condition word ("ob",
-    "wenn", "inwieweit" …) or doubt word ("fraglich", "zweifelhaft",
-    "bestritten" …) back to the start of its clause (see
-    :func:`_clause_start_before`). So "kein [Anspruch auf …]" and
-    "Fraglich ist, ob der [Verkäufer …]" fail. When the clause opens with
-    "dass", "ob" or a similar word after a comma, the clause in front of it
-    is read the same way: "Es ist nicht ersichtlich, [dass der Verkäufer …]"
-    fails.
+    Before the match: no negation back to the start of its clause (see
+    :func:`_clause_start_before`), so "kein [Anspruch auf …]" fails. When
+    the clause opens with "dass", "ob" or a similar word after a comma, the
+    clause in front of it is read the same way: "Es ist nicht ersichtlich,
+    [dass der Verkäufer …]" fails. Questions, conditions and doubt words
+    ("Fraglich ist, ob [der Verkäufer …]") pass (see
+    :func:`_turns_round_before`).
 
-    After the match: no negation, "(-)" or condition as the next word in the
-    same sentence ("[Der Anspruch besteht] nicht", "[Die Klage ist
-    begründet], soweit …", "[… hat der Käufer] keinen"; a condition is fine
-    after a quote that holds a modal verb, see :data:`_HEDGE_TOKENS`), and none in the
-    rest of its clause up to the clause's verb ("[Ein Anspruch besteht]
+    After the match: no negation or "(-)" as the next word in the same
+    sentence ("[Der Anspruch besteht] nicht", "[… hat der Käufer] keinen";
+    a condition such as "[Die Klage ist begründet], soweit …" passes), and
+    none in the rest of its clause up to the clause's verb ("[Ein Anspruch besteht]
     daher nicht"; but "[Der Anspruch des K] besteht nicht" keeps the noun
     phrase). A coordinating or subordinating conjunction ("und", "weil") also
     ends that scan. A match that ends with a result mark or a subordinating
@@ -948,9 +940,8 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
         return True
     if j > 0 and _opens_clause(index, j - 1):
         return True  # the words after it belong to the clause it opens
-    hedged = any(t in _HEDGE_TOKENS for t in tokens[bisect.bisect_left(index.starts, start):j])
     level = _gap_level(index, j - 1, end, index.starts[j])
-    if level < 2 and _turns_round_after(index, j, hedged):
+    if level < 2 and _turns_round_after(index, j):
         return False
     if j > 0 and tokens[j - 1] in _RESULT_MARK_TOKENS:
         return True
@@ -963,7 +954,7 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
             or _RESULT_WORD_RE.fullmatch(token)
         ):
             break
-        if _turns_round_after(index, j, hedged):
+        if _turns_round_after(index, j):
             return False
         j += 1
         if j >= len(tokens):
@@ -1188,9 +1179,69 @@ def _fragment_in_answer(part: str, tokens: List[str], index: EvidenceIndex) -> b
     # token match of an otherwise verbatim long quote: compare letters and
     # digits only.
     compact = _COMPACT_RE.sub("", part)
-    return len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and any(
+    if len(compact) >= EVIDENCE_MIN_COMPACT_CHARS and any(
         _compact_match_ok(index, s, s + len(compact), part, tokens) for s in _find_all(index.compact, compact)
-    )
+    ):
+        return True
+    # A long quote with a word swapped here and there (see
+    # :func:`_substituted_fragment_in_answer`).
+    return _substituted_fragment_in_answer(tokens, index)
+
+
+_UMLAUT_FOLD = str.maketrans("äöü", "aou")
+
+
+def _fold_umlauts(token: str) -> str:
+    return token.translate(_UMLAUT_FOLD)
+
+
+EVIDENCE_SUBSTITUTION_MIN_TOKENS = 8
+_EVIDENCE_SUBSTITUTION_ANCHORS = 3
+
+
+def _substituted_fragment_in_answer(tokens: List[str], index: EvidenceIndex) -> bool:
+    """A long quote (at least :data:`EVIDENCE_SUBSTITUTION_MIN_TOKENS`
+    words) whose words line up one to one with an answer passage except for
+    its first or last word (one per eight words, at most those two): a judge
+    that writes "Heute werden in dem Schreiben …" for "Allerdings werden in
+    dem Schreiben …" still quotes the passage. A swap inside the quote
+    ("Erstattung" for "Minderung") changes what it says and fails, as does
+    a swapped word that is protected (:func:`_is_protected`: negations,
+    numbers, result words) or differs only by an umlaut ("hatte" for
+    "hätte"). The passage must pass :func:`_edges_ok`. Candidate passages
+    are found through the quote's longest words, which must match exactly
+    somewhere."""
+    n = len(tokens)
+    if n < EVIDENCE_SUBSTITUTION_MIN_TOKENS:
+        return False
+    allowed = min(2, n // 8)
+    answer = index.tokens
+    anchors = sorted(range(n), key=lambda i: -len(tokens[i]))[:_EVIDENCE_SUBSTITUTION_ANCHORS]
+    positions = index.positions
+    starts = {
+        pos - i
+        for i in anchors
+        for pos in positions.get(tokens[i], ())
+        if 0 <= pos - i <= len(answer) - n
+    }
+    for start in sorted(starts):
+        misses = 0
+        for i, (quoted, found) in enumerate(zip(tokens, answer[start : start + n])):
+            if _tokens_match(quoted, found):
+                continue
+            misses += 1
+            if (
+                misses > allowed
+                or i not in (0, n - 1)
+                or _is_protected(quoted)
+                or _is_protected(found)
+                or _fold_umlauts(quoted) == _fold_umlauts(found)
+            ):
+                break
+        else:
+            if _edges_ok(index, index.starts[start], index.ends[start + n - 1]):
+                return True
+    return False
 
 
 def _stitched_fragment_in_answer(cased_part: str, index: EvidenceIndex) -> bool:
