@@ -69,6 +69,21 @@ export function GenerationProgress({
   // fallback would, just on demand instead of on a 2 s timer.
   const fetchStatusOnceRef = useRef<() => void>(() => {})
 
+  // The socket lives as long as the project does. Callbacks, the
+  // translator and the last known statuses are read through refs so a new identity (an inline
+  // onComplete, a re-created t) never closes and reopens the connection,
+  // which used to drop progress messages sent in between.
+  const onCompleteRef = useRef(onComplete)
+  const addToastRef = useRef(addToast)
+  const tRef = useRef(t)
+  const statusesRef = useRef(statuses)
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+    addToastRef.current = addToast
+    tRef.current = t
+    statusesRef.current = statuses
+  })
+
   // Connect to WebSocket
   useEffect(() => {
     // One-shot fetcher shared by the WS per-row handler and the polling
@@ -98,7 +113,7 @@ export function GenerationProgress({
           setOverallProgress((completed / total) * 100)
         }
         if (data.is_running === false) {
-          onComplete()
+          onCompleteRef.current()
         }
       } catch (error) {
         console.error('one-shot status fetch error:', error)
@@ -168,7 +183,7 @@ export function GenerationProgress({
               // Fall back to the last known statuses for older API builds
               // that haven't shipped that field yet.
               const generations: any[] =
-                data.generations ?? Object.values(statuses)
+                data.generations ?? Object.values(statusesRef.current)
               const completedCount = generations.filter(
                 (g: any) => g.status === 'completed',
               ).length
@@ -178,22 +193,22 @@ export function GenerationProgress({
               const totalCount = generations.length
 
               if (completedCount === 0) {
-                addToast(
-                  t('generation.error.allFailed', {
+                addToastRef.current(
+                  tRef.current('generation.error.allFailed', {
                     failed: failedCount || totalCount,
                   }),
                   'error',
                 )
               } else if (failedCount === 0) {
-                addToast(
-                  t('generation.success.allComplete', {
+                addToastRef.current(
+                  tRef.current('generation.success.allComplete', {
                     count: completedCount,
                   }),
                   'success',
                 )
               } else {
-                addToast(
-                  t('generation.success.completeWithFailures', {
+                addToastRef.current(
+                  tRef.current('generation.success.completeWithFailures', {
                     completed: completedCount,
                     failed: failedCount,
                     total: totalCount,
@@ -202,12 +217,12 @@ export function GenerationProgress({
                 )
               }
 
-              onComplete()
+              onCompleteRef.current()
             }
 
             if (data.type === 'error') {
               console.error('WebSocket error:', data.message)
-              addToast(data.message, 'error')
+              addToastRef.current(data.message, 'error')
             }
           } catch (error) {
             console.error('Failed to parse WebSocket message:', error)
@@ -216,7 +231,7 @@ export function GenerationProgress({
 
         ws.onerror = (error) => {
           console.error('WebSocket error:', error)
-          setConnectionError(t('generation.connectionError'))
+          setConnectionError(tRef.current('generation.connectionError'))
         }
 
         ws.onclose = (ev) => {
@@ -248,14 +263,14 @@ export function GenerationProgress({
               connectWebSocket()
             }, delay)
           } else {
-            setConnectionError(t('generation.connectionFallback'))
+            setConnectionError(tRef.current('generation.connectionFallback'))
             // Fall back to polling
             startPolling()
           }
         }
       } catch (error) {
         console.error('Failed to connect WebSocket:', error)
-        setConnectionError(t('generation.connectionFailed'))
+        setConnectionError(tRef.current('generation.connectionFailed'))
         // Fall back to polling
         startPolling()
       }
@@ -292,7 +307,7 @@ export function GenerationProgress({
             // Check if all are complete
             if (!data.is_running) {
               clearInterval(pollInterval)
-              onComplete()
+              onCompleteRef.current()
             }
           }
         } catch (error) {
@@ -314,7 +329,7 @@ export function GenerationProgress({
         wsRef.current.close()
       }
     }
-  }, [projectId, onComplete, addToast, t])
+  }, [projectId])
 
   const stopGeneration = async (generationId: string) => {
     try {
