@@ -542,6 +542,44 @@ def criteria_from_structure(structure: Dict[str, Any]) -> Dict[str, Dict[str, An
     return criteria
 
 
+def structure_without_guidance(structure: Any) -> Any:
+    """A copy of ``structure`` without the guidance text of its nodes.
+
+    Drops every step's ``hints`` and every node's ``note``: that text spells
+    out the expected solution, so it is reference content. Titles, labels,
+    levels, keys, budgets and the Schwerpunkt marker stay, so a filled sheet
+    still renders step by step. Non-dict input is returned untouched.
+    """
+    if not isinstance(structure, dict):
+        return structure
+    nodes = []
+    for node in structure.get("nodes") or []:
+        if not isinstance(node, dict):
+            continue
+        out = {**node, "note": None}
+        if "hints" in out:
+            out["hints"] = []
+        nodes.append(out)
+    return {**structure, "nodes": nodes}
+
+
+def criteria_without_guidance(criteria: Any) -> Any:
+    """A copy of flat ``criteria`` keeping only each step's name and budget.
+
+    ``description`` holds the hints and ``rubric`` the judge prose built from
+    notes and hints (legacy sheets render both as hints), so both are
+    emptied. Non-dict input is returned untouched.
+    """
+    if not isinstance(criteria, dict):
+        return criteria
+    cleaned: Dict[str, Any] = {}
+    for key, value in criteria.items():
+        if isinstance(value, dict):
+            value = {**value, "description": "", "rubric": ""}
+        cleaned[key] = value
+    return cleaned
+
+
 def _flat_sort_key(item: Tuple[str, Any]) -> Tuple[int, int]:
     match = _STEP_KEY_ORDER.match(item[0] or "")
     return (0, int(match.group(1))) if match else (1, 0)

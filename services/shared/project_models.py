@@ -87,6 +87,13 @@ class Project(Base):
     annotator_full_visibility_after_submit = Column(
         Boolean, default=False, server_default="false", nullable=False
     )
+    # Whether the solver sees the per-step detail of their grading (step
+    # scores, reasons, evidence, the filled sheet) after submitting. NULL =
+    # follow ``annotator_full_visibility_after_submit`` (the reference
+    # reveal); True/False decide it on its own, so an exam can show the
+    # grading steps while the reference stays hidden. Read it through
+    # ``solution_reveal.step_detail_revealed`` (migration 116).
+    annotator_step_detail_after_submit = Column(Boolean, nullable=True)
 
     # Annotation time limit (Issue #1043)
     annotation_time_limit_enabled = Column(Boolean, default=False, nullable=False)

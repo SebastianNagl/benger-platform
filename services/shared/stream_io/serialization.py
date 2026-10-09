@@ -123,6 +123,9 @@ def build_project_export_data(project, organization_id) -> dict:
         "annotator_full_visibility_after_submit": (
             project.annotator_full_visibility_after_submit
         ),
+        "annotator_step_detail_after_submit": (
+            project.annotator_step_detail_after_submit
+        ),
         "immediate_evaluation_enabled": project.immediate_evaluation_enabled,
         "annotation_time_limit_enabled": project.annotation_time_limit_enabled,
         "annotation_time_limit_seconds": project.annotation_time_limit_seconds,

@@ -35,6 +35,7 @@ from sqlalchemy.types import JSON
 
 from project_models import Annotation, Project, Task
 from routers.projects.helpers import get_effective_project_role_async
+from solution_reveal import reference_revealed, step_detail_revealed
 
 #: Effective roles that always receive the full task payload.
 _FULL_DATA_ROLES = ("ORG_ADMIN", "CONTRIBUTOR")
@@ -82,9 +83,31 @@ async def revealed_task_ids_async(
 ) -> Set[str]:
     """Task ids whose FULL data the (blinded) user may see via the post-submit
     reveal: requires ``annotator_full_visibility_after_submit`` on the project
-    and an active annotation by the user on the task. Batched for lists."""
+    (``solution_reveal.reference_revealed``) and an active annotation by the
+    user on the task. Batched for lists."""
+    if not reference_revealed(project):
+        return set()
+    return await submitted_task_ids_async(db, user, task_ids)
+
+
+async def step_detail_task_ids_async(
+    db: AsyncSession, user, project: Project, task_ids: Iterable[str]
+) -> Set[str]:
+    """Task ids whose grading step detail the user may see after submitting:
+    ``solution_reveal.step_detail_revealed`` on the project and an active
+    annotation by the user on the task. Says nothing about the reference
+    (see :func:`revealed_task_ids_async`)."""
+    if not step_detail_revealed(project):
+        return set()
+    return await submitted_task_ids_async(db, user, task_ids)
+
+
+async def submitted_task_ids_async(
+    db: AsyncSession, user, task_ids: Iterable[str]
+) -> Set[str]:
+    """Task ids among ``task_ids`` the user holds an active annotation on."""
     ids = [t for t in task_ids if t]
-    if not ids or not getattr(project, "annotator_full_visibility_after_submit", False):
+    if not ids:
         return set()
     result = await db.execute(
         select(Annotation.task_id).where(

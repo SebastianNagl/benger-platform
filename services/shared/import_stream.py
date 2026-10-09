@@ -2519,6 +2519,11 @@ def _create_imported_project(
         annotator_full_visibility_after_submit=_setting(
             project_data, "annotator_full_visibility_after_submit", False
         ),
+        # Nullable: an absent key (older export) keeps "follow the reference
+        # switch", which is what those projects did.
+        annotator_step_detail_after_submit=project_data.get(
+            "annotator_step_detail_after_submit"
+        ),
         immediate_evaluation_enabled=_setting(
             project_data, "immediate_evaluation_enabled", False
         ),

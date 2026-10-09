@@ -95,6 +95,27 @@ class TestProjectUpdate:
         )
 
 
+    def test_step_detail_flag_is_nullable(self):
+        """annotator_step_detail_after_submit: null = follow the reference
+        switch. A PATCH may set it either way or reset it with an explicit
+        null; unset is not emitted."""
+        from project_schemas import ProjectResponse, ProjectUpdate
+
+        assert ProjectUpdate(annotator_step_detail_after_submit=True).dict(
+            exclude_unset=True
+        ) == {"annotator_step_detail_after_submit": True}
+        assert ProjectUpdate(annotator_step_detail_after_submit=None).dict(
+            exclude_unset=True
+        ) == {"annotator_step_detail_after_submit": None}
+        assert "annotator_step_detail_after_submit" not in ProjectUpdate().dict(
+            exclude_unset=True
+        )
+        assert (
+            ProjectResponse.model_fields["annotator_step_detail_after_submit"].default
+            is None
+        )
+
+
 class TestPaginatedResponse:
     def test_empty_response(self):
         from project_schemas import PaginatedResponse

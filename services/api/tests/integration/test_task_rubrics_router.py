@@ -797,6 +797,78 @@ class TestReadAccessForPlainMembers:
             assert (await async_test_client.get(f"{base}/{w['done_rubric'].id}")).status_code == 403
 
     @pytest.mark.asyncio
+    async def test_steps_only_reveal_serves_the_outline_without_guidance(
+        self, async_test_client, async_test_db
+    ):
+        """Reference hidden, grading steps shown (migration 116): a submitter
+        gets the sheet's outline, never its hints, notes or judge prose."""
+        db = async_test_db
+        w = await self._world(db, reveal=False)
+        w["project"].annotator_step_detail_after_submit = True
+        w["done_rubric"].structure = _structure()
+        w["done_rubric"].criteria = {
+            "s02_obersatz": {
+                "name": "Obersatz",
+                "description": "Gutachtenstil!",
+                "rubric": "Anmerkung: insgesamt 70 BE\nHinweise:\n- Gutachtenstil!",
+                "max_score": 2.5,
+            }
+        }
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            listed = await async_test_client.get(base)
+            assert [row["id"] for row in listed.json()] == [w["done_rubric"].id]
+            single = await async_test_client.get(f"{base}/{w['done_rubric'].id}")
+            assert single.status_code == 200, single.text
+            assert (await async_test_client.get(f"{base}/{w['open_rubric'].id}")).status_code == 403
+            for resp in (listed, single):
+                assert "Gutachtenstil" not in resp.text
+                assert "insgesamt 70 BE" not in resp.text
+            nodes = single.json()["structure"]["nodes"]
+            assert [n["title"] for n in nodes] == [
+                "Anspruch entstanden", "Wirksamer Kaufvertrag", "Rechtsfolge", "Obersatz",
+            ]
+            assert nodes[3]["max_score"] == 2.5 and nodes[3]["emphasis"] == "schwerpunkt"
+            assert all(not n.get("hints") and n.get("note") is None for n in nodes)
+            crit = single.json()["criteria"]["s02_obersatz"]
+            assert crit["name"] == "Obersatz" and crit["max_score"] == 2.5
+        # Editors keep the guidance.
+        with _as_user(w["owner"]):
+            owner_view = await async_test_client.get(f"{base}/{w['done_rubric'].id}")
+            assert "Gutachtenstil" in owner_view.text
+
+    @pytest.mark.asyncio
+    async def test_reference_reveal_keeps_the_guidance_even_with_steps_off(
+        self, async_test_client, async_test_db
+    ):
+        db = async_test_db
+        w = await self._world(db, reveal=True)
+        w["project"].annotator_step_detail_after_submit = False
+        w["done_rubric"].structure = _structure()
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            single = await async_test_client.get(f"{base}/{w['done_rubric'].id}")
+            assert single.status_code == 200 and "Gutachtenstil" in single.text
+
+    @pytest.mark.asyncio
+    async def test_explicit_steps_off_with_reference_off_reveals_nothing(
+        self, async_test_client, async_test_db
+    ):
+        db = async_test_db
+        w = await self._world(db, reveal=False)
+        w["project"].annotator_step_detail_after_submit = False
+        await _submit(db, w["project"], w["done"], w["member"])
+        await db.commit()
+        base = f"/api/projects/{w['project'].id}/task-rubrics"
+        with _as_user(w["member"]):
+            assert (await async_test_client.get(base)).json() == []
+            assert (await async_test_client.get(f"{base}/{w['done_rubric'].id}")).status_code == 403
+
+    @pytest.mark.asyncio
     async def test_someone_elses_submission_reveals_nothing(self, async_test_client, async_test_db):
         db = async_test_db
         w = await self._world(db, reveal=True)
