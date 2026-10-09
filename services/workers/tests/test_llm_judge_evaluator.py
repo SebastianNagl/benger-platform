@@ -1809,8 +1809,6 @@ class TestVerifyEvidenceStrict:
         # a negation or a condition right after the match
         ("Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht nicht.",
          "Der Anspruch des Klägers auf Herausgabe des Fahrzeugs besteht"),
-        ("Die Klage ist begründet, soweit sie sich gegen den Zinsanspruch richtet.", "Die Klage ist begründet"),
-        ("Ein Mangel liegt vor, wenn die Sache nicht die vereinbarte Beschaffenheit hat.", "Ein Mangel liegt vor"),
         # the edge rules hold on each side of an ellipsis
         ("Die Klage ist zulässig. Der Anspruch auf Herausgabe besteht nicht.",
          "Die Klage ist zulässig … Der Anspruch auf Herausgabe besteht"),
@@ -1822,9 +1820,6 @@ class TestVerifyEvidenceStrict:
     # The quoted words stand in the answer, but a question, condition,
     # "kein" or "(-)" governs the whole clause they stand in.
     REJECTED_IN_CONTEXT = [
-        ("Fraglich ist, ob die Übergabe der Sache in den Geschäftsräumen stattfand.",
-         "die Übergabe der Sache in den Geschäftsräumen stattfand"),
-        ("Wenn die Frist gewahrt ist, ist die Klage zulässig.", "die Frist gewahrt ist"),
         ("Es besteht kein Anspruch auf Rückzahlung der Kaution gegen den Vermieter.",
          "Anspruch auf Rückzahlung der Kaution gegen den Vermieter"),
         ("Voraussetzung einer abdrängenden Sonderzuweisung (-)",
@@ -1995,18 +1990,12 @@ class TestVerifyEvidenceRound4:
         ("Der Käufer zahlte den vereinbarten Kaufpreis bis heute nicht.", "Der Käufer zahlte den vereinbarten Kaufpreis"),
         # 7. a negation, question or doubt word earlier in the clause, or in the
         #    clause that governs a "dass" clause
-        ("Fraglich ist, ob der Verkäufer die Sache mangelfrei geliefert hat.",
-         "Verkäufer die Sache mangelfrei geliefert hat"),
         ("Es ist nicht ersichtlich, dass der Verkäufer die Sache mangelfrei geliefert hat.",
          "der Verkäufer die Sache mangelfrei geliefert hat"),
         ("Es ist nicht ersichtlich, dass der Verkäufer die Sache mangelfrei geliefert hat.",
          "dass der Verkäufer die Sache mangelfrei geliefert hat"),
-        ("Zweifelhaft ist daher, dass der Verkäufer die Sache mangelfrei geliefert hat.",
-         "der Verkäufer die Sache mangelfrei geliefert hat"),
         ("Es besteht kein fälliger Anspruch des Verkäufers auf Zahlung des Kaufpreises.",
          "Anspruch des Verkäufers auf Zahlung des Kaufpreises"),
-        ("Der Beklagte bestreitet, dass er die Sache vorsätzlich beschädigt hat.",
-         "er die Sache vorsätzlich beschädigt hat"),
         ("Der Käufer ist nicht gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt.",
          "§ 437 Nr. 2 BGB zum Rücktritt berechtigt"),
         # 8. a citation with only connecting words is no quote
@@ -2170,7 +2159,6 @@ class TestVerifyEvidenceWordPasteAndAsides:
         # the aside's own last word still turns the quote round
         ("Die Klage ist (nicht) begründet und hat Erfolg.", "begründet und hat Erfolg"),
         # an unhedged result is still limited by a following condition
-        ("Die Klage ist begründet, soweit die Bescheide rechtswidrig sind.", "Die Klage ist begründet"),
         # a stray piece that carries a negation is never dropped
         ("Ein Anspruch des K auf Herausgabe besteht im Ergebnis nicht.",
          "Ein Anspruch des K auf Herausgabe besteht ... nicht"),
@@ -2197,6 +2185,84 @@ class TestVerifyEvidenceWordPasteAndAsides:
         assert _normalize_evidence_text('a ![](file:///C:/x/clip_image003.gif "Textfeld: 2") b') == "a b"
         # an ordinary link keeps its text
         assert _normalize_evidence_text("siehe [unten](#abschnitt-2) dazu") == "siehe unten dazu"
+
+
+class TestVerifyEvidencePermissiveEdges:
+    """Policy 2026-10-09: conditions, questions and doubt words around a
+    quote do not void it; only a negation does. The judge decides what a
+    hedged or questioned passage is worth; the check only guards against
+    quotes that are not in the answer or that the answer turns into their
+    opposite."""
+
+    ACCEPTED = [
+        ("Die Klage ist begründet, soweit sie sich gegen den Zinsanspruch richtet.",
+         "Die Klage ist begründet"),
+        ("Ein Mangel liegt vor, wenn die Sache nicht die vereinbarte Beschaffenheit hat.",
+         "Ein Mangel liegt vor"),
+        ("Fraglich ist, ob die Übergabe der Sache in den Geschäftsräumen stattfand.",
+         "die Übergabe der Sache in den Geschäftsräumen stattfand"),
+        ("Wenn die Frist gewahrt ist, ist die Klage zulässig.",
+         "die Frist gewahrt ist"),
+        ("Fraglich ist, ob der Verkäufer die Sache mangelfrei geliefert hat.",
+         "Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Zweifelhaft ist daher, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Der Beklagte bestreitet, dass er die Sache vorsätzlich beschädigt hat.",
+         "er die Sache vorsätzlich beschädigt hat"),
+        ("Die Klage ist begründet, soweit die Bescheide rechtswidrig sind.",
+         "Die Klage ist begründet"),
+        # the false negative from the EKK test run
+        ("Nach § 44 VwGO darf der Kläger mehrere Klagebegehren in einer Klage zusammen verfolgen, wenn sie "
+         "sich gegen denselben Beklagten richten.",
+         "Nach § 44 VwGO darf der Kläger mehrere Klagebegehren in einer Klage zusammen verfolgen"),
+    ]
+
+    SUBSTITUTED_ANSWER = (
+        "Allerdings werden in dem Schreiben explizit auch die Bescheide vom 13.4.2024 und 15.6.2024 "
+        "aufgehoben, also aus einer Zeit, in der B gar nicht mehr bei A in Behandlung war."
+    )
+
+    def test_a_long_quote_may_swap_a_word(self):
+        quote = (
+            "Heute werden in dem Schreiben explizit auch die Bescheide vom 13.4.2024 und 15.6.2024 "
+            "aufgehoben, also aus einer Zeit"
+        )
+        assert _verify_evidence(quote, EvidenceIndex(self.SUBSTITUTED_ANSWER)) is True
+
+    def test_swaps_stay_rare_and_never_touch_protected_words(self):
+        index = EvidenceIndex(self.SUBSTITUTED_ANSWER)
+        # two swaps in a 14-word quote
+        assert _verify_evidence(
+            "Heute werden in dem Brief explizit auch die Bescheide vom 13.4.2024 und 15.6.2024 aufgehoben", index
+        ) is False
+        # a swapped number
+        assert _verify_evidence(
+            "Allerdings werden in dem Schreiben explizit auch die Bescheide vom 13.4.2023 und 15.6.2024 aufgehoben",
+            index,
+        ) is False
+        # short quotes get no swap
+        assert _verify_evidence("Heute werden in dem Schreiben", index) is False
+        answer = "Die Klage ist im Ergebnis zulässig und auch in vollem Umfang begründet und hat Erfolg."
+        assert _verify_evidence(
+            "Die Klage ist im Ergebnis unzulässig und auch in vollem Umfang begründet und hat Erfolg",
+            EvidenceIndex(answer),
+        ) is False
+
+    REJECTED = [
+        # a negation still turns the quote round, before or after
+        ("Ein Mangel liegt nicht vor, wenn die Sache die vereinbarte Beschaffenheit hat.", "Ein Mangel liegt"),
+        ("Es ist nicht ersichtlich, dass der Verkäufer die Sache mangelfrei geliefert hat.",
+         "der Verkäufer die Sache mangelfrei geliefert hat"),
+        ("Der Anspruch des Klägers auf Herausgabe besteht nicht.", "Der Anspruch des Klägers auf Herausgabe besteht"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
 
 
 class TestFinalizeRubricScores:
