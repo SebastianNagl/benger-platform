@@ -2131,6 +2131,74 @@ class TestVerifyEvidenceRound4:
         assert _normalize_evidence_text("Un- zulässig", casefold=False) == "Unzulässig"
 
 
+class TestVerifyEvidenceWordPasteAndAsides:
+    """False negatives from a pasted Word solution (2026-10-09): Word
+    footnote links and images, an aside with "nicht" before the quote, a
+    condition after a hedged quote, and a stray last word after an
+    ellipsis."""
+
+    ACCEPTED = [
+        # Word footnote references arrive as in-page links
+        ("Da B als Beamtin Adressatin belastender Verwaltungsakte ist,[\\[12\\]](#_ftn12) ist eine Verletzung "
+         "in ihren Beihilfeansprüchen (insb. aus § 67 SBG) sowie in ihrem Recht aus Art. 33 Abs. 5 "
+         "GG[\\[13\\]](#_ftn13) nicht von vornherein auszuschließen.",
+         "Da B als Beamtin Adressatin belastender Verwaltungsakte ist, ist eine Verletzung in ihren "
+         "Beihilfeansprüchen ... sowie in ihrem Recht aus Art. 33 Abs. 5 GG nicht von vornherein auszuschließen"),
+        # a Word text box pasted as an image
+        ('![](file:///C:/Users/x/AppData/Local/Temp/msohtmlclip1/01/clip_image003.gif "Textfeld: 2")'
+         " a) Bejahende Ansicht Nach einer Meinung ruft ein unterbliebener Hinweis einen Irrtum hervor.",
+         "Nach einer Meinung ruft ein unterbliebener Hinweis einen Irrtum hervor"),
+        # "nicht" inside an aside before the quote negates the aside
+        ("Schriftliche Verwaltungsakte sind mit einer (ordnungsgemäßen, d. h. nicht floskelhaften) "
+         "Begründung zu versehen.",
+         "Schriftliche Verwaltungsakte sind mit einer ... Begründung zu versehen."),
+        ("Schriftliche Verwaltungsakte sind mit einer (ordnungsgemäßen, d. h. nicht floskelhaften) "
+         "Begründung zu versehen.",
+         "Begründung zu versehen"),
+        # a condition after a quote that leaves the result open
+        ("Jedoch könnte die Frist gem. § 58 Abs. 2 S. 1 VwGO ein Jahr betragen, wenn die "
+         "Rechtsbehelfsbelehrung unterblieben ist.",
+         "Jedoch könnte die Frist gem. § 58 Abs. 2 S. 1 VwGO ein Jahr betragen"),
+        # a stray last word after an ellipsis
+        ("Nach einer Meinung ruft ein unterbliebener Hinweis auf die elektronische Klagemöglichkeit einen "
+         "Irrtum über die Formerfordernisse hervor.",
+         "Nach einer Meinung ruft ein unterbliebener Hinweis auf die elektronische Klagemöglichkeit einen "
+         "Irrtum ... hervor."),
+    ]
+
+    REJECTED = [
+        # the aside's own last word still turns the quote round
+        ("Die Klage ist (nicht) begründet und hat Erfolg.", "begründet und hat Erfolg"),
+        # an unhedged result is still limited by a following condition
+        ("Die Klage ist begründet, soweit die Bescheide rechtswidrig sind.", "Die Klage ist begründet"),
+        # a stray piece that carries a negation is never dropped
+        ("Ein Anspruch des K auf Herausgabe besteht im Ergebnis nicht.",
+         "Ein Anspruch des K auf Herausgabe besteht ... nicht"),
+        # a stray piece must stand in the answer
+        ("Nach einer Meinung ruft ein Hinweis einen Irrtum hervor.",
+         "Nach einer Meinung ruft ein Hinweis einen Irrtum ... herbei"),
+        # a norm citation after an ellipsis is never a stray piece
+        ("Mangels abdrängender Sonderzuweisung richtet sich der Rechtsweg nach § 13 GVG.",
+         "Mangels abdrängender Sonderzuweisung … GVG"),
+        # a lone stray piece is no quote
+        ("Nach einer Meinung ruft ein Hinweis einen Irrtum hervor.", "hervor"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+
+    def test_word_links_and_images_normalize_away(self):
+        assert _normalize_evidence_text("ist,[\\[12\\]](#_ftn12) ist") == "ist, ist"
+        assert _normalize_evidence_text('a ![](file:///C:/x/clip_image003.gif "Textfeld: 2") b') == "a b"
+        # an ordinary link keeps its text
+        assert _normalize_evidence_text("siehe [unten](#abschnitt-2) dazu") == "siehe unten dazu"
+
+
 class TestFinalizeRubricScores:
     def _parsed(self):
         return {
