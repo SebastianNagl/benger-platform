@@ -44,6 +44,10 @@ interface MyTask extends Task {
   assignment?: TaskAssignment
   has_feedback?: boolean
   has_evaluation?: boolean
+  /** Result of the own submission (grade, pass, waiting for the grading),
+   *  filled by the extended edition, null without a submission. Opaque here;
+   *  the `MyTaskRowResult` slot renders it. */
+  grade_summary?: Record<string, unknown> | null
 }
 
 interface MyTasksResponse {
@@ -78,9 +82,9 @@ export default function MyTasksPage() {
   // The submission+scores modal is contributed by the extended package. When
   // absent (community edition) the row falls back to navigation.
   const ReviewModal = useSlot('MyTaskEvaluationModal')
-  // Extended solver surfaces: the persistent result card (NP, bestanden,
-  // percentile) above the list and per-row actions (e.g. print sheet).
-  const MyTasksResultCard = useSlot('MyTasksResultCard')
+  // Extended solver surfaces in each row: the result of the own submission
+  // and per-row actions (e.g. print sheet).
+  const MyTaskRowResult = useSlot('MyTaskRowResult')
   const MyTaskRowActions = useSlot('MyTaskRowActions')
   const [reviewTaskId, setReviewTaskId] = useState<string | null>(null)
 
@@ -141,9 +145,11 @@ export default function MyTasksPage() {
   }, [loadMyTasks])
 
   const startAnnotating = (task: MyTask) => {
-    // A task the user has already worked (feedback or any evaluation) opens the
-    // read-only submission+scores modal when the extended slot is mounted.
-    const canReview = task.has_feedback || task.has_evaluation
+    // A task the user has already worked (a submission with or without a
+    // grading yet, feedback or any evaluation) opens the read-only
+    // submission+scores modal when the extended slot is mounted.
+    const canReview =
+      task.has_feedback || task.has_evaluation || task.grade_summary != null
     if (canReview && ReviewModal) {
       setReviewTaskId(task.id)
       return
@@ -288,16 +294,6 @@ export default function MyTasksPage() {
       </div>
 
       {/* Tasks List */}
-      {MyTasksResultCard && !loading && tasks.length > 0 && (
-        <div className="mb-6" data-testid="my-tasks-result-card">
-          <MyTasksResultCard
-            projectId={projectId}
-            tasks={tasks}
-            onOpenReview={(taskId: string) => setReviewTaskId(taskId)}
-          />
-        </div>
-      )}
-
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -390,7 +386,12 @@ export default function MyTasksPage() {
                   )}
                 </div>
 
-                <div className="ml-4 flex items-center gap-2">
+                <div className="ml-4 flex items-center gap-3">
+                  {MyTaskRowResult && task.grade_summary != null && (
+                    <span data-testid={`my-task-row-result-${task.id}`}>
+                      <MyTaskRowResult projectId={projectId} task={task} />
+                    </span>
+                  )}
                   {MyTaskRowActions && (
                     <span
                       data-testid={`my-task-row-actions-${task.id}`}

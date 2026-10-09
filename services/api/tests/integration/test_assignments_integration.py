@@ -433,6 +433,65 @@ class TestMyTasks:
         # Community edition has no extended hook -> badge flags are False.
         assert row["has_evaluation"] is False
         assert row["has_feedback"] is False
+        # ... and no per-row result.
+        assert row["grade_summary"] is None
+
+    def test_grade_summaries_come_per_page(
+        self, client, test_db, test_users, auth_headers, test_org, monkeypatch
+    ):
+        """The per-row grade hook is asked for the tasks of the requested page
+        only, and its summary lands on the matching row."""
+        import extensions
+
+        admin = test_users[0]
+        project, first = self._open_project_with_task(test_db, admin, test_org)
+        tasks = [first]
+        for inner_id in (2, 3):
+            task = Task(
+                id=_uid(),
+                project_id=project.id,
+                data={"text": f"open task {inner_id}"},
+                inner_id=inner_id,
+                created_by=admin.id,
+            )
+            test_db.add(task)
+            tasks.append(task)
+        test_db.flush()
+        for task in tasks:
+            test_db.add(
+                Annotation(
+                    id=_uid(),
+                    task_id=task.id,
+                    project_id=project.id,
+                    completed_by=admin.id,
+                    result=[],
+                    was_cancelled=False,
+                )
+            )
+        test_db.commit()
+
+        asked = []
+
+        def hook(db, project_id, user_id, task_ids):
+            asked.append(list(task_ids))
+            return {tid: {"status": "completed", "grade_points": 9.0} for tid in task_ids}
+
+        class _Ext:
+            def get_hooks(self):
+                return {"task_grade_summaries_for_user": hook}
+
+        monkeypatch.setattr(extensions, "_extended", _Ext())
+
+        resp = client.get(
+            f"/api/projects/{project.id}/my-tasks?page=2&page_size=2",
+            headers=auth_headers["admin"],
+        )
+        assert resp.status_code == 200, resp.text
+        rows = resp.json()["tasks"]
+        # Page 2 of 3 annotation-only tasks (ordered by inner_id) = the third.
+        assert [r["id"] for r in rows] == [tasks[2].id]
+        assert asked == [[tasks[2].id]]
+        assert rows[0]["grade_summary"] == {"status": "completed", "grade_points": 9.0}
 
     def test_open_mode_untouched_task_absent(
         self, client, test_db, test_users, auth_headers, test_org

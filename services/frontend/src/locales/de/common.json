@@ -1673,8 +1673,16 @@
       "evaluationAvailable": "Bewertung",
       "due": "Fällig",
       "result": {
-        "pick": "Aufgabe",
-        "loadError": "Korrektur konnte nicht geladen werden."
+        "points": "{points} / 18 Punkte",
+        "be": "{score} / {max} BE",
+        "passed": "Bestanden",
+        "notPassed": "Nicht bestanden",
+        "graded": "Korrigiert",
+        "pending": "Korrektur läuft",
+        "waiting": "Warte auf Korrektur",
+        "submitted": "Abgegeben",
+        "sourceAi": "KI-Bewertung",
+        "sourceHuman": "Korrektur"
       }
     },
     "review": {
@@ -10096,7 +10104,8 @@
           "ki": "KI-Korrektur",
           "human": "Menschliche Korrektur"
         },
-        "taskPicker": "Klausur",
+        "tasksTitle": "Deine Klausuren",
+        "openTasks": "{count} von {total} Klausuren noch offen",
         "taskFallback": "Klausur {n}",
         "beLine": "{score} / {max} BE"
       },

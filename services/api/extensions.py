@@ -311,6 +311,43 @@ def tasks_with_evaluation_for_user(db, project_id, user_id, task_ids):
     return set()
 
 
+def task_grade_summaries_for_user(db, project_id, user_id, task_ids):
+    """Return ``{task_id: summary}`` of the user's own grades on these tasks.
+
+    The extended edition grades submissions (KI and human Korrektur) and
+    hands back one headline per submitted task, e.g. ``{"status",
+    "grade_points", "passed", "total_score", "total_max", "has_human",
+    ...}``; the values are opaque to the platform, which passes them through
+    to the "Meine Aufgaben" rows. Only keys from ``task_ids`` are kept.
+
+    Returns ``{}`` when extended is not loaded (the community edition has no
+    grades on own submissions) and when the hook fails: a missing grade in a
+    row must never break the list. The hook runs in a savepoint so a failed
+    query leaves the caller's transaction usable.
+    """
+    if not task_ids:
+        return {}
+    if _extended and hasattr(_extended, "get_hooks"):
+        try:
+            hooks = _extended.get_hooks()
+            hook = hooks.get("task_grade_summaries_for_user")
+            if hook:
+                result = _run_hook_in_savepoint(
+                    db, hook, project_id, user_id, list(task_ids)
+                )
+                wanted = {str(t) for t in task_ids}
+                return {
+                    str(k): v
+                    for k, v in (result or {}).items()
+                    if str(k) in wanted and isinstance(v, dict)
+                }
+        except Exception:
+            logger.exception(
+                "task_grade_summaries_for_user hook failed for project %s", project_id
+            )
+    return {}
+
+
 # --------------------------------------------------------------------------- #
 # LMS (LTI) connection hooks. The extended edition implements them with sync
 # SQLAlchemy sessions and never commits; async callers pass a sync session via

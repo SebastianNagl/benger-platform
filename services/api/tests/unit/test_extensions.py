@@ -134,7 +134,9 @@ class TestExtensionLoader:
         # persist_annotation_submission helper.
         # 2.32 adds users.exam_bundesland + users.onboarding_state, PUT
         # /auth/me/onboarding and the GlobalOnboarding slot.
-        assert CORE_API_VERSION == "2.34"
+        # 2.35 adds the task_grade_summaries_for_user hook (per-row result
+        # on "Meine Aufgaben").
+        assert CORE_API_VERSION == "2.35"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
@@ -149,6 +151,66 @@ class TestExtensionLoader:
 
         assert tasks_with_evaluation_for_user(None, "p", "u", ["t1"]) == set()
         assert tasks_with_evaluation_for_user(None, "p", "u", []) == set()
+
+    def test_task_grade_summaries_for_user_empty_without_package(self, monkeypatch):
+        """Community edition: no grades on own submissions -> empty dict."""
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.task_grade_summaries_for_user(None, "p", "u", ["t1"]) == {}
+        assert extensions.task_grade_summaries_for_user(None, "p", "u", []) == {}
+
+
+class TestTaskGradeSummariesHook:
+    """The per-row grade hook passes headline dicts through, nothing else."""
+
+    def test_passes_through_only_listed_tasks_and_dicts(self, monkeypatch):
+        import extensions
+
+        calls = []
+
+        def hook(db, project_id, user_id, task_ids):
+            calls.append((project_id, user_id, task_ids))
+            return {
+                "t1": {"status": "completed", "grade_points": 11.0},
+                "t2": None,
+                "other": {"status": "completed"},
+            }
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"task_grade_summaries_for_user": hook}),
+        )
+        out = extensions.task_grade_summaries_for_user(None, "p", "u", ("t1", "t2"))
+        assert out == {"t1": {"status": "completed", "grade_points": 11.0}}
+        assert calls == [("p", "u", ["t1", "t2"])]
+
+    def test_no_call_for_an_empty_page(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"task_grade_summaries_for_user": _boom}),
+        )
+        assert extensions.task_grade_summaries_for_user(None, "p", "u", []) == {}
+
+    def test_failing_hook_yields_empty(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions,
+            "_extended",
+            _FakeExtended({"task_grade_summaries_for_user": _boom}),
+        )
+        assert extensions.task_grade_summaries_for_user(None, "p", "u", ["t1"]) == {}
+
+    def test_extended_without_the_hook_yields_empty(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", _FakeExtended({}))
+        assert extensions.task_grade_summaries_for_user(None, "p", "u", ["t1"]) == {}
 
 
 class _FakeExtended:

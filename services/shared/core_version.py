@@ -467,11 +467,19 @@ whenever one is added, renamed or removed):
   ``submitted_task_ids_async``; the task-rubrics reads serve a submitter the
   bare outline when only the steps are revealed. The extended student,
   Korrektur and immediate-evaluation reads import both shared modules.
+
+2.35 (2026-10-09): the result of each task in "Meine Aufgaben". New hook
+  ``task_grade_summaries_for_user(db, project_id, user_id, task_ids)``
+  (``extensions.task_grade_summaries_for_user``; ``{}`` in the community
+  edition and when the hook fails); ``GET /projects/{id}/my-tasks`` returns
+  it per row as ``grade_summary`` (headline values only, null without a
+  submission). The frontend slot ``MyTaskRowResult`` renders it in the row;
+  the ``MyTasksResultCard`` slot is gone.
 """
 
 import os
 
-CORE_API_VERSION = "2.34"
+CORE_API_VERSION = "2.35"
 
 
 def extended_required() -> bool:
