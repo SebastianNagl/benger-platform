@@ -1283,6 +1283,39 @@ describe('GenerationProgress', () => {
     })
   })
 
+  describe('Connection lifetime', () => {
+    it('keeps one socket across re-renders with new callback identities', async () => {
+      const { rerender } = render(<GenerationProgress {...defaultProps} />)
+
+      await waitFor(() => {
+        expect(mockWebSocket!.readyState).toBe(WebSocket.OPEN)
+      })
+      const socket = mockWebSocket
+      const calls = (global.WebSocket as jest.Mock).mock.calls.length
+
+      const nextOnComplete = jest.fn()
+      rerender(
+        <GenerationProgress {...defaultProps} onComplete={nextOnComplete} />,
+      )
+      socket?.simulateMessage({
+        type: 'progress',
+        generations: [{ id: 'gen-1', model_id: 'gpt-4', status: 'running' }],
+      })
+
+      expect((global.WebSocket as jest.Mock).mock.calls.length).toBe(calls)
+      expect(socket?.readyState).toBe(WebSocket.OPEN)
+      await waitFor(() => {
+        expect(screen.getByText('Pause All')).toBeInTheDocument()
+      })
+
+      // the latest onComplete is the one that fires
+      socket?.simulateMessage({ type: 'complete', generations: [] })
+      await waitFor(() => {
+        expect(nextOnComplete).toHaveBeenCalled()
+      })
+    })
+  })
+
   describe('Edge Cases', () => {
     it('handles empty generation IDs array', () => {
       render(
