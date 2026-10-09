@@ -400,6 +400,13 @@ _LAYOUT_ESCAPE_RE = re.compile(r"\\[nrt]|\\(?=\s|$)")
 # A footnote reference glued to the text ("erfassen.[4] Zwar …") is layout
 # too; a quote that leaves it out still quotes the sentence.
 _FOOTNOTE_MARK_RE = re.compile(r"(?<=\S)\[\^?\d{1,3}\]")
+# Text pasted from Word arrives with its footnote references as in-page links
+# ("ist,[\[12\]](#_ftn12) ist eine") and floating text boxes as images
+# ("![](file:///…/clip_image003.gif "Textfeld: 2")"). A link to an anchor
+# keeps its text (a footnote number then goes with _FOOTNOTE_MARK_RE); an
+# image is dropped.
+_ANCHOR_LINK_RE = re.compile(r"\[(\[\^?\d{1,3}\]|[^\[\]\n]{0,200})\]\(#[^()\s]{0,200}\)")
+_MD_IMAGE_RE = re.compile(r"!\[[^\[\]\n]{0,200}\]\([^()\n]{0,500}\)")
 # A token is a word, or a whole number with its inner separators ("10.000",
 # "3,5"), so "10" never matches a piece of "10.000".
 _WORD_RE = re.compile(r"\d+(?:[.,]\d+)+|\w+")
@@ -496,6 +503,12 @@ _ROMAN_NUMERALS = frozenset({
 # …"); and the conjunctions that end a clause scan.
 _EDGE_BEFORE_WORDS = frozenset({"ob", "wenn", "falls", "sofern", "soweit", "inwieweit", "inwiefern"})
 _EDGE_CONDITION_WORDS = frozenset({"wenn", "sofern", "soweit", "falls"})
+# Modal verbs that leave a statement open ("könnte", "kann", "dürfte"); a
+# quote holding one is no result a following condition could limit.
+_HEDGE_TOKENS = frozenset({
+    "kann", "können", "könnte", "könnten", "dürfte", "dürften", "müsste", "müssten",
+    "würde", "würden", "wäre", "wären", "hätte", "hätten", "käme", "kämen", "mag", "möge",
+})
 _DOUBT_WORDS = frozenset({
     "fraglich", "zweifelhaft", "unklar", "ungewiss", "problematisch", "streitig", "bestritten", "bestreitet",
     "bezweifelt", "behauptet",
@@ -562,8 +575,9 @@ def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     """Canonical form for comparing a quote with the answer.
 
     NFKC, literal ``\\n`` escapes and markdown hard breaks, markdown escapes
-    (``1\\.``), footnote references (``[4]``) and emphasis/heading markers
-    removed, inline HTML (Word bookmark anchors) dropped, quotes/dashes
+    (``1\\.``), footnote references (``[4]``, also as Word's in-page links
+    ``[\\[4\\]](#_ftn4)``), images and emphasis/heading markers removed,
+    inline HTML (Word bookmark anchors) dropped, quotes/dashes
     unified, ellipsis as ``...``, ``(+)``/``(-)`` as ``positiv``/``negativ``,
     a split "un-" joined to its word ("un- zulässig" is "unzulässig"),
     casefolded (unless ``casefold`` is False), whitespace collapsed.
@@ -571,6 +585,8 @@ def _normalize_evidence_text(text: str, casefold: bool = True) -> str:
     t = unicodedata.normalize("NFKC", text or "")
     t = _LAYOUT_ESCAPE_RE.sub(" ", t)
     t = _MD_ESCAPE_RE.sub(r"\1", t)
+    t = _MD_IMAGE_RE.sub(" ", t)
+    t = _ANCHOR_LINK_RE.sub(r"\1", t)
     t = _FOOTNOTE_MARK_RE.sub("", t)
     t = _HTML_TAG_RE.sub(" ", t)
     t = t.translate(_PUNCT_TRANSLATION).replace("…", "...")
@@ -778,12 +794,16 @@ def _gap_level(index: "EvidenceIndex", before: int, gap_start: int, gap_end: int
     return 1 if "," in gap else 0
 
 
-def _turns_round_after(index: "EvidenceIndex", j: int) -> bool:
+def _turns_round_after(index: "EvidenceIndex", j: int, hedged: bool = False) -> bool:
     """Does token ``j``, standing after a match, negate or condition it? A
     negation (but not "ohne Weiteres" or "ohne Zweifel"), "(-)" or a
-    condition word."""
+    condition word. A condition does not turn round a ``hedged`` match (see
+    :data:`_HEDGE_TOKENS`): "die Frist könnte ein Jahr betragen, wenn …"
+    states the condition the quote already leaves open."""
     token = index.tokens[j]
     if token == "ohne" and j + 1 < len(index.tokens) and index.tokens[j + 1] in _AFFIRMING_AFTER_OHNE:
+        return False
+    if hedged and token in _EDGE_CONDITION_WORDS:
         return False
     return _is_negation(token) or token == "negativ" or token in _EDGE_CONDITION_WORDS
 
@@ -802,20 +822,55 @@ def _turns_round_before(token: str) -> bool:
     return _is_negation(token) or token in _EDGE_BEFORE_WORDS or token in _DOUBT_WORDS
 
 
+def _parenthetical_before(index: EvidenceIndex, k: int, gap_end: int) -> Optional[int]:
+    """When the gap between token ``k`` and text offset ``gap_end`` closes a
+    parenthesis, the offset of its opening "(" (None otherwise, or when it
+    does not open on the same line)."""
+    if k < 0 or ")" not in index.text[index.ends[k]:gap_end]:
+        return None
+    depth = 0
+    for pos in range(gap_end - 1, max(-1, gap_end - 400), -1):
+        ch = index.text[pos]
+        if ch == ")":
+            depth += 1
+        elif ch == "(":
+            depth -= 1
+            if depth == 0:
+                return pos
+    return None
+
+
+def _in_parenthetical(index: EvidenceIndex, k: int, gap_end: int) -> bool:
+    """Is token ``k`` inside a parenthesis that closes before ``gap_end``
+    without being its last word? Such a word belongs to the aside: in
+    "mit einer (ordnungsgemäßen, d. h. nicht floskelhaften) Begründung" the
+    "nicht" negates "floskelhaften", not "Begründung". The aside's last word
+    still counts ("(nicht) begründet")."""
+    opener = _parenthetical_before(index, k, gap_end)
+    if opener is None:
+        return False
+    last = bisect.bisect_right(index.ends, gap_end) - 1
+    while last >= 0 and index.text.find(")", index.ends[last], gap_end) == -1:
+        last -= 1
+    return index.starts[k] > opener and k != last
+
+
 def _clause_start_before(index: EvidenceIndex, first: int, start: int) -> Optional[int]:
     """Scan back from token ``first`` (the last token before text offset
     ``start``) to the start of its clause and return the index of the
     clause's first token. A comma, a sentence break, a blank line, a result
     mark or a coordinating conjunction ends the scan in front of the clause;
     a subordinating conjunction ("dass", "weil") is the clause's first token.
-    Returns None when a scanned token turns the text after it round."""
+    Returns None when a scanned token turns the text after it round; words
+    inside a parenthesis that closes before the match do not (see
+    :func:`_in_parenthetical`)."""
     tokens = index.tokens
     k, gap_end = first, start
     while k >= 0 and not _gap_level(index, k, index.ends[k], gap_end) and (k + 1) not in index.paragraph_starts:
         token = tokens[k]
         if token in _RESULT_MARK_TOKENS or token in _COORDINATORS:
             break
-        if _turns_round_before(token):
+        if _turns_round_before(token) and not _in_parenthetical(index, k, start):
             return None
         if token in _SUBORDINATORS:
             return k
@@ -864,7 +919,8 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
 
     After the match: no negation, "(-)" or condition as the next word in the
     same sentence ("[Der Anspruch besteht] nicht", "[Die Klage ist
-    begründet], soweit …", "[… hat der Käufer] keinen"), and none in the
+    begründet], soweit …", "[… hat der Käufer] keinen"; a condition is fine
+    after a quote that holds a modal verb, see :data:`_HEDGE_TOKENS`), and none in the
     rest of its clause up to the clause's verb ("[Ein Anspruch besteht]
     daher nicht"; but "[Der Anspruch des K] besteht nicht" keeps the noun
     phrase). A coordinating or subordinating conjunction ("und", "weil") also
@@ -892,8 +948,9 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
         return True
     if j > 0 and _opens_clause(index, j - 1):
         return True  # the words after it belong to the clause it opens
+    hedged = any(t in _HEDGE_TOKENS for t in tokens[bisect.bisect_left(index.starts, start):j])
     level = _gap_level(index, j - 1, end, index.starts[j])
-    if level < 2 and _turns_round_after(index, j):
+    if level < 2 and _turns_round_after(index, j, hedged):
         return False
     if j > 0 and tokens[j - 1] in _RESULT_MARK_TOKENS:
         return True
@@ -906,7 +963,7 @@ def _edges_ok(index: EvidenceIndex, start: int, end: int) -> bool:
             or _RESULT_WORD_RE.fullmatch(token)
         ):
             break
-        if _turns_round_after(index, j):
+        if _turns_round_after(index, j, hedged):
             return False
         j += 1
         if j >= len(tokens):
@@ -1174,6 +1231,24 @@ def _stitched_fragment_in_answer(cased_part: str, index: EvidenceIndex) -> bool:
     return True
 
 
+_EVIDENCE_STRAY_FRAGMENT_TOKENS = 2
+
+
+def _is_stray_fragment(cased: str, part: str, tokens: List[str], index: EvidenceIndex) -> bool:
+    """A piece of a quote too short to be quoted on its own, without a
+    protected token ("nicht", a number, a result word) or a piece of a norm
+    citation ("GVG", "Abs"), that stands in the answer as whole words (see
+    :func:`_verify_evidence`)."""
+    cased_tokens = _cased_tokens(cased, tokens) or tokens
+    return (
+        len(tokens) <= _EVIDENCE_STRAY_FRAGMENT_TOKENS
+        and not _fragment_is_quotable(tokens, cased_tokens)
+        and not any(_is_protected(t) for t in tokens)
+        and not any(_is_citation_token(t) for t in cased_tokens)
+        and re.search(rf"(?<!\w){re.escape(part)}(?!\w)", index.text) is not None
+    )
+
+
 def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     """Is every fragment of ``evidence`` really in the answer?
 
@@ -1186,6 +1261,12 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
     result and qualifier words, Roman numerals, numbers) must match exactly.
     Empty evidence, or evidence with fewer than
     :data:`EVIDENCE_MIN_WORD_CHARS` word characters, is not verified.
+
+    Judges often end a quote with the last word of the sentence after an
+    ellipsis ("ruft einen Irrtum ... hervor."). Such a stray piece (at most
+    :data:`_EVIDENCE_STRAY_FRAGMENT_TOKENS` words, none of them protected,
+    standing in the answer as words) is left out when another fragment is
+    quoted; it adds nothing the judge could lean on.
     """
     fragments = []
     for cased in _ELLIPSIS_SPLIT_RE.split(_normalize_evidence_text(evidence, casefold=False)):
@@ -1194,6 +1275,10 @@ def _verify_evidence(evidence: str, index: EvidenceIndex) -> bool:
         tokens = _WORD_RE.findall(part)
         if tokens:
             fragments.append((cased, part, tokens))
+    if len(fragments) > 1:
+        kept = [f for f in fragments if not _is_stray_fragment(*f, index)]
+        if kept:
+            fragments = kept
     if not fragments:
         return False
     if sum(len(tok) for _cased, _part, tokens in fragments for tok in tokens) < EVIDENCE_MIN_WORD_CHARS:
