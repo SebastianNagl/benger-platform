@@ -5,12 +5,14 @@ import uuid
 from typing import Any, Dict
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from auth_module import require_user
 from auth_module.models import User as AuthUser
 from database import get_db
-from project_models import Project, TaskDraft, TaskDraftCheckpoint
+from project_models import Project, Task, TaskDraft, TaskDraftCheckpoint
 from routers.projects.helpers import (
     check_task_assigned_to_user,
     enforce_seb,
@@ -22,9 +24,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# The draft and checkpoint endpoints use the sync session, so they are plain
+# ``def``: FastAPI runs them in its threadpool. As ``async def`` every draft
+# save (one per writer every 30 s during an exam) blocked the event loop for
+# the whole request.
+
+
+def _task_in_project(db: Session, task_id: str, project_id: str) -> bool:
+    """The access checks run against ``project_id``; the task must belong to it."""
+    return (
+        db.query(Task.id)
+        .filter(Task.id == task_id, Task.project_id == project_id)
+        .first()
+        is not None
+    )
+
 
 @router.put("/{project_id}/tasks/{task_id}/draft")
-async def save_draft(
+def save_draft(
     project_id: str,
     task_id: str,
     request: Request,
@@ -44,29 +61,28 @@ async def save_draft(
     project = db.query(Project).filter(Project.id == project_id).first()
     if project and not check_task_assigned_to_user(db, current_user, task_id, project):
         raise HTTPException(status_code=404, detail="Task not found")
+    if not _task_in_project(db, task_id, project_id):
+        raise HTTPException(status_code=404, detail="Task not found")
     enforce_seb(db, current_user, project, request, tier=tier)
 
     draft_result = body.get("result", [])
 
-    existing_draft = (
-        db.query(TaskDraft)
-        .filter(
-            TaskDraft.task_id == task_id,
-            TaskDraft.user_id == current_user.id,
-        )
-        .first()
-    )
-
-    if existing_draft:
-        existing_draft.draft_result = draft_result
-    else:
-        db.add(TaskDraft(
+    # One statement: two saves of the same (task, user) at once (two tabs,
+    # a retry overtaking the original) must not race into the unique key.
+    db.execute(
+        pg_insert(TaskDraft)
+        .values(
             id=str(uuid.uuid4()),
             task_id=task_id,
             user_id=current_user.id,
             project_id=project_id,
             draft_result=draft_result,
-        ))
+        )
+        .on_conflict_do_update(
+            constraint="unique_task_draft",
+            set_={"draft_result": draft_result, "updated_at": func.now()},
+        )
+    )
 
     db.commit()
 
@@ -141,7 +157,7 @@ def _require_task_access(
 
 
 @router.post("/{project_id}/tasks/{task_id}/checkpoint")
-async def save_checkpoint(
+def save_checkpoint(
     project_id: str,
     task_id: str,
     request: Request,
@@ -207,7 +223,7 @@ async def save_checkpoint(
 
 
 @router.get("/{project_id}/tasks/{task_id}/checkpoints")
-async def list_checkpoints(
+def list_checkpoints(
     project_id: str,
     task_id: str,
     request: Request,
@@ -244,7 +260,7 @@ async def list_checkpoints(
 
 
 @router.get("/{project_id}/tasks/{task_id}/checkpoints/{checkpoint_id}")
-async def get_checkpoint(
+def get_checkpoint(
     project_id: str,
     task_id: str,
     checkpoint_id: str,

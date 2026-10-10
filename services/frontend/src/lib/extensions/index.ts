@@ -30,6 +30,11 @@ export type {
   WizardKindPreset,
   WizardPostCreateHook,
 } from './wizardTemplates'
+export {
+  getWritingPresenceReporter,
+  registerWritingPresenceReporter,
+} from './writingPresence'
+export type { WritingPresenceReporter } from './writingPresence'
 
 let extendedLoaded = false
 

@@ -475,11 +475,23 @@ whenever one is added, renamed or removed):
   it per row as ``grade_summary`` (headline values only, null without a
   submission). The frontend slot ``MyTaskRowResult`` renders it in the row;
   the ``MyTasksResultCard`` slot is gone.
+
+2.36 (2026-10-10): writing-page presence. Migration 117 adds
+  ``task_work_presence`` (model ``project_models.TaskWorkPresence``: one row
+  per task and user with ``started_at``, ``last_seen_at``, ``visible``,
+  ``ended_at``; written by the extended edition only). Frontend extension
+  point ``registerWritingPresenceReporter(fn)`` (``lib/extensions``):
+  ``useServerDraftSync`` calls the reporter on ticks without a change, on
+  mount and on tab hide/show; none is registered in the community edition.
+  New slots ``project-editor-actions`` (Quick Actions for the project's
+  editors only) and ``ProjectLivePage`` (``/projects/[id]/live``). The draft
+  and checkpoint endpoints run in the threadpool and the draft save is one
+  upsert; ``on_draft_saved`` now runs after that upsert's commit.
 """
 
 import os
 
-CORE_API_VERSION = "2.35"
+CORE_API_VERSION = "2.36"
 
 
 def extended_required() -> bool:

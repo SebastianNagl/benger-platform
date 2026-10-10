@@ -1,8 +1,9 @@
 /**
  * useServerDraftSync
  *
- * Periodic server-side draft sync for an annotation task: every 30s when the
- * result has changed, plus an immediate save when the tab is hidden. Upserts
+ * Periodic server-side draft sync for an annotation task: every 30s (the
+ * first tick after a random offset within that period) when the result has
+ * changed, plus an immediate save when the tab is hidden. Upserts
  * into the ``task_drafts`` table via ``PUT /projects/{id}/tasks/{taskId}/draft``
  * for crash recovery and the strict-timer auto-submit fallback.
  *
@@ -16,6 +17,12 @@
  * exam attempt drive server drafts through one implementation (no duplicate
  * draft logic). The localStorage half of auto-save lives in ``useAutoSave``.
  *
+ * Presence extension point (`lib/extensions/writingPresence`): when the text
+ * did not change, the tick calls the registered presence reporter instead of
+ * saving, plus once on mount and whenever the tab is hidden or shown, with
+ * whether the tab is in the foreground. The community edition registers no
+ * reporter. A failing report is ignored; it never reaches the writer's UI.
+ *
  * NOTE: restorable draft *checkpoints* (the opt-in append-only snapshot history
  * used by exams) are NOT a community feature — that save/restore logic lives in
  * the extended ``DraftCheckpointPanel`` slot, mounted into LabelingInterface via
@@ -25,6 +32,7 @@
 'use client'
 
 import { projectsAPI } from '@/lib/api/projects'
+import { getWritingPresenceReporter } from '@/lib/extensions/writingPresence'
 import { useEffect, useRef, useState } from 'react'
 
 const SERVER_DRAFT_SYNC_MS = 30_000
@@ -94,12 +102,25 @@ export function useServerDraftSync(
     let inFlight = false
     let retryTimer: ReturnType<typeof setTimeout> | null = null
 
-    const syncDraft = async () => {
-      if (inFlight) return
+    const isVisible = () => document.visibilityState !== 'hidden'
+
+    // Presence report for an extension (none in the community edition).
+    // Wrapped so a missing or failing reporter never breaks the writing page.
+    const touchPresence = () => {
+      const report = getWritingPresenceReporter()
+      if (!report) return
+      Promise.resolve()
+        .then(() => report(projectId, taskId, isVisible()))
+        .catch(() => {})
+    }
+
+    /** Saves the draft if it changed; true when a save reached the server. */
+    const syncDraft = async (): Promise<boolean> => {
+      if (inFlight) return false
       const ann = annotationsRef.current ?? []
       const serialized = JSON.stringify(ann)
-      if (serialized === lastSyncedRef.current) return
-      if (ann.length === 0) return
+      if (serialized === lastSyncedRef.current) return false
+      if (ann.length === 0) return false
       if (retryTimer) {
         clearTimeout(retryTimer)
         retryTimer = null
@@ -112,6 +133,7 @@ export function useServerDraftSync(
         if (!cancelled) {
           setState({ status: 'saved', lastSavedAt: new Date(), failures: 0 })
         }
+        return true
       } catch {
         // lastSyncedRef stays put, so the retry below re-sends this content
         // (or newer content, if the writer kept typing).
@@ -124,22 +146,42 @@ export function useServerDraftSync(
             retryTimer = setTimeout(syncDraft, delay)
           }
         }
+        return false
       } finally {
         inFlight = false
       }
     }
 
-    const interval = setInterval(syncDraft, SERVER_DRAFT_SYNC_MS)
+    // A save from a hidden tab is followed by a presence report, so the
+    // reporter learns the tab is in the background.
+    const tick = async () => {
+      const saved = await syncDraft()
+      if (!cancelled && (!saved || !isVisible())) touchPresence()
+    }
+
+    touchPresence()
+    // The first tick comes after a random share of the period, so the
+    // writers of an exam who all open it in the same minute do not stay in
+    // lock-step and hit the server in one burst every 30 s.
+    let interval: ReturnType<typeof setInterval> | null = null
+    const firstTick = setTimeout(
+      () => {
+        tick()
+        interval = setInterval(tick, SERVER_DRAFT_SYNC_MS)
+      },
+      Math.floor(Math.random() * SERVER_DRAFT_SYNC_MS),
+    )
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') syncDraft()
+      tick()
     }
     document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('online', syncDraft)
 
     return () => {
       cancelled = true
-      clearInterval(interval)
+      clearTimeout(firstTick)
+      if (interval) clearInterval(interval)
       if (retryTimer) clearTimeout(retryTimer)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('online', syncDraft)
