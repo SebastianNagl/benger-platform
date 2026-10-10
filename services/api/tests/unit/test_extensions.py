@@ -136,7 +136,9 @@ class TestExtensionLoader:
         # /auth/me/onboarding and the GlobalOnboarding slot.
         # 2.35 adds the task_grade_summaries_for_user hook (per-row result
         # on "Meine Aufgaben").
-        assert CORE_API_VERSION == "2.35"
+        # 2.36 adds task_work_presence (migration 117), the writing-presence
+        # reporter and the project-editor-actions / ProjectLivePage slots.
+        assert CORE_API_VERSION == "2.36"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
