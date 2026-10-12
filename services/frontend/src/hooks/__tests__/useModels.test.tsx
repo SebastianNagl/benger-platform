@@ -67,6 +67,28 @@ describe('useModels', () => {
     jest.clearAllMocks()
   })
 
+  describe('enabled option', () => {
+    it('skips the request when disabled and reports nothing', async () => {
+      const { result } = renderHook(() => useModels({ enabled: false }))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(mockGetAvailableModels).not.toHaveBeenCalled()
+      expect(result.current.models).toEqual([])
+      expect(result.current.error).toBeNull()
+    })
+
+    it('fetches once it becomes enabled', async () => {
+      mockGetAvailableModels.mockResolvedValue(mockModels)
+      const { result, rerender } = renderHook(
+        ({ enabled }) => useModels({ enabled }),
+        { initialProps: { enabled: false } },
+      )
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      rerender({ enabled: true })
+      await waitFor(() => expect(result.current.models).toHaveLength(3))
+      expect(mockGetAvailableModels).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('Basic Hook Behavior', () => {
     it('should return expected interface', async () => {
       mockGetAvailableModels.mockResolvedValue(mockModels)

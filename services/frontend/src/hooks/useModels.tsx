@@ -55,7 +55,12 @@ export interface UseModelsReturn {
   apiKeyStatus: Record<string, boolean> | null
 }
 
-export function useModels(): UseModelsReturn {
+export function useModels(
+  // `enabled: false` (viewers who cannot configure models, e.g. participants
+  // on a project page) skips the request: the endpoint would answer 403.
+  options: { enabled?: boolean } = {},
+): UseModelsReturn {
+  const enabled = options.enabled ?? true
   const { t } = useI18n()
   // The scope decides whose keys are listed: the project's dispatch org
   // (project pages), the wizard's creation target, else personal keys.
@@ -65,6 +70,12 @@ export function useModels(): UseModelsReturn {
   const [error, setError] = useState<ModelError | null>(null)
 
   const fetchModels = useCallback(async () => {
+    if (!enabled) {
+      setModels([])
+      setError(null)
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       setError(null)
@@ -117,7 +128,7 @@ export function useModels(): UseModelsReturn {
     } finally {
       setLoading(false)
     }
-  }, [t, projectId, organizationId])
+  }, [t, projectId, organizationId, enabled])
 
   const refetch = useCallback(async () => {
     await fetchModels()

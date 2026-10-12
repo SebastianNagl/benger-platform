@@ -5,14 +5,23 @@
 import { renderHook } from '@testing-library/react'
 import { act } from 'react'
 
+import { registerWritingPresenceReporter } from '@/lib/extensions/writingPresence'
+
 import { useServerDraftSync } from '../useServerDraftSync'
 
 const mockSaveDraft = jest.fn()
+const mockTouchPresence = jest.fn()
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {
     saveDraft: (...args: any[]) => mockSaveDraft(...args),
   },
 }))
+
+const setVisibility = (value: 'visible' | 'hidden') =>
+  Object.defineProperty(document, 'visibilityState', {
+    value,
+    configurable: true,
+  })
 
 const A = [{ from_name: 'loesung', value: { markdown: 'x' } }]
 
@@ -20,6 +29,7 @@ describe('useServerDraftSync', () => {
   beforeEach(() => {
     jest.useFakeTimers()
     mockSaveDraft.mockReset().mockResolvedValue(undefined)
+    mockTouchPresence.mockReset().mockResolvedValue(undefined)
   })
   afterEach(() => {
     jest.useRealTimers()
@@ -155,4 +165,95 @@ describe('useServerDraftSync', () => {
 
   // Restorable checkpoints moved to the extended DraftCheckpointPanel; this
   // hook now only owns the generic 30s draft sync.
+
+  describe('presence reporter (extension point)', () => {
+    beforeEach(() => {
+      setVisibility('visible')
+      registerWritingPresenceReporter((...args) => mockTouchPresence(...args))
+    })
+    afterEach(() => registerWritingPresenceReporter(null))
+
+    it('sends nothing without a registered reporter (community edition)', async () => {
+      registerWritingPresenceReporter(null)
+      renderHook(() => useServerDraftSync('p1', 't1', []))
+      await act(async () => {
+        jest.advanceTimersByTime(60_000)
+      })
+      expect(mockTouchPresence).not.toHaveBeenCalled()
+    })
+
+    it('touches on mount and on every tick without a change', async () => {
+      renderHook(() => useServerDraftSync('p1', 't1', []))
+      await act(async () => {})
+      expect(mockTouchPresence).toHaveBeenCalledWith('p1', 't1', true)
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+      })
+      expect(mockTouchPresence).toHaveBeenCalledTimes(2)
+      expect(mockSaveDraft).not.toHaveBeenCalled()
+    })
+
+    it('a tick that saves the draft sends no extra presence report', async () => {
+      renderHook(() => useServerDraftSync('p1', 't1', A))
+      await act(async () => {})
+      mockTouchPresence.mockClear()
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+      })
+      expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+      expect(mockTouchPresence).not.toHaveBeenCalled()
+    })
+
+    it('reports a hidden tab, also after the flush on hide', async () => {
+      renderHook(() => useServerDraftSync('p1', 't1', A))
+      await act(async () => {})
+      setVisibility('hidden')
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+      expect(mockTouchPresence).toHaveBeenLastCalledWith('p1', 't1', false)
+    })
+
+    it('spreads the first tick over the period, then keeps a 30s rhythm', async () => {
+      const random = jest.spyOn(Math, 'random').mockReturnValue(0.5)
+      try {
+        renderHook(() => useServerDraftSync('p1', 't1', A))
+        await act(async () => {
+          jest.advanceTimersByTime(14_999)
+        })
+        expect(mockSaveDraft).not.toHaveBeenCalled()
+        await act(async () => {
+          jest.advanceTimersByTime(1)
+        })
+        expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+        mockTouchPresence.mockClear()
+        await act(async () => {
+          jest.advanceTimersByTime(30_000)
+        })
+        // Unchanged text on the next tick: a presence report instead of a save.
+        expect(mockSaveDraft).toHaveBeenCalledTimes(1)
+        expect(mockTouchPresence).toHaveBeenCalledTimes(1)
+      } finally {
+        random.mockRestore()
+      }
+    })
+
+    it('never touches when disabled', async () => {
+      renderHook(() => useServerDraftSync('p1', 't1', A, { enabled: false }))
+      await act(async () => {
+        jest.advanceTimersByTime(60_000)
+      })
+      expect(mockTouchPresence).not.toHaveBeenCalled()
+    })
+
+    it('a failing presence report stays invisible to the writer', async () => {
+      mockTouchPresence.mockRejectedValue(new Error('offline'))
+      const { result } = renderHook(() => useServerDraftSync('p1', 't1', []))
+      await act(async () => {
+        jest.advanceTimersByTime(30_000)
+      })
+      expect(result.current.status).toBe('idle')
+    })
+  })
 })

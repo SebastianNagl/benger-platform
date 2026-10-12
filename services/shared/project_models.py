@@ -754,6 +754,34 @@ class TaskDraft(Base):
     )
 
 
+class TaskWorkPresence(Base):
+    """Whether a user has a task's writing page open right now (migration 117).
+
+    One row per (task, user), overwritten in place; no history. Written by
+    the extended edition (heartbeat of the open writing page, closed on
+    submit); the platform only owns the table.
+    """
+
+    __tablename__ = "task_work_presence"
+
+    id = Column(String, primary_key=True, index=True)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    started_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_seen_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # Whether the writing tab was in the foreground at the last touch.
+    visible = Column(Boolean, nullable=False, default=True, server_default=sa.true())
+    # Set when the user submits the task; the next touch opens a new session.
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        sa.UniqueConstraint("task_id", "user_id", name="uq_task_work_presence_task_user"),
+        sa.Index("ix_task_work_presence_project_seen", "project_id", "last_seen_at"),
+        sa.Index("ix_task_work_presence_user_id", "user_id"),
+    )
+
+
 class TaskDraftCheckpoint(Base):
     """Append-only restorable draft checkpoints (opt-in per project).
 

@@ -343,6 +343,51 @@ describe('ProjectDetailPage — participant tier', () => {
     registerSlot('project-deck-workspace', null as any)
   })
 
+  it.each([
+    [
+      'an editor',
+      { access_tier: 'full', effective_role: 'CONTRIBUTOR', can_edit: true },
+      true,
+    ],
+    [
+      'a full-tier annotator',
+      { access_tier: 'full', effective_role: 'ANNOTATOR', can_edit: false },
+      false,
+    ],
+    [
+      'a participant',
+      {
+        access_tier: 'participant',
+        effective_role: 'ANNOTATOR',
+        can_edit: false,
+      },
+      false,
+    ],
+  ])('editor actions slot: %s sees it = %s', async (_who, project, visible) => {
+    setup(project)
+    const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+    registerSlot('project-editor-actions', ({ project: p }: any) => (
+      <div data-testid="editor-actions-stub">{p.id}</div>
+    ))
+    try {
+      const params = Promise.resolve({ id: 'test-project-123' })
+      render(<ProjectDetailPage params={params} />)
+      // Wait for the page body (the participant/editor cards render with it).
+      await screen.findAllByRole('button')
+      if (visible) {
+        expect(
+          await screen.findByTestId('editor-actions-stub'),
+        ).toHaveTextContent('test-project-123')
+      } else {
+        expect(
+          screen.queryByTestId('editor-actions-stub'),
+        ).not.toBeInTheDocument()
+      }
+    } finally {
+      registerSlot('project-editor-actions', null as any)
+    }
+  })
+
   it('private mode: a CONTRIBUTOR per the API gets the Korrektur action and edit affordances', async () => {
     // currentOrganization is null (private mode) and the global user.role is
     // ANNOTATOR; the project belongs to LMU and the API resolved the caller

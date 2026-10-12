@@ -85,8 +85,11 @@ function GenerationControlModalBody({
   // bumps it above 1 — a value of 1 falls back to the project default.
   const [runsPerTask, setRunsPerTask] = useState<number>(1)
 
-  // Fetch model objects to access parameter_constraints
-  const { models: availableModelObjects } = useModels()
+  // Fetch model objects to access parameter_constraints. Only while open:
+  // the project page mounts this modal for every visitor, and for anyone who
+  // may not configure models the request is a 403. The catalog arriving
+  // after the open transition is handled below.
+  const { models: availableModelObjects } = useModels({ enabled: isOpen })
 
   // BYOM: partition the model-id pool into official and custom models via
   // the catalog objects. Ids without a catalog object or without an

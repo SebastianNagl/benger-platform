@@ -280,7 +280,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     models: availableModels,
     loading: modelsLoading,
     error: modelsError,
-  } = useModels()
+    // Only editors configure models here; for everyone else the endpoint
+    // answers 403 (a failed request and a console error per page view).
+  } = useModels({
+    enabled: !!user?.is_superadmin || !!currentProject?.can_edit,
+  })
 
   // Sort models by provider for better organization
   const sortedModels = useMemo(() => {
@@ -365,6 +369,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const ProjectExamSecurity = useSlot('project-exam-security')
   const ProjectDeckWorkspace = useSlot('project-deck-workspace')
   const ProjectSolverActions = useSlot('project-solver-actions')
+  // Extended Quick Actions for the project's editors only.
+  const ProjectEditorActions = useSlot('project-editor-actions')
   // Learning-platform (LMS) activities linked to this project, shown under the
   // quick actions. The slot renders nothing for projects outside an LMS.
   const ProjectLmsActivities = useSlot('project-lms-activities')
@@ -860,6 +866,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       case 'generation':
       case 'evaluations':
         return role === 'ORG_ADMIN' || role === 'CONTRIBUTOR'
+      case 'editorActions':
+        // Extended editor actions; their endpoints check edit rights too.
+        return canEditProject()
       case 'deleteProject':
         return role === 'ORG_ADMIN'
       default:
@@ -3036,6 +3045,17 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   <DocumentTextIcon className="mr-2 h-4 w-4" />
                   {t('project.quickActions.myTasks')}
                 </Button>
+              )}
+
+              {ProjectEditorActions && canSeeQuickAction('editorActions') && (
+                <div
+                  data-testid="project-editor-actions"
+                  // The slot may render nothing (e.g. a flag is off): no
+                  // empty row in the stacked Quick Actions.
+                  className="empty:hidden"
+                >
+                  <ProjectEditorActions project={currentProject} />
+                </div>
               )}
 
               {canSeeQuickAction('generation') && (
