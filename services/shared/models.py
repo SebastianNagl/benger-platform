@@ -182,6 +182,14 @@ class User(Base):
     name = Column(String, nullable=False)
     hashed_password = Column(String, nullable=True)  # Now nullable for invited users
     is_superadmin = Column(Boolean, default=False, nullable=False)  # Global admin flag
+    # Machine identity behind an organization access key (migration 118).
+    # Such a row never logs in, never receives notifications and is hidden
+    # from member lists; it exists so org keys act through the normal
+    # membership-based permission checks. See services/api/services/
+    # api_key_service.py.
+    is_service_account = Column(
+        Boolean, default=False, server_default=sa.false(), nullable=False
+    )
 
     # Invitation onboarding tracking fields
     invitation_token = Column(String(255), nullable=True, index=True)  # Token from invitation
@@ -327,6 +335,13 @@ class User(Base):
     __table_args__ = (
         # Case-insensitive email lookups (migration 106).
         Index("ix_users_email_lower", text("lower(email)")),
+        # Service accounts are rare; the partial index keeps the "exclude
+        # them" filters on member lists cheap (migration 118).
+        Index(
+            "ix_users_is_service_account",
+            "is_service_account",
+            postgresql_where=text("is_service_account"),
+        ),
     )
 
     # Relationships
@@ -607,6 +622,149 @@ class OrganizationApiKey(Base):
 
     def __repr__(self):
         return f"<OrganizationApiKey(id={self.id}, org_id={self.organization_id}, provider={self.provider})>"
+
+
+class ApiKey(Base):
+    """A programmatic access key (``bgr_<env>_<kid>_<secret>``, migration 118).
+
+    Only the SHA-256 of the peppered secret is stored (``key_hash``); the
+    plain key is shown once at creation. ``key_prefix`` (``bgr_<env>_<kid>``)
+    is the public lookup handle shown in lists.
+
+    Two owner shapes (``ck_api_keys_owner_shape``):
+
+    * ``owner_type='user'``: a personal key. ``user_id`` is the owner, the
+      key acts as that user, ``organization_id``/``group_id``/``org_role``
+      are NULL.
+    * ``owner_type='org'``: an organization key. ``user_id`` is the key's
+      own service-account user (``users.is_service_account``), which holds
+      an ``OrganizationMembership`` with ``org_role`` (and a group
+      membership when ``group_id`` is set), so the key passes the ordinary
+      membership checks and nothing more.
+
+    ``scopes`` narrows what the key may call (``app/core/scopes.py``);
+    ``project_ids`` (NULL = every project the principal can see) narrows
+    which projects it sees. Revocation is a soft state (``revoked_at``) so
+    usage history keeps its key reference.
+    """
+
+    __tablename__ = "api_keys"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(120), nullable=False)
+    key_prefix = Column(String(32), nullable=False)
+    key_hash = Column(String(64), nullable=False)
+    hash_version = Column(sa.SmallInteger, nullable=False, default=1, server_default="1")
+    owner_type = Column(String(8), nullable=False)
+    user_id = Column(
+        String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    organization_id = Column(
+        String,
+        ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    # Composite FK with organization_id (see __table_args__).
+    group_id = Column(String, nullable=True)
+    org_role = Column(SQLEnum(OrganizationRole), nullable=True)
+    scopes = Column(JSONB, nullable=False, default=list, server_default=text("'[]'"))
+    project_ids = Column(JSONB, nullable=True)
+    environment = Column(String(8), nullable=False, default="live", server_default="live")
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    revoke_reason = Column(Text, nullable=True)
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    last_used_ip = Column(String(64), nullable=True)
+    rate_limit_per_minute = Column(Integer, nullable=True)
+    rate_limit_per_day = Column(Integer, nullable=True)
+    created_by = Column(String, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        sa.UniqueConstraint("key_prefix", name="uq_api_keys_key_prefix"),
+        sa.CheckConstraint("owner_type IN ('user', 'org')", name="ck_api_keys_owner_type"),
+        sa.CheckConstraint("environment IN ('live', 'test')", name="ck_api_keys_environment"),
+        sa.CheckConstraint(
+            "(owner_type = 'user' AND organization_id IS NULL AND group_id IS NULL"
+            " AND org_role IS NULL)"
+            " OR (owner_type = 'org' AND organization_id IS NOT NULL"
+            " AND org_role IS NOT NULL)",
+            name="ck_api_keys_owner_shape",
+        ),
+        # A key's group must belong to the key's org; group keys die with
+        # their group (the application revokes them first so the service
+        # account is deactivated too).
+        sa.ForeignKeyConstraint(
+            ["organization_id", "group_id"],
+            ["organization_groups.organization_id", "organization_groups.id"],
+            name="fk_api_keys_group_scope",
+            ondelete="CASCADE",
+        ),
+        sa.Index(
+            "ix_api_keys_org_active",
+            "organization_id",
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+    )
+
+    def __repr__(self):
+        return f"<ApiKey(id={self.id}, prefix={self.key_prefix}, owner_type={self.owner_type})>"
+
+
+class ApiKeyUsageEvent(Base):
+    """One request made with an access key under ``/api/v1`` (migration 118).
+
+    Written in batches by ``services/api/services/api_usage_writer.py``,
+    pruned after ``API_USAGE_RETENTION_DAYS`` by the
+    ``tasks.cleanup_api_key_usage_events`` beat task. ``route`` is the path
+    template (``/api/v1/projects/{project_id}``), never the raw path, and no
+    request or response body is stored. ``key_prefix`` and
+    ``organization_id`` are denormalised (no FK) so the history survives a
+    deleted key or org for its retention window.
+    """
+
+    __tablename__ = "api_key_usage_events"
+
+    id = Column(BigInteger, sa.Identity(always=False), primary_key=True)
+    api_key_id = Column(
+        String, ForeignKey("api_keys.id", ondelete="SET NULL"), nullable=True
+    )
+    key_prefix = Column(String(32), nullable=False)
+    organization_id = Column(String, nullable=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    request_id = Column(String(64), nullable=True)
+    method = Column(String(8), nullable=True)
+    route = Column(String(200), nullable=True)
+    project_id = Column(String, nullable=True)
+    status_code = Column(sa.SmallInteger, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    scope_used = Column(String(64), nullable=True)
+    ip_address = Column(String(64), nullable=True)
+    user_agent = Column(String(256), nullable=True)
+    request_bytes = Column(Integer, nullable=True)
+    response_bytes = Column(Integer, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        sa.Index(
+            "ix_api_key_usage_events_key_created",
+            "api_key_id",
+            sa.text("created_at DESC"),
+        ),
+        sa.Index(
+            "ix_api_key_usage_events_org_created",
+            "organization_id",
+            sa.text("created_at DESC"),
+        ),
+        sa.Index(
+            "ix_api_key_usage_events_created_brin",
+            "created_at",
+            postgresql_using="brin",
+        ),
+    )
 
 
 class OrgStorageConnection(Base):
