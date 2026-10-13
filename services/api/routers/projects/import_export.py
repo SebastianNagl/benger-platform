@@ -185,6 +185,85 @@ async def _load_export_job_for_read(
     return job
 
 
+async def enqueue_export_job(
+    db: AsyncSession,
+    current_user: AuthUser,
+    project: Project,
+    format: str,
+    task_ids: Any = None,
+) -> ExportJob:
+    """Create an ExportJob for ``project`` and enqueue the worker.
+
+    Shared by ``POST /api/projects/{id}/exports`` and the public
+    ``POST /api/v1/projects/{id}/exports``. The caller has already loaded the
+    project and checked that ``current_user`` may read it; this enforces the
+    full-data role, the read window and the ``task_ids`` contract, and
+    raises 503 when the queue is unavailable.
+    """
+    # The export worker streams raw ``task.data`` with NO annotator blinding
+    # (reference solutions included), so exporting is reserved for the roles
+    # that see the full payload anyway: effective ORG_ADMIN / CONTRIBUTOR
+    # (the blinding module's full-data roles; public CONTRIBUTOR visitors
+    # keep it per the public_role contract, public ANNOTATOR visitors and org
+    # annotators do not). A Safe Exam Browser exam narrows this to its editors.
+    if not await can_read_all_task_content_async(db, current_user, project):
+        raise HTTPException(
+            status_code=403,
+            detail="Only contributors or admins can export this project",
+        )
+
+    # Timed access window: an export dumps all task data, so a non-editor who
+    # passed the write gate (public CONTRIBUTOR visitor) can't export before
+    # the window opens (editors exempt). Reads stay open once open/closed, so
+    # post-window export/review still works.
+    await enforce_project_read_window_async(db, current_user, project)
+
+    if task_ids is not None:
+        if not isinstance(task_ids, list) or not all(
+            isinstance(t, str) for t in task_ids
+        ):
+            raise HTTPException(
+                status_code=422, detail="task_ids must be a list of strings"
+            )
+        if not task_ids:
+            task_ids = None  # empty subset == whole project
+    if task_ids and format != "json":
+        raise HTTPException(
+            status_code=422,
+            detail="Subset export (task_ids) is only supported for the json format",
+        )
+
+    job = ExportJob(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        requested_by=current_user.id,
+        format=format,
+        task_ids=task_ids,
+        status=JobStatus.PENDING.value,
+        progress=0,
+    )
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+
+    try:
+        result = send_task_safe("tasks.export_project", args=[job.id])
+        job.celery_task_id = getattr(result, "id", None)
+        await db.commit()
+    except Exception as exc:
+        # Enqueue failed even after the client's reconnect retry — mark the job
+        # failed so it isn't left pending forever, and surface 503.
+        logger.error("Failed to enqueue export job %s: %s", job.id, exc)
+        job.status = JobStatus.FAILED.value
+        job.error_message = f"Failed to enqueue export: {exc}"
+        await db.commit()
+        raise HTTPException(
+            status_code=503, detail="Export queue unavailable, please retry"
+        )
+
+    return job
+
+
 @router.post("/{project_id}/exports", status_code=202)
 async def create_export_job(
     project_id: str,
@@ -216,67 +295,9 @@ async def create_export_job(
         db, current_user, project_id, project=project
     ):
         raise HTTPException(status_code=403, detail="Access denied")
-    # The export worker streams raw ``task.data`` with NO annotator blinding
-    # (reference solutions included), so exporting is reserved for the roles
-    # that see the full payload anyway: effective ORG_ADMIN / CONTRIBUTOR
-    # (the blinding module's full-data roles; public CONTRIBUTOR visitors
-    # keep it per the public_role contract, public ANNOTATOR visitors and org
-    # annotators do not). A Safe Exam Browser exam narrows this to its editors.
-    if not await can_read_all_task_content_async(db, current_user, project):
-        raise HTTPException(
-            status_code=403,
-            detail="Only contributors or admins can export this project",
-        )
-
-    # Timed access window: an export dumps all task data, so a non-editor who
-    # passed the write gate (public CONTRIBUTOR visitor) can't export before
-    # the window opens (editors exempt). Reads stay open once open/closed, so
-    # post-window export/review still works.
-    await enforce_project_read_window_async(db, current_user, project)
-
-    task_ids = (data or {}).get("task_ids")
-    if task_ids is not None:
-        if not isinstance(task_ids, list) or not all(
-            isinstance(t, str) for t in task_ids
-        ):
-            raise HTTPException(
-                status_code=422, detail="task_ids must be a list of strings"
-            )
-        if not task_ids:
-            task_ids = None  # empty subset == whole project
-    if task_ids and format != "json":
-        raise HTTPException(
-            status_code=422,
-            detail="Subset export (task_ids) is only supported for the json format",
-        )
-
-    job = ExportJob(
-        id=str(uuid.uuid4()),
-        project_id=project_id,
-        requested_by=current_user.id,
-        format=format,
-        task_ids=task_ids,
-        status=JobStatus.PENDING.value,
-        progress=0,
+    job = await enqueue_export_job(
+        db, current_user, project, format, (data or {}).get("task_ids")
     )
-    db.add(job)
-    await db.commit()
-    await db.refresh(job)
-
-    try:
-        result = send_task_safe("tasks.export_project", args=[job.id])
-        job.celery_task_id = getattr(result, "id", None)
-        await db.commit()
-    except Exception as exc:
-        # Enqueue failed even after the client's reconnect retry — mark the job
-        # failed so it isn't left pending forever, and surface 503.
-        logger.error("Failed to enqueue export job %s: %s", job.id, exc)
-        job.status = JobStatus.FAILED.value
-        job.error_message = f"Failed to enqueue export: {exc}"
-        await db.commit()
-        raise HTTPException(
-            status_code=503, detail="Export queue unavailable, please retry"
-        )
 
     return JSONResponse(
         status_code=202,
@@ -297,6 +318,35 @@ async def get_export_job(
     return _serialize_export_job(job)
 
 
+EXPORT_DOWNLOAD_URL_TTL = 300
+
+
+async def export_download_url(db: AsyncSession, job: ExportJob) -> str:
+    """Short-lived presigned URL of a finished export (404 until the job is
+    completed, 410 once its artifact expired). The object key comes from the
+    DB row, never from the client. Shared with ``/api/v1/exports``."""
+    if job.status != JobStatus.COMPLETED.value or not job.object_key:
+        raise HTTPException(status_code=404, detail="Export not ready")
+    if job.expires_at is not None and job.expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(status_code=410, detail="Export has expired; re-export")
+
+    _media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
+        job.format or "json", ("application/octet-stream", "dat")
+    )
+    project = (
+        await db.execute(select(Project).where(Project.id == job.project_id))
+    ).scalar_one_or_none()
+    safe_title = ((project.title if project else None) or "project").replace(" ", "_")
+    filename = f"{safe_title}_export.{ext}"
+
+    return object_storage.get_download_url(
+        job.object_key,
+        expires_in=EXPORT_DOWNLOAD_URL_TTL,
+        response_content_type=_media_type,
+        response_content_disposition=f'attachment; filename="{filename}"',
+    )
+
+
 @router.get("/{project_id}/exports/{job_id}/download")
 async def download_export_job(
     project_id: str,
@@ -314,27 +364,7 @@ async def download_export_job(
     the frontend trigger an anchor download without following the redirect).
     """
     job = await _load_export_job_for_read(db, request, current_user, project_id, job_id)
-
-    if job.status != JobStatus.COMPLETED.value or not job.object_key:
-        raise HTTPException(status_code=404, detail="Export not ready")
-    if job.expires_at is not None and job.expires_at <= datetime.now(timezone.utc):
-        raise HTTPException(status_code=410, detail="Export has expired; re-export")
-
-    _media_type, ext = EXPORT_FORMAT_MEDIA_TYPES.get(
-        job.format or "json", ("application/octet-stream", "dat")
-    )
-    project = (
-        await db.execute(select(Project).where(Project.id == project_id))
-    ).scalar_one_or_none()
-    safe_title = ((project.title if project else None) or "project").replace(" ", "_")
-    filename = f"{safe_title}_export.{ext}"
-
-    url = object_storage.get_download_url(
-        job.object_key,
-        expires_in=300,
-        response_content_type=_media_type,
-        response_content_disposition=f'attachment; filename="{filename}"',
-    )
+    url = await export_download_url(db, job)
 
     if json:
         return {"url": url, "expires_in": 300}
