@@ -12,6 +12,16 @@ from .base_evaluator import BaseEvaluator
 logger = logging.getLogger(__name__)
 
 
+def _registration_owner() -> Optional[str]:
+    """The extension package whose registrations are running (see
+    ``extension_registry.owner``), else None."""
+    try:
+        from extension_registry import current_owner
+    except ImportError:  # /shared not on sys.path
+        return None
+    return current_owner()
+
+
 class EvaluatorRegistry:
     """
     Registry for ML evaluators.
@@ -22,6 +32,8 @@ class EvaluatorRegistry:
 
     def __init__(self):
         self._evaluators: Dict[str, Type[BaseEvaluator]] = {}
+        # Which extension package registered each evaluator (None: platform).
+        self._owners: Dict[str, Optional[str]] = {}
 
     def register(self, task_type: str, evaluator_class: Type[BaseEvaluator]):
         """
@@ -39,15 +51,24 @@ class EvaluatorRegistry:
                 f"Evaluator class {evaluator_class.__name__} must inherit from BaseEvaluator"
             )
 
+        owner = _registration_owner()
         if task_type in self._evaluators:
             logger.warning(
-                f"Overriding existing evaluator for task type '{task_type}'. "
+                f"Overriding existing evaluator for task type '{task_type}': "
+                f"registered by {owner or 'the platform'} replaces "
+                f"{self._owners.get(task_type) or 'the platform'}'s. "
                 f"Previous: {self._evaluators[task_type].__name__}, "
                 f"New: {evaluator_class.__name__}"
             )
 
         self._evaluators[task_type] = evaluator_class
+        self._owners[task_type] = owner
         logger.info(f"Registered evaluator {evaluator_class.__name__} for task type '{task_type}'")
+
+    def owner(self, task_type: str) -> Optional[str]:
+        """The extension package that registered ``task_type`` (None for the
+        platform's own evaluators and unknown types)."""
+        return self._owners.get(task_type)
 
     def get_evaluator(self, task_type: str) -> Optional[Type[BaseEvaluator]]:
         """Get the evaluator class for a specific task type."""

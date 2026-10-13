@@ -5,10 +5,12 @@ The seed function in database.py and the cost lookup in
 shared.ai_services.provider_capabilities both consume this loader's output,
 so a single edit to llm_models.yaml propagates to both.
 
-Extension hook: if benger_extended ships an `llm_models_extended.yaml`
-alongside its package and exposes `get_llm_models_yaml_path()`, those
-entries are merged on top of the platform list (extended entries with the
-same `id` override platform entries).
+Extension hook: every extension package (``BENGER_EXTENSIONS``, default
+``benger_extended``) that exposes ``get_llm_models_yaml_path()`` contributes
+a YAML whose entries are merged on top of the platform list, in package
+order (an entry with the same ``id`` overrides the earlier source). The
+loader works without the app (the drift-check script): it reads the
+configured package names itself and imports each package directly.
 """
 
 from __future__ import annotations
@@ -62,10 +64,19 @@ def _validate(model: Dict[str, Any], source: str) -> None:
         )
 
 
-def _extended_yaml_path() -> Optional[Path]:
-    """Resolve the extended model YAML path if benger_extended provides one."""
+def _extension_package_names() -> List[str]:
+    """The configured extension packages, in order (``BENGER_EXTENSIONS``)."""
     try:
-        ext = importlib.import_module("benger_extended")
+        from extension_registry import configured_names
+    except ImportError:  # /shared not on sys.path (bare script run)
+        return ["benger_extended"]
+    return configured_names()
+
+
+def _extension_yaml_path(package_name: str) -> Optional[Path]:
+    """Resolve the model YAML path of one package, if it provides one."""
+    try:
+        ext = importlib.import_module(package_name)
     except ImportError:
         return None
     getter = getattr(ext, "get_llm_models_yaml_path", None)
@@ -74,15 +85,25 @@ def _extended_yaml_path() -> Optional[Path]:
     try:
         path = getter()
     except Exception:
-        logger.exception("benger_extended.get_llm_models_yaml_path() raised; ignoring")
+        logger.exception("%s.get_llm_models_yaml_path() raised; ignoring", package_name)
         return None
     if not path:
         return None
     p = Path(path)
     if not p.exists():
-        logger.warning("benger_extended declared %s but it does not exist; ignoring", p)
+        logger.warning("%s declared %s but it does not exist; ignoring", package_name, p)
         return None
     return p
+
+
+def _extension_yaml_paths() -> List[Path]:
+    """The extension packages' model YAMLs, in package order."""
+    paths: List[Path] = []
+    for name in _extension_package_names():
+        path = _extension_yaml_path(name)
+        if path is not None and path not in paths:
+            paths.append(path)
+    return paths
 
 
 def load_catalog() -> CatalogLoadResult:
@@ -95,9 +116,7 @@ def load_catalog() -> CatalogLoadResult:
     raw_chunks: List[bytes] = []
     by_id: Dict[str, Dict[str, Any]] = {}
 
-    for path in [PLATFORM_YAML, _extended_yaml_path()]:
-        if path is None:
-            continue
+    for path in [PLATFORM_YAML, *_extension_yaml_paths()]:
         sources.append(str(path))
         raw_chunks.append(path.read_bytes())
         data = _load_yaml_file(path)

@@ -31,59 +31,30 @@ from .builtin_handlers import register_builtin_metric_handlers  # noqa: E402
 
 register_builtin_metric_handlers(metric_registry)
 
-# Load extended evaluators if available. The handshake constant comes from
-# /shared/core_version.py (single source of truth, same module the API's
-# extensions.py imports — /shared is on sys.path in the worker container and
-# in workers/tests/conftest.py).
-from core_version import CORE_API_VERSION as _CORE_API_VERSION  # noqa: E402
-from core_version import extended_required as _extended_required  # noqa: E402
+# Load the extension packages' evaluators and metric handlers. The registry
+# (/shared/extension_registry.py, same module the API's extensions.py uses)
+# imports every package named in BENGER_EXTENSIONS in order, runs the
+# COMPATIBLE_CORE_VERSIONS handshake and the REQUIRES_EXTENSIONS check, and
+# raises for a required package that fails (BENGER_REQUIRE_EXTENSIONS, or the
+# legacy BENGER_REQUIRE_EXTENDED). Registrations run under the package's
+# owner so a replaced evaluator or handler is logged with both names.
+import extension_registry as _extension_registry  # noqa: E402
 
-try:
-    import benger_extended
-
-    _compatible = True
-    if hasattr(benger_extended, "COMPATIBLE_CORE_VERSIONS"):
-        if _CORE_API_VERSION not in benger_extended.COMPATIBLE_CORE_VERSIONS:
-            import logging
-
-            _msg = (
-                "Extended package incompatible with workers "
-                f"(needs {benger_extended.COMPATIBLE_CORE_VERSIONS}, "
-                f"core is {_CORE_API_VERSION})"
-            )
-            if _extended_required():
-                raise RuntimeError(
-                    f"{_msg}. BENGER_REQUIRE_EXTENDED is set — refusing to "
-                    "start with extended evaluators disabled."
-                )
-            logging.getLogger(__name__).warning(_msg)
-            _compatible = False
-
-    if _compatible:
-        from benger_extended.workers import register_evaluators
-
-        register_evaluators(evaluator_registry)
-
-        # Phase 5 hook: extended metric handlers (e.g. Falllösung LLM judge).
-        # Importing inside the version-checked block so a community-edition
-        # install (no benger_extended) is a clean no-op via the outer except.
-        try:
-            from benger_extended.workers import register_metric_handlers
-
-            register_metric_handlers(metric_registry)
-        except ImportError:
-            # Extended package present but does not yet export the new hook
-            # (older extended version that predates Phase 5). Treat as a
-            # legitimate no-op rather than an error — the platform-side
-            # registry just stays unpopulated for extended metrics.
-            pass
-except ImportError as _ext_import_error:
-    if _extended_required():
-        raise RuntimeError(
-            "BENGER_REQUIRE_EXTENDED is set but the benger_extended package "
-            f"failed to import in the worker: {_ext_import_error}. Refusing "
-            "to start as community edition."
-        ) from _ext_import_error
+for _ext in _extension_registry.load_all():
+    # A package without a workers module is an API-only overlay; an import
+    # error inside the module is a broken overlay and propagates.
+    _workers = _extension_registry.worker_module(_ext.name, strict=True)
+    if _workers is None:
+        continue
+    with _extension_registry.owner(_ext.name):
+        _register_evaluators = getattr(_workers, "register_evaluators", None)
+        if _register_evaluators is not None:
+            _register_evaluators(evaluator_registry)
+        # Extended metric handlers (e.g. the Falllösung LLM judge). A package
+        # that predates the hook simply does not export it.
+        _register_metric_handlers = getattr(_workers, "register_metric_handlers", None)
+        if _register_metric_handlers is not None:
+            _register_metric_handlers(metric_registry)
 
 __all__ = [
     "BaseEvaluator",

@@ -201,8 +201,18 @@ _extended_metrics: dict[str, list[str]] = {}
 
 
 def register_extended_metrics(answer_type: str, metrics: list[str]):
-    """Register additional metrics for an answer type (called by benger_extended)."""
-    _extended_metrics.setdefault(answer_type, []).extend(metrics)
+    """Register additional metrics for an answer type (called by extension
+    packages at import time). Additive and idempotent: a metric already
+    registered for the answer type (by any package, or shipped by the
+    platform itself) is not listed twice."""
+    known = _extended_metrics.setdefault(answer_type, [])
+    try:
+        base = ANSWER_TYPE_TO_METRICS.get(AnswerType(answer_type), [])
+    except ValueError:
+        base = []
+    for metric in metrics:
+        if metric not in known and metric not in base:
+            known.append(metric)
 
 
 def get_metrics_for_answer_type(answer_type: AnswerType) -> list[str]:
