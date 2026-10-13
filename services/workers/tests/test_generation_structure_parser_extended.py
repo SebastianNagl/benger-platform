@@ -134,8 +134,13 @@ class TestSensitiveFields:
             'ground_truth', 'correct_answer', 'expected_output', 'label',
             'labels', 'gold_standard', 'binary_solution', 'reasoning',
             'answer', 'solution',
+            # German exam reference material (2026-10-13). The
+            # Bearbeitervermerk is examinee-facing and stays allowed.
+            'musterloesung', 'musterlösung', 'loesung', 'lösung',
+            'rubric', 'korrekturhinweise', 'korrektur',
         }
         assert self.parser.SENSITIVE_FIELDS == expected
+        assert 'bearbeitervermerk' not in self.parser.SENSITIVE_FIELDS
 
 
 class TestExtractPromptMappings:

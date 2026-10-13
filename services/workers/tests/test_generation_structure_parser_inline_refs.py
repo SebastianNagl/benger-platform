@@ -46,13 +46,47 @@ class TestInlineRefs:
         assert parser._build_single_prompt(TASK, "$sachverhalt") == "A schlägt B."
 
     def test_sensitive_inline_ref_is_blanked(self, parser):
-        # Reference answers must never leak into a prompt, even inline.
+        # Reference answers must never leak into a prompt, even inline. The
+        # Musterlösung is reference material too (SENSITIVE_FIELDS since
+        # 2026-10-13); the rubric worker renders it through a template
+        # mapping, which this inline path does not touch.
         out = parser._build_single_prompt(TASK, "Lösung: $answer / $musterloesung")
         assert "leak" not in out
-        assert out.startswith("Lösung:  / ")
-        # musterloesung is not in SENSITIVE_FIELDS (it is the exam reference the
-        # judge reads, excluded by the project's exclude_fields when needed).
-        assert out.endswith("geheim")
+        assert "geheim" not in out
+        assert out == "Lösung:  / "
+
+    @pytest.mark.parametrize(
+        "ref",
+        ["$musterloesung", "$Musterloesung", "$loesung", "$rubric",
+         "$korrekturhinweise", "$korrektur", "$case.musterloesung"],
+    )
+    def test_reference_material_refs_are_skipped_with_warning(self, parser, ref, caplog):
+        # VARIABLE_PATTERN is ASCII-only, so the umlaut spellings can never be
+        # referenced inline; they are covered on the mapping path below.
+        task = {
+            **TASK,
+            "loesung": "geheim", "rubric": "geheim", "korrekturhinweise": "geheim",
+            "korrektur": "geheim", "Musterloesung": "geheim",
+            "case": {"musterloesung": "geheim"},
+        }
+        with caplog.at_level("WARNING", logger="generation_structure_parser"):
+            out = parser._build_single_prompt(task, f"Fall: $sachverhalt\nLösung: {ref}")
+        assert "geheim" not in out
+        assert out == "Fall: A schlägt B.\nLösung: "
+        assert f"Skipping sensitive inline field reference: {ref}" in caplog.text
+
+    @pytest.mark.parametrize("path", ["musterlösung", "lösung", "Musterlösung", "musterloesung"])
+    def test_reference_material_mappings_are_skipped_with_warning(self, parser, path, caplog):
+        task = {**TASK, "musterlösung": "geheim", "lösung": "geheim", "Musterlösung": "geheim"}
+        with caplog.at_level("WARNING", logger="generation_structure_parser"):
+            out = parser.filter_task_data(task, {"fall": "sachverhalt", "ml": path})
+        assert out == {"fall": "A schlägt B."}
+        assert f"Skipping sensitive field: {path}" in caplog.text
+
+    def test_bearbeitervermerk_stays_available_to_the_model(self, parser):
+        task = {**TASK, "bearbeitervermerk": "Auf Verjährung ist nicht einzugehen."}
+        out = parser._build_single_prompt(task, "Vermerk: $bearbeitervermerk")
+        assert out == "Vermerk: Auf Verjährung ist nicht einzugehen."
 
     def test_end_to_end_via_process_generation_structure(self, parser):
         structure = {

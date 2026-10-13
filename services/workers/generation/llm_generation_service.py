@@ -24,6 +24,25 @@ import tasks
 from typing import Any, Dict
 
 
+def _placeholder_prompt_inputs(prompt_text: str, task_content: Any) -> Dict[str, Any]:
+    """The task fields a ``{key}``-interpolated prompt (the legacy path without
+    a generation structure) draws on, for the generation record's
+    ``case_data``. Reference fields (``GenerationStructureParser.SENSITIVE_FIELDS``)
+    are never recorded."""
+    if not isinstance(task_content, dict) or not isinstance(prompt_text, str):
+        return {}
+    sensitive = (
+        tasks.GenerationStructureParser.SENSITIVE_FIELDS
+        if getattr(tasks, "HAS_GENERATION_PARSER", False)
+        else set()
+    )
+    return {
+        key: value
+        for key, value in task_content.items()
+        if f"{{{key}}}" in prompt_text and str(key).lower() not in sensitive
+    }
+
+
 def _check_custom_model_access(db, user_id: str, model) -> bool:
     """Worker-side re-check that the invoking user can still use a custom
     (BYOM) model. Enqueue-time already 403s new runs; this catches
@@ -667,6 +686,10 @@ def generate_llm_responses_impl(
 
                         # Prepare the prompt - use safe field interpolation if enabled (Issue #507)
                         user_prompt = prompt_text
+                        # The task fields the prompt draws on; recorded in the
+                        # generation's case_data instead of the whole task
+                        # (which carries the reference solution).
+                        prompt_inputs: Dict[str, Any] = {}
 
                         # Use safe generation structure parsing if available (Issue #507, #519, #762)
                         if tasks.HAS_GENERATION_PARSER and generation_structure:
@@ -681,6 +704,9 @@ def generate_llm_responses_impl(
                                     task_data=task_content,
                                     generation_structure=generation_structure,
                                     fallback_instruction=prompt_text,
+                                )
+                                prompt_inputs = parser.prompt_input_fields(
+                                    task_content, parser.parse_structure(generation_structure)
                                 )
 
                                 # Use generated prompts if available
@@ -707,12 +733,15 @@ def generate_llm_responses_impl(
                                     f"Error applying generation structure '{structure_key}': {e}"
                                 )
                                 # Fall back to original behavior on error
+                                user_prompt = prompt_text
+                                prompt_inputs = _placeholder_prompt_inputs(prompt_text, task_content)
                                 for key, value in task_content.items():
                                     placeholder = f"{{{key}}}"
                                     if placeholder in user_prompt:
                                         user_prompt = user_prompt.replace(placeholder, str(value))
                         else:
                             # Original behavior - simple interpolation
+                            prompt_inputs = _placeholder_prompt_inputs(prompt_text, task_content)
                             for key, value in task_content.items():
                                 placeholder = f"{{{key}}}"
                                 if placeholder in user_prompt:
@@ -1259,13 +1288,19 @@ def generate_llm_responses_impl(
                             "max_retries_reached": existing_attempts >= MAX_PARSE_RETRIES,
                         }
 
-                        # Save response to database
+                        # Save response to database. The record carries the
+                        # task fields the prompt drew on (prompt_inputs), not
+                        # the whole task: task.data holds the reference
+                        # solution, and exports and the Korrektur view serve
+                        # case_data as stored. Rows written before 2026-10-13
+                        # still carry "original_task_data"; readers only pass
+                        # the blob through.
                         case_data_with_id = {
-                            "text": str(task_content),
+                            "text": str(prompt_inputs),
                             "task_item_id": task_data[
                                 "id"
                             ],  # Native annotation system task item ID
-                            "original_task_data": task_data,
+                            "prompt_inputs": prompt_inputs,
                         }
 
                         # Phase 6.6: pull the academic-rigor fields out of
