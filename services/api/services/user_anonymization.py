@@ -1132,7 +1132,7 @@ def revoke_lms_link_tokens(user_ids: Iterable[str]) -> int:
     anonymized accounts on its own, and the tokens expire within 24 h).
     """
     ids = [str(uid) for uid in user_ids if uid]
-    if not ids or getattr(extensions, "_extended", None) is None:
+    if not ids or not extensions.is_loaded("benger_extended"):
         return 0
     try:
         identity = importlib.import_module("benger_extended.lti.identity")

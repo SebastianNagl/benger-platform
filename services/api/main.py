@@ -511,13 +511,13 @@ app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedbac
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
-# Load extended features if available
-from extensions import configure_app, load_extended, get_extended_routers  # noqa: E402
+# Load the extension packages (BENGER_EXTENSIONS, default benger_extended).
+# Each call is a no-op in the community edition; see extensions.py.
+from extensions import configure_app, include_extension_routers, load_extended  # noqa: E402
 
-if load_extended():
-    for router, kwargs in get_extended_routers():
-        app.include_router(router, **kwargs)
-    configure_app(app)
+load_extended()
+include_extension_routers(app)
+configure_app(app)
 
 
 # Root endpoint

@@ -119,6 +119,7 @@ class TestNameVisibility:
         loader = types.ModuleType("extensions")
         loader.load_extended = lambda: None
         loader._extended = None
+        loader.is_loaded = lambda name: loader._extended is not None
         monkeypatch.setitem(sys.modules, "extensions", loader)
         assert NameVisibility.load()._lms_user_ids is None
 
@@ -126,6 +127,10 @@ class TestNameVisibility:
         policy = NameVisibility.load()
         assert policy._lms_user_ids is hooks[0]
         assert policy._real_name_user_ids is hooks[1]
+
+        # The public ``is_loaded`` has the last word, not the alias.
+        loader.is_loaded = lambda name: False
+        assert NameVisibility.load()._lms_user_ids is None
 
         # A worker process has no extension loader: the hook is used.
         monkeypatch.delitem(sys.modules, "extensions")

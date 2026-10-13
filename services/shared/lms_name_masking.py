@@ -201,29 +201,31 @@ class NameVisibility:
     def load(cls) -> "NameVisibility":
         """The hooks of this process.
 
-        Reads the optional worker hook of the extended edition, which works in
-        the API process as well. In the API process the extension loader has
-        the last word: when it refused the extended package (a failed version
-        handshake, for example), the hooks are not used either. The community
-        edition has no LMS accounts, so the link table (empty there) is all it
-        needs.
+        Reads the optional worker hook ``get_name_visibility_fns`` of the
+        first extension package that provides it (the extended edition),
+        which works in the API process as well. In the API process the
+        extension loader has the last word: when it refused the extended
+        package (a failed version handshake, for example), the hooks are not
+        used either. The community edition has no LMS accounts, so the link
+        table (empty there) is all it needs.
         """
         loader = sys.modules.get("extensions")
-        if (
-            loader is not None
-            and hasattr(loader, "load_extended")
-            and getattr(loader, "_extended", None) is None
-        ):
-            return cls()
+        if loader is not None and hasattr(loader, "load_extended"):
+            is_loaded = getattr(loader, "is_loaded", None)
+            if is_loaded is not None:
+                if not is_loaded("benger_extended"):
+                    return cls()
+            elif getattr(loader, "_extended", None) is None:
+                return cls()
+        import extension_registry
+
         try:
-            from benger_extended import workers as extended_workers
-        except ImportError:
-            return cls()
-        getter = getattr(extended_workers, "get_name_visibility_fns", None)
-        if getter is None:
-            return cls()
-        try:
-            lms_user_ids, real_name_user_ids = getter()
+            fns = extension_registry.first_worker_attr(
+                "get_name_visibility_fns", call=True
+            )
+            if fns is None:
+                return cls()
+            lms_user_ids, real_name_user_ids = fns
         except Exception:
             logger.exception("get_name_visibility_fns failed; using the link table")
             return cls()

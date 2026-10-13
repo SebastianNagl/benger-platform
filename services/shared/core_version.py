@@ -487,11 +487,50 @@ whenever one is added, renamed or removed):
   editors only) and ``ProjectLivePage`` (``/projects/[id]/live``). The draft
   and checkpoint endpoints run in the threadpool and the draft save is one
   upsert; ``on_draft_saved`` now runs after that upsert's commit.
+
+2.37 (2026-10-13): N-package extension registry. New shared module
+  ``extension_registry`` (``services/shared/extension_registry.py``) loads
+  every package named in ``BENGER_EXTENSIONS`` (ordered, default
+  ``benger_extended``) in order; ``BENGER_REQUIRE_EXTENSIONS`` names the
+  packages that must load (unset: the legacy ``BENGER_REQUIRE_EXTENDED``
+  requires all of them). Per package: namespace guard,
+  ``COMPATIBLE_CORE_VERSIONS`` handshake, then the ``REQUIRES_EXTENSIONS``
+  check (``{package: [EXTENSION_API_VERSION, ...]}``; the dependency must be
+  loaded earlier). New optional overlay attributes: ``EXTENSION_ID`` (short
+  id, default name without ``benger_``), ``EXTENSION_API_VERSION``,
+  ``REQUIRES_EXTENSIONS``, ``get_task_queues()`` (``{task: queue}``, fed into
+  ``celery_queues.register_task_queue`` with the package as owner; new
+  packages own ``<EXTENSION_ID>.*`` task names), ``get_api_scopes()`` and
+  ``get_v1_routers()`` (collected by ``extensions.get_api_scopes_all`` /
+  ``get_v1_routers_all``, no platform caller yet). ``extensions.HOOK_SPECS``
+  publishes every hook key with its merge policy (CALL_ALL,
+  CALL_ALL_ISOLATED, UNION, DICT_FIRST_WINS, SINGLE_OWNER); the keys
+  ``on_submission_finalized`` (CALL_ALL), ``assessment_transition`` and
+  ``external_run_policy`` (SINGLE_OWNER) are reserved without a caller
+  (``extensions.PENDING_HOOK_KEYS``). ``extensions.load_extended()`` loads
+  all packages (``_extended`` stays the alias of ``benger_extended``),
+  ``extensions.include_extension_routers(app)`` mounts their routers:
+  packages other than ``benger_extended`` must mount under
+  ``/api/ext/<EXTENSION_ID>``, a route two packages claim fails startup for
+  a required package (``BENGER_EXTENSION_ROUTE_POLICY=error``, the
+  default). ``extensions.is_loaded(name)`` replaces peeking at
+  ``_extended``. The workers loop over the loaded packages
+  (``register_evaluators`` / ``register_metric_handlers`` /
+  ``register_tasks`` under ``extension_registry.owner``), and the worker
+  getters (``get_grading_dispatch_policy_fn``, ``get_batch_evaluation_policy_fn``,
+  ``get_grading_finalize_fn``, ``get_notification_brand_host_fn``,
+  ``get_grading_block_fn``, ``get_name_visibility_fns``) are resolved through
+  ``extension_registry.worker_attrs`` / ``first_worker_attr``. The LLM
+  catalog loader merges every package's ``get_llm_models_yaml_path()``. The
+  classifier-rule, metric-handler and evaluator registries record the
+  registering package and log replacements. Helm: ``overlays.<name>``
+  (``enabled``, ``package``, ``required``, ``order``, ``api.env``,
+  ``workers.env``) renders the two env vars and the per-overlay env.
 """
 
 import os
 
-CORE_API_VERSION = "2.36"
+CORE_API_VERSION = "2.37"
 
 
 def extended_required() -> bool:
