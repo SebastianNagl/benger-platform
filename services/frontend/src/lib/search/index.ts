@@ -287,6 +287,13 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
       ),
       page(
         t,
+        '/admin/access-keys',
+        'adminAccessKeys',
+        cat.admin,
+        'api-zugänge zugangsschlüssel api keys access keys token widerrufen nutzung',
+      ),
+      page(
+        t,
         '/admin/email-verification',
         'emailVerification',
         cat.admin,

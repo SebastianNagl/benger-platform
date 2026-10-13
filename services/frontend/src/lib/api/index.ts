@@ -4,6 +4,7 @@
  * Replaces the monolithic ApiClient with a modular architecture
  */
 
+import { AccessKeysClient } from './accessKeys'
 import { configureAdminDefaultsClient } from './admin-defaults'
 import { AuthClient } from './auth'
 import { EvaluationsClient } from './evaluations'
@@ -87,10 +88,16 @@ export class ApiClient {
   private notificationsClient: NotificationsClient
   private invitationsClient: InvitationsApiClient
   private leaderboardsClientInstance: LeaderboardsClient
+  private accessKeysClientInstance: AccessKeysClient
 
   // Expose leaderboards client
   get leaderboards(): LeaderboardsClient {
     return this.leaderboardsClientInstance
+  }
+
+  // Access keys (bgr_...) for the public /api/v1
+  get accessKeys(): AccessKeysClient {
+    return this.accessKeysClientInstance
   }
 
   // Cache management
@@ -102,6 +109,7 @@ export class ApiClient {
     this.notificationsClient?.clearCache?.()
     this.invitationsClient?.clearCache?.()
     this.leaderboardsClientInstance?.clearCache?.()
+    this.accessKeysClientInstance?.clearCache?.()
   }
 
   // Invalidate cached GET responses matching an endpoint pattern across all
@@ -116,6 +124,7 @@ export class ApiClient {
     this.notificationsClient?.invalidateCache?.(pattern)
     this.invitationsClient?.invalidateCache?.(pattern)
     this.leaderboardsClientInstance?.invalidateCache?.(pattern)
+    this.accessKeysClientInstance?.invalidateCache?.(pattern)
   }
 
   // Clear cache for a specific user
@@ -127,6 +136,7 @@ export class ApiClient {
     this.notificationsClient?.clearUserCache?.(userId)
     this.invitationsClient?.clearUserCache?.(userId)
     this.leaderboardsClientInstance?.clearUserCache?.(userId)
+    this.accessKeysClientInstance?.clearUserCache?.(userId)
   }
 
   constructor(config?: ApiClientConfig) {
@@ -140,6 +150,7 @@ export class ApiClient {
       this.notificationsClient = new NotificationsClient()
       this.invitationsClient = new InvitationsApiClient()
       this.leaderboardsClientInstance = new LeaderboardsClient()
+      this.accessKeysClientInstance = new AccessKeysClient()
     } catch (error) {
       // In test environments, clients might not initialize properly
       // Create stub objects to prevent binding errors
@@ -151,6 +162,7 @@ export class ApiClient {
       this.notificationsClient = createStub()
       this.invitationsClient = createStub()
       this.leaderboardsClientInstance = createStub()
+      this.accessKeysClientInstance = createStub()
     }
     // Initialize all method bindings with safe binding helper
     const safeBind = (client: any, methodName: string) => {
@@ -701,6 +713,7 @@ export { apiClient as api }
 
 // Export individual clients for direct use if needed
 export {
+  AccessKeysClient,
   AuthClient,
   EvaluationsClient,
   InvitationsApiClient,

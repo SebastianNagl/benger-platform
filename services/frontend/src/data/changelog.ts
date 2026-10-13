@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-13',
+    audience: 'benger',
+    text: {
+      de: 'Neu: API-Zugänge für Organisationen und für dich persönlich. Unter „API-Zugänge“ legst du Schlüssel für Skripte und Benchmark-Runner an, wählst mit einer Voreinstellung, was sie dürfen, und prüfst sie direkt mit „Verbindung testen“. Schlüssel lassen sich erneuern, widerrufen und in ihrer Nutzung nachverfolgen.',
+      en: 'New: API access for organizations and for you personally. Under "API access" you create keys for scripts and benchmark runners, pick with a preset what they may do, and check them right away with "Test connection". Keys can be renewed, revoked and their usage tracked.',
+    },
+  },
+  {
     date: '2026-10-12',
     audience: 'benger',
     text: {

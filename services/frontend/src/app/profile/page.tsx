@@ -5,6 +5,7 @@ import { useToast } from '@/components/shared/Toast'
 import { AuthGuard } from '@/components/auth/AuthGuard'
 import { APIKeysModal } from '@/components/modals/APIKeysModal'
 import { ChangePasswordModal } from '@/components/modals/ChangePasswordModal'
+import { ProfileAccessKeysSection } from '@/components/profile/ProfileAccessKeysSection'
 import { ProfileAccountSection } from '@/components/profile/ProfileAccountSection'
 import { ProfileDemographicSection } from '@/components/profile/ProfileDemographicSection'
 import { ProfileHistorySection } from '@/components/profile/ProfileHistorySection'
@@ -419,6 +420,10 @@ export default function ProfilePage() {
             {/* Account Information */}
             <ProfileAccountSection profile={profile} />
           </form>
+
+          {/* Personal access keys for the public API. Outside the profile
+              form: its buttons must never submit the profile. */}
+          <ProfileAccessKeysSection />
         </div>
 
         {/* Modals */}

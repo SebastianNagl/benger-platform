@@ -6,7 +6,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
-import { BuildingOfficeIcon, UserGroupIcon } from '@heroicons/react/24/outline'
+import {
+  BuildingOfficeIcon,
+  CommandLineIcon,
+  UserGroupIcon,
+} from '@heroicons/react/24/outline'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { GlobalUsersTab } from '../admin/users-organizations/components/GlobalUsersTab'
@@ -95,6 +100,16 @@ export default function UsersOrganizationsPage() {
           <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
             {t('admin.usersOrganizationsDescription')}
           </p>
+          {user?.is_superadmin && (
+            <Link
+              href="/admin/access-keys"
+              className="mt-2 inline-flex items-center gap-1 text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+              data-testid="admin-access-keys-link"
+            >
+              <CommandLineIcon className="h-4 w-4" />
+              {t('accessKeys.admin.entry')}
+            </Link>
+          )}
         </div>
 
         <div className="mt-6">

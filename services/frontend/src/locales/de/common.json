@@ -2172,7 +2172,8 @@
     "passwordChangeFailed": "Passwort konnte nicht geändert werden",
     "updateSuccess": "Profil erfolgreich aktualisiert",
     "updateFailed": "Profil konnte nicht aktualisiert werden",
-    "passwordsDoNotMatch": "Passwörter stimmen nicht überein"
+    "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
+    "accessKeys": "API-Zugänge"
   },
   "leaderboards": {
     "title": "Bestenlisten",
@@ -4411,7 +4412,8 @@
         "pending": "Einladung steht bereits aus",
         "added_to_group": "zur Gruppe hinzugefügt",
         "already_in_group": "bereits in der Gruppe"
-      }
+      },
+      "accessKeys": "API-Zugänge"
     },
     "usersPage": {
       "breadcrumb": {
@@ -6174,6 +6176,10 @@
       "emailVerification": {
         "title": "E-Mail-Verifizierung",
         "description": "Verifizierungsstatus von Benutzerkonten"
+      },
+      "adminAccessKeys": {
+        "title": "Alle API-Zugänge",
+        "description": "Zugangsschlüssel aller Organisationen und Personen prüfen und sperren"
       }
     }
   },
@@ -10737,5 +10743,167 @@
     "default": "Standard: {name}",
     "personalKeys": "deine eigenen API-Schlüssel",
     "hint": "Die API-Schlüssel dieser Organisation bezahlen die Generierungen und Bewertungen, die du von hier startest."
+  },
+  "accessKeys": {
+    "title": "API-Zugänge",
+    "orgDescription": "Schlüssel, mit denen Skripte und Benchmark-Runner im Namen deiner Organisation auf die BenGER-Schnittstelle zugreifen. Jeder Schlüssel handelt als eigenes Dienstkonto.",
+    "personalDescription": "Schlüssel, mit denen deine eigenen Skripte in deinem Namen auf die BenGER-Schnittstelle zugreifen. Ein persönlicher Schlüssel sieht nie mehr als du selbst.",
+    "howToLink": "Anleitung: API-Zugänge einrichten",
+    "close": "Schließen",
+    "cancel": "Abbrechen",
+    "loading": "API-Zugänge werden geladen …",
+    "loadFailed": "Die API-Zugänge konnten nicht geladen werden.",
+    "empty": "Noch keine Schlüssel angelegt.",
+    "newKey": "Neuer Schlüssel",
+    "columns": {
+      "name": "Name",
+      "prefix": "Kennung",
+      "scopes": "Berechtigungen",
+      "role": "Rolle",
+      "group": "Gruppe",
+      "projects": "Projekte",
+      "expires": "Gültig bis",
+      "lastUsed": "Zuletzt verwendet",
+      "status": "Status",
+      "owner": "Inhaber",
+      "actions": "Aktionen"
+    },
+    "status": {
+      "active": "Aktiv",
+      "expired": "Abgelaufen",
+      "revoked": "Widerrufen"
+    },
+    "never": "nie",
+    "noExpiry": "Läuft nicht ab",
+    "expiresSoon": "Läuft in {days} Tagen ab",
+    "allProjects": "Alle Projekte",
+    "projectsCount": "{count} Projekte",
+    "orgWide": "Ganze Organisation",
+    "ownerOrg": "Organisation",
+    "ownerUser": "Persönlich",
+    "actions": {
+      "usage": "Nutzung",
+      "renew": "Erneuern",
+      "revoke": "Widerrufen"
+    },
+    "form": {
+      "title": "Neuen Schlüssel anlegen",
+      "name": "Name",
+      "namePlaceholder": "z. B. Benchmark-Runner Lehrstuhl",
+      "nameRequired": "Gib dem Schlüssel einen Namen.",
+      "presetLabel": "Was soll der Schlüssel dürfen?",
+      "custom": "Eigene Auswahl",
+      "customDescription": "Unter „Erweitert“ stellst du die Berechtigungen einzeln zusammen.",
+      "advanced": "Erweitert",
+      "advancedHint": "Hier siehst du jede Berechtigung einzeln. Eine Voreinstellung oben füllt diese Liste für dich aus.",
+      "implies": "enthält auch {scopes}",
+      "needsContributor": "nur mit der Rolle Mitwirkender",
+      "roleLabel": "Rolle des Schlüssels",
+      "roleHint": "Der Schlüssel handelt als eigenes Dienstkonto mit dieser Rolle in der Organisation. Mitwirkende sehen auch Musterlösungen.",
+      "roleSwitched": "Für diese Auswahl braucht der Schlüssel die Rolle Mitwirkender. Die Rolle wurde angepasst.",
+      "groupLabel": "Gruppe",
+      "groupHint": "Ein Gruppenschlüssel sieht nur die Projekte seiner Gruppe und die der ganzen Organisation.",
+      "groupAdminHint": "Als Gruppen-Admin legst du Schlüssel nur für deine Gruppen an.",
+      "projectsLabel": "Nur bestimmte Projekte (optional)",
+      "projectsHint": "Ohne Auswahl sieht der Schlüssel alle Projekte, die seine Rolle sehen darf.",
+      "noProjects": "Keine Projekte gefunden.",
+      "expiryLabel": "Gültigkeit",
+      "expiry30": "30 Tage",
+      "expiry90": "90 Tage",
+      "expiry365": "1 Jahr",
+      "expiryNever": "Unbegrenzt",
+      "rateLimits": "Anfragelimits anpassen",
+      "perMinute": "Anfragen pro Minute",
+      "perDay": "Anfragen pro Tag",
+      "rateLimitsHint": "Leer lassen, dann gelten die Standardwerte.",
+      "noScopes": "Wähle mindestens eine Berechtigung.",
+      "create": "Schlüssel anlegen",
+      "creating": "Wird angelegt …",
+      "createFailed": "Der Schlüssel konnte nicht angelegt werden: {message}",
+      "tooManyKeys": "Es gibt schon zu viele aktive Schlüssel. Widerrufe zuerst einen Schlüssel, den du nicht mehr brauchst."
+    },
+    "presets": {
+      "benchmark_read": {
+        "label": "Benchmark nur lesen",
+        "description": "Projekte, Aufgaben, Läufe und Ergebnisse ansehen, ohne etwas zu verändern."
+      },
+      "benchmark_submit": {
+        "label": "Benchmark ausführen und einreichen",
+        "description": "Aufgaben lesen, Systeme registrieren, Läufe anlegen, Einreichungen hochladen und Evaluationen starten."
+      },
+      "org_full": {
+        "label": "Vollzugriff auf die eigene Organisation",
+        "description": "Alles aus „Ausführen und einreichen“, dazu Musterlösungen und Exporte. Braucht die Rolle Mitwirkender."
+      }
+    },
+    "secret": {
+      "title": "Dein neuer Schlüssel",
+      "warning": "Kopiere den Schlüssel jetzt, er wird dir nur einmal angezeigt.",
+      "copy": "Kopieren",
+      "copied": "Kopiert",
+      "copyFailed": "Kopieren hat nicht geklappt. Markiere den Schlüssel und kopiere ihn von Hand.",
+      "curlTitle": "Mit curl ausprobieren",
+      "pythonTitle": "In Python verwenden",
+      "done": "Fertig"
+    },
+    "test": {
+      "button": "Verbindung testen",
+      "testing": "Wird getestet …",
+      "success": "Die Verbindung steht.",
+      "organization": "Organisation: {name}",
+      "group": "Gruppe: {name}",
+      "actsAs": "Handelt als: {name}",
+      "scopes": "Berechtigungen: {scopes}",
+      "unauthorized": "Der Schlüssel wurde abgelehnt. Er ist ungültig, abgelaufen oder widerrufen.",
+      "forbidden": "Der Schlüssel ist gültig, darf diese Abfrage aber nicht ausführen.",
+      "notAvailable": "Die Schnittstelle /api/v1 ist auf diesem Server noch nicht verfügbar.",
+      "rateLimited": "Zu viele Anfragen. Warte kurz und versuche es dann noch einmal.",
+      "network": "Der Server ist gerade nicht erreichbar.",
+      "generic": "Der Test ist fehlgeschlagen ({status}): {message}"
+    },
+    "renew": {
+      "title": "Schlüssel erneuern",
+      "hint": "Erneuern legt einen neuen Schlüssel mit denselben Einstellungen an. Der alte Schlüssel funktioniert weiter, bis du ihn widerrufst. So kannst du deine Skripte in Ruhe umstellen.",
+      "confirm": "Neuen Schlüssel anlegen",
+      "oldStillActive": "Der alte Schlüssel „{name}“ ({prefix}) ist noch aktiv. Trage zuerst den neuen Schlüssel in deine Skripte ein und widerrufe dann den alten.",
+      "revokeOld": "Alten Schlüssel jetzt widerrufen",
+      "keepOld": "Alten Schlüssel vorerst behalten",
+      "oldRevoked": "Der alte Schlüssel wurde widerrufen.",
+      "failed": "Erneuern hat nicht geklappt: {message}",
+      "reason": "Erneuert durch {prefix}"
+    },
+    "revoke": {
+      "title": "Schlüssel widerrufen",
+      "description": "„{name}“ ({prefix}) funktioniert danach sofort nicht mehr. Das lässt sich nicht rückgängig machen.",
+      "reasonLabel": "Grund (optional)",
+      "reasonPlaceholder": "z. B. Skript wird nicht mehr gebraucht",
+      "confirm": "Widerrufen",
+      "revoking": "Wird widerrufen …",
+      "failed": "Widerrufen hat nicht geklappt: {message}",
+      "success": "Der Schlüssel wurde widerrufen."
+    },
+    "usage": {
+      "title": "Nutzung von „{name}“",
+      "perDay": "Aufrufe pro Tag, letzte 30 Tage",
+      "total": "{requests} Aufrufe, davon {errors} mit Fehler",
+      "routes": "Aufgerufene Schnittstellen",
+      "errors": "{errors} Fehler",
+      "noUsage": "In den letzten 30 Tagen nicht verwendet.",
+      "export": "Nutzung als CSV herunterladen",
+      "loading": "Nutzung wird geladen …",
+      "loadFailed": "Die Nutzung konnte nicht geladen werden."
+    },
+    "admin": {
+      "title": "Alle API-Zugänge",
+      "description": "Schlüssel aller Organisationen und Personen. Hier kannst du jeden Schlüssel sofort sperren.",
+      "filterOrg": "Organisation",
+      "allOrgs": "Alle Organisationen",
+      "filterOwner": "Art",
+      "filterStatus": "Status",
+      "all": "Alle",
+      "loadMore": "Mehr laden",
+      "exportCsv": "Nutzung als CSV",
+      "entry": "Alle API-Zugänge"
+    }
   }
 }

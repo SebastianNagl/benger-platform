@@ -6,6 +6,7 @@ import {
   MemberEmail,
   memberOptionLabel,
 } from '@/components/organization/MemberIdentity'
+import { OrgAccessKeys } from '@/components/organization/OrgAccessKeys'
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgGroups } from '@/components/organization/OrgGroups'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
@@ -45,6 +46,7 @@ import {
   BuildingOfficeIcon,
   ChevronDownIcon,
   CloudIcon,
+  CommandLineIcon,
   EnvelopeIcon,
   KeyIcon,
   PencilIcon,
@@ -128,6 +130,7 @@ export function OrganizationsTab() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
+  const [showAccessKeysModal, setShowAccessKeysModal] = useState(false)
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
@@ -1101,6 +1104,17 @@ export function OrganizationsTab() {
                 {t('admin.organizations.apiKeys')}
               </Button>
             )}
+          {selectedOrganization &&
+            (canManageOrg || isGroupAdminOfSelectedOrg) && (
+              <Button
+                onClick={() => setShowAccessKeysModal(true)}
+                variant="outline"
+                data-testid="org-access-keys-button"
+              >
+                <CommandLineIcon className="h-4 w-4" />
+                {t('admin.organizations.accessKeys')}
+              </Button>
+            )}
           {selectedOrganization && (canManageOrg || showLtiMenuItem) && (
             <Menu as="div" className="relative inline-block text-left">
               <Menu.Button
@@ -1611,6 +1625,18 @@ export function OrganizationsTab() {
               canManageGroups={isGroupAdminOfSelectedOrg}
               open={showApiKeysModal}
               onOpenChange={setShowApiKeysModal}
+            />
+          )}
+
+          {/* Access keys for the public /api/v1 (bgr_...) */}
+          {selectedOrganization && (
+            <OrgAccessKeys
+              organizationId={selectedOrganization.id}
+              isAdmin={canManageOrg}
+              canManageGroups={adminGroupIds.length > 0}
+              adminGroupIds={adminGroupIds}
+              open={showAccessKeysModal}
+              onOpenChange={setShowAccessKeysModal}
             />
           )}
 

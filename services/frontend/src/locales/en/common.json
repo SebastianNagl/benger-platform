@@ -2173,7 +2173,8 @@
     "passwordChangeFailed": "Failed to change password",
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Failed to update profile",
-    "passwordsDoNotMatch": "Passwords do not match"
+    "passwordsDoNotMatch": "Passwords do not match",
+    "accessKeys": "API access"
   },
   "leaderboards": {
     "title": "Leaderboards",
@@ -4412,7 +4413,8 @@
         "pending": "invitation already pending",
         "added_to_group": "added to the group",
         "already_in_group": "already in the group"
-      }
+      },
+      "accessKeys": "API access"
     },
     "usersPage": {
       "breadcrumb": {
@@ -6174,6 +6176,10 @@
       "emailVerification": {
         "title": "Email verification",
         "description": "Verification status of user accounts"
+      },
+      "adminAccessKeys": {
+        "title": "All API access keys",
+        "description": "Review and block the access keys of every organization and person"
       }
     }
   },
@@ -10729,5 +10735,167 @@
     "default": "Default: {name}",
     "personalKeys": "your own API keys",
     "hint": "This organization's API keys pay for the generations and evaluations you start from here."
+  },
+  "accessKeys": {
+    "title": "API access",
+    "orgDescription": "Keys that let scripts and benchmark runners use the BenGER API on behalf of your organization. Each key acts as its own service account.",
+    "personalDescription": "Keys that let your own scripts use the BenGER API on your behalf. A personal key never sees more than you do.",
+    "howToLink": "Guide: setting up API access",
+    "close": "Close",
+    "cancel": "Cancel",
+    "loading": "Loading API access …",
+    "loadFailed": "The API access keys could not be loaded.",
+    "empty": "No keys yet.",
+    "newKey": "New key",
+    "columns": {
+      "name": "Name",
+      "prefix": "Identifier",
+      "scopes": "Permissions",
+      "role": "Role",
+      "group": "Group",
+      "projects": "Projects",
+      "expires": "Valid until",
+      "lastUsed": "Last used",
+      "status": "Status",
+      "owner": "Owner",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "expired": "Expired",
+      "revoked": "Revoked"
+    },
+    "never": "never",
+    "noExpiry": "Does not expire",
+    "expiresSoon": "Expires in {days} days",
+    "allProjects": "All projects",
+    "projectsCount": "{count} projects",
+    "orgWide": "Whole organization",
+    "ownerOrg": "Organization",
+    "ownerUser": "Personal",
+    "actions": {
+      "usage": "Usage",
+      "renew": "Renew",
+      "revoke": "Revoke"
+    },
+    "form": {
+      "title": "Create a new key",
+      "name": "Name",
+      "namePlaceholder": "e.g. chair benchmark runner",
+      "nameRequired": "Give the key a name.",
+      "presetLabel": "What should the key be allowed to do?",
+      "custom": "Custom selection",
+      "customDescription": "Pick the permissions one by one under \"Advanced\".",
+      "advanced": "Advanced",
+      "advancedHint": "Every permission on its own. A preset above fills in this list for you.",
+      "implies": "also includes {scopes}",
+      "needsContributor": "only with the Contributor role",
+      "roleLabel": "Role of the key",
+      "roleHint": "The key acts as its own service account with this role in the organization. Contributors also see reference solutions.",
+      "roleSwitched": "This selection needs the Contributor role. The role has been adjusted.",
+      "groupLabel": "Group",
+      "groupHint": "A group key only sees its group's projects and those of the whole organization.",
+      "groupAdminHint": "As a group admin you create keys for your groups only.",
+      "projectsLabel": "Only certain projects (optional)",
+      "projectsHint": "Without a selection the key sees every project its role may see.",
+      "noProjects": "No projects found.",
+      "expiryLabel": "Validity",
+      "expiry30": "30 days",
+      "expiry90": "90 days",
+      "expiry365": "1 year",
+      "expiryNever": "Unlimited",
+      "rateLimits": "Adjust request limits",
+      "perMinute": "Requests per minute",
+      "perDay": "Requests per day",
+      "rateLimitsHint": "Leave empty to use the defaults.",
+      "noScopes": "Pick at least one permission.",
+      "create": "Create key",
+      "creating": "Creating …",
+      "createFailed": "The key could not be created: {message}",
+      "tooManyKeys": "There are already too many active keys. Revoke a key you no longer need first."
+    },
+    "presets": {
+      "benchmark_read": {
+        "label": "Read the benchmark only",
+        "description": "View projects, tasks, runs and results without changing anything."
+      },
+      "benchmark_submit": {
+        "label": "Run and submit to the benchmark",
+        "description": "Read tasks, register systems, create runs, upload submissions and start evaluations."
+      },
+      "org_full": {
+        "label": "Full access to your own organization",
+        "description": "Everything in \"Run and submit\", plus reference solutions and exports. Needs the Contributor role."
+      }
+    },
+    "secret": {
+      "title": "Your new key",
+      "warning": "Copy the key now, it is shown to you only once.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copyFailed": "Copying did not work. Select the key and copy it by hand.",
+      "curlTitle": "Try it with curl",
+      "pythonTitle": "Use it in Python",
+      "done": "Done"
+    },
+    "test": {
+      "button": "Test connection",
+      "testing": "Testing …",
+      "success": "The connection works.",
+      "organization": "Organization: {name}",
+      "group": "Group: {name}",
+      "actsAs": "Acts as: {name}",
+      "scopes": "Permissions: {scopes}",
+      "unauthorized": "The key was rejected. It is invalid, expired or revoked.",
+      "forbidden": "The key is valid but may not make this request.",
+      "notAvailable": "The /api/v1 interface is not available on this server yet.",
+      "rateLimited": "Too many requests. Wait a moment and try again.",
+      "network": "The server cannot be reached right now.",
+      "generic": "The test failed ({status}): {message}"
+    },
+    "renew": {
+      "title": "Renew key",
+      "hint": "Renewing creates a new key with the same settings. The old key keeps working until you revoke it, so you can switch your scripts over at your own pace.",
+      "confirm": "Create new key",
+      "oldStillActive": "The old key \"{name}\" ({prefix}) is still active. Put the new key into your scripts first, then revoke the old one.",
+      "revokeOld": "Revoke the old key now",
+      "keepOld": "Keep the old key for now",
+      "oldRevoked": "The old key has been revoked.",
+      "failed": "Renewing did not work: {message}",
+      "reason": "Renewed by {prefix}"
+    },
+    "revoke": {
+      "title": "Revoke key",
+      "description": "\"{name}\" ({prefix}) stops working immediately. This cannot be undone.",
+      "reasonLabel": "Reason (optional)",
+      "reasonPlaceholder": "e.g. script no longer needed",
+      "confirm": "Revoke",
+      "revoking": "Revoking …",
+      "failed": "Revoking did not work: {message}",
+      "success": "The key has been revoked."
+    },
+    "usage": {
+      "title": "Usage of \"{name}\"",
+      "perDay": "Calls per day, last 30 days",
+      "total": "{requests} calls, {errors} of them with an error",
+      "routes": "Endpoints called",
+      "errors": "{errors} errors",
+      "noUsage": "Not used in the last 30 days.",
+      "export": "Download usage as CSV",
+      "loading": "Loading usage …",
+      "loadFailed": "The usage could not be loaded."
+    },
+    "admin": {
+      "title": "All API access keys",
+      "description": "Keys of every organization and person. You can block any key here immediately.",
+      "filterOrg": "Organization",
+      "allOrgs": "All organizations",
+      "filterOwner": "Type",
+      "filterStatus": "Status",
+      "all": "All",
+      "loadMore": "Load more",
+      "exportCsv": "Usage as CSV",
+      "entry": "All API access keys"
+    }
   }
 }
