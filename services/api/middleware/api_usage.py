@@ -10,7 +10,7 @@ For every HTTP request under ``/api/v1`` this middleware:
   ``services.api_usage_writer.enqueue`` when the request was made with an
   access key (``request.state.principal.kind == "api_key"``).
 
-The event records the route template (``scope["route"].path``), never the
+The event records the route template (:func:`route_template`), never the
 raw path, and no request or response body. The client IP is reduced per
 ``API_USAGE_IP_MODE``.
 """
@@ -33,6 +33,21 @@ def _header(scope, name: bytes) -> Optional[str]:
             except Exception:  # pragma: no cover
                 return None
     return None
+
+
+def route_template(scope) -> Optional[str]:
+    """The matched route's full path template (``/api/v1/projects/{project_id}``).
+
+    FastAPI >= 0.140 stores the ORIGINAL route of an included router in
+    ``scope["route"]``, whose ``path`` lacks the include prefixes; the
+    effective template lives in ``scope["fastapi"]["effective_route_context"]``.
+    """
+    context = (scope.get("fastapi") or {}).get("effective_route_context")
+    template = getattr(context, "path_format", None) or getattr(context, "path", None)
+    if template:
+        return template
+    route = scope.get("route")
+    return getattr(route, "path_format", None) or getattr(route, "path", None)
 
 
 def _client_ip(scope) -> Optional[str]:
@@ -109,8 +124,7 @@ class ApiUsageMiddleware:
         from services import api_usage_writer
         from services.api_key_service import mask_ip
 
-        route = scope.get("route")
-        template = getattr(route, "path", None)
+        template = route_template(scope)
         path_params = scope.get("path_params") or {}
         event = {
             "api_key_id": principal.api_key_id,

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
+from middleware.api_usage import route_template
 from routers.v1._errors import is_v1_path
 
 API_VERSION = "1"
@@ -97,8 +98,7 @@ class V1HeadersMiddleware:
                 ]
                 headers.extend(_cors_headers())
                 headers.append((b"x-api-version", API_VERSION.encode("latin-1")))
-                route = scope.get("route")
-                sunset = sunset_for(scope.get("method"), getattr(route, "path", None))
+                sunset = sunset_for(scope.get("method"), route_template(scope))
                 if sunset:
                     headers.append(
                         (b"x-api-deprecated", f"true; sunset={sunset}".encode("latin-1"))

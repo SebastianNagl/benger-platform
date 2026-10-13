@@ -196,8 +196,9 @@ def idempotent():
         owner = (principal.api_key_id if principal and principal.api_key_id else None) or str(
             user.id
         )
-        route = request.scope.get("route")
-        route_path = getattr(route, "path", None) or request.url.path
+        from middleware.api_usage import route_template
+
+        route_path = route_template(request.scope) or request.url.path
         storage_key = f"idem:{owner}:{request.method} {route_path}:{key}"
         fingerprint = _fingerprint(request, await request.body())
         store = get_store()
