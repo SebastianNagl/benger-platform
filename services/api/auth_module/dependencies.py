@@ -22,12 +22,18 @@ V1_PATH_PREFIX = "/api/v1/"
 
 def _request_path(request) -> Optional[str]:
     """The request path without the app's root_path, or None (Mock requests)."""
-    url = getattr(request, "url", None)
-    path = getattr(url, "path", None)
+    scope = getattr(request, "scope", None)
+    root = None
+    if isinstance(scope, dict):
+        path = scope.get("path")
+        root = scope.get("root_path")
+    else:
+        try:
+            path = request.url.path
+        except Exception:
+            return None
     if not isinstance(path, str):
         return None
-    scope = getattr(request, "scope", None)
-    root = scope.get("root_path") if isinstance(scope, dict) else None
     if isinstance(root, str) and root and path.startswith(root):
         path = path[len(root):] or "/"
     return path

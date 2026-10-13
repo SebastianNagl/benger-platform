@@ -458,7 +458,10 @@ async def get_leaderboard_statistics(
     # Get total active users count (regardless of annotations)
     total_users = (
         await db.execute(
-            select(func.count(User.id)).where(User.is_active == True)  # noqa: E712
+            select(func.count(User.id)).where(
+                User.is_active == True,  # noqa: E712
+                User.is_service_account.is_(False),
+            )
         )
     ).scalar() or 0
 

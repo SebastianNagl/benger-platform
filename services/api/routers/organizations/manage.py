@@ -86,7 +86,10 @@ async def list_all_users(
     from sqlalchemy import or_ as sa_or
     from sqlalchemy.dialects.postgresql import ARRAY
 
-    stmt = select(User).where(User.is_active == True)  # noqa: E712
+    stmt = select(User).where(
+        User.is_active == True,  # noqa: E712
+        User.is_service_account.is_(False),  # access-key service accounts
+    )
     masked_ids: set = set()
 
     if not current_user.is_superadmin:

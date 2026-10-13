@@ -121,6 +121,25 @@ def _unauthorized(code: str, message: str) -> HTTPException:
 
 
 # ---------------------------------------------------------------------------
+# Service accounts stay out of people lists
+# ---------------------------------------------------------------------------
+
+
+def human_membership_clause():
+    """WHERE clause for ``OrganizationMembership`` queries: the member is a
+    person, not the service account of an organization key. Member lists and
+    member counts use it so keys never show up as people."""
+    return OrganizationMembership.user_id.not_in(
+        select(User.id).where(User.is_service_account.is_(True))
+    )
+
+
+def human_user_clause():
+    """WHERE clause for ``User`` queries: not an access-key service account."""
+    return User.is_service_account.is_(False)
+
+
+# ---------------------------------------------------------------------------
 # Format, hashing, parsing
 # ---------------------------------------------------------------------------
 
@@ -674,6 +693,54 @@ def revoke_all_for_user_sync(db: Session, user_id: str, by=None, reason=None) ->
 
 async def revoke_all_for_user(db: AsyncSession, user_id: str, by=None, reason=None) -> int:
     return await _revoke(db, _personal_conditions(user_id), by, reason)
+
+
+def build_count_active_personal_keys(user_ids: Sequence[str]):
+    return (
+        select(ApiKey.user_id, func.count(ApiKey.id))
+        .where(
+            ApiKey.owner_type == "user",
+            ApiKey.user_id.in_(list(user_ids)),
+            ApiKey.revoked_at.is_(None),
+        )
+        .group_by(ApiKey.user_id)
+    )
+
+
+def revoke_personal_keys_for_users_sync(
+    db: Session, user_ids: Sequence[str], by=None, reason=None
+) -> Dict[str, int]:
+    """Revoke the personal keys of several users; returns revoked counts per
+    user (anonymization)."""
+    if not user_ids:
+        return {}
+    counts = {
+        str(uid): int(n)
+        for uid, n in db.execute(build_count_active_personal_keys(user_ids)).all()
+    }
+    _revoke_sync(
+        db, [ApiKey.owner_type == "user", ApiKey.user_id.in_(list(user_ids))], by, reason
+    )
+    return counts
+
+
+def scrub_usage_for_users_sync(db: Session, user_ids: Sequence[str]) -> int:
+    """Drop IP and user agent from the usage history of these users."""
+    if not user_ids:
+        return 0
+    result = db.execute(
+        update(ApiKeyUsageEvent)
+        .where(ApiKeyUsageEvent.user_id.in_(list(user_ids)))
+        .values(ip_address=None, user_agent=None)
+        .execution_options(synchronize_session=False)
+    )
+    db.execute(
+        update(ApiKey)
+        .where(ApiKey.user_id.in_(list(user_ids)), ApiKey.owner_type == "user")
+        .values(last_used_ip=None)
+        .execution_options(synchronize_session=False)
+    )
+    return result.rowcount or 0
 
 
 def revoke_all_for_org_sync(db: Session, org_id: str, by=None, reason=None) -> int:

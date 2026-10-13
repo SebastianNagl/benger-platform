@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy import select
 
-from auth_module.dependencies import require_user
+from auth_module.dependencies import get_current_user, require_user
 from auth_module.models import User as AuthUser
 from main import app
 from models import ApiKey, ApiKeyUsageEvent, OrganizationMembership, User
@@ -33,10 +33,12 @@ def _as(db_user):
         created_at=datetime.now(timezone.utc),
     )
     app.dependency_overrides[require_user] = lambda: au
+    app.dependency_overrides[get_current_user] = lambda: au
     try:
         yield au
     finally:
         app.dependency_overrides.pop(require_user, None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 def _base(org_id):
@@ -339,3 +341,87 @@ def test_service_account_login_is_forbidden(client, test_db):
     assert r.json()["detail"]["code"] == "service_account"
     r = client.post("/api/auth/request-password-reset", json={"email": svc_user.email})
     assert r.status_code == 403
+
+
+async def test_service_accounts_stay_out_of_people_lists(async_test_client, async_test_db, world):
+    org_id = world["org"].id
+    with _as(world["admin"]):
+        before = await async_test_client.get(f"/api/organizations/{org_id}")
+        assert before.status_code == 200, before.text
+        count_before = before.json()["member_count"]
+        created = (
+            await _create_org_key(async_test_client, world, group_id=world["group"].id)
+        ).json()["key"]
+        svc_id = created["user_id"]
+
+        members = await async_test_client.get(f"/api/organizations/{org_id}/members")
+        assert members.status_code == 200
+        assert svc_id not in {m["user_id"] for m in members.json()}
+        after = await async_test_client.get(f"/api/organizations/{org_id}")
+        assert after.json()["member_count"] == count_before
+        listed = await async_test_client.get("/api/organizations/")
+        mine = [o for o in listed.json() if o["id"] == org_id]
+        assert mine and mine[0]["member_count"] == count_before
+        group_members = await async_test_client.get(
+            f"/api/organizations/{org_id}/groups/{world['group'].id}/members"
+        )
+        assert group_members.status_code == 200
+        assert svc_id not in {m["user_id"] for m in group_members.json()}
+        manage = await async_test_client.get("/api/organizations/manage/users")
+        assert svc_id not in {u["id"] for u in manage.json()}
+    with _as(world["superadmin"]):
+        users = await async_test_client.get("/api/users")
+        assert svc_id not in {u["id"] for u in users.json()}
+        users = await async_test_client.get("/api/users?include_service_accounts=true")
+        assert svc_id in {u["id"] for u in users.json()}
+
+
+async def test_notifications_skip_service_accounts(async_test_client, async_test_db, world):
+    from models import Notification, NotificationType
+    from notification_service import NotificationService
+
+    with _as(world["admin"]):
+        created = (await _create_org_key(async_test_client, world)).json()["key"]
+    svc_id = created["user_id"]
+    rows = await async_test_db.run_sync(
+        lambda s: NotificationService.create_notification(
+            s,
+            [svc_id, world["member"].id],
+            NotificationType.PROJECT_CREATED,
+            "t",
+            "m",
+        )
+    )
+    assert [n.user_id for n in rows] == [world["member"].id]
+    stored = (
+        await async_test_db.execute(select(Notification).where(Notification.user_id == svc_id))
+    ).scalars().all()
+    assert stored == []
+
+
+async def test_org_and_group_deletion_revoke_their_keys(async_test_client, async_test_db, world):
+    org_id = world["org"].id
+    with _as(world["admin"]):
+        grp_key = (
+            await _create_org_key(async_test_client, world, group_id=world["group"].id)
+        ).json()["key"]
+        org_key = (await _create_org_key(async_test_client, world)).json()["key"]
+        r = await async_test_client.delete(f"/api/organizations/{org_id}/groups/{world['group'].id}")
+        assert r.status_code == 200, r.text
+    assert (
+        await async_test_db.execute(select(ApiKey).where(ApiKey.id == grp_key["id"]))
+    ).scalar_one_or_none() is None
+    svc_user = (
+        await async_test_db.execute(select(User).where(User.id == grp_key["user_id"]))
+    ).scalar_one()
+    await async_test_db.refresh(svc_user)
+    assert svc_user.is_active is False
+
+    with _as(world["superadmin"]):
+        r = await async_test_client.delete(f"/api/organizations/{org_id}")
+        assert r.status_code == 200, r.text
+    row = (
+        await async_test_db.execute(select(ApiKey).where(ApiKey.id == org_key["id"]))
+    ).scalar_one()
+    await async_test_db.refresh(row)
+    assert row.revoked_at is not None and row.revoke_reason == "organization_deleted"

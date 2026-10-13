@@ -154,6 +154,7 @@ async def test_org_admin_previews_and_anonymizes(
             "lti_grade_syncs": 1,
             "sessions": 0,
             "memberships": 1,
+            "access_keys": 0,
         }
 
         response = await _anonymize(async_test_client, reg.id, link.id, student.id)

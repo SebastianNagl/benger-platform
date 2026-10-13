@@ -1171,3 +1171,36 @@ async def test_batch_refuses_a_repeated_account(async_test_db):
     assert first.result is not None
     assert second.result is None
     assert ua.BLOCKER_ALREADY_ANONYMIZED in second.blockers
+
+
+def test_anonymization_revokes_access_keys_and_scrubs_usage(test_db):
+    """Personal keys are revoked (owner_anonymized) and the key usage
+    history loses IP and user agent."""
+    from datetime import datetime, timezone
+
+    from models import ApiKey, ApiKeyUsageEvent
+    from services import api_key_service as svc
+    from tests.fixtures.access_keys import make_user
+
+    user = make_user()
+    test_db.add(user)
+    test_db.flush()
+    key, _ = svc.create_personal_key_sync(test_db, user.id, {"name": "k", "scopes": []})
+    test_db.add(
+        ApiKeyUsageEvent(
+            api_key_id=key.id, key_prefix=key.key_prefix, user_id=user.id,
+            ip_address="203.0.113.0/24", user_agent="curl/8", method="GET",
+            route="/api/v1/me", status_code=200, created_at=datetime.now(timezone.utc),
+        )
+    )
+    test_db.flush()
+    assert ua.anonymization_footprint_sync(test_db, user.id)["removes"]["access_keys"] == 1
+
+    result = ua.anonymize_user_sync(test_db, user.id, actor_id=None, reason="test")
+    assert result.removed["access_keys"] == 1
+    test_db.expire_all()
+    row = test_db.get(ApiKey, key.id)
+    assert row.revoked_at is not None and row.revoke_reason == "owner_anonymized"
+    event = test_db.query(ApiKeyUsageEvent).filter_by(api_key_id=key.id).one()
+    assert event.ip_address is None and event.user_agent is None
+    assert ua.anonymization_footprint_sync(test_db, user.id)["removes"]["access_keys"] == 0

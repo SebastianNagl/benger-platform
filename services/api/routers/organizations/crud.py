@@ -4,6 +4,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_async_db
+from services.api_key_service import human_membership_clause
 
 @router.get(
     "/",
@@ -76,6 +77,7 @@ async def list_organizations(
                 )
                 .where(
                     OrganizationMembership.is_active == True,  # noqa: E712
+                    human_membership_clause(),
                 )
                 .group_by(OrganizationMembership.organization_id)
             )
@@ -139,6 +141,7 @@ async def list_organizations(
                     .where(
                         OrganizationMembership.organization_id.in_(org_ids),
                         OrganizationMembership.is_active == True,  # noqa: E712
+                        human_membership_clause(),
                     )
                     .group_by(OrganizationMembership.organization_id)
                 )
@@ -261,6 +264,7 @@ async def get_organization_by_slug(
             select(func.count(OrganizationMembership.id)).where(
                 OrganizationMembership.organization_id == organization.id,
                 OrganizationMembership.is_active == True,  # noqa: E712
+                human_membership_clause(),
             )
         )
     ).scalar()
@@ -324,6 +328,7 @@ async def get_organization(
             select(func.count(OrganizationMembership.id)).where(
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.is_active == True,  # noqa: E712
+                human_membership_clause(),
             )
         )
     ).scalar()
@@ -383,6 +388,7 @@ async def update_organization(
             select(func.count(OrganizationMembership.id)).where(
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.is_active == True,  # noqa: E712
+                human_membership_clause(),
             )
         )
     ).scalar()
@@ -415,6 +421,11 @@ async def delete_organization(
     # Soft delete - just deactivate
     organization.is_active = False
     organization.updated_at = datetime.utcnow()
+
+    # Revoke the org's access keys (retires their service accounts).
+    from services.api_key_service import revoke_all_for_org
+
+    await revoke_all_for_org(db, organization_id, current_user.id, "organization_deleted")
 
     # Also deactivate all memberships
     await db.execute(

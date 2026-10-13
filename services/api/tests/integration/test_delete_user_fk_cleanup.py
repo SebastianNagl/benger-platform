@@ -190,3 +190,51 @@ def test_delete_user_cleans_all_fk_references(test_db: Session, target_with_auth
     model_org = test_db.query(ModelOrganization).filter_by(id=ids["model_org_id"]).first()
     assert model_org is not None
     assert model_org.assigned_by is None
+
+
+def test_delete_user_cleans_access_key_references(test_db: Session, test_users):
+    """Personal keys go with the user (revoked first), org keys the user
+    created stay with the org under the fallback superadmin, and usage
+    history survives without the user link."""
+    from datetime import datetime, timezone
+
+    from models import ApiKey, ApiKeyUsageEvent
+    from services import api_key_service as svc
+
+    target = next(u for u in test_users if not u.is_superadmin)
+    org = Organization(
+        id="del-ak-org", name="del-ak-org", display_name="Del AK", slug="del-ak-org",
+        is_active=True,
+    )
+    test_db.add(org)
+    test_db.flush()
+    personal, _ = svc.create_personal_key_sync(test_db, target.id, {"name": "p", "scopes": []})
+    org_key, _ = svc.create_org_key_sync(
+        test_db, target.id, org.id, {"name": "o", "scopes": [], "org_role": "ANNOTATOR"}
+    )
+    other_org_key, _ = svc.create_org_key_sync(
+        test_db, target.id, org.id, {"name": "o2", "scopes": [], "org_role": "ANNOTATOR"}
+    )
+    svc.revoke_key_sync(test_db, other_org_key, target.id, "rotated")
+    test_db.add(
+        ApiKeyUsageEvent(
+            api_key_id=personal.id, key_prefix=personal.key_prefix, user_id=target.id,
+            method="GET", route="/api/v1/me", status_code=200,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+    test_db.commit()
+    ids = (personal.id, org_key.id, other_org_key.id)
+    personal_prefix = personal.key_prefix
+
+    assert delete_user(test_db, target.id) is True
+    test_db.expire_all()
+
+    assert test_db.get(ApiKey, ids[0]) is None
+    kept = test_db.get(ApiKey, ids[1])
+    assert kept is not None and kept.created_by != target.id
+    assert test_db.get(User, kept.created_by).is_superadmin
+    revoked = test_db.get(ApiKey, ids[2])
+    assert revoked.revoked_by is None and revoked.revoked_at is not None
+    event = test_db.query(ApiKeyUsageEvent).filter_by(key_prefix=personal_prefix).one()
+    assert event.user_id is None and event.api_key_id is None
