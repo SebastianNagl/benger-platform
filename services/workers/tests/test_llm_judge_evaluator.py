@@ -2265,6 +2265,102 @@ class TestVerifyEvidencePermissiveEdges:
         assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
 
 
+class TestVerifyEvidencePdfPasteAndLooseCopies:
+    """False negatives from the EKK exam (2026-10-10, all synthetic here):
+    answers pasted from a PDF carry page footers, page and footnote numbers,
+    footnote text and a broken "tt" ligature into their sentences; judges
+    copy loosely (reordered or dropped function words, a pronoun spelled
+    out, answer words left out without an ellipsis, a renumbered heading, a
+    compound variant, "bei dem" for "beim"); and a norm citation after an
+    ellipsis voided an otherwise verbatim quote. Quotes taken from the
+    Musterlösung, swaps that change the meaning and hidden negations still
+    fail."""
+
+    ACCEPTED = [
+        # a running page footer inside the sentence
+        ("Als Adressatin belastender Verwaltungsakte kann B eine mögliche Verletzung ihrer\n\nSeite 3 von 12\n"
+         "allgemeinen Handlungsfreiheit geltend machen.",
+         "Als Adressatin belastender Verwaltungsakte kann B eine mögliche Verletzung ihrer allgemeinen "
+         "Handlungsfreiheit geltend machen"),
+        # a page number on a line of its own
+        ("Sie hätte die Überzahlung leicht erkennen können. Daher ist\n11\n\nzumindest eine grob fahrlässige "
+         "Unkenntnis der Rechtswidrigkeit zu bejahen.",
+         "Daher ist zumindest eine grob fahrlässige Unkenntnis der Rechtswidrigkeit zu bejahen"),
+        # a footnote number glued to the next word
+        ("Mithin stellt die Angabe nur\n\n4einiger zulässiger Formen der Klageerhebung eine Schlechterstellung dar.",
+         "Mithin stellt die Angabe nur einiger zulässiger Formen der Klageerhebung eine Schlechterstellung dar"),
+        # footnote text between two lines of the sentence
+        ("Nach der Adressatentheorie ist der Adressat eines belastenden\nVerwaltungsakts stets\n"
+         "1 §§ sind solche des VwVfG.\n\nklagebefugt, weil zumindest Art. 2 I GG verletzt sein kann.",
+         "Nach der Adressatentheorie ist der Adressat eines belastenden Verwaltungsakts stets klagebefugt"),
+        # a "tt" ligature the PDF font turned into a bracket
+        ("E contrario muss die Rechtsbehelfsbelehrung gar keine Aussage über die Form des Rechtsmi\\[els treffen.",
+         "die Rechtsbehelfsbelehrung gar keine Aussage über die Form des Rechtsmittels treffen"),
+        # "bei dem" for "beim"
+        ("Die Klage hat innerhalb eines Monats beim Verwaltungsgericht des Saarlandes zu erfolgen.",
+         "bei dem Verwaltungsgericht des Saarlandes zu erfolgen"),
+        # a renumbered heading
+        ("II. Formelle Rechtmäßigkeit\nDie Aufhebung ist formell rechtmäßig, wenn die zuständige Behörde gehandelt hat.",
+         "2. Formelle Rechtmäßigkeit Die Aufhebung ist formell rechtmäßig, wenn die zuständige Behörde gehandelt hat"),
+        # a citation fragment next to a substantial, loosely copied quote
+        ("Vorliegend könnte sich aus § 54 I BeamtStG eine aufdrängende Sonderzuweisung ergeben. Das BBG gilt nur "
+         "für Bundesbeamte. B ist vorliegend beim saarländischen Finanzministerium tätig und somit Landesbeamtin.",
+         "§ 54 I BeamtStG … Da B im vorliegenden beim saarländischen Finanzministerium tätig ist und somit "
+         "Landesbeamtin"),
+        # answer words left out inside a sentence, without an ellipsis
+        ("Die Klagen richten sich gegen denselben Beklagten, die erlassende Behörde, stehen im Zusammenhang und "
+         "für beide ist das VG Saarlouis zuständig.",
+         "Die Klagen richten sich gegen denselben Beklagten, stehen im Zusammenhang und für beide ist das VG "
+         "Saarlouis zuständig"),
+        # a pronoun spelled out
+        ("Sie sind mithin begünstigende Verwaltungsakte und die Rücknahme ist nur unter den Voraussetzungen "
+         "des § 48 II-IV VwVfG möglich.",
+         "Die Beihilfebescheide sind mithin begünstigende Verwaltungsakte und die Rücknahme ist nur unter den "
+         "Voraussetzungen des § 48 II-IV VwVfG möglich"),
+        # a compound variant with the same head
+        ("Offensichtlich wurden die Beihilfebescheide von einer Behörde erlassen und regeln einen Einzelfall.",
+         "Offensichtlich wurden die Bewilligungsbescheide von einer Behörde erlassen und regeln einen Einzelfall"),
+        # function words moved
+        ("Der Wortlaut spricht daher dafür, dass nicht über jede Form der Klageerhebung belehrt werden muss.",
+         "Daher spricht der Wortlaut dafür, dass nicht über jede Form der Klageerhebung belehrt werden muss"),
+    ]
+
+    REJECTED = [
+        # a sentence from the Musterlösung the answer does not contain
+        ("Die Behörde hat die Bescheide teilweise zurückgenommen. B hat das Geld ausgegeben.",
+         "An der Zuständigkeit und am Verfahren (v. a. § 28 Abs. 1 VwVfG) bestehen keine Bedenken"),
+        ("B wusste von dem Rabatt. Sie hat die Rechnungen trotzdem eingereicht.",
+         "Nach § 818 Abs. 3 BGB ist die Verpflichtung zur Herausgabe des Erlangten ausgeschlossen, soweit der "
+         "Empfänger nicht mehr bereichert ist"),
+        # removing a page footer never hides a negation
+        ("Die Klage ist\nSeite 2 von 5\nnicht fristgerecht erhoben worden, weil die Monatsfrist ablief.",
+         "Die Klage ist fristgerecht erhoben worden, weil die Monatsfrist ablief"),
+        # a left-out passage may not hold a negation or a hedge
+        ("Die Rücknahme ist, anders als B meint, nicht ermessensfehlerhaft und daher im Ergebnis rechtmäßig erfolgt.",
+         "Die Rücknahme ist, anders als B meint, ermessensfehlerhaft und daher im Ergebnis rechtmäßig erfolgt"),
+        # a content word swapped inside the quote that is no compound variant
+        ("Offensichtlich wurden die Beihilfebescheide von einer Behörde erlassen und regeln einen Einzelfall.",
+         "Offensichtlich wurden die Rückforderungen von einer Behörde erlassen und regeln einen Einzelfall"),
+        # a content word added inside the quote
+        ("Die Klagen richten sich gegen denselben Beklagten und stehen im Zusammenhang miteinander.",
+         "Die Klagen richten sich gegen denselben unzuständigen Beklagten und stehen im Zusammenhang miteinander"),
+    ]
+
+    @pytest.mark.parametrize("answer,evidence", ACCEPTED)
+    def test_accepted(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+
+    @pytest.mark.parametrize("answer,evidence", REJECTED)
+    def test_rejected(self, answer, evidence):
+        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+
+    def test_layout_free_copy_only_when_there_is_layout(self):
+        assert EvidenceIndex("Die Klage ist zulässig.\n\nSie ist begründet.").layout_free is None
+        index = EvidenceIndex("Die Klage ist\nSeite 2 von 5\nzulässig.")
+        assert index.layout_free is not None
+        assert "seite" not in index.layout_free.text
+
+
 class TestFinalizeRubricScores:
     def _parsed(self):
         return {
@@ -2301,12 +2397,15 @@ class TestFinalizeRubricScores:
         assert scores["s02_anfechtung"]["score"] == 0.0
         assert scores["s02_anfechtung"]["model_score"] == 1.0
         assert scores["s02_anfechtung"]["evidence_verified"] is False
-        assert scores["s02_anfechtung"]["reason"] == (
-            f"angesprochen [{EVIDENCE_UNVERIFIED_NOTE}]"
-        )
+        # The judge's reason would praise points that do not count: the
+        # reason is the note alone, the judge's text moves to model_reason.
+        assert scores["s02_anfechtung"]["reason"] == f"[{EVIDENCE_UNVERIFIED_NOTE}]"
+        assert scores["s02_anfechtung"]["model_reason"] == "angesprochen"
         assert scores["s03_klageart"]["score"] == 0.0
         assert scores["s03_klageart"]["model_score"] == 2.5
-        assert scores["s03_klageart"]["reason"] == f"implizit [{EVIDENCE_MISSING_NOTE}]"
+        assert scores["s03_klageart"]["reason"] == f"[{EVIDENCE_MISSING_NOTE}]"
+        assert scores["s03_klageart"]["model_reason"] == "implizit"
+        assert "model_reason" not in scores["s01_rechtsweg"]
         # The model's 5.5 is ignored: only verified points count.
         assert total == 2.0
         assert zeroed == 2

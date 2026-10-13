@@ -298,6 +298,10 @@ export class ApiClient {
       this.evaluationsClient,
       'getAvailableModels',
     )
+    this.getBillingOptions = safeBind(
+      this.evaluationsClient,
+      'getBillingOptions',
+    )
     this.getOrganizations = safeBind(
       this.organizationsClient,
       'getOrganizations',
@@ -576,6 +580,7 @@ export class ApiClient {
   testUserApiKey: any
   testSavedUserApiKey: any
   getAvailableModels: any
+  getBillingOptions: any
 
   // Organization methods
   getOrganizations: any

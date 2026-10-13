@@ -64,7 +64,7 @@ export function useModels(
   const { t } = useI18n()
   // The scope decides whose keys are listed: the project's dispatch org
   // (project pages), the wizard's creation target, else personal keys.
-  const { projectId, organizationId } = useModelScope()
+  const { projectId, organizationId, billingOrganizationId } = useModelScope()
   const [models, setModels] = useState<Model[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<ModelError | null>(null)
@@ -85,6 +85,7 @@ export function useModels(
       const data = await api.getAvailableModels({
         projectId: projectId ?? undefined,
         organizationId: organizationId ?? undefined,
+        billingOrganizationId: billingOrganizationId ?? undefined,
       })
       setModels(data)
 
@@ -128,7 +129,7 @@ export function useModels(
     } finally {
       setLoading(false)
     }
-  }, [t, projectId, organizationId, enabled])
+  }, [t, projectId, organizationId, billingOrganizationId, enabled])
 
   const refetch = useCallback(async () => {
     await fetchModels()

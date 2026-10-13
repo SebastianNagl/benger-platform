@@ -152,6 +152,9 @@ class GenerationRequest(BaseModel):
     # (task, model, structure) regardless of the project default. None falls
     # back to project.generation_config.runs_per_task (or 1 if unset).
     runs_per_task: Optional[int] = Field(default=None, ge=1, le=25)
+    # The org whose keys pay for this run ("billed to"); must be one of the
+    # caller's billing options for the project. None = the default rule.
+    billing_organization_id: Optional[str] = None
 
 
 class GenerationResponse(BaseModel):
@@ -655,10 +658,16 @@ async def start_generation(
     # caller's memberships (services/shared/org_resolution.py), the same
     # rule grading uses, never from the selected organization. A member of
     # an org that provides keys gets that org's key; everyone else falls
-    # back to their personal keys.
-    from org_resolution import resolve_dispatch_org_for_project_async
+    # back to their personal keys. A caller who may bill several orgs names
+    # one in billing_organization_id.
+    from org_resolution import BillingOrgNotAllowed, resolve_dispatch_org_for_project_async
 
-    org_id = await resolve_dispatch_org_for_project_async(db, current_user, project_id)
+    try:
+        org_id = await resolve_dispatch_org_for_project_async(
+            db, current_user, project_id, request.billing_organization_id
+        )
+    except BillingOrgNotAllowed as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
     # Get generation configuration
     generation_config = project.generation_config or {}

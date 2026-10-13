@@ -236,23 +236,33 @@ async def test_saved_user_api_key(
 
 
 async def _resolve_model_scope_org(
-    db: AsyncSession, current_user: User, project_id: Optional[str], organization_id: Optional[str]
+    db: AsyncSession,
+    current_user: User,
+    project_id: Optional[str],
+    organization_id: Optional[str],
+    billing_organization_id: Optional[str] = None,
 ) -> Optional[str]:
     """The organization whose keys a run in this scope would spend.
 
     ``project_id``: the org a generation or evaluation on that project
     dispatches with (``org_resolution``, membership-validated), so the
-    picker lists exactly what the worker can run. ``organization_id``: the
-    creation target of the project wizard, an active membership required.
-    Neither: the user's personal keys.
+    picker lists exactly what the worker can run; ``billing_organization_id``
+    is the payer picked in the dialogs, one of the caller's billing options.
+    ``organization_id``: the creation target of the project wizard, an
+    active membership required. Neither: the user's personal keys.
     """
     if project_id:
         from routers.projects.helpers import check_project_accessible_async
-        from org_resolution import resolve_dispatch_org_for_project_async
+        from org_resolution import BillingOrgNotAllowed, resolve_dispatch_org_for_project_async
 
         if not await check_project_accessible_async(db, current_user, project_id):
             raise HTTPException(status_code=403, detail="Access denied")
-        return await resolve_dispatch_org_for_project_async(db, current_user, project_id)
+        try:
+            return await resolve_dispatch_org_for_project_async(
+                db, current_user, project_id, billing_organization_id
+            )
+        except BillingOrgNotAllowed as e:
+            raise HTTPException(status_code=403, detail=str(e))
     if organization_id:
         from models import OrganizationMembership
 
@@ -274,6 +284,35 @@ async def _resolve_model_scope_org(
     return None
 
 
+@router.get("/billing-options")
+async def get_billing_options(
+    project_id: str = Query(..., description="The project a run would be started on."),
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """The organizations the caller may bill for generation and evaluation
+    runs on a project, with the providers each one has keys for, and the
+    org the default rule picks when nothing is chosen. The dialogs show a
+    "billed to" choice when there is more than one option."""
+    from routers.projects.helpers import check_project_accessible_async
+    from org_resolution import billing_org_options_async, resolve_dispatch_org_for_project_async
+    from services.org_api_key_service import org_api_key_service
+
+    if not await check_project_accessible_async(db, current_user, project_id):
+        raise HTTPException(status_code=403, detail="Access denied")
+    options = await billing_org_options_async(db, current_user, project_id)
+    for option in options:
+        option["providers"] = await org_api_key_service.get_available_providers_for_context_async(
+            db, current_user.id, option["id"], project_id=project_id
+        )
+    return {
+        "default_organization_id": await resolve_dispatch_org_for_project_async(
+            db, current_user, project_id
+        ),
+        "options": options,
+    }
+
+
 @router.get("/available-models")
 async def get_available_models_for_user(
     request: Request,
@@ -283,13 +322,19 @@ async def get_available_models_for_user(
     organization_id: Optional[str] = Query(
         None, description="List the models a project created in this organization can use."
     ),
+    billing_organization_id: Optional[str] = Query(
+        None,
+        description="With project_id: list what a run billed to this organization can use.",
+    ),
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Models the caller can run in a scope: a project (its dispatch org),
-    an organization (the wizard's creation target) or, without either, the
-    personal keys."""
-    org_id = await _resolve_model_scope_org(db, current_user, project_id, organization_id)
+    """Models the caller can run in a scope: a project (its dispatch org, or
+    the payer picked for it), an organization (the wizard's creation target)
+    or, without either, the personal keys."""
+    org_id = await _resolve_model_scope_org(
+        db, current_user, project_id, organization_id, billing_organization_id
+    )
 
     if org_id:
         from services.org_api_key_service import org_api_key_service

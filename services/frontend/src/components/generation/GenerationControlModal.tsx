@@ -1,10 +1,11 @@
 'use client'
 import { CustomBadge, OfficialBadge } from '@/components/models/ModelBadges'
+import { BillingOrgSelect } from '@/components/shared/BillingOrgSelect'
 import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
-import { ModelScopeProvider } from '@/contexts/ModelScopeContext'
+import { ModelScopeProvider, useModelScope } from '@/contexts/ModelScopeContext'
 import { useModels } from '@/hooks/useModels'
 import { apiClient } from '@/lib/api/client'
 import {
@@ -65,6 +66,7 @@ function GenerationControlModalBody({
 }: GenerationControlModalProps) {
   const { addToast } = useToast()
   const { t } = useI18n()
+  const { billingOrganizationId } = useModelScope()
   const [mode, setMode] = useState<'all' | 'missing'>('missing')
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedStructures, setSelectedStructures] = useState<string[]>([])
@@ -317,6 +319,10 @@ function GenerationControlModalBody({
         requestBody.structure_keys = selectedStructures
       }
 
+      if (billingOrganizationId) {
+        requestBody.billing_organization_id = billingOrganizationId
+      }
+
       const data = await apiClient.post(
         `/generation-tasks/projects/${projectId}/generate`,
         requestBody,
@@ -403,6 +409,8 @@ function GenerationControlModalBody({
                       <h4 className="text-base font-medium text-gray-900">
                         {t('generation.controlModal.generationOptions')}
                       </h4>
+
+                      <BillingOrgSelect projectId={projectId} />
 
                       {/* Generation Mode */}
                       <div>
