@@ -128,8 +128,8 @@ if [ "$ENVIRONMENT" = "production" ]; then
         ((WARNINGS++))
     fi
     
-    if [ "$ENABLE_SWAGGER" = "true" ]; then
-        echo "⚠️  Warning: Swagger enabled in production"
+    if [ "$INTERNAL_DOCS_ENABLED" = "true" ]; then
+        echo "⚠️  Warning: INTERNAL_DOCS_ENABLED=true exposes /docs, /redoc and /openapi.json in production"
         ((WARNINGS++))
     fi
 fi

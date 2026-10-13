@@ -52,6 +52,7 @@ For each enabled overlay `<name>` the build resolves `@benger/<name>` to `servic
 |----------|------------------|------------------|-------------|
 | `SECRET_KEY` | Auto-generated | From secrets | JWT signing key |
 | `ENVIRONMENT` | `development` | `production` | Runtime environment |
+| `INTERNAL_DOCS_ENABLED` | `true` (default) | `false` (default) | Serve the interactive API docs (`/docs`, `/redoc`, `/openapi.json`). Defaults to on outside production and off in production; set explicitly to override. The OpenAPI schema lists every internal route, so keep it off on public deployments. |
 
 ## Workers Environment Variables
 

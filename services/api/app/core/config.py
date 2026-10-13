@@ -7,6 +7,8 @@ Centralized configuration management for the BenGER API application.
 import os
 from typing import Optional
 
+from pydantic import model_validator
+
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
@@ -108,6 +110,20 @@ class Settings(BaseSettings):
             return self.enable_debug_routes
         return not self.is_production
 
+    # Interactive API docs (/docs, /redoc, /openapi.json). Off in production
+    # by default: the schema enumerates every internal route and model, which
+    # is reconnaissance material and not a public contract. On elsewhere so
+    # dev and test keep the explorer (the extended behavioral suite reads
+    # /openapi.json). Set INTERNAL_DOCS_ENABLED explicitly (true/false) to
+    # override the environment-derived default.
+    internal_docs_enabled: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def _derive_internal_docs_default(self):
+        if self.internal_docs_enabled is None:
+            self.internal_docs_enabled = not self.is_production
+        return self
+
     # Frontend Configuration
     frontend_url: str = "http://localhost:3000"
 
@@ -159,6 +175,19 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         extra = "ignore"  # Ignore extra environment variables
+
+
+def docs_url_kwargs(enabled: bool) -> dict:
+    """FastAPI constructor kwargs for the interactive docs.
+
+    Enabled: FastAPI's default URLs. Disabled: every URL ``None``, so the
+    /docs, /redoc and /openapi.json routes are not mounted at all (a request
+    answers 404). ``app.openapi()`` keeps building the schema in-process
+    either way, which is what the route-introspection tests rely on.
+    """
+    if enabled:
+        return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+    return {"docs_url": None, "redoc_url": None, "openapi_url": None}
 
 
 # Global settings instance

@@ -43,7 +43,7 @@ if shared_dir not in sys.path:
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import docs_url_kwargs, get_settings  # noqa: E402
 
 install_access_log_redaction()
 
@@ -363,6 +363,9 @@ app = FastAPI(
     version=settings.api_version,
     lifespan=lifespan,
     root_path=settings.api_root_path,
+    # /docs, /redoc and /openapi.json are not mounted in production unless
+    # INTERNAL_DOCS_ENABLED=true (see Settings.internal_docs_enabled).
+    **docs_url_kwargs(settings.internal_docs_enabled),
 )
 
 # Configure CORS with regex to support wildcard subdomains
