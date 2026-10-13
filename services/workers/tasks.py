@@ -5198,6 +5198,69 @@ def recompute_aggregates(self):
                 pass
 
 
+#: Rows per DELETE statement of the usage retention task.
+API_USAGE_CLEANUP_BATCH = 10000
+
+
+def _api_usage_retention_days() -> int:
+    try:
+        days = int(os.getenv("API_USAGE_RETENTION_DAYS", "400"))
+    except ValueError:
+        days = 400
+    return max(days, 1)
+
+
+def build_delete_api_usage_batch(cutoff, batch_size: int):
+    """One bounded DELETE of usage events older than ``cutoff`` (oldest
+    ids first, so a long backlog is worked off in short transactions)."""
+    from sqlalchemy import delete, select
+
+    from models import ApiKeyUsageEvent
+
+    victims = (
+        select(ApiKeyUsageEvent.id)
+        .where(ApiKeyUsageEvent.created_at < cutoff)
+        .order_by(ApiKeyUsageEvent.id)
+        .limit(batch_size)
+        .scalar_subquery()
+    )
+    return delete(ApiKeyUsageEvent).where(ApiKeyUsageEvent.id.in_(victims))
+
+
+@app.task(name="tasks.cleanup_api_key_usage_events", bind=True)
+def cleanup_api_key_usage_events(self, retention_days: Optional[int] = None):
+    """Daily retention for ``api_key_usage_events`` (access-key request log).
+
+    Deletes rows older than ``API_USAGE_RETENTION_DAYS`` (default 400) in
+    batches of ``API_USAGE_CLEANUP_BATCH``, committing after each batch.
+    """
+    from datetime import datetime as _dt
+    from datetime import timedelta, timezone
+
+    days = retention_days or _api_usage_retention_days()
+    cutoff = _dt.now(timezone.utc) - timedelta(days=days)
+    db = SessionLocal()
+    deleted = 0
+    try:
+        while True:
+            result = db.execute(build_delete_api_usage_batch(cutoff, API_USAGE_CLEANUP_BATCH))
+            db.commit()
+            count = result.rowcount or 0
+            deleted += count
+            if count < API_USAGE_CLEANUP_BATCH:
+                break
+        logger.info(
+            "cleanup_api_key_usage_events: deleted %d row(s) older than %s", deleted, cutoff
+        )
+        return {"deleted": deleted, "cutoff": cutoff.isoformat(), "retention_days": days}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"cleanup_api_key_usage_events failed: {e}")
+        raise
+    finally:
+        db.close()
+
+
 @app.task(name="tasks.sweep_missing_immediate_evals", bind=True)
 def sweep_missing_immediate_evals(self, min_age_minutes: int = 15):
     """Hourly server-side backstop for the client-fired KI-Votum.

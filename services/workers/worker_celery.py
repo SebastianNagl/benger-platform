@@ -64,6 +64,13 @@ app.conf.beat_schedule = {
         "args": (),
         "kwargs": {},
     },
+    # Retention of the access-key request log (API_USAGE_RETENTION_DAYS).
+    "cleanup-api-key-usage-events": {
+        "task": "tasks.cleanup_api_key_usage_events",
+        "schedule": crontab(minute=15, hour=3),
+        "args": (),
+        "kwargs": {},
+    },
 }
 # Beat entries deliberately carry no ``options: {"queue": ...}``. Beat options go
 # through the same router as any other send and would override task_routes, so
