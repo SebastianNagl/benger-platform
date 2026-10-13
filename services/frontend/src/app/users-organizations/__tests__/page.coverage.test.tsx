@@ -111,6 +111,7 @@ jest.mock('@headlessui/react', () => ({
 
 jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
+  CommandLineIcon: () => <span />,
   UserGroupIcon: () => <span data-testid="user-group-icon" />,
 }))
 

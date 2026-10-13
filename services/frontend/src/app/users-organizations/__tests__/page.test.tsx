@@ -77,6 +77,7 @@ jest.mock('@headlessui/react', () => ({
 
 jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
+  CommandLineIcon: () => <span />,
   UserGroupIcon: () => <span data-testid="user-group-icon" />,
 }))
 
@@ -152,6 +153,13 @@ describe('UsersOrganizationsPage', () => {
       })
     })
 
+    it('links to the overview of all access keys', async () => {
+      render(<UsersOrganizationsPage />)
+      expect(
+        await screen.findByTestId('admin-access-keys-link'),
+      ).toHaveAttribute('href', '/admin/access-keys')
+    })
+
     it('should render OrganizationsTab component', async () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
@@ -175,6 +183,14 @@ describe('UsersOrganizationsPage', () => {
         organizations: mockOrgs,
         isLoading: false,
       }
+    })
+
+    it('does not link to the access-key overview', async () => {
+      render(<UsersOrganizationsPage />)
+      await screen.findByText('admin.organizations.tabLabel')
+      expect(
+        screen.queryByTestId('admin-access-keys-link'),
+      ).not.toBeInTheDocument()
     })
 
     it('should not show Global Users tab', async () => {

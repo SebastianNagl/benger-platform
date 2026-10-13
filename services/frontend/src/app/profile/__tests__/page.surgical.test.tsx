@@ -78,6 +78,11 @@ jest.mock('@/components/modals/ChangePasswordModal', () => ({
     isOpen ? <div data-testid="change-password-modal" /> : null,
 }))
 
+// Personal access keys have their own tests
+// (components/profile/__tests__/ProfileAccessKeysSection.test.tsx).
+jest.mock('@/components/profile/ProfileAccessKeysSection', () => ({
+  ProfileAccessKeysSection: () => <div data-testid="profile-access-keys" />,
+}))
 jest.mock('@/components/modals/APIKeysModal', () => ({
   APIKeysModal: ({ isOpen }: any) =>
     isOpen ? <div data-testid="api-keys-modal" /> : null,

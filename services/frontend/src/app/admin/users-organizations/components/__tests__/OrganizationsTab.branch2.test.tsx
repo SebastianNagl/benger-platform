@@ -127,6 +127,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
   ChevronDownIcon: () => <span />,
   CloudIcon: () => <span data-testid="cloud-icon" />,
+  CommandLineIcon: () => <span />,
   MagnifyingGlassIcon: () => <span />,
   EnvelopeIcon: () => <span />,
   KeyIcon: () => <span />,
