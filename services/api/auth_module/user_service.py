@@ -160,6 +160,10 @@ def authenticate_user(db: Session, username_or_email: str, password: str) -> Opt
     user = get_user_by_username_or_email(db, username_or_email)
     if not user:
         return None
+    # Access-key service accounts never sign in (403, not a password miss).
+    from .service import forbid_service_account
+
+    forbid_service_account(user)
     if not verify_password(password, user.hashed_password):
         return None
     return user

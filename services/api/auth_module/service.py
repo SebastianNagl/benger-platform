@@ -54,7 +54,30 @@ def db_user_to_user(db_user: DBUser) -> User:
         onboarding_state=ensure_dict(getattr(db_user, 'onboarding_state', None)),
         pseudonym=getattr(db_user, 'pseudonym', None),
         use_pseudonym=getattr(db_user, 'use_pseudonym', True),
+        is_service_account=getattr(db_user, 'is_service_account', False),
     )
+
+
+SERVICE_ACCOUNT_FORBIDDEN_CODE = "service_account"
+
+
+def is_service_account(db_user) -> bool:
+    """Whether a user row (or schema) is an access-key service account.
+    Strict ``is True`` so unit-test Mocks never count."""
+    return getattr(db_user, "is_service_account", False) is True
+
+
+def forbid_service_account(db_user) -> None:
+    """403 for the machine users behind organization access keys: they never
+    log in, refresh, reset or activate a password."""
+    if db_user is not None and is_service_account(db_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": SERVICE_ACCOUNT_FORBIDDEN_CODE,
+                "message": "Service accounts cannot sign in",
+            },
+        )
 
 
 def authenticate_user(username_or_email: str, password: str, db: Session = None) -> Optional[User]:
@@ -135,21 +158,34 @@ def verify_token(token: str, expected_typ: str = ACCESS_TOKEN_TYP) -> dict:
     return payload
 
 
+def _bearer_token(request: Request) -> Optional[str]:
+    auth_header = request.headers.get("Authorization")
+    if isinstance(auth_header, str) and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+    return None
+
+
 def verify_token_cookie_or_header(
-    request: Request, expected_typ: str = ACCESS_TOKEN_TYP
+    request: Request, expected_typ: str = ACCESS_TOKEN_TYP, header_first: bool = False
 ) -> dict:
-    """Verify token from cookie or Authorization header"""
+    """Verify token from cookie or Authorization header.
+
+    The browser API reads the cookie first. ``header_first`` (used on
+    ``/api/v1``) reads the Authorization header first, so a script that
+    sends an explicit token is never overridden by a stale cookie.
+    """
     token = None
 
-    # Try to get token from cookie first
-    if "access_token" in request.cookies:
+    if header_first:
+        token = _bearer_token(request)
+
+    # Try to get token from cookie
+    if not token and "access_token" in request.cookies:
         token = request.cookies["access_token"]
 
     # If no cookie, try Authorization header
     if not token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
+        token = _bearer_token(request)
 
     if not token:
         raise HTTPException(
@@ -192,6 +228,9 @@ def verify_token_for_websocket(
 
     if not token:
         raise WebSocketAuthError("No access token provided")
+    if token.startswith("bgr_"):
+        # Access keys are for the /api/v1 HTTP surface only.
+        raise WebSocketAuthError("API keys are not accepted on WebSockets")
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -270,6 +309,7 @@ def refresh_access_token(
     db_user = get_user_by_id(db, db_refresh_token.user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    forbid_service_account(db_user)
 
     user = db_user_to_user(db_user)
 

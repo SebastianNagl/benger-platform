@@ -124,10 +124,11 @@ ANONYMIZED_USERNAME_PREFIX = "anon-"
 #: A fresh pseudonym replaces the old one: staff saw the old pseudonym next
 #: to the real name, so keeping it would let them re-identify the records.
 ANONYMIZED_PSEUDONYM_PREFIX = "Anonym-"
-#: Username prefixes only the system hands out: ``anon-`` (this module) and
-#: ``lti-`` (accounts an LMS launch creates). Signup and profile updates
+#: Username prefixes only the system hands out: ``anon-`` (this module),
+#: ``lti-`` (accounts an LMS launch creates) and ``svc-`` (access-key service
+#: accounts, services/api_key_service.py). Signup and profile updates
 #: should refuse them (:func:`is_reserved_username`).
-RESERVED_USERNAME_PREFIXES = (ANONYMIZED_USERNAME_PREFIX, "lti-")
+RESERVED_USERNAME_PREFIXES = (ANONYMIZED_USERNAME_PREFIX, "lti-", "svc-")
 LINK_PROVISIONED = "provisioned"
 
 BLOCKER_SUPERADMIN = "superadmin"

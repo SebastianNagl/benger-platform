@@ -710,6 +710,7 @@ def test_reserved_username_prefixes():
     assert ua.is_reserved_username("anon-1234")
     assert ua.is_reserved_username(" LTI-abcdef ")
     assert not ua.is_reserved_username("anonymous")
+    assert ua.is_reserved_username("svc-AbCd1234")
     assert not ua.is_reserved_username("")
     assert not ua.is_reserved_username(None)
 

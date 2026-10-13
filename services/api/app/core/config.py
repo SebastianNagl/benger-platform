@@ -124,6 +124,33 @@ class Settings(BaseSettings):
             self.internal_docs_enabled = not self.is_production
         return self
 
+    # Access keys for the public /api/v1 surface (services/api_key_service.py,
+    # docs/api-keys.md). API_KEY_PEPPER is mixed into every key hash so a
+    # leaked database alone cannot be used to check guessed keys; changing it
+    # invalidates every existing key. API_KEY_ENVIRONMENT overrides the key
+    # tag ("live" in production, "test" elsewhere); a key is only accepted by
+    # a deployment with the same tag.
+    api_key_pepper: str = ""
+    api_key_environment: Optional[str] = None
+    api_key_default_rpm: int = 120
+    api_key_default_rpd: int = 20000
+    # Usage events older than this are deleted by the daily beat task.
+    api_usage_retention_days: int = 400
+    # How much of the client IP the usage log keeps: "full", "truncated"
+    # (IPv4 /24, IPv6 /48) or "none".
+    api_usage_ip_mode: str = "truncated"
+    # Mail domain of the service-account users behind organization keys.
+    # These addresses never receive mail; they only satisfy the unique
+    # users.email column.
+    service_account_email_host: Optional[str] = None
+
+    @property
+    def api_key_env_tag(self) -> str:
+        """The key tag this deployment issues and accepts (live/test)."""
+        if self.api_key_environment in ("live", "test"):
+            return self.api_key_environment
+        return "live" if self.is_production else "test"
+
     # Frontend Configuration
     frontend_url: str = "http://localhost:3000"
 
