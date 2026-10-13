@@ -10,6 +10,14 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     date: '2026-10-13',
     audience: 'benger',
     text: {
+      de: 'Evaluationen lassen sich auf Modellantworten beschränken: Wählst du keine Annotator:in aus, werden nur die Modellantworten bewertet (und ohne Modell nur die eingereichten Antworten). Die Kostenschätzung rechnet dabei nur noch mit den ausgewählten Metriken, Modellen, Annotator:innen und Prompt-Strukturen.',
+      en: 'Evaluations can be limited to model answers: with no annotator selected only the model answers are graded (and with no model only the submitted answers). The cost estimate now counts only the selected metrics, models, annotators and prompt structures.',
+    },
+  },
+  {
+    date: '2026-10-13',
+    audience: 'benger',
+    text: {
       de: 'Neu: API-Zugänge für Organisationen und für dich persönlich. Unter „API-Zugänge“ legst du Schlüssel für Skripte und Benchmark-Runner an, wählst mit einer Voreinstellung, was sie dürfen, und prüfst sie direkt mit „Verbindung testen“. Schlüssel lassen sich erneuern, widerrufen und in ihrer Nutzung nachverfolgen.',
       en: 'New: API access for organizations and for you personally. Under "API access" you create keys for scripts and benchmark runners, pick with a preset what they may do, and check them right away with "Test connection". Keys can be renewed, revoked and their usage tracked.',
     },

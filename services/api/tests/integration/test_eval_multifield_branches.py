@@ -414,6 +414,24 @@ class TestRunEvaluation:
         assert resp.status_code == 400, resp.text
         assert "No enabled evaluation configurations" in resp.json()["detail"]
 
+    def test_no_model_and_no_annotator_400(self, client, test_db, test_users, auth_headers, test_org):
+        """An empty list deselects a side; deselecting both grades nothing."""
+        p, _ = _setup_project(test_db, test_users[0], test_org)
+        test_db.commit()
+
+        resp = client.post(
+            f"{BASE}/run",
+            json={
+                "project_id": p.id,
+                "evaluation_configs": [_config()],
+                "model_ids": [],
+                "annotator_user_ids": [],
+            },
+            headers=_h(auth_headers, test_org),
+        )
+        assert resp.status_code == 400, resp.text
+        assert "at least one model or one annotator" in resp.json()["detail"]
+
     def test_invalid_annotator_ids_400(self, client, test_db, test_users, auth_headers, test_org):
         """annotator_user_ids that have no annotations on the project → 400."""
         p, _ = _setup_project(test_db, test_users[0], test_org)

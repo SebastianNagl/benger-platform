@@ -137,6 +137,13 @@ class TestBenignAndDefensive:
     def test_a_config_with_no_prediction_fields(self):
         assert classify(side()) == "no_prediction_fields"
 
+    def test_a_config_whose_only_side_the_run_left_out(self):
+        """'Model generations only' strips the human fields; a config that
+        grades only answers then sits the run out, which is not a failure."""
+        cfg = {**side(), "side_not_selected": True}
+        assert classify(cfg) == "side_not_selected"
+        assert "side_not_selected" in _BENIGN_MATCH_REASONS
+
     def test_a_worker_that_cannot_classify_says_so(self):
         """This used to silently skip the whole annotation pass."""
         assert (

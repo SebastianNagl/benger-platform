@@ -207,7 +207,7 @@ function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
 export function CostEstimatePanel({
   projectId,
   mode,
-  modelIds = [],
+  modelIds: modelIdsProp,
   judgeModels = [],
   runsPerCall,
   samplesPerTask = 1,
@@ -219,6 +219,10 @@ export function CostEstimatePanel({
 }: CostEstimatePanelProps) {
   const { t } = useI18n()
   const { addToast } = useToast()
+  // In evaluation mode an empty list means no model is selected (only
+  // submitted answers get graded), so it is sent as is; leaving the prop out
+  // means no model filter.
+  const modelIds = modelIdsProp ?? []
   // Prefer the org-wired client threaded via AuthProvider; fall back to the
   // global singleton when rendered outside the authenticated tree (e.g. in
   // isolated unit tests). Behavior is identical — both carry org context.
@@ -241,7 +245,7 @@ export function CostEstimatePanel({
         const data = await apiClient.post('/llm-models/cost-estimate', {
           project_id: projectId,
           mode,
-          model_ids: modelIds,
+          model_ids: mode === 'evaluation' ? modelIdsProp : modelIds,
           judge_models: judgeModels,
           runs_per_call: runsPerCall,
           samples_per_task: samplesPerTask,
@@ -274,7 +278,7 @@ export function CostEstimatePanel({
     enabled,
     projectId,
     mode,
-    modelIds.join(','),
+    modelIdsProp === undefined ? '-' : modelIds.join(','),
     judgeModels.join(','),
     runsPerCall,
     samplesPerTask,
@@ -345,7 +349,7 @@ export function CostEstimatePanel({
               // When the eval modal supplies configs the backend prices the
               // actual cell count; surface that instead of the project-wide
               // task count so the breakdown matches the dollar number.
-              if (estimate.subject_count > 0) {
+              if (estimate.per_judge_cells || estimate.subject_count > 0) {
                 // Runs are folded per-judge into the backend's per-model cell
                 // count (issue #132), so we no longer surface a separate
                 // "× runs" multiplier — it would mislead about how the dollar
@@ -354,8 +358,15 @@ export function CostEstimatePanel({
                   'costEstimate.breakdownCells',
                   '{cells} Zellen über {models} Judge-Modell(e)',
                 )
+                // The judge calls actually priced, not the raw subject pool.
+                const cells = estimate.per_judge_cells
+                  ? estimate.per_model.reduce(
+                      (sum, m) => sum + (m.cells_to_generate ?? 0),
+                      0,
+                    )
+                  : estimate.subject_count
                 return String(tpl)
-                  .replace('{cells}', String(estimate.subject_count))
+                  .replace('{cells}', String(cells))
                   .replace('{models}', String(estimate.per_model.length))
               }
               const tpl = t(

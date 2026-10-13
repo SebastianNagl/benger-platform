@@ -1444,6 +1444,71 @@ def test_run_evaluation_annotator_scope_filter(
     assert fresh.status == "completed"
 
 
+def _both_sides_scenario(make_user, make_llm_model, make_project, make_task,
+                         make_generation, make_annotation, make_evaluation_run):
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+    make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    make_annotation(
+        project.id, task.id, completed_by=user.id,
+        result=[_ann_result("answer", "ja")],
+    )
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    return user, model, project, run
+
+
+def test_run_evaluation_empty_annotator_list_grades_model_answers_only(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_annotation, make_evaluation_run, exact_match_config,
+):
+    """``annotator_user_ids=[]`` ("model generations only" in the dialog)
+    skips the answer side. ``None`` would grade every annotation."""
+    _user, _model, project, run = _both_sides_scenario(
+        make_user, make_llm_model, make_project, make_task,
+        make_generation, make_annotation, make_evaluation_run,
+    )
+    db_conn.commit()
+
+    result = _run(
+        db_conn, run, project,
+        [exact_match_config(), _human_exact_match_config(config_id="cfg2")],
+        annotator_user_ids=[],
+    )
+    assert result["gen_cells"] == 1
+    assert result["ann_cells"] == 0
+
+    rows = db_conn.query(TaskEvaluation).filter(TaskEvaluation.evaluation_id == run.id).all()
+    assert len(rows) == 1 and rows[0].generation_id is not None
+
+    fresh = _refresh(db_conn, run)
+    assert fresh.status == "completed"
+    match = fresh.eval_metadata["match_by_config"]
+    assert match["cfg1"]["reason"] is None
+    assert match["cfg2"]["reason"] == "side_not_selected"
+
+
+def test_run_evaluation_empty_model_list_grades_submitted_answers_only(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_annotation, make_evaluation_run, exact_match_config,
+):
+    _user, _model, project, run = _both_sides_scenario(
+        make_user, make_llm_model, make_project, make_task,
+        make_generation, make_annotation, make_evaluation_run,
+    )
+    db_conn.commit()
+
+    result = _run(
+        db_conn, run, project,
+        [exact_match_config(), _human_exact_match_config(config_id="cfg2")],
+        model_ids=[],
+    )
+    assert result["gen_cells"] == 0
+    assert result["ann_cells"] == 1
+    assert _refresh(db_conn, run).status == "completed"
+
+
 # ---------------------------------------------------------------------------
 # 17 — run_evaluation outer exception arm → run marked failed
 # ---------------------------------------------------------------------------
