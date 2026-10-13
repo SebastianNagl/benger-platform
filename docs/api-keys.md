@@ -45,6 +45,24 @@ account and ends its memberships.
 A key never carries superadmin rights, even when a superadmin created it
 for themselves.
 
+## Managing keys in the web UI
+
+* **Organisation keys**: *Users & organizations* → organisation →
+  **API access** (org admins, and group admins for their groups).
+* **Personal keys**: the **API access** section at the end of the profile
+  page.
+* **All keys** (superadmins): `/admin/access-keys`, with filters by
+  organisation, owner type and status, revocation and the usage CSV.
+
+Creating a key starts from a preset (`benchmark_read`, `benchmark_submit`,
+`org_full`); *Advanced* lists every scope the caller may grant. The full key
+is shown once, together with `curl` and Python snippets and a **Test
+connection** button that calls `GET /api/v1/me` with the new key. **Renew**
+creates a key with the same settings; the old key keeps working until it is
+revoked, so scripts can switch over without downtime. The how-to guide
+*API-Zugänge* (`/how-to#api-zugaenge`) walks non-technical users through
+the same steps.
+
 ## Principal
 
 Every authenticated request records who is calling as a *principal*
