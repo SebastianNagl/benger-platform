@@ -1416,6 +1416,32 @@ describe('EvaluationsClient', () => {
           updated_at: '2024-01-01T00:00:00Z',
         })
       })
+
+      it('passes the chosen payer with a project scope', async () => {
+        const mockRequest = jest
+          .spyOn(client as any, 'request')
+          .mockResolvedValue([])
+        await client.getAvailableModels({
+          projectId: 'p1',
+          billingOrganizationId: 'org-1',
+        })
+        expect(mockRequest).toHaveBeenCalledWith(
+          '/users/api-keys/available-models?project_id=p1&billing_organization_id=org-1',
+        )
+      })
+    })
+
+    describe('getBillingOptions', () => {
+      it('requests the options for a project', async () => {
+        const options = { default_organization_id: null, options: [] }
+        const mockRequest = jest
+          .spyOn(client as any, 'request')
+          .mockResolvedValue(options)
+        await expect(client.getBillingOptions('p 1')).resolves.toEqual(options)
+        expect(mockRequest).toHaveBeenCalledWith(
+          '/users/api-keys/billing-options?project_id=p%201',
+        )
+      })
     })
   })
 

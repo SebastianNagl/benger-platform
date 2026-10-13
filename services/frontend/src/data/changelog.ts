@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-12',
+    audience: 'benger',
+    text: {
+      de: 'Wenn du in mehreren Organisationen eines Projekts Mitglied bist, die API-Schlüssel bereitstellen, wählst du beim Starten von Generierungen und Bewertungen unter „Abgerechnet über“, welche Organisation die Modellaufrufe bezahlt. Die Auswahl gilt auch für einzelne Neuläufe und bleibt pro Projekt gespeichert.',
+      en: 'If you belong to several organizations on a project that provide API keys, "Billed to" in the generation and evaluation dialogs lets you choose which organization pays for the model calls. The choice also applies to single re-runs and is remembered per project.',
+    },
+  },
+  {
     date: '2026-10-09',
     audience: 'benger',
     text: {

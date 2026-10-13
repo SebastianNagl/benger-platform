@@ -1,9 +1,11 @@
 'use client'
 
+import { BillingOrgSelect } from '@/components/shared/BillingOrgSelect'
 import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
+import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { apiClient } from '@/lib/api/client'
 import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
 import { Dialog, Transition } from '@headlessui/react'
@@ -39,6 +41,9 @@ export interface EvaluationRunScope {
    *  undefined = no filter (all structures), otherwise the run only grades
    *  generations produced under the named structure keys. */
   structureKeys?: string[]
+  /** The org whose keys pay for the judge calls ("billed to"); undefined =
+   *  the server's default rule. */
+  billingOrganizationId?: string
 }
 
 /** A config's name in the metric picker: its own name, else the metric's
@@ -103,6 +108,7 @@ export function EvaluationControlModal({
 }: EvaluationControlModalProps) {
   const { addToast } = useToast()
   const { t } = useI18n()
+  const { billingOrganizationId } = useBillingOrganization(projectId)
   const [mode, setMode] = useState<'all' | 'missing'>('missing')
   const [loading, setLoading] = useState(false)
 
@@ -346,6 +352,7 @@ export function EvaluationControlModal({
       modelIds: modelIdsFilter,
       annotatorUserIds: annotatorIdsFilter,
       structureKeys: structureKeysFilter,
+      billingOrganizationId: billingOrganizationId ?? undefined,
     }
   }
 
@@ -384,6 +391,7 @@ export function EvaluationControlModal({
       modelIds: modelIdsFilter,
       annotatorUserIds: annotatorIdsFilter,
       structureKeys: structureKeysFilter,
+      billingOrganizationId: billingOrgId,
     } = buildScope()
 
     try {
@@ -398,6 +406,7 @@ export function EvaluationControlModal({
           model_ids: modelIdsFilter,
           annotator_user_ids: annotatorIdsFilter,
           structure_keys: structureKeysFilter,
+          billing_organization_id: billingOrgId,
         })
       }
 
@@ -475,6 +484,8 @@ export function EvaluationControlModal({
                     </Dialog.Title>
 
                     <div className="mt-4 space-y-4">
+                      <BillingOrgSelect projectId={projectId} />
+
                       {/* Evaluation Mode */}
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">

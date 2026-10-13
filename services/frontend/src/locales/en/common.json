@@ -10723,5 +10723,11 @@
       "placeholder": "Anything else about the exam or the platform (optional)",
       "saved": "Saved"
     }
+  },
+  "billingChoice": {
+    "label": "Billed to",
+    "default": "Default: {name}",
+    "personalKeys": "your own API keys",
+    "hint": "This organization's API keys pay for the generations and evaluations you start from here."
   }
 }

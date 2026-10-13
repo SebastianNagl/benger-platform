@@ -99,9 +99,6 @@ async def run_evaluation(
                 detail=f"Project '{request.project_id}' not found",
             )
 
-        # Extract organization context for API key resolution (Issue #1180)
-        organization_id = resolve_user_org_for_project(current_user, project, db)
-
         # Check access permissions (read gate first, so a caller without
         # access still 403s the way every other project endpoint does).
         if not auth_service.check_project_access(
@@ -138,6 +135,20 @@ async def run_evaluation(
         # admits non-editors (org ANNOTATOR members, public CONTRIBUTOR
         # visitors), so this gate is load-bearing here. No-op without a window.
         enforce_project_write_window(db, current_user, project)
+
+        # Organization context for API key resolution (Issue #1180): the
+        # default rule, or the payer the caller picked among their options.
+        if request.billing_organization_id:
+            from org_resolution import BillingOrgNotAllowed, resolve_dispatch_org_for_project
+
+            try:
+                organization_id = resolve_dispatch_org_for_project(
+                    db, current_user, project, request.billing_organization_id
+                )
+            except BillingOrgNotAllowed as e:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+        else:
+            organization_id = resolve_user_org_for_project(current_user, project, db)
 
         # Validate evaluation configs
         if not request.evaluation_configs:

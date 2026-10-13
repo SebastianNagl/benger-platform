@@ -885,6 +885,7 @@ export default function EvaluationDashboard() {
         model_ids: scope?.modelIds,
         annotator_user_ids: scope?.annotatorUserIds,
         structure_keys: scope?.structureKeys,
+        billing_organization_id: scope?.billingOrganizationId,
       })
 
       // Use operation toast for real-time status updates

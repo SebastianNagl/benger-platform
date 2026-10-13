@@ -83,6 +83,9 @@ class EvaluationRunRequest(BaseModel):
     # `_top_level_seed` key the trigger threads into eval_metadata at
     # dispatch time.
     seed: Optional[int] = None
+    # The org whose keys pay for the judge calls ("billed to"); must be one
+    # of the caller's billing options for the project. None = the default rule.
+    billing_organization_id: Optional[str] = None
 
 
 class EvaluationRunResponse(BaseModel):

@@ -10731,5 +10731,11 @@
       "placeholder": "Sonstiges Feedback zur Klausur oder zur Plattform (optional)",
       "saved": "Gespeichert"
     }
+  },
+  "billingChoice": {
+    "label": "Abgerechnet über",
+    "default": "Standard: {name}",
+    "personalKeys": "deine eigenen API-Schlüssel",
+    "hint": "Die API-Schlüssel dieser Organisation bezahlen die Generierungen und Bewertungen, die du von hier startest."
   }
 }

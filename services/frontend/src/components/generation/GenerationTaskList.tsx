@@ -13,6 +13,7 @@ import {
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { apiClient, getApiUrl } from '@/lib/api/client'
 import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
@@ -152,6 +153,8 @@ export function GenerationTaskList({
   } | null>(null)
   const { user } = useAuth()
   const { addToast } = useToast()
+  // Single-cell runs bill the org picked in the generation dialog.
+  const { billingOrganizationId } = useBillingOrganization(projectId)
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
@@ -385,6 +388,9 @@ export function GenerationTaskList({
         if (keysToUse.length > 0) {
           requestBody.structure_keys = keysToUse
         }
+        if (billingOrganizationId) {
+          requestBody.billing_organization_id = billingOrganizationId
+        }
 
         await apiClient.post(
           `/generation-tasks/projects/${projectId}/generate`,
@@ -402,7 +408,7 @@ export function GenerationTaskList({
         setGeneratingCell(null)
       }
     },
-    [project, projectId, fetchData, addToast, t],
+    [project, projectId, billingOrganizationId, fetchData, addToast, t],
   )
 
   // Close context menu on outside click

@@ -439,3 +439,78 @@ class TestProjectConsumers:
         assert is_project_consumer(test_db, revoked.id, project.id) is False
         assert is_project_consumer(test_db, unconsented.id, project.id) is False
         assert is_project_consumer(test_db, creator.id, project.id) is False
+
+
+@pytest.mark.unit
+class TestBillingOrgChoice:
+    """The explicit payer (``requested_org_id``): only an attached org that
+    provides keys and that the caller may bill; anything else raises."""
+
+    def _project(self, db, *orgs):
+        from project_models import Project, ProjectOrganization
+
+        creator = _mk_user(db, "choice-creator")
+        project = Project(id="proj-choice", title="Choice", created_by=creator.id)
+        db.add(project)
+        db.flush()
+        for org in orgs:
+            db.add(
+                ProjectOrganization(
+                    id=f"po-choice-{org.id}",
+                    project_id=project.id,
+                    organization_id=org.id,
+                    assigned_by=creator.id,
+                )
+            )
+        db.commit()
+        return db.query(Project).filter(Project.id == project.id).first()
+
+    def _org(self, db, oid, *, pays):
+        org = Organization(
+            id=oid,
+            name=oid,
+            display_name=oid.upper(),
+            slug=oid,
+            settings={"require_private_keys": not pays},
+        )
+        db.add(org)
+        db.commit()
+        return org
+
+    def test_options_and_choice(self, test_db, paying_org):
+        from org_resolution import (
+            BillingOrgNotAllowed,
+            billing_org_options,
+            resolve_dispatch_org_for_project,
+        )
+
+        second = self._org(test_db, "choice-b", pays=True)
+        members_pay = self._org(test_db, "choice-c", pays=False)
+        not_mine = self._org(test_db, "choice-d", pays=True)
+        user = _mk_user(test_db, "choice-member")
+        for org in (paying_org, second, members_pay):
+            _mk_member(test_db, user, org)
+        project = self._project(test_db, paying_org, second, members_pay, not_mine)
+
+        assert [o["id"] for o in billing_org_options(test_db, user, project)] == [
+            "choice-b",
+            paying_org.id,
+        ]
+        assert (
+            resolve_dispatch_org_for_project(test_db, user, project, "choice-b")
+            == "choice-b"
+        )
+        for oid in ("choice-c", "choice-d", "nope"):
+            with pytest.raises(BillingOrgNotAllowed):
+                resolve_dispatch_org_for_project(test_db, user, project, oid)
+
+        admin = _mk_user(test_db, "choice-admin", superadmin=True)
+        assert {o["id"] for o in billing_org_options(test_db, admin, project)} == {
+            paying_org.id,
+            "choice-b",
+            "choice-d",
+        }
+        assert (
+            resolve_dispatch_org_for_project(test_db, admin, project, "choice-d")
+            == "choice-d"
+        )

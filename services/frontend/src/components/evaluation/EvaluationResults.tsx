@@ -36,6 +36,7 @@ import { useToast } from '@/components/shared/Toast'
 import { TaskDataViewModal } from '@/components/tasks/TaskDataViewModal'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
@@ -118,6 +119,8 @@ export function EvaluationResults({
   evaluationConfigs = [],
 }: EvaluationResultsProps) {
   const { addToast } = useToast()
+  // Single-cell re-runs bill the org picked in the evaluation dialog.
+  const { billingOrganizationId } = useBillingOrganization(String(projectId))
   const { user } = useAuth()
   const { t } = useI18n()
   const [showHistory, setShowHistory] = useState(false)
@@ -791,6 +794,7 @@ export function EvaluationResults({
           force_rerun: true,
           task_ids: [taskId],
           model_ids: [modelId],
+          billing_organization_id: billingOrganizationId ?? undefined,
         })
 
         addToast(t('evaluation.multiFieldResults.reEvaluateQueued'), 'success')
@@ -807,7 +811,14 @@ export function EvaluationResults({
         )
       }
     },
-    [projectId, evaluationConfigs, addToast, t, fetchResults],
+    [
+      projectId,
+      evaluationConfigs,
+      billingOrganizationId,
+      addToast,
+      t,
+      fetchResults,
+    ],
   )
 
   const getStatusIcon = (status: string) => {

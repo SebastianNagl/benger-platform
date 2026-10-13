@@ -25,6 +25,20 @@ import {
   UploadedDataResponse,
 } from './types'
 
+/** One organization the caller may bill for runs on a project. */
+export interface BillingOption {
+  id: string
+  name: string
+  /** Display names of the providers the org has keys for there. */
+  providers: string[]
+}
+
+export interface BillingOptions {
+  /** The org the default rule bills when nothing is chosen (null = personal keys). */
+  default_organization_id: string | null
+  options: BillingOption[]
+}
+
 /** Result of a pause/resume/retry lifecycle action on a run (issue #198). */
 export interface EvaluationLifecycleResult {
   evaluation_id: string
@@ -631,13 +645,26 @@ export class EvaluationsClient extends BaseApiClient {
   }
 
   /**
+   * The organizations the caller may bill for generation and evaluation
+   * runs on a project, with the providers each has keys for, and the org
+   * the default rule picks when nothing is chosen.
+   */
+  async getBillingOptions(projectId: string): Promise<BillingOptions> {
+    return this.request(
+      `/users/api-keys/billing-options?project_id=${encodeURIComponent(projectId)}`,
+    )
+  }
+
+  /**
    * The models the caller can run in a scope: on a project (the org a run
-   * there dispatches with), in an organization (the wizard's creation
-   * target) or, without either, with the personal keys.
+   * there dispatches with, or the payer picked for it), in an organization
+   * (the wizard's creation target) or, without either, with the personal
+   * keys.
    */
   async getAvailableModels(scope?: {
     projectId?: string
     organizationId?: string
+    billingOrganizationId?: string
   }): Promise<
     Array<{
       id: string
@@ -664,8 +691,11 @@ export class EvaluationsClient extends BaseApiClient {
     }>
   > {
     const params = new URLSearchParams()
-    if (scope?.projectId) params.set('project_id', scope.projectId)
-    else if (scope?.organizationId)
+    if (scope?.projectId) {
+      params.set('project_id', scope.projectId)
+      if (scope.billingOrganizationId)
+        params.set('billing_organization_id', scope.billingOrganizationId)
+    } else if (scope?.organizationId)
       params.set('organization_id', scope.organizationId)
     const query = params.toString()
     return this.request(
@@ -1024,6 +1054,7 @@ export class EvaluationsClient extends BaseApiClient {
     model_ids?: string[] // Filter to specific models (for single-cell re-evaluation)
     annotator_user_ids?: string[] // Filter annotation-side judge fan-out to specific annotators
     structure_keys?: string[] // Filter generation-side cells to specific prompt structures
+    billing_organization_id?: string // The org whose keys pay ("billed to"); default rule when unset
   }): Promise<{
     evaluation_id: string
     project_id: string
