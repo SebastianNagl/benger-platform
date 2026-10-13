@@ -332,6 +332,15 @@ def _served_task_data(
     return blind_task_data(task.data, bound)
 
 
+def _served_task_meta(task: Task, decisions: Dict[str, Optional[Set[str]]]):
+    """``task.meta`` as the caller may see it: full for editors, the tags and
+    public benchmark descriptors for blinded callers (never the audit log).
+    The post-submit reveal applies to ``task.data`` only."""
+    from routers.projects.tasks.blinding import blind_task_meta
+
+    return blind_task_meta(task.meta, decisions.get(task.project_id))
+
+
 async def _require_edit_rights(db: AsyncSession, user: AuthUser, tasks: Iterable[Task]) -> None:
     """403 unless ``user`` may edit EVERY project the selected tasks belong
     to. Bulk writes are all-or-nothing: a mixed selection is rejected whole."""
@@ -446,13 +455,15 @@ async def list_all_tasks(
         # listing: matching against the raw JSON would let the match count
         # reveal content of hidden reference fields.
         from routers.projects.tasks.blinding import (
+            public_meta_match,
             visible_data_keys_by_project_async,
             visible_keys_match,
         )
 
         full_pids = scope.editor_ids()
+        blinded_pids = scope.blinded_ids()
         data_keys = await visible_data_keys_by_project_async(
-            db, {pid: scope.bound[pid] for pid in scope.blinded_ids()}
+            db, {pid: scope.bound[pid] for pid in blinded_pids}
         )
         blinded_by_keys: Dict[tuple, List[str]] = {}
         for pid, keys in data_keys.items():
@@ -461,10 +472,14 @@ async def list_all_tasks(
 
         data_clauses = []
         if full_pids:
+            # Editors search the raw data and meta JSON.
             data_clauses.append(
                 and_(
                     Task.project_id.in_(full_pids),
-                    func.cast(Task.data, String).ilike(search_pattern),
+                    or_(
+                        func.cast(Task.data, String).ilike(search_pattern),
+                        func.cast(Task.meta, String).ilike(search_pattern),
+                    ),
                 )
             )
         for keys, pids in blinded_by_keys.items():
@@ -474,9 +489,17 @@ async def list_all_tasks(
                     visible_keys_match(Task.data, keys, search_pattern),
                 )
             )
+        if blinded_pids:
+            # Blinded callers search the meta they are served (tags, public
+            # benchmark descriptors); the raw meta carries the audit log.
+            data_clauses.append(
+                and_(
+                    Task.project_id.in_(blinded_pids),
+                    public_meta_match(Task.meta, search_pattern),
+                )
+            )
         search_cond = or_(
             *(data_clauses or [false()]),
-            func.cast(Task.meta, String).ilike(search_pattern),
             Task.id.ilike(search_pattern),
         )
         stmt = stmt.where(search_cond)
@@ -570,7 +593,7 @@ async def list_all_tasks(
                 "organization": org_name,
             },
             data=_served_task_data(task, page_decisions, revealed_ids),
-            meta=task.meta or {},
+            meta=_served_task_meta(task, page_decisions) or {},
             is_labeled=task.is_labeled,
             assigned_to=_assignee_label(task),
             created_at=task.created_at,
@@ -719,7 +742,7 @@ async def export_tasks(
                     "project_id": task.project_id,
                     "project_title": task.project.title,
                     "data": _served_task_data(task, decisions, revealed_ids),
-                    "meta": task.meta,
+                    "meta": _served_task_meta(task, decisions),
                     "is_labeled": task.is_labeled,
                     "assigned_to": _visible_assignee_id(task, scope),
                     "created_at": task.created_at.isoformat() if task.created_at else None,

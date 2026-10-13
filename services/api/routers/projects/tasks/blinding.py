@@ -27,9 +27,9 @@ is off": on reveal-enabled projects (student exams default to
 the Musterlösung PRE-submit — the exact leak this module closes.
 """
 
-from typing import Dict, Iterable, Optional, Set
+from typing import Any, Dict, Iterable, Optional, Set
 
-from sqlalchemy import case, cast, exists, false, func, literal, select
+from sqlalchemy import case, cast, exists, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.types import JSON
 
@@ -39,6 +39,20 @@ from solution_reveal import reference_revealed, step_detail_revealed
 
 #: Effective roles that always receive the full task payload.
 _FULL_DATA_ROLES = ("ORG_ADMIN", "CONTRIBUTOR")
+
+#: Keys of ``task.meta["benchmark"]`` a blinded caller may see: what the task
+#: is about (area, type, audience, origin, working time), never how it is
+#: graded or edited.
+PUBLIC_META_KEYS = (
+    "rechtsgebiet",
+    "rechtsgebiete",
+    "teilgebiete",
+    "art",
+    "zielgruppe",
+    "landesrecht",
+    "herkunft_bundesland",
+    "bearbeitungszeit",
+)
 
 
 async def annotator_bound_fields_or_none_async(
@@ -148,6 +162,50 @@ def blind_task_data(task_data, bound_fields: Set[str]) -> Dict:
         return {}
     visible = visible_top_level_keys(bound_fields)
     return {k: v for k, v in task_data.items() if k.casefold() in visible}
+
+
+def blind_task_meta(meta: Any, bound_fields: Optional[Set[str]]) -> Any:
+    """``task.meta`` as the caller may see it.
+
+    ``bound_fields`` is the blinding decision of :func:`bound_fields_for_role`:
+    ``None`` (editor tier) returns the stored meta untouched; a set (blinded
+    caller) reduces it to the ``tags`` and the :data:`PUBLIC_META_KEYS` of
+    ``benchmark``, dropping empty keys. Everything else never passes: the
+    ``audit_log`` (data edits with their before/after values and the
+    editor's e-mail), ``is_archived``, and any key added later. The
+    post-submit reveal does not apply here; it uncovers the reference in
+    ``task.data``, not the editing history.
+    """
+    if bound_fields is None:
+        return meta
+    if not isinstance(meta, dict):
+        return {}
+    visible: Dict[str, Any] = {}
+    tags = meta.get("tags")
+    if tags:
+        visible["tags"] = tags
+    benchmark = meta.get("benchmark")
+    if isinstance(benchmark, dict):
+        public = {k: v for k, v in benchmark.items() if k in PUBLIC_META_KEYS}
+        if public:
+            visible["benchmark"] = public
+    return visible
+
+
+def public_meta_match(meta_column, pattern: str):
+    """SQL condition: the part of ``task.meta`` a blinded caller may see
+    (``tags`` and the public ``benchmark`` descriptors, exactly what
+    :func:`blind_task_meta` keeps) has text ILIKE ``pattern``.
+
+    The search counterpart of :func:`blind_task_meta`: matching the raw meta
+    JSON would let the match count reveal the audit log's before/after
+    values. ``->``/``->>`` on a non-object json payload yield NULL, so
+    malformed meta matches nothing.
+    """
+    clauses = [meta_column.op("->>")("tags").ilike(pattern)]
+    benchmark = meta_column.op("->")("benchmark")
+    clauses += [benchmark.op("->>")(key).ilike(pattern) for key in PUBLIC_META_KEYS]
+    return or_(*clauses)
 
 
 def _object_or_empty(data_column):

@@ -3,6 +3,7 @@ from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared
 from .blinding import (
     annotator_bound_fields_or_none_async,
     blind_task_data,
+    blind_task_meta,
     revealed_task_ids_async,
     visible_data_keys_by_project_async,
     visible_keys_match,
@@ -433,7 +434,9 @@ async def list_project_tasks(
                 if _bound_fields is None or task.id in _revealed_ids
                 else blind_task_data(task.data, _bound_fields)
             ),
-            "meta": task.meta,
+            # Blinded callers see the tags and public benchmark descriptors
+            # only, never the audit log (edit before/after values).
+            "meta": blind_task_meta(task.meta, _bound_fields),
             "created_at": task.created_at,
             "updated_at": task.updated_at,
             "is_labeled": task.is_labeled,
@@ -897,7 +900,7 @@ async def get_next_task(
             if _bound_fields is None or next_task.id in _revealed_ids
             else blind_task_data(next_task.data, _bound_fields)
         ),
-        "meta": next_task.meta,
+        "meta": blind_task_meta(next_task.meta, _bound_fields),
         "created_at": next_task.created_at,
         "updated_at": next_task.updated_at,
         "is_labeled": next_task.is_labeled,
@@ -985,7 +988,9 @@ async def get_task(
             if _bound_fields is None or task.id in _revealed_ids
             else blind_task_data(task.data, _bound_fields)
         ),
-        "meta": task.meta,  # Full metadata, not just tags
+        # Full metadata for editors; blinded callers get the tags and the
+        # public benchmark descriptors only (never the audit log).
+        "meta": blind_task_meta(task.meta, _bound_fields),
         "created_at": task.created_at,
         "updated_at": task.updated_at,
         "is_labeled": task.is_labeled,
@@ -1001,8 +1006,9 @@ async def get_task(
         "file_upload_id": task.file_upload_id,
         "created_by": task.created_by,
         "updated_by": task.updated_by,
-        # Keep tags for backward compatibility temporarily
-        "tags": task.meta.get("tags", []) if task.meta else [],
+        # Keep tags for backward compatibility temporarily (meta may be a
+        # non-object JSON payload on imported rows; then there are no tags).
+        "tags": task.meta.get("tags", []) if isinstance(task.meta, dict) else [],
     }
 
     return task_dict
