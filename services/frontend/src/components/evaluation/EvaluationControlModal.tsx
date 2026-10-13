@@ -297,18 +297,26 @@ export function EvaluationControlModal({
       ).toString(),
     },
     {
-      blocked: availableModels.length > 0 && selectedModels.length === 0,
-      reason: t(
-        'evaluation.controlModal.runDisabledNoModels',
-        'Mindestens ein Modell auswählen',
-      ).toString(),
-    },
-    {
+      // No model deselects the generation side and no annotator the answer
+      // side ("model generations only"); leaving both empty grades nothing.
       blocked:
-        availableAnnotators.length > 0 && selectedAnnotators.length === 0,
-      reason: t(
-        'evaluation.controlModal.runDisabledNoAnnotators',
-        'Mindestens eine:n Annotator:in auswählen',
+        (availableModels.length > 0 || availableAnnotators.length > 0) &&
+        selectedModels.length === 0 &&
+        selectedAnnotators.length === 0,
+      reason: (availableAnnotators.length === 0
+        ? t(
+            'evaluation.controlModal.runDisabledNoModels',
+            'Mindestens ein Modell auswählen',
+          )
+        : availableModels.length === 0
+          ? t(
+              'evaluation.controlModal.runDisabledNoAnnotators',
+              'Mindestens eine:n Annotator:in auswählen',
+            )
+          : t(
+              'evaluation.controlModal.runDisabledNoSubjects',
+              'Mindestens ein Modell oder eine:n Annotator:in auswählen',
+            )
       ).toString(),
     },
     {
@@ -428,6 +436,7 @@ export function EvaluationControlModal({
   const costEvaluationConfigs = useMemo(
     () =>
       selectedConfigs.map((c) => ({
+        id: c.id,
         metric: c.metric,
         prediction_fields: c.prediction_fields,
       })),
@@ -665,6 +674,15 @@ export function EvaluationControlModal({
                                   count: selectedModels.length,
                                 })}
                           </div>
+                          {selectedModels.length === 0 &&
+                            selectedAnnotators.length > 0 && (
+                              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+                                {t(
+                                  'evaluation.controlModal.answersOnlyHint',
+                                  'Ohne Modell werden nur eingereichte Antworten bewertet.',
+                                )}
+                              </p>
+                            )}
                         </div>
                       )}
 
@@ -735,6 +753,15 @@ export function EvaluationControlModal({
                                     String(selectedAnnotators.length),
                                   )}
                           </div>
+                          {selectedAnnotators.length === 0 &&
+                            selectedModels.length > 0 && (
+                              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+                                {t(
+                                  'evaluation.controlModal.modelsOnlyHint',
+                                  'Ohne Annotator:in werden nur Modellantworten bewertet.',
+                                )}
+                              </p>
+                            )}
                         </div>
                       )}
 
@@ -886,7 +913,11 @@ export function EvaluationControlModal({
                           judgeModels={judgeModelIds}
                           runsPerCall={costRunsPerCall}
                           enabled={isOpen}
-                          modelIds={selectedModels}
+                          modelIds={
+                            availableModels.length > 0
+                              ? selectedModels
+                              : undefined
+                          }
                           annotatorUserIds={
                             availableAnnotators.length > 0
                               ? selectedAnnotators
@@ -894,6 +925,9 @@ export function EvaluationControlModal({
                           }
                           evaluationConfigs={costEvaluationConfigs}
                           generationMode={mode}
+                          structureKeys={
+                            showStructureScope ? selectedStructures : undefined
+                          }
                         />
                       )}
                     </div>

@@ -12,7 +12,7 @@ Estimate accuracy is best-effort — UI surfaces a "± ~20%" caveat.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Set
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -48,7 +48,10 @@ class EvalConfigForCost(BaseModel):
     judge fan-out per prediction-field. Carries the metric name so we can
     mirror the worker's `llm_judge_falloesung` backward-compat rule
     (unprefixed prediction fields go to the annotation side for that
-    metric only — see `services/workers/tasks.py` ~line 3291)."""
+    metric only — see `services/workers/tasks.py` ~line 3291). The `id`
+    names the stored config, so the judge-call count prices only the
+    configs the user ticked instead of every config naming the judge."""
+    id: Optional[str] = None
     metric: Optional[str] = None
     prediction_fields: List[str] = Field(default_factory=list)
 
@@ -280,6 +283,11 @@ def _count_evaluation_judge_calls(
     project_id: str,
     judge_model_id: str,
     generation_mode: Optional[str],
+    *,
+    config_ids: Optional[Set[str]] = None,
+    model_ids: Optional[List[str]] = None,
+    annotator_user_ids: Optional[List[str]] = None,
+    structure_keys: Optional[List[str]] = None,
 ) -> int:
     """Count LLM-judge API calls that would actually fire for
     ``judge_model_id`` across all the project's enabled LLM-judge configs.
@@ -313,16 +321,29 @@ def _count_evaluation_judge_calls(
     - For mode='missing', subtract subjects whose `task_evaluations`
       row is already scored under field_name `{config_id}|{pred_field}|...`.
 
+    The run's scope narrows all of this the way the worker does:
+    ``config_ids`` keeps only the configs being run, ``model_ids`` and
+    ``structure_keys`` narrow the generations, ``annotator_user_ids`` the
+    annotations (an empty list means none are selected). Without the scope
+    one judge model was priced over every config naming it and every
+    generation of every model in the project.
+
     Returns the total API-call count across all judge configs that
     target ``judge_model_id``.
     """
     cfgs = _load_llm_judge_configs(db, project_id, judge_model_id)
+    if config_ids is not None:
+        cfgs = [c for c in cfgs if c["id"] in config_ids]
     if not cfgs:
         return 0
 
-    # Resolve the project's universe of subjects once.
-    gen_ids_by_field = _completed_generation_ids(db, project_id)
-    annotation_ids = _annotation_ids(db, project_id)
+    # Resolve the run's subjects once.
+    gen_ids_by_field = _completed_generation_ids(
+        db, project_id, model_ids=model_ids, structure_keys=structure_keys
+    )
+    annotation_ids = _annotation_ids(
+        db, project_id, annotator_user_ids=annotator_user_ids
+    )
 
     total = 0
     for cfg in cfgs:
@@ -405,29 +426,54 @@ def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -
     return out
 
 
-def _completed_generation_ids(db: Session, project_id: str) -> List[str]:
-    """All completed generation ids for the project. Cached scope —
+def _completed_generation_ids(
+    db: Session,
+    project_id: str,
+    *,
+    model_ids: Optional[List[str]] = None,
+    structure_keys: Optional[List[str]] = None,
+) -> List[str]:
+    """Completed generation ids for the project, narrowed like the worker
+    narrows a scoped run (model ids, prompt structures; an empty model list
+    means none were selected). Cached scope —
     helper resolves fields against this list rather than re-querying."""
     from project_models import Task
-    from models import Generation
-    rows = (
+    from models import Generation, ResponseGeneration
+    if model_ids is not None and not model_ids:
+        return []
+    q = (
         db.query(Generation.id)
         .join(Task, Task.id == Generation.task_id)
         .filter(Task.project_id == project_id, Generation.status == "completed")
-        .all()
     )
-    return [r[0] for r in rows]
+    if model_ids:
+        q = q.filter(Generation.model_id.in_(model_ids))
+    if structure_keys:
+        q = q.join(
+            ResponseGeneration, Generation.generation_id == ResponseGeneration.id
+        ).filter(ResponseGeneration.structure_key.in_(structure_keys))
+    return [r[0] for r in q.all()]
 
 
-def _annotation_ids(db: Session, project_id: str) -> List[str]:
+def _annotation_ids(
+    db: Session,
+    project_id: str,
+    *,
+    annotator_user_ids: Optional[List[str]] = None,
+) -> List[str]:
+    """Non-cancelled annotation ids (the worker skips cancelled ones). None
+    means every annotator; an empty list means none were selected."""
     from project_models import Annotation, Task
-    rows = (
+    if annotator_user_ids is not None and not annotator_user_ids:
+        return []
+    q = (
         db.query(Annotation.id)
         .join(Task, Task.id == Annotation.task_id)
-        .filter(Task.project_id == project_id)
-        .all()
+        .filter(Task.project_id == project_id, Annotation.was_cancelled == False)  # noqa: E712
     )
-    return [r[0] for r in rows]
+    if annotator_user_ids:
+        q = q.filter(Annotation.completed_by.in_(annotator_user_ids))
+    return [r[0] for r in q.all()]
 
 
 def _subjects_for_pred_field(
@@ -758,6 +804,13 @@ def _compute_cost_estimate_impl(
             annotator_user_ids=request.annotator_user_ids,
         )
 
+    # The configs being run, when the client names them. A client that sends
+    # configs without ids (or none) keeps the old behavior: every enabled
+    # config naming the judge is priced.
+    selected_config_ids: Optional[Set[str]] = None
+    if request.evaluation_configs and all(c.id for c in request.evaluation_configs):
+        selected_config_ids = {c.id for c in request.evaluation_configs}
+
     per_model_costs: List[PerModelCost] = []
     total_usd = 0.0
     token_breakdown: Optional[TokenBreakdown] = None
@@ -795,6 +848,15 @@ def _compute_cost_estimate_impl(
                 project_id=request.project_id,
                 judge_model_id=model_id,
                 generation_mode=request.generation_mode,
+                config_ids=selected_config_ids,
+                # An explicit empty model list deselects the generation side.
+                model_ids=(
+                    request.model_ids
+                    if "model_ids" in request.model_fields_set
+                    else None
+                ),
+                annotator_user_ids=request.annotator_user_ids,
+                structure_keys=request.structure_keys,
             )
             # The judge-call count already factors run_index, so don't
             # multiply by runs_per_call again below.
