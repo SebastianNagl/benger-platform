@@ -341,7 +341,7 @@ class TestResolveUserOrgForProject:
         db = MagicMock()
 
         # No membership found
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
 
         result = resolve_user_org_for_project(user, project, db)
         assert result is None
@@ -354,7 +354,7 @@ class TestResolveUserOrgForProject:
         user = Mock(id="user-1", is_superadmin=True)
         db = MagicMock()
 
-        db.query.return_value.filter.return_value.first.return_value = None
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
 
         result = resolve_user_org_for_project(user, project, db)
         assert result == "org-1"
@@ -369,7 +369,7 @@ class TestResolveUserOrgForProject:
         db = MagicMock()
 
         membership = Mock(organization_id="org-2")
-        db.query.return_value.filter.return_value.first.return_value = membership
+        db.query.return_value.filter.return_value.order_by.return_value.first.return_value = membership
 
         result = resolve_user_org_for_project(user, project, db)
         assert result == "org-2"

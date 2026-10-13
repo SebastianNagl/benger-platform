@@ -139,12 +139,15 @@ def resolve_dispatch_org_for_project(
             OrganizationMembership.is_active == True,  # noqa: E712
             OrganizationMembership.organization_id.in_(org_ids),
         )
+        # A fixed order: the dialogs show this default before a run starts,
+        # so the run must resolve to the same org every time.
+        .order_by(OrganizationMembership.organization_id)
         .first()
     )
     if membership:
         return str(membership.organization_id)
     if _is_superadmin_sync(db, user):
-        return str(orgs[0].id)
+        return min(org_ids)
     return None
 
 
@@ -242,6 +245,8 @@ async def resolve_dispatch_org_for_project_async(
                     OrganizationMembership.organization_id.in_(project_org_ids),
                     OrganizationMembership.is_active.is_(True),
                 )
+                # Same fixed order as the sync twin.
+                .order_by(OrganizationMembership.organization_id)
             )
         )
         .scalars()
@@ -250,5 +255,5 @@ async def resolve_dispatch_org_for_project_async(
     if member_org:
         return str(member_org)
     if await _is_superadmin_async(db, user):
-        return str(project_org_ids[0])
+        return min(str(o) for o in project_org_ids)
     return None
