@@ -432,6 +432,7 @@ async def reject_oversized_requests(request, call_next):
 # Import and include routers
 
 # Other routers
+from routers.access_keys import router as access_keys_router  # noqa: E402
 from routers.api_keys import router as api_key_router  # noqa: E402
 from routers.file_uploads import router as file_upload_router  # noqa: E402
 from routers.invitations import router as invitations_router  # noqa: E402
@@ -511,6 +512,7 @@ app.include_router(notifications_router)  # Notifications
 if get_settings().debug_routes_enabled:
     app.include_router(debug_router)  # Debug endpoints
 app.include_router(api_key_router)  # API key management
+app.include_router(access_keys_router)  # Access keys (bgr_) for the public /api/v1
 from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
 from routers.custom_models import router as custom_models_router  # noqa: E402
