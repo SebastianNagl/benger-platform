@@ -7,8 +7,10 @@
  */
 
 import { type ComponentType, useEffect, useState } from 'react'
+import { type RegistrationOwners, recordRegistration } from './owner'
 
 const slots: Record<string, ComponentType<any>> = {}
+const slotOwners: RegistrationOwners = new Map()
 const listeners: Set<() => void> = new Set()
 
 function notifyListeners() {
@@ -17,10 +19,12 @@ function notifyListeners() {
 
 /**
  * Register a React component for a named slot.
- * Called by the extended package during initialization.
- * Notifies all useSlot() hooks to re-render.
+ * Called by an overlay's registerAll() during initialization. The last
+ * registration wins; a different owner overwriting a slot logs a warning
+ * (see ./owner.ts). Notifies all useSlot() hooks to re-render.
  */
 export function registerSlot(name: string, component: ComponentType<any>) {
+  recordRegistration(slotOwners, 'slot', name)
   slots[name] = component
   notifyListeners()
 }

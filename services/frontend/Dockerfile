@@ -34,6 +34,10 @@ ARG NEXT_PUBLIC_DISABLE_AUTO_LOGIN
 ENV NEXT_PUBLIC_DISABLE_AUTO_LOGIN=${NEXT_PUBLIC_DISABLE_AUTO_LOGIN}
 ARG NEXT_PUBLIC_BENGER_EDITION
 ENV NEXT_PUBLIC_BENGER_EDITION=${NEXT_PUBLIC_BENGER_EDITION}
+# Comma separated overlay list in load order (e.g. "extended,compliance");
+# blank falls back to the edition flag above. See next.config.js.
+ARG NEXT_PUBLIC_BENGER_EXTENSIONS
+ENV NEXT_PUBLIC_BENGER_EXTENSIONS=${NEXT_PUBLIC_BENGER_EXTENSIONS}
 
 # Copy production config if it exists, otherwise use default
 RUN if [ -f "next.config.production.js" ]; then \

@@ -4,10 +4,12 @@ module.exports = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    // Optional plugin frontend mounted at /app/benger-extended-frontend.
-    // Empty in the public build; populated by mount/overlay when an extension
-    // ships UI components (so Tailwind JIT picks up classes only used there).
+    // Optional overlay frontends mounted at /app/benger-<name>-frontend (one
+    // directory per overlay, see OVERLAY_DIRS in next.config.js). Empty in the
+    // public build; populated by mount/overlay when an extension ships UI
+    // components (so Tailwind JIT picks up classes only used there).
     './benger-extended-frontend/**/*.{js,ts,jsx,tsx,mdx}',
+    './benger-compliance-frontend/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   darkMode: ['class'],
   theme: {

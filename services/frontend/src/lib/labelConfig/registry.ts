@@ -4,6 +4,10 @@
  * Maps Label Studio XML tags to React components for dynamic rendering
  */
 
+import {
+  type RegistrationOwners,
+  recordRegistration,
+} from '@/lib/extensions/owner'
 import React from 'react'
 import { AnnotationResult } from './dataBinding'
 import { ParsedComponent } from './parser'
@@ -155,16 +159,18 @@ export function getSupportedTags(
     .map(([tagName]) => tagName)
 }
 
+const componentOwners: RegistrationOwners = new Map()
+
 /**
- * Register a custom component
+ * Register a custom component. Overriding an existing tag is allowed; the
+ * last registration wins and a different owner replacing an earlier
+ * registration logs a warning (see lib/extensions/owner.ts).
  */
 export function registerComponent(
   tagName: string,
   component: AnnotationComponent,
 ): void {
-  if (componentRegistry[tagName]) {
-    // Overriding existing component
-  }
+  recordRegistration(componentOwners, 'annotation component', tagName)
   componentRegistry[tagName] = component
 }
 

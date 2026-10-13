@@ -4,8 +4,7 @@
  * The /changelog page renders the platform's own entries plus whatever
  * the extended package registers here during initialization. Entries are
  * kept in per-source buckets so a repeated registerAll() (tests call it
- * directly; loadExtended has no re-entry guard) replaces a source's
- * entries instead of duplicating them.
+ * directly) replaces a source's entries instead of duplicating them.
  */
 
 import { useEffect, useState } from 'react'

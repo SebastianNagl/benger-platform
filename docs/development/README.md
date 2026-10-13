@@ -175,6 +175,10 @@ OPENAI_API_KEY=your_openai_key
 ### Frontend (.env.local)
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
+# Frontend overlays to build in, comma separated, in load order (build-time
+# variable; leave unset for the community edition). See
+# docs/setup/environment-variables.md, "Extension overlays".
+# NEXT_PUBLIC_BENGER_EXTENSIONS=extended,compliance
 ```
 
 ## 🧪 Testing

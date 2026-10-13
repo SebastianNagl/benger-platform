@@ -6,9 +6,12 @@
  * Extended packages call `registerMetricEditor('korrektur_falloesung', Comp)`.
  * The platform's EvaluationBuilder asks `getMetricEditor(metricName)` and, if
  * a component is registered, renders it inside the metric's expansion area.
+ * One editor per metric; the last registration wins and a different owner
+ * replacing it logs a warning (see ./owner.ts).
  */
 
 import type { ComponentType } from 'react'
+import { type RegistrationOwners, recordRegistration } from './owner'
 
 export interface MetricEditorProps {
   /** The metric_parameters JSONB blob currently saved on this metric. */
@@ -41,11 +44,13 @@ export interface MetricEditorProps {
 }
 
 const editors: Record<string, ComponentType<MetricEditorProps>> = {}
+const editorOwners: RegistrationOwners = new Map()
 
 export function registerMetricEditor(
   metric: string,
   component: ComponentType<MetricEditorProps>,
 ) {
+  recordRegistration(editorOwners, 'metric editor', metric)
   editors[metric] = component
 }
 

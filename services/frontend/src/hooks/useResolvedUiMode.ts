@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/contexts/AuthContext'
+import { isExtensionEnabled } from '@/lib/extensions/enabled'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { useUIStore } from '@/stores'
@@ -8,11 +9,18 @@ import { useUIStore } from '@/stores'
 export type UiMode = 'student' | 'expert'
 
 /**
- * Whether the running build is the extended edition. The student shell only
- * exists in extended; community always renders the expert (default) shell.
+ * Whether this build enables the named overlay (NEXT_PUBLIC_BENGER_EXTENSIONS,
+ * with the legacy NEXT_PUBLIC_BENGER_EDITION fallback). Resolved at build
+ * time; see lib/extensions/enabled.ts.
+ */
+export { isExtensionEnabled }
+
+/**
+ * Whether the running build enables the extended overlay. The student shell
+ * only exists there; community always renders the expert (default) shell.
  */
 export function isExtendedEdition(): boolean {
-  return process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended'
+  return isExtensionEnabled('extended')
 }
 
 /**
@@ -21,7 +29,7 @@ export function isExtendedEdition(): boolean {
  *
  * Precedence:
  *
- *   1. Community edition (NEXT_PUBLIC_BENGER_EDITION !== 'extended') → 'expert'.
+ *   1. Community edition (extended overlay not enabled) → 'expert'.
  *      There is no student experience to render.
  *   2. Extended edition but the StudentShell slot is not registered yet (the
  *      extended package hasn't loaded, or this build doesn't ship it) →
@@ -45,7 +53,7 @@ export function isExtendedEdition(): boolean {
  */
 export function useResolvedUiMode(): UiMode {
   // Subscribe to StudentShell registration so this re-resolves when the
-  // extended package finishes loading (async loadExtended()).
+  // extended package finishes loading (async loadExtensions()).
   const studentShell = useSlot('StudentShell')
   const { user } = useAuth()
   const localMode = useUIStore((s) => s.uiMode)

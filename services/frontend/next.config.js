@@ -14,8 +14,60 @@ const useNewConfig = process.env.FEATURE_FLAG_NEW_CONFIG !== 'false'
  * Follows 2025 industry standards with feature flag support
  * NOTE: This is a copy of config/next/next.config.js for Docker build compatibility
  */
-// Extended edition support
-const isExtended = process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended'
+// Extension overlays. NEXT_PUBLIC_BENGER_EXTENSIONS lists the enabled overlay
+// names in load order (e.g. "extended,compliance"); when it is unset or blank
+// the legacy NEXT_PUBLIC_BENGER_EDITION=extended still enables the extended
+// overlay alone. Unknown names are ignored with a warning. This mirrors
+// src/lib/extensions/enabled.ts, which applies the same rule at runtime;
+// keep the two in sync. Each name maps to the directory CI copies (or dev
+// bind-mounts) the overlay's frontend tree into, relative to this file.
+const OVERLAY_DIRS = {
+  extended: 'benger-extended-frontend',
+  compliance: 'benger-compliance-frontend',
+}
+
+function parseEnabledExtensions(env) {
+  const raw = env.NEXT_PUBLIC_BENGER_EXTENSIONS
+  if (raw === undefined || raw.trim() === '') {
+    return env.NEXT_PUBLIC_BENGER_EDITION === 'extended' ? ['extended'] : []
+  }
+  const enabled = []
+  for (const part of raw.split(',')) {
+    const name = part.trim()
+    if (name === '') continue
+    if (!Object.prototype.hasOwnProperty.call(OVERLAY_DIRS, name)) {
+      console.warn(
+        `[extensions] unknown extension "${name}" in NEXT_PUBLIC_BENGER_EXTENSIONS ignored`,
+      )
+      continue
+    }
+    if (!enabled.includes(name)) enabled.push(name)
+  }
+  return enabled
+}
+
+const enabledExtensions = parseEnabledExtensions(process.env)
+const isExtended = enabledExtensions.includes('extended')
+
+// Where `@benger/<name>` resolves, in order of preference:
+//   enabled, overlay tree present:  ./benger-<name>-frontend (copied into the
+//                                   Docker build context by CI, or bind-mounted
+//                                   in dev so Turbopack watches it for HMR)
+//   enabled, tree absent:           ./node_modules/@benger/<name> (the dev
+//                                   compose overlay mounts the tree there)
+//   disabled:                       the no-op stub, because the import in
+//                                   src/lib/extensions/index.ts must still
+//                                   resolve at build time even though it is
+//                                   never called
+function overlayAlias(name) {
+  if (!enabledExtensions.includes(name)) {
+    return './src/lib/extensions/community-stub.ts'
+  }
+  const dir = `./${OVERLAY_DIRS[name]}`
+  return require('fs').existsSync(`${dir}/index.ts`)
+    ? dir
+    : `./node_modules/@benger/${name}`
+}
 
 // The only path another site may frame (IMS LTI Dynamic Registration). The
 // ingress (infra/helm/benger/templates/ingress.yaml) exempts the same path
@@ -28,8 +80,8 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
 
-  // Transpile extended package when running in extended edition
-  transpilePackages: isExtended ? ['@benger/extended'] : [],
+  // Transpile the enabled overlay packages (TypeScript, imported via alias)
+  transpilePackages: enabledExtensions.map((name) => `@benger/${name}`),
 
   // Use standalone output for smaller deployments
   output: 'standalone',
@@ -80,27 +132,17 @@ const nextConfig = {
   }),
 
   // Turbopack is the only bundler since Next 16 (a custom `webpack()` makes
-  // `next build` refuse to run). The @benger/extended alias lives here for
-  // both editions:
-  //   extended, Docker build:  /app/benger-extended-frontend (copied into the
-  //                            build context by CI)
-  //   extended, dev:           the same path, bind-mounted so Turbopack
-  //                            watches it for HMR
-  //   community:               a no-op stub — the import in
-  //                            src/lib/extensions/index.ts must still resolve
-  //                            at build time even though it is never called
-  // Paths are relative to next.config.js (which lives at /app in Docker).
+  // `next build` refuse to run). Every overlay gets an alias in every build
+  // (see overlayAlias above); paths are relative to next.config.js (which
+  // lives at /app in Docker).
   turbopack: {
     resolveExtensions: ['.tsx', '.ts', '.jsx', '.js', '.json'],
-    resolveAlias: {
-      '@benger/extended':
-        isExtended &&
-        require('fs').existsSync('./benger-extended-frontend/index.ts')
-          ? './benger-extended-frontend'
-          : isExtended
-            ? './node_modules/@benger/extended'
-            : './src/lib/extensions/community-stub.ts',
-    },
+    resolveAlias: Object.fromEntries(
+      Object.keys(OVERLAY_DIRS).map((name) => [
+        `@benger/${name}`,
+        overlayAlias(name),
+      ]),
+    ),
   },
 
   // Redirects and rewrites (environment-aware)

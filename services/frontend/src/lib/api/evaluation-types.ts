@@ -7,6 +7,11 @@
  * Issue #483 - Phase 8: Evaluation Mapping
  */
 
+import {
+  type RegistrationOwners,
+  recordRegistration,
+} from '@/lib/extensions/owner'
+
 /**
  * Special field values for bulk selection
  */
@@ -1326,12 +1331,16 @@ export const METRIC_ORDER: string[] = GROUPED_METRICS.flatMap((g) => g.metrics)
 // =============================================================================
 
 const _extendedMetrics: Record<string, AvailableMetric> = {}
+const _extendedMetricOwners: RegistrationOwners = new Map()
 const _extendedGroups: MetricCategory[] = []
 
 /**
- * Register an additional metric definition (called by @benger/extended).
+ * Register an additional metric definition (called by an overlay's
+ * registerAll()). The last registration per key wins; a different owner
+ * overwriting a key logs a warning (see lib/extensions/owner.ts).
  */
 export function registerMetric(key: string, definition: AvailableMetric) {
+  recordRegistration(_extendedMetricOwners, 'metric', key)
   _extendedMetrics[key] = definition
 }
 

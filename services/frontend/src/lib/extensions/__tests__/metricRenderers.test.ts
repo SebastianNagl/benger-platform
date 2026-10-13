@@ -6,6 +6,7 @@ import {
   registerMetricCell,
   registerMetricDetail,
 } from '../metricRenderers'
+import { setRegistrationOwner } from '../owner'
 
 describe('Metric Cell Renderer Registry', () => {
   test('getMetricCell returns null for unregistered metric', () => {
@@ -46,5 +47,49 @@ describe('Metric Detail Renderer Registry', () => {
     registerMetricDetail('test_metric_detail', StubComponent)
     expect(getMetricDetail('test_metric_detail')).toBe(StubComponent)
     expect(hasMetricDetail('test_metric_detail')).toBe(true)
+  })
+})
+
+describe('Metric renderer owner attribution', () => {
+  let warn: jest.SpyInstance
+
+  beforeEach(() => {
+    setRegistrationOwner(null)
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    setRegistrationOwner(null)
+    warn.mockRestore()
+  })
+
+  test('a different owner overwriting a cell renderer warns and wins', () => {
+    setRegistrationOwner('extended')
+    registerMetricCell('owner_cell', () => 'first')
+    registerMetricCell('owner_cell', () => 'first again')
+    expect(warn).not.toHaveBeenCalled()
+    setRegistrationOwner('compliance')
+    registerMetricCell('owner_cell', () => 'second')
+    expect(warn).toHaveBeenCalledWith(
+      '[extensions] metric cell "owner_cell" registered by compliance replaces extended',
+    )
+    expect(getMetricCell('owner_cell')!(null)).toBe('second')
+  })
+
+  test('cell and detail renderers are attributed separately', () => {
+    const Detail = (() => null) as any
+    setRegistrationOwner('extended')
+    registerMetricCell('owner_split', () => 'cell')
+    setRegistrationOwner('compliance')
+    registerMetricDetail('owner_split', Detail)
+    expect(warn).not.toHaveBeenCalled()
+    registerMetricDetail('owner_split', Detail)
+    expect(warn).not.toHaveBeenCalled()
+    setRegistrationOwner('extended')
+    registerMetricDetail('owner_split', Detail)
+    expect(warn).toHaveBeenCalledWith(
+      '[extensions] metric detail "owner_split" registered by extended replaces compliance',
+    )
+    expect(getMetricDetail('owner_split')).toBe(Detail)
   })
 })
