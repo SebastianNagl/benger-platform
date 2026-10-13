@@ -4,7 +4,8 @@
 Parses a mutmut junit-xml report, computes the mutation score for one module,
 and enforces its floor from mutation-floors.cfg. Always prints a table (score,
 floor, delta, suggested bump) so a passing run still shows headroom; exits
-non-zero only on a real regression below floor.
+non-zero on a regression below floor, and on a report without a tested
+mutant (mutmut did not run).
 
 Usage (run after `mutmut run` for a single module):
     mutmut junitxml > mutmut.xml
@@ -67,8 +68,19 @@ def main() -> int:
 
     total, survived, errored = _parse_junit(args.junitxml)
     denom = total - errored  # killed + survived
+    if denom == 0:
+        # An empty report means mutmut never tested a mutant (a crash in the
+        # unmutated baseline run, a wrong --paths-to-mutate). Scoring that as
+        # 100% kept this gate green while nothing ran.
+        print(
+            f"::error::no tested mutants for {args.module} in {args.junitxml} "
+            f"({total} mutants, {errored} timeout/suspicious): mutmut did not run, "
+            f"see its output above.",
+            file=sys.stderr,
+        )
+        return 1
     killed = denom - survived
-    score = (killed / denom * 100.0) if denom else 100.0
+    score = killed / denom * 100.0
     floor = _load_floor(args.floors, args.module)
 
     ok = score + 1e-9 >= floor
