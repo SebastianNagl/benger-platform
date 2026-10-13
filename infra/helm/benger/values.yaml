@@ -175,6 +175,33 @@ api:
           key: stripe_price_metered
           optional: true
 
+# Extension overlays (platform core 2.37). Each enabled entry becomes one
+# package in BENGER_EXTENSIONS, in ascending `order`; the `required` ones
+# form BENGER_REQUIRE_EXTENSIONS. Both env vars are rendered into the api,
+# the bulk workers, every worker pool and beat (benger.overlayEnv in
+# templates/_helpers.tpl), after {api,workers}.extraEnv, so an overlay's
+# value wins when a name appears in both. `api.env` / `workers.env` hold the
+# overlay's own env entries (k8s EnvVar shape) for that role.
+#
+# When the map is empty nothing is rendered and the registry's default
+# (benger_extended, required only via the legacy BENGER_REQUIRE_EXTENDED in
+# extraEnv) applies. When ANY overlay is enabled the map is the complete list:
+# an edition that still needs benger_extended has to declare it here too
+# (the extended values file, order 10) or the package is no longer loaded.
+#
+# Shape:
+#   overlays:
+#     compliance:
+#       enabled: true
+#       package: benger_compliance   # default: benger_<name>
+#       required: true               # default: false
+#       order: 20                    # default: 100; lower loads first
+#       api:
+#         env: []                    # k8s EnvVar entries for the api
+#       workers:
+#         env: []                    # ... for workers, pools and beat
+overlays: {}
+
 workers:
   name: workers
   # THE BULK POOL. Long, memory-hungry work only. User-blocking tasks live on
