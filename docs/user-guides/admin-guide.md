@@ -100,6 +100,12 @@ API access keys for the public API are managed per organisation under
 public API ships with the next release; see [Public API](../public-api.md)
 for the endpoints, scopes and key handling.
 
+> **Note:** How keys work underneath (personal and organisation keys, the
+> service account behind an organisation key, scopes, the rule that keys
+> only work on `/api/v1`, rate limits and how long the usage log is kept) is
+> described in [API keys](../api-keys.md). Superadmins can list and revoke
+> every key and export the usage log under `/api/admin/access-keys`.
+
 ## Task Management
 
 As an administrator, you can view, edit, and delete all tasks in the system, regardless of who created them.

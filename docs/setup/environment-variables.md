@@ -54,6 +54,19 @@ For each enabled overlay `<name>` the build resolves `@benger/<name>` to `servic
 | `ENVIRONMENT` | `development` | `production` | Runtime environment |
 | `INTERNAL_DOCS_ENABLED` | `true` (default) | `false` (default) | Serve the interactive API docs (`/docs`, `/redoc`, `/openapi.json`). Defaults to on outside production and off in production; set explicitly to override. The OpenAPI schema lists every internal route, so keep it off on public deployments. |
 
+### Access keys (public API)
+See [API keys](../api-keys.md) for the model behind these settings.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Set it from a secret in production. Changing it invalidates every existing key. |
+| `API_KEY_ENVIRONMENT` | `live` in production, `test` elsewhere | Key tag this deployment issues and accepts (`bgr_live_...` / `bgr_test_...`). A key from another environment is refused. |
+| `API_KEY_DEFAULT_RPM` | `120` | Requests per minute per key when the key sets no own limit. |
+| `API_KEY_DEFAULT_RPD` | `20000` | Requests per day per key when the key sets no own limit. |
+| `API_USAGE_RETENTION_DAYS` | `400` | Age after which key usage events are deleted (daily beat task `tasks.cleanup_api_key_usage_events`; set it on the workers too). |
+| `API_USAGE_IP_MODE` | `truncated` | How much of the client IP the usage log keeps: `full`, `truncated` (IPv4 /24, IPv6 /48) or `none`. |
+| `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |
+
 ## Workers Environment Variables
 
 ### Task Processing
@@ -61,6 +74,7 @@ For each enabled overlay `<name>` the build resolves `@benger/<name>` to `servic
 |----------|------------------|------------------|-------------|
 | `CELERY_BROKER_URL` | `redis://redis:6379/0` | From env | Redis broker URL |
 | `CELERY_RESULT_BACKEND` | `redis://redis:6379/0` | From env | Redis results backend |
+| `API_USAGE_RETENTION_DAYS` | `400` | `400` | Retention of the access-key usage log (see above) |
 
 ### LLM API Keys
 | Variable | Description |
