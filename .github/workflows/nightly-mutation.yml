@@ -58,12 +58,12 @@ jobs:
           - name: llm_judge_evaluator
             module: ml_evaluation/llm_judge_evaluator.py
             tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
-          # The rubric judge's quote check. Its direct tests live in
-          # test_llm_judge_evaluator.py (95% line coverage alone); the checklist
-          # tests reach it through scoring.
+          # The rubric judge's quote check, against its own pure test file
+          # (95% line coverage, ~3 s a run; with the judge and checklist tests
+          # the first run took 310 of the 340 minutes).
           - name: evidence_check
             module: ml_evaluation/evidence_check.py
-            tests: tests/test_llm_judge_evaluator.py tests/test_checklist_scoring.py
+            tests: tests/test_evidence_check.py
     steps:
       - uses: actions/checkout@v7
 
