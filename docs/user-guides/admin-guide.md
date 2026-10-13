@@ -93,14 +93,12 @@ The dashboard in the administration area provides an overview of the current sys
 - Recent errors
 - Memory usage
 
-### Managing API Keys
+### API Access Keys
 
-For integrating external services, you can generate and manage API keys:
-
-1. Navigate to **Admin → API Configuration**
-2. Click **New API Key**
-3. Select the access scope for the key
-4. Note the generated key (it will only be displayed once)
+API access keys for the public API are managed per organisation under
+**API-Zugänge** (organisation settings), not in the superadmin area. The
+public API ships with the next release; see [Public API](../public-api.md)
+for the endpoints, scopes and key handling.
 
 ## Task Management
 
