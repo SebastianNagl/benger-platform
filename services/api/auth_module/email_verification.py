@@ -31,6 +31,11 @@ logger = logging.getLogger(__name__)
 # were being signed with the literal string fallback.
 VERIFICATION_TOKEN_EXPIRE_HOURS = 48
 RATE_LIMIT_MINUTES = 5  # Minimum time between verification email sends
+# ``typ`` claim of a verification token. The token is signed with the same
+# secret as the session access token (``typ="access"``, auth_module.service);
+# each verifier accepts its own kind only, so a verification link can never
+# be presented as a Bearer session token and vice versa.
+VERIFICATION_TOKEN_TYP = "email_verification"
 
 # Email delivery monitoring logger
 email_monitoring_logger = logging.getLogger("email_verification_monitoring")
@@ -343,6 +348,7 @@ class EmailVerificationService:
                 "user_id": user_id,
                 "email": email,
                 "purpose": "email_verification",
+                "typ": VERIFICATION_TOKEN_TYP,
                 "exp": expiration,
                 "iat": datetime.now(timezone.utc),
             }
@@ -390,9 +396,19 @@ class EmailVerificationService:
         try:
             payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
-            # Verify this is an email verification token
-            if payload.get("purpose") != "email_verification":
-                logger.warning(f"Invalid token purpose: {payload.get('purpose')}")
+            # Verify this is an email verification token: the purpose claim
+            # and the typ claim must both name this kind. A MISSING typ is
+            # tolerated until the next release (grace added 2026-10-13):
+            # links mailed before this change carry no typ and stay valid
+            # for up to 48 hours across the deploy. Make typ mandatory in
+            # the release after this one.
+            typ = payload.get("typ")
+            if payload.get("purpose") != "email_verification" or (
+                typ is not None and typ != VERIFICATION_TOKEN_TYP
+            ):
+                logger.warning(
+                    f"Invalid token purpose: {payload.get('purpose')} (typ: {typ})"
+                )
                 self._log_email_event(
                     event_type="token_validation_failed",
                     user_id="unknown",

@@ -35,6 +35,7 @@ from .models import (
 
 # Import all public functions and classes for easy access
 from .service import (
+    ACCESS_TOKEN_TYP,
     WebSocketAuthError,
     authenticate_user,
     create_access_token,
@@ -42,6 +43,7 @@ from .service import (
     logout_user,
     refresh_access_token,
     revoke_refresh_token,
+    token_typ_accepted,
     verify_token,
     verify_token_cookie_or_header,
     verify_token_for_websocket,
@@ -81,6 +83,8 @@ __all__ = [
     "verify_token",
     "verify_token_cookie_or_header",
     "verify_token_for_websocket",
+    "ACCESS_TOKEN_TYP",
+    "token_typ_accepted",
     "WebSocketAuthError",
     "logout_user",
     # Dependencies
