@@ -399,6 +399,14 @@ from middleware.api_usage import ApiUsageMiddleware  # noqa: E402
 
 app.add_middleware(ApiUsageMiddleware)
 
+# CORS (any origin, no credentials) and X-API-Version for /api/v1. Added
+# after the usage middleware so it runs outside it: preflights are answered
+# before the app-wide CORSMiddleware sees them, and ordinary responses carry
+# both this middleware's headers and X-Request-ID / X-RateLimit-*.
+from routers.v1._middleware import V1HeadersMiddleware  # noqa: E402
+
+app.add_middleware(V1HeadersMiddleware)
+
 
 # Reject obviously oversized request bodies before they consume backend
 # memory. Legal-corpus imports legitimately need tens of megabytes (the
@@ -540,6 +548,12 @@ from extensions import configure_app, include_extension_routers, load_extended  
 load_extended()
 include_extension_routers(app)
 configure_app(app)
+
+# The public API: platform v1 routes, then every overlay's get_v1_routers()
+# under the same prefix, plus the v1 error envelope (routers/v1/__init__.py).
+from routers.v1 import install_v1  # noqa: E402
+
+install_v1(app)
 
 
 # Root endpoint

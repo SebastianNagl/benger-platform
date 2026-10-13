@@ -154,6 +154,30 @@ class Settings(BaseSettings):
     # Frontend Configuration
     frontend_url: str = "http://localhost:3000"
 
+    # Public base URL of the versioned API (/api/v1), announced as the
+    # ``servers`` entry of /api/v1/openapi.json and in the docs. Unset, it is
+    # derived from FRONTEND_URL as ``https://api.<domain>`` (for example
+    # https://api.what-a-benger.net); a localhost frontend yields None and the
+    # spec falls back to the requesting host.
+    public_api_url: Optional[str] = None
+
+    @property
+    def public_api_base_url(self) -> Optional[str]:
+        """The configured or derived public API base URL, without a trailing
+        slash, or None for local deployments."""
+        if self.public_api_url:
+            return self.public_api_url.rstrip("/")
+        from urllib.parse import urlparse
+
+        host = (urlparse(self.frontend_url or "").hostname or "").lower()
+        if not host or host == "localhost" or host.endswith(".localhost") or "." not in host:
+            return None
+        if host.replace(".", "").isdigit():
+            return None
+        if host.startswith("www."):
+            host = host[4:]
+        return f"https://api.{host}"
+
     # API Configuration
     api_title: str = "BenGER API"
     api_description: str = "BenGER - Benchmark for German Legal Reasoning"
