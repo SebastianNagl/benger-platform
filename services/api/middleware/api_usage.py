@@ -66,7 +66,10 @@ class ApiUsageMiddleware:
 
         started = time.perf_counter()
         request_id = (_header(scope, b"x-request-id") or "")[:64] or uuid.uuid4().hex
-        sent_request_id = _header(scope, b"x-request-id") is not None
+        # Handlers (the v1 error envelope) read the id from request.state.
+        state = scope.setdefault("state", {})
+        if isinstance(state, dict):
+            state["request_id"] = request_id
         result: Dict[str, Any] = {"status": None, "bytes": 0}
 
         async def send_wrapper(message):
@@ -74,7 +77,7 @@ class ApiUsageMiddleware:
                 result["status"] = message.get("status")
                 headers = list(message.get("headers") or [])
                 names = {k.lower() for k, _ in headers}
-                if not sent_request_id and b"x-request-id" not in names:
+                if b"x-request-id" not in names:
                     headers.append((b"x-request-id", request_id.encode("latin-1")))
                 rate = (scope.get("state") or {}).get("rate_limit")
                 if isinstance(rate, dict) and b"x-ratelimit-limit" not in names:

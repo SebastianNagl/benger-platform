@@ -178,17 +178,32 @@ def _declared_scopes(dependant) -> Optional[frozenset]:
     return None
 
 
+def _effective_routes(app: FastAPI):
+    """``(original_route, effective_route)`` of every route, routers added
+    with ``include_router`` flattened. FastAPI >= 0.140 keeps an include as
+    one wrapper entry in ``app.routes``; the effective route carries the
+    prefixed path and the dependencies of every enclosing router."""
+    try:
+        from fastapi.routing import iter_route_contexts
+    except ImportError:  # pragma: no cover - older FastAPI flattens itself
+        for route in app.routes:
+            yield route, route
+        return
+    for context in iter_route_contexts(app.routes):
+        yield context.original_route, context
+
+
 def unscoped_v1_routes(app: FastAPI) -> List[str]:
     """``METHOD path`` of every /api/v1 route without a scope marker."""
     offenders: List[str] = []
-    for route in app.routes:
-        path = getattr(route, "path", "")
+    for original, route in _effective_routes(app):
+        path = getattr(route, "path", None) or ""
         if not (path == V1_PREFIX or path.startswith(V1_PREFIX + "/")):
             continue
-        if isinstance(route, APIWebSocketRoute):
+        if isinstance(original, APIWebSocketRoute):
             offenders.append(f"WS {path}")
             continue
-        if not isinstance(route, APIRoute):
+        if not isinstance(original, APIRoute):
             # FastAPI's own docs routes (if ever mounted under /api/v1).
             continue
         if _declared_scopes(route.dependant) is None:
