@@ -7,6 +7,14 @@ import type { ChangelogEntry } from '@/lib/extensions/changelog'
  */
 export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
   {
+    date: '2026-10-13',
+    audience: 'benger',
+    text: {
+      de: 'Evaluationen lassen sich auf Modellantworten beschränken: Wählst du keine Annotator:in aus, werden nur die Modellantworten bewertet (und ohne Modell nur die eingereichten Antworten). Die Kostenschätzung rechnet dabei nur noch mit den ausgewählten Metriken, Modellen, Annotator:innen und Prompt-Strukturen.',
+      en: 'Evaluations can be limited to model answers: with no annotator selected only the model answers are graded (and with no model only the submitted answers). The cost estimate now counts only the selected metrics, models, annotators and prompt structures.',
+    },
+  },
+  {
     date: '2026-10-12',
     audience: 'benger',
     text: {

@@ -203,20 +203,41 @@ describe('EvaluationControlModal scope picker', () => {
     expect(startButton).toHaveAttribute('aria-disabled', 'true')
   })
 
-  it('disables Run when the model section is empty', async () => {
+  it('grades only submitted answers when no model is selected', async () => {
     render(<EvaluationControlModal {...defaultProps} />)
     const modelBox = await screen.findByLabelText('gpt-5.4')
     fireEvent.click(modelBox)
-    const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/modell/i)
+    expect(
+      await screen.findByText(/nur eingereichte Antworten/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    const startButton = screen.getByText('Start Evaluation')
+    await waitFor(() => expect(startButton).not.toBeDisabled())
+    fireEvent.click(startButton)
+    await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
+    expect(mockRunEvaluation.mock.calls[0][0].model_ids).toEqual([])
   })
 
-  it('disables Run when the annotator section is empty (and rendered)', async () => {
+  it('grades only model answers when no annotator is selected', async () => {
     render(<EvaluationControlModal {...defaultProps} />)
     const annotatorBox = await screen.findByLabelText('Annotator: Alice')
     fireEvent.click(annotatorBox)
+    expect(await screen.findByText(/nur Modellantworten/i)).toBeInTheDocument()
+    const startButton = screen.getByText('Start Evaluation')
+    await waitFor(() => expect(startButton).not.toBeDisabled())
+    fireEvent.click(startButton)
+    await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
+    const payload = mockRunEvaluation.mock.calls[0][0]
+    expect(payload.annotator_user_ids).toEqual([])
+    expect(payload.model_ids).toBeUndefined()
+  })
+
+  it('disables Run when neither a model nor an annotator is selected', async () => {
+    render(<EvaluationControlModal {...defaultProps} />)
+    fireEvent.click(await screen.findByLabelText('gpt-5.4'))
+    fireEvent.click(await screen.findByLabelText('Annotator: Alice'))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent(/annotator/i)
+    expect(alert).toHaveTextContent(/Modell oder eine:n Annotator:in/i)
   })
 
   it('passes annotator_user_ids when narrowed to a subset', async () => {

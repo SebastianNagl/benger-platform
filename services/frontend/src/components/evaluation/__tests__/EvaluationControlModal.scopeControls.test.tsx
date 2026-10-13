@@ -202,8 +202,12 @@ describe('EvaluationControlModal scope controls', () => {
       fireEvent.click(clearButtons[1])
       await waitFor(() => expect(gpt).not.toBeChecked())
       expect(claude).not.toBeChecked()
-      // A disabled-run alert appears because the model section is now empty.
-      expect(await screen.findByRole('alert')).toBeInTheDocument()
+      // No model left: the run grades only the submitted answers, so it
+      // stays enabled and says so instead of raising the disabled-run alert.
+      expect(
+        await screen.findByText(/nur eingereichte Antworten/i),
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
       const selectButtons = screen.getAllByText('Select All')
       fireEvent.click(selectButtons[1])

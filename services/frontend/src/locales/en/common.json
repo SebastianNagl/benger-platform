@@ -5314,6 +5314,9 @@
       "runDisabledNoMetrics": "Select at least one metric",
       "runDisabledNoModels": "Select at least one model",
       "runDisabledNoAnnotators": "Select at least one annotator",
+      "runDisabledNoSubjects": "Select at least one model or one annotator",
+      "modelsOnlyHint": "With no annotator selected, only model answers are graded.",
+      "answersOnlyHint": "With no model selected, only submitted answers are graded.",
       "scopeLoading": "Loading available models and annotators…",
       "noEvaluatedModels": "No evaluated models on this project yet",
       "noAnnotators": "No annotators on this project yet"
@@ -8423,6 +8426,7 @@
         "allAnnotationsCancelled": "Grades submitted answers, but every answer on these tasks is cancelled.",
         "annotatorFilterExcludedAll": "Grades submitted answers, but this run's annotator filter excluded all of them.",
         "noPredictionFields": "Has no prediction field, so it grades nothing.",
+        "sideNotSelected": "Grades only the side this run left out (no model or no annotator selected).",
         "classifierUnavailable": "Could not be classified: the worker cannot tell which side to grade.",
         "other": "Found nothing to grade."
       }

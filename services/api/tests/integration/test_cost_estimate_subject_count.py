@@ -1069,6 +1069,19 @@ class TestEvaluationJudgeCallsRunScope:
         assert _per_model_cells(one_each, JUDGE_A) == 2 * tasks
         assert _per_model_cells(no_annotators, JUDGE_A) == tasks
 
+        # An explicit empty model list deselects the generation side.
+        with _as_user(actor):
+            no_models = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                model_ids=[],
+                annotator_user_ids=data["annotator_user_ids"][:1],
+                evaluation_configs=[cfg],
+            )
+        assert _per_model_cells(no_models, JUDGE_A) == tasks
+
     @pytest.mark.asyncio
     async def test_structures_narrow_the_generations(
         self, async_test_client, async_test_db
