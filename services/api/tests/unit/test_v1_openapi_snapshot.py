@@ -16,7 +16,11 @@ from routers.v1.docs import CANONICAL_SERVER_URL, scopes_markdown, snapshot_spec
 def _docs_dir():
     """The repository's docs/ folder. The Docker test runner mounts only
     services/api; it finds the folder when ../docs is mounted at /docs."""
-    for candidate in (Path(__file__).resolve().parents[4] / "docs", Path("/docs")):
+    parents = Path(__file__).resolve().parents
+    # In the container the file sits at /app/tests/unit, three levels deep, so
+    # the repository root (parents[4] in a checkout) does not exist there.
+    repo_docs = [parents[4] / "docs"] if len(parents) > 4 else []
+    for candidate in (*repo_docs, Path("/docs")):
         if (candidate / "api-docs").is_dir():
             return candidate
     return None
