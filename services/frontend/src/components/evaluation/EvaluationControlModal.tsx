@@ -428,6 +428,7 @@ export function EvaluationControlModal({
   const costEvaluationConfigs = useMemo(
     () =>
       selectedConfigs.map((c) => ({
+        id: c.id,
         metric: c.metric,
         prediction_fields: c.prediction_fields,
       })),
@@ -894,6 +895,9 @@ export function EvaluationControlModal({
                           }
                           evaluationConfigs={costEvaluationConfigs}
                           generationMode={mode}
+                          structureKeys={
+                            showStructureScope ? selectedStructures : undefined
+                          }
                         />
                       )}
                     </div>

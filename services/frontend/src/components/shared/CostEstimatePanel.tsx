@@ -22,7 +22,11 @@ export interface CostEstimatePanelProps {
    *  optional `metric` lets the backend apply per-metric classification
    *  rules (e.g. llm_judge_falloesung's unprefixed-field convention). */
   annotatorUserIds?: string[]
-  evaluationConfigs?: Array<{ metric?: string; prediction_fields: string[] }>
+  evaluationConfigs?: Array<{
+    id?: string
+    metric?: string
+    prediction_fields: string[]
+  }>
   /** Mirror of the trigger endpoint's `mode` argument (all/missing/single).
    *  When 'missing', the backend counts only the cells whose latest
    *  generation failed or is absent — matching what the worker will
@@ -50,11 +54,15 @@ interface PerModelCost {
  * shape is short, comparable, and reads cleanly in the deps list.
  */
 function hashConfigs(
-  cfgs: Array<{ metric?: string; prediction_fields: string[] }> | undefined,
+  cfgs:
+    | Array<{ id?: string; metric?: string; prediction_fields: string[] }>
+    | undefined,
 ): string {
   if (!cfgs || cfgs.length === 0) return ''
   return cfgs
-    .map((c) => `${c.metric ?? ''}:${c.prediction_fields.join(',')}`)
+    .map(
+      (c) => `${c.id ?? ''}:${c.metric ?? ''}:${c.prediction_fields.join(',')}`,
+    )
     .join('|')
 }
 
