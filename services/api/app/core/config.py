@@ -7,8 +7,6 @@ Centralized configuration management for the BenGER API application.
 import os
 from typing import Optional
 
-from pydantic import model_validator
-
 try:
     from pydantic_settings import BaseSettings
 except ImportError:
@@ -118,11 +116,14 @@ class Settings(BaseSettings):
     # override the environment-derived default.
     internal_docs_enabled: Optional[bool] = None
 
-    @model_validator(mode="after")
-    def _derive_internal_docs_default(self):
+    def __init__(self, **values):
+        # Derived here rather than in a pydantic v2 model_validator: the API
+        # image has no pydantic_settings, so BaseSettings is pydantic.v1's,
+        # which never runs v2 validators and left the field None (docs off
+        # everywhere).
+        super().__init__(**values)
         if self.internal_docs_enabled is None:
             self.internal_docs_enabled = not self.is_production
-        return self
 
     # Access keys for the public /api/v1 surface (services/api_key_service.py,
     # docs/api-keys.md). API_KEY_PEPPER is mixed into every key hash so a

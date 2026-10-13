@@ -984,3 +984,151 @@ class TestRequestValidation:
         assert "estimated_at" in body
         # fromisoformat tolerates the +00:00 suffix from datetime.now(tz=utc).
         _dt.fromisoformat(body["estimated_at"])
+
+
+class TestEvaluationJudgeCallsRunScope:
+    """The judge-call count follows the run's scope: the ticked configs,
+    models, annotators and prompt structures. Before, one judge was priced
+    over every config naming it and every generation in the project, so 15
+    new generations scored by one judge showed 976 calls (Benchathon,
+    2026-10-13)."""
+
+    @staticmethod
+    def _cfg(cfg_id: str, fields: List[str], runs: int = 1) -> Dict:
+        return {
+            "id": cfg_id,
+            "enabled": True,
+            "metric": "llm_judge_falloesung",
+            "prediction_fields": fields,
+            "metric_parameters": {"judges": [{"judge_model_id": JUDGE_A, "runs": runs}]},
+        }
+
+    async def _seed(self, db: AsyncSession, configs: List[Dict]):
+        actor = await _seed_user(db)
+        await _seed_judge_pricing(db, JUDGE_A)
+        data = await _seed_project_with_subjects(db, actor)
+        await _set_project_judge_configs(db, data["project"], configs)
+        return actor, data
+
+    @pytest.mark.asyncio
+    async def test_only_the_ticked_configs_count(
+        self, async_test_client, async_test_db
+    ):
+        actor, data = await self._seed(async_test_db, [
+            self._cfg("cfg-ticked", ["__all_model__"], runs=1),
+            self._cfg("cfg-other", ["__all_model__"], runs=3),
+        ])
+        await async_test_db.commit()
+        with _as_user(actor):
+            body = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                evaluation_configs=[{
+                    "id": "cfg-ticked",
+                    "metric": "llm_judge_falloesung",
+                    "prediction_fields": ["__all_model__"],
+                }],
+            )
+        assert _per_model_cells(body, JUDGE_A) == data["expected_generation_count"]
+
+    @pytest.mark.asyncio
+    async def test_models_and_annotators_narrow_the_subjects(
+        self, async_test_client, async_test_db
+    ):
+        actor, data = await self._seed(async_test_db, [
+            self._cfg("cfg-both", ["__all_model__", "human:loesung"]),
+        ])
+        await async_test_db.commit()
+        tasks = data["expected_generation_count"] // len(data["model_ids"])
+        cfg = {
+            "id": "cfg-both",
+            "metric": "llm_judge_falloesung",
+            "prediction_fields": ["__all_model__", "human:loesung"],
+        }
+        with _as_user(actor):
+            one_each = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                model_ids=data["model_ids"][:1],
+                annotator_user_ids=data["annotator_user_ids"][:1],
+                evaluation_configs=[cfg],
+            )
+            no_annotators = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                model_ids=data["model_ids"][:1],
+                annotator_user_ids=[],
+                evaluation_configs=[cfg],
+            )
+        assert _per_model_cells(one_each, JUDGE_A) == 2 * tasks
+        assert _per_model_cells(no_annotators, JUDGE_A) == tasks
+
+    @pytest.mark.asyncio
+    async def test_structures_narrow_the_generations(
+        self, async_test_client, async_test_db
+    ):
+        actor, data = await self._seed(async_test_db, [
+            self._cfg("cfg-struct", ["__all_model__"]),
+        ])
+        rgs = (
+            await async_test_db.execute(
+                select(ResponseGeneration).where(
+                    ResponseGeneration.project_id == data["project"].id
+                )
+            )
+        ).scalars().all()
+        for rg in rgs:
+            rg.structure_key = (
+                "fallloesung" if rg.model_id == data["model_ids"][0] else "lexam-open"
+            )
+        await async_test_db.commit()
+        with _as_user(actor):
+            body = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                structure_keys=["fallloesung"],
+                evaluation_configs=[{
+                    "id": "cfg-struct",
+                    "metric": "llm_judge_falloesung",
+                    "prediction_fields": ["__all_model__"],
+                }],
+            )
+        assert _per_model_cells(body, JUDGE_A) == (
+            data["expected_generation_count"] // len(data["model_ids"])
+        )
+
+    @pytest.mark.asyncio
+    async def test_cancelled_annotations_are_not_priced(
+        self, async_test_client, async_test_db
+    ):
+        actor, data = await self._seed(async_test_db, [
+            self._cfg("cfg-human", ["human:loesung"]),
+        ])
+        anns = (
+            await async_test_db.execute(
+                select(Annotation).where(Annotation.project_id == data["project"].id)
+            )
+        ).scalars().all()
+        anns[0].was_cancelled = True
+        await async_test_db.commit()
+        with _as_user(actor):
+            body = await _post_estimate(
+                async_test_client,
+                project_id=data["project"].id,
+                mode="evaluation",
+                judge_models=[JUDGE_A],
+                evaluation_configs=[{
+                    "id": "cfg-human",
+                    "metric": "llm_judge_falloesung",
+                    "prediction_fields": ["human:loesung"],
+                }],
+            )
+        assert _per_model_cells(body, JUDGE_A) == data["expected_annotation_count"] - 1
