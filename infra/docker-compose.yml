@@ -164,7 +164,6 @@ services:
       # Schema validation mode - lenient for Pydantic 2.11 compatibility
       SCHEMA_VALIDATION_MODE: lenient
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
-      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-in-production}
       
       # App settings
       ENVIRONMENT: ${ENVIRONMENT:-development}
@@ -303,7 +302,6 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       DEEPINFRA_API_KEY: ${DEEPINFRAAI_API_KEY:-}
-      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-dev-internal-service-key-change-in-production}
 
       # E2E Test Mode - enables mock LLM responses for testing
       E2E_TEST_MODE: ${E2E_TEST_MODE:-false}
