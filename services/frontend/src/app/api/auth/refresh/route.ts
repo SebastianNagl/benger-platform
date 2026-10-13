@@ -54,8 +54,12 @@ export async function POST(request: NextRequest) {
           modifiedCookie += '; SameSite=Lax'
         }
 
-        // Remove Secure for development
-        modifiedCookie = modifiedCookie.replace(/;\s*Secure/gi, '')
+        // Outside production the stack runs on plain HTTP, so a Secure
+        // cookie would never reach the browser. In production the backend's
+        // Secure flag must survive the proxy.
+        if (process.env.NODE_ENV !== 'production') {
+          modifiedCookie = modifiedCookie.replace(/;\s*Secure/gi, '')
+        }
 
         response.headers.append('Set-Cookie', modifiedCookie)
       })

@@ -725,6 +725,41 @@ describe('/api/auth/login', () => {
       }
     })
 
+    it('keeps the Secure flag in production', async () => {
+      const previousNodeEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
+      try {
+        ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: 'tok' }),
+          headers: {
+            getSetCookie: () => [
+              'access_token=tok; Path=/; HttpOnly; SameSite=Lax; Secure',
+            ],
+          },
+        })
+
+        const request = createRequest(
+          'https://what-a-benger.net/api/auth/login',
+          {
+            method: 'POST',
+            body: JSON.stringify({ email: 'test@ex.com', password: 'pw' }),
+          },
+        )
+
+        const response = await POST(request)
+        const accessCookie = response.headers
+          .getSetCookie()
+          .find((c: string) => c.startsWith('access_token='))
+        expect(accessCookie).toBeDefined()
+        expect(accessCookie).toMatch(/;\s*Secure/i)
+        expect(accessCookie).toContain('Domain=.what-a-benger.net')
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv
+      }
+    })
+
     it('should add Path=/ when not present in cookie', async () => {
       ;(global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
