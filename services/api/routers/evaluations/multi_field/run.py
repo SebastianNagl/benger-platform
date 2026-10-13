@@ -176,6 +176,14 @@ async def run_evaluation(
         # user supplies ids that don't correspond to anything on this project
         # — a silent zero-result run is worse than a 400 because it looks
         # like the worker hung. Same treatment for model_ids (existing gap).
+        # An empty list deselects that side ("model generations only" sends
+        # annotator_user_ids=[]); deselecting both leaves nothing to grade.
+        if request.model_ids == [] and request.annotator_user_ids == []:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Select at least one model or one annotator",
+            )
+
         if request.annotator_user_ids:
             valid_annotator_ids = {
                 uid for (uid,) in db.query(Annotation.completed_by)
@@ -337,8 +345,9 @@ async def run_evaluation(
         dispatch_payload = {
             "configs": dispatched_configs,
             "task_ids": request.task_ids or [],
-            "model_ids": request.model_ids or [],
-            "annotator_user_ids": request.annotator_user_ids or [],
+            # None (no filter) and [] (side deselected) are different runs.
+            "model_ids": request.model_ids,
+            "annotator_user_ids": request.annotator_user_ids,
             "structure_keys": request.structure_keys or [],
             "force_rerun": request.force_rerun,
         }

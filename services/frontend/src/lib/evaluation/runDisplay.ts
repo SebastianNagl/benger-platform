@@ -214,6 +214,7 @@ const REASON_KEYS: Record<string, string> = {
   all_annotations_cancelled: 'allAnnotationsCancelled',
   annotator_filter_excluded_all: 'annotatorFilterExcludedAll',
   no_prediction_fields: 'noPredictionFields',
+  side_not_selected: 'sideNotSelected',
   classifier_unavailable: 'classifierUnavailable',
   other: 'other',
 }
@@ -280,6 +281,7 @@ export function describeBillingBlock(
 export const BENIGN_MATCH_REASONS = new Set([
   'all_cells_already_evaluated',
   'manual_metric',
+  'side_not_selected',
 ])
 
 // Word bookmark anchors that .docx conversion leaves in stored text.

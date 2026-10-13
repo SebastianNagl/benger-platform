@@ -2623,6 +2623,25 @@ def run_evaluation(
                     for c in enabled_configs
                 ]
 
+            # An explicitly empty selection (not None) deselects that side: the
+            # evaluation dialog sends annotator_user_ids=[] for "model
+            # generations only" and model_ids=[] for "submitted answers only".
+            # Stripping the side's fields here also covers plain fields, which
+            # otherwise grade both sides.
+            skip_generations = model_ids is not None and len(model_ids) == 0
+            skip_annotations = (
+                annotator_user_ids is not None and len(annotator_user_ids) == 0
+            )
+            if skip_generations or skip_annotations:
+                for side in config_sides:
+                    had_fields = bool(side["human_fields"] or side["llm_fields"])
+                    if skip_annotations:
+                        side["human_fields"] = []
+                    if skip_generations:
+                        side["llm_fields"] = []
+                    if had_fields and not (side["human_fields"] or side["llm_fields"]):
+                        side["side_not_selected"] = True
+
             has_human_config = any(s["human_fields"] for s in config_sides)
             has_llm_config = any(s["llm_fields"] for s in config_sides)
 
@@ -4270,6 +4289,7 @@ _CONFIG_MATCH_REASONS = frozenset({
     "all_annotations_cancelled",
     "annotator_filter_excluded_all",
     "classifier_unavailable",
+    "side_not_selected",
     "other",
 })
 
@@ -4277,6 +4297,7 @@ _CONFIG_MATCH_REASONS = frozenset({
 _BENIGN_MATCH_REASONS = frozenset({
     "all_cells_already_evaluated",
     "manual_metric",
+    "side_not_selected",
 })
 
 
@@ -4316,6 +4337,9 @@ def _classify_config_match(
     wants_human = bool(side.get("human_fields"))
     wants_llm = bool(side.get("llm_fields"))
     if not wants_human and not wants_llm:
+        # The run left out the only side this config grades.
+        if side.get("side_not_selected"):
+            return "side_not_selected"
         return "no_prediction_fields"
 
     # Matched if EITHER side produced a cell.
@@ -4367,6 +4391,10 @@ _MATCH_REASON_HELP = {
     ),
     "no_prediction_fields": (
         "has no prediction field configured, so there is nothing to grade."
+    ),
+    "side_not_selected": (
+        "grades only the side this run left out (no models or no annotators "
+        "selected)."
     ),
     "classifier_unavailable": (
         "could not be classified: the shared field-classification module "

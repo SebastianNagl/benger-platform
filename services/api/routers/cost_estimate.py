@@ -434,10 +434,13 @@ def _completed_generation_ids(
     structure_keys: Optional[List[str]] = None,
 ) -> List[str]:
     """Completed generation ids for the project, narrowed like the worker
-    narrows a scoped run (model ids, prompt structures). Cached scope —
+    narrows a scoped run (model ids, prompt structures; an empty model list
+    means none were selected). Cached scope —
     helper resolves fields against this list rather than re-querying."""
     from project_models import Task
     from models import Generation, ResponseGeneration
+    if model_ids is not None and not model_ids:
+        return []
     q = (
         db.query(Generation.id)
         .join(Task, Task.id == Generation.task_id)
@@ -846,7 +849,12 @@ def _compute_cost_estimate_impl(
                 judge_model_id=model_id,
                 generation_mode=request.generation_mode,
                 config_ids=selected_config_ids,
-                model_ids=request.model_ids or None,
+                # An explicit empty model list deselects the generation side.
+                model_ids=(
+                    request.model_ids
+                    if "model_ids" in request.model_fields_set
+                    else None
+                ),
                 annotator_user_ids=request.annotator_user_ids,
                 structure_keys=request.structure_keys,
             )

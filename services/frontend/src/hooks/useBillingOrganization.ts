@@ -15,11 +15,28 @@
 
 import { api } from '@/lib/api'
 import type { BillingOption } from '@/lib/api/evaluations'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 
 const STORAGE_PREFIX = 'benger:billing-org:'
 const memory = new Map<string, string>()
 const listeners = new Set<() => void>()
+
+interface FetchedOptions {
+  options: BillingOption[]
+  defaultOrganizationId: string | null
+}
+
+// The fetched options, shared by every component on the page. Each copy of
+// the hook kept its own before: the generation dialog's provider is mounted
+// with the page and loaded the options once, the "Billed to" select loads
+// them when the dialog opens. An org attached in between showed up in the
+// select but not in the copy that built the request, so the pick was
+// dropped and the run went to the default payer.
+const fetchedOptions = new Map<string, FetchedOptions>()
+
+function notify() {
+  listeners.forEach((listener) => listener())
+}
 
 function readChoice(projectId: string): string | null {
   try {
@@ -40,7 +57,7 @@ function writeChoice(projectId: string, orgId: string | null) {
   } catch {
     // Storage blocked: the in-memory copy still syncs this page.
   }
-  listeners.forEach((listener) => listener())
+  notify()
 }
 
 function subscribe(listener: () => void) {
@@ -48,6 +65,12 @@ function subscribe(listener: () => void) {
   return () => {
     listeners.delete(listener)
   }
+}
+
+/** Test hook: forget the shared options between tests. */
+export function resetBillingOptionsCache() {
+  fetchedOptions.clear()
+  memory.clear()
 }
 
 export interface UseBillingOrganizationReturn {
@@ -63,19 +86,19 @@ export interface UseBillingOrganizationReturn {
 export function useBillingOrganization(
   projectId?: string | null,
 ): UseBillingOrganizationReturn {
-  // The fetched answer, keyed by its project so a project switch never
-  // shows the previous project's options.
-  const [fetched, setFetched] = useState<{
-    projectId: string
-    options: BillingOption[]
-    defaultOrganizationId: string | null
-  } | null>(null)
   const choice = useSyncExternalStore(
     subscribe,
     () => (projectId ? readChoice(projectId) : null),
     () => null,
   )
+  const current = useSyncExternalStore(
+    subscribe,
+    () => (projectId ? (fetchedOptions.get(projectId) ?? null) : null),
+    () => null,
+  )
 
+  // Every mount refreshes the shared copy, so opening a dialog updates the
+  // options for every component on the page, not only for itself.
   useEffect(() => {
     if (!projectId || typeof api.getBillingOptions !== 'function') return
     let cancelled = false
@@ -83,7 +106,9 @@ export function useBillingOrganization(
       options: BillingOption[],
       defaultOrganizationId: string | null,
     ) => {
-      if (!cancelled) setFetched({ projectId, options, defaultOrganizationId })
+      if (cancelled) return
+      fetchedOptions.set(projectId, { options, defaultOrganizationId })
+      notify()
     }
     Promise.resolve(api.getBillingOptions(projectId))
       .then((data) =>
@@ -99,7 +124,6 @@ export function useBillingOrganization(
     }
   }, [projectId])
 
-  const current = fetched && fetched.projectId === projectId ? fetched : null
   const options = current?.options ?? []
   const defaultOrganizationId = current?.defaultOrganizationId ?? null
   const loading =

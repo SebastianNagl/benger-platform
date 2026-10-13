@@ -5315,6 +5315,9 @@
       "runDisabledNoMetrics": "Mindestens eine Metrik auswählen",
       "runDisabledNoModels": "Mindestens ein Modell auswählen",
       "runDisabledNoAnnotators": "Mindestens eine:n Annotator:in auswählen",
+      "runDisabledNoSubjects": "Mindestens ein Modell oder eine:n Annotator:in auswählen",
+      "modelsOnlyHint": "Ohne Annotator:in werden nur Modellantworten bewertet.",
+      "answersOnlyHint": "Ohne Modell werden nur eingereichte Antworten bewertet.",
       "scopeLoading": "Lade verfügbare Modelle und Annotator:innen…",
       "noEvaluatedModels": "Keine bewerteten Modelle in diesem Projekt",
       "noAnnotators": "Keine Annotator:innen in diesem Projekt"
@@ -7103,6 +7106,7 @@
         "allAnnotationsCancelled": "Bewertet eingereichte Antworten, aber alle Antworten zu diesen Aufgaben sind abgebrochen.",
         "annotatorFilterExcludedAll": "Bewertet eingereichte Antworten, aber der Annotator-Filter dieses Laufs hat alle ausgeschlossen.",
         "noPredictionFields": "Hat kein Vorhersagefeld und bewertet daher nichts.",
+        "sideNotSelected": "Bewertet nur die Seite, die dieser Lauf ausgelassen hat (kein Modell oder keine Annotator:in ausgewählt).",
         "classifierUnavailable": "Konnte nicht zugeordnet werden: Der Worker kann nicht erkennen, welche Seite bewertet werden soll.",
         "other": "Hat nichts zum Bewerten gefunden."
       }
