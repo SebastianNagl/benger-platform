@@ -128,6 +128,11 @@ async def lifespan(app: FastAPI):
     )
     from services.websocket_clustering import cluster_manager
 
+    # Deny by default: every public /api/v1 route must declare its scopes.
+    from routers.v1._deps import assert_v1_routes_scoped
+
+    assert_v1_routes_scoped(app)
+
     is_reload = False
     try:
         with open(_STARTUP_INIT_FLAG) as _flag:
@@ -312,11 +317,21 @@ async def lifespan(app: FastAPI):
             "⚠️  WARNING: FRONTEND_URL is using default value in production environment!"
         )
 
+    # Batched writer for /api/v1 access-key usage events (tests use a sink).
+    from services import api_usage_writer
+
+    if not settings.testing:
+        await api_usage_writer.start()
+
     logger.info("🚀 API startup complete - server is ready to accept requests")
 
     yield
 
     # Shutdown
+    try:
+        await api_usage_writer.stop()
+    except Exception as e:
+        logger.warning(f"API usage writer stop failed: {e}")
     # Note: reload flag in /tmp persists within the container but is cleared
     # on container recreation (docker-compose down + up)
     logger.info("Shutting down BenGER API...")
@@ -378,6 +393,11 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
     expose_headers=["Content-Length"],
 )
+
+# Usage events and X-RateLimit-* / X-Request-ID headers for /api/v1.
+from middleware.api_usage import ApiUsageMiddleware  # noqa: E402
+
+app.add_middleware(ApiUsageMiddleware)
 
 
 # Reject obviously oversized request bodies before they consume backend
