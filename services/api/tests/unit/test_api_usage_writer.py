@@ -2,7 +2,6 @@
 last_used throttle of record_usage."""
 
 import asyncio
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest

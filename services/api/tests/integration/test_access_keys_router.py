@@ -14,7 +14,7 @@ from sqlalchemy import select
 from auth_module.dependencies import get_current_user, require_user
 from auth_module.models import User as AuthUser
 from main import app
-from models import ApiKey, ApiKeyUsageEvent, OrganizationMembership, User
+from models import ApiKey, OrganizationMembership, User
 from project_models import Project, ProjectOrganization
 from services import api_key_service as svc
 from tests.fixtures.access_keys import seed_world, seed_world_sync
