@@ -58,7 +58,7 @@ cd services/api && alembic revision -m "description"  # Create migration
 ### Key Endpoints
 - **Frontend**: `http://localhost:3000`
 - **API**: `http://localhost:8000`
-- **API Docs**: `http://localhost:8000/docs`
+- **API Docs**: `http://localhost:8000/docs` (development only; production hides `/docs`, `/redoc` and `/openapi.json` unless `INTERNAL_DOCS_ENABLED=true`, see [Environment Variables](setup/environment-variables.md))
 - **Database**: `localhost:5432`
 - **Redis**: `localhost:6379`
 
