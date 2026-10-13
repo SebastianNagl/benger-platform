@@ -526,6 +526,26 @@ whenever one is added, renamed or removed):
   registering package and log replacements. Helm: ``overlays.<name>``
   (``enabled``, ``package``, ``required``, ``order``, ``api.env``,
   ``workers.env``) renders the two env vars and the per-overlay env.
+  API keys (benger-compliance #3). Migration 118 adds ``api_keys``
+  (``models.ApiKey``: hashed ``bgr_<live|test>_<kid>_<secret>`` keys owned by
+  a user or an organisation, scopes, project allowlist, expiry, revocation,
+  per-key limits), ``api_key_usage_events`` (``models.ApiKeyUsageEvent``,
+  append-only usage log, retention via ``tasks.cleanup_api_key_usage_events``)
+  and ``users.is_service_account`` (one hidden service-account user per org
+  key; excluded from people lists, notifications and login). Keys are
+  accepted only on ``/api/v1/*`` and health (``auth_module.principal``,
+  ``services.api_key_service``); ``require_user`` / ``get_current_user`` /
+  ``optional_user`` resolve them first and set ``request.state.principal``;
+  ``require_superadmin`` refuses key principals. Scope vocabulary in
+  ``app.core.scopes`` (``register_scopes`` is fed from every package's
+  ``get_api_scopes()`` by ``extensions.load_extended``); ``routers/v1/_deps``
+  provides ``require_scope`` / ``v1_project_access`` and the startup audit
+  ``assert_v1_routes_scoped``. Management routes under
+  ``/api/organizations/{org_id}/access-keys``, ``/api/users/me/access-keys``,
+  ``/api/admin/access-keys`` and ``GET /api/access-keys/scopes``. New
+  settings: ``API_KEY_PEPPER``, ``API_KEY_ENVIRONMENT``,
+  ``API_KEY_DEFAULT_RPM`` / ``_RPD``, ``API_USAGE_RETENTION_DAYS``,
+  ``API_USAGE_IP_MODE``, ``SERVICE_ACCOUNT_EMAIL_HOST``.
 """
 
 import os

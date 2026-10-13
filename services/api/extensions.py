@@ -115,6 +115,7 @@ def load_extended():
 
     _register_extension_field_types()
     _validate_hook_ownership()
+    _register_extension_scopes()
 
     logger.info(
         "BenGER extension packages loaded: %s (core API %s)",
@@ -441,6 +442,25 @@ def get_api_scopes_all():
                 continue
             scopes[scope] = spec
     return scopes
+
+
+def _register_extension_scopes():
+    """Add every package's ``get_api_scopes()`` to the API-key scope vocabulary
+    (``app.core.scopes``), attributed to the declaring package. A package
+    without the attribute declares nothing; a failing getter is logged and
+    skipped so one overlay cannot keep the app from starting."""
+    try:
+        from app.core.scopes import register_scopes
+    except ImportError:
+        return
+    for name, package in _packages():
+        getter = getattr(package, "get_api_scopes", None)
+        if getter is None:
+            continue
+        try:
+            register_scopes(dict(getter() or {}), source=name)
+        except Exception:
+            logger.exception("Extension package %s: get_api_scopes() failed", name)
 
 
 def get_v1_routers_all():
