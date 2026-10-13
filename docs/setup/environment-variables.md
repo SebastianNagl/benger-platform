@@ -66,6 +66,7 @@ See [API keys](../api-keys.md) for the model behind these settings.
 | `API_USAGE_RETENTION_DAYS` | `400` | Age after which key usage events are deleted (daily beat task `tasks.cleanup_api_key_usage_events`; set it on the workers too). |
 | `API_USAGE_IP_MODE` | `truncated` | How much of the client IP the usage log keeps: `full`, `truncated` (IPv4 /24, IPv6 /48) or `none`. |
 | `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |
+| `PUBLIC_API_URL` | `https://api.<domain of FRONTEND_URL>` | Base URL announced as `servers` in `/api/v1/openapi.json` and the docs. Unset with a localhost frontend, the spec names the requesting host. See [Public API](../public-api.md). |
 
 ## Workers Environment Variables
 
