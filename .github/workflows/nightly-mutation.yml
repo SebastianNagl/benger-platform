@@ -22,11 +22,13 @@ jobs:
   python-mutation:
     name: mutate ${{ matrix.name }}
     runs-on: ubuntu-latest
-    # Ceiling sized for the slowest shard (sample_evaluator, 2838 lines / ~1965
-    # mutants ≈ 3-4h whole-file). fail-fast:false isolates shards and the fast
-    # ones (statistics/IAA/parsers) finish in well under an hour, so the high
-    # ceiling only ever applies to the one long shard. GitHub-hosted job hard
-    # limit is 6h; 350 leaves margin.
+    # Ceiling sized for the slowest shard. fail-fast:false isolates shards and
+    # the fast ones (statistics/IAA/parsers) finish in well under an hour, so
+    # the high ceiling only ever applies to the long ones. GitHub-hosted job
+    # hard limit is 6h; 350 leaves margin. A module whose shard nears it gets
+    # split (2026-10: llm_judge_evaluator reached 2724 mutants at ~7.5 s each
+    # and timed out every night until the evidence check moved into its own
+    # module and shard).
     timeout-minutes: 350
     strategy:
       fail-fast: false
@@ -56,6 +58,12 @@ jobs:
           - name: llm_judge_evaluator
             module: ml_evaluation/llm_judge_evaluator.py
             tests: tests/test_llm_judge_evaluator.py tests/test_llm_judge_evaluator_branches.py tests/test_llm_judge_evaluator_more.py tests/test_llm_judge_pure_kills.py tests/test_llm_judge_aggregation_kills.py tests/test_llm_judge_orchestration_kills.py
+          # The rubric judge's quote check. Its direct tests live in
+          # test_llm_judge_evaluator.py (95% line coverage alone); the checklist
+          # tests reach it through scoring.
+          - name: evidence_check
+            module: ml_evaluation/evidence_check.py
+            tests: tests/test_llm_judge_evaluator.py tests/test_checklist_scoring.py
     steps:
       - uses: actions/checkout@v7
 

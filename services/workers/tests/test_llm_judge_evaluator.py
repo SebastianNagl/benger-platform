@@ -1480,11 +1480,13 @@ from ml_evaluation.llm_judge_evaluator import (
     EVIDENCE_UNVERIFIED_NOTE,
     RUBRIC_JUDGE_CLOSING_RULES,
     RUBRIC_JUDGE_SYSTEM_PROMPT,
-    EvidenceIndex,
     _finalize_multidim_scores,
-    _normalize_evidence_text,
     _substitute_placeholders,
-    _verify_evidence,
+)
+from ml_evaluation.evidence_check import (
+    EvidenceIndex,
+    _normalize_evidence_text,
+    verify_evidence,
 )
 
 # Shaped like an uploaded answer: markdown escapes, emphasis, typographic
@@ -1554,7 +1556,7 @@ class TestVerifyEvidence:
         ],
     )
     def test_quotes_from_the_answer_verify(self, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(_ANSWER)) is True
+        assert verify_evidence(evidence, EvidenceIndex(_ANSWER)) is True
 
     @pytest.mark.parametrize(
         "evidence",
@@ -1596,17 +1598,17 @@ class TestVerifyEvidence:
         ],
     )
     def test_everything_else_is_rejected(self, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(_ANSWER)) is False
+        assert verify_evidence(evidence, EvidenceIndex(_ANSWER)) is False
 
     def test_spacing_artifacts_in_the_source_do_not_break_a_long_quote(self):
         answer = "S hat etwas erlangt, nämlich Eigentum und Besitz an den entrichte ten 10.000,– € durch Leistung."
         quote = "Eigentum und Besitz an den entrichteten 10.000,– € durch Leistung"
-        assert _verify_evidence(quote, EvidenceIndex(answer)) is True
+        assert verify_evidence(quote, EvidenceIndex(answer)) is True
         # still no match for content the answer lacks
-        assert _verify_evidence("Eigentum an dem gestohlenen Fahrrad des K ist übergegangen", EvidenceIndex(answer)) is False
+        assert verify_evidence("Eigentum an dem gestohlenen Fahrrad des K ist übergegangen", EvidenceIndex(answer)) is False
 
     def test_the_thresholds_are_the_documented_ones(self):
-        from ml_evaluation.llm_judge_evaluator import (
+        from ml_evaluation.evidence_check import (
             EVIDENCE_MIN_LONG_FRAGMENT_CHARS,
             EVIDENCE_MIN_TOKENS,
             EVIDENCE_MIN_WORD_CHARS,
@@ -1622,7 +1624,7 @@ def _some_run_verifies(answer, evidence):
     index = EvidenceIndex(answer)
     pieces = [w.split() for w in re.split(r"(?<=[.!?:;])\s+|…", evidence)]
     return any(
-        _verify_evidence(" ".join(words[i:j]), index)
+        verify_evidence(" ".join(words[i:j]), index)
         for words in pieces for i in range(len(words)) for j in range(i + 3, len(words) + 1)
     )
 
@@ -1731,7 +1733,7 @@ class TestVerifyEvidenceAdversarial:
 
     @pytest.mark.parametrize("answer,evidence", REJECTED + REJECTED_IN_CONTEXT)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_the_positive_part_is_in_the_answer(self, answer, evidence):
@@ -1745,10 +1747,10 @@ class TestVerifyEvidenceAdversarial:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     def test_token_rules(self):
-        from ml_evaluation.llm_judge_evaluator import _tokens_match
+        from ml_evaluation.evidence_check import _tokens_match
 
         assert not _tokens_match("1000", "10000")
         assert not _tokens_match("nicht", "nichtig")
@@ -1869,7 +1871,7 @@ class TestVerifyEvidenceStrict:
 
     @pytest.mark.parametrize("answer,evidence", REJECTED + REJECTED_IN_CONTEXT + NORM_ONLY)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_the_positive_part_is_in_the_answer(self, answer, evidence):
@@ -1882,10 +1884,10 @@ class TestVerifyEvidenceStrict:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     def test_token_rules(self):
-        from ml_evaluation.llm_judge_evaluator import _is_protected, _tokens_match
+        from ml_evaluation.evidence_check import _is_protected, _tokens_match
 
         for word in ("unzulässig", "unbegründet", "unstreitig", "rechtmässig", "rechtswidrige", "bejahte",
                      "verneint", "erforderlich", "entbehrlich", "gegeben", "fehlt", "besteht", "niemand",
@@ -1904,7 +1906,7 @@ class TestVerifyEvidenceStrict:
         assert not _tokens_match("ist", "iss")  # short words need an exact match
 
     def test_law_abbreviations_keep_their_case(self):
-        from ml_evaluation.llm_judge_evaluator import _fragment_is_quotable
+        from ml_evaluation.evidence_check import _fragment_is_quotable
 
         assert not _fragment_is_quotable(["art", "8", "gg"], ["Art", "8", "GG"])
         assert not _fragment_is_quotable(["40", "i", "1", "vwgo"], ["40", "I", "1", "VwGO"])
@@ -2070,7 +2072,7 @@ class TestVerifyEvidenceRound4:
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_the_quoted_words_stand_in_the_answer(self, answer, evidence):
@@ -2078,10 +2080,10 @@ class TestVerifyEvidenceRound4:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     def test_sentences_never_end_at_an_abbreviation(self):
-        from ml_evaluation.llm_judge_evaluator import _split_sentences
+        from ml_evaluation.evidence_check import _split_sentences
 
         assert _split_sentences("Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt.") == [
             "Der Käufer ist gem. § 437 Nr. 2 BGB zum Rücktritt berechtigt."
@@ -2101,7 +2103,7 @@ class TestVerifyEvidenceRound4:
         assert _split_sentences("Ein Mangel liegt vor. b) Rücktritt") == ["Ein Mangel liegt vor.", "b) Rücktritt"]
 
     def test_token_rules(self):
-        from ml_evaluation.llm_judge_evaluator import _is_protected, _tokens_match
+        from ml_evaluation.evidence_check import _is_protected, _tokens_match
 
         for word in ("nichtig", "nichtberechtigter", "un", "wirksam", "richtig", "falsche", "vorsätzlich",
                      "fahrlässige", "vermeintlich", "mutmasslich", "fraglich", "vielleicht"):
@@ -2174,11 +2176,11 @@ class TestVerifyEvidenceWordPasteAndAsides:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     def test_word_links_and_images_normalize_away(self):
         assert _normalize_evidence_text("ist,[\\[12\\]](#_ftn12) ist") == "ist, ist"
@@ -2227,23 +2229,23 @@ class TestVerifyEvidencePermissiveEdges:
             "Heute werden in dem Schreiben explizit auch die Bescheide vom 13.4.2024 und 15.6.2024 "
             "aufgehoben, also aus einer Zeit"
         )
-        assert _verify_evidence(quote, EvidenceIndex(self.SUBSTITUTED_ANSWER)) is True
+        assert verify_evidence(quote, EvidenceIndex(self.SUBSTITUTED_ANSWER)) is True
 
     def test_swaps_stay_rare_and_never_touch_protected_words(self):
         index = EvidenceIndex(self.SUBSTITUTED_ANSWER)
         # two swaps in a 14-word quote
-        assert _verify_evidence(
+        assert verify_evidence(
             "Heute werden in dem Brief explizit auch die Bescheide vom 13.4.2024 und 15.6.2024 aufgehoben", index
         ) is False
         # a swapped number
-        assert _verify_evidence(
+        assert verify_evidence(
             "Allerdings werden in dem Schreiben explizit auch die Bescheide vom 13.4.2023 und 15.6.2024 aufgehoben",
             index,
         ) is False
         # short quotes get no swap
-        assert _verify_evidence("Heute werden in dem Schreiben", index) is False
+        assert verify_evidence("Heute werden in dem Schreiben", index) is False
         answer = "Die Klage ist im Ergebnis zulässig und auch in vollem Umfang begründet und hat Erfolg."
-        assert _verify_evidence(
+        assert verify_evidence(
             "Die Klage ist im Ergebnis unzulässig und auch in vollem Umfang begründet und hat Erfolg",
             EvidenceIndex(answer),
         ) is False
@@ -2258,11 +2260,11 @@ class TestVerifyEvidencePermissiveEdges:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
 
 class TestVerifyEvidencePdfPasteAndLooseCopies:
@@ -2348,11 +2350,11 @@ class TestVerifyEvidencePdfPasteAndLooseCopies:
 
     @pytest.mark.parametrize("answer,evidence", ACCEPTED)
     def test_accepted(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is True
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is True
 
     @pytest.mark.parametrize("answer,evidence", REJECTED)
     def test_rejected(self, answer, evidence):
-        assert _verify_evidence(evidence, EvidenceIndex(answer)) is False
+        assert verify_evidence(evidence, EvidenceIndex(answer)) is False
 
     def test_layout_free_copy_only_when_there_is_layout(self):
         assert EvidenceIndex("Die Klage ist zulässig.\n\nSie ist begründet.").layout_free is None
