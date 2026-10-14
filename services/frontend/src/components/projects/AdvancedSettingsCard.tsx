@@ -134,7 +134,6 @@ export function AdvancedSettingsCard({
                       <SelectItem value="0">
                         {t(
                           'project.settings.annotationBehavior.annotations.unlimited',
-                          'Unbegrenzt',
                         )}
                       </SelectItem>
                     </SelectContent>
@@ -241,13 +240,11 @@ export function AdvancedSettingsCard({
                     <Label>
                       {t(
                         'project.settings.annotationBehavior.randomizeTaskOrder',
-                        'Randomize task order',
                       )}
                     </Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.annotationBehavior.randomizeTaskOrderHelp',
-                        'Each annotator sees tasks in a different random order for even annotation distribution',
                       )}
                     </p>
                   </div>
@@ -270,13 +267,11 @@ export function AdvancedSettingsCard({
                     <Label>
                       {t(
                         'project.settings.annotationBehavior.annotatorFullVisibility',
-                        'Reveal all fields after submission',
                       )}
                     </Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.annotationBehavior.annotatorFullVisibilityHelp',
-                        'When on, annotators reviewing their own submitted work see all task fields including the reference solution. When off, that view is filtered to only the fields they saw while labeling, keeping the reference hidden. The grading steps are controlled by the setting below.',
                       )}
                     </p>
                   </div>
@@ -302,13 +297,11 @@ export function AdvancedSettingsCard({
                     <Label>
                       {t(
                         'project.settings.annotationBehavior.annotatorStepDetail',
-                        'Show grading steps after submission',
                       )}
                     </Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.annotationBehavior.annotatorStepDetailHelp',
-                        "When on, annotators see the points and reasons for each step of the grading sheet after submitting. The grade and the total points always show. The sheet's hints stay hidden unless the reference solution is shown. Until you change it, this follows the setting above.",
                       )}
                     </p>
                   </div>
@@ -335,15 +328,11 @@ export function AdvancedSettingsCard({
                   <div className="flex items-center justify-between">
                     <div>
                       <Label>
-                        {t(
-                          'projects.creation.wizard.stepSettings.timeLimit',
-                          'Annotation time limit',
-                        )}
+                        {t('projects.creation.wizard.stepSettings.timeLimit')}
                       </Label>
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {t(
                           'projects.creation.wizard.stepSettings.timeLimitHint',
-                          'Limit how long annotators may spend on a single task',
                         )}
                       </p>
                     </div>
@@ -393,10 +382,7 @@ export function AdvancedSettingsCard({
                           className="w-20 text-sm"
                         />
                         <span className="text-sm text-zinc-500">
-                          {t(
-                            'projects.creation.wizard.stepSettings.minutes',
-                            'minutes',
-                          )}
+                          {t('projects.creation.wizard.stepSettings.minutes')}
                         </span>
                       </div>
 
@@ -405,13 +391,11 @@ export function AdvancedSettingsCard({
                           <Label>
                             {t(
                               'projects.creation.wizard.stepSettings.strictTimer',
-                              'Strict timer',
                             )}
                           </Label>
                           <p className="text-sm text-zinc-500 dark:text-zinc-400">
                             {t(
                               'projects.creation.wizard.stepSettings.strictTimerHint',
-                              'Auto-submit the annotation when the time limit is reached',
                             )}
                           </p>
                         </div>
@@ -436,17 +420,9 @@ export function AdvancedSettingsCard({
                 <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label>
-                        {t(
-                          'project.settings.accessWindow.title',
-                          'Timed access window',
-                        )}
-                      </Label>
+                      <Label>{t('project.settings.accessWindow.title')}</Label>
                       <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {t(
-                          'project.settings.accessWindow.hint',
-                          'Open the project to its access group only during a set time. Before it opens, the project is listed but its data stays hidden; after it closes, the data is read-only. Owners and admins are never restricted.',
-                        )}
+                        {t('project.settings.accessWindow.hint')}
                       </p>
                     </div>
                     <input
@@ -491,7 +467,7 @@ export function AdvancedSettingsCard({
                     <div className="ml-4 space-y-2">
                       <div className="flex items-center gap-2">
                         <Label className="w-16 text-sm">
-                          {t('project.settings.accessWindow.opens', 'Opens')}
+                          {t('project.settings.accessWindow.opens')}
                         </Label>
                         <Input
                           type="datetime-local"
@@ -510,7 +486,7 @@ export function AdvancedSettingsCard({
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="w-16 text-sm">
-                          {t('project.settings.accessWindow.closes', 'Closes')}
+                          {t('project.settings.accessWindow.closes')}
                         </Label>
                         <Input
                           type="datetime-local"
@@ -532,10 +508,7 @@ export function AdvancedSettingsCard({
                         new Date(advancedSettings.window_end_at) <=
                           new Date(advancedSettings.window_start_at) && (
                           <p className="text-xs text-red-500">
-                            {t(
-                              'project.settings.accessWindow.invalid',
-                              'The close time must be after the open time.',
-                            )}
+                            {t('project.settings.accessWindow.invalid')}
                           </p>
                         )}
                     </div>
@@ -582,16 +555,11 @@ export function AdvancedSettingsCard({
                     <Label>
                       {t(
                         'project.settings.interface.instructionsAlwaysVisible',
-                        { defaultValue: 'Always show instructions' },
                       )}
                     </Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.interface.instructionsAlwaysVisibleHelp',
-                        {
-                          defaultValue:
-                            "Show instructions on every task, even if annotator clicked 'don't show again'",
-                        },
                       )}
                     </p>
                   </div>
@@ -657,16 +625,9 @@ export function AdvancedSettingsCard({
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>
-                      {t('project.settings.interface.skipQueue', {
-                        defaultValue: 'Skip behavior',
-                      })}
-                    </Label>
+                    <Label>{t('project.settings.interface.skipQueue')}</Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.interface.skipQueueHelp', {
-                        defaultValue:
-                          'Controls what happens when an annotator skips a task',
-                      })}
+                      {t('project.settings.interface.skipQueueHelp')}
                     </p>
                   </div>
                   <Select
@@ -681,19 +642,14 @@ export function AdvancedSettingsCard({
                     displayValue={
                       (advancedSettings.skip_queue || 'requeue_for_others') ===
                       'requeue_for_me'
-                        ? t(
-                            'project.settings.interface.skipQueueRequeueForMe',
-                            { defaultValue: 'Re-queue for me' },
-                          )
+                        ? t('project.settings.interface.skipQueueRequeueForMe')
                         : (advancedSettings.skip_queue ||
                               'requeue_for_others') === 'requeue_for_others'
                           ? t(
                               'project.settings.interface.skipQueueRequeueForOthers',
-                              { defaultValue: 'Re-queue for others' },
                             )
                           : t(
                               'project.settings.interface.skipQueueIgnoreSkipped',
-                              { defaultValue: 'Skip permanently' },
                             )
                     }
                   >
@@ -702,21 +658,15 @@ export function AdvancedSettingsCard({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="requeue_for_me">
-                        {t('project.settings.interface.skipQueueRequeueForMe', {
-                          defaultValue: 'Re-queue for me',
-                        })}
+                        {t('project.settings.interface.skipQueueRequeueForMe')}
                       </SelectItem>
                       <SelectItem value="requeue_for_others">
                         {t(
                           'project.settings.interface.skipQueueRequeueForOthers',
-                          { defaultValue: 'Re-queue for others' },
                         )}
                       </SelectItem>
                       <SelectItem value="ignore_skipped">
-                        {t(
-                          'project.settings.interface.skipQueueIgnoreSkipped',
-                          { defaultValue: 'Skip permanently' },
-                        )}
+                        {t('project.settings.interface.skipQueueIgnoreSkipped')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
@@ -750,16 +700,11 @@ export function AdvancedSettingsCard({
                     <Label>
                       {t(
                         'project.settings.interface.requireConfirmBeforeSubmit',
-                        { defaultValue: 'Require confirmation before submit' },
                       )}
                     </Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {t(
                         'project.settings.interface.requireConfirmBeforeSubmitHelp',
-                        {
-                          defaultValue:
-                            'Annotators must check a confirmation checkbox before submitting.',
-                        },
                       )}
                     </p>
                   </div>
@@ -782,23 +727,14 @@ export function AdvancedSettingsCard({
             {/* Post-Annotation Questionnaire (Issue #1208) */}
             <div>
               <h3 className="text-md mb-4 font-medium text-zinc-900 dark:text-white">
-                {t('project.settings.questionnaireTitle', {
-                  defaultValue: 'Post-Annotation Questionnaire',
-                })}
+                {t('project.settings.questionnaireTitle')}
               </h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>
-                      {t('project.settings.questionnaireEnabled', {
-                        defaultValue: 'Enable Questionnaire',
-                      })}
-                    </Label>
+                    <Label>{t('project.settings.questionnaireEnabled')}</Label>
                     <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                      {t('project.settings.questionnaireEnabledDescription', {
-                        defaultValue:
-                          'Show a feedback form after each annotation submission',
-                      })}
+                      {t('project.settings.questionnaireEnabledDescription')}
                     </p>
                   </div>
                   <input
@@ -819,9 +755,7 @@ export function AdvancedSettingsCard({
                   <div className="space-y-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
                     <div>
                       <Label>
-                        {t('project.settings.questionnaireTemplate', {
-                          defaultValue: 'Template',
-                        })}
+                        {t('project.settings.questionnaireTemplate')}
                       </Label>
                       <Select
                         value=""
@@ -888,7 +822,6 @@ export function AdvancedSettingsCard({
                           <SelectValue
                             placeholder={t(
                               'project.settings.questionnaireSelectTemplate',
-                              { defaultValue: 'Select a template...' },
                             )}
                           />
                         </SelectTrigger>
@@ -896,35 +829,22 @@ export function AdvancedSettingsCard({
                           <SelectItem value="confidence_difficulty">
                             {t(
                               'project.settings.questionnaireTemplateConfidence',
-                              {
-                                defaultValue:
-                                  'Confidence & Difficulty (2 items)',
-                              },
                             )}
                           </SelectItem>
                           <SelectItem value="extended">
                             {t(
                               'project.settings.questionnaireTemplateExtended',
-                              { defaultValue: 'Extended Feedback (4 items)' },
                             )}
                           </SelectItem>
                           <SelectItem value="utaut_study">
-                            {t('project.settings.questionnaireTemplateUtaut', {
-                              defaultValue:
-                                'UTAUT Study (12 items, Likert 1-7)',
-                            })}
+                            {t('project.settings.questionnaireTemplateUtaut')}
                           </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label>
-                        {t('project.settings.questionnaireConfig', {
-                          defaultValue:
-                            'Questionnaire Config (Label Studio XML)',
-                        })}
-                      </Label>
+                      <Label>{t('project.settings.questionnaireConfig')}</Label>
                       <textarea
                         value={advancedSettings.questionnaire_config}
                         onChange={(e) =>

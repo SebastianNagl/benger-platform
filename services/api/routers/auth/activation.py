@@ -15,6 +15,7 @@ from fastapi import Request
 from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from auth_module.service import forbid_service_account
 
 from account_activation import email_is_routable, mask_email, verify_email_by_link
 from schemas.auth_schemas import AccountActivateConfirm, AccountActivationRequest
@@ -47,6 +48,7 @@ async def request_account_activation(
     db_user = db.query(DBUser).filter(DBUser.id == current_user.id).first()
     if db_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    forbid_service_account(db_user)
 
     if db_user.hashed_password is not None or db_user.password_set:
         raise HTTPException(
@@ -136,6 +138,7 @@ async def activate_account(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"code": "invalid_or_expired"},
         )
+    forbid_service_account(user)
 
     if user.pending_activation_email:
         if _email_taken_by_other(db, DBUser, user.pending_activation_email, user.id):

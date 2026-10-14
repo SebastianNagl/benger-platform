@@ -4,6 +4,8 @@ import importlib
 import sys
 from unittest.mock import MagicMock
 
+import pytest
+
 
 class TestExtensionLoader:
     """Test that extensions.py works correctly without benger_extended installed."""
@@ -138,7 +140,9 @@ class TestExtensionLoader:
         # on "Meine Aufgaben").
         # 2.36 adds task_work_presence (migration 117), the writing-presence
         # reporter and the project-editor-actions / ProjectLivePage slots.
-        assert CORE_API_VERSION == "2.36"
+        # 2.37 adds the N-package extension registry (BENGER_EXTENSIONS,
+        # REQUIRES_EXTENSIONS, HOOK_SPECS, include_extension_routers).
+        assert CORE_API_VERSION == "2.38"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
@@ -728,3 +732,195 @@ class TestResendAllLtiGrades:
         monkeypatch.setattr(extensions, "logger", MagicMock())
         monkeypatch.setattr(extensions, "_extended", _Broken())
         assert extensions.resend_all_lti_grades(None, "reg-1") == {"status": "failed"}
+
+
+class TestHookMergePolicies:
+    """Two packages implement the same hook: HOOK_SPECS says how the
+    platform combines them. ``_packages`` is the seam the wrappers read."""
+
+    @staticmethod
+    def _install(monkeypatch, first, second):
+        import extensions
+
+        monkeypatch.setattr(
+            extensions,
+            "_packages",
+            lambda: [("benger_extended", first), ("benger_other", second)],
+        )
+        monkeypatch.setattr(extensions, "logger", MagicMock())
+        return extensions
+
+    def test_call_all_runs_every_package_in_order(self, monkeypatch):
+        calls = []
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended({"on_annotation_created": lambda *a: calls.append(("ext", a))}),
+            _FakeExtended({"on_annotation_created": lambda *a: calls.append(("other", a))}),
+        )
+        extensions.on_annotation_created("db", "t", "u", "a", "p")
+        assert calls == [("ext", ("db", "t", "u", "a", "p")), ("other", ("db", "t", "u", "a", "p"))]
+
+    def test_call_all_propagates_the_first_failure(self, monkeypatch):
+        calls = []
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended({"validate_signup": _boom}),
+            _FakeExtended({"validate_signup": lambda *a: calls.append(a)}),
+        )
+        with pytest.raises(RuntimeError, match="hook exploded"):
+            extensions.validate_signup(None, object())
+        assert calls == []
+
+    def test_call_all_isolated_reaches_every_package(self, monkeypatch):
+        seen = []
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended({"on_ops_event": _boom}),
+            _FakeExtended({"on_ops_event": lambda event, **labels: seen.append((event, labels))}),
+        )
+        extensions.emit_ops_event("health_check_failed", dependency="redis")
+        assert seen == [("health_check_failed", {"dependency": "redis"})]
+        extensions.logger.exception.assert_called_once()
+
+    def test_configure_app_calls_every_package_isolated(self, monkeypatch):
+        seen = []
+        first = _FakeExtended({})
+        first.configure_app = _boom
+        second = _FakeExtended({})
+        second.configure_app = seen.append
+        extensions = self._install(monkeypatch, first, second)
+        app = object()
+        extensions.configure_app(app)
+        assert seen == [app]
+        extensions.logger.exception.assert_called_once()
+
+    def test_union_unites_the_answers(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended(
+                {
+                    "tasks_with_feedback_for_user": lambda db, p, u, ids: ["t1"],
+                    "tasks_with_evaluation_for_user": lambda db, p, u, ids: {"t1"},
+                    "lti_protected_org_ids": lambda db: ["o1"],
+                    "privacy_protected_member_ids": lambda db, org, ids: ["u1"],
+                }
+            ),
+            _FakeExtended(
+                {
+                    "tasks_with_feedback_for_user": lambda db, p, u, ids: ["t2"],
+                    "tasks_with_evaluation_for_user": lambda db, p, u, ids: set(),
+                    "lti_protected_org_ids": lambda db: ["o2"],
+                    "privacy_protected_member_ids": lambda db, org, ids: ["u2", "stranger"],
+                }
+            ),
+        )
+        assert extensions.tasks_with_feedback_for_user(None, "p", "u", ["t1", "t2", "t3"]) == {
+            "t1",
+            "t2",
+        }
+        assert extensions.tasks_with_evaluation_for_user(None, "p", "u", ["t1"]) == {"t1"}
+        assert extensions.lti_protected_org_ids(None) == {"o1", "o2"}
+        assert extensions.is_lti_protected_org(None, "o2") is True
+        assert extensions.lti_protected_org_subset(None, ["o1", "o3"]) == {"o1"}
+        assert extensions.privacy_protected_member_ids(None, None, ["u1", "u2", "u3"]) == {
+            "u1",
+            "u2",
+        }
+
+    def test_union_fails_closed_when_any_package_fails(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended(
+                {
+                    "privacy_protected_member_ids": lambda db, org, ids: ["u1"],
+                    "lti_protected_org_ids": lambda db: ["o1"],
+                }
+            ),
+            _FakeExtended(
+                {"privacy_protected_member_ids": _boom, "lti_protected_org_ids": _boom}
+            ),
+        )
+        assert extensions.privacy_protected_member_ids(None, None, ["u1", "u2"]) == {"u1", "u2"}
+        assert extensions.privacy_protected_member_ids(None, "o", ["u1", "u2"]) == set()
+        assert extensions.lti_protected_org_ids(None) == set()
+        assert extensions.is_lti_protected_org(None, "o9") is True
+        assert extensions.lti_protected_org_subset(None, ["o9"]) == {"o9"}
+
+    def test_dict_first_wins_merges_and_keeps_the_earlier_answer(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended(
+                {
+                    "task_grade_summaries_for_user": lambda db, p, u, ids: {
+                        "t1": {"status": "ext"},
+                    }
+                }
+            ),
+            _FakeExtended(
+                {
+                    "task_grade_summaries_for_user": lambda db, p, u, ids: {
+                        "t1": {"status": "other"},
+                        "t2": {"status": "other"},
+                        "t9": {"status": "unasked"},
+                    }
+                }
+            ),
+        )
+        out = extensions.task_grade_summaries_for_user(None, "p", "u", ["t1", "t2"])
+        assert out == {"t1": {"status": "ext"}, "t2": {"status": "other"}}
+        extensions.logger.warning.assert_called_once()
+
+    def test_single_owner_uses_the_first_package_only(self, monkeypatch):
+        calls = []
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended(
+                {
+                    "dispatch_lti_grade_sync": lambda s: calls.append(("ext", s)) or True,
+                    "project_real_name_viewer": lambda db, v, p: True,
+                    "lti_anonymization_policy": lambda db, uid: {"blockers": ["ext"]},
+                }
+            ),
+            _FakeExtended(
+                {
+                    "dispatch_lti_grade_sync": lambda s: calls.append(("other", s)) or True,
+                    "project_real_name_viewer": _boom,
+                    "lti_anonymization_policy": _boom,
+                }
+            ),
+        )
+        assert extensions.dispatch_lti_grade_sync("s1") is True
+        assert calls == [("ext", "s1")]
+        assert extensions.project_real_name_viewer(None, object(), "p") is True
+        assert extensions.lti_anonymization_policy(None, "u")["blockers"] == ["ext"]
+
+    def test_a_package_without_the_hook_is_skipped(self, monkeypatch):
+        extensions = self._install(
+            monkeypatch,
+            _FakeExtended({}),
+            _FakeExtended({"dispatch_lti_grade_sync": lambda s: True}),
+        )
+        assert extensions.dispatch_lti_grade_sync("s1") is True
+        assert extensions.tasks_with_feedback_for_user(None, "p", "u", ["t1"]) == set()
+
+
+class TestIsLoaded:
+    def test_benger_extended_follows_the_alias(self, monkeypatch):
+        import extensions
+
+        monkeypatch.setattr(extensions, "_extended", None)
+        assert extensions.is_loaded("benger_extended") is False
+        monkeypatch.setattr(extensions, "_extended", _FakeExtended({}))
+        assert extensions.is_loaded("benger_extended") is True
+
+    def test_other_packages_follow_the_registry(self, monkeypatch):
+        import extension_registry
+        import extensions
+
+        assert extensions.is_loaded("benger_nope") is False
+        monkeypatch.setattr(
+            extension_registry,
+            "_loaded",
+            [extension_registry.LoadedExtension("benger_nope", object(), "nope")],
+        )
+        assert extensions.is_loaded("benger_nope") is True

@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 import { useProjectStore } from '@/stores/projectStore'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
@@ -18,7 +19,7 @@ const formatStatCount = (n: number): string =>
   n >= 100000 ? `${Math.floor(n / 1000)}k` : String(n)
 
 export default function DashboardPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { projects, fetchProjects } = useProjectStore()
   const { user, organizations } = useAuth()
   const router = useRouter()
@@ -377,7 +378,7 @@ export default function DashboardPage() {
                           </span>
                           <span>
                             {new Date(project.created_at).toLocaleDateString(
-                              'de-DE',
+                              intlTag(locale),
                             )}
                           </span>
                         </div>

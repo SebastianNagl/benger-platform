@@ -3,9 +3,11 @@
  *
  * The /how-to page renders the platform's own guides plus whatever the
  * extended package registers here during initialization (student-surface
- * guides, edition-specific answers). Bilingual copy is kept inline, like
- * the changelog entries, so a guide is one self-contained object that is
- * easy to review and to keep in sync with the feature it documents.
+ * guides, edition-specific answers). A guide object carries only structure
+ * (id, category, link targets); its copy lives in the locale catalogs under
+ * `howToGuides.<id>` and the category copy under `howToCategories.<id>`, so
+ * every language (de, en, fr) is translated in one place. The extended
+ * package ships its guide copy in its own catalog (registerTranslations).
  *
  * The same registry feeds the nav-bar search: every guide is a searchable
  * result that deep-links to its anchor on /how-to.
@@ -13,9 +15,8 @@
 
 import { useEffect, useState } from 'react'
 
-export type HowToLocale = 'de' | 'en'
-export type Bilingual = { de: string; en: string }
-export type BilingualList = { de: string[]; en: string[] }
+import { lookup } from '@/lib/i18n/catalog'
+import { LOCALES, toLocale } from '@/lib/i18n/locales'
 
 export type HowToCategoryId =
   | 'start'
@@ -29,139 +30,110 @@ export type HowToCategoryId =
   | 'student'
   | 'troubleshooting'
 
-export interface HowToCategory {
-  id: HowToCategoryId
-  title: Bilingual
-  /** One line under the category heading. */
-  blurb: Bilingual
-}
+/** Category order = page order. Copy: `howToCategories.<id>.{title,blurb}`. */
+export const HOWTO_CATEGORIES: { id: HowToCategoryId }[] = [
+  { id: 'start' },
+  { id: 'organizations' },
+  { id: 'projects' },
+  { id: 'data' },
+  { id: 'annotation' },
+  { id: 'generation' },
+  { id: 'evaluation' },
+  { id: 'integrations' },
+  { id: 'student' },
+  { id: 'troubleshooting' },
+]
 
-export interface HowToLink {
-  label: Bilingual
-  href: string
-}
+export type HowToCategory = (typeof HOWTO_CATEGORIES)[number]
 
+/**
+ * A guide's structure. Its copy lives in the catalog at `howToGuides.<id>`:
+ * `title` (question-style, what users search for), `summary` (the short
+ * answer), `steps[]`, `tips[]` ("good to know"), `pitfalls[]`, `keywords[]`
+ * (extra search terms) and `links[]` (labels of `links`, same order).
+ * Inline `code`, **bold** and [label](/path) in the copy are rendered.
+ */
 export interface HowToGuide {
   /** Stable anchor id, kebab-case; deep link is /how-to#<id>. */
   id: string
   category: HowToCategoryId
-  /** Question-style title ("Wie lade ich Daten hoch?") — what users search for. */
-  title: Bilingual
-  /** One or two sentences: the short answer. */
-  summary: Bilingual
-  /** Numbered steps. Inline `code`, **bold** and [label](/path) are rendered. */
-  steps?: BilingualList
-  /** "Gut zu wissen" bullets. */
-  tips?: BilingualList
-  /** "Typische Stolpersteine" bullets. */
-  pitfalls?: BilingualList
-  /** Related pages / guides (guide anchors as /how-to#id). */
-  links?: HowToLink[]
-  /** Extra search terms (synonyms, old names, English/German variants). */
-  keywords?: BilingualList
+  /** Related pages / guides (guide anchors as /how-to#id); labels in the catalog. */
+  links?: string[]
+  /** Language-neutral search terms (e.g. error codes), matched in every locale. */
+  searchTerms?: string[]
+  /**
+   * Feature the guide is about. While it is off for the current user the
+   * guide is hidden on /how-to and in the nav search.
+   * `publicApi` = access keys and /api/v1 (feature flag `public_api`).
+   */
+  requires?: 'publicApi'
 }
 
-/** Category order = page order. */
-export const HOWTO_CATEGORIES: HowToCategory[] = [
-  {
-    id: 'start',
-    title: { de: 'Erste Schritte', en: 'Getting started' },
-    blurb: {
-      de: 'Was BenGER und die Lernoberfläche sind, wie Sie sich zurechtfinden und was Sie zuerst einrichten sollten.',
-      en: 'What BenGER and the student interface are, how to find your way around, and what to set up first.',
-    },
-  },
-  {
-    id: 'organizations',
-    title: {
-      de: 'Organisationen, Gruppen & Einladungen',
-      en: 'Organizations, groups & invitations',
-    },
-    blurb: {
-      de: 'Mitglieder, Rollen, Gruppen (z.B. Lehrstühle) und Einladungslinks.',
-      en: 'Members, roles, groups (e.g. chairs) and invitation links.',
-    },
-  },
-  {
-    id: 'projects',
-    title: {
-      de: 'Projekte anlegen & konfigurieren',
-      en: 'Creating & configuring projects',
-    },
-    blurb: {
-      de: 'Der Projekt-Assistent, Projekttypen, Einstellungen und die Projektseite.',
-      en: 'The project wizard, project types, settings and the project page.',
-    },
-  },
-  {
-    id: 'data',
-    title: {
-      de: 'Daten hochladen, importieren & exportieren',
-      en: 'Uploading, importing & exporting data',
-    },
-    blurb: {
-      de: 'Dateiformate, Feldzuordnung und der Projekt-Export/-Import.',
-      en: 'File formats, field mapping and project export/import.',
-    },
-  },
-  {
-    id: 'annotation',
-    title: {
-      de: 'Annotationsoberfläche & XML',
-      en: 'Annotation interface & XML',
-    },
-    blurb: {
-      de: 'Die Oberfläche, die Annotierende sehen, und wie Sie das XML dahinter anpassen.',
-      en: 'The interface annotators see, and how to edit the XML behind it.',
-    },
-  },
-  {
-    id: 'generation',
-    title: { de: 'KI-Modelle & Generierung', en: 'AI models & generation' },
-    blurb: {
-      de: 'API-Schlüssel, eigene Modelle, Prompts und Generierungsläufe.',
-      en: 'API keys, custom models, prompts and generation runs.',
-    },
-  },
-  {
-    id: 'evaluation',
-    title: {
-      de: 'Evaluation, Korrektur & Berichte',
-      en: 'Evaluation, grading & reports',
-    },
-    blurb: {
-      de: 'Bewertungsverfahren, Sofort-Evaluation, menschliche Korrektur, Berichte und Bestenlisten.',
-      en: 'Evaluation methods, immediate evaluation, human grading, reports and leaderboards.',
-    },
-  },
-  {
-    id: 'integrations',
-    title: {
-      de: 'Integrationen (Moodle, ILIAS, LTI)',
-      en: 'Integrations (Moodle, ILIAS, LTI)',
-    },
-    blurb: {
-      de: 'BenGER-Klausuren in Lernplattformen einbinden.',
-      en: 'Embedding BenGER exams in learning platforms.',
-    },
-  },
-  {
-    id: 'student',
-    title: { de: 'Für Studierende', en: 'For students' },
-    blurb: {
-      de: 'Klausuren üben, Karteikarten lernen, Ergebnisse verstehen.',
-      en: 'Practising exams, learning with flashcards, understanding results.',
-    },
-  },
-  {
-    id: 'troubleshooting',
-    title: { de: 'Probleme lösen', en: 'Troubleshooting' },
-    blurb: {
-      de: 'Die häufigsten Fehlermeldungen und was dahintersteckt.',
-      en: 'The most common error messages and what is behind them.',
-    },
-  },
-]
+/** What is switched on for the current user, for guides with `requires`. */
+export interface HowToAvailability {
+  publicApi: boolean
+}
+
+/** The guides the current user may see, given what is switched on. */
+export function filterAvailableGuides(
+  guides: HowToGuide[],
+  availability: HowToAvailability,
+): HowToGuide[] {
+  return guides.filter(
+    (g) => g.requires !== 'publicApi' || availability.publicApi,
+  )
+}
+
+/** A guide's copy in one locale (missing lists come back empty). */
+export interface HowToGuideText {
+  title: string
+  summary: string
+  steps: string[]
+  tips: string[]
+  pitfalls: string[]
+  keywords: string[]
+  /** Link label + target pairs, in the order of `guide.links`. */
+  links: { label: string; href: string }[]
+}
+
+function text(locale: string, key: string): string {
+  const value = lookup(toLocale(locale), key)
+  return typeof value === 'string' ? value : key
+}
+
+function list(locale: string, key: string): string[] {
+  const value = lookup(toLocale(locale), key)
+  return Array.isArray(value) ? value.map(String) : []
+}
+
+/** Title and blurb of a category in one locale. */
+export function categoryText(
+  id: HowToCategoryId,
+  locale: string,
+): { title: string; blurb: string } {
+  return {
+    title: text(locale, `howToCategories.${id}.title`),
+    blurb: text(locale, `howToCategories.${id}.blurb`),
+  }
+}
+
+/** All copy of a guide in one locale, from the catalog. */
+export function guideText(guide: HowToGuide, locale: string): HowToGuideText {
+  const base = `howToGuides.${guide.id}`
+  const labels = list(locale, `${base}.links`)
+  return {
+    title: text(locale, `${base}.title`),
+    summary: text(locale, `${base}.summary`),
+    steps: list(locale, `${base}.steps`),
+    tips: list(locale, `${base}.tips`),
+    pitfalls: list(locale, `${base}.pitfalls`),
+    keywords: list(locale, `${base}.keywords`),
+    links: (guide.links ?? []).map((href, i) => ({
+      label: labels[i] ?? href,
+      href,
+    })),
+  }
+}
 
 const buckets: Record<string, HowToGuide[]> = {}
 const listeners: Set<() => void> = new Set()
@@ -203,18 +175,6 @@ export function useHowToGuides(): HowToGuide[] {
   return getHowToGuides()
 }
 
-export function pick(text: Bilingual, locale: string): string {
-  return locale === 'en' ? text.en : text.de
-}
-
-export function pickList(
-  list: BilingualList | undefined,
-  locale: string,
-): string[] {
-  if (!list) return []
-  return locale === 'en' ? list.en : list.de
-}
-
 /** Plain text of guide copy: drops `code`, **bold**, *italic* markers and link targets. */
 export function stripInlineMarkup(text: string): string {
   return text
@@ -233,17 +193,26 @@ export function normalizeForSearch(text: string): string {
     .replace(/[̀-ͯ]/g, '')
 }
 
-/** Every word of a guide in one locale, used by the page filter and the nav search. */
+/**
+ * Every word of a guide in one locale, used by the page filter and the nav
+ * search. Keywords of all locales count too: users mix languages.
+ */
 export function guideSearchText(guide: HowToGuide, locale: string): string {
+  const copy = guideText(guide, locale)
+  const keywords = new Set<string>(copy.keywords)
+  for (const other of LOCALES) {
+    for (const k of list(other, `howToGuides.${guide.id}.keywords`)) {
+      keywords.add(k)
+    }
+  }
   const parts = [
-    pick(guide.title, locale),
-    pick(guide.summary, locale),
-    ...pickList(guide.steps, locale),
-    ...pickList(guide.tips, locale),
-    ...pickList(guide.pitfalls, locale),
-    ...pickList(guide.keywords, locale),
-    // Keywords of the other language too: users mix German and English.
-    ...pickList(guide.keywords, locale === 'en' ? 'de' : 'en'),
+    copy.title,
+    copy.summary,
+    ...copy.steps,
+    ...copy.tips,
+    ...copy.pitfalls,
+    ...keywords,
+    ...(guide.searchTerms ?? []),
   ]
   return normalizeForSearch(stripInlineMarkup(parts.join(' ')))
 }

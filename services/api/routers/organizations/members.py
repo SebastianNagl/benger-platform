@@ -132,6 +132,8 @@ async def list_organization_members(
             .where(
                 OrganizationMembership.organization_id == organization_id,
                 OrganizationMembership.is_active == True,  # noqa: E712
+                # Access-key service accounts are not people.
+                User.is_service_account.is_(False),
             )
         )
     ).all()

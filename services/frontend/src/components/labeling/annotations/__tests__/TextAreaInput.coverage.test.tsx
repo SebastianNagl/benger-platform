@@ -133,7 +133,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    expect(screen.queryByText('Submit')).not.toBeInTheDocument()
+    expect(screen.queryByText('common.submit')).not.toBeInTheDocument()
   })
 
   it('hides submit button when config showSubmitButton is false', () => {
@@ -152,7 +152,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    expect(screen.queryByText('Submit')).not.toBeInTheDocument()
+    expect(screen.queryByText('common.submit')).not.toBeInTheDocument()
   })
 
   it('shows submit button by default', () => {
@@ -166,7 +166,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    expect(screen.getByText('Submit')).toBeInTheDocument()
+    expect(screen.getByText('common.submit')).toBeInTheDocument()
   })
 
   it('handleSubmit does nothing when value is empty and required', () => {
@@ -185,7 +185,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    const submitButton = screen.getByText('Submit')
+    const submitButton = screen.getByText('common.submit')
     fireEvent.click(submitButton)
 
     expect(mockOnAnnotation).not.toHaveBeenCalled()
@@ -202,7 +202,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    const submitButton = screen.getByText('Submit')
+    const submitButton = screen.getByText('common.submit')
     fireEvent.click(submitButton)
 
     expect(mockOnAnnotation).toHaveBeenCalled()
@@ -224,7 +224,7 @@ describe('TextAreaInput - branch coverage', () => {
       />,
     )
 
-    const submitButton = screen.getByText('Submit')
+    const submitButton = screen.getByText('common.submit')
     fireEvent.click(submitButton)
 
     expect(mockOnAnnotation).not.toHaveBeenCalled()

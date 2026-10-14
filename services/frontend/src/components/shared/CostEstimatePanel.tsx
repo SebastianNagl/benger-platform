@@ -7,6 +7,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClientSingleton from '@/lib/api'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 
 export interface CostEstimatePanelProps {
   projectId: string
@@ -100,7 +101,7 @@ interface CostEstimateResponse {
   per_judge_cells?: boolean
 }
 
-type Translate = (key: string, fallback?: string) => unknown
+type Translate = (key: string, vars?: Record<string, unknown>) => unknown
 
 function fill(template: unknown, values: Record<string, string | number>) {
   return Object.entries(values).reduce(
@@ -115,85 +116,31 @@ function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
   if (estimate.accuracy_percent == null) return estimate.note
   const encoding = estimate.encoding || estimate.token_estimate.encoding
   const basis = {
-    task_data: t(
-      'costEstimate.note.basisTaskData',
-      'Der Input wird an den Aufgabendaten gemessen.',
-    ),
-    generation_outputs: t(
-      'costEstimate.note.basisGenerationOutputs',
-      'Der Input wird an aktuellen Modellantworten gemessen, also an dem, was der Judge bewertet.',
-    ),
-    rendered_judge_prompt: t(
-      'costEstimate.note.basisRenderedJudgePrompt',
-      'Der Input ist der vollständige Judge-Prompt: Vorlage, Sachverhalt, Referenz, Bewertungsbogen und eine Beispielantwort, dazu Systemprompt und Antwortschema.',
-    ),
+    task_data: t('costEstimate.note.basisTaskData'),
+    generation_outputs: t('costEstimate.note.basisGenerationOutputs'),
+    rendered_judge_prompt: t('costEstimate.note.basisRenderedJudgePrompt'),
   }[estimate.input_basis ?? 'task_data']
   const parts = [
-    fill(
-      t(
-        'costEstimate.note.accuracy',
-        'Genauigkeit der Schätzung ± ~{percent} %.',
-      ),
-      { percent: estimate.accuracy_percent },
-    ),
+    fill(t('costEstimate.note.accuracy'), {
+      percent: estimate.accuracy_percent,
+    }),
     String(basis),
     estimate.mode === 'evaluation' && estimate.output_basis === 'judge_steps'
-      ? String(
-          t(
-            'costEstimate.note.outputJudgeSteps',
-            'Der Output wächst mit dem Bewertungsbogen: je bewertetem Schritt Punkte, Begründung und Beleg, dazu eine Gesamtwürdigung. Reasoning-Tokens sind nicht eingerechnet.',
-          ),
-        )
+      ? String(t('costEstimate.note.outputJudgeSteps'))
       : estimate.mode === 'evaluation'
-        ? fill(
-            t(
-              'costEstimate.note.outputJudge',
-              'Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.',
-            ),
-            { percent: estimate.output_utilization_percent ?? 15 },
-          )
-        : String(
-            t(
-              'costEstimate.note.outputGeneration',
-              'Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.',
-            ),
-          ),
-    fill(
-      t(
-        'costEstimate.note.encoding',
-        'Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.',
-      ),
-      { encoding },
-    ),
+        ? fill(t('costEstimate.note.outputJudge'), {
+            percent: estimate.output_utilization_percent ?? 15,
+          })
+        : String(t('costEstimate.note.outputGeneration')),
+    fill(t('costEstimate.note.encoding'), { encoding }),
   ]
   if (estimate.missing_only) {
-    parts.push(
-      String(
-        t(
-          'costEstimate.note.countingMissing',
-          'Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.',
-        ),
-      ),
-    )
+    parts.push(String(t('costEstimate.note.countingMissing')))
   } else if (estimate.mode === 'generation') {
-    parts.push(
-      String(
-        t(
-          'costEstimate.note.countingAll',
-          'Gezählt wird jede Zelle (Task × Struktur).',
-        ),
-      ),
-    )
+    parts.push(String(t('costEstimate.note.countingAll')))
   }
   if (estimate.per_judge_cells) {
-    parts.push(
-      String(
-        t(
-          'costEstimate.note.perJudgeCells',
-          'Evaluierungen zählen Zellen pro Judge mit den Läufen der jeweiligen Konfiguration und lassen bereits erfolgreich bewertete Zellen weg. Lückenhafte Vorhersagefelder können die Kosten zusätzlich verschieben.',
-        ),
-      ),
-    )
+    parts.push(String(t('costEstimate.note.perJudgeCells')))
   }
   return parts.join(' ')
 }
@@ -218,7 +165,7 @@ export function CostEstimatePanel({
   generationMode,
   structureKeys,
 }: CostEstimatePanelProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   // In evaluation mode an empty list means no model is selected (only
   // submitted answers get graded), so it is sent as is; leaving the prop out
@@ -296,13 +243,13 @@ export function CostEstimatePanel({
   return (
     <div className="rounded-lg border border-zinc-200 p-4 text-sm dark:border-zinc-700">
       <div className="text-sm font-medium text-zinc-900 dark:text-white">
-        {t('costEstimate.title', 'Kostenschätzung')}
+        {t('costEstimate.title')}
       </div>
 
       {loading && (
         <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
           <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent dark:border-emerald-400 dark:border-t-transparent" />
-          {t('costEstimate.loading', 'Tokens zählen und Preise ermitteln…')}
+          {t('costEstimate.loading')}
         </div>
       )}
 
@@ -316,7 +263,7 @@ export function CostEstimatePanel({
         <div className="mt-2 space-y-3">
           <div className="flex items-baseline justify-between">
             <span className="text-sm text-zinc-600 dark:text-zinc-400">
-              {t('costEstimate.totalLabel', 'Geschätzte Gesamtkosten')}
+              {t('costEstimate.totalLabel')}
               {/* E4: staleness hint — subject_count depends on live DB
                   state (a generation completing in the background changes
                   it). Surface "as of HH:MM:SS" so users have a paper trail
@@ -329,9 +276,9 @@ export function CostEstimatePanel({
                   title={(() => {
                     try {
                       const ts = new Date(estimate.estimated_at)
-                      return String(
-                        t('costEstimate.estimatedAt', 'Berechnet um {time}'),
-                      ).replace('{time}', ts.toLocaleTimeString())
+                      return t('costEstimate.estimatedAt', {
+                        time: ts.toLocaleTimeString(intlTag(locale)),
+                      })
                     } catch {
                       return estimate.estimated_at
                     }
@@ -342,7 +289,7 @@ export function CostEstimatePanel({
               )}
             </span>
             <span className="text-xl font-semibold text-zinc-900 dark:text-white">
-              ${estimate.total_usd.toFixed(2)}
+              ${formatDecimal(estimate.total_usd, locale, 2)}
             </span>
           </div>
           <div className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -355,10 +302,7 @@ export function CostEstimatePanel({
                 // count (issue #132), so we no longer surface a separate
                 // "× runs" multiplier — it would mislead about how the dollar
                 // figure is composed.
-                const tpl = t(
-                  'costEstimate.breakdownCells',
-                  '{cells} Zellen über {models} Judge-Modell(e)',
-                )
+                const tpl = t('costEstimate.breakdownCells')
                 // The judge calls actually priced, not the raw subject pool.
                 const cells = estimate.per_judge_cells
                   ? estimate.per_model.reduce(
@@ -370,10 +314,7 @@ export function CostEstimatePanel({
                   .replace('{cells}', String(cells))
                   .replace('{models}', String(estimate.per_model.length))
               }
-              const tpl = t(
-                'costEstimate.breakdown',
-                '{tasks} Tasks × {runs} Lauf/Läufe × {models} Modell(e)',
-              )
+              const tpl = t('costEstimate.breakdown')
               return String(tpl)
                 .replace('{tasks}', String(estimate.tasks_total))
                 .replace('{runs}', String(estimate.runs_per_call))
@@ -393,16 +334,16 @@ export function CostEstimatePanel({
                 <thead className="bg-zinc-50 text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">
-                      {t('costEstimate.modelCol', 'Modell')}
+                      {t('costEstimate.modelCol')}
                     </th>
                     <th className="px-3 py-2 text-right font-medium">
-                      {t('costEstimate.perCallCol', 'Pro Aufruf')}
+                      {t('costEstimate.perCallCol')}
                     </th>
                     <th className="px-3 py-2 text-right font-medium">
-                      {t('costEstimate.perRunCol', 'Pro Lauf')}
+                      {t('costEstimate.perRunCol')}
                     </th>
                     <th className="px-3 py-2 text-right font-medium">
-                      {t('costEstimate.totalCol', 'Gesamt')}
+                      {t('costEstimate.totalCol')}
                     </th>
                   </tr>
                 </thead>
@@ -414,18 +355,20 @@ export function CostEstimatePanel({
                       </td>
                       <td className="px-3 py-2 text-right">
                         {m.pricing_known
-                          ? `$${m.per_call_usd.toFixed(4)}`
+                          ? `$${formatDecimal(m.per_call_usd, locale, 4)}`
                           : '—'}
                       </td>
                       <td className="px-3 py-2 text-right">
-                        {m.pricing_known ? `$${m.per_run_usd.toFixed(2)}` : '—'}
+                        {m.pricing_known
+                          ? `$${formatDecimal(m.per_run_usd, locale, 2)}`
+                          : '—'}
                       </td>
                       <td className="px-3 py-2 text-right font-medium">
                         {m.pricing_known ? (
-                          `$${m.total_usd.toFixed(2)}`
+                          `$${formatDecimal(m.total_usd, locale, 2)}`
                         ) : (
                           <span className="text-amber-600 dark:text-amber-400">
-                            {t('costEstimate.noPricing', 'Keine Preisdaten')}
+                            {t('costEstimate.noPricing')}
                           </span>
                         )}
                       </td>
@@ -438,22 +381,19 @@ export function CostEstimatePanel({
 
           <div className="border-t border-zinc-200 pt-3 text-xs text-zinc-600 dark:border-zinc-700 dark:text-zinc-400">
             <div className="font-medium text-zinc-700 dark:text-zinc-300">
-              {t('costEstimate.tokenLabel', 'Token-Schätzung pro Aufruf')}
+              {t('costEstimate.tokenLabel')}
             </div>
             <div className="mt-0.5">
-              {fill(
-                t(
-                  'costEstimate.tokenLine',
-                  'Input: {mean} (Mittel) / {p95} (p95) · Output: {output} · Kodierung: {encoding} · Stichprobe: {sample}',
+              {fill(t('costEstimate.tokenLine'), {
+                mean: formatDecimal(estimate.token_estimate.input_mean, locale),
+                p95: formatDecimal(estimate.token_estimate.input_p95, locale),
+                output: formatDecimal(
+                  estimate.token_estimate.output_estimate,
+                  locale,
                 ),
-                {
-                  mean: estimate.token_estimate.input_mean.toFixed(0),
-                  p95: estimate.token_estimate.input_p95.toFixed(0),
-                  output: estimate.token_estimate.output_estimate.toFixed(0),
-                  encoding: estimate.token_estimate.encoding,
-                  sample: estimate.sample_size,
-                },
-              )}
+                encoding: estimate.token_estimate.encoding,
+                sample: estimate.sample_size,
+              })}
             </div>
           </div>
 

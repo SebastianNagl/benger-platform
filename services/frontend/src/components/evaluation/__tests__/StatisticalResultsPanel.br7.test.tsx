@@ -47,7 +47,7 @@ describe('StatisticalResultsPanel br7 - formatValue', () => {
         }}
       />,
     )
-    expect(screen.getByText('85.6%')).toBeInTheDocument()
+    expect(screen.getByText('85,6%')).toBeInTheDocument()
   })
 
   it('formats value > 1 with 4 decimal places', () => {
@@ -67,7 +67,7 @@ describe('StatisticalResultsPanel br7 - formatValue', () => {
         }}
       />,
     )
-    expect(screen.getByText('2.3456')).toBeInTheDocument()
+    expect(screen.getByText('2,3456')).toBeInTheDocument()
   })
 })
 
@@ -90,7 +90,7 @@ describe('StatisticalResultsPanel br7 - formatPValue and significance stars', ()
         }}
       />,
     )
-    expect(screen.getByText('<0.001')).toBeInTheDocument()
+    expect(screen.getByText('<0,001')).toBeInTheDocument()
     expect(screen.getByText('***')).toBeInTheDocument()
   })
 
@@ -154,7 +154,7 @@ describe('StatisticalResultsPanel br7 - formatPValue and significance stars', ()
         }}
       />,
     )
-    expect(screen.getByText('0.15')).toBeInTheDocument()
+    expect(screen.getByText('0,15')).toBeInTheDocument()
   })
 })
 
@@ -259,7 +259,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
       />,
     )
     // Symmetric matrix: 0.95 appears twice
-    expect(screen.getAllByText('0.95').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('0,95').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders correlation matrix with strong negative values', () => {
@@ -284,7 +284,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
         }}
       />,
     )
-    expect(screen.getAllByText('-0.80').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('-0,80').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders correlation with moderate positive', () => {
@@ -303,7 +303,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
         }}
       />,
     )
-    expect(screen.getAllByText('0.50').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('0,50').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders correlation with weak value', () => {
@@ -322,7 +322,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
         }}
       />,
     )
-    expect(screen.getAllByText('0.10').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('0,10').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders correlation with null value as dash', () => {
@@ -360,7 +360,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
         }}
       />,
     )
-    expect(screen.getAllByText('-0.50').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('-0,50').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders weak negative correlation', () => {
@@ -379,7 +379,7 @@ describe('StatisticalResultsPanel br7 - getCorrelationColor', () => {
         }}
       />,
     )
-    expect(screen.getAllByText('-0.25').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('-0,25').length).toBeGreaterThanOrEqual(2)
   })
 })
 

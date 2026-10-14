@@ -140,26 +140,30 @@ describe('Navigation br6 - SSR and edge case branches', () => {
     mockUseHydration.mockReturnValue(false) // SSR mode
   })
 
-  it('renders with isClient=false (SSR fallback titles for all nav items)', () => {
+  it('renders with isClient=false (titles come from the catalog during SSR too)', () => {
     render(<Navigation />)
 
-    // When isClient=false, hardcoded English strings are used instead of t() calls
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
-    expect(screen.getByText('Projects')).toBeInTheDocument()
-    expect(screen.getByText('Data Management')).toBeInTheDocument()
-    expect(screen.getByText('Generation')).toBeInTheDocument()
-    expect(screen.getByText('Evaluation')).toBeInTheDocument()
-    expect(screen.getByText('Reports')).toBeInTheDocument()
-    expect(screen.getByText('Leaderboards')).toBeInTheDocument()
-    expect(screen.getByText('How-To')).toBeInTheDocument()
-    expect(screen.getByText('Models')).toBeInTheDocument()
-    expect(screen.getByText('Architecture')).toBeInTheDocument()
+    // Titles always come from t(), also before hydration
+    expect(screen.getByText('i18n:navigation.dashboard')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.projects')).toBeInTheDocument()
+    expect(
+      screen.getByText('i18n:navigation.dataManagement'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.generation')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.evaluation')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.reports')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.leaderboards')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.howTo')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.models')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.architecture')).toBeInTheDocument()
     // Group titles
-    expect(screen.getByText('Quick Start')).toBeInTheDocument()
-    expect(screen.getByText('Projects & Data')).toBeInTheDocument()
-    expect(screen.getByText('Knowledge')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.quickStart')).toBeInTheDocument()
+    expect(
+      screen.getByText('i18n:navigation.projectsAndData'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.knowledge')).toBeInTheDocument()
     // Sign in button
-    expect(screen.getByText('Sign in')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.signIn')).toBeInTheDocument()
   })
 
   it('renders with isClient=true (i18n translations)', () => {
@@ -186,6 +190,6 @@ describe('Navigation br6 - SSR and edge case branches', () => {
     })
 
     render(<Navigation />)
-    expect(screen.getByText('Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('i18n:navigation.dashboard')).toBeInTheDocument()
   })
 })

@@ -37,6 +37,23 @@ from sendgrid_client import SendGridClient
 
 logger = logging.getLogger(__name__)
 
+# Languages that have a localized template variant (``<base>_<lang>.html``).
+# English is the unsuffixed base file.
+LOCALIZED_TEMPLATE_LANGUAGES = ("de", "fr")
+
+
+def _localized_template(base: str, language: Optional[str], *, fallback: str) -> str:
+    """File name of ``base`` in ``language``.
+
+    ``en`` is the unsuffixed ``<base>.html``; ``de``/``fr`` use the suffixed
+    variants. An unsupported or missing language falls back to ``fallback``
+    (``"en"`` or ``"de"``, whatever the mail defaulted to before French).
+    """
+    code = (language or "").strip().lower()[:2]
+    if code not in ("en", *LOCALIZED_TEMPLATE_LANGUAGES):
+        code = fallback
+    return f"{base}.html" if code == "en" else f"{base}_{code}.html"
+
 
 class EmailService:
     """Service for sending emails via SendGrid."""
@@ -366,16 +383,12 @@ class EmailService:
         """Render the invitee org-invitation email -> (subject, html_body).
 
         Invitee HTML: services/shared/email_templates/email/invitation_recipient
-        (``_de`` for German). Not to be confused with organization_invite.html,
+        (``_de`` for German, ``_fr`` for French). Not to be confused with organization_invite.html,
         the org-admin notification email. ``brand_name``/``brand_tagline``/
         ``language`` make the copy host-aware (German Vertretbar on
         vertretbar.net); the defaults preserve the BenGER English wording.
         """
-        template = (
-            "invitation_recipient_de.html"
-            if language == "de"
-            else "invitation_recipient.html"
-        )
+        template = _localized_template("invitation_recipient", language, fallback="en")
         return self._render_template(
             template,
             {
@@ -402,13 +415,11 @@ class EmailService:
         First-contact mail for passwordless LTI-provisioned accounts, sent
         after the student agreed in the LMS consent step: sets a password via
         the /activate/<token> page. Template files
-        account_activation(.html|_de.html) next to the invitation templates;
+        account_activation(.html|_de.html|_fr.html) next to the invitation templates;
         the caller picks ``language`` (``account_activation.mail_language_for``:
         the user's language, German by default).
         """
-        template = (
-            "account_activation_de.html" if language == "de" else "account_activation.html"
-        )
+        template = _localized_template("account_activation", language, fallback="en")
         return self._render_template(
             template,
             {
@@ -441,14 +452,10 @@ class EmailService:
         are free text chosen by an org admin or an LMS, so they appear only in
         the (autoescaped) body, which also tells the reader to ignore the
         mail if they did not ask for it. Template files
-        account_link_confirmation(.html|_de.html); German unless ``language``
-        is ``en``.
+        account_link_confirmation(.html|_de.html|_fr.html); German unless
+        ``language`` is ``en`` or ``fr``.
         """
-        template = (
-            "account_link_confirmation.html"
-            if language == "en"
-            else "account_link_confirmation_de.html"
-        )
+        template = _localized_template("account_link_confirmation", language, fallback="de")
         return self._render_template(
             template,
             {
@@ -527,7 +534,7 @@ class EmailService:
             to_email: User's email address
             user_name: User's name
             verification_link: Email verification URL
-            language: Language for the email (en/de)
+            language: Language for the email (en/de/fr; anything else is en)
 
         Returns:
             True if email was sent successfully, False otherwise
@@ -536,7 +543,27 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        if language == "de":
+        if language == "fr":
+            subject = f"Confirmez votre adresse e-mail pour {brand_name}"
+            html_body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Bienvenue sur {brand_name}, {user_name} !</h2>
+                <p>Veuillez confirmer votre adresse e-mail pour activer votre compte.</p>
+                <p style="margin: 30px 0;">
+                    <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                        Confirmer l'adresse e-mail
+                    </a>
+                </p>
+                <p>Ou copiez ce lien dans votre navigateur :</p>
+                <p style="color: #007bff;">{verification_link}</p>
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                    Ce lien est valable 24 heures. Si vous n'avez pas demandé cet e-mail, vous pouvez l'ignorer.
+                </p>
+            </body>
+            </html>
+            """
+        elif language == "de":
             subject = f"Bestätigen Sie Ihre E-Mail-Adresse für {brand_name}"
             html_body = f"""
             <html>
@@ -613,10 +640,10 @@ class EmailService:
             to_email: User's email address
             user_name: User's name
             reset_link: Password reset URL
-            language: Language for the email (en/de)
-            expiry_label: Optional ``{"en": ..., "de": ...}`` override for the
-                "this link expires in N" copy. Defaults to the platform value
-                of 24 hours / 24 Stunden. The worker copy historically said
+            language: Language for the email (en/de/fr; anything else is en)
+            expiry_label: Optional ``{"en": ..., "de": ..., "fr": ...}`` override
+                for the "this link expires in N" copy. Defaults to the platform
+                value of 24 hours / 24 Stunden / 24 heures. The worker copy historically said
                 "1 hour"/"1 Stunde"; pass ``{"en": "1 hour", "de": "1 Stunde"}``
                 to reproduce that wording for callers that mint short-lived
                 reset links.
@@ -628,11 +655,31 @@ class EmailService:
             logger.debug("Email not sent: Mail service is disabled")
             return False
 
-        labels = {"en": "24 hours", "de": "24 Stunden"}
+        labels = {"en": "24 hours", "de": "24 Stunden", "fr": "24 heures"}
         if expiry_label:
             labels.update(expiry_label)
 
-        if language == "de":
+        if language == "fr":
+            subject = "Réinitialiser votre mot de passe BenGER"
+            html_body = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+                <h2>Bonjour {user_name},</h2>
+                <p>Vous avez demandé la réinitialisation de votre mot de passe.</p>
+                <p style="margin: 30px 0;">
+                    <a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+                        Réinitialiser le mot de passe
+                    </a>
+                </p>
+                <p>Ou copiez ce lien dans votre navigateur :</p>
+                <p style="color: #007bff;">{reset_link}</p>
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                    Ce lien est valable {labels["fr"]}. Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet e-mail.
+                </p>
+            </body>
+            </html>
+            """
+        elif language == "de":
             subject = "Passwort zurücksetzen für BenGER"
             html_body = f"""
             <html>

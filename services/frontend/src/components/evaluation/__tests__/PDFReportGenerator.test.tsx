@@ -15,6 +15,9 @@ jest.mock('@/contexts/I18nContext', () => ({
     t: (key: string, params?: Record<string, any>) => {
       const translations: Record<string, string> = {
         'evaluation.pdfReport.configTitle': 'Report Configuration',
+        'evaluation.pdfReport.selectionSummary': `${params?.models} models, ${params?.metrics} metrics`,
+        'evaluation.pdfReport.summaryIntro': `This report presents evaluation results for ${params?.models} language models across ${params?.metrics} metric(s).`,
+        'evaluation.pdfReport.versus': `${params?.a} vs ${params?.b}`,
         'evaluation.pdfReport.reportFormat': 'Report Format',
         'evaluation.pdfReport.academicFormat': 'Academic',
         'evaluation.pdfReport.businessFormat': 'Business',
@@ -300,7 +303,7 @@ describe('PDFReportGenerator', () => {
       // The average scores appear in the results table
       // Claude 3 avg: (0.88+0.75)/2 = 0.815 -> 81.50%
       // May appear in multiple places (results table + performance summary)
-      expect(screen.getAllByText('81.50%').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('81,50%').length).toBeGreaterThanOrEqual(1)
     })
 
     it('renders N/A for undefined metric values', () => {
@@ -444,9 +447,9 @@ describe('PDFReportGenerator', () => {
 
       expect(screen.getByText('Statistical Significance')).toBeInTheDocument()
       expect(screen.getByText('GPT-4 vs Claude 3')).toBeInTheDocument()
-      expect(screen.getByText('0.0030')).toBeInTheDocument()
+      expect(screen.getByText('0,0030')).toBeInTheDocument()
       expect(screen.getByText('Yes')).toBeInTheDocument()
-      expect(screen.getByText('0.850')).toBeInTheDocument()
+      expect(screen.getByText('0,850')).toBeInTheDocument()
     })
 
     it('shows "No" for non-significant tests', () => {
@@ -594,7 +597,7 @@ describe('PDFReportGenerator', () => {
       render(<PDFReportGenerator {...props} />)
       // 15.678 > 1 so formatMetricValue returns value.toFixed(4) = "15.6780"
       // Appears in both results table and performance summary
-      expect(screen.getAllByText('15.6780').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('15,6780').length).toBeGreaterThanOrEqual(1)
     })
   })
 

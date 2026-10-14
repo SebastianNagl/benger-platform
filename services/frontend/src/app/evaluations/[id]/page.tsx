@@ -56,6 +56,7 @@ import {
   type ConfigMatchRecord,
   type RunConfigLabel,
 } from '@/lib/evaluation/runDisplay'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { logger } from '@/lib/utils/logger'
 import {
   ArrowLeftIcon,
@@ -515,7 +516,7 @@ export default function EvaluationDashboard({
     : null
   const createdLabel =
     createdAt && !Number.isNaN(createdAt.getTime())
-      ? createdAt.toLocaleString(locale === 'en' ? 'en-US' : 'de-DE', {
+      ? createdAt.toLocaleString(intlTag(locale), {
           dateStyle: 'medium',
           timeStyle: 'short',
         })
@@ -549,7 +550,7 @@ export default function EvaluationDashboard({
     },
     {
       id: 'judges',
-      label: t('evaluations.detail.judges', 'Judges & Läufe'),
+      label: t('evaluations.detail.judges'),
       hidden: !showJudgesTab,
     },
   ]
@@ -567,7 +568,7 @@ export default function EvaluationDashboard({
               items={[
                 { label: t('navigation.dashboard'), href: '/dashboard' },
                 {
-                  label: t('runs.title', 'Läufe'),
+                  label: t('runs.title'),
                   href: '/runs?type=evaluation',
                 },
                 { label: t('evaluation.human.results.title') },
@@ -654,18 +655,12 @@ export default function EvaluationDashboard({
             <Alert variant="error">
               <div className="text-sm text-red-800 dark:text-red-200">
                 <p className="font-medium">
-                  {t(
-                    'evaluations.detail.runFailedTitle',
-                    'Evaluierung fehlgeschlagen',
-                  )}
+                  {t('evaluations.detail.runFailedTitle')}
                 </p>
                 {phrasedUnmatched.length > 0 && (
                   <div className="mt-3">
                     <p className="font-medium">
-                      {t(
-                        'evaluations.detail.unmatchedConfigsTitle',
-                        'Evaluierungen ohne passende Daten',
-                      )}
+                      {t('evaluations.detail.unmatchedConfigsTitle')}
                     </p>
                     <ul
                       className="mt-2 space-y-2"
@@ -759,40 +754,25 @@ export default function EvaluationDashboard({
             {evaluation.scope && (
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300">
                 <span className="font-medium">
-                  {t('evaluations.detail.scopedTo', 'Eingeschränkt auf:')}
+                  {t('evaluations.detail.scopedTo')}
                 </span>{' '}
                 {[
                   evaluation.scope.model_ids.length > 0 &&
-                    t(
-                      'evaluations.detail.scopeModelsCount',
-                      '{count} Modell(e)',
-                    ).replace(
-                      '{count}',
-                      String(evaluation.scope.model_ids.length),
-                    ),
+                    t('evaluations.detail.scopeModelsCount', {
+                      count: evaluation.scope.model_ids.length,
+                    }),
                   evaluation.scope.annotators.length > 0 &&
                     `${
                       evaluation.scope.annotators.length === 1
-                        ? t(
-                            'evaluations.detail.scopeOneAnnotator',
-                            '1 Annotator:in',
-                          )
-                        : t(
-                            'evaluations.detail.scopeAnnotatorsCount',
-                            '{count} Annotator:innen',
-                          ).replace(
-                            '{count}',
-                            String(evaluation.scope.annotators.length),
-                          )
+                        ? t('evaluations.detail.scopeOneAnnotator')
+                        : t('evaluations.detail.scopeAnnotatorsCount', {
+                            count: evaluation.scope.annotators.length,
+                          })
                     } (${evaluation.scope.annotators.map((a) => a.display).join(', ')})`,
                   evaluation.scope.task_ids.length > 0 &&
-                    t(
-                      'evaluations.detail.scopeTasksCount',
-                      '{count} Task(s)',
-                    ).replace(
-                      '{count}',
-                      String(evaluation.scope.task_ids.length),
-                    ),
+                    t('evaluations.detail.scopeTasksCount', {
+                      count: evaluation.scope.task_ids.length,
+                    }),
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -809,7 +789,7 @@ export default function EvaluationDashboard({
               />
               <StatTile
                 label={t('evaluations.detail.passRate')}
-                value={`${((evaluation.eval_metadata?.pass_rate || 0) * 100).toFixed(1)}%`}
+                value={`${formatDecimal((evaluation.eval_metadata?.pass_rate || 0) * 100, locale, 1)}%`}
                 toneClass={
                   evaluated
                     ? 'text-emerald-600 dark:text-emerald-400'
@@ -857,7 +837,9 @@ export default function EvaluationDashboard({
                       key
                     ]
                     const display =
-                      typeof v === 'number' ? formatMetricNumber(bare, v) : '—'
+                      typeof v === 'number'
+                        ? formatMetricNumber(bare, v, locale)
+                        : '—'
                     const configName = showConfigNames
                       ? configDisplayLabel(configId, configs, undefined, t)
                       : null
@@ -943,16 +925,11 @@ export default function EvaluationDashboard({
         {activeTab === 'judges' && (
           <div className="space-y-6">
             <Card className="p-6">
-              <SectionTitle>
-                {t('evaluations.detail.perJudgeRun', 'Per Judge & Lauf')}
-              </SectionTitle>
+              <SectionTitle>{t('evaluations.detail.perJudgeRun')}</SectionTitle>
               {evaluation?.eval_metadata?.any_judge_failed && (
                 <Alert variant="warning" className="mb-4">
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    {t(
-                      'evaluations.detail.someJudgesFailed',
-                      'Mindestens ein Judge-Lauf ist fehlgeschlagen. Die Statistiken unten beruhen nur auf den erfolgreichen Läufen.',
-                    )}
+                    {t('evaluations.detail.someJudgesFailed')}
                   </p>
                 </Alert>
               )}

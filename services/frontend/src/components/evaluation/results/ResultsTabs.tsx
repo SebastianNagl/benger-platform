@@ -15,6 +15,7 @@
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import { getMetricDetail } from '@/lib/extensions/metricRenderers'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 
 import type {
   AnnotationData,
@@ -37,12 +38,12 @@ interface ResultsTabsProps {
 }
 
 // Format metric value for display
-const formatMetricValue = (value: any): string => {
+const formatMetricValue = (value: any, locale: string): string => {
   if (value === null || value === undefined) {
     return 'N/A'
   }
   if (typeof value === 'number') {
-    return value.toFixed(3)
+    return formatDecimal(value, locale, 3)
   }
   if (typeof value === 'string') {
     return value
@@ -62,7 +63,7 @@ export function ResultsTabs({
   setSelectedStructureIndex,
   selectedMetricName = null,
 }: ResultsTabsProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <>
@@ -90,22 +91,18 @@ export function ResultsTabs({
                       }`}
                     >
                       {annotation.ground_truth
-                        ? t(
-                            'evaluation.multiFieldResults.groundTruth',
-                            'Ground Truth',
-                          )
-                        : t(
-                            'evaluation.multiFieldResults.annotation',
-                            'Annotation',
-                          )}
+                        ? t('evaluation.multiFieldResults.groundTruth')
+                        : t('evaluation.multiFieldResults.annotation')}
                     </span>
                     <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                      {t('evaluation.multiFieldResults.annotator', 'Annotator')}
-                      : {annotation.completed_by}
+                      {t('evaluation.multiFieldResults.annotator')}:{' '}
+                      {annotation.completed_by}
                     </span>
                   </div>
                   <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {new Date(annotation.created_at).toLocaleString()}
+                    {new Date(annotation.created_at).toLocaleString(
+                      intlTag(locale),
+                    )}
                   </span>
                 </div>
 
@@ -139,10 +136,7 @@ export function ResultsTabs({
                   </div>
                 ) : (
                   <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'evaluation.multiFieldResults.noAnnotationResults',
-                      'No annotation results',
-                    )}
+                    {t('evaluation.multiFieldResults.noAnnotationResults')}
                   </p>
                 )}
 
@@ -154,17 +148,14 @@ export function ResultsTabs({
                         {t('evaluation.multiFieldResults.duration')}:
                       </span>
                       <span className="ml-2 text-zinc-900 dark:text-white">
-                        {annotation.lead_time.toFixed(1)}s
+                        {formatDecimal(annotation.lead_time, locale, 1)}s
                       </span>
                     </div>
                   )}
                   {annotation.was_cancelled && (
                     <div className="rounded-lg bg-red-50 p-3 dark:bg-red-900/20">
                       <span className="text-red-700 dark:text-red-300">
-                        {t(
-                          'evaluation.multiFieldResults.cancelled',
-                          'Cancelled',
-                        )}
+                        {t('evaluation.multiFieldResults.cancelled')}
                       </span>
                     </div>
                   )}
@@ -186,10 +177,7 @@ export function ResultsTabs({
           </div>
         ) : (
           <div className="py-12 text-center text-zinc-500 dark:text-zinc-400">
-            {t(
-              'evaluation.multiFieldResults.noAnnotationData',
-              'No annotation data available for this task',
-            )}
+            {t('evaluation.multiFieldResults.noAnnotationData')}
           </div>
         )
       ) : activeTab === 'generation' ? (
@@ -291,9 +279,9 @@ export function ResultsTabs({
                             {t('evaluation.multiFieldResults.generated')}:
                           </span>
                           <span className="ml-2 text-zinc-900 dark:text-white">
-                            {new Date(
-                              selectedGen.generated_at,
-                            ).toLocaleString()}
+                            {new Date(selectedGen.generated_at).toLocaleString(
+                              intlTag(locale),
+                            )}
                           </span>
                         </div>
                       )}
@@ -303,7 +291,12 @@ export function ResultsTabs({
                             {t('evaluation.multiFieldResults.duration')}:
                           </span>
                           <span className="ml-2 text-zinc-900 dark:text-white">
-                            {selectedGen.generation_time_seconds.toFixed(2)}s
+                            {formatDecimal(
+                              selectedGen.generation_time_seconds,
+                              locale,
+                              2,
+                            )}
+                            s
                           </span>
                         </div>
                       )}
@@ -356,10 +349,7 @@ export function ResultsTabs({
           if (visibleResults.length === 0) {
             return (
               <div className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                {t('evaluation.multiFieldResults.noResultsForMetric', {
-                  defaultValue:
-                    'No evaluation results for the selected metric.',
-                })}
+                {t('evaluation.multiFieldResults.noResultsForMetric')}
               </div>
             )
           }
@@ -399,7 +389,12 @@ export function ResultsTabs({
                     {result.confidence_score != null && (
                       <span className="text-sm text-zinc-600 dark:text-zinc-400">
                         {t('evaluation.multiFieldResults.confidence')}:{' '}
-                        {(result.confidence_score * 100).toFixed(1)}%
+                        {formatDecimal(
+                          result.confidence_score * 100,
+                          locale,
+                          1,
+                        )}
+                        %
                       </span>
                     )}
                   </div>
@@ -467,7 +462,7 @@ export function ResultsTabs({
                                       {key}:
                                     </span>
                                     <span className="ml-1 font-mono text-sm text-zinc-900 dark:text-white">
-                                      {formatMetricValue(value)}
+                                      {formatMetricValue(value, locale)}
                                     </span>
                                   </div>
                                 )
@@ -577,7 +572,7 @@ export function ResultsTabs({
                       {result.evaluation_context.evaluation_type} (
                       {result.evaluation_context.status})
                       {result.created_at &&
-                        ` | ${new Date(result.created_at).toLocaleString()}`}
+                        ` | ${new Date(result.created_at).toLocaleString(intlTag(locale))}`}
                     </div>
                   )}
                 </div>

@@ -10,7 +10,11 @@ jest.mock('@/contexts/HydrationContext', () => ({
 }))
 
 jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({ locale: 'de', changeLocale: jest.fn() }),
+  useI18n: () => ({
+    locale: 'de',
+    changeLocale: jest.fn(),
+    t: (k: string) => k,
+  }),
 }))
 
 import { render } from '@testing-library/react'

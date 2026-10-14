@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { cn } from '@/lib/utils'
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline'
 import html2canvas from 'html2canvas'
@@ -97,7 +98,7 @@ export function PDFReportGenerator({
     ),
     format: 'academic',
   })
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [isGenerating, setIsGenerating] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
 
@@ -197,9 +198,9 @@ export function PDFReportGenerator({
 
   const formatMetricValue = (value: number): string => {
     if (value >= 0 && value <= 1) {
-      return (value * 100).toFixed(2) + '%'
+      return formatDecimal(value * 100, locale, 2) + '%'
     }
-    return value.toFixed(4)
+    return formatDecimal(value, locale, 4)
   }
 
   return (
@@ -325,8 +326,10 @@ export function PDFReportGenerator({
           {/* Generate Button */}
           <div className="flex items-center justify-between border-t pt-4 dark:border-gray-700">
             <div className="text-sm text-gray-600 dark:text-gray-400">
-              {options.selectedModels.length} models,{' '}
-              {options.selectedMetrics.length} metrics
+              {t('evaluation.pdfReport.selectionSummary', {
+                models: options.selectedModels.length,
+                metrics: options.selectedMetrics.length,
+              })}
             </div>
             <Button
               variant="primary"
@@ -363,7 +366,7 @@ export function PDFReportGenerator({
             </h1>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               {t('evaluation.pdfReport.generatedOn')}{' '}
-              {new Date().toLocaleDateString('en-US', {
+              {new Date().toLocaleDateString(intlTag(locale), {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
@@ -384,11 +387,10 @@ export function PDFReportGenerator({
             </h2>
             <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
               <p>
-                This report presents evaluation results for{' '}
-                {filteredModels.length} language model
-                {filteredModels.length !== 1 ? 's' : ''} across{' '}
-                {filteredMetrics.length} metric
-                {filteredMetrics.length !== 1 ? 's' : ''}.
+                {t('evaluation.pdfReport.summaryIntro', {
+                  models: filteredModels.length,
+                  metrics: filteredMetrics.length,
+                })}
               </p>
               <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
                 <h3 className="mb-2 font-semibold text-blue-900 dark:text-blue-100">
@@ -560,10 +562,13 @@ export function PDFReportGenerator({
                           )}
                         >
                           <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
-                            {test.model_a} vs {test.model_b}
+                            {t('evaluation.pdfReport.versus', {
+                              a: test.model_a,
+                              b: test.model_b,
+                            })}
                           </td>
                           <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
-                            {test.p_value.toFixed(4)}
+                            {formatDecimal(test.p_value, locale, 4)}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span
@@ -580,7 +585,7 @@ export function PDFReportGenerator({
                             </span>
                           </td>
                           <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
-                            {test.effect_size.toFixed(3)}
+                            {formatDecimal(test.effect_size, locale, 3)}
                           </td>
                         </tr>
                       ))}
@@ -646,7 +651,7 @@ export function PDFReportGenerator({
           <div className="border-t pt-6 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
             <p>
               {t('evaluation.pdfReport.footerGenerated')}{' '}
-              {new Date().toLocaleString('en-US')}
+              {new Date().toLocaleString(intlTag(locale))}
             </p>
             {options.format === 'academic' && (
               <p className="mt-2">

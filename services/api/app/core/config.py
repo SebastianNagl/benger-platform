@@ -108,8 +108,80 @@ class Settings(BaseSettings):
             return self.enable_debug_routes
         return not self.is_production
 
+    # Interactive API docs (/docs, /redoc, /openapi.json). Off in production
+    # by default: the schema enumerates every internal route and model, which
+    # is reconnaissance material and not a public contract. On elsewhere so
+    # dev and test keep the explorer (the extended behavioral suite reads
+    # /openapi.json). Set INTERNAL_DOCS_ENABLED explicitly (true/false) to
+    # override the environment-derived default.
+    internal_docs_enabled: Optional[bool] = None
+
+    def __init__(self, **values):
+        # Derived here rather than in a pydantic v2 model_validator: the API
+        # image has no pydantic_settings, so BaseSettings is pydantic.v1's,
+        # which never runs v2 validators and left the field None (docs off
+        # everywhere).
+        super().__init__(**values)
+        if self.internal_docs_enabled is None:
+            self.internal_docs_enabled = not self.is_production
+
+    # Access keys for the public /api/v1 surface (services/api_key_service.py,
+    # docs/api-keys.md). API_KEY_PEPPER is mixed into every key hash so a
+    # leaked database alone cannot be used to check guessed keys; changing it
+    # invalidates every existing key. API_KEY_ENVIRONMENT overrides the key
+    # tag ("live" in production, "test" elsewhere); a key is only accepted by
+    # a deployment with the same tag.
+    api_key_pepper: str = ""
+    # Whether the access-key feature (key management and /api/v1) is on when
+    # no extension package decides it through the ``public_api_enabled``
+    # hook. Off by default: the feature is unreleased.
+    public_api_enabled: bool = False
+    api_key_environment: Optional[str] = None
+    api_key_default_rpm: int = 120
+    api_key_default_rpd: int = 20000
+    # Usage events older than this are deleted by the daily beat task.
+    api_usage_retention_days: int = 400
+    # How much of the client IP the usage log keeps: "full", "truncated"
+    # (IPv4 /24, IPv6 /48) or "none".
+    api_usage_ip_mode: str = "truncated"
+    # Mail domain of the service-account users behind organization keys.
+    # These addresses never receive mail; they only satisfy the unique
+    # users.email column.
+    service_account_email_host: Optional[str] = None
+
+    @property
+    def api_key_env_tag(self) -> str:
+        """The key tag this deployment issues and accepts (live/test)."""
+        if self.api_key_environment in ("live", "test"):
+            return self.api_key_environment
+        return "live" if self.is_production else "test"
+
     # Frontend Configuration
     frontend_url: str = "http://localhost:3000"
+
+    # Public base URL of the versioned API (/api/v1), announced as the
+    # ``servers`` entry of /api/v1/openapi.json and in the docs. Unset, it is
+    # derived from FRONTEND_URL as ``https://api.<domain>`` (for example
+    # https://api.what-a-benger.net); a localhost frontend yields None and the
+    # spec falls back to the requesting host.
+    public_api_url: Optional[str] = None
+
+    @property
+    def public_api_base_url(self) -> Optional[str]:
+        """The configured or derived public API base URL, without a trailing
+        slash, or None for local deployments."""
+        if self.public_api_url:
+            return self.public_api_url.rstrip("/")
+        from urllib.parse import urlparse
+
+        host = (urlparse(self.frontend_url or "").hostname or "").lower()
+        if not host or host == "localhost" or host.endswith(".localhost") or "." not in host:
+            return None
+        if host.replace(".", "").isdigit():
+            return None
+        if host.startswith("www."):
+            host = host[4:]
+        return f"https://api.{host}"
 
     # API Configuration
     api_title: str = "BenGER API"
@@ -159,6 +231,19 @@ class Settings(BaseSettings):
         env_file = ".env"
         case_sensitive = False
         extra = "ignore"  # Ignore extra environment variables
+
+
+def docs_url_kwargs(enabled: bool) -> dict:
+    """FastAPI constructor kwargs for the interactive docs.
+
+    Enabled: FastAPI's default URLs. Disabled: every URL ``None``, so the
+    /docs, /redoc and /openapi.json routes are not mounted at all (a request
+    answers 404). ``app.openapi()`` keeps building the schema in-process
+    either way, which is what the route-introspection tests rely on.
+    """
+    if enabled:
+        return {"docs_url": "/docs", "redoc_url": "/redoc", "openapi_url": "/openapi.json"}
+    return {"docs_url": None, "redoc_url": None, "openapi_url": None}
 
 
 # Global settings instance

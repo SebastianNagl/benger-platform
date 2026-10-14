@@ -443,7 +443,7 @@ describe('EvaluationTab', () => {
           'success',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
-          'Exported 3 evaluations',
+          'toasts.evaluation.exported',
           'success',
         )
       })
@@ -531,7 +531,7 @@ describe('EvaluationTab', () => {
           'error',
         )
         expect(mockAddToast).toHaveBeenCalledWith(
-          expect.stringContaining('Export failed'),
+          'generation.errors.exportFailed',
           'error',
         )
       })

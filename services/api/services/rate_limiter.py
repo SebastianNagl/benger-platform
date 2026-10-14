@@ -5,6 +5,7 @@ Provides configurable rate limiting for different endpoints and user types
 
 import asyncio
 import logging
+import math
 import time
 from functools import wraps
 from typing import Dict, Optional, Tuple
@@ -16,6 +17,9 @@ from fastapi.responses import JSONResponse
 from models import User
 
 logger = logging.getLogger(__name__)
+
+#: Memory-fallback size above which expired entries are swept.
+_MEMORY_PRUNE_THRESHOLD = 10000
 
 
 class RateLimiter:
@@ -73,6 +77,8 @@ class RateLimiter:
             else:
                 # Memory fallback
                 current_time = time.time()
+                if len(self._memory_store) > _MEMORY_PRUNE_THRESHOLD:
+                    self._prune_memory(current_time)
                 if key not in self._memory_store:
                     self._memory_store[key] = {
                         "count": 0,
@@ -90,6 +96,13 @@ class RateLimiter:
             logger.error(f"Error incrementing rate limit count: {e}")
             return 1
 
+    def _prune_memory(self, now: float) -> None:
+        """Drop expired memory-fallback entries (window-indexed keys would
+        otherwise accumulate one entry per client and window forever)."""
+        expired = [k for k, v in self._memory_store.items() if v.get("expires", 0) < now]
+        for k in expired:
+            self._memory_store.pop(k, None)
+
     async def check_rate_limit(
         self,
         request: Request,
@@ -97,15 +110,28 @@ class RateLimiter:
         # {window: (max_requests, seconds)}
         limits: Dict[str, Tuple[int, int]],
         user: Optional[User] = None,
+        client_id: Optional[str] = None,
+        state: Optional[Dict] = None,
     ) -> Optional[Dict]:
         """
         Check if request should be rate limited
+
+        Windows are fixed: each window's counter key carries the window's
+        index (``int(now // seconds)``), so a counter always resets at the
+        window boundary. (Before, the TTL was refreshed on every request, so
+        a client that kept calling more often than once per window never saw
+        its counter reset.)
 
         Args:
             request: FastAPI request object
             endpoint: Endpoint identifier (e.g., "tasks", "eval")
             limits: Rate limit configuration
             user: Authenticated user (if any)
+            client_id: bucket owner, overriding the user/IP derivation
+                (access keys use ``apikey:<id>``)
+            state: when given, filled with ``limit``, ``remaining``,
+                ``reset`` (epoch seconds) and ``window`` of the tightest
+                window, for X-RateLimit-* response headers
 
         Returns:
             None if allowed, error dict if rate limited
@@ -116,20 +142,34 @@ class RateLimiter:
         if os.environ.get("TESTING") == "true":
             return None
 
-        client_id = self._get_client_id(request, user)
+        client_id = client_id or self._get_client_id(request, user)
+        now = time.time()
+        tightest: Optional[Dict] = None
 
         for window_type, (max_requests, window_seconds) in limits.items():
-            key = self._get_key(client_id, endpoint, window_type)
+            window_index = int(now // window_seconds)
+            reset_at = (window_index + 1) * window_seconds
+            key = f"{self._get_key(client_id, endpoint, window_type)}:{window_index}"
 
             current_count = await self._increment_count(key, window_seconds)
+            info = {
+                "limit": max_requests,
+                "remaining": max(0, max_requests - current_count),
+                "reset": int(reset_at),
+                "window": window_seconds,
+            }
+            if tightest is None or info["remaining"] < tightest["remaining"]:
+                tightest = info
 
             if current_count > max_requests:
                 logger.warning(
                     f"Rate limit exceeded: {client_id} on {endpoint} ({current_count}/{max_requests})"
                 )
+                if state is not None:
+                    state.update(info)
 
-                # Calculate retry after time
-                retry_after = window_seconds
+                # Seconds until this window resets
+                retry_after = max(1, int(math.ceil(reset_at - now)))
 
                 return {
                     "error": "rate_limit_exceeded",
@@ -138,8 +178,12 @@ class RateLimiter:
                     "limit": max_requests,
                     "window": window_seconds,
                     "current": current_count,
+                    "remaining": 0,
+                    "reset": int(reset_at),
                 }
 
+        if state is not None and tightest is not None:
+            state.update(tightest)
         return None
 
 
@@ -284,3 +328,60 @@ async def rate_limit_middleware(request: Request, call_next):
 
     response = await call_next(request)
     return response
+
+
+# Access keys (/api/v1): per-key buckets, per minute and per day.
+
+API_KEY_RATE_ENDPOINT = "apikey"
+
+
+def api_key_limits(principal) -> Dict[str, Tuple[int, int]]:
+    """The key's own limits, falling back to API_KEY_DEFAULT_RPM/RPD."""
+    from app.core.config import settings
+
+    rpm, rpd = getattr(principal, "rate_limit", (None, None)) or (None, None)
+    return {
+        "minute": (int(rpm or settings.api_key_default_rpm), 60),
+        "day": (int(rpd or settings.api_key_default_rpd), 86400),
+    }
+
+
+async def enforce_key_rate_limit(request: Request, principal) -> Optional[Dict]:
+    """Count one request against the key's buckets (``apikey:<id>``).
+
+    Stores ``{"limit", "remaining", "reset", "window"}`` on
+    ``request.state.rate_limit`` (the usage middleware turns it into
+    X-RateLimit-* headers) and raises 429 with ``Retry-After`` when a
+    bucket is exhausted. Sessions are not limited here.
+    """
+    if principal is None or not getattr(principal, "is_api_key", False):
+        return None
+    info: Dict = {}
+    error = await rate_limiter.check_rate_limit(
+        request,
+        API_KEY_RATE_ENDPOINT,
+        api_key_limits(principal),
+        client_id=f"apikey:{principal.api_key_id}",
+        state=info,
+    )
+    if info:
+        try:
+            request.state.rate_limit = info
+        except Exception:  # pragma: no cover - requests without state
+            pass
+    if error:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": error["message"],
+                "retry_after": error["retry_after"],
+            },
+            headers={
+                "Retry-After": str(error["retry_after"]),
+                "X-RateLimit-Limit": str(error["limit"]),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(error["reset"]),
+            },
+        )
+    return info

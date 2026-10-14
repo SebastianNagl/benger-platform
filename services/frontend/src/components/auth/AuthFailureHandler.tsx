@@ -2,6 +2,7 @@
 
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
+import { useI18n } from '@/contexts/I18nContext'
 import { logger } from '@/lib/utils/logger'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -9,6 +10,7 @@ import { useEffect } from 'react'
 export function AuthFailureHandler() {
   const { apiClient, logout, user, isLoading } = useAuth()
   const { addToast } = useToast()
+  const { t } = useI18n()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -33,7 +35,7 @@ export function AuthFailureHandler() {
 
       try {
         // Show toast notification
-        addToast('Your session has expired. Please log in again.', 'warning')
+        addToast(t('toasts.auth.sessionExpired'), 'warning')
       } catch (error) {
         // Continue even if toast fails
         console.warn('Failed to show session expired toast:', error)
@@ -56,7 +58,7 @@ export function AuthFailureHandler() {
     if (apiClient?.setAuthFailureHandler) {
       apiClient.setAuthFailureHandler(handleAuthFailure)
     }
-  }, [apiClient, addToast, logout, router, pathname, user, isLoading])
+  }, [apiClient, addToast, t, logout, router, pathname, user, isLoading])
 
   return null
 }

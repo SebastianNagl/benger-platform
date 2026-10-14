@@ -1,10 +1,6 @@
 import type { Notification } from '@/components/layout/NotificationDropdown'
 
-type TFunction = (
-  key: string,
-  defaultValueOrVariables?: string | Record<string, any>,
-  variables?: Record<string, any>,
-) => any
+type TFunction = (key: string, variables?: Record<string, any>) => any
 
 /**
  * Given a notification and the i18n t() function, return the translated
@@ -17,16 +13,16 @@ export function getTranslatedNotification(
   const { type, data, title: rawTitle, message: rawMessage } = notification
   const d = normalizeData(type, data || {})
 
-  const translatedTitle = t(`notifications.content.${type}.title`, rawTitle, d)
-  const translatedMessage = t(
-    `notifications.content.${type}.message`,
-    rawMessage,
-    d,
-  )
+  const titleKey = `notifications.content.${type}.title`
+  const messageKey = `notifications.content.${type}.message`
+  const translatedTitle = t(titleKey, d)
+  const translatedMessage = t(messageKey, d)
 
-  // If any {variable} placeholders remain unresolved, fall back to the raw
-  // DB text which is always meaningful (avoids showing literal "{task_name}").
-  const hasUnresolved = (s: string) => /\{\w+\}/.test(s)
+  // An unknown type (the key comes back as-is) or unresolved {variable}
+  // placeholders fall back to the raw DB text, which is always meaningful
+  // (avoids showing a raw key or a literal "{task_name}").
+  const hasUnresolved = (s: string) =>
+    /\{\w+\}/.test(s) || s === titleKey || s === messageKey
 
   return {
     title:

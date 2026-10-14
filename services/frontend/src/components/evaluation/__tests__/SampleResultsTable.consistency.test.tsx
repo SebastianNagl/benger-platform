@@ -16,9 +16,8 @@ import { SampleResultsTable } from '../SampleResultsTable'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, varsOrDefault?: any) => {
-      // Mirror the base suite: resolve from the en bundle, else return the
-      // provided string fallback (2nd arg), else the key.
+    t: (key: string, vars?: Record<string, unknown>) => {
+      // Mirror the base suite: resolve from the en bundle, else the key.
       const translations: Record<
         string,
         any
@@ -33,11 +32,9 @@ jest.mock('@/contexts/I18nContext', () => ({
           break
         }
       }
-      if (typeof value !== 'string') {
-        return typeof varsOrDefault === 'string' ? varsOrDefault : key
-      }
-      if (varsOrDefault && typeof varsOrDefault === 'object') {
-        for (const [k, v] of Object.entries(varsOrDefault)) {
+      if (typeof value !== 'string') return key
+      if (vars && typeof vars === 'object') {
+        for (const [k, v] of Object.entries(vars)) {
           value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
         }
       }

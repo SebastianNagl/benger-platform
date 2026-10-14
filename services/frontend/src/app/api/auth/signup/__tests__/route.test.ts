@@ -754,6 +754,58 @@ describe('/api/auth/signup', () => {
       expect(response.status).toBe(201)
     })
 
+    const signupWithCookie = async (url: string, host: string) => {
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: {
+          getSetCookie: () => [
+            'access_token=tok; Path=/; HttpOnly; SameSite=Lax; Secure',
+          ],
+        },
+        json: async () => ({ id: 1, access_token: 'tok' }),
+      })
+      const request = new NextRequest(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', host },
+        body: JSON.stringify({
+          email: 'newuser@example.com',
+          password: 'SecurePass123!',
+          username: 'newuser',
+        }),
+      })
+      const response = await POST(request)
+      expect(response.status).toBe(201)
+      return response.headers
+        .getSetCookie()
+        .find((c: string) => c.startsWith('access_token='))
+    }
+
+    it('strips the Secure flag outside production (plain-HTTP dev)', async () => {
+      // NODE_ENV is 'test' here.
+      const accessCookie = await signupWithCookie(
+        'http://benger.localhost/api/auth/signup',
+        'benger.localhost',
+      )
+      expect(accessCookie).toBeDefined()
+      expect(accessCookie).not.toMatch(/;\s*Secure/i)
+    })
+
+    it('keeps the Secure flag in production', async () => {
+      const previousNodeEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
+      try {
+        const accessCookie = await signupWithCookie(
+          'https://what-a-benger.net/api/auth/signup',
+          'what-a-benger.net',
+        )
+        expect(accessCookie).toBeDefined()
+        expect(accessCookie).toMatch(/;\s*Secure/i)
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv
+      }
+    })
+
     // E2E TEST REQUIRED: Cookie Domain stripping
     // See: /services/frontend/docs/testing/auth-api-routes-e2e.md
 

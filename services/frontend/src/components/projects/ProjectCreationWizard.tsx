@@ -418,7 +418,6 @@ export function ProjectCreationWizard() {
       ) {
         newErrors.organizationIds = t(
           'projects.creation.wizard.step1.validation.orgRequired',
-          'Pick at least one organization, or change visibility.',
         )
       }
     }
@@ -515,13 +514,7 @@ export function ProjectCreationWizard() {
             'Failed to assign organizations after project create',
             err,
           )
-          addToast(
-            t(
-              'projects.creation.wizard.orgAssignFailed',
-              'Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.',
-            ),
-            'error',
-          )
+          addToast(t('projects.creation.wizard.orgAssignFailed'), 'error')
         }
       }
 
@@ -766,10 +759,7 @@ export function ProjectCreationWizard() {
           addToast(
             hookError instanceof Error
               ? hookError.message
-              : t(
-                  'projects.wizard.postCreateHookFailed',
-                  'Nachbearbeitung fehlgeschlagen',
-                ),
+              : t('projects.wizard.postCreateHookFailed'),
             'error',
           )
         }

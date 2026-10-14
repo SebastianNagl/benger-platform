@@ -6,6 +6,10 @@ import { render } from '@testing-library/react'
 
 // Mock CSS imports
 jest.mock('@/styles/tailwind.css', () => ({}))
+// Metadata copy comes from the catalog; echo the key.
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string) => key,
+}))
 
 import RootLayout, { generateMetadata } from '../layout'
 
@@ -65,9 +69,7 @@ describe('RootLayout', () => {
         template: string
         default: string
       }
-      expect(titleConfig.default).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-      )
+      expect(titleConfig.default).toBe('layout.meta.benger.title')
     })
 
     it('exports correct title template', async () => {
@@ -81,9 +83,7 @@ describe('RootLayout', () => {
 
     it('exports correct description', async () => {
       const metadata = await generateMetadata()
-      expect(metadata.description).toBe(
-        'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.',
-      )
+      expect(metadata.description).toBe('layout.meta.benger.description')
     })
 
     it('exports correct keywords', async () => {
@@ -103,9 +103,7 @@ describe('RootLayout', () => {
 
     it('exports correct Open Graph configuration', async () => {
       const metadata = await generateMetadata()
-      expect(metadata.openGraph?.title).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-      )
+      expect(metadata.openGraph?.title).toBe('layout.meta.benger.title')
       expect(metadata.openGraph?.url).toBe('https://what-a-benger.net')
       expect(metadata.openGraph?.siteName).toBe('BenGER')
       expect(metadata.openGraph?.locale).toBe('de_DE')
@@ -115,9 +113,7 @@ describe('RootLayout', () => {
     it('exports correct Twitter card configuration', async () => {
       const metadata = await generateMetadata()
       expect(metadata.twitter?.card).toBe('summary_large_image')
-      expect(metadata.twitter?.title).toBe(
-        'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht',
-      )
+      expect(metadata.twitter?.title).toBe('layout.meta.benger.title')
     })
 
     it('uses Vertretbar branding + favicon on a vertretbar host', async () => {
@@ -127,9 +123,7 @@ describe('RootLayout', () => {
         template: string
         default: string
       }
-      expect(titleConfig.default).toBe(
-        'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur',
-      )
+      expect(titleConfig.default).toBe('layout.meta.vertretbar.title')
       expect(titleConfig.template).toBe('%s · Vertretbar')
       expect(metadata.icons).toHaveProperty('icon', '/vertretbar-icon.svg')
       expect(metadata.openGraph?.url).toBe('https://vertretbar.net')

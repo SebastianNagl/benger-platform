@@ -6,6 +6,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { User } from '@/lib/api/types'
 import { UsersClient } from '@/lib/api/users'
+import { intlTag } from '@/lib/i18n/locales'
 import { logger } from '@/lib/utils/logger'
 import type {
   Annotation,
@@ -75,7 +76,7 @@ export function TaskAnnotationComparisonModal({
     Map<string, number>
   >(new Map())
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Create users client instance
   const usersClient = useMemo(() => new UsersClient(), [])
@@ -608,7 +609,9 @@ export function TaskAnnotationComparisonModal({
                         </div>
                         <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
                           {t('annotation.comparison.info.lastUpdated', {
-                            date: new Date(tab.lastUpdated).toLocaleString(),
+                            date: new Date(tab.lastUpdated).toLocaleString(
+                              intlTag(locale),
+                            ),
                           })}
                         </div>
                         {tab.annotations[0]?.metadata?.time_spent && (
@@ -655,7 +658,7 @@ export function TaskAnnotationComparisonModal({
                                       date: new Date(
                                         annotation.updated_at ||
                                           annotation.created_at,
-                                      ).toLocaleString(),
+                                      ).toLocaleString(intlTag(locale)),
                                     },
                                   )}
                                 </div>

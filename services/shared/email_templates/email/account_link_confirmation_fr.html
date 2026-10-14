@@ -1,0 +1,19 @@
+Subject: Confirmez l'association à votre compte {{ brand_name }}
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Associer une connexion depuis la plateforme d'apprentissage</h2>
+    <p>Une demande a été faite via {% if connection_name %}la connexion « {{ connection_name }} »{% else %}une connexion de plateforme d'apprentissage{% endif %}{% if organization_name %} de l'organisation {{ organization_name }}{% endif %} pour associer une connexion depuis la plateforme d'apprentissage à votre compte {{ brand_name }}{% if frontend_host %} sur {{ frontend_host }}{% endif %}.</p>
+    <p>Si vous confirmez, chaque connexion via cette liaison ouvrira votre compte.</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ confirm_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Confirmer l'association
+        </a>
+    </p>
+    <p>Ou copiez ce lien dans votre navigateur :</p>
+    <p style="color: #059669;">{{ confirm_url }}</p>
+    <p><strong>Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</strong> Votre compte restera alors inchangé.</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        Ce lien est valable {{ expiry_hours }} heures et ne fonctionne qu'une seule fois.
+    </p>
+</body>
+</html>

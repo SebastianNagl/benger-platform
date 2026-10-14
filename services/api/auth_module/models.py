@@ -39,6 +39,8 @@ class User(BaseModel):
     pseudonym: Optional[str] = None
     use_pseudonym: bool = True
     is_lms_account: bool = False
+    # Machine user behind an organization access key (migration 118).
+    is_service_account: bool = False
 
     # Several endpoints (signup, register, PATCH /users/{id}/...) use
     # response_model=User on a raw ORM row, so the datetime column reaches the
@@ -70,7 +72,7 @@ class User(BaseModel):
     def _coerce_use_pseudonym(cls, v):
         return v if isinstance(v, bool) else True
 
-    @field_validator("is_lms_account", mode="before")
+    @field_validator("is_lms_account", "is_service_account", mode="before")
     @classmethod
     def _coerce_is_lms_account(cls, v):
         return v if isinstance(v, bool) else False

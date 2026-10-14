@@ -14,6 +14,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 
@@ -39,6 +40,7 @@ export interface JudgeAgreementHeatmapProps {
 function buildMatrix(
   judges: string[],
   pairwise: Record<string, number>,
+  locale?: string,
 ): { z: (number | null)[][]; text: string[][] } {
   const n = judges.length
   const z: (number | null)[][] = Array(n)
@@ -52,7 +54,7 @@ function buildMatrix(
     for (let j = 0; j < n; j++) {
       if (i === j) {
         z[i][j] = 1
-        text[i][j] = '1.00'
+        text[i][j] = formatDecimal(1, locale, 2)
         continue
       }
       const ja = judges[i]
@@ -60,7 +62,7 @@ function buildMatrix(
       const v = pairwise[`${ja}__${jb}`] ?? pairwise[`${jb}__${ja}`]
       if (v !== undefined && v !== null && !Number.isNaN(v)) {
         z[i][j] = v
-        text[i][j] = v.toFixed(3)
+        text[i][j] = formatDecimal(v, locale, 3)
       }
     }
   }
@@ -75,7 +77,7 @@ export function JudgeAgreementHeatmap({
   fleissKappa,
   height = 360,
 }: JudgeAgreementHeatmapProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Strip null/empty/duplicate judge ids before rendering. The agreement
   // endpoint can return a judge id of `null` for deterministic-metric
@@ -97,8 +99,8 @@ export function JudgeAgreementHeatmap({
   }, [judgeModelIds])
 
   const { z, text } = useMemo(
-    () => buildMatrix(cleanedJudges, pairwise),
-    [cleanedJudges, pairwise],
+    () => buildMatrix(cleanedJudges, pairwise, locale),
+    [cleanedJudges, pairwise, locale],
   )
 
   if (cleanedJudges.length < 2) {
@@ -117,20 +119,16 @@ export function JudgeAgreementHeatmap({
       <div className="mb-2 flex items-baseline justify-between">
         <h4 className="text-sm font-semibold text-zinc-900 dark:text-white">
           {scoreType === 'pearson'
-            ? t(
-                'eval.judgeAgreement.titlePearson',
-                'Inter-Judge-Korrelation (Pearson)',
-              )
-            : t(
-                'eval.judgeAgreement.titleKappa',
-                'Inter-Judge-Übereinstimmung (κ)',
-              )}
+            ? t('eval.judgeAgreement.titlePearson')
+            : t('eval.judgeAgreement.titleKappa')}
           <span className="ml-2 font-mono text-xs text-zinc-500">{metric}</span>
         </h4>
         {fleissKappa !== null && fleissKappa !== undefined && (
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             Fleiss κ ={' '}
-            <span className="font-mono">{fleissKappa.toFixed(3)}</span>
+            <span className="font-mono">
+              {formatDecimal(fleissKappa, locale, 3)}
+            </span>
           </span>
         )}
       </div>

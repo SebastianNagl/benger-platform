@@ -87,14 +87,6 @@ describe('I18nContext — real-key translation branches (live t)', () => {
     expect(result.current.t(KEY_OBJECT)).toBe(KEY_OBJECT)
   })
 
-  it('honours an explicit default value for an object leaf', async () => {
-    const { result } = renderHook(() => useI18n(), { wrapper: providerWrapper })
-    await waitFor(() => expect(result.current.isReady).toBe(true))
-
-    // Second arg is a STRING => treated as defaultValue (lines 64-66 + 87).
-    expect(result.current.t(KEY_OBJECT, 'fallback')).toBe('fallback')
-  })
-
   it('returns an array leaf as-is (arrays are allowed through the guard)', async () => {
     const { result } = renderHook(() => useI18n(), { wrapper: providerWrapper })
     await waitFor(() => expect(result.current.isReady).toBe(true))
@@ -102,16 +94,6 @@ describe('I18nContext — real-key translation branches (live t)', () => {
     const out = result.current.t(KEY_ARRAY)
     expect(Array.isArray(out)).toBe(true)
     expect((out as string[]).length).toBeGreaterThan(0)
-  })
-
-  it('uses the string default argument when a key is missing', async () => {
-    const { result } = renderHook(() => useI18n(), { wrapper: providerWrapper })
-    await waitFor(() => expect(result.current.isReady).toBe(true))
-
-    // Missing key + string second arg => returns the default (line 80, 65).
-    expect(result.current.t('totally.missing.key', 'Default Text')).toBe(
-      'Default Text',
-    )
   })
 
   it('switches the resolved string when locale changes de -> en', async () => {

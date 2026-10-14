@@ -6,11 +6,14 @@ import { LegalPageWrapper } from '@/components/layout/LegalPageWrapper'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { PLATFORM_CHANGELOG } from '@/data/changelog'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import {
   type ChangelogAudience,
+  filterAvailableChangelogEntries,
   useChangelogEntries,
 } from '@/lib/extensions/changelog'
+import { intlTag } from '@/lib/i18n/locales'
 import { filterAndGroup } from '@/lib/utils/changelog'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
@@ -29,6 +32,7 @@ export default function ChangelogPage() {
   const mode = useResolvedUiMode()
   const extendedEntries = useChangelogEntries()
   const studentLockedHost = useStudentLockedHost()
+  const publicApi = usePublicApiEnabled() === true
 
   // Which product the visitor is experiencing. useResolvedUiMode is the
   // single source of truth (host default + superadmin view switch); the
@@ -41,14 +45,16 @@ export default function ChangelogPage() {
       : 'benger'
 
   const groups = filterAndGroup(
-    [...PLATFORM_CHANGELOG, ...extendedEntries],
+    filterAvailableChangelogEntries(
+      [...PLATFORM_CHANGELOG, ...extendedEntries],
+      { publicApi },
+    ),
     brand,
   )
 
-  const dateFormat = new Intl.DateTimeFormat(
-    locale === 'de' ? 'de-DE' : 'en-GB',
-    { dateStyle: 'long' },
-  )
+  const dateFormat = new Intl.DateTimeFormat(intlTag(locale), {
+    dateStyle: 'long',
+  })
   const formatDate = (isoDate: string) => {
     const parsed = new Date(`${isoDate}T00:00:00`)
     return Number.isNaN(parsed.getTime()) ? isoDate : dateFormat.format(parsed)
@@ -75,9 +81,9 @@ export default function ChangelogPage() {
           <section key={group.date}>
             <h2>{formatDate(group.date)}</h2>
             <ul>
-              {group.entries.map((entry, index) => (
-                <li key={index} className="text-zinc-700 dark:text-zinc-200">
-                  {entry.text[locale]}
+              {group.entries.map((entry) => (
+                <li key={entry.id} className="text-zinc-700 dark:text-zinc-200">
+                  {t(`changelogEntries.${entry.id}`)}
                 </li>
               ))}
             </ul>

@@ -1,0 +1,16 @@
+/.quarto/
+# Written by `make tables`, read by the render.
+/assets/
+manuscript_files/
+manuscript.tex
+# Temporary copy written by `make blind` (scripts/blind.py).
+manuscript_blind.qmd
+manuscript_blind.tex
+manuscript_blind_files/
+manuscript.fdb_latexmk
+
+**/*.quarto_ipynb
+comment.cut
+# arXiv source bundles and their preview (make arxiv): shipped to arXiv, not to git.
+sok_arxiv_source_*.zip
+sok_arxiv_preview_*.pdf

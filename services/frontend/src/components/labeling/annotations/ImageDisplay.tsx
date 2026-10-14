@@ -4,6 +4,7 @@
  * Displays images for annotation
  */
 
+import { useI18n } from '@/contexts/I18nContext'
 import { resolveDataBinding } from '@/lib/labelConfig/dataBinding'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
 
@@ -11,6 +12,7 @@ export default function ImageDisplay({
   config,
   taskData,
 }: AnnotationComponentProps) {
+  const { t } = useI18n()
   const valueExpression = config.props.value
   const imageSrc = resolveDataBinding(valueExpression, taskData)
   const name = config.props.name || config.name
@@ -20,7 +22,7 @@ export default function ImageDisplay({
   if (!imageSrc) {
     return (
       <div className="text-zinc-500 italic dark:text-zinc-400">
-        No image data for field: {valueExpression}
+        {t('labeling.display.noData', { field: valueExpression })}
       </div>
     )
   }
@@ -35,7 +37,7 @@ export default function ImageDisplay({
       {/* eslint-disable-next-line @next/next/no-img-element -- Dynamic data-bound image URL */}
       <img
         src={imageSrc}
-        alt={name || 'Annotation image'}
+        alt={name || t('labeling.display.imageAlt')}
         width={width}
         height={height}
         className="h-auto max-w-full rounded-lg border border-zinc-200 dark:border-zinc-700"

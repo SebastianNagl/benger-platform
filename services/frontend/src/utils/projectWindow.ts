@@ -6,6 +6,8 @@
  * don't render data views that would 403.
  */
 
+import { intlTag, readStoredLocale } from '@/lib/i18n/locales'
+
 export type WindowState = 'none' | 'upcoming' | 'open' | 'closed'
 
 export function computeWindowState(
@@ -42,7 +44,9 @@ export function windowBoundLabel(
   startAt?: string | null,
   endAt?: string | null,
 ): string | null {
-  if (state === 'upcoming' && startAt) return new Date(startAt).toLocaleString()
-  if (state === 'closed' && endAt) return new Date(endAt).toLocaleString()
+  if (state === 'upcoming' && startAt)
+    return new Date(startAt).toLocaleString(intlTag(readStoredLocale()))
+  if (state === 'closed' && endAt)
+    return new Date(endAt).toLocaleString(intlTag(readStoredLocale()))
   return null
 }

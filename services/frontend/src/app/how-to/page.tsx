@@ -6,9 +6,12 @@ import { GuideCard } from '@/components/howto'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import {
   HOWTO_CATEGORIES,
-  pick,
+  categoryText,
+  filterAvailableGuides,
+  guideText,
   useHowToGuides,
   type HowToCategoryId,
 } from '@/lib/howto'
@@ -23,7 +26,9 @@ type CategoryFilter = HowToCategoryId | 'all'
  */
 export default function HowToPage() {
   const { t, locale } = useI18n()
-  const guides = useHowToGuides()
+  // Guides about features that are off for this user stay hidden.
+  const publicApi = usePublicApiEnabled() === true
+  const guides = filterAvailableGuides(useHowToGuides(), { publicApi })
   const [category, setCategory] = useState<CategoryFilter>('all')
   const scrolledTo = useRef<string | null>(null)
 
@@ -67,16 +72,16 @@ export default function HowToPage() {
         <Breadcrumb
           items={[
             {
-              label: t('navigation.dashboard', 'Dashboard'),
+              label: t('navigation.dashboard'),
               href: '/dashboard',
             },
-            { label: t('howTo.title', 'Anleitungen') },
+            { label: t('howTo.title') },
           ]}
         />
       </div>
 
       <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-        {t('howTo.title', 'Anleitungen')}
+        {t('howTo.title')}
       </h1>
 
       {/* Category chips */}
@@ -84,7 +89,7 @@ export default function HowToPage() {
         <Chip
           active={category === 'all'}
           onClick={() => setCategory('all')}
-          label={t('howTo.allTopics', 'Alle Themen')}
+          label={t('howTo.allTopics')}
           count={guides.length}
         />
         {HOWTO_CATEGORIES.map((cat) => {
@@ -95,7 +100,7 @@ export default function HowToPage() {
               key={cat.id}
               active={category === cat.id}
               onClick={() => setCategory(category === cat.id ? 'all' : cat.id)}
-              label={pick(cat.title, locale)}
+              label={categoryText(cat.id, locale).title}
               count={n}
             />
           )
@@ -105,7 +110,7 @@ export default function HowToPage() {
       <div className="mt-10 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
         {/* Sticky table of contents */}
         <nav
-          aria-label={t('howTo.toc', 'Themen')}
+          aria-label={t('howTo.toc')}
           className="hidden lg:block"
           data-testid="howto-toc"
         >
@@ -120,7 +125,7 @@ export default function HowToPage() {
                   href={`#howto-${cat.id}`}
                   className="font-semibold text-zinc-900 hover:text-emerald-600 dark:text-white dark:hover:text-emerald-400"
                 >
-                  {pick(cat.title, locale)}
+                  {categoryText(cat.id, locale).title}
                 </a>
                 <ul className="mt-1.5 space-y-1 border-l border-zinc-200 pl-3 dark:border-zinc-800">
                   {catGuides.map((g) => (
@@ -128,9 +133,9 @@ export default function HowToPage() {
                       <a
                         href={`#${g.id}`}
                         className="block truncate text-zinc-600 hover:text-emerald-600 dark:text-zinc-400 dark:hover:text-emerald-400"
-                        title={pick(g.title, locale)}
+                        title={guideText(g, locale).title}
                       >
-                        {pick(g.title, locale)}
+                        {guideText(g, locale).title}
                       </a>
                     </li>
                   ))}
@@ -149,10 +154,10 @@ export default function HowToPage() {
               className="scroll-mt-24"
             >
               <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-                {pick(cat.title, locale)}
+                {categoryText(cat.id, locale).title}
               </h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                {pick(cat.blurb, locale)}
+                {categoryText(cat.id, locale).blurb}
               </p>
               <div className="mt-5 space-y-5">
                 {catGuides.map((g) => (
@@ -165,7 +170,7 @@ export default function HowToPage() {
           <p className="border-t border-zinc-200 pt-6 text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
             {t('howTo.contact.text')}{' '}
             <a
-              href={t('howTo.contact.href', 'mailto:info@legalplusplus.net')}
+              href={t('howTo.contact.href')}
               className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
             >
               {t('howTo.contact.link')}

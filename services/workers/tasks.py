@@ -1720,25 +1720,29 @@ def _resolve_notification_brand_host(db, user, notification_type, data) -> Optio
     there. Community edition, or no opinion: None, which resolves to the
     BenGER brand. Never raises: a failing hook must not drop the email.
     """
-    try:
-        from benger_extended.workers import get_notification_brand_host_fn
+    import extension_registry
 
-        brand_host_fn = get_notification_brand_host_fn()
-    except (ImportError, AttributeError):
-        return None
-    if brand_host_fn is None:
-        return None
-    try:
-        return brand_host_fn(db, user, notification_type, data)
-    except Exception as hook_err:  # defensive: branding must not drop the email
-        logger.error(
-            f"notification brand hook failed for user {getattr(user, 'id', None)}: {hook_err}"
-        )
+    for package, getter in extension_registry.worker_attrs(
+        "get_notification_brand_host_fn"
+    ):
         try:
-            db.rollback()
-        except Exception:
-            pass
-        return None
+            brand_host_fn = getter()
+            if brand_host_fn is None:
+                continue
+            host = brand_host_fn(db, user, notification_type, data)
+        except Exception as hook_err:  # defensive: branding must not drop the email
+            logger.error(
+                f"notification brand hook of {package} failed for user "
+                f"{getattr(user, 'id', None)}: {hook_err}"
+            )
+            try:
+                db.rollback()
+            except Exception:
+                pass
+            continue
+        if host is not None:
+            return host
+    return None
 
 
 @app.task(
@@ -2824,14 +2828,14 @@ def _get_grading_dispatch_policy_fn():
     models) — and that policy must see EVERY dispatch path (client-fired
     immediate eval, the annotation-submit hook, timer auto-submit, the
     recovery sweep), which all funnel through run_single_sample_evaluation.
-    Community edition: returns None (no-op).
+    Community edition: returns None (no-op). The first package (in
+    BENGER_EXTENSIONS order) that provides the getter owns the policy.
     """
-    try:
-        from benger_extended.workers import get_grading_dispatch_policy_fn
+    import extension_registry
 
-        return get_grading_dispatch_policy_fn()
-    except (ImportError, AttributeError):
-        return None
+    return extension_registry.first_worker_attr(
+        "get_grading_dispatch_policy_fn", call=True
+    )
 
 
 def _unpack_grading_dispatch_policy(result):
@@ -2859,13 +2863,14 @@ def _unpack_grading_dispatch_policy(result):
 
 
 def _get_batch_evaluation_policy_fn():
-    """The extended batch billing policy, or None (community edition, or a
-    package without the hook)."""
-    try:
-        from benger_extended.workers import get_batch_evaluation_policy_fn
-    except (ImportError, AttributeError):
-        return None
-    return get_batch_evaluation_policy_fn
+    """The batch billing policy callable, or None (community edition, or no
+    package with the hook). The first package (in BENGER_EXTENSIONS order)
+    that provides the getter owns the policy."""
+    import extension_registry
+
+    return extension_registry.first_worker_attr(
+        "get_batch_evaluation_policy_fn", call=True
+    )
 
 
 def _apply_batch_evaluation_policy(
@@ -2883,11 +2888,8 @@ def _apply_batch_evaluation_policy(
     edition, a package without the hook, a failing hook or an unexpected
     result: the dispatched organization, no block, not authorized.
     """
-    get_policy_fn = _get_batch_evaluation_policy_fn()
-    if get_policy_fn is None:
-        return organization_id, None, False
     try:
-        policy_fn = get_policy_fn()
+        policy_fn = _get_batch_evaluation_policy_fn()
         if policy_fn is None or not user_id:
             return organization_id, None, False
         result = policy_fn(
@@ -3028,21 +3030,19 @@ def _run_grading_finalize_hook(evaluation_run_id: str, success: bool) -> None:
     place that reliably observes completion. The extended implementation
     opens its own DB session and never raises. Community edition: no-op.
     """
-    try:
-        from benger_extended.workers import get_grading_finalize_fn
+    import extension_registry
 
-        finalize_fn = get_grading_finalize_fn()
-    except (ImportError, AttributeError):
-        return
-    if finalize_fn is None:
-        return
-    try:
-        finalize_fn(evaluation_run_id, success)
-    except Exception as finalize_err:  # defensive — billing must not kill evals
-        logger.error(
-            f"[SingleSampleEval] grading finalize hook failed for "
-            f"{evaluation_run_id}: {finalize_err}"
-        )
+    for package, getter in extension_registry.worker_attrs("get_grading_finalize_fn"):
+        try:
+            finalize_fn = getter()
+            if finalize_fn is None:
+                continue
+            finalize_fn(evaluation_run_id, success)
+        except Exception as finalize_err:  # defensive: billing must not kill evals
+            logger.error(
+                f"[SingleSampleEval] grading finalize hook of {package} failed for "
+                f"{evaluation_run_id}: {finalize_err}"
+            )
 
 
 def _notify_immediate_grading_received(
@@ -3751,60 +3751,34 @@ def _evaluate_llm_judge_single(
 
 
 # =============================================================================
-# Worker bootstrap: load extended Celery tasks if available
+# Worker bootstrap: register the extension packages' Celery tasks
 # =============================================================================
 #
-# Phase 5 of the academic-rigor overhaul. The extended package ships
+# Phase 5 of the academic-rigor overhaul. An extension package ships
 # additional Celery tasks (e.g. tasks.run_immediate_falloesung) and metric
-# handlers (llm_judge_falloesung). They register themselves into THIS
-# Celery app via two hooks. Community edition (no benger_extended) is a
-# clean no-op via the outer ImportError handler.
-#
-# The version handshake mirrors services/api/extensions.py so a mismatched
-# extended package surfaces loudly at startup, not in a silent dispatch
-# error during evaluation.
-from core_version import CORE_API_VERSION as _WORKER_CORE_API_VERSION  # noqa: E402
-from core_version import extended_required as _extended_required  # noqa: E402
+# handlers (llm_judge_falloesung). They register themselves into THIS Celery
+# app through `<package>.workers.register_tasks(app)`. The registry
+# (/shared/extension_registry.py) decides which packages load, in which
+# order, and runs the version handshake the API's extensions.py runs, so a
+# mismatched package surfaces loudly at startup, not in a silent dispatch
+# error during evaluation. Community edition (no package): a clean no-op.
+import extension_registry as _extension_registry  # noqa: E402
 
-try:
-    import benger_extended  # noqa: F401
-
-    _ext_compatible = True
-    if hasattr(benger_extended, "COMPATIBLE_CORE_VERSIONS"):
-        if _WORKER_CORE_API_VERSION not in benger_extended.COMPATIBLE_CORE_VERSIONS:
-            if _extended_required():
-                raise RuntimeError(
-                    "Worker: benger_extended core-version mismatch — needs "
-                    f"{benger_extended.COMPATIBLE_CORE_VERSIONS}, core is "
-                    f"{_WORKER_CORE_API_VERSION}. BENGER_REQUIRE_EXTENDED is "
-                    "set — refusing to start with extended tasks disabled."
-                )
-            logger.error(
-                "Worker: benger_extended core-version mismatch — needs %s, "
-                "core is %s. Extended tasks NOT registered.",
-                benger_extended.COMPATIBLE_CORE_VERSIONS,
-                _WORKER_CORE_API_VERSION,
-            )
-            _ext_compatible = False
-
-    if _ext_compatible:
-        from benger_extended.workers import register_tasks as _ext_register_tasks
-
+for _ext in _extension_registry.load_all():
+    _ext_workers = _extension_registry.worker_module(_ext.name, strict=True)
+    _ext_register_tasks = getattr(_ext_workers, "register_tasks", None)
+    if _ext_register_tasks is None:
+        continue
+    with _extension_registry.owner(_ext.name):
         _ext_register_tasks(app)
-        logger.info("Worker: benger_extended Celery tasks registered")
-        # NOTE: register_metric_handlers is wired through
-        # ml_evaluation/__init__.py at module-import time (Phase 1) so
-        # the registry is already populated by the time the worker
-        # starts dispatching. We do NOT re-register here — that would
-        # replace the handler with itself and emit a noisy warning.
-except ImportError as _ext_import_error:
-    if _extended_required():
-        raise RuntimeError(
-            "BENGER_REQUIRE_EXTENDED is set but the benger_extended package "
-            f"failed to import in the worker: {_ext_import_error}. Refusing "
-            "to start as community edition."
-        ) from _ext_import_error
-    logger.info("Worker: community edition (no benger_extended package)")
+    logger.info("Worker: %s Celery tasks registered", _ext.name)
+    # NOTE: register_metric_handlers is wired through
+    # ml_evaluation/__init__.py at module-import time (Phase 1) so
+    # the registry is already populated by the time the worker
+    # starts dispatching. We do NOT re-register here; that would
+    # replace the handler with itself and emit a noisy warning.
+if not _extension_registry.loaded():
+    logger.info("Worker: community edition (no extension package loaded)")
 
 
 # =============================================================================
@@ -4928,6 +4902,69 @@ def recompute_aggregates(self):
                 rc.delete(lock_key)
             except Exception:
                 pass
+
+
+#: Rows per DELETE statement of the usage retention task.
+API_USAGE_CLEANUP_BATCH = 10000
+
+
+def _api_usage_retention_days() -> int:
+    try:
+        days = int(os.getenv("API_USAGE_RETENTION_DAYS", "400"))
+    except ValueError:
+        days = 400
+    return max(days, 1)
+
+
+def build_delete_api_usage_batch(cutoff, batch_size: int):
+    """One bounded DELETE of usage events older than ``cutoff`` (oldest
+    ids first, so a long backlog is worked off in short transactions)."""
+    from sqlalchemy import delete, select
+
+    from models import ApiKeyUsageEvent
+
+    victims = (
+        select(ApiKeyUsageEvent.id)
+        .where(ApiKeyUsageEvent.created_at < cutoff)
+        .order_by(ApiKeyUsageEvent.id)
+        .limit(batch_size)
+        .scalar_subquery()
+    )
+    return delete(ApiKeyUsageEvent).where(ApiKeyUsageEvent.id.in_(victims))
+
+
+@app.task(name="tasks.cleanup_api_key_usage_events", bind=True)
+def cleanup_api_key_usage_events(self, retention_days: Optional[int] = None):
+    """Daily retention for ``api_key_usage_events`` (access-key request log).
+
+    Deletes rows older than ``API_USAGE_RETENTION_DAYS`` (default 400) in
+    batches of ``API_USAGE_CLEANUP_BATCH``, committing after each batch.
+    """
+    from datetime import datetime as _dt
+    from datetime import timedelta, timezone
+
+    days = retention_days or _api_usage_retention_days()
+    cutoff = _dt.now(timezone.utc) - timedelta(days=days)
+    db = SessionLocal()
+    deleted = 0
+    try:
+        while True:
+            result = db.execute(build_delete_api_usage_batch(cutoff, API_USAGE_CLEANUP_BATCH))
+            db.commit()
+            count = result.rowcount or 0
+            deleted += count
+            if count < API_USAGE_CLEANUP_BATCH:
+                break
+        logger.info(
+            "cleanup_api_key_usage_events: deleted %d row(s) older than %s", deleted, cutoff
+        )
+        return {"deleted": deleted, "cutoff": cutoff.isoformat(), "retention_days": days}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"cleanup_api_key_usage_events failed: {e}")
+        raise
+    finally:
+        db.close()
 
 
 @app.task(name="tasks.sweep_missing_immediate_evals", bind=True)

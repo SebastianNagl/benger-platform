@@ -73,29 +73,52 @@ class MetricHandler(ABC):
         """
 
 
+def _registration_owner() -> Optional[str]:
+    """The extension package whose registrations are running (see
+    ``extension_registry.owner``), else None."""
+    try:
+        from extension_registry import current_owner
+    except ImportError:  # /shared not on sys.path
+        return None
+    return current_owner()
+
+
 class MetricRegistry:
     """Maps canonical metric names to their handler instances."""
 
     def __init__(self) -> None:
         self._handlers: Dict[str, MetricHandler] = {}
+        # Which extension package registered each handler (None: platform).
+        self._owners: Dict[str, Optional[str]] = {}
 
     def register(self, handler: MetricHandler) -> None:
         if not handler.name:
             raise ValueError(
                 f"MetricHandler {type(handler).__name__} must set a non-empty `name`"
             )
+        owner = _registration_owner()
         if handler.name in self._handlers:
             # Last-registered wins; helpful for tests but warn so accidental
-            # double-registration in production startup is visible.
+            # double-registration in production startup is visible, naming
+            # the extension packages involved.
             import logging
 
             logging.getLogger(__name__).warning(
-                "Metric handler %r already registered (replacing %s with %s)",
+                "Metric handler %r already registered: registered by %s "
+                "replaces %s's (%s -> %s)",
                 handler.name,
+                owner or "the platform",
+                self._owners.get(handler.name) or "the platform",
                 type(self._handlers[handler.name]).__name__,
                 type(handler).__name__,
             )
         self._handlers[handler.name] = handler
+        self._owners[handler.name] = owner
+
+    def owner(self, metric_name: str) -> Optional[str]:
+        """The extension package that registered ``metric_name`` (None for
+        the platform's own handlers and unknown names)."""
+        return self._owners.get(metric_name)
 
     def get(self, metric_name: str) -> Optional[MetricHandler]:
         return self._handlers.get(metric_name)

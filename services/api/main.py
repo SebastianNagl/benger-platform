@@ -43,7 +43,7 @@ if shared_dir not in sys.path:
 from app.core.access_log import install_access_log_redaction  # noqa: E402
 
 # Centralized configuration
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import docs_url_kwargs, get_settings  # noqa: E402
 
 install_access_log_redaction()
 
@@ -127,6 +127,11 @@ async def lifespan(app: FastAPI):
         initialize_task_types_and_evaluation_types,
     )
     from services.websocket_clustering import cluster_manager
+
+    # Deny by default: every public /api/v1 route must declare its scopes.
+    from routers.v1._deps import assert_v1_routes_scoped
+
+    assert_v1_routes_scoped(app)
 
     is_reload = False
     try:
@@ -312,11 +317,21 @@ async def lifespan(app: FastAPI):
             "⚠️  WARNING: FRONTEND_URL is using default value in production environment!"
         )
 
+    # Batched writer for /api/v1 access-key usage events (tests use a sink).
+    from services import api_usage_writer
+
+    if not settings.testing:
+        await api_usage_writer.start()
+
     logger.info("🚀 API startup complete - server is ready to accept requests")
 
     yield
 
     # Shutdown
+    try:
+        await api_usage_writer.stop()
+    except Exception as e:
+        logger.warning(f"API usage writer stop failed: {e}")
     # Note: reload flag in /tmp persists within the container but is cleared
     # on container recreation (docker-compose down + up)
     logger.info("Shutting down BenGER API...")
@@ -363,6 +378,9 @@ app = FastAPI(
     version=settings.api_version,
     lifespan=lifespan,
     root_path=settings.api_root_path,
+    # /docs, /redoc and /openapi.json are not mounted in production unless
+    # INTERNAL_DOCS_ENABLED=true (see Settings.internal_docs_enabled).
+    **docs_url_kwargs(settings.internal_docs_enabled),
 )
 
 # Configure CORS with regex to support wildcard subdomains
@@ -375,6 +393,19 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token", "X-Request-ID"],
     expose_headers=["Content-Length"],
 )
+
+# Usage events and X-RateLimit-* / X-Request-ID headers for /api/v1.
+from middleware.api_usage import ApiUsageMiddleware  # noqa: E402
+
+app.add_middleware(ApiUsageMiddleware)
+
+# CORS (any origin, no credentials) and X-API-Version for /api/v1. Added
+# after the usage middleware so it runs outside it: preflights are answered
+# before the app-wide CORSMiddleware sees them, and ordinary responses carry
+# both this middleware's headers and X-Request-ID / X-RateLimit-*.
+from routers.v1._middleware import V1HeadersMiddleware  # noqa: E402
+
+app.add_middleware(V1HeadersMiddleware)
 
 
 # Reject obviously oversized request bodies before they consume backend
@@ -409,6 +440,8 @@ async def reject_oversized_requests(request, call_next):
 # Import and include routers
 
 # Other routers
+from routers.access_keys import router as access_keys_router  # noqa: E402
+from routers.public_api_gate import availability_router as access_keys_availability_router  # noqa: E402
 from routers.api_keys import router as api_key_router  # noqa: E402
 from routers.file_uploads import router as file_upload_router  # noqa: E402
 from routers.invitations import router as invitations_router  # noqa: E402
@@ -488,6 +521,8 @@ app.include_router(notifications_router)  # Notifications
 if get_settings().debug_routes_enabled:
     app.include_router(debug_router)  # Debug endpoints
 app.include_router(api_key_router)  # API key management
+app.include_router(access_keys_availability_router)  # Is the access-key feature on for the caller?
+app.include_router(access_keys_router)  # Access keys (bgr_) for the public /api/v1 (gated)
 from routers.llm_models_admin import router as llm_models_admin_router  # noqa: E402
 app.include_router(llm_models_admin_router)  # Superadmin: reseed/inspect llm catalog
 from routers.custom_models import router as custom_models_router  # noqa: E402
@@ -508,13 +543,19 @@ app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedbac
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
 
-# Load extended features if available
-from extensions import configure_app, load_extended, get_extended_routers  # noqa: E402
+# Load the extension packages (BENGER_EXTENSIONS, default benger_extended).
+# Each call is a no-op in the community edition; see extensions.py.
+from extensions import configure_app, include_extension_routers, load_extended  # noqa: E402
 
-if load_extended():
-    for router, kwargs in get_extended_routers():
-        app.include_router(router, **kwargs)
-    configure_app(app)
+load_extended()
+include_extension_routers(app)
+configure_app(app)
+
+# The public API: platform v1 routes, then every overlay's get_v1_routers()
+# under the same prefix, plus the v1 error envelope (routers/v1/__init__.py).
+from routers.v1 import install_v1  # noqa: E402
+
+install_v1(app)
 
 
 # Root endpoint

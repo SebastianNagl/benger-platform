@@ -4,6 +4,7 @@ from fastapi import Request
 from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
+from auth_module.service import forbid_service_account
 
 @router.post("/change-password")
 async def change_password(
@@ -59,6 +60,7 @@ async def request_password_reset(
             f"Password reset requested for non-existent email: {mask_email(reset_request.email)}"
         )
         return {"message": "If the email exists, a password reset link has been sent"}
+    forbid_service_account(user)
 
     try:
         # Host-aware like verification/invitation links: a Vertretbar student

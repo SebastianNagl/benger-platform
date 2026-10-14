@@ -8,12 +8,9 @@
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen } from '@testing-library/react'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
-    locale: 'en',
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: {

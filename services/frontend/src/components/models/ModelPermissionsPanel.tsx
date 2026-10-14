@@ -75,7 +75,9 @@ export function ModelPermissionsPanel({
       } catch (err) {
         if (!cancelled) {
           const msg =
-            err instanceof Error ? err.message : 'Failed to load organizations'
+            err instanceof Error
+              ? err.message
+              : t('organizationsPage.failedToLoadOrganizations')
           addToast(msg, 'error')
         }
       } finally {
@@ -86,7 +88,7 @@ export function ModelPermissionsPanel({
     return () => {
       cancelled = true
     }
-  }, [addToast])
+  }, [addToast, t])
 
   const toggleOrg = (orgId: string) => {
     setSelectedOrgIds((prev) =>
@@ -132,7 +134,7 @@ export function ModelPermissionsPanel({
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : 'Failed to save permissions'
+        err instanceof Error ? err.message : t('project.permissions.saveFailed')
       setError(errorMessage)
       addToast(errorMessage, 'error')
     } finally {

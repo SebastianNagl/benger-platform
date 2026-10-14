@@ -9,6 +9,7 @@
  */
 
 import type { LabelingTemplate } from '@/components/projects/wizard/types'
+import { type RegistrationOwners, recordRegistration } from './owner'
 
 export interface RegisteredWizardTemplate extends Omit<
   LabelingTemplate,
@@ -63,18 +64,22 @@ export function _resetWizardPostCreateHooks() {
  * exam settings so a wizard-made project works on both the benger and the
  * vertretbar surface without manual setup. The preset receives the wizard
  * state AFTER the template/annotation defaults and returns a partial to
- * merge (nested objects must be returned whole).
+ * merge (nested objects must be returned whole). One preset per kind; the
+ * last registration wins and a different owner replacing it logs a warning
+ * (see ./owner.ts).
  */
 export type WizardKindPreset = (
   data: Record<string, any>,
 ) => Record<string, any>
 
 const kindPresets: Record<string, WizardKindPreset> = {}
+const kindPresetOwners: RegistrationOwners = new Map()
 
 export function registerWizardKindPreset(
   kind: string,
   preset: WizardKindPreset,
 ) {
+  recordRegistration(kindPresetOwners, 'wizard kind preset', kind)
   kindPresets[kind] = preset
 }
 
@@ -87,4 +92,5 @@ export function getWizardKindPreset(
 /** Test helper. */
 export function _resetWizardKindPresets() {
   for (const k of Object.keys(kindPresets)) delete kindPresets[k]
+  kindPresetOwners.clear()
 }

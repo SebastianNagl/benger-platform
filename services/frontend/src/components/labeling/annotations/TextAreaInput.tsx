@@ -10,6 +10,7 @@
 
 import { Label } from '@/components/shared/Label'
 import { Textarea } from '@/components/shared/Textarea'
+import { useI18n } from '@/contexts/I18nContext'
 import { buildAnnotationResult } from '@/lib/labelConfig/dataBinding'
 import { AnnotationComponentProps } from '@/lib/labelConfig/registry'
 import { logger } from '@/lib/utils/logger'
@@ -23,6 +24,7 @@ export default function TextAreaInput({
   onAnnotation,
   hideSubmitButton = false,
 }: AnnotationComponentProps) {
+  const { t } = useI18n()
   const [value, setValue] = useState(externalValue || '')
 
   // Get configuration
@@ -112,7 +114,7 @@ export default function TextAreaInput({
           disabled={required && !value.trim()}
           className="rounded-md bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Submit
+          {t('common.submit')}
         </button>
       )}
 

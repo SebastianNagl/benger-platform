@@ -27,6 +27,7 @@
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import type { ServerDraftSyncState } from '@/hooks/useServerDraftSync'
+import { intlTag } from '@/lib/i18n/locales'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useEffect, useRef } from 'react'
 
@@ -65,10 +66,10 @@ export function ServerDraftSyncWarning({
     if (failing && toastIdRef.current === null) {
       const lastSaved = sync.lastSavedAt
         ? t('annotation.serverDraft.lastSaved', {
-            time: sync.lastSavedAt.toLocaleTimeString(
-              locale === 'en' ? 'en-GB' : 'de-DE',
-              { hour: '2-digit', minute: '2-digit' },
-            ),
+            time: sync.lastSavedAt.toLocaleTimeString(intlTag(locale), {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
           })
         : t('annotation.serverDraft.neverSaved')
       const body: string = copy?.body ?? t('annotation.serverDraft.offlineBody')

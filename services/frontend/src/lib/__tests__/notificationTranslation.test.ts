@@ -4,32 +4,40 @@
 
 import { getTranslatedNotification } from '../notificationTranslation'
 
-const mockT = (
-  key: string,
-  defaultValue?: string,
-  vars?: Record<string, any>,
-) => {
-  if (vars && defaultValue) {
-    // Simulate i18next behavior: replace variables in the default string
-    let result = defaultValue
-    for (const [k, v] of Object.entries(vars)) {
-      result = result.replace(`{${k}}`, String(v))
-    }
-    return result
+// Catalog stand-in: the key of the most recently created notification
+// resolves to its raw title/message template (the old default-value
+// behaviour), every other key comes back as-is like a missing catalog key.
+let lastNotification: { type: string; title: string; message: string } | null =
+  null
+
+const mockT = (key: string, vars?: Record<string, any>) => {
+  const n = lastNotification
+  let template: string | undefined
+  if (n && key === `notifications.content.${n.type}.title`) template = n.title
+  if (n && key === `notifications.content.${n.type}.message`)
+    template = n.message
+  if (template === undefined) return key
+  let result = template
+  for (const [k, v] of Object.entries(vars ?? {})) {
+    result = result.replace(`{${k}}`, String(v))
   }
-  return defaultValue || key
+  return result
 }
 
-const createNotification = (overrides: any = {}) => ({
-  id: 'n1',
-  type: 'test',
-  title: 'Test Title',
-  message: 'Test Message',
-  data: {},
-  is_read: false,
-  created_at: '2025-01-01T00:00:00Z',
-  ...overrides,
-})
+const createNotification = (overrides: any = {}) => {
+  const notification = {
+    id: 'n1',
+    type: 'test',
+    title: 'Test Title',
+    message: 'Test Message',
+    data: {},
+    is_read: false,
+    created_at: '2025-01-01T00:00:00Z',
+    ...overrides,
+  }
+  lastNotification = notification
+  return notification
+}
 
 describe('getTranslatedNotification', () => {
   it('should return translated title and message', () => {

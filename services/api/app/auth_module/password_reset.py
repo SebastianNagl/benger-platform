@@ -91,6 +91,9 @@ class PasswordResetService:
         user = self.validate_reset_token(db, token)
         if not user:
             return False
+        from auth_module.service import forbid_service_account
+
+        forbid_service_account(user)
 
         # Update password. password_set also covers the first-password case:
         # a passwordless LTI account recovering via "Passwort vergessen" is

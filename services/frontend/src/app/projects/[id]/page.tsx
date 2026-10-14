@@ -56,6 +56,7 @@ import type {
 } from '@/lib/api/evaluation-types'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import { useSlot } from '@/lib/extensions/slots'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
   getRecommendedParam,
@@ -75,7 +76,6 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -135,7 +135,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { user } = useAuth()
   const { addToast } = useToast()
   const { isSidebarHidden } = useUIStore()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const {
     currentProject,
@@ -804,10 +804,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       await updateProject(projectId, { icon })
     } catch {
-      addToast(
-        t('project.icon.saveFailed', 'Symbol konnte nicht gespeichert werden.'),
-        'error',
-      )
+      addToast(t('project.icon.saveFailed'), 'error')
     }
   }
 
@@ -820,13 +817,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     try {
       await updateProject(projectId, { kind })
     } catch {
-      addToast(
-        t(
-          'project.details.kindSaveFailed',
-          'Projekttyp konnte nicht gespeichert werden.',
-        ),
-        'error',
-      )
+      addToast(t('project.details.kindSaveFailed'), 'error')
     }
   }
 
@@ -1706,7 +1697,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         className="mr-2 rounded-md px-1 transition-colors hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:hover:bg-zinc-800"
                         title={t(
                           'projects.creation.wizard.step1.icon.clickToEdit',
-                          'Klicken zum Bearbeiten',
                         )}
                         onClick={() => setIconPickerOpen(true)}
                         data-testid="project-header-icon"
@@ -1740,8 +1730,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                     >
                       <UserGroupIcon className="h-3.5 w-3.5" />
                       {isAttempted
-                        ? t('projects.list.attemptedBadge', 'Frühere Abgabe')
-                        : t('projects.list.participantBadge', 'Teilnehmer')}
+                        ? t('projects.list.attemptedBadge')
+                        : t('projects.list.participantBadge')}
                     </span>
                   )}
                   {canEditProject() && (
@@ -1967,17 +1957,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             <div className="flex items-center justify-between">
                               <div>
                                 <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
-                                  {t('project.conditionalInstructions.title', {
-                                    defaultValue: 'Conditional Instructions',
-                                  })}
+                                  {t('project.conditionalInstructions.title')}
                                 </h4>
                                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                   {t(
                                     'project.conditionalInstructions.description',
-                                    {
-                                      defaultValue:
-                                        'Show different instructions to annotators based on randomized assignment per task',
-                                    },
                                   )}
                                 </p>
                               </div>
@@ -1993,13 +1977,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                 {editingConditionalInstructions
                                   ? t('project.editing.cancel')
                                   : conditionalInstructions.length > 0
-                                    ? t(
-                                        'project.conditionalInstructions.edit',
-                                        { defaultValue: 'Edit Variants' },
-                                      )
-                                    : t('project.conditionalInstructions.add', {
-                                        defaultValue: 'Add Variants',
-                                      })}
+                                    ? t('project.conditionalInstructions.edit')
+                                    : t('project.conditionalInstructions.add')}
                               </Button>
                             </div>
 
@@ -2020,7 +1999,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                             <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                               {t(
                                                 'project.conditionalInstructions.aiAllowed',
-                                                { defaultValue: 'AI Allowed' },
                                               )}
                                             </span>
                                           )}
@@ -2050,7 +2028,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                           <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                             {t(
                                               'project.conditionalInstructions.variantId',
-                                              { defaultValue: 'Variant ID' },
                                             )}
                                           </label>
                                           <input
@@ -2068,7 +2045,9 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                                 updated,
                                               )
                                             }}
-                                            placeholder="e.g. ai, no_ai"
+                                            placeholder={t(
+                                              'project.conditionalInstructions.variantIdPlaceholder',
+                                            )}
                                             className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                                           />
                                         </div>
@@ -2076,7 +2055,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                           <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                             {t(
                                               'project.conditionalInstructions.weight',
-                                              { defaultValue: 'Weight (%)' },
                                             )}
                                           </label>
                                           <input
@@ -2127,7 +2105,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                           >
                                             {t(
                                               'project.conditionalInstructions.aiAllowed',
-                                              { defaultValue: 'AI' },
                                             )}
                                           </label>
                                         </div>
@@ -2148,10 +2125,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                         <label className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                           {t(
                                             'project.conditionalInstructions.content',
-                                            {
-                                              defaultValue:
-                                                'Instruction Content',
-                                            },
                                           )}
                                         </label>
                                         <textarea
@@ -2192,7 +2165,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   >
                                     {t(
                                       'project.conditionalInstructions.addVariant',
-                                      { defaultValue: '+ Add Variant' },
                                     )}
                                   </Button>
                                   <Button
@@ -2209,10 +2181,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                         addToast(
                                           t(
                                             'project.conditionalInstructions.weightError',
-                                            {
-                                              defaultValue:
-                                                'Weights must sum to 100%',
-                                            },
                                           ),
                                           'error',
                                         )
@@ -2229,10 +2197,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                         addToast(
                                           t(
                                             'project.conditionalInstructions.saved',
-                                            {
-                                              defaultValue:
-                                                'Conditional instructions saved',
-                                            },
                                           ),
                                           'success',
                                         )
@@ -2240,7 +2204,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                         addToast(
                                           t(
                                             'project.conditionalInstructions.saveFailed',
-                                            { defaultValue: 'Failed to save' },
                                           ),
                                           'error',
                                         )
@@ -2249,9 +2212,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                     disabled={isUpdating}
                                     className="text-sm"
                                   >
-                                    {t('project.conditionalInstructions.save', {
-                                      defaultValue: 'Save Variants',
-                                    })}
+                                    {t('project.conditionalInstructions.save')}
                                   </Button>
                                 </div>
 
@@ -2266,10 +2227,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                       <p className="text-xs text-red-500">
                                         {t(
                                           'project.conditionalInstructions.weightWarning',
-                                          {
-                                            defaultValue: `Weights sum to ${totalWeight}%, must be 100%`,
-                                            total: totalWeight,
-                                          },
+                                          { total: totalWeight },
                                         )}
                                       </p>
                                     ) : null
@@ -2409,23 +2367,14 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   {canEditProject() && (
                     <div>
                       <SubSection
-                        title={t(
-                          'project.generationDefaults.runsTitle',
-                          'Multi-Run',
-                        )}
+                        title={t('project.generationDefaults.runsTitle')}
                       >
                         <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                          {t(
-                            'project.generationDefaults.runsDescription',
-                            'Wie oft jede Task-Modell-Kombination generiert werden soll. Multipliziert die Kosten entsprechend.',
-                          )}
+                          {t('project.generationDefaults.runsDescription')}
                         </p>
                         <div className="max-w-xs">
                           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {t(
-                              'project.generationDefaults.defaultRunsPerTask',
-                              'Standard-Anzahl Läufe pro Task',
-                            )}
+                            {t('project.generationDefaults.defaultRunsPerTask')}
                           </label>
                           <input
                             type="number"
@@ -2445,10 +2394,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                             className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-                            {t(
-                              'project.generationDefaults.runsPerTaskHelp',
-                              'Standardwert 1. Werte > 1 erzeugen mehrere Trials für Varianzanalyse. Cap 25.',
-                            )}
+                            {t('project.generationDefaults.runsPerTaskHelp')}
                           </p>
                         </div>
                       </SubSection>
@@ -2511,7 +2457,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         className="flex items-center gap-2 text-sm"
                       >
                         <PlayIcon className="h-4 w-4" />
-                        {t('project.generation.runCta', 'Generierung starten')}
+                        {t('project.generation.runCta')}
                       </Button>
                     </div>
                   )}
@@ -2557,22 +2503,15 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       {canEditProject() && (
                         <div>
                           <SubSection
-                            title={t(
-                              'project.evaluationDefaults.runsTitle',
-                              'Multi-Run',
-                            )}
+                            title={t('project.evaluationDefaults.runsTitle')}
                           >
                             <p className="-mt-2 mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-                              {t(
-                                'project.evaluationDefaults.runsDescription',
-                                'Wie oft jede Task vom Judge bewertet werden soll. Greift, wenn kein Judge-Ensemble konfiguriert ist.',
-                              )}
+                              {t('project.evaluationDefaults.runsDescription')}
                             </p>
                             <div className="max-w-xs">
                               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                                 {t(
                                   'project.evaluationDefaults.defaultRunsPerTask',
-                                  'Standard-Anzahl Judge-Läufe',
                                 )}
                               </label>
                               <input
@@ -2595,7 +2534,6 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                               <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                                 {t(
                                   'project.evaluationDefaults.runsPerTaskHelp',
-                                  'Standardwert 1. Werte > 1 erzeugen mehrere Bewertungen für Varianz-/Konsistenzanalyse. Cap 25.',
                                 )}
                               </p>
                             </div>
@@ -2623,23 +2561,18 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       flushed by the Eval card's single Speichern. */}
                       {canEditProject() && (
                         <SubSection
-                          title={t(
-                            'project.evaluationSettings.title',
-                            'Evaluierungseinstellungen',
-                          )}
+                          title={t('project.evaluationSettings.title')}
                         >
                           <div className="flex items-center justify-between">
                             <div>
                               <Label>
                                 {t(
                                   'projects.creation.wizard.step7.immediateEvaluation',
-                                  'Immediate evaluation',
                                 )}
                               </Label>
                               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                 {t(
                                   'projects.creation.wizard.step7.immediateEvaluationHint',
-                                  'Run the configured evaluations as soon as an annotation is submitted',
                                 )}
                               </p>
                             </div>
@@ -2668,13 +2601,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   <Label>
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToPeers',
-                                      'Blinde Korrektur (andere Korrektoren)',
                                     )}
                                   </Label>
                                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToPeersHint',
-                                      'Bewertungen anderer Korrektoren bleiben verborgen, bis du selbst eingereicht hast',
                                     )}
                                   </p>
                                 </div>
@@ -2693,13 +2624,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   <Label>
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToLlm',
-                                      'Blinde Korrektur (LLM-Vorbewertung)',
                                     )}
                                   </Label>
                                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToLlmHint',
-                                      'LLM-Vorbewertungen bleiben verborgen, bis du selbst eingereicht hast',
                                     )}
                                   </p>
                                 </div>
@@ -2718,13 +2647,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   <Label>
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToNonJudge',
-                                      'Blinde Korrektur (klassische Metriken)',
                                     )}
                                   </Label>
                                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                     {t(
                                       'project.evaluationSettings.korrekturBlindToNonJudgeHint',
-                                      'Klassische automatische Bewertungen (BLEU, ROUGE, BERTScore …) bleiben verborgen, bis du selbst eingereicht hast',
                                     )}
                                   </p>
                                 </div>
@@ -2745,13 +2672,11 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   <Label>
                                     {t(
                                       'project.evaluationSettings.korrekturKeepBlindAfterSubmit',
-                                      'Blind auch nach eigener Bewertung',
                                     )}
                                   </Label>
                                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                                     {t(
                                       'project.evaluationSettings.korrekturKeepBlindAfterSubmitHint',
-                                      'Wenn aktiv, bleiben die obigen Bewertungen verborgen — auch nachdem du deine eigene Bewertung eingereicht hast',
                                     )}
                                   </p>
                                 </div>
@@ -2776,10 +2701,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                       Collapsed badge mirrors Modellauswahl / Prompt-Strukturen
                       style: grey pill with the configured-method count. */}
                       <SubSection
-                        title={t(
-                          'project.evaluationMethods.title',
-                          'Evaluierungsmethoden',
-                        )}
+                        title={t('project.evaluationMethods.title')}
                         badge={
                           evaluationConfigs.length > 0
                             ? evaluationConfigs.length === 1
@@ -2831,10 +2753,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           className="flex items-center gap-2 text-sm"
                         >
                           <PlayIcon className="h-4 w-4" />
-                          {t(
-                            'project.evaluation.runCta',
-                            'Evaluierung starten',
-                          )}
+                          {t('project.evaluation.runCta')}
                         </Button>
                       </div>
                     )}
@@ -3246,7 +3165,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                         new Date(currentProject.created_at),
                         {
                           addSuffix: true,
-                          locale: de,
+                          locale: dateFnsLocale(locale),
                         },
                       )}
                     </p>

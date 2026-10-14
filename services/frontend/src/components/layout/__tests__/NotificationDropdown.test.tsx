@@ -18,7 +18,7 @@ jest.mock('date-fns/locale', () => ({
 // Mock I18nContext
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, defaultValue?: any) => {
+    t: (key: string, _vars?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'notifications.title': 'Notifications',
         'notifications.unread': 'unread',
@@ -28,10 +28,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'notifications.empty': 'No notifications yet',
         'notifications.viewAll': 'View all notifications',
       }
-      return (
-        translations[key] ||
-        (typeof defaultValue === 'string' ? defaultValue : key)
-      )
+      return translations[key] || key
     },
     locale: 'en',
     changeLocale: jest.fn(),

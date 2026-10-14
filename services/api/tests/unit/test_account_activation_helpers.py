@@ -262,7 +262,7 @@ class TestMailLanguage:
         assert mail_language_for(_user(language_preference="DE")) == "de"
 
     def test_unsupported_or_blank_preference_falls_back(self):
-        assert mail_language_for(_user(language_preference="fr")) == "de"
+        assert mail_language_for(_user(language_preference="es")) == "de"
         assert mail_language_for(_user(language_preference="")) == "de"
         assert mail_language_for(_user(language_preference=None), default="en") == "en"
 

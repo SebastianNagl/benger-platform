@@ -23,7 +23,9 @@ import {
   SelectValue,
 } from '@/components/shared/Select'
 import { Tooltip } from '@/components/shared/Tooltip'
+import { useI18n } from '@/contexts/I18nContext'
 import type { Model, ModelError } from '@/hooks/useModels'
+import { intlTag } from '@/lib/i18n/locales'
 import {
   getDefaultMaxTokens,
   getTemperatureConstraints,
@@ -97,6 +99,7 @@ export function ModelSelectionSection({
   getReasoningConfig,
   onNavigateToProfile,
 }: ModelSelectionSectionProps) {
+  const { locale } = useI18n()
   return (
     <div className="bg-white dark:bg-zinc-900">
       {canEditProject() ? (
@@ -209,10 +212,7 @@ export function ModelSelectionSection({
                               <div className="ml-3 flex shrink-0 items-center space-x-2">
                                 {reasoningConfig && (
                                   <span className="inline-flex items-center rounded bg-purple-100 px-1.5 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                                    {t(
-                                      'project.modelSelection.thinking',
-                                      'Thinking',
-                                    )}
+                                    {t('project.modelSelection.thinking')}
                                   </span>
                                 )}
                                 {model.is_official === false && <CustomBadge />}
@@ -230,11 +230,7 @@ export function ModelSelectionSection({
                                 {/* Per-model Temperature */}
                                 <div className="flex items-center gap-2">
                                   <label className="text-xs text-zinc-600 dark:text-zinc-400">
-                                    {t(
-                                      'project.modelSelection.temperature',
-                                      'Temp',
-                                    )}
-                                    :
+                                    {t('project.modelSelection.temperature')}:
                                   </label>
                                   {(() => {
                                     const tc = getTemperatureConstraints(
@@ -247,14 +243,13 @@ export function ModelSelectionSection({
                                         content={
                                           tc.fixed
                                             ? t(
-                                                'project.modelSelection.temperatureFixed',
-                                                `This model requires temperature=${tc.fixedValue}`,
+                                                'project.modelSelection.temperatureFixedValue',
+                                                { value: tc.fixedValue },
                                               )
                                             : tc.reason
                                               ? `${tc.reason} (${tc.min}-${tc.max})`
                                               : t(
                                                   'project.modelSelection.temperatureTooltip',
-                                                  'Response randomness (0=deterministic)',
                                                 )
                                         }
                                       >
@@ -292,11 +287,7 @@ export function ModelSelectionSection({
                                 {/* Per-model Max Tokens */}
                                 <div className="flex items-center gap-2">
                                   <label className="text-xs text-zinc-600 dark:text-zinc-400">
-                                    {t(
-                                      'project.modelSelection.maxTokens',
-                                      'Max Tokens',
-                                    )}
-                                    :
+                                    {t('project.modelSelection.maxTokens')}:
                                   </label>
                                   <input
                                     type="number"
@@ -450,7 +441,16 @@ export function ModelSelectionSection({
                                                           val,
                                                       )
                                                     return preset
-                                                      ? `${preset.label} (${preset.value.toLocaleString()} tokens)`
+                                                      ? t(
+                                                          'project.modelSelection.presetTokens',
+                                                          {
+                                                            label: preset.label,
+                                                            tokens:
+                                                              preset.value.toLocaleString(
+                                                                intlTag(locale),
+                                                              ),
+                                                          },
+                                                        )
                                                       : val
                                                   })()}
                                                 >
@@ -464,14 +464,26 @@ export function ModelSelectionSection({
                                                           key={preset.value}
                                                           value={preset.value.toString()}
                                                         >
-                                                          {preset.label} (
-                                                          {preset.value.toLocaleString()}{' '}
-                                                          tokens)
+                                                          {t(
+                                                            'project.modelSelection.presetTokens',
+                                                            {
+                                                              label:
+                                                                preset.label,
+                                                              tokens:
+                                                                preset.value.toLocaleString(
+                                                                  intlTag(
+                                                                    locale,
+                                                                  ),
+                                                                ),
+                                                            },
+                                                          )}
                                                         </SelectItem>
                                                       ),
                                                     )}
                                                     <SelectItem value="custom">
-                                                      Custom
+                                                      {t(
+                                                        'project.modelSelection.customPreset',
+                                                      )}
                                                     </SelectItem>
                                                   </SelectContent>
                                                 </Select>
@@ -500,9 +512,13 @@ export function ModelSelectionSection({
                                           })()}
                                           <span className="text-xs text-zinc-400">
                                             (
-                                            {reasoningConfig.min?.toLocaleString()}
+                                            {reasoningConfig.min?.toLocaleString(
+                                              intlTag(locale),
+                                            )}
                                             -
-                                            {reasoningConfig.max?.toLocaleString()}
+                                            {reasoningConfig.max?.toLocaleString(
+                                              intlTag(locale),
+                                            )}
                                             )
                                           </span>
                                         </>
@@ -510,12 +526,8 @@ export function ModelSelectionSection({
                                     {/* Show default only for select type (budget type shows range instead) */}
                                     {reasoningConfig.type === 'select' && (
                                       <span className="text-xs text-zinc-400">
-                                        (
-                                        {t(
-                                          'project.modelSelection.default',
-                                          'Default',
-                                        )}
-                                        : {String(reasoningConfig.default)})
+                                        ({t('project.modelSelection.default')}:{' '}
+                                        {String(reasoningConfig.default)})
                                       </span>
                                     )}
                                   </>

@@ -689,6 +689,12 @@ generate-api-docs: ## Generate API documentation
 	@cd $(API_DIR) && python -c "from main import app; import json; print(json.dumps(app.openapi(), indent=2))" > ../../docs/api-docs/openapi.json
 	@echo "$(GREEN)✅ API docs generated at docs/api-docs/openapi.json$(NC)"
 
+.PHONY: generate-public-api-docs
+generate-public-api-docs: ## Regenerate the public API spec snapshot and scope table
+	@echo "$(BLUE)📚 Generating public API docs...$(NC)"
+	@cd $(API_DIR) && python scripts/export_public_api_docs.py
+	@echo "$(GREEN)✅ docs/api-docs/openapi-v1.json and docs/public-api-scopes.md updated$(NC)"
+
 .PHONY: analyze-bundle
 analyze-bundle: ## Analyze frontend bundle size
 	@echo "$(BLUE)📊 Analyzing bundle...$(NC)"

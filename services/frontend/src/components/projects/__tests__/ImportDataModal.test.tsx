@@ -55,63 +55,9 @@ jest.mock('@/components/projects/import/CloudImportPanel', () => ({
   ),
 }))
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: any) => {
-      const translations: Record<string, string> = {
-        'projects.data.import': 'Import Data',
-        'projects.data.importSuccess': 'Data imported successfully',
-        'projects.data.importFailed': 'Failed to import data',
-        'projects.data.importLinkedExamSingleTask':
-          'Linked exams hold exactly one task',
-        'tasks.importModal.description':
-          'Import data to create tasks in your project',
-        'tasks.importModal.fieldRequirements': 'Data Field Requirements',
-        'tasks.importModal.fieldRequirementsDescription':
-          'Your template requires these data fields',
-        'tasks.importModal.missingFieldsWarning':
-          'Missing required fields will cause validation errors',
-        // Shared ImportSourceTabs keys
-        'dataImport.tabs.upload': 'Upload Files',
-        'dataImport.tabs.paste': 'Paste Data',
-        'dataImport.tabs.cloud': 'Cloud Storage',
-        'projects.creation.wizard.step2.upload.dropzone':
-          'Drop files here or click to upload',
-        'projects.creation.wizard.step2.upload.supportedFormats':
-          'Supports JSON, CSV, TSV, and plain text files',
-        'projects.creation.wizard.step2.upload.chooseFiles': 'Choose Files',
-        'projects.creation.wizard.step2.upload.removeFile': 'Remove File',
-        'projects.creation.wizard.step2.upload.selectedFile':
-          'Selected: {filename}',
-        'projects.creation.wizard.step2.paste.label': 'Paste your data',
-        'projects.creation.wizard.step2.paste.placeholder':
-          'Paste JSON, CSV, or plain text data...',
-        'projects.creation.wizard.step2.paste.lines': '{count} lines',
-        'projects.creation.wizard.step2.paste.noData': 'No data',
-        'projects.creation.wizard.step2.paste.clear': 'Clear',
-        'projects.creation.wizard.step2.paste.validate': 'Validate',
-        'projects.creation.wizard.step2.paste.formatDetected':
-          '{format} detected',
-        'projects.creation.wizard.step2.paste.invalidFormat': 'Invalid format',
-        'tasks.importModal.validationError': 'Import Validation Error',
-        'tasks.importModal.validationErrorDescription':
-          'The imported data fields do not match the template requirements',
-        'tasks.importModal.importAnyway': 'Import Anyway',
-        'tasks.importModal.orUseFieldMapping': 'Or use field mapping below',
-        'common.remove': 'Remove',
-        'common.cancel': 'Cancel',
-        'common.notes': 'Notes',
-      }
-      let result = translations[key] || key
-      if (params && typeof params === 'object') {
-        Object.entries(params).forEach(([k, v]) => {
-          result = result.replace(`{${k}}`, String(v))
-        })
-      }
-      return result
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('@/components/tasks/ImportPreviewWithMapping', () => ({
   ImportPreviewWithMapping: ({
@@ -218,9 +164,9 @@ describe('ImportDataModal', () => {
     it('renders all three tabs', () => {
       render(<ImportDataModal {...defaultProps} />)
 
-      expect(screen.getByText('Upload Files')).toBeInTheDocument()
-      expect(screen.getByText('Paste Data')).toBeInTheDocument()
-      expect(screen.getByText('Cloud Storage')).toBeInTheDocument()
+      expect(screen.getByText('Upload file')).toBeInTheDocument()
+      expect(screen.getByText('Paste table/JSON')).toBeInTheDocument()
+      expect(screen.getByText('Cloud storage')).toBeInTheDocument()
     })
 
     it('shows upload tab content by default', () => {
@@ -235,7 +181,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
 
       expect(
         screen.getByPlaceholderText('Paste JSON, CSV, or plain text data...'),
@@ -246,7 +192,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Cloud Storage'))
+      await user.click(screen.getByText('Cloud storage'))
 
       const panel = screen.getByTestId('cloud-import-panel-stub')
       expect(panel).toHaveAttribute('data-mode', 'immediate')
@@ -336,14 +282,14 @@ describe('ImportDataModal', () => {
       render(<ImportDataModal {...defaultProps} />)
 
       const user = userEvent.setup()
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
 
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'some pasted data')
 
-      await user.click(screen.getByText('Upload Files'))
+      await user.click(screen.getByText('Upload file'))
 
       const file = new File(['test'], 'test.txt', { type: 'text/plain' })
       const input = document.querySelector(
@@ -362,7 +308,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
 
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
@@ -388,14 +334,14 @@ describe('ImportDataModal', () => {
       await waitFor(() => screen.getByText('Selected: test.txt'))
 
       // Then paste data
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
       await user.type(textarea, 'some text')
 
       // File should be cleared
-      await user.click(screen.getByText('Upload Files'))
+      await user.click(screen.getByText('Upload file'))
       expect(screen.queryByText('Selected: test.txt')).not.toBeInTheDocument()
     })
   })
@@ -430,7 +376,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
@@ -549,7 +495,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
@@ -684,7 +630,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
@@ -775,7 +721,7 @@ describe('ImportDataModal', () => {
 
         await waitFor(() => {
           expect(mockAddToast).toHaveBeenCalledWith(
-            'Linked exams hold exactly one task',
+            "This exam is linked as a whole to a learning platform activity, so it holds exactly one task. Bind the activity to the exam's task first, then you can import further tasks.",
             'error',
           )
         })
@@ -921,7 +867,7 @@ describe('ImportDataModal', () => {
             screen.getByText(/Import Validation Error/i),
           ).toBeInTheDocument()
           expect(mockAddToast).toHaveBeenCalledWith(
-            expect.stringContaining("don't match"),
+            "Some fields don't match your template. You can import as-is or use field mapping.",
             'error',
           )
         },
@@ -1021,7 +967,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
@@ -1041,7 +987,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )
@@ -1059,7 +1005,7 @@ describe('ImportDataModal', () => {
       const user = userEvent.setup()
       render(<ImportDataModal {...defaultProps} />)
 
-      await user.click(screen.getByText('Paste Data'))
+      await user.click(screen.getByText('Paste table/JSON'))
       const textarea = screen.getByPlaceholderText(
         'Paste JSON, CSV, or plain text data...',
       )

@@ -6,6 +6,7 @@ import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import { intlTag } from '@/lib/i18n/locales'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { use, useEffect, useState } from 'react'
@@ -73,10 +74,10 @@ function StatusBadge({ status }: { status?: string | null }) {
   return <Badge variant={tone as any}>{status}</Badge>
 }
 
-function fmtDate(d?: string | null) {
+function fmtDate(d: string | null | undefined, locale: string) {
   if (!d) return '—'
   try {
-    return new Date(d).toLocaleString('de-DE')
+    return new Date(d).toLocaleString(intlTag(locale))
   } catch {
     return d
   }
@@ -88,7 +89,7 @@ export default function GenerationRunDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = use(params)
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const router = useRouter()
   const [data, setData] = useState<GenerationRunDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,7 +105,7 @@ export default function GenerationRunDetailPage({
         if (!cancelled) setData(resp as GenerationRunDetail)
       } catch (err: any) {
         if (!cancelled)
-          setError(err?.message || 'Failed to load generation run')
+          setError(err?.message || t('generations.detail.loadFailed'))
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -117,7 +118,7 @@ export default function GenerationRunDetailPage({
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 text-sm text-zinc-500">
-        {t('generations.detail.loading', 'Lade…')}
+        {t('generations.detail.loading')}
       </div>
     )
   }
@@ -133,7 +134,7 @@ export default function GenerationRunDetailPage({
           onClick={() => router.push('/runs?type=generation')}
         >
           <ArrowLeftIcon className="mr-2 h-4 w-4" />
-          {t('generations.detail.back', 'Zurück')}
+          {t('generations.detail.back')}
         </Button>
       </div>
     )
@@ -146,9 +147,9 @@ export default function GenerationRunDetailPage({
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: 'Home', href: '/dashboard' },
-            { label: t('runs.title', 'Läufe'), href: '/runs?type=generation' },
-            { label: t('generations.detail.title', 'Generierungs-Lauf') },
+            { label: t('navigation.dashboard'), href: '/dashboard' },
+            { label: t('runs.title'), href: '/runs?type=generation' },
+            { label: t('generations.detail.title') },
           ]}
         />
       </div>
@@ -158,13 +159,13 @@ export default function GenerationRunDetailPage({
           onClick={() => router.push('/runs?type=generation')}
         >
           <ArrowLeftIcon className="mr-2 h-4 w-4" />
-          {t('generations.detail.back', 'Zurück zu Läufe')}
+          {t('generations.detail.back')}
         </Button>
       </div>
 
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
-          {t('generations.detail.title', 'Generierungs-Lauf')}
+          {t('generations.detail.title')}
         </h1>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           <span className="font-mono text-xs">{data.id}</span>
@@ -182,7 +183,7 @@ export default function GenerationRunDetailPage({
       <Card className="mb-6 grid grid-cols-2 gap-4 p-4 md:grid-cols-4">
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.status', 'Status')}
+            {t('generations.detail.status')}
           </div>
           <div className="mt-1">
             <StatusBadge status={data.status} />
@@ -190,13 +191,13 @@ export default function GenerationRunDetailPage({
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.model', 'Modell')}
+            {t('generations.detail.model')}
           </div>
           <div className="mt-1 font-mono text-sm">{data.model_id || '—'}</div>
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.runs', 'Läufe')}
+            {t('generations.detail.runs')}
           </div>
           <div className="mt-1 font-mono text-sm">
             {data.runs_completed ?? 0}/{data.runs_requested ?? 1}
@@ -205,19 +206,19 @@ export default function GenerationRunDetailPage({
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.started', 'Gestartet')}
+            {t('generations.detail.started')}
           </div>
-          <div className="mt-1 text-sm">{fmtDate(data.created_at)}</div>
+          <div className="mt-1 text-sm">{fmtDate(data.created_at, locale)}</div>
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.task', 'Task')}
+            {t('generations.detail.task')}
           </div>
           <div className="mt-1 font-mono text-xs">{data.task_id || '—'}</div>
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.structure', 'Struktur')}
+            {t('generations.detail.structure')}
           </div>
           <div className="mt-1 font-mono text-xs">
             {data.structure_key || '—'}
@@ -225,14 +226,16 @@ export default function GenerationRunDetailPage({
         </div>
         <div>
           <div className="text-xs tracking-wide text-zinc-500 uppercase">
-            {t('generations.detail.completed', 'Abgeschlossen')}
+            {t('generations.detail.completed')}
           </div>
-          <div className="mt-1 text-sm">{fmtDate(data.completed_at)}</div>
+          <div className="mt-1 text-sm">
+            {fmtDate(data.completed_at, locale)}
+          </div>
         </div>
         {data.project_id && (
           <div>
             <div className="text-xs tracking-wide text-zinc-500 uppercase">
-              {t('generations.detail.project', 'Projekt')}
+              {t('generations.detail.project')}
             </div>
             <div className="mt-1">
               <Button
@@ -249,9 +252,7 @@ export default function GenerationRunDetailPage({
       {/* Error banner */}
       {data.status === 'failed' && data.error_message && (
         <div className="mb-6 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
-          <div className="font-medium">
-            {t('generations.detail.error', 'Fehler')}
-          </div>
+          <div className="font-medium">{t('generations.detail.error')}</div>
           <pre className="mt-2 text-xs whitespace-pre-wrap">
             {data.error_message}
           </pre>
@@ -262,7 +263,7 @@ export default function GenerationRunDetailPage({
       {data.parameters && Object.keys(data.parameters).length > 0 && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {t('generations.detail.parameters', 'Parameter')}
+            {t('generations.detail.parameters')}
           </h2>
           <pre className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
             {JSON.stringify(data.parameters, null, 2)}
@@ -274,23 +275,23 @@ export default function GenerationRunDetailPage({
       {isMultiRun && data.children.length > 0 && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {t('generations.detail.trials', 'Pro Lauf')}
+            {t('generations.detail.trials')}
           </h2>
           <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
               <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">
-                    {t('generations.detail.runIndex', 'Lauf #')}
+                    {t('generations.detail.runIndex')}
                   </th>
                   <th className="px-3 py-2">
-                    {t('generations.detail.status', 'Status')}
+                    {t('generations.detail.status')}
                   </th>
                   <th className="px-3 py-2">
-                    {t('generations.detail.completed', 'Abgeschlossen')}
+                    {t('generations.detail.completed')}
                   </th>
                   <th className="px-3 py-2">
-                    {t('generations.detail.preview', 'Antwort (Vorschau)')}
+                    {t('generations.detail.preview')}
                   </th>
                 </tr>
               </thead>
@@ -304,7 +305,7 @@ export default function GenerationRunDetailPage({
                       <StatusBadge status={c.status} />
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {fmtDate(c.completed_at)}
+                      {fmtDate(c.completed_at, locale)}
                     </td>
                     <td className="px-3 py-2 text-xs">
                       {c.error_message ? (
@@ -333,7 +334,7 @@ export default function GenerationRunDetailPage({
         data.children[0].response_preview && (
           <div className="mb-6">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-              {t('generations.detail.response', 'Antwort')}
+              {t('generations.detail.response')}
             </h2>
             <pre className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
               {data.children[0].response_preview}
@@ -346,26 +347,23 @@ export default function GenerationRunDetailPage({
       {data.linked_evaluations && data.linked_evaluations.length > 0 && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {t(
-              'generations.detail.linkedEvaluations',
-              'Verknüpfte Evaluierungen',
-            )}
+            {t('generations.detail.linkedEvaluations')}
           </h2>
           <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
             <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
               <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
                 <tr>
                   <th className="px-3 py-2">
-                    {t('generations.detail.metric', 'Metrik')}
+                    {t('generations.detail.metric')}
                   </th>
                   <th className="px-3 py-2">
-                    {t('generations.detail.status', 'Status')}
+                    {t('generations.detail.status')}
                   </th>
                   <th className="px-3 py-2">
-                    {t('generations.detail.completed', 'Abgeschlossen')}
+                    {t('generations.detail.completed')}
                   </th>
                   <th className="px-3 py-2 text-right">
-                    {t('generations.detail.scoredSamples', 'Bewertete Samples')}
+                    {t('generations.detail.scoredSamples')}
                   </th>
                 </tr>
               </thead>
@@ -385,7 +383,7 @@ export default function GenerationRunDetailPage({
                       <StatusBadge status={ev.status} />
                     </td>
                     <td className="px-3 py-2 text-xs">
-                      {fmtDate(ev.completed_at)}
+                      {fmtDate(ev.completed_at, locale)}
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-xs">
                       {ev.samples_evaluated ?? '—'}
@@ -402,7 +400,7 @@ export default function GenerationRunDetailPage({
       {data.prompt_used && (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold text-zinc-900 dark:text-white">
-            {t('generations.detail.prompt', 'Verwendeter Prompt')}
+            {t('generations.detail.prompt')}
           </h2>
           <pre className="max-h-96 overflow-auto rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/40">
             {data.prompt_used}

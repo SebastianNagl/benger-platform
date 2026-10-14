@@ -8,12 +8,9 @@ import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import { PerRunBreakdown, type PerRunRow } from '../PerRunBreakdown'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const sampleRows: PerRunRow[] = [
   {
@@ -79,13 +76,9 @@ describe('PerRunBreakdown', () => {
         showTargetModel={false}
       />,
     )
-    const completed = screen.getAllByText(
-      'evaluations.detail.statusLabels.completed',
-    )
+    const completed = screen.getAllByText('Abgeschlossen')
     expect(completed.length).toBe(2)
-    expect(
-      screen.getByText('evaluations.detail.statusLabels.failed'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Fehlgeschlagen')).toBeInTheDocument()
   })
 
   it('shows sample counts when available', () => {
@@ -222,7 +215,7 @@ describe('PerRunBreakdown mixed metrics', () => {
       />,
     )
     expect(screen.getByText('Mittelwert')).toBeInTheDocument()
-    expect(screen.queryByText('eval.perRun.meanScore')).not.toBeInTheDocument()
+    expect(screen.queryByText('Mittelwert Exact Match')).not.toBeInTheDocument()
     expect(screen.getByText('(Exact Match)')).toBeInTheDocument()
     expect(screen.getByText('(F1)')).toBeInTheDocument()
   })
@@ -236,7 +229,7 @@ describe('PerRunBreakdown mixed metrics', () => {
         showTargetModel={false}
       />,
     )
-    expect(screen.getByText('eval.perRun.meanScore')).toBeInTheDocument()
+    expect(screen.getByText('Mittelwert Exact Match')).toBeInTheDocument()
     expect(screen.queryByText('(Exact Match)')).not.toBeInTheDocument()
   })
 })

@@ -59,7 +59,7 @@ jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string) => {
       const translations: Record<string, string> = {
-        'projects.searchPlaceholder': 'Search projects...',
+        'projects.list.searchPlaceholder': 'Search projects...',
         'projects.noProjects': 'No projects found',
         'projects.loading': 'Loading projects...',
       }

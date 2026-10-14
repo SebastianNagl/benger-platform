@@ -10,12 +10,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { registerSlot } from '@/lib/extensions/slots'
 import { ProjectKindSection } from '../ProjectKindSection'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const project = (overrides: Record<string, any> = {}) =>
   ({ id: 'p-1', title: 'P', kind: null, origin: null, ...overrides }) as any

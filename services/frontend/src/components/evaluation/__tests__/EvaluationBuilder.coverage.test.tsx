@@ -35,20 +35,10 @@ import {
 import userEvent from '@testing-library/user-event'
 import { EvaluationBuilder } from '../EvaluationBuilder'
 
-// ---------- i18n: key passthrough, fallback string honored ----------
+// ---------- i18n: plain key passthrough ----------
 // A jest.fn so tests can assert the interpolation values a line receives,
 // which the key passthrough does not render.
-const mockT = jest.fn((key: string, fallbackOrVars?: any) => {
-  if (typeof fallbackOrVars === 'string') return fallbackOrVars
-  if (fallbackOrVars && typeof fallbackOrVars === 'object') {
-    let result = key
-    for (const [k, v] of Object.entries(fallbackOrVars)) {
-      result = result.replace(`{${k}}`, String(v))
-    }
-    return result
-  }
-  return key
-})
+const mockT = jest.fn((key: string, _vars?: Record<string, unknown>) => key)
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: mockT }),
 }))
@@ -330,11 +320,15 @@ describe('Judge ensemble + runs control', () => {
     const user = userEvent.setup()
     await gotoParameters(user, 'llm_judge_classic')
 
-    // Section header — t() returns the fallback string ('Ensemble & Läufe').
-    expect(screen.getByText('Ensemble & Läufe')).toBeInTheDocument()
-    expect(screen.getByText('Läufe pro Judge')).toBeInTheDocument()
+    // Section header, runs label and ensemble label (keys via the mock).
     expect(
-      screen.getByText('Zusätzliche Judges (Ensemble)'),
+      screen.getByText('evaluationBuilder.parameters.ensembleAndRuns'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluationBuilder.parameters.runsPerJudge'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('evaluationBuilder.parameters.additionalJudges'),
     ).toBeInTheDocument()
 
     // runs-per-judge number input defaults to 1 (min=1/max=25).
@@ -537,7 +531,7 @@ describe('LLM-Judge prediction-field auto-detect', () => {
 
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
-        expect.stringContaining('Detected'),
+        'evaluationBuilder.detectedAnswerType',
         'info',
       )
     })

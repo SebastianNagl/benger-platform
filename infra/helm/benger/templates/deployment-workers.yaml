@@ -96,6 +96,9 @@ spec:
             {{- with .Values.workers.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+            {{- with (include "benger.overlayEnv" (dict "root" $ "role" "workers")) }}
+            {{- . | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml .Values.workers.resources | nindent 12 }}
 ---

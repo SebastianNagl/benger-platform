@@ -44,10 +44,10 @@ describe('computeWindowState', () => {
 describe('windowBoundLabel', () => {
   it('labels the relevant bound', () => {
     expect(windowBoundLabel('upcoming', '2026-07-01T13:00:00Z', null)).toBe(
-      new Date('2026-07-01T13:00:00Z').toLocaleString(),
+      new Date('2026-07-01T13:00:00Z').toLocaleString('de-DE'),
     )
     expect(windowBoundLabel('closed', null, '2026-07-01T11:00:00Z')).toBe(
-      new Date('2026-07-01T11:00:00Z').toLocaleString(),
+      new Date('2026-07-01T11:00:00Z').toLocaleString('de-DE'),
     )
     expect(windowBoundLabel('open', '2026-07-01T13:00:00Z', null)).toBeNull()
     expect(windowBoundLabel('none', null, null)).toBeNull()

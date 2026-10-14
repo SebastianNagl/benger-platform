@@ -412,8 +412,8 @@ describe('ModelsPage', () => {
     })
 
     // GPT-4 has pricing
-    expect(screen.getByText(/\$30\.00/)).toBeInTheDocument()
-    expect(screen.getByText(/\$60\.00/)).toBeInTheDocument()
+    expect(screen.getByText(/\$30,00/)).toBeInTheDocument()
+    expect(screen.getByText(/\$60,00/)).toBeInTheDocument()
   })
 
   it('should show content policy warning for gemini-2.5-pro', async () => {

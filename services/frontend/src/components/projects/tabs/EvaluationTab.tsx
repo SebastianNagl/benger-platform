@@ -18,6 +18,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import {
@@ -50,7 +51,7 @@ interface EvaluationMetrics {
 export function EvaluationTab({ projectId }: EvaluationTabProps) {
   const router = useRouter()
   const { addToast } = useToast()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { startProgress, updateProgress, completeProgress } = useProgress()
 
   const { currentProject, loading, fetchProjectTasks } = useProjectStore()
@@ -237,12 +238,14 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     const progressId = `export-evaluations-${Date.now()}`
 
     try {
-      startProgress(progressId, 'Exporting evaluations...', {
-        sublabel: `Preparing ${filteredTasks.length} evaluations`,
+      startProgress(progressId, t('evaluation.tabExport.exporting'), {
+        sublabel: t('evaluation.tabExport.preparing', {
+          count: filteredTasks.length,
+        }),
         indeterminate: false,
       })
 
-      updateProgress(progressId, 30, 'Formatting data...')
+      updateProgress(progressId, 30, t('generation.progress.formatting'))
 
       // Create export data with evaluation metrics
       const exportData = filteredTasks.map((task) => ({
@@ -254,7 +257,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
         updated_at: task.updated_at,
       }))
 
-      updateProgress(progressId, 70, 'Creating download...')
+      updateProgress(progressId, 70, t('generation.progress.creating'))
 
       // Create and download JSON file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -269,14 +272,19 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      updateProgress(progressId, 100, 'Export complete!')
+      updateProgress(progressId, 100, t('generation.progress.complete'))
       completeProgress(progressId, 'success')
 
-      addToast(`Exported ${filteredTasks.length} evaluations`, 'success')
+      addToast(
+        t('toasts.evaluation.exported', { count: filteredTasks.length }),
+        'success',
+      )
     } catch (error: any) {
       completeProgress(progressId, 'error')
       addToast(
-        `Export failed: ${error.message || 'Failed to export evaluations'}`,
+        t('generation.errors.exportFailed', {
+          error: error.message || t('evaluation.export.exportFailed'),
+        }),
         'error',
       )
     }
@@ -287,7 +295,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
     const progressId = `refresh-evaluations-${Date.now()}`
 
     try {
-      startProgress(progressId, 'Refreshing evaluations...', {
+      startProgress(progressId, t('evaluation.tabExport.refreshing'), {
         indeterminate: true,
       })
 
@@ -325,7 +333,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
   // Format score for display
   const formatScore = (score: number | null | undefined): string => {
     if (score === null || score === undefined) return '—'
-    return `${(score * 100).toFixed(1)}%`
+    return `${formatDecimal(score * 100, locale, 1)}%`
   }
 
   // Get status badge variant
@@ -414,7 +422,7 @@ export function EvaluationTab({ projectId }: EvaluationTabProps) {
                 onClick={handleRefresh}
                 disabled={loading}
                 data-testid="refresh-evaluations-button"
-                aria-label="Refresh evaluations"
+                aria-label={t('evaluation.tabExport.refreshLabel')}
               >
                 <ArrowPathIcon
                   className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}

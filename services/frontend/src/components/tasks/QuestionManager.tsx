@@ -1,5 +1,6 @@
 import { Button } from '@/components/shared/Button'
 import { QuestionCard, QuestionData } from '@/components/tasks/QuestionCard'
+import { useI18n } from '@/contexts/I18nContext'
 import { useCallback, useState } from 'react'
 
 interface QuestionManagerProps {
@@ -19,6 +20,7 @@ export function QuestionManager({
   onQuestionsChange,
   answerConfig,
 }: QuestionManagerProps) {
+  const { t } = useI18n()
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set())
 
   // Generate unique ID for new questions
@@ -123,14 +125,14 @@ export function QuestionManager({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Questions ({questions.length})
+            {t('tasks.questionManager.title', { count: questions.length })}
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             {taskType === 'qa'
-              ? 'Add simple question-answer pairs'
+              ? t('tasks.questionManager.hintQa')
               : taskType === 'multiple_choice'
-                ? 'Add multiple choice questions with 4 options'
-                : 'Add questions with reasoning'}
+                ? t('tasks.questionManager.hintMultipleChoice')
+                : t('tasks.questionManager.hintReasoning')}
           </p>
         </div>
 
@@ -143,7 +145,7 @@ export function QuestionManager({
                 variant="outline"
                 className="px-3 py-1 text-sm"
               >
-                Expand All
+                {t('tasks.questionManager.expandAll')}
               </Button>
               <Button
                 type="button"
@@ -151,7 +153,7 @@ export function QuestionManager({
                 variant="outline"
                 className="px-3 py-1 text-sm"
               >
-                Collapse All
+                {t('tasks.questionManager.collapseAll')}
               </Button>
             </>
           )}
@@ -161,7 +163,7 @@ export function QuestionManager({
             onClick={handleAddQuestion}
             className="bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
           >
-            + Add Question
+            + {t('tasks.questionManager.addQuestion')}
           </Button>
         </div>
       </div>
@@ -185,19 +187,19 @@ export function QuestionManager({
             </svg>
           </div>
           <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
-            No questions yet
+            {t('tasks.questionManager.empty')}
           </h3>
           <p className="mb-4 text-gray-600 dark:text-gray-400">
             {taskType === 'qa'
-              ? 'Add your first question-answer pair to get started.'
-              : 'Add your first question to get started.'}
+              ? t('tasks.questionManager.emptyHintQa')
+              : t('tasks.questionManager.emptyHint')}
           </p>
           <Button
             type="button"
             onClick={handleAddQuestion}
             className="bg-blue-600 text-white hover:bg-blue-700"
           >
-            Add Question
+            {t('tasks.questionManager.addQuestion')}
           </Button>
         </div>
       ) : (

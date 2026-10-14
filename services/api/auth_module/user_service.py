@@ -160,6 +160,10 @@ def authenticate_user(db: Session, username_or_email: str, password: str) -> Opt
     user = get_user_by_username_or_email(db, username_or_email)
     if not user:
         return None
+    # Access-key service accounts never sign in (403, not a password miss).
+    from .service import forbid_service_account
+
+    forbid_service_account(user)
     if not verify_password(password, user.hashed_password):
         return None
     return user
@@ -517,6 +521,11 @@ def delete_user(db: Session, user_id: str) -> bool:
         )
 
     try:
+        # Personal access keys are revoked first (their rows then cascade away
+        # with the user; org keys the user created stay with the org).
+        from services.api_key_service import revoke_all_for_user_sync
+
+        revoke_all_for_user_sync(db, user_id, None, "owner_deleted")
         db.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete(
             synchronize_session=False
         )
@@ -564,6 +573,7 @@ def delete_user(db: Session, user_id: str) -> bool:
             ("flexible_annotations", "created_by"),
             ("import_jobs", "requested_by"),
             ("korrektur_comments", "created_by"),
+            ("api_keys", "created_by"),
             ("organization_api_keys", "created_by"),
             ("project_organizations", "assigned_by"),
             ("project_reports", "created_by"),
@@ -574,6 +584,8 @@ def delete_user(db: Session, user_id: str) -> bool:
         ]
         nullify = [
             ("annotations", "reviewed_by"),
+            ("api_keys", "revoked_by"),
+            ("api_key_usage_events", "user_id"),
             ("default_evaluation_configs", "updated_by"),
             ("default_prompts", "updated_by"),
             ("korrektur_comments", "resolved_by"),

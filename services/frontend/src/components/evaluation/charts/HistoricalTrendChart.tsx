@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { useMemo, useState } from 'react'
 import {
   Area,
@@ -55,27 +56,32 @@ const COLORS = [
   '#999999', // gray
 ]
 
-const formatDate = (dateStr: string, dateRange: number): string => {
+const formatDate = (
+  dateStr: string,
+  dateRange: number,
+  locale: string,
+): string => {
   const date = new Date(dateStr)
+  const tag = intlTag(locale)
 
   if (dateRange <= 7) {
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(tag, {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
     })
   } else if (dateRange <= 90) {
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return date.toLocaleDateString(tag, { month: 'short', day: 'numeric' })
   } else {
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    return date.toLocaleDateString(tag, { month: 'short', year: 'numeric' })
   }
 }
 
-const formatValue = (value: number): string => {
+const formatValue = (value: number, locale: string): string => {
   if (value >= 0 && value <= 1) {
-    return `${(value * 100).toFixed(1)}%`
+    return `${formatDecimal(value * 100, locale, 1)}%`
   }
-  return value.toFixed(2)
+  return formatDecimal(value, locale, 2)
 }
 
 const calculateDateRange = (dates: string[]): number => {
@@ -92,7 +98,7 @@ export function HistoricalTrendChart({
   height = 300,
   showConfidenceIntervals = true,
 }: HistoricalTrendChartProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [selectedDateRange, setSelectedDateRange] = useState<
     'all' | '7d' | '30d' | '90d'
   >('all')
@@ -186,14 +192,14 @@ export function HistoricalTrendChart({
             dataKey="date"
             tick={{ fontSize: 11, fill: '#6b7280' }}
             stroke="#9ca3af"
-            tickFormatter={(value) => formatDate(value, dateRange)}
+            tickFormatter={(value) => formatDate(value, dateRange, locale)}
           />
 
           <YAxis
             tick={{ fontSize: 10, fill: '#6b7280' }}
             stroke="#9ca3af"
             domain={isPercentage ? [0, 1] : ['auto', 'auto']}
-            tickFormatter={(value) => formatValue(value)}
+            tickFormatter={(value) => formatValue(value, locale)}
             label={{
               value: metric,
               angle: -90,
@@ -213,7 +219,7 @@ export function HistoricalTrendChart({
               // Recharts types `label` as ReactNode; ours is the timestamp
               // string from the x-axis dataKey.
               const date = new Date(label as string | number)
-              return date.toLocaleString('en-US', {
+              return date.toLocaleString(intlTag(locale), {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',
@@ -223,7 +229,7 @@ export function HistoricalTrendChart({
             }}
             formatter={(value, name): any => {
               if (typeof name === 'string' && name.endsWith('_ci')) return null
-              return [formatValue(value as number), name]
+              return [formatValue(value as number, locale), name]
             }}
           />
 

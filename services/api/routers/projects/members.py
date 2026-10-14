@@ -19,6 +19,7 @@ from services.member_privacy import (
     masked_name,
     project_name_mask,
 )
+from services.api_key_service import human_membership_clause
 from user_display import prefers_pseudonym
 
 router = APIRouter()
@@ -64,6 +65,7 @@ async def list_project_members(
             ProjectOrganization.project_id == project_id,
             OrganizationMembership.is_active == True,  # noqa: E712
             group_member_fan_in_clause(ProjectOrganization, OrganizationMembership),
+            human_membership_clause(),
         )
     )
     org_rows = org_result.unique().all()
@@ -169,6 +171,7 @@ async def get_project_annotators(
         .where(
             Annotation.project_id == project_id,
             Annotation.was_cancelled == False,  # noqa: E712
+            User.is_service_account.is_(False),
         )
         .group_by(User.id, User.name, User.pseudonym, User.use_pseudonym)
         .order_by(func.count(Annotation.id).desc())

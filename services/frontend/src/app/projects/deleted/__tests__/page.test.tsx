@@ -18,14 +18,9 @@ jest.mock('@/contexts/AuthContext', () => ({
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (k: string, d?: any, vars?: any) => {
-      let s = typeof d === 'string' ? d : k
-      const v = vars ?? (typeof d === 'object' ? d : undefined)
-      if (v)
-        for (const key of Object.keys(v))
-          s = s.split(`{${key}}`).join(String(v[key]))
-      return s
-    },
+    locale: 'de',
+    t: (key: string, vars?: Record<string, unknown>) =>
+      require('@/lib/i18n/catalog').translateKey('de', key, vars),
   }),
 }))
 jest.mock('@/components/shared/Breadcrumb', () => ({

@@ -9,7 +9,6 @@ import {
   formatNumber,
   formatRate,
   humanizeMetricId,
-  localeTag,
   metricLabel,
   metricScale,
   scaleLabel,
@@ -18,9 +17,7 @@ import {
 
 describe('format helpers', () => {
   it('maps app locales to BCP-47 tags', () => {
-    expect(localeTag('de')).toBe('de-DE')
-    expect(localeTag('en')).toBe('en-US')
-    expect(localeTag('fr-FR')).toBe('fr-FR')
+    expect(formatNumber(1234.5, 'fr')).toBe((1234.5).toLocaleString('fr-FR'))
   })
 
   it('formats numbers per locale', () => {
@@ -100,11 +97,12 @@ describe('format helpers', () => {
   })
 
   it('describes scales and their upper bounds', () => {
-    expect(scaleLabel('0-1')).toBe('0–1 (Anteil)')
-    expect(scaleLabel('0-100')).toBe('0–100 Punkte')
-    expect(scaleLabel('0-18')).toBe('0–18 Notenpunkte')
-    expect(scaleLabel('raw')).toBe('Rohwert')
-    expect(scaleLabel(undefined)).toBe('Rohwert')
+    const t = (k: string) => `t:${k}`
+    expect(scaleLabel('0-1', t)).toBe('t:reports.view.scaleLabels.share')
+    expect(scaleLabel('0-100', t)).toBe('t:reports.view.scaleLabels.points100')
+    expect(scaleLabel('0-18', t)).toBe('t:reports.view.scaleLabels.gradePoints')
+    expect(scaleLabel('raw', t)).toBe('t:reports.view.scaleLabels.raw')
+    expect(scaleLabel(undefined, t)).toBe('t:reports.view.scaleLabels.raw')
     expect(scaleMax('0-1')).toBe(1)
     expect(scaleMax('0-100')).toBe(100)
     expect(scaleMax('0-18')).toBe(18)

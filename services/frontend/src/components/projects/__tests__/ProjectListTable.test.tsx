@@ -126,34 +126,10 @@ jest.mock('@/contexts/AuthContext', () => ({
   }),
 }))
 
-// Mock i18n context
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<
-        string,
-        any
-      > = require('../../../locales/en/common.json')
-      const parts = key.split('.')
-      let value: any = translations
-      for (const part of parts) {
-        if (value && typeof value === 'object' && part in value) {
-          value = value[part]
-        } else {
-          return key
-        }
-      }
-      if (typeof value !== 'string') return key
-      if (varsOrDefault && typeof varsOrDefault === 'object') {
-        for (const [k, v] of Object.entries(varsOrDefault)) {
-          value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
-        }
-      }
-      return value
-    },
-    locale: 'en',
-  }),
-}))
+// Mock i18n context (English catalog)
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 jest.mock('@/components/shared/FilterToolbar', () => {
   const FilterToolbar = ({
     searchValue,
@@ -1571,7 +1547,7 @@ describe('ProjectListTable', () => {
     it('should render archived view header', () => {
       render(<ProjectListTable showArchivedOnly={true} />)
 
-      expect(screen.getByText('Archived Projects')).toBeInTheDocument()
+      expect(screen.getByText('Archived projects')).toBeInTheDocument()
     })
 
     it('should not show create and import buttons in archived view', () => {
@@ -2298,8 +2274,8 @@ describe('ProjectListTable', () => {
 
       render(<ProjectListTable />)
 
-      // Should show relative time like "vor 2 Stunden" (German locale)
-      expect(screen.getByText(/vor/i)).toBeInTheDocument()
+      // Relative time in the UI language (the mock's locale is en: "2 hours ago")
+      expect(screen.getByText(/ ago$/i)).toBeInTheDocument()
     })
   })
 

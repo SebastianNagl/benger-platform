@@ -21,7 +21,7 @@ export function ParticipantsList({
       data-testid="participants-list"
     >
       <summary className="cursor-pointer text-base font-semibold text-zinc-900 select-none dark:text-white">
-        {t('reports.view.participants', 'Teilnehmende')}{' '}
+        {t('reports.view.participants')}{' '}
         <span className="text-sm font-normal text-zinc-500 dark:text-zinc-400">
           ({formatCount(participants.length, locale)})
         </span>
@@ -36,7 +36,7 @@ export function ParticipantsList({
               {p.label}
             </span>
             <span className="text-zinc-500 dark:text-zinc-400">
-              {t('reports.view.submissions', '{count} Abgaben', {
+              {t('reports.view.submissions', {
                 count: formatCount(p.annotation_count, locale),
               })}
             </span>
@@ -44,10 +44,7 @@ export function ParticipantsList({
         ))}
       </ul>
       <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-        {t(
-          'reports.view.pseudonymHint',
-          'Teilnehmende werden ausschließlich unter Pseudonym angezeigt.',
-        )}
+        {t('reports.view.pseudonymHint')}
       </p>
     </details>
   )

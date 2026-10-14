@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { getFieldLabel } from '@/lib/api/evaluation-types'
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -236,7 +237,7 @@ function FieldPairOption({ pair, isSelected, onToggle }: FieldPairOptionProps) {
           <span
             className={`truncate font-medium ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}
           >
-            {pair.predictionField}
+            {getFieldLabel(pair.predictionField, t)}
           </span>
           <ArrowRightIcon className="h-3 w-3 shrink-0 text-gray-400" />
           <span
@@ -293,9 +294,7 @@ export function extractFieldPairsFromConfig(
 
           pairs.push({
             id: pairKey,
-            predictionField: predField
-              .replace('__all_model__', 'All Models')
-              .replace('__all_human__', 'All Human'),
+            predictionField: predField,
             referenceField: refField,
             displayLabel: `${predField} → ${refField}`,
             source,

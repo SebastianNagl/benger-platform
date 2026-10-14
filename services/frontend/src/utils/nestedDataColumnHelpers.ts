@@ -3,6 +3,7 @@
  */
 
 import { Task } from '@/lib/api/types'
+import { intlTag, readStoredLocale } from '@/lib/i18n/locales'
 import { flattenJson, getNestedValue } from './jsonUtils'
 
 export interface NestedDataColumn {
@@ -204,14 +205,16 @@ export function formatNestedCellValue(
 
     case 'number':
       const numStr =
-        typeof value === 'number' ? value.toLocaleString() : String(value)
+        typeof value === 'number'
+          ? value.toLocaleString(intlTag(readStoredLocale()))
+          : String(value)
       return { display: numStr, full: numStr, truncated: false }
 
     case 'date':
       try {
         const date = new Date(value)
-        const display = date.toLocaleDateString()
-        const full = date.toLocaleString()
+        const display = date.toLocaleDateString(intlTag(readStoredLocale()))
+        const full = date.toLocaleString(intlTag(readStoredLocale()))
         return { display, full, truncated: false }
       } catch {
         return formatNestedCellValue(value, 'text', maxLength)

@@ -21,7 +21,15 @@ import {
 // default message as the 2nd arg to t()).
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (_key: string, fallback?: string) => fallback ?? _key,
+    t: (key: string, vars?: Record<string, unknown>) => {
+      // German catalog; a key the catalog lacks yet shows its vars
+      const text = jest
+        .requireActual('@/lib/i18n/catalog')
+        .translateKey('de', key, vars)
+      return text === key && vars
+        ? [key, ...Object.values(vars)].join(' ')
+        : text
+    },
     locale: 'en',
     changeLocale: jest.fn(),
     isReady: true,

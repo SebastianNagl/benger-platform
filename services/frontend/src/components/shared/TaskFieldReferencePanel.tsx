@@ -52,7 +52,7 @@ export function TaskFieldReferencePanel({
         const response = await projectsAPI.getTaskFields(projectId)
         setFields(response.fields)
       } catch (err) {
-        setError(t('taskFields.fetchError', 'Failed to load available fields'))
+        setError(t('taskFields.fetchError'))
         console.error('Failed to fetch task fields:', err)
       } finally {
         setLoading(false)
@@ -91,7 +91,7 @@ export function TaskFieldReferencePanel({
         <div className="flex items-center gap-2">
           <InformationCircleIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           <span className="text-sm font-medium text-zinc-900 dark:text-white">
-            {title || t('taskFields.referenceTitle', 'Available Task Fields')}
+            {title || t('taskFields.referenceTitle')}
           </span>
         </div>
         {expanded ? (
@@ -113,24 +113,21 @@ export function TaskFieldReferencePanel({
             <div className="flex items-center gap-2 py-2">
               <LoadingSpinner size="small" />
               <span className="text-sm text-zinc-500">
-                {t('taskFields.loading', 'Loading fields...')}
+                {t('taskFields.loading')}
               </span>
             </div>
           ) : error ? (
             <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
           ) : fields.length === 0 ? (
             <p className="text-sm text-zinc-500">
-              {t(
-                'taskFields.noFieldsReference',
-                'No fields found. Import tasks to see available fields.',
-              )}
+              {t('taskFields.noFieldsReference')}
             </p>
           ) : (
             <div className="space-y-3">
               {topLevelFields.length > 0 && (
                 <div>
                   <h4 className="mb-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                    {t('taskFields.topLevelFields', 'Top-level Fields')}
+                    {t('taskFields.topLevelFields')}
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {topLevelFields.map((field) => (
@@ -148,7 +145,7 @@ export function TaskFieldReferencePanel({
               {nestedFields.length > 0 && (
                 <div>
                   <h4 className="mb-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                    {t('taskFields.nestedFields', 'Nested Fields')}
+                    {t('taskFields.nestedFields')}
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {nestedFields.map((field) => (
@@ -164,10 +161,7 @@ export function TaskFieldReferencePanel({
               )}
 
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                {t(
-                  'taskFields.clickToCopy',
-                  'Click a field name to copy it to clipboard',
-                )}
+                {t('taskFields.clickToCopy')}
               </p>
             </div>
           )}

@@ -26,6 +26,7 @@ import { useProgress } from '@/contexts/ProgressContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
+import { dateFnsLocale, formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { projectIcon } from '@/lib/projectKind'
 import { useProjectStore } from '@/stores/projectStore'
@@ -49,7 +50,6 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
@@ -73,7 +73,7 @@ export function ProjectListTable({
   const { addToast } = useToast()
   const { startProgress, completeProgress } = useProgress()
   const confirm = useConfirm()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { user, organizations } = useAuth()
   const {
     projects,
@@ -312,7 +312,11 @@ export function ProjectListTable({
         ? await projectsAPI.bulkExportFullProjects(projectIds)
         : await projectsAPI.bulkExportProjects(projectIds, 'json', true)
 
-      const exportTime = ((Date.now() - startTime) / 1000).toFixed(1)
+      const exportTime = formatDecimal(
+        (Date.now() - startTime) / 1000,
+        locale,
+        1,
+      )
 
       // Validate that we received a proper Blob
       if (!blob || !(blob instanceof Blob)) {
@@ -325,7 +329,7 @@ export function ProjectListTable({
 
       // Check if the blob has a reasonable size (not just an error message)
       if (blob.size === 0) {
-        throw new Error('Received empty file from server')
+        throw new Error(t('projects.list.emptyExportFile'))
       }
 
       // Download the exported file
@@ -387,7 +391,7 @@ export function ProjectListTable({
     }
 
     // Show file size for user awareness
-    const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2)
+    const fileSizeMB = formatDecimal(file.size / (1024 * 1024), locale, 2)
 
     try {
       addToast(
@@ -413,7 +417,11 @@ export function ProjectListTable({
           ? { organizationGroupId: importGroupId }
           : {}),
       })
-      const importTime = ((Date.now() - startTime) / 1000).toFixed(1)
+      const importTime = formatDecimal(
+        (Date.now() - startTime) / 1000,
+        locale,
+        1,
+      )
 
       const result = job.result || {}
       const counts = result.statistics?.imported_counts
@@ -634,7 +642,7 @@ export function ProjectListTable({
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl dark:text-white">
               {showArchivedOnly
-                ? `${t('projects.archived')} ${t('projects.title')}`
+                ? t('projects.archivedTitle')
                 : t('projects.title')}
             </h1>
           </div>
@@ -669,7 +677,7 @@ export function ProjectListTable({
                     variant="outline"
                     data-testid="projects-more-button"
                   >
-                    {t('projects.more', 'Mehr')}
+                    {t('projects.more')}
                     <ChevronDownIcon className="h-4 w-4" />
                   </Menu.Button>
                   <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
@@ -684,7 +692,7 @@ export function ProjectListTable({
                             data-testid="projects-discover-button"
                           >
                             <MagnifyingGlassIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                            {t('projects.discover', 'Entdecken')}
+                            {t('projects.discover')}
                           </button>
                         )}
                       </Menu.Item>
@@ -700,7 +708,7 @@ export function ProjectListTable({
                             data-testid="projects-deleted-button"
                           >
                             <TrashIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                            {t('projects.deleted.title', 'Gelöschte Projekte')}
+                            {t('projects.deleted.title')}
                           </button>
                         )}
                       </Menu.Item>
@@ -766,7 +774,7 @@ export function ProjectListTable({
         <FilterToolbar
           searchValue={localSearchQuery}
           onSearchChange={setLocalSearchQuery}
-          searchPlaceholder={t('projects.searchPlaceholder')}
+          searchPlaceholder={t('projects.list.searchPlaceholder')}
           searchLabel={t('common.filters.search')}
           filtersLabel={t('common.filters.filters')}
           hasActiveFilters={
@@ -1047,22 +1055,16 @@ export function ProjectListTable({
                               <span
                                 className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
                                 data-testid={`project-public-badge-${project.id}`}
-                                title={`Public · ${
+                                title={t(
                                   project.public_role === 'CONTRIBUTOR'
-                                    ? 'Contributor'
-                                    : 'Annotator'
-                                }`}
+                                    ? 'projects.list.publicContributorBadge'
+                                    : 'projects.list.publicAnnotatorBadge',
+                                )}
                               >
                                 <GlobeAltIcon className="h-3.5 w-3.5" />
                                 {project.public_role === 'CONTRIBUTOR'
-                                  ? t(
-                                      'projects.list.publicContributorBadge',
-                                      'Public · Contributor',
-                                    )
-                                  : t(
-                                      'projects.list.publicAnnotatorBadge',
-                                      'Public · Annotator',
-                                    )}
+                                  ? t('projects.list.publicContributorBadge')
+                                  : t('projects.list.publicAnnotatorBadge')}
                               </span>
                             )}
                             {(project.access_tier === 'participant' ||
@@ -1076,19 +1078,12 @@ export function ProjectListTable({
                                       ? 'attempted'
                                       : (project.participant_via ?? 'share')
                                   }`,
-                                  'Beigetreten',
                                 )}
                               >
                                 <UserGroupIcon className="h-3.5 w-3.5" />
                                 {project.access_tier === 'attempted'
-                                  ? t(
-                                      'projects.list.attemptedBadge',
-                                      'Frühere Abgabe',
-                                    )
-                                  : t(
-                                      'projects.list.participantBadge',
-                                      'Teilnehmer',
-                                    )}
+                                  ? t('projects.list.attemptedBadge')
+                                  : t('projects.list.participantBadge')}
                               </span>
                             )}
                             {project.kind === 'flashcard_collection' && (
@@ -1097,7 +1092,7 @@ export function ProjectListTable({
                                 data-testid={`project-kind-badge-${project.id}`}
                               >
                                 <RectangleStackIcon className="h-3.5 w-3.5" />
-                                {t('projects.list.kindDeck', 'Kartenstapel')}
+                                {t('projects.list.kindDeck')}
                               </span>
                             )}
                             {project.kind === 'exam' && (
@@ -1106,7 +1101,7 @@ export function ProjectListTable({
                                 data-testid={`project-kind-badge-${project.id}`}
                               >
                                 <ScaleIcon className="h-3.5 w-3.5" />
-                                {t('projects.list.kindExam', 'Klausur')}
+                                {t('projects.list.kindExam')}
                               </span>
                             )}
                             {(() => {
@@ -1123,18 +1118,14 @@ export function ProjectListTable({
                                     : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
                               const label =
                                 ws === 'upcoming'
-                                  ? t(
-                                      'projects.list.windowUpcoming',
-                                      'Opens {date}',
-                                      {
-                                        date: new Date(
-                                          (project as any).window_start_at,
-                                        ).toLocaleDateString(),
-                                      },
-                                    )
+                                  ? t('projects.list.windowUpcoming', {
+                                      date: new Date(
+                                        (project as any).window_start_at,
+                                      ).toLocaleDateString(intlTag(locale)),
+                                    })
                                   : ws === 'closed'
-                                    ? t('projects.list.windowClosed', 'Closed')
-                                    : t('projects.list.windowOpen', 'Open')
+                                    ? t('projects.list.windowClosed')
+                                    : t('projects.list.windowOpen')
                               return (
                                 <span
                                   className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium ${cls}`}
@@ -1201,7 +1192,7 @@ export function ProjectListTable({
                       >
                         {formatDistanceToNow(new Date(project.created_at), {
                           addSuffix: true,
-                          locale: de,
+                          locale: dateFnsLocale(locale),
                         })}
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
@@ -1214,7 +1205,7 @@ export function ProjectListTable({
                             className="mr-4 text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
                             data-testid={`project-study-${project.id}`}
                           >
-                            {t('projects.list.study', 'Lernen')}
+                            {t('projects.list.study')}
                           </button>
                         ) : (
                           project.enable_annotation !== false && (

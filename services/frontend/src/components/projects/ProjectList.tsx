@@ -16,6 +16,7 @@ import {
   TabsTrigger,
 } from '@/components/shared/Tabs'
 import { useI18n } from '@/contexts/I18nContext'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import { useProjectStore } from '@/stores/projectStore'
 import {
   ArchiveBoxIcon,
@@ -26,13 +27,12 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 export function ProjectList() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const router = useRouter()
   const { projects, loading, fetchProjects, setSearchQuery, searchQuery } =
     useProjectStore()
@@ -233,7 +233,7 @@ export function ProjectList() {
                           <span>
                             {formatDistanceToNow(new Date(project.created_at), {
                               addSuffix: true,
-                              locale: de,
+                              locale: dateFnsLocale(locale),
                             })}
                           </span>
                         </div>

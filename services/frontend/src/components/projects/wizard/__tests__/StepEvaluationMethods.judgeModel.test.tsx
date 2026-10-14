@@ -23,7 +23,7 @@ let mockModels: { id: string; name: string }[] = []
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
+    t: (key: string, _vars?: Record<string, unknown>) => key,
   }),
 }))
 

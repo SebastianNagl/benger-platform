@@ -20,6 +20,7 @@ import {
   getMetricScale,
   metricDisplayName,
 } from '@/lib/api/evaluation-types'
+import { intlTag } from '@/lib/i18n/locales'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import type { ReactNode } from 'react'
@@ -114,7 +115,7 @@ export function ProjectScoresDialog({
   settingsJson,
   testIdPrefix = 'model-detail',
 }: ProjectScoresDialogProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Nothing to render (and no Headless UI mount) while closed.
   if (!open) return null
@@ -125,13 +126,13 @@ export function ProjectScoresDialog({
     return def ? metricDisplayName(def, t) : key
   }
   const formatMetric = (key: string, value: number) =>
-    formatValueForScale(value, getMetricScale(key), false)
+    formatValueForScale(value, getMetricScale(key), false, locale)
   const formatCI = (key: string, m: ProjectScoreCell) => {
     if (m.ci_lower === null || m.ci_upper === null) return null
     return `${formatMetric(key, m.ci_lower)} – ${formatMetric(key, m.ci_upper)}`
   }
   const formatDate = (iso: string | null) =>
-    iso ? new Date(iso).toLocaleDateString() : '–'
+    iso ? new Date(iso).toLocaleDateString(intlTag(locale)) : '–'
   const settingsText = settingsJson
     ? JSON.stringify(settingsJson, null, 2)
     : null
@@ -334,10 +335,10 @@ export function ProjectScoresDialog({
                       )
                     })}
                     <td className="px-4 py-2 text-right whitespace-nowrap text-zinc-500">
-                      {p.count.toLocaleString()}
+                      {p.count.toLocaleString(intlTag(locale))}
                     </td>
                     <td className="px-4 py-2 text-right whitespace-nowrap text-zinc-500">
-                      {p.samples_evaluated.toLocaleString()}
+                      {p.samples_evaluated.toLocaleString(intlTag(locale))}
                     </td>
                     <td className="px-4 py-2 text-right whitespace-nowrap text-zinc-500">
                       {formatDate(p.last_evaluated)}

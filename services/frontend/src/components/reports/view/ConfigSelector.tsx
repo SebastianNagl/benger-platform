@@ -41,11 +41,11 @@ export function ConfigSelector({
       data-testid="config-selector"
     >
       <span className="text-zinc-500 dark:text-zinc-400">
-        {t('reports.view.judge', 'Judge')}:
+        {t('reports.view.judge')}:
       </span>
       <div
         role="radiogroup"
-        aria-label={t('reports.view.judge', 'Judge')}
+        aria-label={t('reports.view.judge')}
         className="inline-flex flex-wrap overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700"
       >
         {options.map((option) => {

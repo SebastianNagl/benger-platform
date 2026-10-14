@@ -17,11 +17,9 @@ jest.mock('@/components/shared/Select', () =>
   jest.requireActual('../../../shared/Select'),
 )
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: () => null,
@@ -60,9 +58,7 @@ function renderExpandedRouge() {
 }
 
 async function openPredictionPicker(user: ReturnType<typeof userEvent.setup>) {
-  const label = screen.getByText(
-    'projects.creation.wizard.step7.predictionField',
-  )
+  const label = screen.getByText('Prediction Field')
   await user.click(
     within(label.parentElement as HTMLElement).getByRole('button'),
   )

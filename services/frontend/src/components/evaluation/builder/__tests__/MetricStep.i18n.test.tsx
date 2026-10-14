@@ -28,15 +28,14 @@ let mockLang = 'de'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, def?: any) => {
+    t: (key: string, _vars?: Record<string, unknown>) => {
       const value = key
         .split('.')
         .reduce(
           (node: any, part) => (node == null ? node : node[part]),
           mockLocales[mockLang],
         )
-      if (typeof value === 'string') return value
-      return typeof def === 'string' ? def : key
+      return typeof value === 'string' ? value : key
     },
     locale: mockLang,
   }),

@@ -464,7 +464,9 @@ export default function PreferenceEvaluation() {
                 <p key={response.id} className="text-xs">
                   <span className="font-medium">{response.anonymized_id}:</span>{' '}
                   <Badge variant="outline">
-                    Model {response.id.split('-')[0]}
+                    {t('evaluations.human.preference.modelLabel', {
+                      id: response.id.split('-')[0],
+                    })}
                   </Badge>
                 </p>
               ))}

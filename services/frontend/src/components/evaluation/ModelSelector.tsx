@@ -149,10 +149,7 @@ export function ModelSelector({
         <div className="flex items-center space-x-2 py-8">
           <ExclamationTriangleIcon className="h-5 w-5 text-amber-500" />
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            {t(
-              'evaluation.modelSelector.noModelsAvailable',
-              'No models available. Configure API keys in your profile settings.',
-            )}
+            {t('evaluation.modelSelector.noModelsAvailable')}
           </p>
         </div>
       </Card>

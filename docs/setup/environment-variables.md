@@ -10,6 +10,16 @@ This document outlines all environment variables used in BenGER and their purpos
 | `NEXT_PUBLIC_API_URL` | `http://api.localhost` | `https://api.what-a-benger.net` | API base URL for frontend requests |
 | `NEXT_PUBLIC_ANNOTATION_SYSTEM` | `native` | `native` | Annotation system type (native) |
 
+### Extension overlays
+| Variable | Example | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_BENGER_EXTENSIONS` | `extended,compliance` | Comma separated names of the frontend overlays to build in, in load order. Known names: `extended`, `compliance`. Unknown names are ignored with a warning. Unset or blank means "none", unless the legacy flag below is set. |
+| `NEXT_PUBLIC_BENGER_EDITION` | `extended` | Legacy flag from before the list existed. `extended` enables the extended overlay alone when `NEXT_PUBLIC_BENGER_EXTENSIONS` is unset or blank; an explicit list always wins. |
+
+Both variables are read at build time (`next build` or `next dev`), not at container start: they carry the `NEXT_PUBLIC_` prefix, so Next inlines them into the bundle, and `next.config.js` derives the Turbopack aliases and `transpilePackages` from them. Pass them as Docker build args (`services/frontend/Dockerfile` declares both).
+
+For each enabled overlay `<name>` the build resolves `@benger/<name>` to `services/frontend/benger-<name>-frontend/` when that tree is present (CI copies it in, the dev compose overlay bind-mounts it) and otherwise to `node_modules/@benger/<name>`; a disabled overlay resolves to a no-op stub so the static imports in `src/lib/extensions/index.ts` always compile. Both overlay directories are git-ignored, listed in the Tailwind content globs and excluded from Prettier. At runtime `loadExtensions()` (`src/lib/extensions/index.ts`) imports the overlays one after another in list order and calls each `registerAll()`; a failing overlay logs a warning and does not block the next one. Keyed registries (slots, metrics, metric editors and renderers, wizard kind presets, annotation components, the writing presence reporter) remember which overlay registered each key and log `[extensions] <kind> "<key>" registered by <new> replaces <old>` when a different overlay overwrites it. The community build sets neither variable.
+
 ### Development Only
 | Variable | Value | Description |
 |----------|-------|-------------|
@@ -42,6 +52,21 @@ This document outlines all environment variables used in BenGER and their purpos
 |----------|------------------|------------------|-------------|
 | `SECRET_KEY` | Auto-generated | From secrets | JWT signing key |
 | `ENVIRONMENT` | `development` | `production` | Runtime environment |
+| `INTERNAL_DOCS_ENABLED` | `true` (default) | `false` (default) | Serve the interactive API docs (`/docs`, `/redoc`, `/openapi.json`). Defaults to on outside production and off in production; set explicitly to override. The OpenAPI schema lists every internal route, so keep it off on public deployments. |
+
+### Access keys (public API)
+See [API keys](../api-keys.md) for the model behind these settings.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_KEY_PEPPER` | empty | Secret mixed into every key hash before SHA-256. Set it from a secret in production. Changing it invalidates every existing key. |
+| `API_KEY_ENVIRONMENT` | `live` in production, `test` elsewhere | Key tag this deployment issues and accepts (`bgr_live_...` / `bgr_test_...`). A key from another environment is refused. |
+| `API_KEY_DEFAULT_RPM` | `120` | Requests per minute per key when the key sets no own limit. |
+| `API_KEY_DEFAULT_RPD` | `20000` | Requests per day per key when the key sets no own limit. |
+| `API_USAGE_RETENTION_DAYS` | `400` | Age after which key usage events are deleted (daily beat task `tasks.cleanup_api_key_usage_events`; set it on the workers too). |
+| `API_USAGE_IP_MODE` | `truncated` | How much of the client IP the usage log keeps: `full`, `truncated` (IPv4 /24, IPv6 /48) or `none`. |
+| `SERVICE_ACCOUNT_EMAIL_HOST` | `service-accounts.what-a-benger.net` | Mail domain of the service-account users behind organisation keys. No mail is ever sent to these addresses. |
+| `PUBLIC_API_URL` | `https://api.<domain of FRONTEND_URL>` | Base URL announced as `servers` in `/api/v1/openapi.json` and the docs. Unset with a localhost frontend, the spec names the requesting host. See [Public API](../public-api.md). |
 
 ## Workers Environment Variables
 
@@ -50,6 +75,7 @@ This document outlines all environment variables used in BenGER and their purpos
 |----------|------------------|------------------|-------------|
 | `CELERY_BROKER_URL` | `redis://redis:6379/0` | From env | Redis broker URL |
 | `CELERY_RESULT_BACKEND` | `redis://redis:6379/0` | From env | Redis results backend |
+| `API_USAGE_RETENTION_DAYS` | `400` | `400` | Retention of the access-key usage log (see above) |
 
 ### LLM API Keys
 | Variable | Description |

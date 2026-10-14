@@ -2,6 +2,7 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getEvaluationReceivedHref,
   isEvaluationReceivedType,
@@ -18,7 +19,6 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 
 export interface Notification {
@@ -234,7 +234,7 @@ export function NotificationDropdown({
                 ] || notificationColors.system_alert
               const timeAgo = formatDistanceToNow(
                 new Date(notification.created_at),
-                { addSuffix: true, locale: locale === 'de' ? de : undefined },
+                { addSuffix: true, locale: dateFnsLocale(locale) },
               )
               const { title: translatedTitle, message: translatedMessage } =
                 getTranslatedNotification(t, notification)

@@ -15,6 +15,7 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { runStatusLabel } from '@/lib/evaluation/runDisplay'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { useMemo } from 'react'
 
 export interface PerRunRow {
@@ -45,9 +46,9 @@ export interface PerRunBreakdownProps {
   showTargetModel?: boolean
 }
 
-function formatScore(score: number | null): string {
+function formatScore(score: number | null, locale: string): string {
   if (score === null || score === undefined || Number.isNaN(score)) return '—'
-  return score.toFixed(3)
+  return formatDecimal(score, locale, 3)
 }
 
 function statusBadgeClass(status: string): string {
@@ -71,7 +72,7 @@ export function PerRunBreakdown({
   metricLabel,
   showTargetModel = true,
 }: PerRunBreakdownProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const sortedRows = useMemo(() => {
     return [...rows].sort((a, b) => {
@@ -94,7 +95,7 @@ export function PerRunBreakdown({
   if (sortedRows.length === 0) {
     return (
       <div className="rounded border border-zinc-200 bg-white p-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
-        {t('eval.perRun.empty', 'Keine Lauf-Daten für diese Metrik.')}
+        {t('eval.perRun.empty')}
       </div>
     )
   }
@@ -106,25 +107,25 @@ export function PerRunBreakdown({
           <tr>
             {showTargetModel && (
               <th className="px-3 py-2 text-left font-medium">
-                {t('eval.perRun.targetModel', 'Ziel-Modell')}
+                {t('eval.perRun.targetModel')}
               </th>
             )}
             <th className="px-3 py-2 text-left font-medium">
-              {t('eval.perRun.judge', 'Judge')}
+              {t('eval.perRun.judge')}
             </th>
             <th className="px-3 py-2 text-right font-medium">
-              {t('eval.perRun.runIndex', 'Lauf #')}
+              {t('eval.perRun.runIndex')}
             </th>
             <th className="px-3 py-2 text-right font-medium">
-              {t('eval.perRun.samples', 'Samples')}
+              {t('eval.perRun.samples')}
             </th>
             <th className="px-3 py-2 text-right font-medium">
               {mixedMetrics
-                ? t('eval.perRun.meanScoreMixed', 'Mittelwert')
+                ? t('eval.perRun.meanScoreMixed')
                 : t('eval.perRun.meanScore', { metric: metricLabel || metric })}
             </th>
             <th className="px-3 py-2 text-left font-medium">
-              {t('eval.perRun.status', 'Status')}
+              {t('eval.perRun.status')}
             </th>
           </tr>
         </thead>
@@ -139,7 +140,7 @@ export function PerRunBreakdown({
               <td className="px-3 py-2 font-mono text-xs">
                 {row.judge_model_id ?? (
                   <span className="text-zinc-400">
-                    {t('eval.perRun.deterministic', '(deterministic)')}
+                    {t('eval.perRun.deterministic')}
                   </span>
                 )}
               </td>
@@ -150,7 +151,7 @@ export function PerRunBreakdown({
                 {row.samples_evaluated ?? '—'}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">
-                {formatScore(row.mean_score)}
+                {formatScore(row.mean_score, locale)}
                 {mixedMetrics && (row.metric_label || row.metric) && (
                   <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
                     ({row.metric_label || row.metric})

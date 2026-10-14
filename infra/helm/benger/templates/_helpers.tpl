@@ -99,3 +99,54 @@ wildcard, so the value cannot capture another namespace's host.
 {{- define "benger.ltiRegisterPriority" -}}
 190
 {{- end -}}
+
+{{/*
+Extension overlay environment (platform core 2.37). Call with
+(dict "root" $ "role" "api"|"workers"). Renders, for every enabled entry of
+.Values.overlays in ascending `order` (ties broken by name), the entry's
+env list for the role, then BENGER_EXTENSIONS (the enabled packages in that
+order) and BENGER_REQUIRE_EXTENSIONS (the `required` ones among them).
+Renders nothing when no overlay is enabled, so the registry falls back to
+its default (benger_extended) and the legacy BENGER_REQUIRE_EXTENDED.
+
+The deployment templates include this AFTER {api,workers}.extraEnv: the
+kubelet keeps the last value of a duplicated env name, so an overlay's
+value wins over extraEnv.
+
+Sorting: Helm has no sort-by-key for lists of maps, so each enabled entry is
+keyed as "<zero-padded order>|<name>" and sortAlpha orders the keys; `order`
+must therefore be a non-negative integer below 10^8.
+*/}}
+{{- define "benger.overlayEnv" -}}
+{{- $root := .root -}}
+{{- $role := .role -}}
+{{- $overlays := $root.Values.overlays | default dict -}}
+{{- $keys := list -}}
+{{- range $name, $cfg := $overlays -}}
+{{- if and $cfg $cfg.enabled -}}
+{{- $order := int ($cfg.order | default 100) -}}
+{{- $keys = append $keys (printf "%08d|%s" $order $name) -}}
+{{- end -}}
+{{- end -}}
+{{- $packages := list -}}
+{{- $required := list -}}
+{{- $lines := list -}}
+{{- range $key := sortAlpha $keys -}}
+{{- $name := index (splitList "|" $key) 1 -}}
+{{- $cfg := index $overlays $name -}}
+{{- $package := $cfg.package | default (printf "benger_%s" $name) -}}
+{{- $packages = append $packages $package -}}
+{{- if $cfg.required -}}
+{{- $required = append $required $package -}}
+{{- end -}}
+{{- $roleCfg := index $cfg $role | default dict -}}
+{{- with $roleCfg.env -}}
+{{- $lines = append $lines (toYaml .) -}}
+{{- end -}}
+{{- end -}}
+{{- if $packages -}}
+{{- $lines = append $lines (printf "- name: BENGER_EXTENSIONS\n  value: %s" (join "," $packages | quote)) -}}
+{{- $lines = append $lines (printf "- name: BENGER_REQUIRE_EXTENSIONS\n  value: %s" (join "," $required | quote)) -}}
+{{- end -}}
+{{- join "\n" $lines -}}
+{{- end -}}

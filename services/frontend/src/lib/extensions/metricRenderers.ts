@@ -14,10 +14,13 @@
  * The platform's table reads getMetricCell(metric); the platform's detail
  * modal reads getMetricDetail(metric). When a renderer is registered, it
  * overrides the generic display path. When none is registered, the platform
- * falls back to its built-in rendering.
+ * falls back to its built-in rendering. One renderer per metric and surface;
+ * the last registration wins and a different owner replacing it logs a
+ * warning (see ./owner.ts).
  */
 
 import type { ComponentType, ReactNode } from 'react'
+import { type RegistrationOwners, recordRegistration } from './owner'
 
 /**
  * Pure cell renderer: receives the metric's value blob (typically the
@@ -37,12 +40,15 @@ export interface MetricDetailProps {
 }
 
 const cellRenderers: Record<string, MetricCellRenderer> = {}
+const cellOwners: RegistrationOwners = new Map()
 const detailRenderers: Record<string, ComponentType<MetricDetailProps>> = {}
+const detailOwners: RegistrationOwners = new Map()
 
 export function registerMetricCell(
   metric: string,
   renderer: MetricCellRenderer,
 ) {
+  recordRegistration(cellOwners, 'metric cell', metric)
   cellRenderers[metric] = renderer
 }
 
@@ -54,6 +60,7 @@ export function registerMetricDetail(
   metric: string,
   component: ComponentType<MetricDetailProps>,
 ) {
+  recordRegistration(detailOwners, 'metric detail', metric)
   detailRenderers[metric] = component
 }
 

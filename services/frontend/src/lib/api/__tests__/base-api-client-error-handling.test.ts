@@ -9,6 +9,11 @@ jest.unmock('@/lib/api/base')
 
 import { BaseApiClient } from '../base'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Mock fetch globally
 global.fetch = jest.fn()
 
@@ -386,8 +391,8 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
         if (error.message === 'Should have thrown an error') {
           throw error
         }
-        expect(error.message).toContain('Network error')
-        expect(error.message).toContain('Unable to connect to API')
+        expect(error.message).toContain('errors.api.networkUnreachable')
+        expect(error.name).toBe('NetworkError')
       }
     })
 

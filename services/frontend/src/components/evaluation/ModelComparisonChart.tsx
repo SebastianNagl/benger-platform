@@ -9,6 +9,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   Bar,
   BarChart,
@@ -83,7 +84,7 @@ export function ModelComparisonChart({
   showErrorBars = true,
   showConfidenceIntervals = true,
 }: ModelComparisonChartProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Track models with missing data for scientific transparency
   const modelsWithMissingData = new Set<string>()
@@ -174,7 +175,9 @@ export function ModelComparisonChart({
                 border: '1px solid #ccc',
                 borderRadius: '4px',
               }}
-              formatter={(value): any => (value as number).toFixed(3)}
+              formatter={(value): any =>
+                formatDecimal(value as number, locale, 3)
+              }
             />
           </RadarChart>
         </ResponsiveContainer>
@@ -218,7 +221,7 @@ export function ModelComparisonChart({
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             }}
             formatter={(value, name): any => [
-              (value as number).toFixed(3),
+              formatDecimal(value as number, locale, 3),
               name,
             ]}
           />
@@ -308,18 +311,24 @@ export function ModelComparisonChart({
                       >
                         <div className="flex flex-col items-end">
                           <span className="font-medium text-gray-900 dark:text-gray-100">
-                            {value.toFixed(3)}
+                            {formatDecimal(value, locale, 3)}
                           </span>
                           {showConfidenceIntervals && hasCI && (
                             <span className="text-xs text-gray-500 dark:text-gray-400">
                               [
-                              {(
-                                metricData as MetricValue
-                              ).confidenceInterval!.lower.toFixed(3)}
+                              {formatDecimal(
+                                (metricData as MetricValue).confidenceInterval!
+                                  .lower,
+                                locale,
+                                3,
+                              )}
                               ,{' '}
-                              {(
-                                metricData as MetricValue
-                              ).confidenceInterval!.upper.toFixed(3)}
+                              {formatDecimal(
+                                (metricData as MetricValue).confidenceInterval!
+                                  .upper,
+                                locale,
+                                3,
+                              )}
                               ]
                             </span>
                           )}
@@ -328,7 +337,7 @@ export function ModelComparisonChart({
                     )
                   })}
                   <td className="px-4 py-3 text-right font-bold text-gray-900 tabular-nums dark:text-gray-100">
-                    {avg.toFixed(3)}
+                    {formatDecimal(avg, locale, 3)}
                   </td>
                 </tr>
               )

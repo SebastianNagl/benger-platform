@@ -701,6 +701,44 @@ describe('/api/auth/refresh route', () => {
       }
     })
 
+    it('keeps the Secure flag in production', async () => {
+      const previousNodeEnv = process.env.NODE_ENV
+      process.env.NODE_ENV = 'production'
+      try {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: 'new-tok' }),
+          headers: {
+            getSetCookie: () => [
+              'access_token=new-tok; Path=/; HttpOnly; SameSite=Lax; Secure',
+            ],
+          },
+        } as any)
+
+        const request = new NextRequest(
+          'https://what-a-benger.net/api/auth/refresh',
+          {
+            method: 'POST',
+            headers: {
+              host: 'what-a-benger.net',
+              cookie: 'refresh_token=old-token',
+            },
+          },
+        )
+
+        const response = await POST(request)
+        expect(response.status).toBe(200)
+        const accessCookie = response.headers
+          .getSetCookie()
+          .find((c: string) => c.startsWith('access_token='))
+        expect(accessCookie).toBeDefined()
+        expect(accessCookie).toMatch(/;\s*Secure/i)
+      } finally {
+        process.env.NODE_ENV = previousNodeEnv
+      }
+    })
+
     it('should add Path=/ when not present in refresh cookie', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

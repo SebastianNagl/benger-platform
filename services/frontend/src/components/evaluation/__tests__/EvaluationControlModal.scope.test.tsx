@@ -16,50 +16,9 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    // The component uses two t() shapes:
-    //   (a) t('key.path')                              — the test assertions
-    //       below check translated text, so we keep an explicit map for the
-    //       keys this suite touches (mirrors EvaluationControlModal.test.tsx).
-    //   (b) t('key.path', { count: N })                — count param shape
-    //       — return the bare count to match the existing assertions.
-    //   (c) t('key.path', 'literal fallback')          — fallback shape — pass
-    //       the fallback through.
-    t: (key: string, paramOrFallback?: any) => {
-      if (typeof paramOrFallback === 'string') return paramOrFallback
-      if (
-        paramOrFallback &&
-        typeof paramOrFallback === 'object' &&
-        'count' in paramOrFallback
-      ) {
-        return `${paramOrFallback.count}`
-      }
-      const translations: Record<string, string> = {
-        'evaluation.controlModal.title': 'Run Evaluation',
-        'evaluation.controlModal.evaluationMode': 'Evaluation Mode',
-        'evaluation.controlModal.evaluateMissingOnly': 'Missing Only',
-        'evaluation.controlModal.evaluateMissingOnlyDesc':
-          'Only evaluate samples without results',
-        'evaluation.controlModal.evaluateAll': 'All Samples',
-        'evaluation.controlModal.evaluateAllDesc':
-          'Re-evaluate all samples, overwriting existing results',
-        'evaluation.controlModal.evaluationConfigurations':
-          'Evaluation Configurations',
-        'evaluation.controlModal.oneConfigWillBeRun':
-          '1 configuration will be run',
-        'evaluation.controlModal.starting': 'Starting...',
-        'evaluation.controlModal.startEvaluation': 'Start Evaluation',
-        'evaluation.controlModal.cancel': 'Cancel',
-        'evaluation.controlModal.failedToStart': 'Failed to start evaluation',
-        'evaluation.controlModal.noConfigsFound': 'No configs found',
-        'evaluation.controlModal.projectIdRequired': 'Project ID is required',
-        'shared.alertDialog.close': 'Close',
-      }
-      return translations[key] || key
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
@@ -177,7 +136,7 @@ describe('EvaluationControlModal scope picker', () => {
 
   it('does NOT pass model_ids or annotator_user_ids when nothing is narrowed', async () => {
     render(<EvaluationControlModal {...defaultProps} />)
-    const startButton = await screen.findByText('Start Evaluation')
+    const startButton = await screen.findByText('Evaluation starten')
     await waitFor(() => expect(mockGetEvaluatedModels).toHaveBeenCalled())
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
@@ -195,11 +154,10 @@ describe('EvaluationControlModal scope picker', () => {
     fireEvent.click(metricBox)
     expect(metricBox).not.toBeChecked()
     const alert = await screen.findByRole('alert')
-    // Fallback string is German ("Mindestens eine Metrik auswählen") — assert
-    // case-insensitively against the German stem since that's what the t()
-    // mock returns when the key is missing from the test catalog.
+    // German catalog copy ("Mindestens eine Metrik auswählen"); assert
+    // case-insensitively against the German stem.
     expect(alert).toHaveTextContent(/metrik/i)
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     expect(startButton).toHaveAttribute('aria-disabled', 'true')
   })
 
@@ -211,7 +169,7 @@ describe('EvaluationControlModal scope picker', () => {
       await screen.findByText(/nur eingereichte Antworten/i),
     ).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
@@ -223,7 +181,7 @@ describe('EvaluationControlModal scope picker', () => {
     const annotatorBox = await screen.findByLabelText('Annotator: Alice')
     fireEvent.click(annotatorBox)
     expect(await screen.findByText(/nur Modellantworten/i)).toBeInTheDocument()
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
@@ -260,7 +218,7 @@ describe('EvaluationControlModal scope picker', () => {
     render(<EvaluationControlModal {...defaultProps} />)
     const bobBox = await screen.findByLabelText('Annotator: Bob')
     fireEvent.click(bobBox) // deselect Bob, leaving only Alice
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
@@ -272,8 +230,7 @@ describe('EvaluationControlModal scope picker', () => {
     mockGetEvaluatedModels.mockResolvedValue([])
     render(<EvaluationControlModal {...defaultProps} />)
     await waitFor(() => expect(mockGetEvaluatedModels).toHaveBeenCalled())
-    // Match the German fallback ("Keine bewerteten Modelle in diesem Projekt")
-    // — test catalog has no entry for the key, so t() returns the fallback.
+    // German catalog copy ("Keine bewerteten Modelle in diesem Projekt").
     expect(
       await screen.findByText(/keine bewerteten modelle/i),
     ).toBeInTheDocument()

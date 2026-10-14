@@ -6,13 +6,19 @@ import { render, screen } from '@testing-library/react'
 
 import { PLATFORM_CHANGELOG } from '@/data/changelog'
 import { registerChangelogEntries } from '@/lib/extensions/changelog'
+import { registerTranslations } from '@/lib/i18n/catalog'
 
 import ChangelogPage from '../page'
 
 let mockLocale: 'de' | 'en' = 'de'
+// Entry text comes from the catalog (changelogEntries.<id>, registered by
+// the test below); page chrome renders as its key.
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string) => key,
+    t: (key: string) =>
+      key.startsWith('changelogEntries.')
+        ? jest.requireActual('@/lib/i18n/catalog').translateKey(mockLocale, key)
+        : key,
     locale: mockLocale,
   }),
 }))
@@ -25,6 +31,11 @@ jest.mock('@/contexts/AuthContext', () => ({
 let mockUiMode: 'student' | 'expert' = 'expert'
 jest.mock('@/hooks/useResolvedUiMode', () => ({
   useResolvedUiMode: () => mockUiMode,
+}))
+
+let mockPublicApi: boolean | null = false
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi,
 }))
 
 let mockStudentLockedHost = false
@@ -43,32 +54,80 @@ jest.mock('@/data/changelog', () => ({
   PLATFORM_CHANGELOG: [],
 }))
 
+registerTranslations('changelog-page-test', {
+  de: {
+    changelogEntries: {
+      't-platform-both': 'Plattform beide',
+      't-benger-only': 'Nur BenGER',
+      't-vertretbar-only': 'Nur Vertretbar',
+      't-public-api': 'Öffentliche API',
+    },
+  },
+  en: {
+    changelogEntries: {
+      't-platform-both': 'Platform both',
+      't-benger-only': 'BenGER only',
+      't-vertretbar-only': 'Vertretbar only',
+    },
+  },
+  fr: {},
+})
+
 describe('ChangelogPage', () => {
   beforeEach(() => {
     mockLocale = 'de'
     mockUiMode = 'expert'
     mockUser = null
     mockStudentLockedHost = false
+    mockPublicApi = false
     PLATFORM_CHANGELOG.length = 0
     PLATFORM_CHANGELOG.push(
       {
+        id: 't-platform-both',
         date: '2026-08-24',
         audience: 'both',
-        text: { de: 'Plattform beide', en: 'Platform both' },
       },
       {
+        id: 't-benger-only',
         date: '2026-08-20',
         audience: 'benger',
-        text: { de: 'Nur BenGER', en: 'BenGER only' },
       },
     )
     registerChangelogEntries('extended', [
       {
+        id: 't-vertretbar-only',
         date: '2026-08-24',
         audience: 'vertretbar',
-        text: { de: 'Nur Vertretbar', en: 'Vertretbar only' },
       },
     ])
+  })
+
+  it.each([
+    ['off', false],
+    ['still loading', null],
+  ])('hides public-API entries while the flag is %s', (_label, value) => {
+    mockPublicApi = value
+    PLATFORM_CHANGELOG.push({
+      id: 't-public-api',
+      date: '2026-08-24',
+      audience: 'benger',
+      requires: 'publicApi',
+    })
+    render(<ChangelogPage />)
+    expect(screen.queryByText('Öffentliche API')).not.toBeInTheDocument()
+    expect(screen.getByText('Nur BenGER')).toBeInTheDocument()
+  })
+
+  it('shows public-API entries when the flag is on', () => {
+    mockPublicApi = true
+    PLATFORM_CHANGELOG.push({
+      id: 't-public-api',
+      date: '2026-08-24',
+      audience: 'benger',
+      requires: 'publicApi',
+    })
+    render(<ChangelogPage />)
+    expect(screen.getByText('Öffentliche API')).toBeInTheDocument()
   })
 
   it('renders title and intro in the legal wrapper', () => {

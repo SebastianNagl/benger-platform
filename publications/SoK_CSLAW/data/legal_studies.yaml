@@ -1,0 +1,162 @@
+# Evaluations of open-text legal answers by an automatic grader, coded by
+# paradigm (Section 5), rubric source, what the grader was compared with
+# ("ref"), the reported agreement of the grader ("judge") and the agreement
+# among the human graders ("human") where the source reports it. The setting
+# says whether student (human) scripts or model answers were graded. Numbers
+# are copied from the cited source; research/citation-check-2026-10-13/ holds
+# the verification reports with page or table pointers for every number.
+# "reused" marks scripts or rubrics taken from another study in the
+# table, so that papers are not counted as independent confirmations.
+studies:
+  - key: wendlinger2024suitability
+    name: "Wendlinger et al."
+    setting: "German criminal-law take-home, student scripts"
+    paradigm: P6
+    rubric: "none (few-shot examples)"
+    ref: "research assistants' grades"
+    judge: "near zero or negative"
+    human: "n/r"
+  - key: enguehard2025lemaj
+    name: "LeMAJ"
+    setting: "legal QA, model answers with constructed errors"
+    paradigm: P6
+    rubric: "none; answer split into legal data points"
+    ref: "legal experts"
+    judge: 'correctness $r$ .26 (own data), .70 (LegalBench)'
+    human: "IAA correctness .77; .88 with data points"
+  - key: karp2025llm
+    name: "Karp et al."
+    setting: "Polish procurement appeals-board exam, 3 model judgments"
+    paradigm: P5/P7
+    rubric: "committee's criteria and solution key"
+    ref: "official committee"
+    judge: "85 to 90 of 100 for failed judgments (committee 8 to 37)"
+    human: "n/r"
+  - key: nagl2026bengerdata
+    name: "BenGER"
+    setting: "German case solutions, 15 tasks, human-written"
+    paradigm: P5/P6
+    rubric: "reference solution, 10 general criteria"
+    ref: "mean of 3 blind reviewers"
+    judge: '$r$ .76; pass/fail $\kappa$ .60'
+    human: "ICC(2,1) .63, single rater (45 answers, 15 by models)"
+  - key: nagl2025courtpressger
+    name: "CourtPressGER"
+    setting: "German court press releases, model outputs"
+    paradigm: P6
+    rubric: "5 general criteria"
+    ref: "expert ranking of 10 systems"
+    judge: '$\rho$ .94 (systems)'
+    human: "n/r"
+  - key: rolshoven2025unlocking
+    name: "SLDS"
+    setting: "Swiss headnotes, model outputs"
+    paradigm: P5
+    rubric: "reference headnote, generic categories"
+    ref: "expert ratings"
+    judge: '$\rho$ .26 (ROUGE-L .26)'
+    human: "n/r"
+  - key: fan2026lexam
+    name: "LEXam"
+    setting: "Swiss law exams, model answers"
+    paradigm: P5
+    rubric: "professor's reference answer"
+    ref: "3 experts, alternative annotator test"
+    judge: "passes"
+    human: "QWK .49"
+  - key: chlapanis2025greekbarbench
+    name: "GreekBarBench"
+    setting: "Greek bar exam, model answers"
+    paradigm: P5/P7
+    rubric: "expert spans on the reference"
+    ref: "aggregated expert scores, system pairs"
+    judge: "soft pairwise accuracy .86 (system level)"
+    human: 'SPA .85 (annotator vs. annotator); $\alpha$ .74'
+  - key: pires2025automatic
+    name: "OAB-Bench"
+    setting: "Brazilian bar exam, 3 passing candidate scripts"
+    paradigm: P7
+    rubric: "official point tables"
+    ref: "official scores"
+    judge: "item MAE .04 to .28"
+    human: "n/r"
+  - key: pires2026magisbench
+    name: "Magis-Bench"
+    setting: "Brazilian magistrate exams, model answers"
+    paradigm: P7
+    rubric: "official examiner rubrics"
+    ref: "other LLM judges only"
+    judge: '$W$ .98'
+    human: "n/r"
+  - key: zubaer2026gradelegal
+    name: "GradeLegal"
+    setting: "German criminal and public law, student scripts; reused"
+    paradigm: P7
+    rubric: "sample solution, grading scheme"
+    ref: "instructor (public), assistants (criminal)"
+    judge: "QWK .60 (crim.), .91 (public); .31, .58 with neither"
+    human: "QWK .91 (public; instructor vs. assistants)"
+  - key: strecker2026ki
+    name: "Strecker et al."
+    setting: "German public-law mock exam, student scripts"
+    paradigm: P2/P7
+    rubric: "examiner's raw-point scheme"
+    ref: "instructor's grade; weighted human mean"
+    judge: "deviation mostly lower with scheme; grades compressed"
+    human: "spread 5.25 vs. 2.94 points with scheme (two groups)"
+  - key: cope2026grading
+    name: "Cope et al."
+    setting: "US finals, 4 exams, 205 student scripts"
+    paradigm: P7/P8
+    rubric: "professor's rubric"
+    ref: "professor's grade"
+    judge: 'rubric $r$ .78 to .93; open .66 to .80; per element, pairwise no better'
+    human: "one regraded question: humans closer to each other than to the model, not significant"
+  - key: akarajaradwong2026thai
+    name: "Thai bar study"
+    setting: "Thai bar essays, 15 human and model answers"
+    paradigm: P5/P6
+    rubric: "generic 8-tier regulation, gold answer"
+    ref: "3 examiners' single scores"
+    judge: '3 anchor judges $r$ .52 to .76; LLM-panel stability $\alpha$ .77'
+    human: 'panel $\alpha$ .36 (.75 where explicit)'
+  - key: oh2026korean
+    name: "KCL-Essay"
+    setting: "Korean bar-exam questions, model answers"
+    paradigm: P7
+    rubric: "LLM-generated from expert solution, 27% attorney-reviewed"
+    ref: "attorney scores"
+    judge: '$r$ .8 (.7 on hard items)'
+    human: '$r$ .93 (easy items)'
+  - key: shi2026plawbench
+    name: "PLawBench"
+    setting: "Chinese practice tasks, model answers"
+    paradigm: P7
+    rubric: "about 12,500 expert items"
+    ref: "at least 3 experts, sampled items"
+    judge: '$r$ .72 to .86 by task type'
+    human: '$r$ .84 to .88 (expert vs. mean)'
+  - key: chen2026lexrubric
+    name: "LexRubric"
+    setting: "Chinese consultation and exams, model answers"
+    paradigm: P7
+    rubric: "12,337 expert atomic criteria"
+    ref: "experts, 50 instances; model ranking"
+    judge: 'item $\kappa$ .59; $\tau$ .80'
+    human: "n/r"
+  - key: drozdov2026legalresearchbench
+    name: "Legal Research Bench"
+    setting: "US legal research, 413 questions, model answers"
+    paradigm: P7
+    rubric: "attorney-written binary items, reviewed"
+    ref: "majority of 3 attorneys, 341 items"
+    judge: 'item $\kappa$ .71 to .73'
+    human: '$\kappa$ .64 (attorney vs. attorney)'
+  - key: yang2026judgmentbench
+    name: "JudgmentBench"
+    setting: "BigLaw Bench, model outputs at 3 constructed levels; rubrics reused"
+    paradigm: P7/P8
+    rubric: "vendor rubrics by attorneys"
+    ref: "attorneys' orderings"
+    judge: 'GPT-5.4 $\rho$ .20 (rubric), .38 (pairwise)'
+    human: "rubric IRR .44"

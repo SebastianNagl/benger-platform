@@ -10,6 +10,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
   CloudArrowUpIcon,
@@ -56,7 +57,7 @@ export function AutoSaveIndicator({
       if (diffHours < 24) {
         return t('common.autoSave.hoursAgo', { hours: diffHours })
       }
-      return date.toLocaleTimeString(locale === 'de' ? 'de-DE' : 'en-US', {
+      return date.toLocaleTimeString(intlTag(locale), {
         hour: '2-digit',
         minute: '2-digit',
       })
@@ -108,7 +109,7 @@ export function AutoSaveIndicator({
     return (
       <div
         className={`flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 ${className}`}
-        title={`${t('common.autoSave.lastSaved')} ${lastSaved.toLocaleString(locale === 'de' ? 'de-DE' : 'en-US')}`}
+        title={`${t('common.autoSave.lastSaved')} ${lastSaved.toLocaleString(intlTag(locale))}`}
       >
         <CheckCircleIcon className="h-4 w-4 text-emerald-500" />
         <span>{t('common.autoSave.saved', { displayTime })}</span>

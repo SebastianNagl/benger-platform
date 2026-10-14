@@ -8,6 +8,7 @@ import { useI18n } from '@/contexts/I18nContext'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
 import { isEvaluationReceivedType } from '@/lib/notificationLinks'
+import { translate } from '@/lib/utils/translate'
 import {
   ArrowPathIcon,
   BellIcon,
@@ -146,25 +147,15 @@ const getNotificationTypes = (t: any) => [
   },
   {
     key: 'task_assigned',
-    name: t('settings.notifications.types.taskAssigned', {
-      defaultValue: 'Aufgabe zugewiesen',
-    }),
-    description: t('settings.notifications.types.taskAssignedDesc', {
-      defaultValue:
-        'Sie wurden einer oder mehreren Annotationsaufgaben zugewiesen',
-    }),
+    name: t('settings.notifications.types.taskAssigned'),
+    description: t('settings.notifications.types.taskAssignedDesc'),
     icon: UserPlusIcon,
     category: t('settings.notifications.categories.annotation'),
   },
   {
     key: 'korrektur_assigned',
-    name: t('settings.notifications.types.korrekturAssigned', {
-      defaultValue: 'Korrektur zugewiesen',
-    }),
-    description: t('settings.notifications.types.korrekturAssignedDesc', {
-      defaultValue:
-        'Sie wurden einer Korrekturaufgabe (Classic oder Falllösung) zugewiesen',
-    }),
+    name: t('settings.notifications.types.korrekturAssigned'),
+    description: t('settings.notifications.types.korrekturAssignedDesc'),
     icon: UserPlusIcon,
     category: t('settings.notifications.categories.annotation'),
   },
@@ -365,10 +356,10 @@ function NotificationSettingsContent() {
           if (typeof t === 'function') {
             setError(t('settings.notifications.ui.initFailed'))
           } else {
-            setError('Failed to initialize notification settings') // fallback when t() unavailable
+            setError(translate('settings.notifications.ui.initFailed')) // fallback when t() unavailable
           }
         } catch {
-          setError('Failed to initialize notification settings') // fallback when t() throws
+          setError(translate('settings.notifications.ui.initFailed')) // fallback when t() throws
         }
       }
     }
@@ -383,7 +374,7 @@ function NotificationSettingsContent() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-600"></div>
-          <p>Loading translations...</p>
+          <p>{translate('common.loadingTranslations')}</p>
         </div>
       </div>
     )

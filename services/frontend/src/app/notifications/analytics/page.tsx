@@ -13,6 +13,7 @@ import {
   NotificationGroupsResponse,
   NotificationSummaryResponse,
 } from '@/lib/api/notifications'
+import { intlTag } from '@/lib/i18n/locales'
 import {
   BellIcon,
   ChartBarIcon,
@@ -133,7 +134,7 @@ function StatCard({
 }
 
 export default function NotificationAnalyticsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const timeRangeOptions = [
     { value: 7, label: t('notifications.analytics.timeRange.last7Days') },
@@ -438,7 +439,9 @@ export default function NotificationAnalyticsPage() {
               <ClockIcon className="mr-2 h-4 w-4" />
               <span>
                 {t('notifications.analytics.generatedAt', {
-                  date: new Date(summary.summary_generated_at).toLocaleString(),
+                  date: new Date(summary.summary_generated_at).toLocaleString(
+                    intlTag(locale),
+                  ),
                   days: summary.period_days,
                 })}
               </span>

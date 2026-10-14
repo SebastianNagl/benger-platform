@@ -333,10 +333,7 @@ function setupBasicMocks(
   })
 
   ;(useI18n as jest.Mock).mockReturnValue({
-    t: (key: string, fallback?: any) => {
-      if (typeof fallback === 'string') return fallback
-      return key
-    },
+    t: (key: string, _vars?: Record<string, unknown>) => key,
   })
 
   ;(canAccessProjectData as jest.Mock).mockReturnValue(

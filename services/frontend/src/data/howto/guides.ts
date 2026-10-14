@@ -12,6 +12,7 @@
 import { registerHowToGuides, type HowToGuide } from '@/lib/howto'
 
 import { ANNOTATION_GUIDES } from './guides/annotation'
+import { API_ACCESS_GUIDES } from './guides/apiAccess'
 import { DATA_GUIDES } from './guides/data'
 import { EVALUATION_GUIDES } from './guides/evaluation'
 import { GENERATION_GUIDES } from './guides/generation'
@@ -30,6 +31,7 @@ export const PLATFORM_HOWTO_GUIDES: HowToGuide[] = [
   ...GENERATION_GUIDES,
   ...EVALUATION_GUIDES,
   ...INTEGRATION_GUIDES,
+  ...API_ACCESS_GUIDES,
   ...TROUBLESHOOTING_GUIDES,
 ]
 

@@ -7,7 +7,7 @@ import BillingPage from '../page'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
+    t: (k: string) => k,
   }),
 }))
 jest.mock('@/components/shared/Breadcrumb', () => ({
@@ -30,7 +30,7 @@ describe('/billing', () => {
     render(<BillingPage />)
     expect(screen.getByTestId('billing-stub')).toHaveTextContent('expert')
     expect(
-      screen.getByRole('heading', { name: 'Abo & Abrechnung' }),
+      screen.getByRole('heading', { name: 'navigation.billing' }),
     ).toBeInTheDocument()
   })
 

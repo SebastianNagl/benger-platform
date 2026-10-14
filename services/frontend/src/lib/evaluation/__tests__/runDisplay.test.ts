@@ -102,9 +102,14 @@ describe('metric keys', () => {
 
   it('formats Notenpunkte with one decimal and other scores with three', () => {
     expect(
-      formatMetricNumber('llm_judge_rubric_grade_points', 11, registry),
+      formatMetricNumber('llm_judge_rubric_grade_points', 11, 'en', registry),
     ).toBe('11.0')
-    expect(formatMetricNumber('llm_judge_rubric', 0.7, registry)).toBe('0.700')
+    expect(formatMetricNumber('llm_judge_rubric', 0.7, 'en', registry)).toBe(
+      '0.700',
+    )
+    expect(formatMetricNumber('llm_judge_rubric', 0.7, 'de', registry)).toBe(
+      '0,700',
+    )
   })
 })
 

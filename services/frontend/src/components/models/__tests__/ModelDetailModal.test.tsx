@@ -85,7 +85,7 @@ import { formatValueForScale, getMetricScale } from '@/lib/api/evaluation-types'
 import { ModelDetailModal } from '../ModelDetailModal'
 
 const fmt = (key: string, v: number) =>
-  formatValueForScale(v, getMetricScale(key), false)
+  formatValueForScale(v, getMetricScale(key), false, 'en')
 
 const model = { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI' }
 

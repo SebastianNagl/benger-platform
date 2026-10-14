@@ -12,7 +12,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Checkbox } from '@/components/shared/Checkbox'
 import { useI18n } from '@/contexts/I18nContext'
 import {
-  getFieldDisplayName,
+  getFieldLabel,
   HUMAN_FIELD_PREFIX,
   MODEL_FIELD_PREFIX,
   type AvailableEvaluationFields,
@@ -96,9 +96,7 @@ export function PredictionFieldsStep({
                       onFieldToggle('prediction_fields', prefixed)
                     }
                   />
-                  <span className="text-sm">
-                    {getFieldDisplayName(prefixed)}
-                  </span>
+                  <span className="text-sm">{getFieldLabel(prefixed, t)}</span>
                   <Badge variant="secondary" className="text-[10px]">
                     {t('evaluationBuilder.fields.model')}
                   </Badge>
@@ -127,9 +125,7 @@ export function PredictionFieldsStep({
                       onFieldToggle('prediction_fields', prefixed)
                     }
                   />
-                  <span className="text-sm">
-                    {getFieldDisplayName(prefixed)}
-                  </span>
+                  <span className="text-sm">{getFieldLabel(prefixed, t)}</span>
                   <Badge variant="secondary" className="text-[10px]">
                     {t('evaluationBuilder.fields.human')}
                   </Badge>

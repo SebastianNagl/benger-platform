@@ -6,7 +6,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { formatDistanceToNow } from 'date-fns'
-import { de as dateFnsDe, enUS as dateFnsEn } from 'date-fns/locale'
+import { de as dateFnsDe, enGB as dateFnsEn } from 'date-fns/locale'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { LabelingInterface } from '../LabelingInterface'
 
@@ -44,6 +44,7 @@ jest.mock('@/lib/api/projects', () => ({
 import { useAuth } from '@/contexts/AuthContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { mockToast as __mockToast } from '@/test-utils/setupTests'
+
 const toast = Object.assign(
   (msg: string, type?: any) => __mockToast.addToast(msg, type),
   { success: __mockToast.success, error: __mockToast.error },
@@ -109,43 +110,10 @@ jest.mock('@/stores/projectStore', () => ({
   useProjectStore: jest.fn(),
 }))
 
-// Mock I18n context
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, options?: Record<string, any>) => {
-      const translations: Record<string, string> = {
-        'annotation.timer.expiredToast': 'Time limit reached',
-        'annotation.interface.skipCommentTitle': 'Skip Task',
-        'annotation.interface.skipCommentMessage':
-          'Please provide a reason for skipping this task.',
-        'annotation.interface.skipCommentPlaceholder': 'Enter your comment...',
-        'annotation.interface.cancel': 'Cancel',
-        'annotation.interface.skip': 'Skip',
-        'annotation.interface.taskPosition':
-          mockLocale === 'de'
-            ? 'Aufgabe {current} von {total}'
-            : 'Task {current} of {total}',
-        'annotation.instructions.title': 'Annotation Instructions',
-        'annotation.instructions.dontShowAgain':
-          "Don't show again for this project",
-        'annotation.instructions.startAnnotating': 'Start Annotating',
-        'annotation.taskLoadedFromUrl': 'Loaded task {taskNumber} from URL',
-        'annotation.taskNotFound':
-          'Task {taskNumber} not found (max: {maxTasks}). Loading first task instead.',
-      }
-      let result = translations[key] || options?.defaultValue || key
-      if (options) {
-        Object.entries(options).forEach(([k, v]) => {
-          if (k !== 'defaultValue') {
-            result = result.replace(`{${k}}`, String(v))
-          }
-        })
-      }
-      return result
-    },
-    locale: mockLocale,
-  }),
-}))
+// Catalog-backed I18n context
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock(() => mockLocale),
+)
 
 describe('LabelingInterface', () => {
   const mockRouter = {
@@ -1882,7 +1850,7 @@ describe('LabelingInterface', () => {
       await waitFor(() => {
         expect(screen.getByText('Skip Task')).toBeInTheDocument()
         expect(
-          screen.getByText('Please provide a reason for skipping this task.'),
+          screen.getByText("Please explain why you're skipping this task:"),
         ).toBeInTheDocument()
       })
     })
@@ -1939,7 +1907,9 @@ describe('LabelingInterface', () => {
       })
 
       // Type a comment
-      const textarea = screen.getByPlaceholderText('Enter your comment...')
+      const textarea = screen.getByPlaceholderText(
+        'Why are you skipping this task?',
+      )
       fireEvent.change(textarea, { target: { value: 'Task is ambiguous' } })
 
       // Skip button should now be enabled

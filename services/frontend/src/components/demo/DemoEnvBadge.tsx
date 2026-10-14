@@ -14,7 +14,7 @@ import { useEffect, useState } from 'react'
  * identical across environments.
  */
 export function DemoEnvBadge() {
-  const { locale } = useI18n()
+  const { t } = useI18n()
   const [visible, setVisible] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -25,11 +25,8 @@ export function DemoEnvBadge() {
 
   if (!visible) return null
 
-  const de = locale === 'de'
-  const label = de ? 'Demo-Umgebung' : 'Demo environment'
-  const body = de
-    ? 'Diese Umgebung zeigt Beispielinhalte. Alle Änderungen und neu angelegten Konten werden jede Nacht um 4 Uhr zurückgesetzt.'
-    : 'This environment shows sample content. All changes and newly created accounts are reset every night at 4 am (Berlin time).'
+  const label = t('demo.envBadge.label')
+  const body = t('demo.envBadge.body')
 
   return (
     <>
@@ -56,7 +53,7 @@ export function DemoEnvBadge() {
                 type="button"
                 onClick={() => setOpen(false)}
                 className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
-                aria-label={de ? 'Schließen' : 'Close'}
+                aria-label={t('common.close')}
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>

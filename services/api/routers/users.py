@@ -63,6 +63,10 @@ async def get_all_users_endpoint(
     limit: int = Query(
         500, ge=1, le=5_000, description="Safety cap on the response size."
     ),
+    include_service_accounts: bool = Query(
+        False,
+        description="Also list the service accounts behind organization access keys.",
+    ),
 ):
     """Get all users (admin only).
 
@@ -72,16 +76,20 @@ async def get_all_users_endpoint(
     table). The admin tab debounces the search input so per-keystroke
     typing doesn't fan out queries.
     """
+    base = select(DBUser)
+    # ``is True`` keeps direct calls (Query sentinel default) excluding them.
+    if include_service_accounts is not True:
+        base = base.where(DBUser.is_service_account.is_(False))
     if not search:
         result = await db.execute(
-            select(DBUser).order_by(DBUser.created_at.desc()).limit(limit)
+            base.order_by(DBUser.created_at.desc()).limit(limit)
         )
         return result.scalars().all()
 
     escaped = search.replace("%", r"\%").replace("_", r"\_")
     like = f"%{escaped}%"
     result = await db.execute(
-        select(DBUser)
+        base
         .where(
             or_(
                 DBUser.username.ilike(like),

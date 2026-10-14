@@ -28,7 +28,7 @@ Welcome to the BenGER user documentation. This section contains guides tailored 
 
 - **[Data Import & Export](data-import-export.md)** - Complete guide to data import/export including BenGER JSON format
 - **[Evaluation System](evaluation.md)** - Running model evaluations
-- **[API Usage](api-usage.md)** - Using the BenGER API
+- **[Public API](../public-api.md)** - Using the BenGER API with per-organisation access keys (ships with the next release)
 - **[Export & Integration](export.md)** - Exporting data and integrations
 
 ## Troubleshooting

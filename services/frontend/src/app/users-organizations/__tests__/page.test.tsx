@@ -41,6 +41,11 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockAuthReturn,
 }))
 
+const mockPublicApi: { current: boolean | null } = { current: true }
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi.current,
+}))
+
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
@@ -77,6 +82,7 @@ jest.mock('@headlessui/react', () => ({
 
 jest.mock('@heroicons/react/24/outline', () => ({
   BuildingOfficeIcon: () => <span data-testid="building-icon" />,
+  CommandLineIcon: () => <span />,
   UserGroupIcon: () => <span data-testid="user-group-icon" />,
 }))
 
@@ -96,6 +102,7 @@ jest.mock(
 describe('UsersOrganizationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPublicApi.current = true
     mockAuthReturn = {
       user: mockSuperadmin,
       organizations: mockOrgs,
@@ -152,6 +159,28 @@ describe('UsersOrganizationsPage', () => {
       })
     })
 
+    it('links to the overview of all access keys', async () => {
+      render(<UsersOrganizationsPage />)
+      expect(
+        await screen.findByTestId('admin-access-keys-link'),
+      ).toHaveAttribute('href', '/admin/access-keys')
+    })
+
+    it.each([
+      ['off', false],
+      ['still loading', null],
+    ])(
+      'hides the access-key link while the public API is %s',
+      async (_label, value) => {
+        mockPublicApi.current = value
+        render(<UsersOrganizationsPage />)
+        await screen.findByText('admin.organizations.tabLabel')
+        expect(
+          screen.queryByTestId('admin-access-keys-link'),
+        ).not.toBeInTheDocument()
+      },
+    )
+
     it('should render OrganizationsTab component', async () => {
       render(<UsersOrganizationsPage />)
       await waitFor(() => {
@@ -175,6 +204,14 @@ describe('UsersOrganizationsPage', () => {
         organizations: mockOrgs,
         isLoading: false,
       }
+    })
+
+    it('does not link to the access-key overview', async () => {
+      render(<UsersOrganizationsPage />)
+      await screen.findByText('admin.organizations.tabLabel')
+      expect(
+        screen.queryByTestId('admin-access-keys-link'),
+      ).not.toBeInTheDocument()
     })
 
     it('should not show Global Users tab', async () => {

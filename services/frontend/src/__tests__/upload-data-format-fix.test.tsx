@@ -1,5 +1,10 @@
 import { EvaluationsClient } from '@/lib/api/evaluations'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Mock the request method
 const mockRequest = jest.fn()
 
@@ -90,7 +95,7 @@ describe('Upload Data Format Fix', () => {
     // Test should throw error for unknown content type
     await expect(
       client.uploadData(file, 'test-task-id', 'Test'),
-    ).rejects.toThrow('Unknown content type')
+    ).rejects.toThrow('evaluation.upload.unknownContentType')
   })
 
   it('should correctly detect and upload prompts', async () => {

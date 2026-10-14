@@ -974,3 +974,167 @@ export interface ProfileHistoryEntry {
   snapshot: Record<string, any>
   changed_fields: string[]
 }
+
+// ---------------------------------------------------------------------------
+// Access keys (`bgr_...`) for the public /api/v1. Management shapes of
+// services/api/routers/access_keys.py. The secret only appears once, in
+// AccessKeyCreated; lists carry the key_prefix.
+// ---------------------------------------------------------------------------
+
+export type AccessKeyStatus = 'active' | 'revoked' | 'expired'
+export type AccessKeyOwnerType = 'user' | 'org'
+export type AccessKeyOrgRole = 'ANNOTATOR' | 'CONTRIBUTOR'
+
+export interface AccessKey {
+  id: string
+  name: string
+  key_prefix: string
+  owner_type: AccessKeyOwnerType
+  user_id: string
+  organization_id: string | null
+  group_id: string | null
+  org_role: AccessKeyOrgRole | string | null
+  scopes: string[]
+  /** null = every project the key's principal can see. */
+  project_ids: string[] | null
+  environment: string
+  expires_at: string | null
+  revoked_at: string | null
+  revoked_by: string | null
+  revoke_reason: string | null
+  last_used_at: string | null
+  last_used_ip: string | null
+  rate_limit_per_minute: number | null
+  rate_limit_per_day: number | null
+  created_by: string
+  created_at: string | null
+  status: AccessKeyStatus
+}
+
+/** Body of a personal key; org keys add role and group. */
+export interface AccessKeyCreate {
+  name: string
+  scopes: string[]
+  project_ids?: string[] | null
+  expires_at?: string | null
+  rate_limit_per_minute?: number | null
+  rate_limit_per_day?: number | null
+  org_role?: AccessKeyOrgRole
+  group_id?: string | null
+}
+
+export type AccessKeyUpdate = Partial<
+  Pick<
+    AccessKeyCreate,
+    | 'name'
+    | 'project_ids'
+    | 'expires_at'
+    | 'rate_limit_per_minute'
+    | 'rate_limit_per_day'
+  >
+>
+
+export interface AccessKeyCreated {
+  key: AccessKey
+  /** The full key. Shown exactly once. */
+  secret: string
+}
+
+export interface AccessKeyPage {
+  items: AccessKey[]
+  next_cursor: string | null
+}
+
+export interface AccessKeyUsagePoint {
+  day?: string | null
+  method?: string | null
+  route?: string | null
+  requests: number
+  errors: number
+  avg_duration_ms?: number | null
+}
+
+export interface AccessKeyUsageSummary {
+  key_id: string
+  from: string
+  to: string
+  granularity: 'day' | 'route'
+  total_requests: number
+  total_errors: number
+  items: AccessKeyUsagePoint[]
+}
+
+export interface AccessKeyUsageEvent {
+  id: number
+  api_key_id: string | null
+  key_prefix: string
+  organization_id: string | null
+  user_id: string | null
+  request_id: string | null
+  method: string | null
+  route: string | null
+  project_id: string | null
+  status_code: number | null
+  duration_ms: number | null
+  scope_used: string | null
+  ip_address: string | null
+  user_agent: string | null
+  request_bytes: number | null
+  response_bytes: number | null
+  created_at: string
+}
+
+export interface AccessKeyUsageEventPage {
+  items: AccessKeyUsageEvent[]
+  next_cursor: number | null
+}
+
+/** Who may grant a scope (see app/core/scopes.py). */
+export type ScopeGrantable =
+  'any' | 'full_data_role' | 'org_admin' | 'personal_only'
+
+export interface ScopeDefinition {
+  name: string
+  description_de: string
+  description_en: string
+  /** French text (core 2.38); older servers omit it. */
+  description_fr?: string
+  implies: string[]
+  grantable: ScopeGrantable | string
+  source?: string
+}
+
+export interface ScopePreset {
+  id: string
+  scopes: string[]
+}
+
+export interface ScopeCatalog {
+  scopes: ScopeDefinition[]
+  /** Preset id -> scope names (benchmark_read, benchmark_submit, org_full, ...). */
+  presets: Record<string, string[]>
+}
+
+/** Answer of GET /api/v1/me for an access key. */
+export interface AccessKeyWhoAmI {
+  principal: {
+    kind: string
+    key_prefix?: string | null
+    scopes?: string[]
+    project_ids?: string[] | null
+    organization?: { id: string; name: string; slug?: string } | null
+    group?: { id: string; name: string } | null
+    expires_at?: string | null
+    rate_limit?: { per_minute: number | null; per_day: number | null } | null
+  }
+  user?: {
+    id: string
+    username?: string | null
+    name?: string | null
+    is_service_account?: boolean
+  } | null
+}
+
+export type AccessKeyTestResult =
+  | { ok: true; me: AccessKeyWhoAmI }
+  | { ok: false; status: number; code: string | null; message: string }

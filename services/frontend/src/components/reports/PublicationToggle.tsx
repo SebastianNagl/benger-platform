@@ -118,7 +118,6 @@ export function PublicationToggle({
   const run = async (
     action: () => Promise<ReportResponse>,
     fallbackMessageKey: string,
-    fallbackMessage: string,
   ) => {
     setDialog(null)
     setLoading(true)
@@ -128,7 +127,7 @@ export function PublicationToggle({
       applyResult(data)
     } catch (err: any) {
       console.error('Failed to change publication state:', err)
-      setError(err?.message || t(fallbackMessageKey, fallbackMessage))
+      setError(err?.message || t(fallbackMessageKey))
     } finally {
       setLoading(false)
     }
@@ -138,21 +137,18 @@ export function PublicationToggle({
     run(
       () => publishReport(projectId, { is_public: publishPublic }),
       'project.report.publication.errorToggle',
-      'Fehler beim Ändern des Veröffentlichungsstatus',
     )
 
   const handleUnpublish = () =>
     run(
       () => unpublishReport(projectId),
       'project.report.publication.errorToggle',
-      'Fehler beim Ändern des Veröffentlichungsstatus',
     )
 
   const handleVisibility = (nextPublic: boolean) =>
     run(
       () => setReportVisibility(projectId, { is_public: nextPublic }),
       'reports.publication.errorVisibility',
-      'Sichtbarkeit konnte nicht geändert werden',
     )
 
   const handleCopy = async () => {
@@ -169,7 +165,7 @@ export function PublicationToggle({
 
   const statusBadge = effectivePublic
     ? {
-        label: t('reports.publication.statusPublic', 'Öffentlich'),
+        label: t('reports.publication.statusPublic'),
         className:
           'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
       }
@@ -186,12 +182,9 @@ export function PublicationToggle({
         }
 
   const statusText = effectivePublic
-    ? t('reports.publication.visibleToPublic', 'Öffentlich sichtbar')
+    ? t('reports.publication.visibleToPublic')
     : isPublished
-      ? t(
-          'reports.publication.visibleToOrgs',
-          'Sichtbar für Projektorganisationen',
-        )
+      ? t('reports.publication.visibleToOrgs')
       : t('project.report.publication.draft')
 
   return (
@@ -217,7 +210,7 @@ export function PublicationToggle({
               htmlFor={`public-link-${projectId}`}
               className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-300"
             >
-              {t('reports.publication.publicLink', 'Öffentlicher Link')}
+              {t('reports.publication.publicLink')}
             </label>
             <div className="flex gap-2">
               <input
@@ -234,8 +227,8 @@ export function PublicationToggle({
                 className="shrink-0"
               >
                 {copied
-                  ? t('reports.publication.copied', 'Kopiert')
-                  : t('reports.publication.copyLink', 'Kopieren')}
+                  ? t('reports.publication.copied')
+                  : t('reports.publication.copyLink')}
               </Button>
             </div>
           </div>
@@ -274,7 +267,7 @@ export function PublicationToggle({
               >
                 {loading
                   ? t('project.report.publication.processing')
-                  : t('reports.publication.orgsOnly', 'Nur Organisationen')}
+                  : t('reports.publication.orgsOnly')}
               </Button>
             ) : (
               <Button
@@ -285,7 +278,7 @@ export function PublicationToggle({
               >
                 {loading
                   ? t('project.report.publication.processing')
-                  : t('reports.publication.makePublic', 'Öffentlich machen')}
+                  : t('reports.publication.makePublic')}
               </Button>
             )}
             <Button
@@ -295,7 +288,7 @@ export function PublicationToggle({
               className="w-full"
             >
               {effectivePublic
-                ? t('reports.publication.withdraw', 'Zurückziehen')
+                ? t('reports.publication.withdraw')
                 : t('project.report.publication.unpublish')}
             </Button>
           </div>
@@ -324,7 +317,7 @@ export function PublicationToggle({
             </h3>
             <fieldset className="mt-4 space-y-3">
               <legend className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {t('reports.publication.visibilityLabel', 'Sichtbarkeit')}
+                {t('reports.publication.visibilityLabel')}
               </legend>
               <label className="flex cursor-pointer items-start gap-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
                 <input
@@ -337,16 +330,10 @@ export function PublicationToggle({
                 />
                 <span className="text-sm">
                   <span className="block font-medium text-zinc-900 dark:text-white">
-                    {t(
-                      'reports.publication.visibilityOrgs',
-                      'Nur Projektorganisationen',
-                    )}
+                    {t('reports.publication.visibilityOrgs')}
                   </span>
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'reports.publication.visibilityOrgsHint',
-                      'Nur angemeldete Mitglieder der Projektorganisationen können den Bericht lesen.',
-                    )}
+                    {t('reports.publication.visibilityOrgsHint')}
                   </span>
                 </span>
               </label>
@@ -361,16 +348,10 @@ export function PublicationToggle({
                 />
                 <span className="text-sm">
                   <span className="block font-medium text-zinc-900 dark:text-white">
-                    {t(
-                      'reports.publication.visibilityPublic',
-                      'Öffentlich (auch ohne Anmeldung)',
-                    )}
+                    {t('reports.publication.visibilityPublic')}
                   </span>
                   <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                    {t(
-                      'reports.publication.visibilityPublicHint',
-                      'Jeder mit dem Link kann den Bericht lesen.',
-                    )}
+                    {t('reports.publication.visibilityPublicHint')}
                   </span>
                 </span>
               </label>

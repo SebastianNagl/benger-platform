@@ -21,25 +21,9 @@ jest.mock('@/contexts/HydrationContext', () => ({
   useHydration: () => mockUseHydration(),
 }))
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string) => {
-      const t: Record<string, string> = {
-        'common.loading': 'Loading...',
-        'auth.private': 'Private',
-        'auth.profileSettings': 'Profile Settings',
-        'auth.notificationSettings': 'Notification Settings',
-        'auth.switchContext': 'Switch Context',
-        'auth.signOut': 'Sign Out',
-        'auth.signIn': 'Sign In',
-        'auth.signUp': 'Sign Up',
-        'admin.usersOrganizations': 'Users & Organizations',
-        'admin.featureFlags': 'Feature Flags',
-      }
-      return t[key] || key
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('@/components/auth/LoginModal', () => ({
   LoginModal: ({ isOpen, onClose }: any) =>
@@ -163,7 +147,7 @@ describe('AuthButton', () => {
 
     render(<AuthButton />)
     expect(screen.getByText('Sign In')).toBeInTheDocument()
-    expect(screen.getByText('Sign Up')).toBeInTheDocument()
+    expect(screen.getByText('Sign up')).toBeInTheDocument()
   })
 
   it('shows user dropdown with profile links when user is logged in (isClient=true)', () => {
@@ -294,7 +278,7 @@ describe('AuthButton', () => {
     mockUseHydration.mockReturnValue(true)
 
     render(<AuthButton />)
-    fireEvent.click(screen.getByText('Sign Up'))
+    fireEvent.click(screen.getByText('Sign up'))
     expect(screen.getByTestId('signup-modal')).toBeInTheDocument()
   })
 

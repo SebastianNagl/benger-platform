@@ -1289,7 +1289,9 @@ describe('ProjectDataTab', () => {
 
       await waitFor(() => {
         expect(mockAddToast).toHaveBeenCalledWith(
-          expect.stringContaining('errors.assignmentRemoveFailed'),
+          expect.stringContaining(
+            'annotationTab.messages.assignmentRemoveFailed',
+          ),
           'error',
         )
       })

@@ -24,6 +24,9 @@ Welcome to the BenGER documentation! This guide will help you understand, use, a
 - [**Testing Guide**](./development/TESTING.md) - Complete testing documentation
 - [**Migration Management**](./development/MIGRATION_MANAGEMENT.md) - Database migrations
 - [**API Documentation**](../README.md#quick-start) - Interactive OpenAPI schema at `/docs` on the running API; topic docs in [`api-docs/`](./api-docs/)
+- [**Public API (`/api/v1`)**](./public-api.md) - Versioned, key-authenticated API for scripts and integrations: authentication, [scopes](./public-api-scopes.md), endpoints, pagination, errors; spec snapshot in [`api-docs/openapi-v1.json`](./api-docs/openapi-v1.json), live at `/api/v1/docs`
+- [**API keys**](./api-keys.md) - Personal and organisation keys, service accounts, usage log
+- [**ADR-007: API versioning**](./architecture/adr-007-api-versioning-adopted.md) - Why the public API is versioned and how deprecation works
 
 ### Setup & Configuration
 - [**Authentication Setup**](./setup/authentication.md) - Auth configuration
@@ -58,7 +61,7 @@ cd services/api && alembic revision -m "description"  # Create migration
 ### Key Endpoints
 - **Frontend**: `http://localhost:3000`
 - **API**: `http://localhost:8000`
-- **API Docs**: `http://localhost:8000/docs`
+- **API Docs**: `http://localhost:8000/docs` (development only; production hides `/docs`, `/redoc` and `/openapi.json` unless `INTERNAL_DOCS_ENABLED=true`, see [Environment Variables](setup/environment-variables.md))
 - **Database**: `localhost:5432`
 - **Redis**: `localhost:6379`
 

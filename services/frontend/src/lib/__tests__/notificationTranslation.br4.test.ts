@@ -9,11 +9,7 @@
 import { getTranslatedNotification } from '../notificationTranslation'
 
 describe('notificationTranslation br4 - uncovered branches', () => {
-  const mockT = (
-    key: string,
-    defaultValue?: string,
-    vars?: Record<string, any>,
-  ) => {
+  const mockT = (key: string, vars?: Record<string, unknown>) => {
     // Return the translated key with variables substituted
     if (vars) {
       let result = key
@@ -22,7 +18,7 @@ describe('notificationTranslation br4 - uncovered branches', () => {
       }
       return result
     }
-    return defaultValue || key
+    return key
   }
 
   it('normalizes project_archived data (line 62)', () => {
@@ -72,7 +68,10 @@ describe('notificationTranslation br4 - uncovered branches', () => {
   })
 
   it('falls back to raw title when translation has unresolved placeholders', () => {
-    const tWithPlaceholders = (key: string, defaultValue?: string) => {
+    const tWithPlaceholders = (
+      _key: string,
+      _vars?: Record<string, unknown>,
+    ) => {
       return '{unresolved_variable} in title'
     }
 
@@ -92,11 +91,7 @@ describe('notificationTranslation br4 - uncovered branches', () => {
   })
 
   it('uses translated title when no unresolved placeholders', () => {
-    const tClean = (
-      key: string,
-      defaultValue?: string,
-      vars?: Record<string, any>,
-    ) => {
+    const tClean = (_key: string, _vars?: Record<string, unknown>) => {
       return 'Clean translated text'
     }
 
@@ -116,7 +111,7 @@ describe('notificationTranslation br4 - uncovered branches', () => {
   })
 
   it('falls back to raw when t returns non-string', () => {
-    const tReturnsObject = (key: string, defaultValue?: string) => {
+    const tReturnsObject = (_key: string, _vars?: Record<string, unknown>) => {
       return { nested: 'object' } // not a string
     }
 

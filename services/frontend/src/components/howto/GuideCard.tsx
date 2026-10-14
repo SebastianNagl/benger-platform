@@ -9,7 +9,7 @@ import {
 import Link from 'next/link'
 
 import { useI18n } from '@/contexts/I18nContext'
-import { pick, pickList, type HowToGuide } from '@/lib/howto'
+import { guideText, type HowToGuide } from '@/lib/howto'
 
 import { InlineText } from './InlineText'
 
@@ -24,10 +24,10 @@ interface Props {
  */
 export function GuideCard({ guide }: Props) {
   const { t, locale } = useI18n()
-  const steps = pickList(guide.steps, locale)
-  const tips = pickList(guide.tips, locale)
-  const pitfalls = pickList(guide.pitfalls, locale)
-  const links = guide.links ?? []
+  const { title, summary, steps, tips, pitfalls, links } = guideText(
+    guide,
+    locale,
+  )
 
   return (
     <article
@@ -40,18 +40,18 @@ export function GuideCard({ guide }: Props) {
           href={`#${guide.id}`}
           className="hover:text-emerald-600 dark:hover:text-emerald-400"
         >
-          {pick(guide.title, locale)}
+          {title}
         </a>
         <a
           href={`#${guide.id}`}
-          aria-label={t('howTo.labels.permalink', 'Link zu dieser Anleitung')}
+          aria-label={t('howTo.labels.permalink')}
           className="mt-1 text-zinc-300 opacity-0 transition group-hover:opacity-100 hover:text-emerald-500 dark:text-zinc-600"
         >
           <LinkIcon className="h-4 w-4" />
         </a>
       </h3>
       <p className="mt-2 text-base text-zinc-700 dark:text-zinc-300">
-        <InlineText text={pick(guide.summary, locale)} />
+        <InlineText text={summary} />
       </p>
 
       {steps.length > 0 && (
@@ -76,7 +76,7 @@ export function GuideCard({ guide }: Props) {
         <div className="mt-4 rounded-md bg-zinc-50 p-3 dark:bg-zinc-800/60">
           <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
             <LightBulbIcon className="h-4 w-4 text-emerald-500" />
-            {t('howTo.labels.tips', 'Gut zu wissen')}
+            {t('howTo.labels.tips')}
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
             {tips.map((tip, i) => (
@@ -92,7 +92,7 @@ export function GuideCard({ guide }: Props) {
         <div className="mt-3 rounded-md bg-amber-50 p-3 dark:bg-amber-950/30">
           <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-amber-800 uppercase dark:text-amber-300">
             <ExclamationTriangleIcon className="h-4 w-4" />
-            {t('howTo.labels.pitfalls', 'Typische Stolpersteine')}
+            {t('howTo.labels.pitfalls')}
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900 dark:text-amber-200">
             {pitfalls.map((p, i) => (
@@ -111,7 +111,7 @@ export function GuideCard({ guide }: Props) {
               'inline-flex items-center gap-1 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-700 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400'
             const body = (
               <>
-                {pick(link.label, locale)}
+                {link.label}
                 <ArrowTopRightOnSquareIcon className="h-3 w-3" />
               </>
             )

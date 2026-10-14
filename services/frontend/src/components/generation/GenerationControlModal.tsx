@@ -29,6 +29,7 @@ import {
 import Link from 'next/link'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
+import { formatDecimal } from '@/lib/i18n/locales'
 import { Project } from '@/types/labelStudio'
 
 interface GenerationControlModalProps {
@@ -76,7 +77,7 @@ function GenerationControlModalBody({
   onSuccess,
 }: GenerationControlModalProps) {
   const { addToast } = useToast()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { billingOrganizationId } = useModelScope()
   const [mode, setMode] = useState<'all' | 'missing'>('missing')
   const [selectedModels, setSelectedModels] = useState<string[]>([])
@@ -654,10 +655,7 @@ function GenerationControlModalBody({
                       <div className="space-y-4 border-t border-zinc-200 p-3 dark:border-zinc-700">
                         <div>
                           <label className={R.fieldLabel}>
-                            {t(
-                              'generation.controlModal.runsPerTask',
-                              'Läufe pro Task',
-                            )}
+                            {t('generation.controlModal.runsPerTask')}
                           </label>
                           <div className="mt-1 w-32">
                             <Input
@@ -676,17 +674,14 @@ function GenerationControlModalBody({
                             />
                           </div>
                           <p className={`mt-1 ${R.hint}`}>
-                            {t(
-                              'generation.controlModal.runsPerTaskDesc',
-                              'Wie oft jede Task-Modell-Kombination generiert werden soll. Standardmäßig 1 — ein Wert > 1 erzeugt mehrere Trials für Varianzanalyse. Multipliziert die Kosten entsprechend.',
-                            )}
+                            {t('generation.controlModal.runsPerTaskDesc')}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label className={R.fieldLabel}>
                               {t('generation.controlModal.temperature')}:{' '}
-                              {temperature.toFixed(1)}
+                              {formatDecimal(temperature, locale, 1)}
                             </label>
                             <input
                               type="range"
@@ -710,20 +705,18 @@ function GenerationControlModalBody({
                               >
                                 <ExclamationTriangleIcon className="mt-0.5 h-3 w-3 shrink-0" />
                                 <span>
-                                  {temperatureConstraints.fixedModels.join(
-                                    ', ',
-                                  )}{' '}
-                                  {temperatureConstraints.fixedModels.length ===
-                                  1
-                                    ? 'requires'
-                                    : 'require'}{' '}
-                                  fixed temperature=1.0. The backend will
-                                  override for{' '}
-                                  {temperatureConstraints.fixedModels.length ===
-                                  1
-                                    ? 'this model'
-                                    : 'these models'}
-                                  .
+                                  {t(
+                                    temperatureConstraints.fixedModels
+                                      .length === 1
+                                      ? 'generation.controlModal.fixedTemperatureOne'
+                                      : 'generation.controlModal.fixedTemperatureOther',
+                                    {
+                                      models:
+                                        temperatureConstraints.fixedModels.join(
+                                          ', ',
+                                        ),
+                                    },
+                                  )}
                                 </span>
                               </div>
                             )}
@@ -741,11 +734,8 @@ function GenerationControlModalBody({
                                 recommendedConsensus.temperature.value !==
                                   undefined ? (
                                   <span className="text-zinc-600 dark:text-zinc-400">
-                                    {t(
-                                      'generation.controlModal.recommended',
-                                      'Empfehlung',
-                                    )}
-                                    : {recommendedConsensus.temperature.value}
+                                    {t('generation.controlModal.recommended')}:{' '}
+                                    {recommendedConsensus.temperature.value}
                                     {temperature !==
                                       recommendedConsensus.temperature
                                         .value && (
@@ -761,7 +751,6 @@ function GenerationControlModalBody({
                                       >
                                         {t(
                                           'generation.controlModal.resetToRecommended',
-                                          'Zurücksetzen auf Empfohlen',
                                         )}
                                       </button>
                                     )}
@@ -777,14 +766,12 @@ function GenerationControlModalBody({
                                   >
                                     {t(
                                       'generation.controlModal.divergentRecommendations',
-                                      'Verschiedene Empfehlungen pro Modell',
                                     )}
                                   </span>
                                 ) : (
                                   <span className="text-zinc-400 dark:text-zinc-500">
                                     {t(
                                       'generation.controlModal.noRecommendation',
-                                      'Keine Empfehlung',
                                     )}
                                   </span>
                                 )}
@@ -815,11 +802,8 @@ function GenerationControlModalBody({
                                 recommendedConsensus.max_tokens.value !==
                                   undefined ? (
                                   <span className="text-zinc-600 dark:text-zinc-400">
-                                    {t(
-                                      'generation.controlModal.recommended',
-                                      'Empfehlung',
-                                    )}
-                                    : {recommendedConsensus.max_tokens.value}
+                                    {t('generation.controlModal.recommended')}:{' '}
+                                    {recommendedConsensus.max_tokens.value}
                                     {maxTokens !==
                                       recommendedConsensus.max_tokens.value && (
                                       <button
@@ -834,7 +818,6 @@ function GenerationControlModalBody({
                                       >
                                         {t(
                                           'generation.controlModal.resetToRecommended',
-                                          'Zurücksetzen auf Empfohlen',
                                         )}
                                       </button>
                                     )}
@@ -850,14 +833,12 @@ function GenerationControlModalBody({
                                   >
                                     {t(
                                       'generation.controlModal.divergentRecommendations',
-                                      'Verschiedene Empfehlungen pro Modell',
                                     )}
                                   </span>
                                 ) : (
                                   <span className="text-zinc-400 dark:text-zinc-500">
                                     {t(
                                       'generation.controlModal.noRecommendation',
-                                      'Keine Empfehlung',
                                     )}
                                   </span>
                                 )}

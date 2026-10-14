@@ -4,8 +4,7 @@
  * The /changelog page renders the platform's own entries plus whatever
  * the extended package registers here during initialization. Entries are
  * kept in per-source buckets so a repeated registerAll() (tests call it
- * directly; loadExtended has no re-entry guard) replaces a source's
- * entries instead of duplicating them.
+ * directly) replaces a source's entries instead of duplicating them.
  */
 
 import { useEffect, useState } from 'react'
@@ -13,11 +12,32 @@ import { useEffect, useState } from 'react'
 export type ChangelogAudience = 'benger' | 'vertretbar' | 'both'
 
 export interface ChangelogEntry {
+  /**
+   * Stable id, `<date>-<short-kebab-slug>`, unique across platform and
+   * extensions. The bullet text lives in the locale catalogs at
+   * `changelogEntries.<id>` (src/locales/<locale>/changelog.json, or the
+   * extension's own changelog.json).
+   */
+  id: string
   /** ISO date the change shipped, 'YYYY-MM-DD'. */
   date: string
   audience: ChangelogAudience
-  /** Bilingual copy, kept inline rather than in the locale JSONs. */
-  text: { de: string; en: string }
+  /**
+   * Feature the entry announces. While it is off for the current user the
+   * entry is hidden on /changelog. `publicApi` = access keys and /api/v1
+   * (feature flag `public_api`).
+   */
+  requires?: 'publicApi'
+}
+
+/** The entries the current user may see, given what is switched on. */
+export function filterAvailableChangelogEntries(
+  entries: ChangelogEntry[],
+  availability: { publicApi: boolean },
+): ChangelogEntry[] {
+  return entries.filter(
+    (e) => e.requires !== 'publicApi' || availability.publicApi,
+  )
 }
 
 const buckets: Record<string, ChangelogEntry[]> = {}

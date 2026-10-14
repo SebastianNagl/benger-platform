@@ -2,6 +2,7 @@
 
 import { AlertDialog } from '@/components/shared/AlertDialog'
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   createContext,
   ReactNode,
@@ -132,59 +133,65 @@ export function useConfirm() {
 // Convenience hooks with pre-configured variants
 export function useErrorAlert() {
   const alert = useAlert()
+  const { t } = useI18n()
   return useCallback(
-    (message: string, title: string = 'Error') => {
+    (message: string, title?: string) => {
       return alert({
-        title,
+        title: title ?? t('common.error'),
         message,
         variant: 'error',
       })
     },
-    [alert],
+    [alert, t],
   )
 }
 
 export function useSuccessAlert() {
   const alert = useAlert()
+  const { t } = useI18n()
   return useCallback(
-    (message: string, title: string = 'Success') => {
+    (message: string, title?: string) => {
       return alert({
-        title,
+        title: title ?? t('common.success'),
         message,
         variant: 'success',
       })
     },
-    [alert],
+    [alert, t],
   )
 }
 
 export function useWarningAlert() {
   const alert = useAlert()
+  const { t } = useI18n()
   return useCallback(
-    (message: string, title: string = 'Warning') => {
+    (message: string, title?: string) => {
       return alert({
-        title,
+        title: title ?? t('common.warning'),
         message,
         variant: 'warning',
       })
     },
-    [alert],
+    [alert, t],
   )
 }
 
 export function useDeleteConfirm() {
   const confirm = useConfirm()
+  const { t } = useI18n()
   return useCallback(
-    (itemName: string = 'this item') => {
+    (itemName?: string) => {
       return confirm({
-        title: 'Confirm Deletion',
-        message: `Are you sure you want to delete ${itemName}? This action cannot be undone.`,
-        confirmText: 'Delete',
-        cancelText: 'Cancel',
+        title: t('dialogs.deleteConfirm.title'),
+        message: t('dialogs.deleteConfirm.message', {
+          item: itemName ?? t('dialogs.deleteConfirm.thisItem'),
+        }),
+        confirmText: t('common.delete'),
+        cancelText: t('common.cancel'),
         variant: 'danger',
         confirmButtonVariant: 'filled',
       })
     },
-    [confirm],
+    [confirm, t],
   )
 }

@@ -15,7 +15,9 @@ from here.
 import celery_queues
 import pytest
 
-# Every task WE own lives under one of these two namespaces.
+# Every task WE own lives under one of these two namespaces. Other extension
+# packages own `<EXTENSION_ID>.*` (core 2.37); their namespaces are added
+# from the registry once the worker has loaded them (see _owned_namespaces).
 OUR_NAMESPACES = ("tasks.", "emails.")
 
 # Task names registered onto the same app by third parties, which we neither own
@@ -26,13 +28,23 @@ OUR_NAMESPACES = ("tasks.", "emails.")
 EXTERNAL_PREFIXES = ("celery.", "pytest_celery.")
 
 
+def _owned_namespaces():
+    """OUR_NAMESPACES plus one `<EXTENSION_ID>.` per loaded extension package."""
+    import tasks  # noqa: F401  -- importing runs the registry
+
+    import extension_registry
+
+    return OUR_NAMESPACES + tuple(f"{ext.short}." for ext in extension_registry.loaded())
+
+
 def _registered_task_names():
-    """Every task name the worker registers, extended included when installed."""
+    """Every task name the worker registers, extension packages included when
+    installed."""
     import tasks  # noqa: F401  -- import registers everything onto the app
 
     from worker_celery import app
 
-    return {n for n in app.tasks if n.startswith(OUR_NAMESPACES)}
+    return {n for n in app.tasks if n.startswith(_owned_namespaces())}
 
 
 def test_no_task_escapes_the_known_namespaces():
@@ -49,7 +61,7 @@ def test_no_task_escapes_the_known_namespaces():
     unclassified = {
         n
         for n in app.tasks
-        if not n.startswith(OUR_NAMESPACES) and not n.startswith(EXTERNAL_PREFIXES)
+        if not n.startswith(_owned_namespaces()) and not n.startswith(EXTERNAL_PREFIXES)
     }
     assert not unclassified, (
         "tasks registered under an unrecognised namespace -- either add the "
@@ -100,7 +112,12 @@ def test_table_has_no_stale_entries():
     lingers, which makes the table lie about what actually exists.
     """
     registered = _registered_task_names()
-    stale = set(celery_queues.TASK_QUEUES) - registered - celery_queues.EXTENDED_TASK_NAMES
+    stale = (
+        set(celery_queues.TASK_QUEUES)
+        - registered
+        - celery_queues.EXTENDED_TASK_NAMES
+        - celery_queues.EXTENSION_REGISTERED_TASK_NAMES
+    )
     assert not stale, (
         f"routing entries for tasks that are not registered: {sorted(stale)}"
     )

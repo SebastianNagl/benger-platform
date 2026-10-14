@@ -117,7 +117,6 @@ export function InflightRunsBanner({
       addToast(
         t('evaluation.lifecycle.errorWithDetail', {
           detail: err instanceof Error ? err.message : String(err),
-          defaultValue: `Aktion fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
         'error',
       )
@@ -128,13 +127,10 @@ export function InflightRunsBanner({
 
   const cancelOne = async (id: string) => {
     const ok = await confirm({
-      title: t('evaluation.cancel.confirmSingleTitle', 'Lauf abbrechen?'),
-      message: t(
-        'evaluation.cancel.confirmSingleMessage',
-        'Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.',
-      ),
-      confirmText: t('evaluation.cancel.cancel', 'Abbrechen'),
-      cancelText: t('evaluation.cancel.keepRunning', 'Weiterlaufen lassen'),
+      title: t('evaluation.cancel.confirmSingleTitle'),
+      message: t('evaluation.cancel.confirmSingleMessage'),
+      confirmText: t('evaluation.cancel.cancel'),
+      cancelText: t('evaluation.cancel.keepRunning'),
       variant: 'warning',
     })
     if (!ok) return
@@ -145,7 +141,6 @@ export function InflightRunsBanner({
         result.cancelled_run_ids.length > 0
           ? t('evaluation.cancel.successWithCount', {
               preserved: result.preserved_task_evaluation_count,
-              defaultValue: `Lauf abgebrochen. ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
             } as any)
           : result.message,
         'success',
@@ -155,7 +150,6 @@ export function InflightRunsBanner({
       addToast(
         t('evaluation.cancel.errorWithDetail', {
           detail: err instanceof Error ? err.message : String(err),
-          defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
         'error',
       )
@@ -166,13 +160,12 @@ export function InflightRunsBanner({
 
   const cancelAll = async () => {
     const ok = await confirm({
-      title: t('evaluation.cancel.confirmAllTitle', 'Alle Läufe abbrechen?'),
+      title: t('evaluation.cancel.confirmAllTitle'),
       message: t('evaluation.cancel.confirmAllMessage', {
         count: cancellable.length,
-        defaultValue: `Alle ${cancellable.length} laufenden bzw. anstehenden Läufe abbrechen? Bereits berechnete Bewertungen bleiben erhalten und werden beim nächsten Lauf wiederverwendet.`,
       } as any),
-      confirmText: t('evaluation.cancel.cancelAllConfirm', 'Alle abbrechen'),
-      cancelText: t('evaluation.cancel.keepRunning', 'Weiterlaufen lassen'),
+      confirmText: t('evaluation.cancel.cancelAllConfirm'),
+      cancelText: t('evaluation.cancel.keepRunning'),
       variant: 'danger',
     })
     if (!ok) return
@@ -185,7 +178,6 @@ export function InflightRunsBanner({
           ? t('evaluation.cancel.bulkSuccessWithCount', {
               runs: result.cancelled_run_ids.length,
               preserved: result.preserved_task_evaluation_count,
-              defaultValue: `${result.cancelled_run_ids.length} Läufe abgebrochen, ${result.preserved_task_evaluation_count} Bewertungen erhalten.`,
             } as any)
           : result.message,
         'success',
@@ -195,7 +187,6 @@ export function InflightRunsBanner({
       addToast(
         t('evaluation.cancel.errorWithDetail', {
           detail: err instanceof Error ? err.message : String(err),
-          defaultValue: `Abbruch fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`,
         } as any),
         'error',
       )
@@ -234,7 +225,7 @@ export function InflightRunsBanner({
       cells && cells > 0
         ? ` — ${evald}/${cells}`
         : evald > 0
-          ? ` — ${evald} ${t('evaluation.inflight.samples', 'Samples')}`
+          ? ` — ${evald} ${t('evaluation.inflight.samples')}`
           : ''
     const isBusy = busy.has(e.evaluation_id)
     const isPaused = e.status === 'paused'
@@ -259,15 +250,12 @@ export function InflightRunsBanner({
               disabled={isBusy || bulkCancelling}
               className={lifecycleButtonClass}
               data-testid="eval-retry-button"
-              aria-label={t(
-                'evaluation.lifecycle.retryAria',
-                'Diesen Lauf erneut versuchen',
-              )}
+              aria-label={t('evaluation.lifecycle.retryAria')}
             >
               <ArrowPathIcon className="h-3.5 w-3.5" />
               {isBusy
-                ? t('evaluation.lifecycle.retrying', 'Starte neu …')
-                : t('evaluation.lifecycle.retry', 'Erneut versuchen')}
+                ? t('evaluation.lifecycle.retrying')
+                : t('evaluation.lifecycle.retry')}
             </button>
           ) : (
             <>
@@ -286,14 +274,8 @@ export function InflightRunsBanner({
                 }
                 aria-label={
                   isPaused
-                    ? t(
-                        'evaluation.lifecycle.resumeAria',
-                        'Diesen Lauf fortsetzen',
-                      )
-                    : t(
-                        'evaluation.lifecycle.pauseAria',
-                        'Diesen Lauf pausieren',
-                      )
+                    ? t('evaluation.lifecycle.resumeAria')
+                    : t('evaluation.lifecycle.pauseAria')
                 }
               >
                 {isPaused ? (
@@ -303,26 +285,23 @@ export function InflightRunsBanner({
                 )}
                 {isBusy
                   ? isPaused
-                    ? t('evaluation.lifecycle.resuming', 'Setze fort …')
-                    : t('evaluation.lifecycle.pausing', 'Pausiere …')
+                    ? t('evaluation.lifecycle.resuming')
+                    : t('evaluation.lifecycle.pausing')
                   : isPaused
-                    ? t('evaluation.lifecycle.resume', 'Fortsetzen')
-                    : t('evaluation.lifecycle.pause', 'Pausieren')}
+                    ? t('evaluation.lifecycle.resume')
+                    : t('evaluation.lifecycle.pause')}
               </button>
               <button
                 type="button"
                 onClick={() => cancelOne(e.evaluation_id)}
                 disabled={isBusy || bulkCancelling}
                 className={lifecycleButtonClass}
-                aria-label={t(
-                  'evaluation.cancel.singleAria',
-                  'Diesen Lauf abbrechen',
-                )}
+                aria-label={t('evaluation.cancel.singleAria')}
               >
                 <XMarkIcon className="h-3.5 w-3.5" />
                 {isBusy
-                  ? t('evaluation.cancel.cancelling', 'Breche ab …')
-                  : t('evaluation.cancel.cancel', 'Abbrechen')}
+                  ? t('evaluation.cancel.cancelling')
+                  : t('evaluation.cancel.cancel')}
               </button>
             </>
           )}
@@ -342,13 +321,9 @@ export function InflightRunsBanner({
           <ExclamationTriangleIcon className="h-5 w-5 shrink-0" />
           <span className="font-medium">
             {latestFailed
-              ? t(
-                  'evaluation.lifecycle.latestFailedHeading',
-                  'Letzte Auswertung fehlgeschlagen',
-                )
+              ? t('evaluation.lifecycle.latestFailedHeading')
               : t('evaluation.inflight.heading', {
                   count: inflight.length,
-                  defaultValue: `${inflight.length} Auswertung(en) laufen gerade`,
                 } as any)}
           </span>
         </div>
@@ -361,8 +336,8 @@ export function InflightRunsBanner({
             className="text-amber-900 dark:text-amber-100"
           >
             {bulkCancelling
-              ? t('evaluation.cancel.cancellingAll', 'Breche ab …')
-              : t('evaluation.cancel.cancelAll', 'Alle abbrechen')}
+              ? t('evaluation.cancel.cancellingAll')
+              : t('evaluation.cancel.cancelAll')}
           </Button>
         )}
       </div>
@@ -372,7 +347,7 @@ export function InflightRunsBanner({
       {shownFailures.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-amber-900 dark:text-amber-100">
           <span className="opacity-70">
-            {t('evaluation.inflight.failuresLabel', 'Fehlschläge nach Grund:')}
+            {t('evaluation.inflight.failuresLabel')}
           </span>
           {shownFailures.map(([reason, n]) => (
             <span
@@ -387,7 +362,6 @@ export function InflightRunsBanner({
             <span className="rounded bg-amber-300/70 px-1.5 py-0.5 dark:bg-amber-700/40">
               {t('evaluation.inflight.failuresMore', {
                 count: hiddenFailureCount,
-                defaultValue: `+${hiddenFailureCount} weitere`,
               } as any)}
             </span>
           )}

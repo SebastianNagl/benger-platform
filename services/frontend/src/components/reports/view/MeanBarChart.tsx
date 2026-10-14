@@ -74,7 +74,7 @@ export function MeanBarTooltip({
       lines={[
         { label: metricLabel, value: formatMetricValue(d.mean, scale, locale) },
         {
-          label: t('reports.view.stdDev', 'Standardabweichung'),
+          label: t('reports.view.stdDev'),
           value: formatMetricValue(d.std, scale, locale),
         },
         { label: 'n', value: formatCount(d.n, locale) },
@@ -115,11 +115,7 @@ export function MeanBarChart({
   return (
     <div className="mb-8" data-testid="mean-bar-chart">
       <SubHeading>
-        {t(
-          'reports.view.meanByModel',
-          '{metric} je Modell (Mittelwert ± Standardabweichung)',
-          { metric: metricLabel },
-        )}
+        {t('reports.view.meanByModel', { metric: metricLabel })}
       </SubHeading>
       <div className={CHART_WRAPPER_CLASS}>
         <ResponsiveContainer width="100%" height={height}>

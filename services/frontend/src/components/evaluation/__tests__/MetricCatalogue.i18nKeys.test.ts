@@ -26,9 +26,9 @@ const lookup = (tree: any, key: string) =>
     .reduce((node, part) => (node == null ? node : node[part]), tree)
 const translator =
   (lang: string) =>
-  (key: string, fallback?: string): string => {
+  (key: string): string => {
     const value = lookup(locale(lang), key)
-    return typeof value === 'string' ? value : (fallback ?? key)
+    return typeof value === 'string' ? value : key
   }
 
 const RENDERERS = [

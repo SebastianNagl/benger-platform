@@ -10,6 +10,11 @@ import {
   parseJSON,
 } from '../universalImport'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Mock URL methods that aren't available in jsdom
 beforeAll(() => {
   global.URL.createObjectURL = jest.fn(() => 'blob:mock-url')
@@ -261,7 +266,9 @@ describe('Universal Import/Export', () => {
       }))
       window.FileReader = mockFileReader as any
 
-      await expect(importFile(file)).rejects.toThrow('Failed to read file')
+      await expect(importFile(file)).rejects.toThrow(
+        'projects.import.readFileFailed',
+      )
 
       window.FileReader = originalFileReader
     })
@@ -509,7 +516,9 @@ describe('Universal Import/Export', () => {
         .spyOn(window, 'FileReader')
         .mockImplementation(() => mockReader as any)
 
-      await expect(importFile(file)).rejects.toThrow('Failed to read file')
+      await expect(importFile(file)).rejects.toThrow(
+        'projects.import.readFileFailed',
+      )
 
       jest.restoreAllMocks()
     })

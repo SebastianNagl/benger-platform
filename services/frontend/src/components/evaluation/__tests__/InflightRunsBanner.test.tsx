@@ -10,23 +10,10 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { InflightRunsBanner } from '../InflightRunsBanner'
 
-// Stable mocks for the I18nContext — the banner uses `t(key, default)`
-// and `t(key, { defaultValue, count })`; preserve both shapes.
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback: any) => {
-      if (typeof fallback === 'string') return fallback
-      if (
-        fallback &&
-        typeof fallback === 'object' &&
-        'defaultValue' in fallback
-      ) {
-        return fallback.defaultValue
-      }
-      return _key
-    },
-  }),
-}))
+// Catalog-backed German t(), so assertions match the copy users see.
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const mockAddToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({

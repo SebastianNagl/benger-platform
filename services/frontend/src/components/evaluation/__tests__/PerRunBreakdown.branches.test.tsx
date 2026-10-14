@@ -8,7 +8,7 @@
  *   - statusBadgeClass: 'running' and the default/unknown status arms
  *   - formatScore: undefined and NaN inputs (the existing suite only feeds null)
  *   - formatScore: a real numeric score → toFixed(3) path
- *   - deterministic judge (judge_model_id === null) → "(deterministic)" span
+ *   - deterministic judge (judge_model_id === null) → "(deterministisch)" span
  *   - samples_evaluated === null → em-dash
  *   - sort tie-break on target_model_id vs judge_model_id localeCompare
  *   - showTargetModel default (true) rendering the target column
@@ -17,14 +17,9 @@ import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import { PerRunBreakdown, type PerRunRow } from '../PerRunBreakdown'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    // Component calls t(key, fallback); return the fallback so the German UI
-    // strings ('(deterministic)', etc.) are what the DOM shows.
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 describe('PerRunBreakdown branch coverage', () => {
   it('renders distinct badge classes for running and unknown statuses', () => {
@@ -51,8 +46,8 @@ describe('PerRunBreakdown branch coverage', () => {
     render(<PerRunBreakdown rows={rows} metric="m" showTargetModel={false} />)
 
     // Statuses render through runStatusLabel (the mock t echoes the key).
-    const running = screen.getByText('evaluations.detail.statusLabels.running')
-    const pending = screen.getByText('evaluations.detail.statusLabels.pending')
+    const running = screen.getByText('Läuft')
+    const pending = screen.getByText('Ausstehend')
     expect(running).toBeInTheDocument()
     expect(pending).toBeInTheDocument()
     // 'running' → blue palette
@@ -74,7 +69,7 @@ describe('PerRunBreakdown branch coverage', () => {
       },
     ]
     render(<PerRunBreakdown rows={rows} metric="m" showTargetModel={false} />)
-    expect(screen.getByText('0.667')).toBeInTheDocument()
+    expect(screen.getByText('0,667')).toBeInTheDocument()
   })
 
   it('renders em-dash for a NaN mean score', () => {
@@ -135,7 +130,7 @@ describe('PerRunBreakdown branch coverage', () => {
         showTargetModel={false}
       />,
     )
-    expect(screen.getByText('(deterministic)')).toBeInTheDocument()
+    expect(screen.getByText('(deterministisch)')).toBeInTheDocument()
     // samples column shows the placeholder
     const dashes = Array.from(document.querySelectorAll('td')).filter(
       (c) => c.textContent?.trim() === '—',
@@ -206,7 +201,7 @@ describe('PerRunBreakdown branch coverage', () => {
     render(<PerRunBreakdown rows={rows} metric="m" showTargetModel={false} />)
     const bodyRows = document.querySelectorAll('tbody tr')
     // Null judge ('') compares before 'b-judge' → deterministic row first.
-    expect(bodyRows[0].textContent).toContain('(deterministic)')
+    expect(bodyRows[0].textContent).toContain('(deterministisch)')
   })
 
   it('defaults showTargetModel to true, rendering the target column header', () => {

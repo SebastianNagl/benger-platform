@@ -1161,7 +1161,7 @@ describe('ProjectDataTab - interaction coverage', () => {
             'assign-1',
           )
         })
-        // Toast uses translation key: success.assignmentRemoved
+        // Toast uses translation key: annotationTab.messages.assignmentRemoved
         expect(mockAddToast).toHaveBeenCalledWith(expect.any(String), 'success')
       }
     })

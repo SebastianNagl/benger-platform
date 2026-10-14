@@ -263,6 +263,7 @@ describe('MyTasksPage', () => {
     ;(useParams as jest.Mock).mockReturnValue({ id: 'project-123' })
     ;(useAuth as jest.Mock).mockReturnValue({ user: mockUser })
     ;(useI18n as jest.Mock).mockReturnValue({
+      locale: 'en',
       t: (key: string, vars?: any) => {
         const translation = translations[key] || key
         if (vars) {

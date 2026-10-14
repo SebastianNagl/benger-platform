@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useSlot } from '@/lib/extensions/slots'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import { useProjectStore } from '@/stores/projectStore'
 import { Task, TaskAssignment } from '@/types/labelStudio'
 import {
@@ -64,7 +65,7 @@ export default function MyTasksPage() {
   const projectId = params?.id as string
   const { user } = useAuth()
   const { addToast } = useToast()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const {
     currentProject,
     fetchProject,
@@ -361,7 +362,7 @@ export default function MyTasksPage() {
                         {t('tasks.myTasks.assigned')}{' '}
                         {formatDistanceToNow(
                           new Date(task.assignment.assigned_at),
-                          { addSuffix: true },
+                          { addSuffix: true, locale: dateFnsLocale(locale) },
                         )}
                       </div>
 
@@ -371,7 +372,7 @@ export default function MyTasksPage() {
                           {t('tasks.myTasks.due')}{' '}
                           {formatDistanceToNow(
                             new Date(task.assignment.due_date),
-                            { addSuffix: true },
+                            { addSuffix: true, locale: dateFnsLocale(locale) },
                           )}
                         </div>
                       )}

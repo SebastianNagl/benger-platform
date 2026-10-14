@@ -8,6 +8,11 @@ jest.unmock('@/lib/api/base')
 
 import { BaseApiClient } from '../base'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Mock fetch globally
 global.fetch = jest.fn()
 
@@ -457,7 +462,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       )
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'Network error',
+        'errors.api.networkUnreachable',
       )
     })
 
@@ -483,7 +488,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       })
 
       await expect(client.testAuthCheck('/test')).rejects.toThrow(
-        'Invalid JSON response',
+        'errors.api.invalidJson',
       )
     })
 
@@ -980,7 +985,7 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
         await client.get('/test')
         fail('Should have thrown an error')
       } catch (error: any) {
-        expect(error.message).toContain('Invalid JSON response')
+        expect(error.message).toContain('errors.api.invalidJson')
       }
     })
   })
@@ -1013,7 +1018,9 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
         .mockRejectedValueOnce(networkError)
         .mockRejectedValueOnce(networkError)
 
-      await expect(client.get('/test')).rejects.toThrow('Network error')
+      await expect(client.get('/test')).rejects.toThrow(
+        'errors.api.networkUnreachable',
+      )
 
       expect(global.fetch).toHaveBeenCalledTimes(3)
     })

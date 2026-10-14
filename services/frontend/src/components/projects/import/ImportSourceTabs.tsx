@@ -137,9 +137,9 @@ export function ImportSourceTabs({
   }, [])
 
   const tabLabels: Record<ImportTabId, ReactNode> = {
-    upload: t('dataImport.tabs.upload', 'Datei hochladen'),
-    paste: t('dataImport.tabs.paste', 'Tabelle/JSON einfügen'),
-    cloud: t('dataImport.tabs.cloud', 'Cloud-Speicher'),
+    upload: t('dataImport.tabs.upload'),
+    paste: t('dataImport.tabs.paste'),
+    cloud: t('dataImport.tabs.cloud'),
     structured: structuredTab?.label,
   }
 

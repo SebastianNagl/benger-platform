@@ -1,5 +1,7 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
+
 import { useSlot } from '@/lib/extensions/slots'
 
 /**
@@ -12,13 +14,14 @@ import { useSlot } from '@/lib/extensions/slots'
  * mirroring src/app/projects/[id]/review/page.tsx.
  */
 export default function LtiLinkPage() {
+  const { t } = useI18n()
   const LtiLinkPicker = useSlot('LtiLinkPicker')
 
   if (!LtiLinkPicker) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-zinc-500 dark:text-zinc-400">
-          LTI content linking requires the extended edition.
+          {t('lti.link.extendedRequired')}
         </p>
       </div>
     )

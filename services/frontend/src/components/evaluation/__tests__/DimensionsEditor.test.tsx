@@ -8,11 +8,9 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { DimensionsEditor } from '../DimensionsEditor'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback?: string) => fallback || _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 function Harness(props: {
   initial?: Record<string, CustomCriteriaDefinition>

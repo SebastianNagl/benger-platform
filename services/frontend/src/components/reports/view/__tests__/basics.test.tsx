@@ -142,7 +142,12 @@ describe('MethodsList', () => {
       />,
     )
     expect(screen.getByText('L:llm_judge_falloesung')).toBeInTheDocument()
-    expect(screen.getByText(/0–100 Punkte · LLM-Bewertung/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        `${t('reports.view.scaleLabels.points100')} · LLM-Bewertung`,
+        { exact: false },
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Menschliche Korrektur/)).toBeInTheDocument()
     expect(screen.getByText(/Lexikalische Metrik/)).toBeInTheDocument()
     const chips = screen.getAllByTestId('config-chip')
@@ -196,7 +201,11 @@ describe('MethodsList', () => {
     )
     expect(screen.getByText(/Semantische Metrik/)).toBeInTheDocument()
     expect(screen.getByText(/Klassifikation/)).toBeInTheDocument()
-    expect(screen.getByText(/Rohwert · other/)).toBeInTheDocument()
+    expect(
+      screen.getByText(`${t('reports.view.scaleLabels.raw')} · other`, {
+        exact: false,
+      }),
+    ).toBeInTheDocument()
   })
 })
 

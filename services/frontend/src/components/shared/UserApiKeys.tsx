@@ -60,7 +60,7 @@ const providers: Provider[] = [
     id: 'deepinfra',
     name: 'DeepInfra',
     description: 'shared.userApiKeys.descDeepinfra',
-    placeholder: 'Your DeepInfra API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
   {
@@ -74,14 +74,14 @@ const providers: Provider[] = [
     id: 'mistral',
     name: 'Mistral AI',
     description: 'shared.userApiKeys.descMistral',
-    placeholder: 'Your Mistral API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
   {
     id: 'cohere',
     name: 'Cohere',
     description: 'shared.userApiKeys.descCohere',
-    placeholder: 'Your Cohere API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
 ]
@@ -455,7 +455,12 @@ export default function UserApiKeys({
                 <div className="relative">
                   <input
                     type={showApiKeys[provider.id] ? 'text' : 'password'}
-                    placeholder={provider.placeholder}
+                    placeholder={
+                      provider.placeholder ||
+                      t('shared.userApiKeys.keyPlaceholder', {
+                        provider: provider.name,
+                      })
+                    }
                     value={newApiKeys[provider.id] || ''}
                     onChange={(e) =>
                       handleApiKeyChange(provider.id, e.target.value)

@@ -9,7 +9,12 @@
  *
  * A reporter must never throw into the writing page; failures are swallowed
  * by the caller anyway.
+ *
+ * There is one reporter; the last registration wins and a different owner
+ * replacing it logs a warning (see ./owner.ts).
  */
+
+import { type RegistrationOwners, recordRegistration } from './owner'
 
 export type WritingPresenceReporter = (
   projectId: string,
@@ -18,10 +23,12 @@ export type WritingPresenceReporter = (
 ) => void | Promise<void>
 
 let reporter: WritingPresenceReporter | null = null
+const owners: RegistrationOwners = new Map()
 
 export function registerWritingPresenceReporter(
   fn: WritingPresenceReporter | null,
 ) {
+  recordRegistration(owners, 'writing presence reporter', 'default')
   reporter = fn
 }
 

@@ -6,6 +6,7 @@ import {
   MemberEmail,
   memberOptionLabel,
 } from '@/components/organization/MemberIdentity'
+import { OrgAccessKeys } from '@/components/organization/OrgAccessKeys'
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgGroups } from '@/components/organization/OrgGroups'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
@@ -25,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { Organization, OrganizationMember } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import {
@@ -45,6 +47,7 @@ import {
   BuildingOfficeIcon,
   ChevronDownIcon,
   CloudIcon,
+  CommandLineIcon,
   EnvelopeIcon,
   KeyIcon,
   PencilIcon,
@@ -128,6 +131,9 @@ export function OrganizationsTab() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
+  const [showAccessKeysModal, setShowAccessKeysModal] = useState(false)
+  // Access keys stay invisible unless the public API is on for this user.
+  const publicApiEnabled = usePublicApiEnabled() === true
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
@@ -1101,6 +1107,18 @@ export function OrganizationsTab() {
                 {t('admin.organizations.apiKeys')}
               </Button>
             )}
+          {selectedOrganization &&
+            publicApiEnabled &&
+            (canManageOrg || isGroupAdminOfSelectedOrg) && (
+              <Button
+                onClick={() => setShowAccessKeysModal(true)}
+                variant="outline"
+                data-testid="org-access-keys-button"
+              >
+                <CommandLineIcon className="h-4 w-4" />
+                {t('admin.organizations.accessKeys')}
+              </Button>
+            )}
           {selectedOrganization && (canManageOrg || showLtiMenuItem) && (
             <Menu as="div" className="relative inline-block text-left">
               <Menu.Button
@@ -1108,7 +1126,7 @@ export function OrganizationsTab() {
                 variant="outline"
                 data-testid="org-more-button"
               >
-                {t('admin.organizations.more', 'Mehr')}
+                {t('admin.organizations.more')}
                 <ChevronDownIcon className="h-4 w-4" />
               </Menu.Button>
               <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
@@ -1139,10 +1157,7 @@ export function OrganizationsTab() {
                         data-testid="org-lti-button"
                       >
                         <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                        {t(
-                          'admin.organizations.lmsIntegration',
-                          'Lernplattform (LTI)',
-                        )}
+                        {t('admin.organizations.lmsIntegration')}
                       </button>
                     )}
                   </Menu.Item>
@@ -1611,6 +1626,18 @@ export function OrganizationsTab() {
               canManageGroups={isGroupAdminOfSelectedOrg}
               open={showApiKeysModal}
               onOpenChange={setShowApiKeysModal}
+            />
+          )}
+
+          {/* Access keys for the public /api/v1 (bgr_...) */}
+          {selectedOrganization && publicApiEnabled && (
+            <OrgAccessKeys
+              organizationId={selectedOrganization.id}
+              isAdmin={canManageOrg}
+              canManageGroups={adminGroupIds.length > 0}
+              adminGroupIds={adminGroupIds}
+              open={showAccessKeysModal}
+              onOpenChange={setShowAccessKeysModal}
             />
           )}
 

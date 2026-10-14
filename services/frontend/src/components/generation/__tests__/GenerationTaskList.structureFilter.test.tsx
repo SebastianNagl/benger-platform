@@ -84,8 +84,7 @@ jest.mock('@/components/shared/Toast', () => ({
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : key,
+    t: (key: string, _vars?: Record<string, unknown>) => key,
   }),
 }))
 

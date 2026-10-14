@@ -486,7 +486,9 @@ describe('AdminUsersPage handler coverage', () => {
       await userEvent.click(buttons[buttons.length - 1])
 
       await waitFor(() => {
-        expect(confirmDelete).toHaveBeenCalledWith('this member')
+        expect(confirmDelete).toHaveBeenCalledWith(
+          'dialogs.deleteConfirm.thisMember',
+        )
       })
       expect(mockApiClient.removeMember).not.toHaveBeenCalled()
     })

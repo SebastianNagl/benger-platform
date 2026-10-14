@@ -246,7 +246,8 @@ class TestRateLimitChecking:
         assert result["error"] == "rate_limit_exceeded"
         assert result["limit"] == 10
         assert result["current"] == 11
-        assert result["retry_after"] == 60
+        # Seconds until the fixed window resets.
+        assert 1 <= result["retry_after"] <= 60
 
     @pytest.mark.asyncio
     async def test_check_multiple_windows(self, rate_limiter_with_redis, mock_request):

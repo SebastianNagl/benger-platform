@@ -20,15 +20,10 @@
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  // Component calls t(key, fallback) — return the fallback so assertions can
-  // match the human-readable German labels the component ships with.
-  useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-    locale: 'en',
-  }),
-}))
+// Catalog-backed German t(), so assertions match the titles users see.
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 // Capture every props object handed to the dynamically-imported <Plot>.
 const mockPlotProps: any[] = []
@@ -170,9 +165,9 @@ describe('JudgeAgreementHeatmap', () => {
         />,
       )
       const text = lastProps().data[0].text
-      expect(text[0][0]).toBe('1.00')
-      expect(text[0][1]).toBe('0.500')
-      expect(text[1][0]).toBe('0.500')
+      expect(text[0][0]).toBe('1,00')
+      expect(text[0][1]).toBe('0,500')
+      expect(text[1][0]).toBe('0,500')
     })
 
     it('leaves missing pairwise entries as null cells with empty text', () => {
@@ -223,7 +218,9 @@ describe('JudgeAgreementHeatmap', () => {
       expect(trace.zmax).toBe(1)
       expect(trace.colorbar.title.text).toBe('r')
       // Pearson title branch.
-      expect(screen.getByText(/Pearson/)).toBeInTheDocument()
+      expect(
+        screen.getByText('Inter-Judge-Korrelation (Pearson)'),
+      ).toBeInTheDocument()
     })
 
     it('uses the Blues sequential palette with zmin=0 for kappa', () => {
@@ -241,7 +238,9 @@ describe('JudgeAgreementHeatmap', () => {
       expect(trace.zmax).toBe(1)
       expect(trace.colorbar.title.text).toBe('κ')
       // Kappa title branch (contains the κ glyph).
-      expect(screen.getByText(/κ/)).toBeInTheDocument()
+      expect(
+        screen.getByText('Inter-Judge-Übereinstimmung (κ)'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -269,7 +268,7 @@ describe('JudgeAgreementHeatmap', () => {
         />,
       )
       expect(screen.getByText(/Fleiss/)).toBeInTheDocument()
-      expect(screen.getByText('0.420')).toBeInTheDocument()
+      expect(screen.getByText('0,420')).toBeInTheDocument()
     })
 
     it('renders the Fleiss headline for a 0 value (not just truthy ones)', () => {
@@ -284,7 +283,7 @@ describe('JudgeAgreementHeatmap', () => {
         />,
       )
       expect(screen.getByText(/Fleiss/)).toBeInTheDocument()
-      expect(screen.getByText('0.000')).toBeInTheDocument()
+      expect(screen.getByText('0,000')).toBeInTheDocument()
     })
 
     it('omits the Fleiss headline when fleissKappa is null', () => {

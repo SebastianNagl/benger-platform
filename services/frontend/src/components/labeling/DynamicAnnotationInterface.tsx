@@ -542,10 +542,7 @@ export function DynamicAnnotationInterface({
                 onChange={(e) => setConfirmedDone(e.target.checked)}
                 className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
               />
-              {t('annotation.interface.confirmDone', {
-                defaultValue:
-                  'I confirm that I have read the annotation instructions and am ready to submit',
-              })}
+              {t('annotation.interface.confirmDone')}
             </label>
           </div>
         )}

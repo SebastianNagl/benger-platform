@@ -14,12 +14,9 @@ import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import { CostEstimatePanel } from '../CostEstimatePanel'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
@@ -121,12 +118,12 @@ describe('CostEstimatePanel', () => {
       />,
     )
     await waitFor(() =>
-      expect(screen.getAllByText('$3.60').length).toBeGreaterThan(0),
+      expect(screen.getAllByText('$3,60').length).toBeGreaterThan(0),
     )
     expect(screen.getByText('gpt-4o')).toBeInTheDocument()
     expect(screen.getByText('mystery-model')).toBeInTheDocument()
     // Per-call cell on the priced row.
-    expect(screen.getByText('$0.0120')).toBeInTheDocument()
+    expect(screen.getByText('$0,0120')).toBeInTheDocument()
     // Unknown pricing surfaces a label rather than a $0 figure.
     expect(screen.getAllByText('Keine Preisdaten').length).toBeGreaterThan(0)
   })
@@ -149,10 +146,10 @@ describe('CostEstimatePanel', () => {
         enabled={true}
       />,
     )
-    await waitFor(() => expect(screen.getByText('$3.60')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('$3,60')).toBeInTheDocument())
     // Token-estimate breakdown line is rendered once the estimate arrives.
     expect(
-      screen.getByText(/Input: 800 \(Mittel\) \/ 1200 \(p95\)/),
+      screen.getByText(/Input: 800 \(Mittel\) \/ 1\.200 \(p95\)/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Estimate accuracy ± ~20%/)).toBeInTheDocument()
     // No per-model table in single-priced-model case.

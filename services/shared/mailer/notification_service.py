@@ -67,6 +67,24 @@ _DEFAULT_CHANNELS_BY_TYPE: Dict[str, Dict[str, bool]] = {
 }
 
 
+def _service_account_ids(db: Session, user_ids) -> set:
+    """The ids among ``user_ids`` that belong to access-key service accounts
+    (machine users that must never be notified). Empty on any failure, so a
+    lookup problem never blocks a notification."""
+    ids = [str(u) for u in (user_ids or []) if u]
+    if not ids:
+        return set()
+    try:
+        rows = (
+            db.query(User.id)
+            .filter(User.id.in_(ids), User.is_service_account.is_(True))
+            .all()
+        )
+        return {str(r[0]) for r in rows}
+    except Exception:
+        return set()
+
+
 def default_channels(notification_type: Union[NotificationType, str]) -> Dict[str, bool]:
     """Channel flags that apply when the user has no stored preference row."""
     type_value = getattr(notification_type, "value", notification_type)
@@ -215,6 +233,11 @@ class NotificationService:
         # Recipients who turned in-app off but email on. The settings page
         # lets a user pick email alone, so they get the email without a row.
         email_only_data: List[Dict] = []
+
+        # Access-key service accounts get neither rows nor emails.
+        service_ids = _service_account_ids(db, user_ids)
+        if service_ids:
+            user_ids = [u for u in user_ids if u not in service_ids]
 
         for user_id in user_ids:
             # In-app channel: only insert a notifications row when in_app is enabled.
@@ -1564,7 +1587,14 @@ def notify_system_maintenance(
 ):
     """Notify all active users about system maintenance"""
     # Get all active users
-    active_users = db.query(User).filter(User.is_active == True).all()  # noqa: E712
+    active_users = (
+        db.query(User)
+        .filter(
+            User.is_active == True,  # noqa: E712
+            User.is_service_account.is_(False),
+        )
+        .all()
+    )
     recipients = [user.id for user in active_users]
 
     data = {"maintenance_type": "scheduled", "notification_level": "important"}

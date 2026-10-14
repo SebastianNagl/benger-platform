@@ -3,6 +3,7 @@
  * Issue #220: Support CSV, JSON, TSV, TXT without rigid structure
  */
 
+import { translate } from '@/lib/utils/translate'
 import * as Papa from 'papaparse'
 
 export interface ImportResult {
@@ -189,11 +190,18 @@ export async function importFile(
             }
         }
       } catch (error) {
-        reject(new Error(`Failed to parse file: ${error}`))
+        reject(
+          new Error(
+            translate('projects.import.parseFileFailed', {
+              error: String(error),
+            }),
+          ),
+        )
       }
     }
 
-    reader.onerror = () => reject(new Error('Failed to read file'))
+    reader.onerror = () =>
+      reject(new Error(translate('projects.import.readFileFailed')))
     reader.readAsText(file, options.encoding || 'UTF-8')
   })
 }

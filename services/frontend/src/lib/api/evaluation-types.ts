@@ -7,6 +7,13 @@
  * Issue #483 - Phase 8: Evaluation Mapping
  */
 
+import {
+  type RegistrationOwners,
+  recordRegistration,
+} from '@/lib/extensions/owner'
+import { formatDecimal } from '@/lib/i18n/locales'
+import { translate } from '@/lib/utils/translate'
+
 /**
  * Special field values for bulk selection
  */
@@ -482,23 +489,24 @@ export const LLM_JUDGE_DIMENSIONS = [
 export type LLMJudgeDimension = (typeof LLM_JUDGE_DIMENSIONS)[number]
 
 /**
- * Type-specific LLM Judge dimensions
+ * Type-specific LLM Judge dimensions, mapped to the catalog key of their
+ * display name.
  */
 export const TYPE_SPECIFIC_DIMENSIONS = {
   // For spans/NER
-  boundary_accuracy: 'Boundary Accuracy',
-  label_accuracy: 'Label Accuracy',
-  coverage: 'Entity Coverage',
-  span_precision: 'Span Precision',
+  boundary_accuracy: 'evaluation.dimensions.boundary_accuracy.name',
+  label_accuracy: 'evaluation.dimensions.label_accuracy.name',
+  coverage: 'evaluation.dimensions.coverage.name',
+  span_precision: 'evaluation.dimensions.span_precision.name',
   // For choices/classification
-  accuracy: 'Selection Accuracy',
-  reasoning: 'Reasoning Quality',
-  set_accuracy: 'Set Accuracy (Multi-select)',
-  partial_credit: 'Partial Credit Score',
+  accuracy: 'evaluation.dimensions.accuracy.name',
+  reasoning: 'evaluation.dimensions.reasoning.name',
+  set_accuracy: 'evaluation.dimensions.set_accuracy.name',
+  partial_credit: 'evaluation.dimensions.partial_credit.name',
   // For numeric/rating
-  precision: 'Numeric Precision',
-  scale_appropriateness: 'Scale Appropriateness',
-  magnitude_accuracy: 'Magnitude Accuracy',
+  precision: 'evaluation.dimensions.precision.name',
+  scale_appropriateness: 'evaluation.dimensions.scale_appropriateness.name',
+  magnitude_accuracy: 'evaluation.dimensions.magnitude_accuracy.name',
 } as const
 
 export type TypeSpecificDimension = keyof typeof TYPE_SPECIFIC_DIMENSIONS
@@ -527,14 +535,14 @@ export interface FieldTypesResponse {
  * LLM Judge template configuration for each answer type
  */
 export interface LLMJudgeTemplate {
-  /** Human-readable name */
-  name: string
-  /** Description of when to use this template */
-  description: string
+  /** Catalog key of the human-readable name */
+  nameKey: string
+  /** Catalog key of the description of when to use this template */
+  descriptionKey: string
   /** Default criteria for this answer type */
   criteria: string[]
-  /** Hint text for UI */
-  hint?: string
+  /** Catalog key of the hint text for the UI */
+  hintKey?: string
 }
 
 /**
@@ -543,9 +551,8 @@ export interface LLMJudgeTemplate {
  */
 export const LLM_JUDGE_TEMPLATES: Record<string, LLMJudgeTemplate> = {
   text: {
-    name: 'Free-form Text',
-    description:
-      'Evaluate quality, correctness, and coherence of text responses',
+    nameKey: 'evaluationBuilder.judgeTemplates.text.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.text.description',
     criteria: [
       'helpfulness',
       'correctness',
@@ -553,17 +560,17 @@ export const LLM_JUDGE_TEMPLATES: Record<string, LLMJudgeTemplate> = {
       'coherence',
       'relevance',
     ],
-    hint: 'Best for essays, summaries, explanations, and open-ended responses',
+    hintKey: 'evaluationBuilder.judgeTemplates.text.hint',
   },
   short_text: {
-    name: 'Short Text',
-    description: 'Evaluate brief text responses',
+    nameKey: 'evaluationBuilder.judgeTemplates.shortText.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.shortText.description',
     criteria: ['correctness', 'relevance'],
-    hint: 'Best for short answers, fill-in-the-blank',
+    hintKey: 'evaluationBuilder.judgeTemplates.shortText.hint',
   },
   long_text: {
-    name: 'Long Text',
-    description: 'Evaluate detailed text responses',
+    nameKey: 'evaluationBuilder.judgeTemplates.longText.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.longText.description',
     criteria: [
       'helpfulness',
       'correctness',
@@ -571,49 +578,51 @@ export const LLM_JUDGE_TEMPLATES: Record<string, LLMJudgeTemplate> = {
       'coherence',
       'relevance',
     ],
-    hint: 'Best for essays, detailed explanations',
+    hintKey: 'evaluationBuilder.judgeTemplates.longText.hint',
   },
   choices: {
-    name: 'Classification (Single Choice)',
-    description: 'Evaluate if the correct single choice was selected',
+    nameKey: 'evaluationBuilder.judgeTemplates.choices.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.choices.description',
     criteria: ['accuracy', 'reasoning'],
-    hint: 'Best for single-choice questions, yes/no, binary decisions',
+    hintKey: 'evaluationBuilder.judgeTemplates.choices.hint',
   },
   single_choice: {
-    name: 'Single Choice',
-    description: 'Evaluate single selection from options',
+    nameKey: 'evaluationBuilder.judgeTemplates.singleChoice.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.singleChoice.description',
     criteria: ['accuracy', 'reasoning'],
-    hint: 'Best for radio button selections',
+    hintKey: 'evaluationBuilder.judgeTemplates.singleChoice.hint',
   },
   binary: {
-    name: 'Binary Choice',
-    description: 'Evaluate yes/no or true/false selections',
+    nameKey: 'evaluationBuilder.judgeTemplates.binary.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.binary.description',
     criteria: ['accuracy'],
-    hint: 'Best for yes/no, true/false questions',
+    hintKey: 'evaluationBuilder.judgeTemplates.binary.hint',
   },
   multiple_choice: {
-    name: 'Multiple Choice (Multi-select)',
-    description: 'Evaluate selection of multiple correct items',
+    nameKey: 'evaluationBuilder.judgeTemplates.multipleChoice.name',
+    descriptionKey:
+      'evaluationBuilder.judgeTemplates.multipleChoice.description',
     criteria: ['set_accuracy', 'partial_credit', 'reasoning'],
-    hint: 'Best for checkbox selections, multiple correct answers',
+    hintKey: 'evaluationBuilder.judgeTemplates.multipleChoice.hint',
   },
   span_selection: {
-    name: 'Named Entity Recognition (NER)',
-    description: 'Evaluate entity boundaries AND labels (strictest mode)',
+    nameKey: 'evaluationBuilder.judgeTemplates.spanSelection.name',
+    descriptionKey:
+      'evaluationBuilder.judgeTemplates.spanSelection.description',
     criteria: ['boundary_accuracy', 'label_accuracy', 'coverage'],
-    hint: 'Evaluates both WHERE spans are and WHAT they are labeled',
+    hintKey: 'evaluationBuilder.judgeTemplates.spanSelection.hint',
   },
   rating: {
-    name: 'Rating Scale',
-    description: 'Evaluate numeric rating predictions (e.g., 1-5 stars)',
+    nameKey: 'evaluationBuilder.judgeTemplates.rating.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.rating.description',
     criteria: ['precision', 'scale_appropriateness'],
-    hint: 'Best for star ratings, Likert scales',
+    hintKey: 'evaluationBuilder.judgeTemplates.rating.hint',
   },
   numeric: {
-    name: 'Numeric Value',
-    description: 'Evaluate numeric predictions',
+    nameKey: 'evaluationBuilder.judgeTemplates.numeric.name',
+    descriptionKey: 'evaluationBuilder.judgeTemplates.numeric.description',
     criteria: ['precision', 'magnitude_accuracy'],
-    hint: 'Best for numerical answers, measurements',
+    hintKey: 'evaluationBuilder.judgeTemplates.numeric.hint',
   },
 }
 
@@ -756,11 +765,11 @@ Respond in JSON format:
  * Get display name for a dimension/criterion
  */
 export function getDimensionDisplayName(dimension: string): string {
-  // Check type-specific dimensions first
-  if (dimension in TYPE_SPECIFIC_DIMENSIONS) {
-    return TYPE_SPECIFIC_DIMENSIONS[dimension as TypeSpecificDimension]
-  }
-  // Fall back to capitalizing
+  // Catalog name first (base and type-specific dimensions)
+  const key = `evaluation.dimensions.${dimension}.name`
+  const name = translate(key)
+  if (name !== key) return name
+  // Fall back to capitalizing the raw id (custom dimensions)
   return (
     dimension.charAt(0).toUpperCase() + dimension.slice(1).replace(/_/g, ' ')
   )
@@ -775,49 +784,42 @@ export function isSpecialFieldValue(value: string): value is FieldSpecifier {
   )
 }
 
-/**
- * Helper function to get display name for field specifiers
- */
-export function getFieldDisplayName(field: string): string {
-  switch (field) {
-    case FIELD_SPECIFIERS.ALL_MODEL:
-      return 'All model responses'
-    case FIELD_SPECIFIERS.ALL_HUMAN:
-      return 'All human annotations'
-    default:
-      if (field === 'model:__response__' || field === '__response__')
-        return 'Model Response (unstructured)'
-      return field
-  }
-}
-
-/** The i18n key of a field's display name, for the fields that have one.
- * getFieldDisplayName stays the English fallback for callers without an i18n
- * context. */
+/** The i18n key of a field's display name, for the fields that have one
+ * (the special specifiers and the unstructured model response). */
 export function getFieldDisplayNameKey(field: string): string | undefined {
   if (field === FIELD_SPECIFIERS.ALL_MODEL)
     return 'evaluationBuilder.fields.allModelResponses'
   if (field === FIELD_SPECIFIERS.ALL_HUMAN)
     return 'evaluationBuilder.fields.allHumanAnnotations'
+  if (field === 'model:__response__' || field === '__response__')
+    return 'evaluationBuilder.fields.modelResponseUnstructured'
   return undefined
 }
 
-/** A field's display name, through `t` when the field has an i18n key and
- * the English fallback name otherwise. */
+/** A field's display name: through `t` when the field has an i18n key, the
+ * raw field name otherwise. */
 export function getFieldLabel(
   field: string,
   t: (key: string) => string,
 ): string {
   const key = getFieldDisplayNameKey(field)
-  return key ? t(key) : getFieldDisplayName(field)
+  return key ? t(key) : field
+}
+
+/**
+ * Display name for a field outside React (stored UI language). Prefer
+ * getFieldLabel with the component's `t`.
+ */
+export function getFieldDisplayName(field: string): string {
+  return getFieldLabel(field, translate)
 }
 
 /** What a selectable evaluation field refers to, for grouping and labelling. */
 export type FieldOptionKind = 'special' | 'model' | 'human' | 'data'
 
-/** One entry in a prediction/reference picker. `labelKey` is set for UI
- * strings so a caller with an i18n context can translate; `label` is the
- * English fallback for callers without one. Raw field names carry no key. */
+/** One entry in a prediction/reference picker. `labelKey` is the catalog key
+ * of the UI label where there is one; `label` is the raw field name (callers
+ * translate `labelKey` when it is set). */
 export interface FieldOption {
   value: string
   labelKey?: string
@@ -845,13 +847,13 @@ export function buildPredictionFieldOptions(fields: {
     {
       value: FIELD_SPECIFIERS.ALL_MODEL,
       labelKey: 'evaluationBuilder.fields.allModelResponses',
-      label: 'All model responses',
+      label: FIELD_SPECIFIERS.ALL_MODEL,
       kind: 'special',
     },
     {
       value: FIELD_SPECIFIERS.ALL_HUMAN,
       labelKey: 'evaluationBuilder.fields.allHumanAnnotations',
-      label: 'All human annotations',
+      label: FIELD_SPECIFIERS.ALL_HUMAN,
       kind: 'special',
     },
     ...fields.model_response_fields.map((name) => ({
@@ -891,22 +893,18 @@ export function buildReferenceFieldOptions(fields: {
 export const PREDICTION_FIELD_GROUPS: ReadonlyArray<{
   kind: FieldOptionKind
   labelKey: string
-  label: string
 }> = [
   {
     kind: 'special',
     labelKey: 'evaluationBuilder.fields.bulkSelection',
-    label: 'Bulk Selection',
   },
   {
     kind: 'model',
     labelKey: 'evaluationBuilder.fields.modelResponseFields',
-    label: 'Model Response Fields',
   },
   {
     kind: 'human',
     labelKey: 'evaluationBuilder.fields.humanAnnotationFields',
-    label: 'Human Annotation Fields',
   },
 ]
 
@@ -1326,12 +1324,16 @@ export const METRIC_ORDER: string[] = GROUPED_METRICS.flatMap((g) => g.metrics)
 // =============================================================================
 
 const _extendedMetrics: Record<string, AvailableMetric> = {}
+const _extendedMetricOwners: RegistrationOwners = new Map()
 const _extendedGroups: MetricCategory[] = []
 
 /**
- * Register an additional metric definition (called by @benger/extended).
+ * Register an additional metric definition (called by an overlay's
+ * registerAll()). The last registration per key wins; a different owner
+ * overwriting a key logs a warning (see lib/extensions/owner.ts).
  */
 export function registerMetric(key: string, definition: AvailableMetric) {
+  recordRegistration(_extendedMetricOwners, 'metric', key)
   _extendedMetrics[key] = definition
 }
 
@@ -1376,26 +1378,29 @@ export function getMetricScale(key: string): MetricDisplayScale {
  *    one decimal.
  *  - `sum` (any other scale): sums of percentage-shaped metrics aren't
  *    dimensionally meaningful (sum of 100 bleu scores at 0.05 = 5, "5%" reads
- *    as 5/100 not 5 bleu-units), so render the raw value with `toFixed(2)` and
+ *    as 5/100 not 5 bleu-units), so render the raw value with two decimals and
  *    NO unit suffix and let the user infer.
  *  - `'0-100'`: already a percent, `"X.x%"` as-is, one decimal (NO ×100).
  *  - `'0-1'`: raw fraction, `"X.x%"` after ×100, one decimal.
- *  - `'raw'` / unknown: unitless `toFixed(2)`.
+ *  - `'raw'` / unknown: unitless, two decimals.
+ *  Decimal separator follows `locale` (de/fr "12,3", en "12.3").
  */
 export function formatValueForScale(
   value: number,
   scale: MetricDisplayScale,
   sum: boolean,
+  locale: string,
 ): string {
+  const fmt = (v: number, digits: number) => formatDecimal(v, locale, digits)
   if (scale === '0-18') {
-    return sum ? `${value.toFixed(1)} NP` : `${value.toFixed(1)} / 18 NP`
+    return sum ? `${fmt(value, 1)} NP` : `${fmt(value, 1)} / 18 NP`
   }
   if (sum) {
-    return value.toFixed(2)
+    return fmt(value, 2)
   }
-  if (scale === '0-100') return `${value.toFixed(1)}%`
-  if (scale === '0-1') return `${(value * 100).toFixed(1)}%`
-  return value.toFixed(2) // raw
+  if (scale === '0-100') return `${fmt(value, 1)}%`
+  if (scale === '0-1') return `${fmt(value * 100, 1)}%`
+  return fmt(value, 2) // raw
 }
 
 /**
@@ -1448,10 +1453,21 @@ export function getGroupedMetrics(): MetricCategory[] {
 }
 
 /**
- * Translate function shape the catalogue label helpers need. Matches the
- * `t(key, fallback)` overload of `useI18n`.
+ * Translate function shape the catalogue label helpers need (the `t` of
+ * `useI18n`, which returns the key itself for a key no locale carries).
  */
-type CatalogueTranslate = (key: string, fallback?: string) => string
+type CatalogueTranslate = (key: string) => string
+
+/** `t(key)`, or `literal` when the catalog has no entry for the key (an
+ * extension registered the entry with its own text). */
+function translatedOr(
+  t: CatalogueTranslate,
+  key: string,
+  literal: string,
+): string {
+  const text = t(key)
+  return text === key ? literal : text
+}
 
 /**
  * Localized label of a metric group. Tries `nameKey` and falls back to the
@@ -1462,7 +1478,7 @@ export function metricGroupLabel(
   group: MetricCategory,
   t: CatalogueTranslate,
 ): string {
-  return group.nameKey ? t(group.nameKey, group.name) : group.name
+  return group.nameKey ? translatedOr(t, group.nameKey, group.name) : group.name
 }
 
 /** Localized description of a metric group (`descriptionKey`, then literal). */
@@ -1471,7 +1487,7 @@ export function metricGroupDescription(
   t: CatalogueTranslate,
 ): string {
   return group.descriptionKey
-    ? t(group.descriptionKey, group.description)
+    ? translatedOr(t, group.descriptionKey, group.description)
     : group.description
 }
 
@@ -1481,7 +1497,7 @@ export function metricDisplayName(
   t: CatalogueTranslate,
 ): string {
   return def.displayNameKey
-    ? t(def.displayNameKey, def.display_name)
+    ? translatedOr(t, def.displayNameKey, def.display_name)
     : def.display_name
 }
 
@@ -1491,6 +1507,6 @@ export function metricDescription(
   t: CatalogueTranslate,
 ): string {
   return def.descriptionKey
-    ? t(def.descriptionKey, def.description)
+    ? translatedOr(t, def.descriptionKey, def.description)
     : def.description
 }

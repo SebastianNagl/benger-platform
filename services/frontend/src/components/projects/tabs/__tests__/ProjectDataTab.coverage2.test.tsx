@@ -32,6 +32,39 @@ import {
 import { projectsAPI } from '@/lib/api/projects'
 import { useProjectStore } from '@/stores/projectStore'
 
+// The global i18n mock ignores interpolation values; render these keys from
+// test templates so the assertions can still see the numbers.
+const mockI18nTemplates: Record<string, string> = {
+  'common.pageOf': 'Page {page} of {totalPages}',
+  'annotationTab.display.pageAllSelected':
+    'All {count} tasks on this page are selected.',
+  'annotationTab.display.selectAllMatching':
+    'Select all {count} matching tasks',
+  'annotationTab.messages.selectionCapped':
+    'Selection capped at {count} tasks; refine filters to act on the rest.',
+  'annotationTab.messages.exportCapped':
+    'Export capped at {count} tasks; refine filters to export the rest.',
+}
+{
+  const i18nMock = jest.requireMock('@/contexts/I18nContext')
+  const baseUseI18n =
+    i18nMock.useI18n.getMockImplementation?.() ?? i18nMock.useI18n
+  beforeEach(() => {
+    jest.spyOn(i18nMock, 'useI18n').mockImplementation(() => {
+      const base = baseUseI18n()
+      return {
+        ...base,
+        t: (key: string, vars?: Record<string, unknown>) =>
+          key in mockI18nTemplates
+            ? mockI18nTemplates[key].replace(/\{(\w+)\}/g, (m, name) =>
+                vars?.[name] !== undefined ? String(vars[name]) : m,
+              )
+            : base.t(key, vars),
+      }
+    })
+  })
+}
+
 jest.unmock('@/contexts/ProgressContext')
 jest.unmock('@/stores/projectStore')
 jest.unmock('@/hooks/useColumnSettings')
@@ -802,7 +835,10 @@ describe('ProjectDataTab - unassign edge case', () => {
     await settle()
 
     await waitFor(() => {
-      expect(mockAddToast).toHaveBeenCalledWith('errors.taskNotFound', 'error')
+      expect(mockAddToast).toHaveBeenCalledWith(
+        'annotationTab.messages.taskNotFound',
+        'error',
+      )
     })
     expect(projectsAPI.removeTaskAssignment).not.toHaveBeenCalled()
   })
@@ -833,7 +869,7 @@ describe('ProjectDataTab - unassign edge case', () => {
 
     await waitFor(() => {
       expect(mockAddToast).toHaveBeenCalledWith(
-        'errors.assignmentRemoveFailed',
+        'annotationTab.messages.assignmentRemoveFailed',
         'error',
       )
     })

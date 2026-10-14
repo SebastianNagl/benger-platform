@@ -20,28 +20,10 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, paramOrFallback?: any) => {
-      if (typeof paramOrFallback === 'string') return paramOrFallback
-      if (
-        paramOrFallback &&
-        typeof paramOrFallback === 'object' &&
-        'count' in paramOrFallback
-      ) {
-        return `${paramOrFallback.count}`
-      }
-      const translations: Record<string, string> = {
-        'evaluation.controlModal.title': 'Run Evaluation',
-        'evaluation.controlModal.startEvaluation': 'Start Evaluation',
-        'evaluation.controlModal.starting': 'Starting...',
-        'evaluation.controlModal.cancel': 'Cancel',
-        'shared.alertDialog.close': 'Close',
-      }
-      return translations[key] || key
-    },
-  }),
-}))
+// Catalog-backed German t(), so assertions match the copy users see.
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
@@ -154,7 +136,7 @@ describe('EvaluationControlModal structure scope', () => {
     render(<EvaluationControlModal {...defaultProps} />)
     const box = await screen.findByLabelText(/LEXam Open/)
     expect(box).toBeChecked()
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
@@ -165,7 +147,7 @@ describe('EvaluationControlModal structure scope', () => {
     render(<EvaluationControlModal {...defaultProps} />)
     const falloesungBox = await screen.findByLabelText(/Falllösung/)
     fireEvent.click(falloesungBox) // deselect, leaving only lexam-open
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())
@@ -180,7 +162,7 @@ describe('EvaluationControlModal structure scope', () => {
     fireEvent.click(await screen.findByLabelText(/LEXam Open/))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent(/prompt-struktur/i)
-    expect(screen.getByText('Start Evaluation')).toHaveAttribute(
+    expect(screen.getByText('Evaluation starten')).toHaveAttribute(
       'aria-disabled',
       'true',
     )
@@ -192,7 +174,7 @@ describe('EvaluationControlModal structure scope', () => {
     await waitFor(() => expect(mockGet).toHaveBeenCalled())
     expect(screen.queryByText('Prompt-Strukturen')).not.toBeInTheDocument()
     // Dispatch still works, unscoped.
-    const startButton = screen.getByText('Start Evaluation')
+    const startButton = screen.getByText('Evaluation starten')
     await waitFor(() => expect(startButton).not.toBeDisabled())
     fireEvent.click(startButton)
     await waitFor(() => expect(mockRunEvaluation).toHaveBeenCalled())

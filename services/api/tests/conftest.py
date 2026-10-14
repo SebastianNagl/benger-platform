@@ -92,3 +92,26 @@ pytest_plugins = [
     "tests.fixtures.evaluation",
     "tests.fixtures.mocks",
 ]
+
+
+@pytest.fixture(autouse=True)
+def _public_api_gate_open(request, monkeypatch):
+    """The access-key feature (key management, /api/v1) is behind the
+    ``public_api_enabled`` gate, off by default. Tests of the feature itself
+    run with the gate open; tests of the gate opt out with
+    ``@pytest.mark.public_api_gate`` and set the answer themselves."""
+    # Only patch a loader that is already imported (every test that builds
+    # the app has imported it via main): importing it here would change the
+    # import state tests with a fake ``extensions`` module rely on.
+    extensions = sys.modules.get("extensions")
+    if request.node.get_closest_marker("public_api_gate") or not hasattr(
+        extensions, "public_api_enabled"
+    ):
+        yield
+        return
+
+    async def _open(db, user, *, organization_id=None):
+        return True
+
+    monkeypatch.setattr(extensions, "public_api_enabled", _open)
+    yield

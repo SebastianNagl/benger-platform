@@ -88,27 +88,14 @@ describe('I18nContext — SSR defaultT branch (mounted === false)', () => {
     expect(out).toContain('{count}')
   })
 
-  it('SSR defaultT returns the explicit default for a missing key', () => {
-    const ctx = renderSSR()
-    expect(ctx().t('no.such.key', 'SSR Default')).toBe('SSR Default')
-  })
-
   it('SSR defaultT returns the key when missing and no default given', () => {
     const ctx = renderSSR()
     expect(ctx().t('no.such.key')).toBe('no.such.key')
   })
 
-  it('SSR defaultT (no object guard) returns an object namespace as-is', () => {
+  it('SSR t returns the key for an object namespace (branch, not a leaf)', () => {
     const ctx = renderSSR()
-    const out = ctx().t(KEY_OBJECT)
-    expect(typeof out).toBe('object')
-    expect(out).not.toBeNull()
-  })
-
-  it('SSR defaultT applies the string default argument branch', () => {
-    const ctx = renderSSR()
-    // String second arg routes through the defaultValue assignment in defaultT.
-    expect(ctx().t('missing.key.ssr', 'fallback-ssr')).toBe('fallback-ssr')
+    expect(ctx().t(KEY_OBJECT)).toBe(KEY_OBJECT)
   })
 
   it('SSR changeLocale is a no-op that does not throw', () => {

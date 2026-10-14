@@ -117,7 +117,7 @@ export default function ReportViewerPage({
   const title =
     sections?.project_info.custom_title ||
     report?.project_title ||
-    t('reports.view.reportFallbackTitle', 'Bericht')
+    t('reports.view.reportFallbackTitle')
 
   const frame = (children: ReactNode) => (
     <ResponsiveContainer size="xl" className="pt-8 pb-16">
@@ -125,17 +125,17 @@ export default function ReportViewerPage({
         <Breadcrumb
           items={[
             {
-              label: t('navigation.dashboard', 'Dashboard'),
+              label: t('navigation.dashboard'),
               href: '/dashboard',
             },
-            { label: t('navigation.reports', 'Berichte'), href: '/reports' },
+            { label: t('navigation.reports'), href: '/reports' },
             { label: title, href: `/reports/${id}` },
           ]}
         />
       </div>
       {children}
       <footer className="mt-12 border-t border-zinc-200 pt-6 text-center text-sm text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-        {t('reports.view.madeWith', 'Erstellt mit')}{' '}
+        {t('reports.view.madeWith')}{' '}
         <Link
           href="/"
           className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
@@ -169,11 +169,7 @@ export default function ReportViewerPage({
         ) : (
           <StatusCard
             kind="error"
-            message={
-              error
-                ? error.message
-                : t('reports.view.notFound', 'Bericht nicht gefunden.')
-            }
+            message={error ? error.message : t('reports.view.notFound')}
             onRetry={load}
             t={t}
           />
@@ -197,31 +193,31 @@ export default function ReportViewerPage({
   if (stats) {
     tiles.push({
       id: 'tasks',
-      label: t('reports.view.tasks', 'Aufgaben'),
+      label: t('reports.view.tasks'),
       value: formatCount(stats.task_count, locale),
     })
     if (stats.annotation_count > 0) {
       tiles.push({
         id: 'annotations',
-        label: t('reports.view.submissionsTile', 'Abgaben'),
+        label: t('reports.view.submissionsTile'),
         value: formatCount(stats.annotation_count, locale),
       })
     }
     if (stats.participant_count > 0 && showParticipants) {
       tiles.push({
         id: 'participants',
-        label: t('reports.view.participants', 'Teilnehmende'),
+        label: t('reports.view.participants'),
         value: formatCount(stats.participant_count, locale),
       })
     }
     tiles.push({
       id: 'models',
-      label: t('reports.view.modelsEvaluated', 'Evaluierte Modelle'),
+      label: t('reports.view.modelsEvaluated'),
       value: formatCount(stats.model_count, locale),
     })
     tiles.push({
       id: 'evaluations',
-      label: t('reports.view.evaluations', 'Bewertungen'),
+      label: t('reports.view.evaluations'),
       value: formatCount(stats.evaluation_count, locale),
     })
   }
@@ -249,38 +245,27 @@ export default function ReportViewerPage({
 
       <div className="space-y-6">
         {sections.data.visible !== false && (
-          <ReportSection title={t('reports.view.data', 'Daten')} id="data">
+          <ReportSection title={t('reports.view.data')} id="data">
             <Prose>
               {sections.data.custom_text ||
-                t(
-                  'reports.view.defaultDataText',
-                  'Der Datensatz umfasst {count} Aufgaben.',
-                  {
-                    count: formatCount(stats?.task_count ?? 0, locale),
-                  },
-                )}
+                t('reports.view.defaultDataText', {
+                  count: formatCount(stats?.task_count ?? 0, locale),
+                })}
             </Prose>
           </ReportSection>
         )}
 
         {showAnnotations && (
-          <ReportSection
-            title={t('reports.view.annotations', 'Abgaben')}
-            id="annotations"
-          >
+          <ReportSection title={t('reports.view.annotations')} id="annotations">
             <Prose>
               {sections.annotations.custom_text ||
-                t(
-                  'reports.view.defaultAnnotationsText',
-                  '{annotations} Abgaben von {participants} Teilnehmenden wurden erfasst.',
-                  {
-                    annotations: formatCount(annotationCount, locale),
-                    participants: formatCount(
-                      stats?.participant_count ?? 0,
-                      locale,
-                    ),
-                  },
-                )}
+                t('reports.view.defaultAnnotationsText', {
+                  annotations: formatCount(annotationCount, locale),
+                  participants: formatCount(
+                    stats?.participant_count ?? 0,
+                    locale,
+                  ),
+                })}
             </Prose>
             {sections.annotations.acknowledgment_text && (
               <p className="mt-4 rounded-md bg-zinc-50 p-3 text-sm text-zinc-600 italic dark:bg-zinc-800/60 dark:text-zinc-300">
@@ -291,22 +276,15 @@ export default function ReportViewerPage({
         )}
 
         {sections.generation.visible !== false && (
-          <ReportSection
-            title={t('reports.view.generation', 'Modelle')}
-            id="generation"
-          >
+          <ReportSection title={t('reports.view.generation')} id="generation">
             <Prose>
               {sections.generation.custom_text ||
-                t(
-                  'reports.view.defaultGenerationText',
-                  'Die Antworten wurden von {count} Sprachmodellen erzeugt.',
-                  {
-                    count: formatCount(
-                      stats?.model_count ?? models.length,
-                      locale,
-                    ),
-                  },
-                )}
+                t('reports.view.defaultGenerationText', {
+                  count: formatCount(
+                    stats?.model_count ?? models.length,
+                    locale,
+                  ),
+                })}
             </Prose>
             {sections.generation.show_models !== false && models.length > 0 && (
               <div className="mt-4">

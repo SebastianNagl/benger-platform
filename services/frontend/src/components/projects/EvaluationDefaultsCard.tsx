@@ -62,43 +62,25 @@ export function EvaluationDefaultsCard({
             as the generation-side picker. */}
         <div className="mb-4 rounded-md border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/40">
           <div className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            {t('project.evaluationDefaults.modeLabel', 'Standard-Strategie')}
+            {t('project.evaluationDefaults.modeLabel')}
           </div>
           <div className="space-y-2">
             {(
               [
                 [
                   'recommended',
-                  t(
-                    'project.evaluationDefaults.modeRecommended',
-                    'Empfohlene Werte (pro Judge-Modell)',
-                  ),
-                  t(
-                    'project.evaluationDefaults.modeRecommendedDesc',
-                    'Verwende die vom Anbieter empfohlenen Eval-Werte für jedes neu hinzugefügte Judge-Modell.',
-                  ),
+                  t('project.evaluationDefaults.modeRecommended'),
+                  t('project.evaluationDefaults.modeRecommendedDesc'),
                 ],
                 [
                   'minimum',
-                  t(
-                    'project.evaluationDefaults.modeMinimum',
-                    'Minimal-Werte (pro Judge-Modell)',
-                  ),
-                  t(
-                    'project.evaluationDefaults.modeMinimumDesc',
-                    'Verwende die niedrigste vom Anbieter zulässige Temperatur für jedes neu hinzugefügte Judge-Modell.',
-                  ),
+                  t('project.evaluationDefaults.modeMinimum'),
+                  t('project.evaluationDefaults.modeMinimumDesc'),
                 ],
                 [
                   'custom',
-                  t(
-                    'project.evaluationDefaults.modeCustom',
-                    'Benutzerdefiniert',
-                  ),
-                  t(
-                    'project.evaluationDefaults.modeCustomDesc',
-                    'Verwende die unten eingegebenen Werte einheitlich für alle neu hinzugefügten Judge-Konfigurationen (Min/Max-Constraints werden weiterhin durchgesetzt).',
-                  ),
+                  t('project.evaluationDefaults.modeCustom'),
+                  t('project.evaluationDefaults.modeCustomDesc'),
                 ],
               ] as const
             ).map(([modeKey, label, desc]) => (
@@ -152,17 +134,14 @@ export function EvaluationDefaultsCard({
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {evalDefaultsMode === 'custom'
                 ? t('project.evaluationDefaults.temperatureHelp')
-                : t(
-                    'project.evaluationDefaults.temperatureHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Temperatur pro Judge-Modell.',
-                  )}
+                : t('project.evaluationDefaults.temperatureHelpModeOverride')}
             </p>
             {selectedModelIds.length > 0 && (
               <div className="mt-1 text-xs">
                 {evalRecConsensus.temperature.uniform &&
                 evalRecConsensus.temperature.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {t('generation.controlModal.recommended')}:{' '}
                     {evalRecConsensus.temperature.value}
                     {(evalDefaultTemperature ?? 0) !==
                       evalRecConsensus.temperature.value && (
@@ -175,10 +154,7 @@ export function EvaluationDefaultsCard({
                         }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t(
-                          'generation.controlModal.resetToRecommended',
-                          'Zurücksetzen auf Empfohlen',
-                        )}
+                        {t('generation.controlModal.resetToRecommended')}
                       </button>
                     )}
                   </span>
@@ -189,17 +165,11 @@ export function EvaluationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t(
-                      'generation.controlModal.divergentRecommendations',
-                      'Verschiedene Empfehlungen pro Modell',
-                    )}
+                    {t('generation.controlModal.divergentRecommendations')}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t(
-                      'generation.controlModal.noRecommendation',
-                      'Keine Empfehlung',
-                    )}
+                    {t('generation.controlModal.noRecommendation')}
                   </span>
                 )}
               </div>
@@ -227,17 +197,14 @@ export function EvaluationDefaultsCard({
             <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
               {evalDefaultsMode === 'custom'
                 ? t('project.evaluationDefaults.maxTokensHelp')
-                : t(
-                    'project.evaluationDefaults.maxTokensHelpModeOverride',
-                    'Wird ignoriert: aktive Strategie befüllt Max Tokens pro Judge-Modell.',
-                  )}
+                : t('project.evaluationDefaults.maxTokensHelpModeOverride')}
             </p>
             {selectedModelIds.length > 0 && (
               <div className="mt-1 text-xs">
                 {evalRecConsensus.max_tokens.uniform &&
                 evalRecConsensus.max_tokens.value !== undefined ? (
                   <span className="text-zinc-600 dark:text-zinc-400">
-                    {t('generation.controlModal.recommended', 'Empfehlung')}:{' '}
+                    {t('generation.controlModal.recommended')}:{' '}
                     {evalRecConsensus.max_tokens.value}
                     {(evalDefaultMaxTokens ?? 500) !==
                       evalRecConsensus.max_tokens.value && (
@@ -250,10 +217,7 @@ export function EvaluationDefaultsCard({
                         }
                         className="ml-2 text-blue-600 hover:underline"
                       >
-                        {t(
-                          'generation.controlModal.resetToRecommended',
-                          'Zurücksetzen auf Empfohlen',
-                        )}
+                        {t('generation.controlModal.resetToRecommended')}
                       </button>
                     )}
                   </span>
@@ -264,17 +228,11 @@ export function EvaluationDefaultsCard({
                       .map((m) => `${m.model}: ${m.value ?? '—'}`)
                       .join('\n')}
                   >
-                    {t(
-                      'generation.controlModal.divergentRecommendations',
-                      'Verschiedene Empfehlungen pro Modell',
-                    )}
+                    {t('generation.controlModal.divergentRecommendations')}
                   </span>
                 ) : (
                   <span className="text-zinc-400 dark:text-zinc-500">
-                    {t(
-                      'generation.controlModal.noRecommendation',
-                      'Keine Empfehlung',
-                    )}
+                    {t('generation.controlModal.noRecommendation')}
                   </span>
                 )}
               </div>

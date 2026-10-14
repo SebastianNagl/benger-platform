@@ -37,7 +37,12 @@ class GenerationStructureParser:
     # Pattern for {{placeholder}} template variables
     TEMPLATE_PATTERN = re.compile(r'\{\{([a-zA-Z_][a-zA-Z0-9_]*)\}\}')
 
-    # Fields that should never be sent to LLMs
+    # Fields that should never be sent to LLMs: reference answers and
+    # annotations, plus the German exam corpora's reference material (the
+    # Musterlösung in every spelling, the Lösung, the rubric and the grader's
+    # Korrekturhinweise). The Bearbeitervermerk is deliberately NOT listed:
+    # it is the examinee's instruction (the Angabe tag renders it to the
+    # candidate), so the benchmarked model must see it like a student does.
     SENSITIVE_FIELDS = {
         'annotations',
         'annotation',
@@ -53,6 +58,13 @@ class GenerationStructureParser:
         'reasoning',
         'answer',
         'solution',
+        'musterloesung',
+        'musterlösung',
+        'loesung',
+        'lösung',
+        'rubric',
+        'korrekturhinweise',
+        'korrektur',
     }
 
     def __init__(self):
@@ -289,8 +301,7 @@ class GenerationStructureParser:
 
         def _replace(match: 're.Match[str]') -> str:
             field_path = match.group(1)
-            parts = re.split(r'[.\[]', field_path)
-            if any(part.rstrip(']').lower() in self.SENSITIVE_FIELDS for part in parts):
+            if self.is_sensitive_path(field_path):
                 logger.warning(f"Skipping sensitive inline field reference: ${field_path}")
                 return ""
             value = self.extract_nested_value(task_data, field_path)
@@ -301,6 +312,61 @@ class GenerationStructureParser:
             return str(value)
 
         return self.VARIABLE_PATTERN.sub(_replace, text)
+
+    def is_sensitive_path(self, field_path: str) -> bool:
+        """Whether any segment of a ``$``-reference path (``a.b[0]``) names a
+        sensitive field."""
+        parts = re.split(r'[.\[]', field_path)
+        return any(part.rstrip(']').lower() in self.SENSITIVE_FIELDS for part in parts)
+
+    def referenced_paths(self, structure: Dict[str, Any]) -> List[str]:
+        """Every task-data path the prompts of ``structure`` reference, in
+        order of appearance and without duplicates: whole-string ``$field``
+        prompts, the ``fields`` mappings of template prompts, inline
+        ``$field`` references in literal prompts, and ``context_fields``.
+        """
+        paths: List[str] = []
+        for key in ('system_prompt', 'instruction_prompt'):
+            config = structure.get(key)
+            if isinstance(config, str):
+                if config.startswith('$'):
+                    paths.append(config[1:])
+                else:
+                    paths.extend(m.group(1) for m in self.VARIABLE_PATTERN.finditer(config))
+            elif isinstance(config, dict):
+                fields = config.get('fields')
+                if isinstance(fields, dict):
+                    for field_ref in fields.values():
+                        if isinstance(field_ref, str) and field_ref.startswith('$'):
+                            paths.append(field_ref[1:])
+        context_fields = structure.get('context_fields')
+        if isinstance(context_fields, list):
+            for field_ref in context_fields:
+                if isinstance(field_ref, str) and field_ref.startswith('$'):
+                    paths.append(field_ref[1:])
+        return list(dict.fromkeys(paths))
+
+    def prompt_input_fields(
+        self, task_data: Dict[str, Any], structure: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """The task fields the prompts of ``structure`` draw on, as
+        ``{path: value}`` (see :meth:`referenced_paths`), for the generation
+        record's ``case_data``.
+
+        Sensitive paths are never recorded, even when a template maps them:
+        the record must not carry the reference solution. Paths that resolve
+        to nothing are left out.
+        """
+        if not isinstance(structure, dict) or not isinstance(task_data, dict):
+            return {}
+        inputs: Dict[str, Any] = {}
+        for path in self.referenced_paths(structure):
+            if self.is_sensitive_path(path):
+                continue
+            value = self.extract_nested_value(task_data, path)
+            if value is not None:
+                inputs[path] = value
+        return inputs
 
     def filter_task_data(
         self,

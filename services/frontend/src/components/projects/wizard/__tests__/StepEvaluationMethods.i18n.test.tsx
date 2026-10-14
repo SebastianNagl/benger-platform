@@ -23,13 +23,13 @@ const mockDe = JSON.parse(
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    // Real German lookup with the inline fallback, like the provider.
-    t: (key: string, def?: any) => {
+    // Real German catalog lookup; unknown keys come back as the key.
+    t: (key: string, _vars?: Record<string, unknown>) => {
       const value = key
         .split('.')
         .reduce((node: any, part) => (node == null ? node : node[part]), mockDe)
       if (typeof value === 'string') return value
-      return typeof def === 'string' ? def : key
+      return key
     },
     locale: 'de',
   }),

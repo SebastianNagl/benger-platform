@@ -9,6 +9,7 @@ import {
   buildImportFile,
   detectFormat,
   extractColumns,
+  ImportParseError,
   parseImportData,
 } from '../parseImportData'
 
@@ -146,9 +147,12 @@ describe('parseImportData — JSON', () => {
   })
 
   it('throws an Invalid JSON error for malformed JSON', () => {
-    expect(() => parseImportData('{invalid', 'json')).toThrow(
-      /Invalid JSON format/,
-    )
+    expect(() => parseImportData('{invalid', 'json')).toThrow(ImportParseError)
+    try {
+      parseImportData('{invalid', 'json')
+    } catch (error) {
+      expect((error as ImportParseError).kind).toBe('invalidJson')
+    }
   })
 })
 

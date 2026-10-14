@@ -207,8 +207,8 @@ const mockRouter = {
 const mockAddToast = jest.fn()
 
 // t() returns a string fallback (2nd arg) when present, else the key.
-const mockT = (key: string, fallback?: unknown) =>
-  typeof fallback === 'string' ? fallback : key
+// Echoes the key back.
+const mockT = (key: string, _vars?: Record<string, unknown>) => key
 
 // Composite-keyed metrics map: `config|pred|ref|metric`.
 const baseEvaluation = {
@@ -266,7 +266,7 @@ describe('EvaluationDashboard ([id] page)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
-    ;(useI18n as jest.Mock).mockReturnValue({ t: mockT })
+    ;(useI18n as jest.Mock).mockReturnValue({ t: mockT, locale: 'de' })
     ;(useToast as jest.Mock).mockReturnValue({ addToast: mockAddToast })
 
     ;(apiClient.evaluations.getResults as jest.Mock).mockResolvedValue(
@@ -345,8 +345,8 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(screen.getAllByText('F1 Score').length).toBeGreaterThan(0)
       expect(screen.queryByText('exact_match')).not.toBeInTheDocument()
       // numeric metric value formatted via toFixed(3)
-      expect(screen.getByText('0.850')).toBeInTheDocument()
-      expect(screen.getByText('0.712')).toBeInTheDocument()
+      expect(screen.getByText('0,850')).toBeInTheDocument()
+      expect(screen.getByText('0,712')).toBeInTheDocument()
     })
 
     it('renders "—" for non-numeric metric values (judge-error placeholders)', async () => {
@@ -375,7 +375,7 @@ describe('EvaluationDashboard ([id] page)', () => {
           screen.getAllByText(metricDisplayLabel('bleu')).length,
         ).toBeGreaterThan(0)
       })
-      expect(screen.getByText('0.500')).toBeInTheDocument()
+      expect(screen.getByText('0,500')).toBeInTheDocument()
     })
 
     it('renders the scope "Scoped to" banner when scope is present', async () => {
@@ -389,7 +389,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Eingeschränkt auf:')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.scopedTo'),
+        ).toBeInTheDocument()
       })
       // annotator display rendered in the scope summary
       expect(screen.getByText(/Alice/)).toBeInTheDocument()
@@ -636,9 +638,11 @@ describe('EvaluationDashboard ([id] page)', () => {
       ;(apiClient.post as jest.Mock).mockResolvedValue({})
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.judges'),
+        ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('Judges & Läufe'))
+      await user.click(screen.getByText('evaluations.detail.judges'))
 
       const breakdown = await screen.findByTestId('per-run-breakdown')
       expect(breakdown).toHaveAttribute('data-row-count', '2')
@@ -651,7 +655,7 @@ describe('EvaluationDashboard ([id] page)', () => {
       expect(breakdown).toHaveAttribute('data-metric', 'exact_match')
       // any-judge-failed banner
       expect(
-        screen.getByText(/Mindestens ein Judge-Lauf ist fehlgeschlagen/),
+        screen.getByText('evaluations.detail.someJudgesFailed'),
       ).toBeInTheDocument()
     })
 
@@ -691,7 +695,7 @@ describe('EvaluationDashboard ([id] page)', () => {
         },
       })
       renderPage()
-      await user.click(await screen.findByText('Judges & Läufe'))
+      await user.click(await screen.findByText('evaluations.detail.judges'))
 
       const breakdown = await screen.findByTestId('per-run-breakdown')
       const rows = within(breakdown).getAllByTestId('per-run-row')
@@ -722,9 +726,11 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.judges'),
+        ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('Judges & Läufe'))
+      await user.click(screen.getByText('evaluations.detail.judges'))
 
       const heatmap = await screen.findByTestId('judge-agreement-heatmap')
       // distinct judges derived from pearson pairwise keys split on '__'
@@ -750,9 +756,11 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.judges'),
+        ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('Judges & Läufe'))
+      await user.click(screen.getByText('evaluations.detail.judges'))
 
       const heatmap = await screen.findByTestId('judge-agreement-heatmap')
       expect(heatmap).toHaveAttribute('data-score-type', 'kappa')
@@ -775,9 +783,11 @@ describe('EvaluationDashboard ([id] page)', () => {
       })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.judges'),
+        ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('Judges & Läufe'))
+      await user.click(screen.getByText('evaluations.detail.judges'))
       await screen.findByTestId('per-run-breakdown')
       expect(
         screen.queryByTestId('judge-agreement-heatmap'),
@@ -794,9 +804,11 @@ describe('EvaluationDashboard ([id] page)', () => {
       )
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Judges & Läufe')).toBeInTheDocument()
+        expect(
+          screen.getByText('evaluations.detail.judges'),
+        ).toBeInTheDocument()
       })
-      await user.click(screen.getByText('Judges & Läufe'))
+      await user.click(screen.getByText('evaluations.detail.judges'))
       // PerRunBreakdown still renders; heatmap absent (error sentinel has no agreement block).
       expect(await screen.findByTestId('per-run-breakdown')).toBeInTheDocument()
       expect(
@@ -811,7 +823,9 @@ describe('EvaluationDashboard ([id] page)', () => {
           screen.getByText('evaluation.human.results.summary'),
         ).toBeInTheDocument()
       })
-      expect(screen.queryByText('Judges & Läufe')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('evaluations.detail.judges'),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -1008,9 +1022,9 @@ describe('EvaluationDashboard ([id] page)', () => {
       const tiles = await screen.findAllByTestId('evaluation-aggregate-metric')
       expect(tiles).toHaveLength(2)
       expect(tiles[0]).toHaveTextContent('Bewertungsbogen (LLM Judge)')
-      expect(tiles[0]).toHaveTextContent('0.700')
+      expect(tiles[0]).toHaveTextContent('0,700')
       expect(tiles[1]).toHaveTextContent('Notenpunkte (Bewertungsbogen)')
-      expect(tiles[1]).toHaveTextContent('11.0')
+      expect(tiles[1]).toHaveTextContent('11,0')
       expect(screen.queryByText(/raw_score|Raw Score/)).not.toBeInTheDocument()
       expect(screen.queryByText(/_passed|Passed$/)).not.toBeInTheDocument()
       // One config: no config name repeated on every tile.

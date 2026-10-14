@@ -528,24 +528,19 @@ export function GenerationTaskList({
         </Select>
       </FilterToolbar.Field>
       {(data?.structures?.length ?? 0) > 1 && (
-        <FilterToolbar.Field
-          label={t('generation.taskList.allStructures', 'Prompt-Strukturen')}
-        >
+        <FilterToolbar.Field label={t('generation.taskList.structures')}>
           <Select
             value={structureFilter || ''}
             onValueChange={(v) => setStructureFilter(v || null)}
           >
             <SelectTrigger>
               <SelectValue
-                placeholder={t(
-                  'generation.taskList.allStructures',
-                  'Alle Strukturen',
-                )}
+                placeholder={t('generation.taskList.allStructures')}
               />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">
-                {t('generation.taskList.allStructures', 'Alle Strukturen')}
+                {t('generation.taskList.allStructures')}
               </SelectItem>
               {(data?.structures ?? []).map((key) => {
                 const ps = (project?.generation_config as any)

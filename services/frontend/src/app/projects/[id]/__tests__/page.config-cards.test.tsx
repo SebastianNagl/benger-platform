@@ -363,11 +363,8 @@ beforeEach(() => {
     currentOrganization: null,
   })
   ;(useI18n as jest.Mock).mockReturnValue({
-    // A string 2nd arg is a defaultValue fallback (the page passes both
-    // forms): collapse those to the bare key so SubSection/CTA titles like
-    // t('…runsTitle', 'Multi-Run') resolve to their key. An object 2nd arg
-    // is an interpolation map ({count}, {error}, {selected,total}) we DO
-    // want to surface for assertions.
+    // Bare key, or key plus the interpolation map ({count}, {error},
+    // {selected,total}) so assertions can see the vars.
     t: (key: string, vars?: any) =>
       vars && typeof vars === 'object' ? `${key}:${JSON.stringify(vars)}` : key,
   })
@@ -1401,7 +1398,7 @@ describe('Annotation card — auto-save & instructions', () => {
     // Open the conditional-instructions editor and add a single 50% variant.
     // These controls pass a { defaultValue } 2nd arg to t(), so match by the
     // key prefix (the i18n mock appends the serialized vars).
-    fireEvent.click(screen.getByText(/^project\.conditionalInstructions\.add:/))
+    fireEvent.click(screen.getByText('project.conditionalInstructions.add'))
     fireEvent.click(
       screen.getByText(/^project\.conditionalInstructions\.addVariant/),
     )

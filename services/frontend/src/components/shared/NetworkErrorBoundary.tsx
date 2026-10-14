@@ -110,6 +110,7 @@ export class NetworkErrorBoundary extends Component<Props, State> {
   static getDerivedStateFromError(error: Error): Partial<State> {
     // Check if it's a network-related error
     const isNetworkError =
+      error.name === 'NetworkError' ||
       error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
       error.message.includes('Network') ||
       error.message.includes('fetch') ||

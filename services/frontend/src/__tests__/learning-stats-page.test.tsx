@@ -14,7 +14,7 @@ import React from 'react'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: 'de',
-    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
+    t: (key: string) => key,
     setLocale: jest.fn(),
   }),
 }))
@@ -24,7 +24,7 @@ describe('Learning stats page', () => {
 
   it('shows the community notice without the slot', () => {
     render(<LearningStatsPage />)
-    expect(screen.getByText('Meine Lernstatistik')).toBeInTheDocument()
+    expect(screen.getByText('dashboard.personal.title')).toBeInTheDocument()
     expect(screen.getByTestId('learning-stats-unavailable')).toBeInTheDocument()
   })
 

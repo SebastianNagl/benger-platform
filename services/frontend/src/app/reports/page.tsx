@@ -21,6 +21,7 @@ import {
   listPublishedReports,
   type PublishedReportListItem,
 } from '@/lib/api/reports'
+import { intlTag } from '@/lib/i18n/locales'
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -30,7 +31,7 @@ function isPublicReport(report: PublishedReportListItem): boolean {
 
 export default function ReportsPage() {
   const { user, isLoading: authLoading } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [reports, setReports] = useState<PublishedReportListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ detail: string | null } | null>(null)
@@ -87,22 +88,16 @@ export default function ReportsPage() {
         {t('reports.title')}
       </h1>
       <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-        {t(
-          'reports.intro',
-          'Veröffentlichte Evaluationsberichte: wie gut Sprachmodelle und Teilnehmende bei den Aufgaben eines Projekts abgeschnitten haben.',
-        )}
+        {t('reports.intro')}
       </p>
       {!authLoading && !user && (
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-500">
-          {t(
-            'reports.anonymousHint',
-            'Sie sehen öffentliche Berichte. Nach der Anmeldung erscheinen zusätzlich die Berichte Ihrer Organisationen.',
-          )}{' '}
+          {t('reports.anonymousHint')}{' '}
           <Link
             href="/login?next=%2Freports"
             className="font-medium text-emerald-700 hover:underline dark:text-emerald-400"
           >
-            {t('reports.signIn', 'Anmelden')}
+            {t('reports.signIn')}
           </Link>
         </p>
       )}
@@ -114,7 +109,7 @@ export default function ReportsPage() {
         >
           <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
           <p className="m-0 text-zinc-600 dark:text-zinc-400">
-            {t('reports.loadingReports', 'Berichte werden geladen...')}
+            {t('reports.loadingReports')}
           </p>
         </Card>
       ) : error ? (
@@ -124,13 +119,10 @@ export default function ReportsPage() {
           role="alert"
         >
           <h2 className="m-0 text-lg font-semibold text-zinc-900 dark:text-white">
-            {t('reports.loadFailed', 'Berichte konnten nicht geladen werden')}
+            {t('reports.loadFailed')}
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
-            {t(
-              'reports.loadFailedHint',
-              'Bitte versuchen Sie es erneut. Bleibt das Problem bestehen, wenden Sie sich an das BenGER-Team.',
-            )}
+            {t('reports.loadFailedHint')}
           </p>
           {error.detail && (
             <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
@@ -142,7 +134,7 @@ export default function ReportsPage() {
             onClick={loadReports}
             className="mt-6 inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
           >
-            {t('reports.reload', 'Erneut laden')}
+            {t('reports.reload')}
           </button>
         </Card>
       ) : reports.length === 0 ? (
@@ -151,15 +143,12 @@ export default function ReportsPage() {
           data-testid="reports-empty"
         >
           <h2 className="m-0 text-xl font-semibold text-zinc-900 dark:text-white">
-            {t('reports.noReports', 'Keine veröffentlichten Berichte')}
+            {t('reports.noReports')}
           </h2>
           <p className="mx-auto mt-2 max-w-xl text-zinc-600 dark:text-zinc-400">
             {user
               ? t('reports.noReportsDescription')
-              : t(
-                  'reports.noPublicReportsDescription',
-                  'Derzeit ist kein Bericht öffentlich freigegeben.',
-                )}
+              : t('reports.noPublicReportsDescription')}
           </p>
         </Card>
       ) : (
@@ -186,8 +175,8 @@ export default function ReportsPage() {
                     }`}
                   >
                     {isPublic
-                      ? t('reports.visibility.public', 'Öffentlich')
-                      : t('reports.visibility.organizations', 'Organisation')}
+                      ? t('reports.visibility.public')
+                      : t('reports.visibility.organizations')}
                   </span>
                 </div>
 
@@ -218,7 +207,9 @@ export default function ReportsPage() {
                   </div>
                   <div className="text-xs text-zinc-500 dark:text-zinc-500">
                     {t('reports.published')}{' '}
-                    {new Date(report.published_at).toLocaleDateString()}
+                    {new Date(report.published_at).toLocaleDateString(
+                      intlTag(locale),
+                    )}
                   </div>
                 </div>
               </Link>

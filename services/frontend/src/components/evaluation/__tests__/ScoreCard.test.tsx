@@ -35,17 +35,17 @@ describe('ScoreCard', () => {
 
     it('renders value in decimal format by default (3 decimal places)', () => {
       render(<ScoreCard {...defaultProps} />)
-      expect(screen.getByText('0.850')).toBeInTheDocument()
+      expect(screen.getByText('0,850')).toBeInTheDocument()
     })
 
     it('renders value as percentage when formatAs=percentage', () => {
       render(<ScoreCard {...defaultProps} formatAs="percentage" />)
-      expect(screen.getByText('85.0%')).toBeInTheDocument()
+      expect(screen.getByText('85,0%')).toBeInTheDocument()
     })
 
     it('renders value as raw when formatAs=raw', () => {
       render(<ScoreCard {...defaultProps} formatAs="raw" />)
-      expect(screen.getByText('0.85')).toBeInTheDocument()
+      expect(screen.getByText('0,85')).toBeInTheDocument()
     })
   })
 
@@ -211,22 +211,33 @@ describe('ScoreCard', () => {
 
 describe('formatAcademicScore', () => {
   it('formats decimal with 3 decimal places by default', () => {
-    expect(formatAcademicScore(0.856)).toBe('0.856')
+    expect(formatAcademicScore(0.856, { locale: 'en' })).toBe('0.856')
   })
 
   it('formats as percentage when requested', () => {
-    expect(formatAcademicScore(0.856, { asPercentage: true })).toBe('85.6%')
+    expect(
+      formatAcademicScore(0.856, { asPercentage: true, locale: 'en' }),
+    ).toBe('85.6%')
   })
 
   it('uses custom decimal places', () => {
-    expect(formatAcademicScore(0.85678, { decimals: 4 })).toBe('0.8568')
+    expect(formatAcademicScore(0.85678, { decimals: 4, locale: 'en' })).toBe(
+      '0.8568',
+    )
   })
 
   it('handles zero correctly', () => {
-    expect(formatAcademicScore(0)).toBe('0.000')
+    expect(formatAcademicScore(0, { locale: 'en' })).toBe('0.000')
   })
 
   it('handles one correctly', () => {
-    expect(formatAcademicScore(1)).toBe('1.000')
+    expect(formatAcademicScore(1, { locale: 'en' })).toBe('1.000')
+  })
+
+  it('uses the decimal comma for German and French', () => {
+    expect(formatAcademicScore(0.856, { locale: 'de' })).toBe('0,856')
+    expect(
+      formatAcademicScore(0.856, { asPercentage: true, locale: 'fr' }),
+    ).toBe('85,6%')
   })
 })

@@ -32,7 +32,7 @@ interface TestResult {
 interface Provider {
   id: string
   name: string
-  description: string
+  /** Key-format hint; empty means the generic "your <provider> key" text. */
   placeholder: string
   validation: RegExp
 }
@@ -41,50 +41,43 @@ const providers: Provider[] = [
   {
     id: 'openai',
     name: 'OpenAI',
-    description: 'GPT-4, GPT-3.5 Turbo models',
     placeholder: 'sk-...',
     validation: /^sk-[a-zA-Z0-9_-]{20,}$/,
   },
   {
     id: 'anthropic',
     name: 'Anthropic',
-    description: 'Claude models',
     placeholder: 'sk-ant-...',
     validation: /^sk-ant-[a-zA-Z0-9-_]{30,}$/,
   },
   {
     id: 'google',
     name: 'Google',
-    description: 'Gemini models',
     placeholder: 'AI...',
     validation: /^[a-zA-Z0-9_-]{20,}$/,
   },
   {
     id: 'deepinfra',
     name: 'DeepInfra',
-    description: 'Llama, Qwen, DeepSeek models',
-    placeholder: 'Your DeepInfra API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
   {
     id: 'grok',
     name: 'Grok (xAI)',
-    description: 'Grok models',
     placeholder: 'xai-...',
     validation: /^xai-[a-zA-Z0-9_-]{10,}$/,
   },
   {
     id: 'mistral',
     name: 'Mistral AI',
-    description: 'Mistral models',
-    placeholder: 'Your Mistral API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
   {
     id: 'cohere',
     name: 'Cohere',
-    description: 'Command models',
-    placeholder: 'Your Cohere API key',
+    placeholder: '',
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
 ]
@@ -108,9 +101,7 @@ export function OrgApiKeys({
       mistral: t('organization.apiKeys.providers.mistral.description'),
       cohere: t('organization.apiKeys.providers.cohere.description'),
     }
-    return (
-      descriptions[id] || providers.find((p) => p.id === id)?.description || ''
-    )
+    return descriptions[id] || ''
   }
   // Effective "members pay" for the selected scope, plus (group scope) the
   // group's own setting (null = follows the org) and the org's.
@@ -579,7 +570,7 @@ export function OrgApiKeys({
             <button
               onClick={() => onOpenChange(false)}
               className="rounded-md p-2 text-zinc-400 transition-colors hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-400"
-              aria-label="Close modal"
+              aria-label={t('common.close')}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -852,7 +843,12 @@ export function OrgApiKeys({
                               <div className="relative">
                                 <input
                                   type={showKey ? 'text' : 'password'}
-                                  placeholder={provider.placeholder}
+                                  placeholder={
+                                    provider.placeholder ||
+                                    t('shared.userApiKeys.keyPlaceholder', {
+                                      provider: provider.name,
+                                    })
+                                  }
                                   value={newKey}
                                   onChange={(e) =>
                                     setNewApiKeys((prev) => ({

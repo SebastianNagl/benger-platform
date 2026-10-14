@@ -12,33 +12,9 @@ import { ImportPreviewWithMapping } from '../ImportPreviewWithMapping'
 // Mock the utility modules
 jest.mock('@/lib/utils/universalImport')
 jest.mock('@/lib/utils/fieldMapping')
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, varsOrDefault?: any) => {
-      const translations: Record<
-        string,
-        any
-      > = require('../../../locales/en/common.json')
-      const parts = key.split('.')
-      let value: any = translations
-      for (const part of parts) {
-        if (value && typeof value === 'object' && part in value) {
-          value = value[part]
-        } else {
-          return key
-        }
-      }
-      if (typeof value !== 'string') return key
-      if (varsOrDefault && typeof varsOrDefault === 'object') {
-        for (const [k, v] of Object.entries(varsOrDefault)) {
-          value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
-        }
-      }
-      return value
-    },
-    locale: 'en',
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 describe('ImportPreviewWithMapping', () => {
   const mockOnImport = jest.fn()

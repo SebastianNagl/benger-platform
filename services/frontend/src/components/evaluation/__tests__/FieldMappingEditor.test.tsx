@@ -6,28 +6,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FieldMappingEditor } from '../FieldMappingEditor'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, fallback?: string) => {
-      const translations: Record<string, string> = {
-        'fieldMapping.title': 'Custom Field Mappings',
-        'fieldMapping.addMapping': 'Add Mapping',
-        'fieldMapping.helpText':
-          'Map custom template variables to task data fields.',
-        'fieldMapping.noMappings':
-          'No field mappings defined. Click "Add Mapping" to create one.',
-        'fieldMapping.variableName': 'Variable Name',
-        'fieldMapping.taskField': 'Task Data Field',
-        'fieldMapping.variablePlaceholder': 'domain',
-        'fieldMapping.selectField': 'Select a field...',
-        'fieldMapping.reservedVariable': 'Reserved variable name',
-        'fieldMapping.availableFields': 'Available fields in your tasks:',
-        'common.delete': 'Delete',
-      }
-      return translations[key] || fallback || key
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 const mockGetTaskFields = jest.fn()
 
@@ -90,7 +71,9 @@ describe('FieldMappingEditor', () => {
     it('shows help text', () => {
       render(<FieldMappingEditor {...defaultProps} />)
       expect(
-        screen.getByText('Map custom template variables to task data fields.'),
+        screen.getByText(
+          'Map custom template variables to task data fields. Use {{variable_name}} in your prompt.',
+        ),
       ).toBeInTheDocument()
     })
 

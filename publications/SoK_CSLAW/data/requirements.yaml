@@ -1,0 +1,41 @@
+# What the law asks of grading open-text exam answers (Section 4.1): the
+# requirement, the source, the implementation we propose in Section 8, and
+# what remains to be shown. The implementation column is our design, not a
+# legal consequence. L1 to L4 are German examination law (the worked
+# example); L5 to L7 are EU law and apply in every member state.
+requirements:
+  - id: L1
+    req: "Equal standards: each examiner's standards for a task apply to every script of that task alike"
+    src: "\\cite[p.~52]{bverfge84_34}; \\cite[para.~8]{bverwg2018_6B71_17}"
+    impl: "one versioned rubric per examiner and task; corrections applied to every script; pinned judge version"
+    gap: "untested across scripts and versions"
+  - id: L2
+    req: "Answer latitude: a defensible, consistently argued solution must not be marked wrong; an error is not counted twice"
+    src: "\\cite[p.~79]{bverfge84_59}; \\cite[p.~55]{bverfge84_34}; \\cite{vgbraunschweig2018}; \\cite{vglueneburg2024}"
+    impl: "credit for arguments; separate paths; later steps judged against the candidate's own decision; unforeseen paths flagged"
+    gap: "no grader probed with alternatives or follow-on errors"
+  - id: L3
+    req: "Reasons: the essential reasons for the grade, not the reason for every point"
+    src: "\\cite{bfh2014viib158}; \\cite[para.~23]{bverwg2019_6C19_18}; Art.~15(1)(h) GDPR \\cite{cjeu2025dunbradstreet}"
+    impl: "a verdict and a quoted passage per criterion, beyond the legal minimum"
+    gap: "a quote shows the passage, not that the criterion is met"
+  - id: L4
+    req: "Personal evaluation and reconsideration by the examiner"
+    src: "\\cite{bverwg2002_6C7_02}; \\cite{bverwg2019_6C19_18}"
+    impl: "the examiner reads every script and decides; the judge proposes and flags"
+    gap: "correction of confident wrong proposals untested"
+  - id: L5
+    req: "No decision based solely on automated processing with legal or similarly significant effect, unless necessary for a contract, authorized by law with safeguards, or based on explicit consent"
+    src: "Art.~22 GDPR \\cite{gdpr2016}; \\cite{cjeu2023schufa}"
+    impl: "substantive review, not adoption of a score as given"
+    gap: "what counts as substantive review is unsettled"
+  - id: L6
+    req: "AI that evaluates learning outcomes is high-risk; deployers owe competent oversight, logs and candidate information, public bodies also a fundamental-rights assessment (duties from 2 Dec 2027)"
+    src: "\\cite{aiact2024}, Annex III, point 3(b), Arts.~9 to 15, 26, 27, 86; \\cite{omnibus2026}"
+    impl: "documented validation, logging, examiner oversight with authority to override, probes against manipulation"
+    gap: "scope of Arts.~2(6) and 6(3) for prototypes"
+  - id: L7
+    req: "Exam scripts and examiner comments are personal data"
+    src: "\\cite{cjeu2017nowak}"
+    impl: "legal basis, processing contract or local models, pseudonymized inputs, access and deletion rules"
+    gap: "pseudonymization alone is insufficient"

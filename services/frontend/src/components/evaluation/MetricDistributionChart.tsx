@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   Bar,
   BarChart,
@@ -45,7 +46,7 @@ export function MetricDistributionChart({
   title,
   height = 400,
 }: MetricDistributionChartProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   // Convert histogram object to array for Recharts
   const histogramData = Object.entries(data.histogram).map(
     ([range, count]) => ({
@@ -71,7 +72,7 @@ export function MetricDistributionChart({
               {t('evaluation.metricDistribution.mean')}
             </div>
             <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
-              {data.mean.toFixed(3)}
+              {formatDecimal(data.mean, locale, 3)}
             </div>
           </div>
           <div>
@@ -79,7 +80,7 @@ export function MetricDistributionChart({
               {t('evaluation.metricDistribution.median')}
             </div>
             <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
-              {data.median.toFixed(3)}
+              {formatDecimal(data.median, locale, 3)}
             </div>
           </div>
           <div>
@@ -87,7 +88,7 @@ export function MetricDistributionChart({
               {t('evaluation.metricDistribution.stdDev')}
             </div>
             <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
-              {data.std.toFixed(3)}
+              {formatDecimal(data.std, locale, 3)}
             </div>
           </div>
           <div>
@@ -95,7 +96,7 @@ export function MetricDistributionChart({
               {t('evaluation.metricDistribution.min')}
             </div>
             <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
-              {data.min.toFixed(3)}
+              {formatDecimal(data.min, locale, 3)}
             </div>
           </div>
           <div>
@@ -103,7 +104,7 @@ export function MetricDistributionChart({
               {t('evaluation.metricDistribution.max')}
             </div>
             <div className="text-lg font-semibold text-zinc-900 tabular-nums dark:text-white">
-              {data.max.toFixed(3)}
+              {formatDecimal(data.max, locale, 3)}
             </div>
           </div>
         </div>
@@ -164,7 +165,7 @@ export function MetricDistributionChart({
               style={{
                 left: `${((data.quartiles.q1 - data.min) / (data.max - data.min)) * 100}%`,
               }}
-              title={`Q1: ${data.quartiles.q1.toFixed(3)}`}
+              title={`Q1: ${formatDecimal(data.quartiles.q1, locale, 3)}`}
             >
               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Q1
@@ -176,7 +177,7 @@ export function MetricDistributionChart({
               style={{
                 left: `${((data.quartiles.q2 - data.min) / (data.max - data.min)) * 100}%`,
               }}
-              title={`${t('evaluation.metricDistribution.median')}: ${data.quartiles.q2.toFixed(3)}`}
+              title={`${t('evaluation.metricDistribution.median')}: ${formatDecimal(data.quartiles.q2, locale, 3)}`}
             >
               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {t('evaluation.metricDistribution.median')}
@@ -188,7 +189,7 @@ export function MetricDistributionChart({
               style={{
                 left: `${((data.quartiles.q3 - data.min) / (data.max - data.min)) * 100}%`,
               }}
-              title={`Q3: ${data.quartiles.q3.toFixed(3)}`}
+              title={`Q3: ${formatDecimal(data.quartiles.q3, locale, 3)}`}
             >
               <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 Q3
@@ -197,10 +198,12 @@ export function MetricDistributionChart({
           </div>
           <div className="mt-2 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
             <span>
-              {t('evaluation.metricDistribution.min')}: {data.min.toFixed(3)}
+              {t('evaluation.metricDistribution.min')}:{' '}
+              {formatDecimal(data.min, locale, 3)}
             </span>
             <span>
-              {t('evaluation.metricDistribution.max')}: {data.max.toFixed(3)}
+              {t('evaluation.metricDistribution.max')}:{' '}
+              {formatDecimal(data.max, locale, 3)}
             </span>
           </div>
         </div>

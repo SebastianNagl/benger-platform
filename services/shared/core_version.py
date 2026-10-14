@@ -487,11 +487,87 @@ whenever one is added, renamed or removed):
   editors only) and ``ProjectLivePage`` (``/projects/[id]/live``). The draft
   and checkpoint endpoints run in the threadpool and the draft save is one
   upsert; ``on_draft_saved`` now runs after that upsert's commit.
+
+2.37 (2026-10-13): N-package extension registry. New shared module
+  ``extension_registry`` (``services/shared/extension_registry.py``) loads
+  every package named in ``BENGER_EXTENSIONS`` (ordered, default
+  ``benger_extended``) in order; ``BENGER_REQUIRE_EXTENSIONS`` names the
+  packages that must load (unset: the legacy ``BENGER_REQUIRE_EXTENDED``
+  requires all of them). Per package: namespace guard,
+  ``COMPATIBLE_CORE_VERSIONS`` handshake, then the ``REQUIRES_EXTENSIONS``
+  check (``{package: [EXTENSION_API_VERSION, ...]}``; the dependency must be
+  loaded earlier). New optional overlay attributes: ``EXTENSION_ID`` (short
+  id, default name without ``benger_``), ``EXTENSION_API_VERSION``,
+  ``REQUIRES_EXTENSIONS``, ``get_task_queues()`` (``{task: queue}``, fed into
+  ``celery_queues.register_task_queue`` with the package as owner; new
+  packages own ``<EXTENSION_ID>.*`` task names), ``get_api_scopes()`` and
+  ``get_v1_routers()`` (collected by ``extensions.get_api_scopes_all`` /
+  ``get_v1_routers_all``, no platform caller yet). ``extensions.HOOK_SPECS``
+  publishes every hook key with its merge policy (CALL_ALL,
+  CALL_ALL_ISOLATED, UNION, DICT_FIRST_WINS, SINGLE_OWNER); the keys
+  ``on_submission_finalized`` (CALL_ALL), ``assessment_transition`` and
+  ``external_run_policy`` (SINGLE_OWNER) are reserved without a caller
+  (``extensions.PENDING_HOOK_KEYS``). ``extensions.load_extended()`` loads
+  all packages (``_extended`` stays the alias of ``benger_extended``),
+  ``extensions.include_extension_routers(app)`` mounts their routers:
+  packages other than ``benger_extended`` must mount under
+  ``/api/ext/<EXTENSION_ID>``, a route two packages claim fails startup for
+  a required package (``BENGER_EXTENSION_ROUTE_POLICY=error``, the
+  default). ``extensions.is_loaded(name)`` replaces peeking at
+  ``_extended``. The workers loop over the loaded packages
+  (``register_evaluators`` / ``register_metric_handlers`` /
+  ``register_tasks`` under ``extension_registry.owner``), and the worker
+  getters (``get_grading_dispatch_policy_fn``, ``get_batch_evaluation_policy_fn``,
+  ``get_grading_finalize_fn``, ``get_notification_brand_host_fn``,
+  ``get_grading_block_fn``, ``get_name_visibility_fns``) are resolved through
+  ``extension_registry.worker_attrs`` / ``first_worker_attr``. The LLM
+  catalog loader merges every package's ``get_llm_models_yaml_path()``. The
+  classifier-rule, metric-handler and evaluator registries record the
+  registering package and log replacements. Helm: ``overlays.<name>``
+  (``enabled``, ``package``, ``required``, ``order``, ``api.env``,
+  ``workers.env``) renders the two env vars and the per-overlay env.
+  API keys (benger-compliance #3). Migration 118 adds ``api_keys``
+  (``models.ApiKey``: hashed ``bgr_<live|test>_<kid>_<secret>`` keys owned by
+  a user or an organisation, scopes, project allowlist, expiry, revocation,
+  per-key limits), ``api_key_usage_events`` (``models.ApiKeyUsageEvent``,
+  append-only usage log, retention via ``tasks.cleanup_api_key_usage_events``)
+  and ``users.is_service_account`` (one hidden service-account user per org
+  key; excluded from people lists, notifications and login). Keys are
+  accepted only on ``/api/v1/*`` and health (``auth_module.principal``,
+  ``services.api_key_service``); ``require_user`` / ``get_current_user`` /
+  ``optional_user`` resolve them first and set ``request.state.principal``;
+  ``require_superadmin`` refuses key principals. Scope vocabulary in
+  ``app.core.scopes`` (``register_scopes`` is fed from every package's
+  ``get_api_scopes()`` by ``extensions.load_extended``); ``routers/v1/_deps``
+  provides ``require_scope`` / ``v1_project_access`` and the startup audit
+  ``assert_v1_routes_scoped``. Management routes under
+  ``/api/organizations/{org_id}/access-keys``, ``/api/users/me/access-keys``,
+  ``/api/admin/access-keys`` and ``GET /api/access-keys/scopes``. New
+  settings: ``API_KEY_PEPPER``, ``API_KEY_ENVIRONMENT``,
+  ``API_KEY_DEFAULT_RPM`` / ``_RPD``, ``API_USAGE_RETENTION_DAYS``,
+  ``API_USAGE_IP_MODE``, ``SERVICE_ACCOUNT_EMAIL_HOST``.
+
+2.38 (2026-10-14): French UI and the shared translation catalog. Frontend
+  module ``@/lib/i18n/locales`` (``Locale`` = de | en | fr, ``LOCALES``,
+  ``intlTag``, ``dateFnsLocale``) and ``@/lib/i18n/catalog``
+  (``registerTranslations(source, {de, en, fr})`` merges an overlay's locale
+  trees into the catalog, ``TranslationBundle``, ``lookup``,
+  ``translateKey``). ``t(key, vars?)`` no longer takes an inline default:
+  every string lives in a locale catalog. How-to guides and changelog
+  entries carry ids only; their copy lives under ``howToGuides.<id>`` /
+  ``howToCategories.<id>`` and ``changelogEntries.<id>``.
+  Access keys and ``/api/v1`` are gated (unreleased): the SINGLE_OWNER
+  hook ``public_api_enabled(db: AsyncSession, user, *, organization_id)``
+  (sync or async) decides per caller, ``PUBLIC_API_ENABLED`` (default off)
+  without an implementation; key management, the platform and overlay v1
+  routers answer 404 ``feature_disabled`` while it is closed, and
+  ``GET /api/access-keys/availability`` returns ``{"enabled": bool}`` for
+  the frontend's entry points.
 """
 
 import os
 
-CORE_API_VERSION = "2.36"
+CORE_API_VERSION = "2.38"
 
 
 def extended_required() -> bool:

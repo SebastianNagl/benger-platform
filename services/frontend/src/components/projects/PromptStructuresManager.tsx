@@ -541,10 +541,7 @@ export function PromptStructuresManager({
               <TaskFieldReferencePanel
                 projectId={projectId}
                 defaultExpanded={false}
-                description={t(
-                  'project.promptStructures.fieldReferenceHelp',
-                  'Use $fieldname or $nested.path syntax to reference task data fields in your prompts.',
-                )}
+                description={t('project.promptStructures.fieldReferenceHelp')}
               />
 
               {/* Structure configuration */}

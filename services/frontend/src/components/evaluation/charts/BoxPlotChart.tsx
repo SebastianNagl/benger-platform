@@ -10,6 +10,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { useMemo } from 'react'
 import {
   Bar,
@@ -55,9 +56,11 @@ interface BoxPlotChartProps {
 }
 
 // Custom tooltip
-function CustomTooltip({ active, payload, t }: any) {
+function CustomTooltip({ active, payload, t, locale }: any) {
   if (!active || !payload || !payload[0]) return null
   const item = payload[0].payload as BoxPlotData & { color: string }
+  const fmt = (v: number | null | undefined) =>
+    v === null || v === undefined ? undefined : formatDecimal(v, locale, 3)
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800">
@@ -69,40 +72,38 @@ function CustomTooltip({ active, payload, t }: any) {
           <span className="text-gray-500">
             {t('evaluation.charts.boxPlot.max')}:
           </span>
-          <span className="font-mono">{item.max?.toFixed(3)}</span>
+          <span className="font-mono">{fmt(item.max)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-gray-500">
             {t('evaluation.charts.boxPlot.q3')}:
           </span>
-          <span className="font-mono">{item.q3?.toFixed(3)}</span>
+          <span className="font-mono">{fmt(item.q3)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="font-medium text-gray-500">
             {t('evaluation.charts.boxPlot.median')}:
           </span>
-          <span className="font-mono font-medium">
-            {item.median?.toFixed(3)}
-          </span>
+          <span className="font-mono font-medium">{fmt(item.median)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-gray-500">
             {t('evaluation.charts.boxPlot.q1')}:
           </span>
-          <span className="font-mono">{item.q1?.toFixed(3)}</span>
+          <span className="font-mono">{fmt(item.q1)}</span>
         </div>
         <div className="flex justify-between gap-4">
           <span className="text-gray-500">
             {t('evaluation.charts.boxPlot.min')}:
           </span>
-          <span className="font-mono">{item.min?.toFixed(3)}</span>
+          <span className="font-mono">{fmt(item.min)}</span>
         </div>
         {item.mean !== undefined && (
           <div className="mt-1 flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
             <span className="text-gray-500">
               {t('evaluation.charts.boxPlot.mean')}:
             </span>
-            <span className="font-mono">{item.mean?.toFixed(3)}</span>
+            <span className="font-mono">{fmt(item.mean)}</span>
           </div>
         )}
         {item.count !== undefined && (
@@ -110,13 +111,15 @@ function CustomTooltip({ active, payload, t }: any) {
             <span className="text-gray-500">
               {t('evaluation.charts.boxPlot.n')}:
             </span>
-            <span className="font-mono">{item.count?.toLocaleString()}</span>
+            <span className="font-mono">
+              {item.count?.toLocaleString(intlTag(locale))}
+            </span>
           </div>
         )}
         {item.runIndex !== undefined && (
           <div className="flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
             <span className="text-gray-500">
-              {t('evaluation.charts.boxPlot.run', 'Run')}:
+              {t('evaluation.charts.boxPlot.run')}:
             </span>
             <span className="font-mono">#{item.runIndex}</span>
           </div>
@@ -251,7 +254,7 @@ export function BoxPlotChart({
   yAxisLabel,
   className = '',
 }: BoxPlotChartProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const resolvedYAxisLabel = yAxisLabel ?? t('evaluation.charts.boxPlot.score')
   const colors = COLORS[colorScheme]
 
@@ -298,7 +301,7 @@ export function BoxPlotChart({
           <YAxis
             domain={yDomain}
             tick={{ fontSize: 12 }}
-            tickFormatter={(value) => value.toFixed(2)}
+            tickFormatter={(value) => formatDecimal(value, locale, 2)}
             label={
               resolvedYAxisLabel
                 ? {
@@ -311,7 +314,7 @@ export function BoxPlotChart({
             }
           />
 
-          <Tooltip content={<CustomTooltip t={t} />} />
+          <Tooltip content={<CustomTooltip t={t} locale={locale} />} />
 
           {/* Stacked bars: first transparent bar up to q1, then IQR bar */}
           <Bar

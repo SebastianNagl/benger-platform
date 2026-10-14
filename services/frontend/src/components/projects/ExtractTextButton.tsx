@@ -35,11 +35,7 @@ export function ExtractTextButton({ onText, className }: Props) {
       if (res.warnings?.length) addToast(res.warnings.join(' '), 'warning')
     } catch (err: any) {
       addToast(
-        err?.message ||
-          t(
-            'tasks.importModal.extractText.failed',
-            'Text konnte nicht extrahiert werden.',
-          ),
+        err?.message || t('tasks.importModal.extractText.failed'),
         'error',
       )
     } finally {
@@ -67,11 +63,8 @@ export function ExtractTextButton({ onText, className }: Props) {
       >
         <DocumentArrowUpIcon className="mr-2 h-4 w-4" />
         {busy
-          ? t('tasks.importModal.extractText.busy', 'Extrahiere…')
-          : t(
-              'tasks.importModal.extractText.button',
-              'Text aus Dokument (PDF/DOCX)',
-            )}
+          ? t('tasks.importModal.extractText.busy')
+          : t('tasks.importModal.extractText.button')}
       </Button>
     </span>
   )

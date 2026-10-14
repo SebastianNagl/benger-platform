@@ -41,6 +41,7 @@ import { apiClient } from '@/lib/api/client'
 import { METRIC_ORDER } from '@/lib/api/evaluation-types'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { Task as LabelStudioTask } from '@/types/labelStudio'
 import { canStartGeneration } from '@/utils/permissions'
 import {
@@ -122,7 +123,7 @@ export function EvaluationResults({
   // Single-cell re-runs bill the org picked in the evaluation dialog.
   const { billingOrganizationId } = useBillingOrganization(String(projectId))
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [showHistory, setShowHistory] = useState(false)
 
   // Project evaluation results fetch unit (initial fetch + polling +
@@ -878,7 +879,7 @@ export function EvaluationResults({
     if (score === null || score === undefined) {
       return 'N/A'
     }
-    return score.toFixed(3)
+    return formatDecimal(score, locale, 3)
   }
 
   // Format inline statistics based on selected methods
@@ -900,12 +901,12 @@ export function EvaluationResults({
 
     // Standard Error
     if (selectedStatistics.includes('se') && stats.se !== undefined) {
-      parts.push(`±${stats.se.toFixed(3)}`)
+      parts.push(`±${formatDecimal(stats.se, locale, 3)}`)
     }
 
     // Standard Deviation
     if (selectedStatistics.includes('std') && stats.std !== undefined) {
-      parts.push(`σ${stats.std.toFixed(3)}`)
+      parts.push(`σ${formatDecimal(stats.std, locale, 3)}`)
     }
 
     // 95% Confidence Interval
@@ -915,7 +916,7 @@ export function EvaluationResults({
       stats.ci_upper !== undefined
     ) {
       parts.push(
-        `[${(stats.ci_lower * 100).toFixed(1)}%, ${(stats.ci_upper * 100).toFixed(1)}%]`,
+        `[${formatDecimal(stats.ci_lower * 100, locale, 1)}%, ${formatDecimal(stats.ci_upper * 100, locale, 1)}%]`,
       )
     }
 
@@ -965,7 +966,7 @@ export function EvaluationResults({
     const std =
       typeof entry.std_of_means === 'number' ? entry.std_of_means : null
     return std !== null
-      ? `± ${std.toFixed(3)} (${entry.n_runs} runs)`
+      ? `± ${formatDecimal(std, locale, 3)} (${entry.n_runs} runs)`
       : `(${entry.n_runs} runs)`
   }
 
@@ -1158,10 +1159,7 @@ export function EvaluationResults({
                 onChange={(e) => setByRunChart(e.target.checked)}
                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              {t(
-                'evaluation.multiFieldResults.byRunChart',
-                'Diagramm pro Lauf splitten',
-              )}
+              {t('evaluation.multiFieldResults.byRunChart')}
             </label>
           )}
         </div>
@@ -1270,7 +1268,7 @@ export function EvaluationResults({
                     onClick={() => setExportDropdownOpen(!exportDropdownOpen)}
                   >
                     <ArrowDownTrayIcon className="h-4 w-4" />
-                    {t('common.export') || 'Export'}
+                    {t('common.export')}
                   </Button>
                   {exportDropdownOpen && (
                     <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
@@ -1532,7 +1530,6 @@ export function EvaluationResults({
                                       className="text-xs font-normal text-blue-600 dark:text-blue-400"
                                       title={t(
                                         'evaluation.multiFieldResults.runsAggregateTooltip',
-                                        'Standard deviation across distinct evaluation runs (multi-run feature)',
                                       )}
                                     >
                                       {runsLine}

@@ -27,6 +27,7 @@ import {
   type OrgStorageObject,
 } from '@/lib/api/organizations'
 import { projectsAPI, type CloudImportHistoryEntry } from '@/lib/api/projects'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import {
   ArrowPathIcon,
   DocumentIcon,
@@ -75,19 +76,19 @@ const basename = (key: string): string => {
   return idx >= 0 ? trimmed.slice(idx + 1) : trimmed
 }
 
-const formatSize = (size: number | null): string => {
+const formatSize = (size: number | null, locale: string): string => {
   if (size === null || size === undefined) return ''
   if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  if (size < 1024 * 1024) return `${formatDecimal(size / 1024, locale, 1)} KB`
   if (size < 1024 * 1024 * 1024)
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`
-  return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`
+    return `${formatDecimal(size / (1024 * 1024), locale, 1)} MB`
+  return `${formatDecimal(size / (1024 * 1024 * 1024), locale, 1)} GB`
 }
 
-const formatDate = (iso: string | null): string => {
+const formatDate = (iso: string | null, locale: string): string => {
   if (!iso) return ''
   const d = new Date(iso)
-  return isNaN(d.getTime()) ? '' : d.toLocaleString()
+  return isNaN(d.getTime()) ? '' : d.toLocaleString(intlTag(locale))
 }
 
 export function CloudImportPanel({
@@ -97,7 +98,7 @@ export function CloudImportPanel({
   onSelectionChange,
   onImportComplete,
 }: CloudImportPanelProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
   const { organizations } = useAuth()
   const { startProgress, updateProgress, completeProgress } = useProgress()
@@ -511,10 +512,10 @@ export function CloudImportPanel({
                       {basename(obj.key)}
                     </span>
                     <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                      {formatSize(obj.size)}
+                      {formatSize(obj.size, locale)}
                     </span>
                     <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                      {formatDate(obj.last_modified)}
+                      {formatDate(obj.last_modified, locale)}
                     </span>
                   </label>
                 )
@@ -637,7 +638,7 @@ export function CloudImportPanel({
                     {t(`dataImport.cloud.status.${entry.status}`)}
                   </span>
                   <span className="text-xs whitespace-nowrap text-zinc-500 dark:text-zinc-400">
-                    {formatDate(entry.created_at)}
+                    {formatDate(entry.created_at, locale)}
                   </span>
                   <Button
                     variant="outline"

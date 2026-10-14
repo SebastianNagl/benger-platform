@@ -5,11 +5,11 @@ import { filterAndGroup } from '../changelog'
 const entry = (
   date: string,
   audience: ChangelogEntry['audience'],
-  textDe: string,
+  id: string,
 ): ChangelogEntry => ({
+  id,
   date,
   audience,
-  text: { de: textDe, en: `${textDe} (en)` },
 })
 
 describe('filterAndGroup', () => {
@@ -23,10 +23,7 @@ describe('filterAndGroup', () => {
       'benger',
     )
     expect(groups).toHaveLength(1)
-    expect(groups[0].entries.map((e) => e.text.de)).toEqual([
-      'nur benger',
-      'beide',
-    ])
+    expect(groups[0].entries.map((e) => e.id)).toEqual(['nur benger', 'beide'])
   })
 
   test('vertretbar brand sees vertretbar and both entries', () => {
@@ -38,7 +35,7 @@ describe('filterAndGroup', () => {
       ],
       'vertretbar',
     )
-    expect(groups[0].entries.map((e) => e.text.de)).toEqual([
+    expect(groups[0].entries.map((e) => e.id)).toEqual([
       'nur vertretbar',
       'beide',
     ])
@@ -54,7 +51,7 @@ describe('filterAndGroup', () => {
       'benger',
     )
     expect(groups.map((g) => g.date)).toEqual(['2026-08-24', '2026-08-01'])
-    expect(groups[0].entries.map((e) => e.text.de)).toEqual([
+    expect(groups[0].entries.map((e) => e.id)).toEqual([
       'neu erstes',
       'neu zweites',
     ])

@@ -38,7 +38,7 @@ export function MaxTokensInput({
   return (
     <div>
       <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-        {t('evaluationBuilder.parameters.maxTokens', 'Max Tokens')}
+        {t('evaluationBuilder.parameters.maxTokens')}
       </label>
       <input
         type="number"
@@ -49,42 +49,29 @@ export function MaxTokensInput({
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
       />
       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-        {t(
-          'evaluationBuilder.parameters.maxTokensDescription',
-          `Maximum tokens for judge response (${min}-${max})`,
-        )}
+        {t('evaluationBuilder.parameters.maxTokensRange', { min, max })}
       </p>
       <div className="mt-1 text-xs">
         {recNumber !== undefined ? (
           <span className="text-zinc-600 dark:text-zinc-400">
-            {t('evaluationBuilder.parameters.recommended', 'Empfehlung')}:{' '}
-            {recNumber}
+            {t('evaluationBuilder.parameters.recommended')}: {recNumber}
             {current !== recNumber && (
               <button
                 type="button"
                 onClick={() => onChange(recNumber)}
                 className="ml-2 text-blue-600 hover:underline"
               >
-                {t(
-                  'evaluationBuilder.parameters.resetToRecommended',
-                  'Zurücksetzen auf Empfohlen',
-                )}
+                {t('evaluationBuilder.parameters.resetToRecommended')}
               </button>
             )}
           </span>
         ) : modelHasRec ? (
           <span className="text-zinc-400 dark:text-zinc-500">
-            {t(
-              'evaluationBuilder.parameters.noRecommendationForKey',
-              'Keine Empfehlung für max_tokens',
-            )}
+            {t('evaluationBuilder.parameters.noRecommendationForKey')}
           </span>
         ) : (
           <span className="text-zinc-400 dark:text-zinc-500">
-            {t(
-              'evaluationBuilder.parameters.noRecommendation',
-              'Keine Empfehlung',
-            )}
+            {t('evaluationBuilder.parameters.noRecommendation')}
           </span>
         )}
       </div>

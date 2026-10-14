@@ -54,7 +54,30 @@ def db_user_to_user(db_user: DBUser) -> User:
         onboarding_state=ensure_dict(getattr(db_user, 'onboarding_state', None)),
         pseudonym=getattr(db_user, 'pseudonym', None),
         use_pseudonym=getattr(db_user, 'use_pseudonym', True),
+        is_service_account=getattr(db_user, 'is_service_account', False),
     )
+
+
+SERVICE_ACCOUNT_FORBIDDEN_CODE = "service_account"
+
+
+def is_service_account(db_user) -> bool:
+    """Whether a user row (or schema) is an access-key service account.
+    Strict ``is True`` so unit-test Mocks never count."""
+    return getattr(db_user, "is_service_account", False) is True
+
+
+def forbid_service_account(db_user) -> None:
+    """403 for the machine users behind organization access keys: they never
+    log in, refresh, reset or activate a password."""
+    if db_user is not None and is_service_account(db_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": SERVICE_ACCOUNT_FORBIDDEN_CODE,
+                "message": "Service accounts cannot sign in",
+            },
+        )
 
 
 def authenticate_user(username_or_email: str, password: str, db: Session = None) -> Optional[User]:
@@ -74,6 +97,14 @@ def authenticate_user(username_or_email: str, password: str, db: Session = None)
         return db_user_to_user(db_user) if db_user else None
 
 
+#: ``typ`` claim of a session access token. Every token signed with
+#: SECRET_KEY names its kind in ``typ`` and is accepted by its own verifier
+#: only (email verification tokens carry ``typ="email_verification"``, see
+#: auth_module.email_verification), so a token minted for one purpose can
+#: never be presented as another.
+ACCESS_TOKEN_TYP = "access"
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token"""
     to_encode = data.copy()
@@ -82,37 +113,79 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "typ": ACCESS_TOKEN_TYP})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-def verify_token(token: str) -> dict:
-    """Verify and decode a JWT token"""
+def token_typ_accepted(payload: dict, expected_typ: str) -> bool:
+    """Whether a decoded payload is a token of kind ``expected_typ``.
+
+    Rejects any payload carrying a ``purpose`` claim (the single-purpose
+    tokens, e.g. email verification, are never session tokens) and any
+    ``typ`` other than the expected one.
+
+    A MISSING ``typ`` is tolerated until the next release (grace added
+    2026-10-13): access tokens issued before this change carry no ``typ``
+    and must keep working for their remaining 60-minute lifetime across the
+    deploy. Make ``typ`` mandatory (``payload.get("typ") == expected_typ``)
+    in the release after this one.
+    """
+    if "purpose" in payload:
+        return False
+    typ = payload.get("typ")
+    if typ is None:
+        return True
+    return typ == expected_typ
+
+
+def verify_token(token: str, expected_typ: str = ACCESS_TOKEN_TYP) -> dict:
+    """Verify and decode a JWT token of kind ``expected_typ``"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if not token_typ_accepted(payload, expected_typ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return payload
 
 
-def verify_token_cookie_or_header(request: Request) -> dict:
-    """Verify token from cookie or Authorization header"""
+def _bearer_token(request: Request) -> Optional[str]:
+    auth_header = request.headers.get("Authorization")
+    if isinstance(auth_header, str) and auth_header.startswith("Bearer "):
+        return auth_header.split(" ")[1]
+    return None
+
+
+def verify_token_cookie_or_header(
+    request: Request, expected_typ: str = ACCESS_TOKEN_TYP, header_first: bool = False
+) -> dict:
+    """Verify token from cookie or Authorization header.
+
+    The browser API reads the cookie first. ``header_first`` (used on
+    ``/api/v1``) reads the Authorization header first, so a script that
+    sends an explicit token is never overridden by a stale cookie.
+    """
     token = None
 
-    # Try to get token from cookie first
-    if "access_token" in request.cookies:
+    if header_first:
+        token = _bearer_token(request)
+
+    # Try to get token from cookie
+    if not token and "access_token" in request.cookies:
         token = request.cookies["access_token"]
 
     # If no cookie, try Authorization header
     if not token:
-        auth_header = request.headers.get("Authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
+        token = _bearer_token(request)
 
     if not token:
         raise HTTPException(
@@ -121,7 +194,7 @@ def verify_token_cookie_or_header(request: Request) -> dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return verify_token(token)
+    return verify_token(token, expected_typ)
 
 
 class WebSocketAuthError(Exception):
@@ -133,7 +206,9 @@ class WebSocketAuthError(Exception):
     """
 
 
-def verify_token_for_websocket(websocket: WebSocket) -> dict:
+def verify_token_for_websocket(
+    websocket: WebSocket, expected_typ: str = ACCESS_TOKEN_TYP
+) -> dict:
     """Verify an access token presented during a WebSocket handshake.
 
     Reads the JWT from (in order):
@@ -153,11 +228,17 @@ def verify_token_for_websocket(websocket: WebSocket) -> dict:
 
     if not token:
         raise WebSocketAuthError("No access token provided")
+    if token.startswith("bgr_"):
+        # Access keys are for the /api/v1 HTTP surface only.
+        raise WebSocketAuthError("API keys are not accepted on WebSockets")
 
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError as e:
         raise WebSocketAuthError(f"Invalid token: {e}")
+    if not token_typ_accepted(payload, expected_typ):
+        raise WebSocketAuthError("Invalid token: wrong token type")
+    return payload
 
 
 def _lms_account_flag(db: Session, user_id: str) -> bool:
@@ -228,6 +309,7 @@ def refresh_access_token(
     db_user = get_user_by_id(db, db_refresh_token.user_id)
     if not db_user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    forbid_service_account(db_user)
 
     user = db_user_to_user(db_user)
 

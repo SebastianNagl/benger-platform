@@ -69,14 +69,14 @@ export function DistributionTooltip({
       title={`${valueLabel} ${bin.label}`}
       lines={[
         {
-          label: t('reports.view.models', 'Modelle'),
+          label: t('reports.view.models'),
           value: fmt(bin.model, bin.modelPct),
           swatchClass: LEGEND_SWATCH_CLASS.model,
         },
         ...(showHumans
           ? [
               {
-                label: t('reports.view.humans', 'Menschen'),
+                label: t('reports.view.humans'),
                 value: fmt(bin.human, bin.humanPct),
                 swatchClass: LEGEND_SWATCH_CLASS.human,
               },
@@ -97,15 +97,16 @@ export function DistributionChart({
   defaultMode = 'share',
 }: DistributionChartProps) {
   const [mode, setMode] = useState<DistributionMode>(defaultMode)
-  const data = useMemo(() => toPercentSeries(distribution), [distribution])
+  const data = useMemo(
+    () => toPercentSeries(distribution, locale),
+    [distribution, locale],
+  )
   const hasHumans = data.some((d) => d.human > 0)
   const hasModels = data.some((d) => d.model > 0)
   const modelKey = mode === 'share' ? 'modelPct' : 'model'
   const humanKey = mode === 'share' ? 'humanPct' : 'human'
   const yLabel =
-    mode === 'share'
-      ? t('reports.view.share', 'Anteil (%)')
-      : t('reports.view.count', 'Anzahl')
+    mode === 'share' ? t('reports.view.share') : t('reports.view.count')
 
   return (
     <div className="mb-8" data-testid="distribution-chart" data-mode={mode}>
@@ -113,7 +114,7 @@ export function DistributionChart({
         <SubHeading>{title}</SubHeading>
         <div
           role="radiogroup"
-          aria-label={t('reports.view.displayMode', 'Darstellung')}
+          aria-label={t('reports.view.displayMode')}
           className="inline-flex overflow-hidden rounded-md border border-zinc-300 text-xs dark:border-zinc-700"
         >
           {(['count', 'share'] as DistributionMode[]).map((m) => (
@@ -131,8 +132,8 @@ export function DistributionChart({
               )}
             >
               {m === 'count'
-                ? t('reports.view.count', 'Anzahl')
-                : t('reports.view.shareShort', 'Anteil')}
+                ? t('reports.view.count')
+                : t('reports.view.shareShort')}
             </button>
           ))}
         </div>
@@ -191,7 +192,7 @@ export function DistributionChart({
             />
             <Bar
               dataKey={modelKey}
-              name={t('reports.view.models', 'Modelle')}
+              name={t('reports.view.models')}
               fill={SERIES_COLOR.model}
               radius={[4, 4, 0, 0]}
               isAnimationActive={false}
@@ -199,7 +200,7 @@ export function DistributionChart({
             {hasHumans && (
               <Bar
                 dataKey={humanKey}
-                name={t('reports.view.humans', 'Menschen')}
+                name={t('reports.view.humans')}
                 fill={SERIES_COLOR.human}
                 radius={[4, 4, 0, 0]}
                 isAnimationActive={false}
@@ -211,13 +212,13 @@ export function DistributionChart({
       <ChartLegend
         items={[
           {
-            label: t('reports.view.models', 'Modelle'),
+            label: t('reports.view.models'),
             swatchClass: LEGEND_SWATCH_CLASS.model,
           },
           ...(hasHumans
             ? [
                 {
-                  label: t('reports.view.humans', 'Menschen'),
+                  label: t('reports.view.humans'),
                   swatchClass: LEGEND_SWATCH_CLASS.human,
                 },
               ]
@@ -226,10 +227,7 @@ export function DistributionChart({
       />
       {!hasHumans && hasModels && (
         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-          {t(
-            'reports.view.noHumanSamples',
-            'Keine menschlichen Abgaben in dieser Auswertung.',
-          )}
+          {t('reports.view.noHumanSamples')}
         </p>
       )}
     </div>

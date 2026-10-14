@@ -168,7 +168,9 @@ export function StepAnnotationInstructions({
                             onChange={(e) =>
                               updateVariant(index, 'id', e.target.value)
                             }
-                            placeholder="e.g., variant_a"
+                            placeholder={t(
+                              'projects.creation.wizard.variantIdPlaceholder',
+                            )}
                             className="text-sm"
                           />
                         </div>

@@ -12,6 +12,19 @@ export type ImportFormat = 'json' | 'csv' | 'tsv' | 'txt'
 
 /** Auxiliary arrays of the bulk-export envelope that round-trip through the
  *  nested import (judge scores, human-eval sessions, korrektur threads, …). */
+import { translate } from '@/lib/utils/translate'
+
+/** A parse failure of import data; `kind` tells invalid JSON apart. */
+export class ImportParseError extends Error {
+  constructor(
+    message: string,
+    readonly kind: 'invalidJson' | 'parse',
+  ) {
+    super(message)
+    this.name = 'ImportParseError'
+  }
+}
+
 const ENVELOPE_EXTRA_KEYS = [
   'evaluation_runs',
   'human_evaluation_configs',
@@ -102,7 +115,12 @@ export function parseImportData(
       try {
         parsed = JSON.parse(content)
       } catch (jsonError: any) {
-        throw new Error(`Invalid JSON format: ${jsonError.message}`)
+        throw new ImportParseError(
+          translate('projects.import.invalidJsonDetail', {
+            error: jsonError.message,
+          }),
+          'invalidJson',
+        )
       }
 
       let dataArray: any[]
@@ -157,11 +175,15 @@ export function parseImportData(
       return { rows, extras: {} }
     }
   } catch (error: any) {
-    if (error.message && error.message.includes('Invalid JSON')) {
+    if (error instanceof ImportParseError) {
       throw error
     }
-    throw new Error(
-      `Failed to parse ${format.toUpperCase()} data: ${error.message || error}`,
+    throw new ImportParseError(
+      translate('projects.import.parseFailed', {
+        format: format.toUpperCase(),
+        error: error.message || String(error),
+      }),
+      'parse',
     )
   }
 }

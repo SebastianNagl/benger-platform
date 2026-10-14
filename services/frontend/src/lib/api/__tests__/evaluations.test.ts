@@ -4,6 +4,11 @@
 
 import { EvaluationsClient } from '../evaluations'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Mock the BaseApiClient
 jest.mock('../base', () => ({
   BaseApiClient: class MockBaseApiClient {
@@ -883,7 +888,7 @@ describe('EvaluationsClient', () => {
   describe('uploadData', () => {
     it('should throw error if file is missing', async () => {
       await expect(client.uploadData(null as any, 'task-1')).rejects.toThrow(
-        'File is required for upload',
+        'evaluation.upload.fileRequired',
       )
     })
 
@@ -892,14 +897,14 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, '')).rejects.toThrow(
-        'Task ID is required for upload',
+        'evaluation.upload.taskIdRequired',
       )
     })
 
     it('should throw error for empty file', async () => {
       const mockFile = new File([''], 'data.json', { type: 'application/json' })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File is empty or contains no valid content',
+        'evaluation.upload.emptyFile',
       )
     })
 
@@ -908,7 +913,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'Invalid JSON format in file',
+        'evaluation.upload.invalidJson',
       )
     })
 
@@ -917,7 +922,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File must contain an array of items',
+        'evaluation.upload.notArray',
       )
     })
 
@@ -926,7 +931,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'File contains no items',
+        'evaluation.upload.noItems',
       )
     })
 
@@ -935,7 +940,7 @@ describe('EvaluationsClient', () => {
         type: 'application/json',
       })
       await expect(client.uploadData(mockFile, 'task-1')).rejects.toThrow(
-        'Unknown content type',
+        'evaluation.upload.unknownContentType',
       )
     })
 

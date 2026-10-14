@@ -356,7 +356,7 @@ export function OrgStorageConnections({
             <button
               onClick={() => onOpenChange(false)}
               className="rounded-md p-2 text-zinc-400 transition-colors hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-400"
-              aria-label="Close modal"
+              aria-label={t('common.close')}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>

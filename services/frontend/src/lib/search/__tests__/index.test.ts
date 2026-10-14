@@ -1,4 +1,5 @@
 import type { HowToGuide } from '@/lib/howto'
+import { registerTranslations } from '@/lib/i18n/catalog'
 
 import {
   buildGuideIndex,
@@ -8,21 +9,32 @@ import {
   rankSearchResults,
 } from '../index'
 
-const t = (key: string, fallback?: string) => fallback ?? key
+const t = (key: string, _vars?: Record<string, unknown>) => key
 
-const guide: HowToGuide = {
-  id: 'api-keys',
-  category: 'generation',
-  title: {
-    de: 'Wie hinterlege ich einen API-Schlüssel?',
-    en: 'How do I add an API key?',
+// The guide's copy comes from the catalog, registered here under a test id.
+const guide: HowToGuide = { id: 'search-test-api-keys', category: 'generation' }
+
+registerTranslations('search-index-test', {
+  de: {
+    howToGuides: {
+      'search-test-api-keys': {
+        title: 'Wie hinterlege ich einen API-Schlüssel?',
+        summary: 'Unter **Einstellungen** → `Modelle`.',
+        keywords: ['OpenAI', 'Mistral'],
+      },
+    },
   },
-  summary: {
-    de: 'Unter **Einstellungen** → `Modelle`.',
-    en: 'Under **Settings** → `Models`.',
+  en: {
+    howToGuides: {
+      'search-test-api-keys': {
+        title: 'How do I add an API key?',
+        summary: 'Under **Settings** → `Models`.',
+        keywords: ['provider'],
+      },
+    },
   },
-  keywords: { de: ['OpenAI', 'Mistral'], en: ['provider'] },
-}
+  fr: {},
+})
 
 describe('buildPageIndex', () => {
   it('shows core pages and hides role-gated pages for a plain user', () => {
@@ -78,6 +90,30 @@ describe('buildPageIndex', () => {
     expect(superadmin).not.toContain('/admin/feature-flags')
   })
 
+  it('lists the access-key overview only when the public API is on', () => {
+    const urls = (publicApi?: boolean) =>
+      buildPageIndex({
+        t,
+        locale: 'de',
+        user: { is_superadmin: true },
+        organizations: [],
+        publicApi,
+      }).map((p) => p.url)
+    expect(urls(true)).toContain('/admin/access-keys')
+    expect(urls(false)).not.toContain('/admin/access-keys')
+    expect(urls(undefined)).not.toContain('/admin/access-keys')
+    // Still superadmin-only.
+    expect(
+      buildPageIndex({
+        t,
+        locale: 'de',
+        user: {},
+        organizations: [{ role: 'ORG_ADMIN' }],
+        publicApi: true,
+      }).map((p) => p.url),
+    ).not.toContain('/admin/access-keys')
+  })
+
   it('omits signed-in-only pages for anonymous visitors', () => {
     const urls = buildPageIndex({
       t,
@@ -99,10 +135,46 @@ describe('buildGuideIndex / buildSearchIndex', () => {
       organizations: [],
       guides: [guide],
     })
-    expect(entry.url).toBe('/how-to#api-keys')
+    expect(entry.url).toBe('/how-to#search-test-api-keys')
     expect(entry.title).toBe('How do I add an API key?')
     expect(entry.description).toBe('Under Settings → Models.')
-    expect(entry.category).toBe('Anleitung')
+    expect(entry.category).toBe('search.categories.howto')
+  })
+
+  it('hides guides that require the public API unless it is on', () => {
+    const gated: HowToGuide = {
+      ...guide,
+      id: 'search-test-gated',
+      requires: 'publicApi',
+    }
+    const urls = (publicApi?: boolean) =>
+      buildGuideIndex({
+        t,
+        locale: 'en',
+        user: {},
+        organizations: [],
+        guides: [guide, gated],
+        publicApi,
+      }).map((e) => e.url)
+    expect(urls(false)).toEqual(['/how-to#search-test-api-keys'])
+    expect(urls(undefined)).toEqual(['/how-to#search-test-api-keys'])
+    expect(urls(true)).toEqual([
+      '/how-to#search-test-api-keys',
+      '/how-to#search-test-gated',
+    ])
+  })
+
+  it('hides the registered api-zugaenge guide while the public API is off', () => {
+    const urls = (publicApi: boolean) =>
+      buildGuideIndex({
+        t,
+        locale: 'de',
+        user: {},
+        organizations: [],
+        publicApi,
+      }).map((e) => e.url)
+    expect(urls(false)).not.toContain('/how-to#api-zugaenge')
+    expect(urls(true)).toContain('/how-to#api-zugaenge')
   })
 
   it('combines pages and guides', () => {
@@ -113,7 +185,7 @@ describe('buildGuideIndex / buildSearchIndex', () => {
       organizations: [],
       guides: [guide],
     })
-    expect(all.some((e) => e.url === '/how-to#api-keys')).toBe(true)
+    expect(all.some((e) => e.url === '/how-to#search-test-api-keys')).toBe(true)
     expect(all.some((e) => e.url === '/dashboard')).toBe(true)
   })
 })
@@ -129,7 +201,7 @@ describe('ranking', () => {
 
   it('finds a guide via a keyword that is not in its title', () => {
     const results = rankSearchResults(entries, 'mistral')
-    expect(results[0]?.url).toBe('/how-to#api-keys')
+    expect(results[0]?.url).toBe('/how-to#search-test-api-keys')
   })
 
   it('finds pages through the static keyword list (German synonym for an English title key)', () => {

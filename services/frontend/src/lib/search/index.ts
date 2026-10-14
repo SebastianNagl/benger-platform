@@ -8,10 +8,11 @@
  */
 
 import {
+  filterAvailableGuides,
   getHowToGuides,
   guideSearchText,
+  guideText,
   normalizeForSearch,
-  pick,
   stripInlineMarkup,
   type HowToGuide,
 } from '@/lib/howto'
@@ -21,13 +22,18 @@ import type { Result } from '@/types/search'
 // even before /how-to was ever visited.
 import '@/data/howto/guides'
 
-type Translate = (key: string, fallback?: string) => string
+type Translate = (key: string, vars?: Record<string, unknown>) => string
 
 export interface SearchIndexContext {
   t: Translate
   locale: string
   user: { is_superadmin?: boolean } | null | undefined
   organizations: Array<{ role?: string }> | null | undefined
+  /**
+   * Public API (access keys + /api/v1) switched on for this user (feature
+   * flag `public_api`). Off or unknown hides its page and guides.
+   */
+  publicApi?: boolean
   /** Injected for tests; defaults to the registry. */
   guides?: HowToGuide[]
 }
@@ -56,12 +62,13 @@ function page(
 /** Static pages the current user may open, honoring roles. */
 export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
   const { t, user, organizations } = ctx
+  const publicApi = ctx.publicApi === true
   const cat = {
     benger: t('search.categories.benger'),
     projects: t('search.categories.projectsAndData'),
     knowledge: t('search.categories.knowledge'),
     user: t('search.categories.user'),
-    org: t('search.categories.organizations', 'Organisation'),
+    org: t('search.categories.organizations'),
     admin: t('search.categories.administration'),
   }
   const isSuperadmin = Boolean(user?.is_superadmin)
@@ -285,6 +292,17 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
         cat.admin,
         'lti moodle ilias integration registrierung',
       ),
+      ...(publicApi
+        ? [
+            page(
+              t,
+              '/admin/access-keys',
+              'adminAccessKeys',
+              cat.admin,
+              'api-zugänge zugangsschlüssel api keys access keys token widerrufen nutzung',
+            ),
+          ]
+        : []),
       page(
         t,
         '/admin/email-verification',
@@ -307,15 +325,20 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
 /** Every registered how-to guide as a deep-linked result. */
 export function buildGuideIndex(ctx: SearchIndexContext): SearchEntry[] {
   const { t, locale } = ctx
-  const guides = ctx.guides ?? getHowToGuides()
-  const category = t('search.categories.howto', 'Anleitung')
-  return guides.map((g) => ({
-    url: `/how-to#${g.id}`,
-    title: pick(g.title, locale),
-    description: stripInlineMarkup(pick(g.summary, locale)),
-    category,
-    keywords: guideSearchText(g, locale),
-  }))
+  const guides = filterAvailableGuides(ctx.guides ?? getHowToGuides(), {
+    publicApi: ctx.publicApi === true,
+  })
+  const category = t('search.categories.howto')
+  return guides.map((g) => {
+    const copy = guideText(g, locale)
+    return {
+      url: `/how-to#${g.id}`,
+      title: copy.title,
+      description: stripInlineMarkup(copy.summary),
+      category,
+      keywords: guideSearchText(g, locale),
+    }
+  })
 }
 
 export function buildSearchIndex(ctx: SearchIndexContext): SearchEntry[] {

@@ -441,28 +441,32 @@ def normalize_billing_block(block) -> Optional[dict]:
 def _grading_block(db, project, user_id, configs) -> Optional[dict]:
     """Extension hook: why this grading must not be dispatched, else None.
 
-    Community edition (or an extended package without the hook): None. A
+    Community edition (or no package with the hook): None. Every package's
+    hook is asked in BENGER_EXTENSIONS order and the first block wins. A
     failing hook is logged and treated as "not blocked"; the worker's
-    dispatch policy still gets the final say. The hook runs inside a
+    dispatch policy still gets the final say. Each hook runs inside a
     savepoint so a failed query cannot poison the caller's session.
     """
-    try:
-        from benger_extended.workers import get_grading_block_fn
-    except (ImportError, AttributeError):
-        return None
-    try:
-        block_fn = get_grading_block_fn()
-        if block_fn is None:
-            return None
-        with db.begin_nested():
-            block = block_fn(db, project=project, user_id=user_id, configs=configs)
-    except Exception:
-        logger.exception(
-            "grading block hook failed for project %s; dispatching normally",
-            getattr(project, "id", None),
-        )
-        return None
-    return normalize_billing_block(block)
+    import extension_registry
+
+    for package, getter in extension_registry.worker_attrs("get_grading_block_fn"):
+        try:
+            block_fn = getter()
+            if block_fn is None:
+                continue
+            with db.begin_nested():
+                block = block_fn(db, project=project, user_id=user_id, configs=configs)
+        except Exception:
+            logger.exception(
+                "grading block hook of %s failed for project %s; dispatching normally",
+                package,
+                getattr(project, "id", None),
+            )
+            continue
+        block = normalize_billing_block(block)
+        if block is not None:
+            return block
+    return None
 
 
 def _open_block(meta) -> Optional[dict]:

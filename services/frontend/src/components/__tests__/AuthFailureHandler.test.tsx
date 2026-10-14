@@ -156,7 +156,7 @@ describe('AuthFailureHandler', () => {
       await authFailureHandler()
 
       expect(mockAddToast).toHaveBeenCalledWith(
-        'Your session has expired. Please log in again.',
+        'toasts.auth.sessionExpired',
         'warning',
       )
     })
@@ -380,7 +380,7 @@ describe('AuthFailureHandler', () => {
       await authFailureHandler()
 
       expect(mockAddToast).toHaveBeenCalledWith(
-        'Your session has expired. Please log in again.',
+        'toasts.auth.sessionExpired',
         'warning',
       )
     })
@@ -394,12 +394,12 @@ describe('AuthFailureHandler', () => {
 
       expect(mockAddToast).toHaveBeenNthCalledWith(
         1,
-        'Your session has expired. Please log in again.',
+        'toasts.auth.sessionExpired',
         'warning',
       )
       expect(mockAddToast).toHaveBeenNthCalledWith(
         2,
-        'Your session has expired. Please log in again.',
+        'toasts.auth.sessionExpired',
         'warning',
       )
     })

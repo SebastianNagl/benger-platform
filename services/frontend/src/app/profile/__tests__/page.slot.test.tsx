@@ -55,6 +55,15 @@ jest.mock('@/components/shared/ResponsiveContainer', () => ({
 jest.mock('@/components/modals/ChangePasswordModal', () => ({
   ChangePasswordModal: () => null,
 }))
+// Personal access keys have their own tests
+// (components/profile/__tests__/ProfileAccessKeysSection.test.tsx).
+jest.mock('@/components/profile/ProfileAccessKeysSection', () => ({
+  ProfileAccessKeysSection: () => <div data-testid="profile-access-keys" />,
+}))
+const mockPublicApi: { current: boolean | null } = { current: false }
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi.current,
+}))
 jest.mock('@/components/modals/APIKeysModal', () => ({
   APIKeysModal: () => null,
 }))
@@ -132,4 +141,42 @@ describe('profile page profile-settings-extended slot', () => {
       ).toBeInTheDocument(),
     )
   })
+})
+
+describe('profile page personal access keys (public_api flag)', () => {
+  beforeEach(() => {
+    mockSlots = {}
+    mockGetProfile.mockReset()
+    mockGetProfile.mockResolvedValue({
+      id: 'user-1',
+      username: 'tester',
+      email: 't@example.com',
+      name: 'Tester',
+      is_superadmin: false,
+      is_active: true,
+    })
+  })
+
+  it('shows the access-key section when the public API is on', async () => {
+    mockPublicApi.current = true
+    render(<ProfilePage />)
+    expect(await screen.findByTestId('profile-access-keys')).toBeInTheDocument()
+  })
+
+  it.each([
+    ['off', false],
+    ['still loading', null],
+  ])(
+    'hides the access-key section while the public API is %s',
+    async (_label, value) => {
+      mockPublicApi.current = value
+      render(<ProfilePage />)
+      await waitFor(() =>
+        expect(screen.getByTestId('section-personal')).toBeInTheDocument(),
+      )
+      expect(
+        screen.queryByTestId('profile-access-keys'),
+      ).not.toBeInTheDocument()
+    },
+  )
 })

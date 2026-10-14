@@ -180,9 +180,9 @@ describe('ModelComparisonChart', () => {
         />,
       )
       // gpt-4: (0.9 + 0.85) / 2 = 0.875
-      expect(screen.getByText('0.875')).toBeInTheDocument()
+      expect(screen.getByText('0,875')).toBeInTheDocument()
       // claude-3: (0.88 + 0.82) / 2 = 0.850 (may also appear as individual metric value)
-      expect(screen.getAllByText('0.850').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('0,850').length).toBeGreaterThanOrEqual(1)
     })
 
     it('shows confidence intervals when available', () => {
@@ -204,7 +204,7 @@ describe('ModelComparisonChart', () => {
           visualizationType="bar"
         />,
       )
-      expect(screen.getByText('[0.850, 0.950]')).toBeInTheDocument()
+      expect(screen.getByText('[0,850, 0,950]')).toBeInTheDocument()
     })
   })
 
@@ -286,7 +286,7 @@ describe('ModelComparisonChart', () => {
         />,
       )
       // 0.900 appears for both the metric value and the average (since only 1 metric)
-      expect(screen.getAllByText('0.900').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('0,900').length).toBeGreaterThanOrEqual(1)
     })
   })
 })

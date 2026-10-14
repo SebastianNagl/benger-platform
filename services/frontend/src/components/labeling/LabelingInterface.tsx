@@ -19,6 +19,7 @@ import { useModernExamLayout } from '@/hooks/useModernExamLayout'
 import { useServerDraftSync } from '@/hooks/useServerDraftSync'
 import { projectsAPI } from '@/lib/api/projects'
 import { useSlot } from '@/lib/extensions/slots'
+import { dateFnsLocale, intlTag } from '@/lib/i18n/locales'
 import { logger } from '@/lib/utils/logger'
 import { selectVariant } from '@/lib/utils/variantHash'
 import { useProjectStore } from '@/stores/projectStore'
@@ -34,7 +35,6 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de as dateFnsDe, enUS as dateFnsEn } from 'date-fns/locale'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { DynamicAnnotationInterface } from './DynamicAnnotationInterface'
@@ -346,12 +346,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             setTaskByIndex(savedIndex >= 0 ? savedIndex : 0)
             return
           }
-          setInitializationError(
-            t('annotation.errors.noTasksAvailable', {
-              defaultValue:
-                'No tasks are available for annotation in this project.',
-            }),
-          )
+          setInitializationError(t('annotation.errors.noTasksAvailable'))
           return
         }
         const savedTaskPosition =
@@ -420,12 +415,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           } catch (error) {
             console.error('Failed to load specific task:', error)
             if (taskParam) {
-              addToast(
-                t('annotation.errors.failedToLoadTask', {
-                  defaultValue: 'Failed to load specific task',
-                }),
-                'error',
-              )
+              addToast(t('annotation.errors.failedToLoadTask'), 'error')
             }
           }
         }
@@ -439,12 +429,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           // Clear stale saved task so re-entry doesn't loop back
           localStorage.removeItem(TASK_ID_KEY)
           localStorage.removeItem(TASK_POSITION_KEY)
-          setInitializationError(
-            t('annotation.errors.noTasksAvailable', {
-              defaultValue:
-                'No tasks are available for annotation in this project.',
-            }),
-          )
+          setInitializationError(t('annotation.errors.noTasksAvailable'))
           return
         }
       } catch (error) {
@@ -452,7 +437,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         const errorMessage =
           error instanceof Error
             ? error.message
-            : 'Failed to initialize annotation interface'
+            : t('annotation.errors.initFailed')
 
         setInitializationError(errorMessage)
         addToast(errorMessage, 'error')
@@ -713,10 +698,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       return
     }
 
-    addToast(
-      t('annotation.saved', { defaultValue: 'Annotation saved' }),
-      'success',
-    )
+    addToast(t('annotation.saved'), 'success')
     completeCurrentTask()
   }, [
     t,
@@ -728,7 +710,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
 
   if (windowUpcoming) {
     const opensAt = (currentProject as any)?.window_start_at
-      ? new Date((currentProject as any).window_start_at).toLocaleString()
+      ? new Date((currentProject as any).window_start_at).toLocaleString(
+          intlTag(locale),
+        )
       : ''
     return (
       <div
@@ -741,7 +725,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             onClick={() => router.push(`/projects/${projectId}`)}
           >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
-            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+            {t('annotation.backToProject')}
           </Button>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -749,13 +733,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.window.notOpenTitle', {
-                  defaultValue: 'Not open yet',
-                })}
+                {t('annotation.window.notOpenTitle')}
               </h2>
               <p className="text-muted-foreground">
                 {t('annotation.window.notOpenDescription', {
-                  defaultValue: `This project opens at ${opensAt}. Come back then to start.`,
                   date: opensAt,
                 })}
               </p>
@@ -774,22 +755,18 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           <div className="py-12 text-center">
             <ExclamationTriangleIcon className="mx-auto mb-4 h-12 w-12 text-red-500" />
             <h2 className="mb-2 text-2xl font-bold text-red-600">
-              {t('annotation.errors.initializationError', {
-                defaultValue: 'Initialization Error',
-              })}
+              {t('annotation.errors.initializationError')}
             </h2>
             <p className="text-muted-foreground mb-6">{initializationError}</p>
             <div className="space-x-4">
               <Button onClick={() => window.location.reload()}>
-                {t('annotation.errors.tryAgain', { defaultValue: 'Try Again' })}
+                {t('annotation.errors.tryAgain')}
               </Button>
               <Button
                 variant="secondary"
                 onClick={() => router.push(`/projects/${projectId}`)}
               >
-                {t('annotation.backToProject', {
-                  defaultValue: 'Back to Project',
-                })}
+                {t('annotation.backToProject')}
               </Button>
             </div>
           </div>
@@ -813,20 +790,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
           <div className="py-12 text-center">
             <CheckIcon className="mx-auto mb-4 h-12 w-12 text-green-500" />
             <h2 className="mb-2 text-2xl font-bold">
-              {t('annotation.allTasksCompleted', {
-                defaultValue: 'All tasks completed!',
-              })}
+              {t('annotation.allTasksCompleted')}
             </h2>
             <p className="text-muted-foreground mb-6">
-              {t('annotation.allTasksCompletedDescription', {
-                defaultValue:
-                  "You've annotated all available tasks in this project.",
-              })}
+              {t('annotation.allTasksCompletedDescription')}
             </p>
             <Button onClick={() => router.push(`/projects/${projectId}`)}>
-              {t('annotation.backToProject', {
-                defaultValue: 'Back to Project',
-              })}
+              {t('annotation.backToProject')}
             </Button>
           </div>
         </Card>
@@ -857,7 +827,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             onClick={() => router.push(`/projects/${projectId}`)}
           >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
-            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+            {t('annotation.backToProject')}
           </Button>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -865,16 +835,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ClockIcon className="mx-auto h-16 w-16 text-emerald-600" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.strictTimer.readyTitle', {
-                  defaultValue: 'Ready to Begin',
-                })}
+                {t('annotation.strictTimer.readyTitle')}
               </h2>
               {variantContent && (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-left dark:border-emerald-800 dark:bg-emerald-950">
                   <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                    {t('annotation.instructions.title', {
-                      defaultValue: 'Annotation Instructions',
-                    })}
+                    {t('annotation.instructions.title')}
                   </p>
                   <p className="mt-2 text-sm whitespace-pre-wrap text-emerald-700 dark:text-emerald-300">
                     {variantContent}
@@ -883,19 +849,14 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               )}
               <p className="text-muted-foreground">
                 {t('annotation.strictTimer.readyDescription', {
-                  defaultValue: `You will have ${minutes} minutes to complete this annotation. The timer starts when you click Start and cannot be paused or restarted.`,
                   minutes,
                 })}
               </p>
               <p className="text-muted-foreground text-sm">
-                {t('annotation.strictTimer.readyWarning', {
-                  defaultValue: 'Page refresh will not reset the timer.',
-                })}
+                {t('annotation.strictTimer.readyWarning')}
               </p>
               <Button variant="filled" onClick={handleStrictTimerStart}>
-                {t('annotation.strictTimer.startButton', {
-                  defaultValue: 'Start',
-                })}
+                {t('annotation.strictTimer.startButton')}
               </Button>
             </div>
           </Card>
@@ -921,7 +882,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             onClick={() => router.push(`/projects/${projectId}`)}
           >
             <ArrowLeftIcon className="mr-2 h-4 w-4" />
-            {t('annotation.backToProject', { defaultValue: 'Back to Project' })}
+            {t('annotation.backToProject')}
           </Button>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -929,15 +890,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <div className="space-y-6 p-8">
               <ExclamationTriangleIcon className="mx-auto h-16 w-16 text-amber-500" />
               <h2 className="text-2xl font-bold">
-                {t('annotation.strictTimer.timeOverTitle', {
-                  defaultValue: "Time's Up",
-                })}
+                {t('annotation.strictTimer.timeOverTitle')}
               </h2>
               <p className="text-muted-foreground">
-                {t('annotation.strictTimer.timeOverDescription', {
-                  defaultValue:
-                    'Your time is over. Your work so far has been submitted in its latest form.',
-                })}
+                {t('annotation.strictTimer.timeOverDescription')}
               </p>
               <div className="flex flex-col gap-3">
                 <Button
@@ -948,17 +904,13 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     completeCurrentTask()
                   }}
                 >
-                  {t('annotation.strictTimer.continueButton', {
-                    defaultValue: 'Continue',
-                  })}
+                  {t('annotation.strictTimer.continueButton')}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => router.push(`/projects/${projectId}`)}
                 >
-                  {t('annotation.backToProject', {
-                    defaultValue: 'Back to Project',
-                  })}
+                  {t('annotation.backToProject')}
                 </Button>
               </div>
             </div>
@@ -993,9 +945,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 onClick={() => router.push(`/projects/${projectId}`)}
               >
                 <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                {t('annotation.backToProject', {
-                  defaultValue: 'Back to Project',
-                })}
+                {t('annotation.backToProject')}
               </Button>
               <Separator orientation="vertical" className="h-6" />
               <div>
@@ -1050,9 +1000,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   }}
                 >
                   <BookOpenIcon className="mr-2 h-4 w-4" />
-                  {t('annotation.instructions.showInstructions', {
-                    defaultValue: 'Instructions',
-                  })}
+                  {t('annotation.instructions.showInstructions')}
                 </Button>
               )}
               {CheckpointPanel &&
@@ -1068,12 +1016,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     onRestore={(snapshot: any[]) => {
                       setLoadedAnnotations(snapshot)
                       setRestoreKey((k) => k + 1)
-                      addToast(
-                        t('annotation.checkpoints.restored', {
-                          defaultValue: 'Checkpoint restored.',
-                        }),
-                        'success',
-                      )
+                      addToast(t('annotation.checkpoints.restored'), 'success')
                     }}
                   />
                 )}
@@ -1161,7 +1104,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 <div className="text-muted-foreground flex items-center gap-2 text-sm">
                   <ClockIcon className="h-4 w-4" />
                   {formatDistanceToNow(startTime, {
-                    locale: locale === 'en' ? dateFnsEn : dateFnsDe,
+                    locale: dateFnsLocale(locale),
                   })}
                 </div>
               )}
@@ -1191,14 +1134,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 data-testid="labeling-read-only-notice"
               >
                 {attemptedReadOnly
-                  ? t('annotation.window.attemptedReadOnly', {
-                      defaultValue:
-                        'Past submission. View only, no further changes.',
-                    })
-                  : t('annotation.window.closedReadOnly', {
-                      defaultValue:
-                        'This project has closed — view only, no further changes.',
-                    })}
+                  ? t('annotation.window.attemptedReadOnly')
+                  : t('annotation.window.closedReadOnly')}
               </div>
             )}
             <ServerDraftSyncWarning sync={serverDraftSync} />
@@ -1207,10 +1144,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                 className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300"
                 data-testid="timer-overtime-hint"
               >
-                {t('annotation.timer.overtimeHint', {
-                  defaultValue:
-                    'Time is up — you are now in overtime. Submit when you are done.',
-                })}
+                {t('annotation.timer.overtimeHint')}
               </div>
             )}
             {/* Dynamic annotation interface - label config is required */}
@@ -1243,9 +1177,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     try {
                       if (hasSubmittedRef.current) {
                         addToast(
-                          t('annotation.errors.alreadySubmitted', {
-                            defaultValue: 'Annotation already submitted',
-                          }),
+                          t('annotation.errors.alreadySubmitted'),
                           'error',
                         )
                         return
@@ -1309,19 +1241,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       }
 
                       // Normal flow - show success toast
-                      addToast(
-                        t('annotation.saved', {
-                          defaultValue: 'Annotation saved',
-                        }),
-                        'success',
-                      )
+                      addToast(t('annotation.saved'), 'success')
                     } catch (error) {
                       console.error('Failed to submit annotation:', error)
                       hasSubmittedRef.current = false
                       addToast(
-                        t('annotation.errors.submitFailed', {
-                          defaultValue: 'Failed to submit annotation',
-                        }),
+                        t('labeling.annotationCreator.submitFailed'),
                         'error',
                       )
                     }
@@ -1341,12 +1266,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                       <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
                       <div className="text-sm text-red-800 dark:text-red-200">
                         <p className="font-medium">
-                          No label configuration found
+                          {t('annotation.errors.noLabelConfigTitle')}
                         </p>
                         <p className="mt-1">
-                          This project requires a label configuration to define
-                          the annotation interface. Please configure the project
-                          settings before annotating.
+                          {t('annotation.errors.noLabelConfigText')}
                         </p>
                       </div>
                     </div>
@@ -1362,7 +1285,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   <div className="p-6 pb-0">
                     <h3 className="flex items-center gap-2 text-lg font-semibold">
                       <SparklesIcon className="h-5 w-5" />
-                      LLM Responses
+                      {t('tasks.generationTab.llmResponses')}
                     </h3>
                   </div>
                   <div className="space-y-4 p-6">
@@ -1441,9 +1364,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               <div className="mx-4 max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-zinc-900">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
                   <ExclamationTriangleIcon className="h-5 w-5 text-emerald-600" />
-                  {t('annotation.instructions.title', {
-                    defaultValue: 'Annotation Instructions',
-                  })}
+                  {t('annotation.instructions.title')}
                 </h3>
                 <div className="mt-4 max-h-[60vh] overflow-y-auto">
                   <div className="prose prose-sm max-w-none text-zinc-700 dark:text-zinc-300 dark:prose-invert">
@@ -1468,9 +1389,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                           onChange={(e) => setDontShowAgain(e.target.checked)}
                           className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                         />
-                        {t('annotation.instructions.dontShowAgain', {
-                          defaultValue: "Don't show again for this project",
-                        })}
+                        {t('annotation.instructions.dontShowAgain')}
                       </label>
                     </div>
                   )}
@@ -1480,12 +1399,8 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     variant="filled"
                   >
                     {manualInstructionsOpen
-                      ? t('annotation.instructions.close', {
-                          defaultValue: 'Close',
-                        })
-                      : t('annotation.instructions.startAnnotating', {
-                          defaultValue: 'Start Annotating',
-                        })}
+                      ? t('annotation.instructions.close')
+                      : t('annotation.instructions.startAnnotating')}
                   </Button>
                 </div>
               </div>

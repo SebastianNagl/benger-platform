@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/components/auth/SimpleAuth'
 import { useToast } from '@/components/shared/SimpleToast'
+import { useI18n } from '@/contexts/I18nContext'
 import { logger } from '@/lib/utils/logger'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
@@ -9,6 +10,7 @@ import { useEffect } from 'react'
 export function SimpleAuthFailureHandler() {
   const { user, isLoading, logout } = useAuth()
   const { addToast } = useToast()
+  const { t } = useI18n()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -33,7 +35,7 @@ export function SimpleAuthFailureHandler() {
 
       try {
         // Show toast notification
-        addToast('Your session has expired. Please log in again.', 'warning')
+        addToast(t('toasts.auth.sessionExpired'), 'warning')
       } catch (error) {
         // Continue even if toast fails
         console.warn('Failed to show session expired toast:', error)
@@ -54,7 +56,7 @@ export function SimpleAuthFailureHandler() {
 
     // For now, we'll just set up the handler (no API client mock)
     logger.debug('SimpleAuthFailureHandler ready')
-  }, [addToast, logout, router, pathname, user, isLoading])
+  }, [addToast, t, logout, router, pathname, user, isLoading])
 
   return null
 }

@@ -365,7 +365,7 @@ describe('extractFieldPairsFromConfig', () => {
       },
     ]
     const pairs = extractFieldPairsFromConfig(configs)
-    expect(pairs[0].predictionField).toBe('All Models')
+    expect(pairs[0].predictionField).toBe('__all_model__')
   })
 
   it('includes result count from resultsMap', () => {

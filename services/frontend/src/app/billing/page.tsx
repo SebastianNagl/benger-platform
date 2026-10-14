@@ -22,15 +22,15 @@ export default function BillingPage() {
         <Breadcrumb
           items={[
             {
-              label: t('navigation.dashboard', 'Dashboard'),
+              label: t('navigation.dashboard'),
               href: '/dashboard',
             },
-            { label: t('navigation.billing', 'Abo & Abrechnung') },
+            { label: t('navigation.billing') },
           ]}
         />
       </div>
       <h1 className="mb-6 text-3xl font-bold text-zinc-900 dark:text-white">
-        {t('navigation.billing', 'Abo & Abrechnung')}
+        {t('navigation.billing')}
       </h1>
       {StudentBilling ? (
         // eslint-disable-next-line react-hooks/static-components
@@ -40,10 +40,7 @@ export default function BillingPage() {
           className="text-sm text-zinc-500 dark:text-zinc-400"
           data-testid="billing-unavailable"
         >
-          {t(
-            'billing.unavailable',
-            'Abrechnung ist in dieser Edition nicht verfügbar.',
-          )}
+          {t('billing.unavailable')}
         </p>
       )}
     </ResponsiveContainer>

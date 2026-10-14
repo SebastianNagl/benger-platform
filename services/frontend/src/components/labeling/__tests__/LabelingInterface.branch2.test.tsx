@@ -41,6 +41,7 @@ jest.mock('@/lib/api/projects', () => ({
 import { useAuth } from '@/contexts/AuthContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { mockToast as __mockToast } from '@/test-utils/setupTests'
+
 const toast = Object.assign(
   (msg: string, type?: any) => __mockToast.addToast(msg, type),
   { success: __mockToast.success, error: __mockToast.error },
@@ -117,16 +118,10 @@ jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => null,
 }))
 
-// Mock I18n context
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: any) =>
-      key === 'annotation.interface.taskPosition'
-        ? `Task ${params.current} of ${params.total}`
-        : params?.defaultValue || key,
-    locale: 'en',
-  }),
-}))
+// Catalog-backed I18n context
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 // Mock date-fns
 jest.mock('date-fns', () => ({
@@ -440,9 +435,7 @@ describe('LabelingInterface - branch2 coverage', () => {
 
     await waitFor(() => {
       // Should show the skip comment dialog
-      expect(
-        screen.getByText('annotation.interface.skipCommentTitle'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Skip Task')).toBeInTheDocument()
     })
   })
 })

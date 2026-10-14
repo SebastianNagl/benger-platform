@@ -1,0 +1,1527 @@
+{
+  "howToGuides": {
+    "what-is-benger": {
+      "title": "Qu'est-ce que BenGER, qu'est-ce que l'espace d'apprentissage ?",
+      "summary": "**BenGER** (what-a-benger.net) est la plateforme des experts : créer des projets, téléverser des données, faire annoter, générer des réponses avec des modèles d'IA et les évaluer. L'**espace d'apprentissage** est la plateforme des étudiants : s'entraîner aux examens dans le style « Gutachten », obtenir en quelques secondes une correction par IA avec des points de note, réviser avec des fiches. Il a sa propre adresse et est accessible dans BenGER sous le nom d'*Espace d'apprentissage*. Ce sont deux interfaces du même système, avec la même base de données et le même compte.",
+      "steps": [
+        "**BenGER** pour les enseignants, les chercheurs et les annotateurs : tableau de bord, projets, données, génération, évaluation, rapports, classements.",
+        "**Espace d'apprentissage** pour les étudiants : statistiques d'apprentissage, examens, fiches de révision, Découvrir, classement. Les étudiants n'ont pas besoin de leur propre clé API. Qui paie la correction par IA est expliqué dans le guide sur les clés API.",
+        "Un examen que vous créez dans BenGER comme projet de type *Examen* et que vous partagez apparaît chez les étudiants dans l'espace d'apprentissage, dans la liste des examens ou sous *Découvrir*. Vous voyez leurs remises et les corrections par IA dans le projet BenGER.",
+        "L'espace d'apprentissage est aussi accessible depuis BenGER : en haut à droite, dans le menu du compte, via **Vue étudiant**. Sur what-a-benger.net, il s'appelle alors *Espace d'apprentissage*. Pour revenir, utilisez **Vue expert** dans la barre latérale."
+      ],
+      "tips": [
+        "La connexion vaut par adresse : sur l'adresse propre de l'espace d'apprentissage et sur what-a-benger.net, on se connecte séparément, avec les mêmes identifiants.",
+        "L'édition communautaire de BenGER (open source) ne contient que la plateforme des experts. L'espace d'apprentissage fait partie de l'édition étendue."
+      ],
+      "keywords": [
+        "espace d'apprentissage",
+        "vue étudiant",
+        "vue expert",
+        "différence",
+        "changer de vue",
+        "étudiants",
+        "what-a-benger.net",
+        "Lernbereich",
+        "Lernoberfläche"
+      ],
+      "links": ["Partager un examen avec les étudiants", "Clés API et qui paie"]
+    },
+    "first-steps": {
+      "title": "Que dois-je configurer en premier ?",
+      "summary": "Dans cet ordre : passer dans la bonne organisation, régler la question de la clé API (personnelle ou de l'organisation), créer un projet, téléverser des données, puis annoter, générer et évaluer.",
+      "steps": [
+        "**Vérifier le contexte** : en haut à droite, dans le menu du compte, choisissez votre organisation sous *Mes organisations*. Dans le contexte *Privé*, vous ne voyez pas les projets de l'organisation.",
+        "**Clé API** : si votre organisation fournit des clés, vous n'avez rien à faire. Sinon, enregistrez sous [Profil](/profile) → *Gestion des clés API* une clé du fournisseur d'IA que vous voulez utiliser.",
+        "**Créer un projet** : [Projets](/projects) → *Nouveau projet*, choisir le type de projet et les fonctions.",
+        "**Téléverser des données** : dans l'assistant ou plus tard via *Données du projet* (JSON, CSV, TSV, TXT).",
+        "**Annoter** : *Commencer l'annotation* sur la page du projet. **Générer** et **évaluer** via la carte de configuration correspondante.",
+        "**Résultats** : [Évaluation](/evaluations), [Rapports](/reports) et [Classements](/leaderboards)."
+      ],
+      "keywords": [
+        "premiers pas",
+        "démarrage",
+        "début",
+        "liste de contrôle",
+        "commencer",
+        "configuration initiale"
+      ]
+    },
+    "navigation-overview": {
+      "title": "Où trouver quoi dans la navigation ?",
+      "summary": "La barre latérale comporte trois groupes. **Démarrage rapide** : tableau de bord, rapports, statistiques d'apprentissage, classements. **Projets et données** : projets, gestion des données, génération, évaluation. **Connaissances** : guides, modèles, architecture. Tout ce qui est personnel se trouve en haut à droite dans le menu du compte.",
+      "steps": [
+        "**Menu du compte** (en haut à droite, votre nom) : paramètres du profil, paramètres de notification, *Changer de contexte* (privé ou organisation), exécutions, utilisateurs et organisations, vue étudiant, se déconnecter.",
+        "**Recherche** (loupe dans l'en-tête) : trouve des pages, des projets et ces guides. En allemand et en anglais, même avec des fautes de frappe.",
+        "**Exécutions** affiche toutes les exécutions de génération et d'évaluation avec leur statut. **Notifications** (cloche) vous informe des exécutions terminées et des invitations.",
+        "**Modèles** est le catalogue de modèles, avec les prix et l'endroit où vous enregistrez vos propres modèles."
+      ],
+      "keywords": [
+        "navigation",
+        "menu",
+        "barre latérale",
+        "menu du compte",
+        "recherche",
+        "où trouver",
+        "où se trouve"
+      ]
+    },
+    "org-context": {
+      "title": "Pourquoi je ne vois aucun projet ? Contexte privé ou organisation",
+      "summary": "Les projets appartiennent à des organisations. Dans le contexte **Privé**, vous ne voyez que vos projets privés. Passez à l'organisation en haut à droite, dans le menu du compte, sous **Mes organisations**.",
+      "steps": [
+        "Cliquez en haut à droite sur votre nom. Le contexte actuel figure entre parenthèses, p. ex. *(Privé)* ou *(Chaire X)*.",
+        "Sous **Mes organisations**, cliquez sur l'organisation. La page se recharge à l'adresse de l'organisation (`organisation.what-a-benger.net`).",
+        "Pour revenir à vos projets privés, utilisez **Privé**."
+      ],
+      "tips": [
+        "Le dernier contexte choisi est mémorisé. Les favoris pointant vers l'adresse de l'organisation mènent directement au bon contexte."
+      ],
+      "keywords": [
+        "contexte",
+        "privé",
+        "organisation",
+        "aucun projet",
+        "vide",
+        "sous-domaine",
+        "changer d'organisation",
+        "mes organisations"
+      ]
+    },
+    "org-roles": {
+      "title": "Quels rôles existent dans une organisation et que peuvent-ils faire ?",
+      "summary": "Trois rôles : l'**Admin** gère l'organisation, invite et voit tout. Le **Contributeur** crée des projets, importe des données, lance la génération et l'évaluation. L'**Annotateur** annote les tâches qui lui sont attribuées ou ouvertes et résout des examens. Chaque membre a un rôle dans l'organisation et, dans chacun de ses groupes, un rôle propre au groupe.",
+      "steps": [
+        "**Admin** : membres et rôles, groupes, clés API de l'organisation, invitations, visibilité des projets et [connexions aux plateformes d'apprentissage](/how-to#lti-manage) (Moodle, ILIAS). Voit les noms réels des personnes issues de ses propres connexions. Contourne les attributions et les fenêtres d'accès. Les administrateurs de groupe gèrent les connexions de leur groupe.",
+        "**Contributeur** : tout ce qui concerne les projets et les données (import, export, génération, évaluation, rapports), mais pas la gestion des membres. Voit et corrige aussi les examens privés d'autres personnes qui sont reliés à une plateforme d'apprentissage de l'organisation. Les personnes issues d'une plateforme d'apprentissage apparaissent dans les listes sous leur pseudonyme, sauf pour les examens que le contributeur est autorisé à noter.",
+        "**Annotateur** : voit les projets de l'organisation en tant qu'annotateur, sans page de données ni liste des membres. Pour les examens, uniquement la vue participant, sans corrigé type avant la remise.",
+        "**Rôle dans l'organisation et rôle dans le groupe** : le rôle dans l'organisation vaut pour les projets de toute l'organisation et pour tout ce qui se situe au niveau de l'organisation. Sur un projet d'un [groupe](/how-to#org-groups), c'est le rôle dans ce groupe qui compte ; il peut être plus élevé ou plus bas. Exemple : annotateur dans l'organisation, annotateur à la chaire A (où il ne passe des examens qu'en tant que participant), admin à la chaire B (où il crée et suit des projets). Les administrateurs de l'organisation sont admins dans chaque groupe.",
+        "Modifier les rôles : [Utilisateurs et organisations](/users-organizations) → onglet *Organisations* → choisir l'organisation → liste des membres. Les admins ne peuvent pas modifier d'autres admins. Les rôles dans un groupe se modifient sous **Groupes** → **Membres**."
+      ],
+      "tips": [
+        "Seule l'administration de la plateforme (superadministrateur) crée de nouvelles organisations. Écrivez-nous si vous en avez besoin d'une."
+      ],
+      "keywords": [
+        "rôle",
+        "rôles",
+        "admin",
+        "administrateur",
+        "contributeur",
+        "annotateur",
+        "droits",
+        "autorisation",
+        "rôle dans le groupe"
+      ]
+    },
+    "invite-members": {
+      "title": "Comment inviter quelqu'un dans mon organisation ?",
+      "summary": "Sous [Utilisateurs et organisations](/users-organizations) → *Organisations* → **Inviter un membre** (ou **Inviter plusieurs personnes**). La personne reçoit un e-mail avec un lien valable 7 jours et rejoint l'organisation avec le rôle choisi lorsqu'elle accepte.",
+      "steps": [
+        "Choisissez l'organisation dans la liste de gauche, section **Membres**.",
+        "**Inviter un membre** : e-mail, éventuellement un **Groupe** (sinon *Aucun (toute l'organisation)*) et le **Rôle** (Admin, Contributeur, Annotateur). Avec un groupe, vous choisissez le **Rôle dans le groupe** et le **Rôle dans l'organisation** (Annotateur par défaut). Pour plusieurs adresses, utilisez **Inviter plusieurs personnes**, séparées par des virgules, des points-virgules ou des sauts de ligne.",
+        "Les administrateurs de groupe n'invitent que dans leurs propres groupes, avec n'importe quel rôle dans le groupe. Dans l'organisation, les personnes invitées deviennent annotateurs ; seuls les administrateurs de l'organisation peuvent changer cela.",
+        "**Envoyer l'invitation**. Les invitations ouvertes figurent sous *Invitations en attente* et peuvent y être retirées.",
+        "La personne clique sur le lien : avec un compte existant, **Se connecter pour accepter**, sinon **Accepter l'invitation et créer un compte**. Les nouveaux comptes sont vérifiés immédiatement."
+      ],
+      "pitfalls": [
+        "L'invitation est liée à l'adresse e-mail invitée. Une personne connectée avec un autre compte voit un avertissement et doit se connecter avec l'adresse invitée.",
+        "Aucune deuxième invitation n'est créée pour une adresse qui est déjà membre ou qui a une invitation ouverte. Si un groupe est choisi, les membres existants de l'organisation sont ajoutés directement au groupe avec le rôle choisi. Le retour indique chaque adresse ignorée avec la raison.",
+        "Il n'est pas possible de rejoindre une organisation via le domaine de l'adresse e-mail. Chaque membre arrive par une invitation, une connexion à une plateforme d'apprentissage (LTI) ou l'administration de la plateforme."
+      ],
+      "keywords": [
+        "inviter",
+        "invitation",
+        "membre",
+        "e-mail",
+        "rejoindre",
+        "lien expiré"
+      ]
+    },
+    "org-groups": {
+      "title": "Comment créer des groupes (p. ex. des chaires) et qui les gère ?",
+      "summary": "Les groupes subdivisent une organisation : les projets et les clés API peuvent être limités à un groupe, et les membres d'un groupe ne voient que les projets de leur groupe. Chaque membre d'un groupe a son propre **Rôle dans le groupe** (administrateur, contributeur, annotateur). Les administrateurs de l'organisation créent les groupes sous **Groupes**. Qui est administrateur d'un groupe gère les membres, les rôles et les clés de ce groupe, sans droits à l'échelle de l'organisation.",
+      "steps": [
+        "[Utilisateurs et organisations](/users-organizations) → *Organisations* → choisir l'organisation → bouton **Groupes**.",
+        "**Nouveau groupe** : nom (p. ex. *Chaire de droit civil*) et description, puis **Créer le groupe**. Seuls les administrateurs de l'organisation peuvent créer, renommer, désactiver et supprimer des groupes.",
+        "**Membres** d'un groupe : **Ajouter un membre** parmi les membres existants de l'organisation, avec le **Rôle dans le groupe** (par défaut annotateur). Le rôle peut être modifié pour chaque membre dans la liste. Vous invitez directement les nouvelles personnes dans le groupe (invitation avec *Groupe* et rôle dans le groupe définis).",
+        "**Limiter des projets à un groupe** : lors de la création, sous *Visibilité → Organisation*, choisir le **Groupe** pour chaque organisation (par défaut *Toute l'organisation*), plus tard sur la page du projet sous *Visibilité du projet*. Les groupes proposés sont ceux dans lesquels vous êtes contributeur ou administrateur ; *Toute l'organisation* seulement avec le rôle de contributeur ou d'administrateur dans l'organisation.",
+        "**Clés par groupe** : dans la boîte de dialogue *Clés API* de l'organisation, régler le **Champ d'application** sur le groupe. Les projets du groupe utilisent d'abord la clé du groupe, sinon celle de l'organisation."
+      ],
+      "tips": [
+        "Sans groupes, rien ne change. Tout ce qui n'est pas limité à un groupe continue de s'appliquer à toute l'organisation.",
+        "L'appartenance à un groupe détermine la visibilité, le rôle dans le groupe détermine les droits sur les projets du groupe. Sur les projets à l'échelle de l'organisation, c'est le rôle dans l'organisation qui s'applique.",
+        "Les administrateurs de l'organisation voient tous les projets des groupes et sont administrateurs de chaque groupe. Les administrateurs de groupe n'ont des droits d'administration que sur les projets de leur groupe, même s'ils sont annotateurs dans l'organisation."
+      ],
+      "pitfalls": [
+        "Un groupe ne peut être supprimé que lorsque plus aucun projet, aucune clé ni aucune connexion à une plateforme d'apprentissage n'y renvoie. La désactivation (*Le groupe est actif* désactivé) est toujours possible et bloque seulement les nouvelles affectations.",
+        "Un administrateur de groupe ne modifie pas de rôles dans l'organisation, n'invite qu'en tant qu'annotateur de l'organisation et ne crée pas de nouveaux groupes."
+      ],
+      "keywords": [
+        "groupe",
+        "groupes",
+        "chaire",
+        "Lehrstuhl",
+        "administrateur de groupe",
+        "champ d'application",
+        "sous-groupe",
+        "rôle dans le groupe"
+      ]
+    },
+    "create-project": {
+      "title": "Comment créer un nouveau projet ?",
+      "summary": "**Projets → Nouveau projet** lance l'assistant de projet. Vous indiquez le nom et le type de projet, choisissez les fonctionnalités dont le projet a besoin, et l'assistant n'affiche que les étapes correspondantes.",
+      "steps": [
+        "Ouvrez [Projets](/projects) et cliquez sur **Nouveau projet**.",
+        "**Informations du projet** : nom (obligatoire), description, icône et **Type de projet** : *Générique*, *Examen* ou *Paquet de fiches* (voir « Quel type de projet choisir ? »).",
+        "Sous **Fonctionnalités du projet**, cochez ce dont vous avez besoin : *Import de données*, *Annotation*, *Génération LLM*, *Évaluation*. Chaque fonctionnalité affiche une étape dédiée.",
+        "Choisissez la **Visibilité** : *Privé* (vous seul), *Organisation* (membres d'une ou plusieurs organisations, éventuellement un seul groupe) ou *Public*.",
+        "Avec **Suivant**, parcourez les étapes *Import de données*, *Configurer l'annotation*, *Instructions*, *Modèles*, *Prompts*, *Évaluation* et *Paramètres*.",
+        "À la dernière étape, cliquez sur **Créer le projet**. Vous arrivez sur la page du projet."
+      ],
+      "tips": [
+        "Les pastilles d'étapes en haut sont cliquables. Vous pouvez revenir à tout moment à une étape précédente.",
+        "Tout, sauf le nom, peut être modifié plus tard sur la page du projet. Une étape vide n'est pas une erreur.",
+        "Un projet de type examen reçoit automatiquement le modèle d'annotation *Copie d'examen*, la correction par IA (deux méthodes d'évaluation) et l'évaluation immédiate. Vous n'avez rien à configurer pour cela."
+      ],
+      "pitfalls": [
+        "Seul le nom du projet est vérifié. Un projet sans données ou sans modèle d'annotation peut être créé, mais il est alors vide.",
+        "Si une étape partielle échoue lors de la création (p. ex. l'import de données), le projet existe quand même. Corrigez alors l'erreur sur la page du projet au lieu de terminer à nouveau l'assistant, sinon un second projet est créé."
+      ],
+      "keywords": [
+        "assistant",
+        "wizard",
+        "créer",
+        "nouveau projet",
+        "ajouter un projet",
+        "Neues Projekt"
+      ],
+      "links": ["Nouveau projet", "Choisir le type de projet"]
+    },
+    "project-kind": {
+      "title": "Quel type de projet choisir : Générique, Examen ou Paquet de fiches ?",
+      "summary": "Le type de projet détermine ce que le projet apporte automatiquement et si les étudiants peuvent le trouver. *Examen* pour les résolutions de cas avec correction par IA, *Paquet de fiches* pour les fiches de révision avec plan de révision, *Générique* pour tout le reste (benchmarks, études d'annotation).",
+      "steps": [
+        "**Générique** : projet de benchmark ou d'annotation sans logique d'examen ni de fiches. Vous choisissez vous-même le gabarit, les modèles et les méthodes d'évaluation.",
+        "**Examen** : énoncé des faits plus corrigé type, gabarit d'annotation *Copie d'examen* (énoncé, notes, plan, solution), correction par IA avec points de note, évaluation immédiate et affichage du corrigé type après la remise. Peut être résolu par les étudiants.",
+        "**Paquet de fiches** : fiches avec recto et verso, plan de révision avec répétitions espacées (SRS), import et export au format Anki. Peut être révisé par les étudiants.",
+        "Le type peut être modifié plus tard sur la page du projet sous **Paramètres → Type de projet**."
+      ],
+      "tips": [
+        "Changer de type ne change que le type. Le gabarit, les méthodes d'évaluation et les données restent tels quels. Les indications sous le type montrent ce qui manque encore pour les étudiants.",
+        "Si vous choisissez à l'étape *Configurer l'annotation* le gabarit *Fiches de révision (vide)*, l'assistant règle automatiquement le type sur *Paquet de fiches*."
+      ],
+      "keywords": [
+        "type de projet",
+        "kind",
+        "examen",
+        "paquet de fiches",
+        "fiches de révision",
+        "générique",
+        "Projekttyp"
+      ],
+      "links": ["Partager un examen avec les étudiants"]
+    },
+    "exam-project-quick": {
+      "title": "Comment saisir le plus rapidement un examen avec énoncé des faits et corrigé type ?",
+      "summary": "Via l'onglet **Saisir un examen** à l'étape *Import de données*. Vous remplissez l'énoncé et le corrigé type sous forme de texte, et éventuellement le plan, les critères d'évaluation, les consignes de rédaction, les documents complémentaires et les notes de correction. Aucun JSON n'est nécessaire.",
+      "steps": [
+        "Choisissez le type de projet **Examen** et cochez **Import de données**.",
+        "À l'étape *Import de données*, l'onglet **Saisir un examen** est présélectionné. Cliquez sur **Énoncé (énoncé des faits)** et collez le texte ou téléversez un fichier.",
+        "Remplissez de la même façon le **Corrigé type**. Il ne devient visible qu'après la remise.",
+        "En option, via **Ajouter un contenu** : *Plan / esquisse de solution*, *Critères d'évaluation* (grille propre), *Consignes de rédaction*, *Documents complémentaires*, *Notes de correction*.",
+        "Continuez jusqu'à **Créer le projet**. L'examen est importé comme une seule tâche."
+      ],
+      "tips": [
+        "Avec vos propres **Critères d'évaluation**, l'IA note selon votre grille au lieu du schéma standard à 10 dimensions et points de note.",
+        "Pour plusieurs examens dans un projet (une « collection d'examens »), utilisez un fichier JSON avec plusieurs entrées, voir « Quels champs un fichier d'examen doit-il contenir ? ».",
+        "Le **Générateur IA** peut créer des examens synthétiques à partir d'un support de cours. Il est marqué comme hautement expérimental et n'est visible que pour certains comptes."
+      ],
+      "keywords": [
+        "énoncé des faits",
+        "Sachverhalt",
+        "corrigé type",
+        "grille d'évaluation",
+        "Saisir un examen",
+        "structuré"
+      ],
+      "links": ["Champs d'un fichier d'examen"]
+    },
+    "project-page": {
+      "title": "Comment la page du projet est-elle organisée et où trouver quoi ?",
+      "summary": "La page du projet se compose de cartes dépliables. À gauche, la configuration (détails du projet, configuration de l'annotation, génération, évaluation, paramètres, partage) ; à droite, les actions rapides, la facturation, les statistiques et le rapport de projet. Les données, Mes tâches, la correction et la relecture ont leurs propres pages.",
+      "steps": [
+        "**Détails du projet** : statut, créateur, ID du projet, organisations. Vous modifiez le titre et la description directement dans l'en-tête de la page (crayon au survol).",
+        "**Configuration de l'annotation** : instructions pour les annotateurs, variantes pour les tests A/B, la configuration des étiquettes (XML) et *Déroulement et comportement de l'annotation* (mode d'attribution, limite de temps, fenêtre d'accès, phase de relecture et de correction).",
+        "**Configuration de la génération** et **Configuration de l'évaluation** : modèles, prompts, méthodes d'évaluation, chacune avec un bouton de lancement.",
+        "**Paramètres** : type de projet, visibilité des sections (quelles cartes existent) et visibilité du projet (privé, organisation, public).",
+        "**Partage** : visibilité sous *Découvrir*, liens de partage et participants.",
+        "**Actions rapides** à droite : *Commencer l'annotation*, *Données du projet* (tâches, import, export), *Mes tâches*, *Génération*, *Évaluations*, *Processus de relecture*, *Correction*, *Supprimer le projet*."
+      ],
+      "tips": [
+        "S'il manque une carte, la section est désactivée sous **Paramètres → Visibilité des sections**. Ces interrupteurs pilotent aussi l'indicateur de progression.",
+        "Les cartes de configuration s'enregistrent automatiquement dès que vous quittez un champ. En cas d'erreur d'enregistrement, la carte reste en mode édition."
+      ],
+      "keywords": [
+        "page du projet",
+        "cartes",
+        "actions rapides",
+        "statistiques",
+        "aperçu"
+      ]
+    },
+    "assignment-and-limits": {
+      "title": "Comment répartir les tâches entre les annotateurs et limiter les annotations ?",
+      "summary": "Via le **Mode d'attribution** dans *Déroulement et comportement de l'annotation* : *Ouvert* (tout le monde voit toutes les tâches), *Manuel* (vous attribuez) ou *Automatique*. S'y ajoutent *Annotations max. par tâche* et *Annotations min. pour l'achèvement*.",
+      "steps": [
+        "Page du projet → **Configuration de l'annotation → Déroulement et comportement de l'annotation**.",
+        "Choisissez le **Mode d'attribution**. En mode *Manuel* ou *Automatique*, les annotateurs ne voient que les tâches qui leur sont attribuées.",
+        "Pour attribuer manuellement : ouvrez **Données du projet**, cochez les tâches, action groupée **Attribuer à des annotateurs**.",
+        "Définissez **Annotations max. par tâche** (0 = illimité) et **Annotations min. pour l'achèvement**. Ce dernier détermine quand une tâche compte comme terminée et comment la progression est calculée.",
+        "Facultatif : **Ordre aléatoire des tâches**, comportement en cas de saut et **Confirmation requise avant la soumission**."
+      ],
+      "pitfalls": [
+        "Les administrateurs de l'organisation et les contributeurs contournent toujours l'attribution. Seul le rôle *Annotateur* est lié aux attributions.",
+        "Une tâche non attribuée est invisible pour les annotateurs (pas d'erreur, elle manque simplement). Pour les examens que les étudiants doivent résoudre via *Découvrir*, le mode doit être *Ouvert*."
+      ],
+      "keywords": [
+        "attribution",
+        "attribuer",
+        "annotateurs",
+        "limite",
+        "progression",
+        "mode d'attribution",
+        "répartir les tâches",
+        "Zuweisung"
+      ]
+    },
+    "timer-and-window": {
+      "title": "Comment définir une limite de temps ou une fenêtre d'accès ?",
+      "summary": "La **Limite de temps pour l'annotation** limite la durée de travail par tâche ; le **minuteur strict** soumet automatiquement à l'expiration. La **Fenêtre d'accès** n'ouvre le projet qu'entre deux dates.",
+      "steps": [
+        "Dans l'assistant sous **Paramètres**, ou plus tard sous *Déroulement et comportement de l'annotation*.",
+        "Cochez **Limite de temps pour l'annotation** et saisissez les minutes (1 à 360, 30 par défaut).",
+        "Ensuite seulement, cochez **Minuteur strict** si la soumission doit se faire automatiquement à l'expiration.",
+        "Cochez **Fenêtre d'accès** et définissez *Ouverture* et *Fermeture*. Avant l'ouverture, le projet est listé, mais les données restent masquées. Après la fermeture, tout est en lecture seule."
+      ],
+      "pitfalls": [
+        "Activer ou désactiver la limite de temps réinitialise le minuteur strict. Ordre à respecter : d'abord la limite de temps, ensuite le minuteur strict.",
+        "Les propriétaires et les administrateurs ne sont jamais limités par la fenêtre d'accès. Testez la fenêtre avec un compte d'annotateur.",
+        "Lors de la soumission automatique par le minuteur strict, la confirmation avant la soumission est ignorée."
+      ],
+      "keywords": [
+        "minuteur",
+        "timer",
+        "chronomètre",
+        "limite de temps",
+        "fenêtre d'accès",
+        "ouverture",
+        "fermeture",
+        "échéance",
+        "délai"
+      ]
+    },
+    "safe-exam-browser": {
+      "title": "Comment faire passer un examen dans le Safe Exam Browser ?",
+      "summary": "Avec **Safe Exam Browser requis**, les étudiants passent l'examen dans le Safe Exam Browser (SEB). Pendant l'examen, SEB bloque les autres programmes et sites web, y compris sur les appareils personnels. BenGER génère lui-même la configuration SEB. La correction se déroule ensuite comme d'habitude.",
+      "steps": [
+        "Page du projet → **Paramètres du projet** → **Safe Exam Browser** → cocher **Safe Exam Browser requis**.",
+        "Pour les examens issus de Moodle ou d'ILIAS, saisir la page du cours comme **URL de démarrage** (obligatoire), afin que les étudiants s'y connectent dans SEB. Saisir les pages supplémentaires autorisées (p. ex. une base de données législative) sous **Autres domaines autorisés**.",
+        "Facultatif : définir un **Mot de passe de sortie**, que les surveillants communiquent dans la salle.",
+        "Facultatif : définir un **Mot de passe d'examen pour le fichier de configuration**. Le fichier est alors chiffré, SEB demande le mot de passe à l'ouverture, et les surveillants le communiquent dans la salle au début de l'examen.",
+        "**Enregistrer**. Le lien pour démarrer dans SEB, le fichier de configuration et les domaines autorisés sont ensuite prêts à être copiés pour le service informatique.",
+        "Donner aux étudiants le lien vers l'examen. Qui l'ouvre dans un navigateur normal voit des instructions et le bouton **Ouvrir l'examen dans SEB**.",
+        "Avant l'examen réel, prévoir un examen blanc avec les mêmes paramètres, afin que tout le monde installe et teste SEB."
+      ],
+      "tips": [
+        "Les organisateurs, les administrateurs et les correcteurs n'ont pas besoin de SEB. Les étudiants voient ensuite leurs travaux remis, leurs notes et leurs corrections aussi dans un navigateur normal.",
+        "Chaque modification génère une nouvelle configuration. Qui a déjà ouvert SEB redémarre via le lien. Si des étudiants sont en train d'écrire et qu'une modification les bloquerait, BenGER demande une confirmation avant l'enregistrement.",
+        "Dans SEB, les étudiants restent sur l'examen : les autres pages de l'application ramènent à la page de l'examen.",
+        "Sous **Avancé**, vous pouvez imposer certaines versions de SEB (Browser Exam Keys). Sans entrée, toute version de SEB avec cette configuration est autorisée. Avec une désignation par entrée, les étudiants ayant une autre version voient quelles versions sont autorisées.",
+        "**Bloquer les programmes de partage d'écran et de prise de contrôle à distance** (sous **Avancé**, activé pour les nouvelles configurations) : avant le démarrage, SEB exige la fermeture de programmes comme TeamViewer, AnyDesk, Zoom ou Teams.",
+        "Le mot de passe d'examen peut être défini, modifié ou supprimé à tout moment sans qu'une nouvelle configuration soit créée."
+      ],
+      "pitfalls": [
+        "SEB existe pour Windows, macOS et iPad, mais pas pour Linux ni pour les Chromebooks. Prévoyez des appareils de prêt.",
+        "SEB n'empêche pas l'usage d'appareils secondaires comme les smartphones. Une surveillance dans la salle reste nécessaire.",
+        "Les liens de mot de passe reçus par e-mail ne peuvent pas être ouverts dans SEB. Les étudiants ont besoin de leurs identifiants avant l'examen."
+      ],
+      "keywords": [
+        "SEB",
+        "Safe Exam Browser",
+        "examen",
+        "épreuve",
+        "verrouillage",
+        "navigateur sécurisé",
+        "kiosque",
+        "BYOD",
+        "examen électronique",
+        "Klausur"
+      ]
+    },
+    "archive-delete-restore": {
+      "title": "Comment archiver, supprimer ou restaurer un projet ?",
+      "summary": "L'archivage se fait dans la liste des projets comme action groupée. La suppression masque le projet pour tout le monde, les données sont conservées. Seuls les superadministrateurs peuvent restaurer ou supprimer définitivement des projets supprimés sous **Plus → Projets supprimés**.",
+      "steps": [
+        "**Archiver** : [Projets](/projects) → cocher les projets → **Actions → Archiver la sélection**. Les projets archivés se trouvent sous **Plus → Archivés**, où vous pouvez les désarchiver.",
+        "**Supprimer** : page du projet → actions rapides → **Supprimer le projet**. Le projet disparaît pour tout le monde ; les tâches, remises et notes restent enregistrées.",
+        "**Restaurer** (superadministrateur) : **Plus → Projets supprimés** → *Restaurer* ou *Supprimer définitivement*."
+      ],
+      "tips": [
+        "Avant une suppression définitive, sauvegardez un export : cocher les projets → **Actions → Exporter les projets sélectionnés**."
+      ],
+      "keywords": [
+        "archiver",
+        "supprimer",
+        "restaurer",
+        "corbeille",
+        "définitivement"
+      ]
+    },
+    "upload-data": {
+      "title": "Comment téléverser des données et quels formats sont acceptés ?",
+      "summary": "En **JSON, CSV, TSV ou TXT**, soit dans l'assistant de projet (étape *Import de données*), soit plus tard sur la page **Données du projet** via l'icône d'import. Chaque ligne ou chaque objet devient une tâche. Les noms de champ doivent correspondre aux espaces réservés `$feld` du modèle d'annotation.",
+      "steps": [
+        "Page du projet → action rapide **Données du projet** → icône d'import (info-bulle *Importer*). Dans l'assistant : étape **Import de données**.",
+        "Onglet **Téléverser un fichier** (glisser-déposer) ou **Coller un tableau/JSON** (coller le texte, *Valider les données*). Les organisations disposant d'une connexion de stockage ont en plus **Stockage cloud**.",
+        "L'encadré **Exigences relatives aux données** indique les champs attendus par le modèle. Les colonnes reconnues dans votre fichier apparaissent sous forme de puces.",
+        "S'il manque un champ, l'import propose **Importer quand même** ou la **Correspondance des champs**, qui vous permet d'associer des colonnes aux champs attendus.",
+        "**Importer**. L'import s'exécute en arrière-plan, la progression est affichée."
+      ],
+      "tips": [
+        "**JSON** : un tableau d'objets `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Un objet contenant `data` est repris tel quel.",
+        "**CSV/TSV** : la première ligne contient les noms de colonnes. **TXT** : chaque ligne devient une tâche avec le champ `text`.",
+        "Les noms de champ sont associés sans tenir compte de la casse. `Sachverhalt` dans le fichier correspond à `$sachverhalt` dans le modèle.",
+        "Fichiers jusqu'à 2 Go. Enregistrez les fichiers texte en **UTF-8**, sinon les caractères accentués s'affichent mal."
+      ],
+      "pitfalls": [
+        "Le CSV est simplement découpé à chaque virgule. **Les virgules ou retours à la ligne à l'intérieur des cellules cassent la ligne.** Utilisez JSON pour les textes longs.",
+        "Seuls les contributeurs et les administrateurs peuvent importer. Les annotateurs ne voient pas la page des données.",
+        "L'import crée de nouvelles tâches, il ne met pas à jour les tâches existantes. Importer une seconde fois le même fichier double les tâches."
+      ],
+      "keywords": [
+        "téléverser",
+        "téléversement",
+        "upload",
+        "import",
+        "importer",
+        "CSV",
+        "JSON",
+        "TSV",
+        "TXT",
+        "fichier",
+        "correspondance des champs",
+        "colonnes",
+        "import de données",
+        "données du projet"
+      ],
+      "links": ["Champs d'un fichier d'examen"]
+    },
+    "exam-file-fields": {
+      "title": "Quels champs un fichier d'examen (collection d'examens) doit-il contenir ?",
+      "summary": "Un objet JSON par examen avec `sachverhalt` et `musterloesung`. En option `muster_gliederung`, `bearbeitervermerk`, `zusatzmaterial` et `korrekturhinweise`. Plusieurs objets dans un tableau forment une collection d'examens que les étudiants résolvent l'un après l'autre.",
+      "steps": [
+        "`sachverhalt` (obligatoire) : le cas, visible pendant l'examen.",
+        "`musterloesung` (obligatoire) : la référence pour la correction par IA, visible seulement après la remise.",
+        "`muster_gliederung` : esquisse de solution, visible après la remise.",
+        "`bearbeitervermerk` et `zusatzmaterial` : visibles pendant l'examen, ils apparaissent dans l'énoncé.",
+        "`korrekturhinweise` : notes pour les correcteurs, visibles après la remise.",
+        "Exemple : `[{\"sachverhalt\": \"A verkauft B …\", \"musterloesung\": \"A. Anspruch …\"}, {\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}]`"
+      ],
+      "tips": [
+        "Les avertissements sous **Partage** sur la page du projet vérifient exactement ces champs et signalent par ex. *Les tâches ne contiennent pas de corrigé type.*"
+      ],
+      "keywords": [
+        "collection d'examens",
+        "sachverhalt",
+        "musterloesung",
+        "champs",
+        "structure JSON",
+        "plusieurs examens"
+      ]
+    },
+    "export-import-project": {
+      "title": "Comment exporter des tâches ou un projet entier, puis le réimporter ?",
+      "summary": "**Tâches** d'un projet : page *Données du projet* → icône d'export, fournit du JSON. **Projets entiers**, y compris la configuration, les annotations et les évaluations : cochez-les dans la liste des projets → **Actions → Exporter les projets sélectionnés** (ZIP). Pour les réimporter : **Plus → Importer un projet**.",
+      "steps": [
+        "**Exporter des tâches** : page du projet → *Données du projet* → icône d'export. Avec des filtres actifs ou une sélection, seul ce sous-ensemble est exporté. L'export s'exécute en arrière-plan, puis le téléchargement apparaît.",
+        "**Exporter un projet** : [Projets](/projects) → cocher des projets → **Actions → Exporter les projets sélectionnés**. Vous obtenez `benger-projects-full-<Datum>.zip`.",
+        "**Importer un projet** : [Projets](/projects) → **Plus → Importer un projet** → choisir un fichier `.json` ou `.zip`. Après l'import, le nouveau projet s'ouvre."
+      ],
+      "pitfalls": [
+        "Un projet importé est une copie avec de nouveaux identifiants. Les utilisateurs et les organisations ne sont pas copiés ; vous redéfinissez la visibilité.",
+        "Le projet est placé dans l'organisation dans laquelle vous travaillez actuellement. En mode privé, la plateforme prend votre première organisation.",
+        "**Importer un projet** n'accepte que les exports de projet. Un export de tâches issu de *Données du projet* s'importe sur la page *Données du projet* d'un projet existant.",
+        "*Version de format de fichier non prise en charge* signifie que le fichier provient d'une version plus ancienne ou d'une autre installation. Exportez-le à nouveau depuis la plateforme actuelle.",
+        "Les très gros exports de tâches avec filtres sont plafonnés. Restreignez davantage la sélection ou exportez sans filtre."
+      ],
+      "keywords": [
+        "export",
+        "exporter",
+        "import",
+        "importer",
+        "ZIP",
+        "JSON",
+        "sauvegarde",
+        "backup",
+        "importer un projet",
+        "Anki"
+      ]
+    },
+    "labeling-templates": {
+      "title": "Quels modèles d'annotation existent et quand utiliser lequel ?",
+      "summary": "À l'étape **Configurer l'annotation**, vous choisissez dans la galerie de modèles : *Questions-réponses*, *Choix multiples*, *Annotation de segments*, *Copie d'examen*, *Fiches de révision (vide)* ou *Personnalisé* (XML propre). Le modèle détermine les champs que les annotateurs voient et remplissent.",
+      "steps": [
+        "**Questions-réponses** : afficher le contexte et la question, saisir une réponse en texte libre. Les données doivent contenir `context` et `question`.",
+        "**Choix multiples** : question avec les options A à D, justification facultative. Les données doivent contenir `question` et `context`.",
+        "**Annotation de segments** : marquer et étiqueter des passages de texte (personne, organisation, norme…). Les données doivent contenir `text`.",
+        "**Copie d'examen** : énoncé, notes, plan et solution, avec des marquages dans l'énoncé des faits. Les données doivent contenir `sachverhalt` et `musterloesung`. Défini automatiquement pour le type de projet *Examen*.",
+        "**Fiches de révision (vide)** : recto et verso. Les données doivent contenir `front` et `back`. Règle le type de projet sur *Paquet de fiches*.",
+        "**Personnalisé** : XML propre, voir « Comment modifier le XML de l'interface d'annotation ? »."
+      ],
+      "tips": [
+        "Si vous ne choisissez aucun modèle, le projet reçoit un modèle minimal avec un champ de texte `text` et une réponse en texte libre."
+      ],
+      "keywords": [
+        "modèle",
+        "modèle d'annotation",
+        "gabarit",
+        "template",
+        "galerie",
+        "questions-réponses",
+        "choix multiples",
+        "QCM",
+        "segment",
+        "span",
+        "copie d'examen",
+        "fiches de révision"
+      ]
+    },
+    "edit-label-xml": {
+      "title": "Comment modifier le XML de l'interface d'annotation (configuration des labels) ?",
+      "summary": "Page du projet → **Configuration de l'annotation → Configuration des labels → Modifier la configuration**. Le XML suit le schéma Label Studio : une `<View>` comme racine, des balises d'affichage comme `<Text>` avec `value=\"$feld\"`, des balises de saisie comme `<TextArea>` ou `<Choices>` avec `name` et `toName`.",
+      "steps": [
+        "Ouvrez l'éditeur. Le panneau **Available Task Fields** au-dessus liste les champs de vos tâches. Un clic copie `$feldname`.",
+        "**Afficher** : `<Text name=\"fall\" value=\"$sachverhalt\"/>` affiche un champ de données. `<Header value=\"Frage\"/>` est un titre. `<Image>` affiche des images.",
+        "**Saisir** : `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (texte libre), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (choix), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (marquer des passages), `<Rating>`, `<Likert>`, `<Number>`.",
+        "Chaque balise de saisie a besoin d'un `name` unique (qui devient la clé de l'annotation) et d'un `toName` qui pointe vers une balise d'affichage.",
+        "**Enregistrer la configuration**. Vérifiez le résultat via **Commencer l'annotation** : il n'y a pas d'aperçu en direct."
+      ],
+      "tips": [
+        "Balises d'examen de l'édition étendue : `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` avec des enfants `<Label>` comme couleurs de surlignage, `<Notizen>`, `<Gliederung>` et `<Loesung linkedTo=\"gliederung\">`. Le modèle *Copie d'examen* montre l'exemple complet.",
+        "`$feld.unterfeld` accède à des données imbriquées. Les noms de champ sont associés sans tenir compte de la casse.",
+        "La référence de toutes les balises standard : [Balises Label Studio](https://labelstud.io/tags/)."
+      ],
+      "pitfalls": [
+        "Une balise inconnue n'est tout simplement pas affichée, sans message d'erreur. S'il manque un champ dans l'interface, vérifiez le nom de la balise. Si *Unknown component type: Gliederung* apparaît, c'est l'édition communautaire qui tourne, sans les balises d'examen.",
+        "`required=\"true\"` vérifie seulement que le **champ de données** existe dans la tâche. Il n'oblige pas les annotateurs à saisir quelque chose.",
+        "L'éditeur vérifie seulement que le XML est bien formé et contient une `<View>`. Les `name`/`toName` manquants ne se remarquent qu'au moment de l'annotation.",
+        "**Ne renommez pas un champ de saisie s'il existe déjà des annotations.** Les anciennes annotations et les méthodes d'évaluation (champ de prédiction, p. ex. `loesung`) renvoient à l'ancien nom."
+      ],
+      "keywords": [
+        "XML",
+        "configuration des labels",
+        "Label-Konfiguration",
+        "Label Studio",
+        "View",
+        "TextArea",
+        "Choices",
+        "Labels",
+        "Angabe",
+        "Gliederung",
+        "Loesung",
+        "adapter l'interface",
+        "interface d'annotation",
+        "balises"
+      ],
+      "links": ["Référence des balises Label Studio"]
+    },
+    "annotation-instructions": {
+      "title": "Comment donner des instructions aux annotateurs et comment fonctionne l'annotation ?",
+      "summary": "Vous rédigez les instructions dans l'assistant (étape *Instructions*) ou sur la page du projet sous **Configuration de l'annotation → Instructions d'annotation**. Les annotateurs commencent via **Commencer l'annotation** ou **Mes tâches**, traitent les tâches l'une après l'autre et les remettent avec *Soumettre*.",
+      "steps": [
+        "Les **Instructions d'annotation** (Markdown) sont affichées aux annotateurs au-dessus de la tâche.",
+        "**Variantes d'instructions conditionnelles** pour les tests A/B : plusieurs variantes avec des pondérations en pourcentage, dont la somme doit faire 100.",
+        "Les annotateurs voient les tâches ouvertes ou qui leur sont attribuées, peuvent en passer (si c'est autorisé) et, après la remise, consulter leur propre remise sous **Mes tâches**.",
+        "Avec **Afficher le corrigé type après la remise**, ils voient aussi les champs de référence après la soumission. Si l'**évaluation immédiate** est active, le résultat de l'IA apparaît directement.",
+        "Les **états intermédiaires restaurables** enregistrent toutes les cinq minutes un état que les annotateurs peuvent récupérer."
+      ],
+      "keywords": [
+        "instructions",
+        "consignes",
+        "annoter",
+        "soumettre",
+        "mes tâches",
+        "variantes",
+        "A/B",
+        "état intermédiaire"
+      ]
+    },
+    "generation-run": {
+      "title": "Comment faire générer des réponses par des modèles d'IA ?",
+      "summary": "Sur la page du projet, sous **Configuration de la génération**, sélectionnez des modèles et créez un prompt, puis cliquez sur **Lancer la génération**. Dans la boîte de dialogue, vous choisissez le mode (*Générer uniquement les manquantes* ou *Tout générer*), les modèles, les structures de prompt et les paramètres. Vous suivez la progression sous [Génération](/generations), sous forme de matrice tâche × modèle.",
+      "steps": [
+        "**Sélection des modèles** : cochez des modèles du catalogue. Seuls les fournisseurs pour lesquels une clé existe apparaissent. Pour chaque modèle, vous pouvez définir une limite de tokens et un budget de réflexion (reasoning).",
+        "**Structures de prompt** : prompt système (rôle) et prompt d'instruction (tâche). Vous insérez les champs de la tâche sous la forme `$feld`, p. ex. `Sachverhalt:\n$sachverhalt`. Plusieurs structures sont possibles ; toutes les structures actives sont exécutées.",
+        "**Lancer la génération** : choisissez le mode, confirmez les modèles et les structures, puis, sous *Paramètres avancés*, les exécutions par tâche, la température, les tokens max. et le seed. L'**Estimation des coûts** calcule tâches × exécutions × modèles.",
+        "Progression et résultats : [Génération](/generations). Un clic sur une cellule affiche la réponse, le prompt utilisé et les paramètres. Clic droit : *Générer* ou *Régénérer*. Toutes les exécutions avec leur statut : [Exécutions](/runs)."
+      ],
+      "tips": [
+        "Les champs de référence comme `musterloesung`, `answer`, `solution`, `ground_truth` ou `annotations` ne sont jamais insérés dans les prompts. Le modèle ne peut ainsi pas voir la solution.",
+        "Les modèles des séries GPT-5 et o imposent une température de 1.0 ; le curseur est ignoré pour eux. Anthropic et Google ne prennent pas en charge le seed.",
+        "*Générer uniquement les manquantes* ignore les tâches dont la réponse existe déjà avec un prompt inchangé. Après une modification du prompt, elles sont régénérées.",
+        "Pour les études comportant plusieurs passages, réglez *Exécutions par tâche* sur une valeur supérieure à 1. Chaque exécution est enregistrée et évaluée séparément."
+      ],
+      "keywords": [
+        "génération",
+        "générer",
+        "prompt",
+        "prompt système",
+        "instruction",
+        "variable",
+        "espace réservé",
+        "température",
+        "seed",
+        "exécutions par tâche",
+        "estimation des coûts",
+        "sélection des modèles"
+      ],
+      "links": ["Génération", "Catalogue de modèles"]
+    },
+    "model-catalog": {
+      "title": "Quels modèles existent et combien coûtent-ils ?",
+      "summary": "Le [catalogue des modèles](/models) liste tous les modèles avec leur fournisseur, leurs capacités, leurs prix par million de tokens et des recommandations pour la génération et l'évaluation : OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi, etc.), Grok, Mistral et Cohere. Les coûts sont facturés par le fournisseur via la clé utilisée, pas par BenGER.",
+      "tips": [
+        "L'*Estimation des coûts* dans les boîtes de dialogue de génération et d'évaluation utilise exactement ces prix.",
+        "Les modifications du catalogue sont consultables sous [Nouveautés](/changelog). Les modèles retirés restent visibles dans les anciens résultats, mais ne peuvent plus être choisis."
+      ],
+      "keywords": [
+        "catalogue des modèles",
+        "modèles",
+        "prix",
+        "coûts",
+        "tokens",
+        "fournisseur",
+        "GPT",
+        "Claude",
+        "Gemini",
+        "Llama"
+      ]
+    },
+    "api-keys": {
+      "title": "Comment configurer une clé API et quelle clé est utilisée ?",
+      "summary": "Les modèles d'IA ont besoin d'une clé du fournisseur concerné. Soit vous enregistrez la vôtre sous [Profil](/profile) → **Gestion des clés API**, soit votre organisation fournit des clés. La règle : si l'organisation fournit des clés, elle paie pour ses projets ; sinon, c'est votre propre clé qui paie.",
+      "steps": [
+        "**Clé personnelle** : [Profil](/profile) → *Gestion des clés API* → choisir le fournisseur (OpenAI, Anthropic, Google, DeepInfra, Grok/xAI, Mistral, Cohere) → coller la clé → *Tester* → *Enregistrer*. La clé est stockée chiffrée et n'est jamais affichée.",
+        "**Clés de l'organisation** (administrateur) : [Utilisateurs et organisations](/users-organizations) → organisation → **Clés API** → activer l'interrupteur **L'organisation fournit les clés API** et enregistrer une clé par fournisseur. Facultatif : limiter la **portée** à un groupe.",
+        "**Qui paie** : la carte **Facturation** de chaque page de projet vous l'indique. *L'organisation prend en charge les coûts* si elle fournit des clés ; sinon, *passe par la clé API personnelle*.",
+        "Pour les projets de groupe, la clé du groupe est utilisée en premier, puis celle de l'organisation. Jamais la clé d'un autre groupe."
+      ],
+      "tips": [
+        "Vous ne voyez que les modèles des fournisseurs pour lesquels une clé existe. Si un fournisseur manque dans le sélecteur de modèles, c'est que la clé manque.",
+        "Si l'organisation fournit des clés, le formulaire des clés personnelles est désactivé dans le profil. C'est voulu.",
+        "Pour les examens que les étudiants résolvent dans l'espace d'apprentissage, votre organisation paie la correction par IA si elle fournit des clés. Sinon, ce sont les conditions de l'espace d'apprentissage qui s'appliquent. Qui y enregistre sa propre clé paie lui-même.",
+        "Si un examen est lié à une plateforme d'apprentissage (Moodle, ILIAS), l'organisation de cette connexion paie la correction par IA des étudiants venant de la plateforme (même sans adhésion) et de son propre personnel, y compris pour leurs exécutions d'évaluation. Elle doit pour cela fournir des clés et disposer d'une clé pour le modèle d'évaluation. Sinon, aucune correction par IA n'a lieu, et il n'y a pas de repli sur une autre clé. Voir [Connexion à une plateforme d'apprentissage](/how-to#lti-setup)."
+      ],
+      "pitfalls": [
+        "**Si l'organisation fournit des clés mais n'en a pas pour le fournisseur choisi, il n'y a pas de repli sur votre clé personnelle.** Le fournisseur est alors tout simplement indisponible.",
+        "Qui n'est pas membre actif de l'organisation ne peut pas utiliser ses clés. C'est alors la clé personnelle qui est débitée, sans avertissement.",
+        "« Votre clé API est valide, mais a atteint ses limites d'utilisation ou de débit » signifie : plus de crédit ou limite de débit atteinte chez le fournisseur, pas une erreur de BenGER.",
+        "La clé doit correspondre au fournisseur : `sk-…` pour OpenAI, `sk-ant-…` pour Anthropic, `AI…` pour Google, `xai-…` pour Grok."
+      ],
+      "keywords": [
+        "clé API",
+        "clés API",
+        "API Key",
+        "clé",
+        "OpenAI",
+        "Anthropic",
+        "Google",
+        "Mistral",
+        "crédit",
+        "facturation",
+        "qui paie",
+        "l'organisation fournit",
+        "gestion des clés API",
+        "API-Schlüssel"
+      ],
+      "links": ["Profil", "Enregistrer des modèles personnalisés"]
+    },
+    "custom-models": {
+      "title": "Comment connecter un modèle personnalisé (BYOM, point de terminaison compatible OpenAI) ?",
+      "summary": "Sous [Modèles](/models) → **Enregistrer un modèle personnalisé**. Vous indiquez l'URL de base et le nom du modèle d'un point de terminaison Chat Completions compatible OpenAI et vous enregistrez votre clé pour celui-ci. Le modèle est ensuite disponible pour la génération et comme juge LLM.",
+      "steps": [
+        "[Modèles](/models) → section *Mes modèles* → **Enregistrer un modèle personnalisé**.",
+        "**Nom d'affichage**, **URL de base** (p. ex. `https://api.example.com/v1`), **Nom du modèle au point de terminaison** (la valeur du champ `model`).",
+        "Désactivez **Clé API requise** si le point de terminaison est accessible sans authentification (p. ex. un serveur local). Sinon, saisissez **Votre clé API**.",
+        "Facultatif : paramètres de raisonnement et coût par million de tokens (pour les rapports de coûts). **Tester**, puis enregistrer.",
+        "Partager : dans la liste des modèles, réglez la visibilité sur organisation ou public. Seule la définition du point de terminaison est partagée. Chaque personne enregistre sa propre clé."
+      ],
+      "pitfalls": [
+        "Les adresses du réseau interne (localhost, plages d'IP privées) sont bloquées pour des raisons de sécurité. Le point de terminaison doit être accessible publiquement.",
+        "Avec `http://` au lieu de `https://`, la clé est transmise en clair à chaque requête.",
+        "Les modèles personnalisés sont réglés de façon prudente : pas de sortie structurée garantie, pas de seed. Pour la notation d'examens (juges), les modèles du catalogue sont plus fiables.",
+        "La suppression ne fait que désactiver le modèle s'il est déjà référencé dans des résultats. Il reste visible dans les anciennes exécutions."
+      ],
+      "keywords": [
+        "modèle personnalisé",
+        "BYOM",
+        "point de terminaison",
+        "endpoint",
+        "Ollama",
+        "vLLM",
+        "URL de base",
+        "modèles de la communauté",
+        "compatible OpenAI"
+      ]
+    },
+    "bewertungsbogen-upload-format": {
+      "title": "Quel format doit avoir une grille de correction pour pouvoir la téléverser ?",
+      "summary": "Un tableau avec **une colonne de texte** (point du plan) et **une colonne de points** (BE max. par étape) suffit. Téléversez-le sur la **page de la tâche → Grille d'évaluation → Téléverser** au format `.xlsx`, `.docx`, `.csv`, `.md` ou `.json`. Avant l'enregistrement, l'éditeur de plan s'ouvre toujours pour une vérification sur le fond : rien n'est activé sans avoir été vérifié.",
+      "steps": [
+        "**Plan via les intitulés** : le niveau est lu au début de la ligne : `Frage 1`, puis `A.`, `I.`, `1.`, `a)`, `aa)`, `(1)` et les puces. Cet ordre suffit ; huit niveaux de profondeur fonctionnent.",
+        "**Points** : une ligne **avec** une valeur en points devient une étape d'examen, une ligne **sans** devient une section. Sont acceptés `10`, `0,5`, `2 BE`, `3 P.` : la virgule décimale ne pose pas de problème, les demi-BE sont autorisées.",
+        "**Détection de la colonne de points** : un en-tête `max. BE` ou `Punkte` suffit ; sinon, la première colonne de nombres à droite du texte est utilisée. Les colonnes `Ihre BE`, `Bewertung`, `erreicht` ou `Korrektor` sont ignorées : une colonne de correction vide ne gêne donc pas.",
+        "**Points forts** : `(Schwerpunkt!)` ou `(weiterer Schwerpunkt!)` après le titre marque l'étape ; la mention est retirée du titre.",
+        "**Note de section** : `insgesamt 21 BE` est reprise comme note de la section et comparée à la somme des étapes.",
+        "**Consignes d'évaluation** : les puces sous une étape deviennent ses consignes, exactement celles que verront ensuite les correcteurs et le juge IA.",
+        "**Barème de notation** : un tableau `Rohpunkte → Notenpunkte` à la fin (p. ex. `0–9 | 0`, `10–19 | 1`, …) est repris comme barème de notation de l'examen, règle d'arrondi comprise (« bei 0,5 BE wird abgerundet »).",
+        "Les **lignes de total** comme `Gesamt-BE` ou `Summe` sont ignorées, mais la valeur indiquée est comparée à la somme calculée."
+      ],
+      "tips": [
+        "`.xlsx` est la source la plus fiable : dans un tableau, texte et points sont proprement côte à côte. Dans `.docx`, l'association découle de l'ordre des paragraphes dans la cellule : cela fonctionne le plus souvent, mais un avertissement s'affiche en cas de doute.",
+        "`.csv` et `.md` sont souvent les plus simples pour des grilles rédigées vous-même. En Markdown, une liste suffit : `- I. Eröffnung des Verwaltungsrechtswegs (1 BE)`, ou aussi `(2,5 BE)` ou `[3 Punkte]`.",
+        "`.json` est la voie sans perte : une grille mise au point une fois dans l'éditeur peut être exportée, modifiée ailleurs et réimportée à l'identique. Étapes, clés, points forts et barème de notation restent identiques.",
+        "Dans un `.csv` séparé par des virgules, les virgules décimales doivent être entre guillemets (`\"2,5\"`). Avec le point-virgule, que produit Excel en allemand, le problème disparaît.",
+        "Si le fichier ne correspond à aucun de ces modèles (texte continu, esquisse de solution, grille sans tableau), le téléversement propose **Structurer avec l'IA** (édition étendue). Un modèle lit le document et propose un plan ; il n'invente aucun point et reprend seulement ce qui figure dans le texte. Le résultat arrive dans le même éditeur de plan et constitue explicitement un brouillon. Les tableaux lisibles continuent d'être importés à l'identique et ne sont jamais transmis à un modèle.",
+        "La grille n'a pas besoin d'être complète : ce que l'import ne reconnaît pas, vous le complétez dans l'éditeur de plan avant l'activation."
+      ],
+      "pitfalls": [
+        "Les PDF scannés et les images ne peuvent pas être importés. Il faut un fichier contenant du vrai texte.",
+        "Si le texte et les points se trouvent **dans la même cellule** (`Sachmangel 10 BE`), l'import ne trouve pas de colonne de points. En `.md`, en revanche, c'est justement ce qu'il faut faire : les points y sont prévus en fin de ligne.",
+        "La numérotation automatique de Word n'est pas enregistrée dans le fichier : les paragraphes numérotés arrivent sans intitulé (message `auto_numbering`). Le niveau est correct ; ajoutez le numéro dans l'éditeur ou écrivez-le comme texte dans le document.",
+        "Sans colonne de points identifiable, l'import s'interrompt avec un message clair au lieu de créer une grille vide. Utilisez alors **Structurer avec l'IA** ou créez la grille à la main.",
+        "Les messages comme `alignment_uncertain` ou `subtotal_mismatch` ne sont pas des erreurs de l'import, mais indiquent où regarder dans l'éditeur."
+      ],
+      "keywords": [
+        "grille de correction",
+        "grille d'évaluation",
+        "barème",
+        "unités d'évaluation",
+        "BE",
+        "points",
+        "téléverser",
+        "Excel",
+        "Word",
+        "CSV",
+        "Markdown",
+        "JSON",
+        "barème de notation",
+        "point fort",
+        "format",
+        "modèle",
+        "Korrekturbogen",
+        "Bewertungsbogen"
+      ]
+    },
+    "evaluation-methods": {
+      "title": "Quelles méthodes d'évaluation existent et comment les configurer ?",
+      "summary": "Dans l'assistant (étape *Évaluation*) ou sur la page du projet sous **Configuration de l'évaluation → Méthodes d'évaluation**. Vous sélectionnez des méthodes, leur associez un **Champ de prédiction** (ce qui est évalué) et un **Champ de référence** (corrigé type) et, pour les juges LLM, choisissez le modèle d'évaluation.",
+      "steps": [
+        "**Lexicales** : Exact Match, BLEU, ROUGE, METEOR, chrF. Rapides, elles comparent la formulation avec la référence.",
+        "**Sémantiques** : Semantic Similarity, BERTScore, MoverScore. Elles comparent le sens à l'aide d'embeddings et ne s'exécutent que dans l'évaluation par lot.",
+        "**Classification** : Accuracy, Precision, Recall, F1 pour les tâches à choix.",
+        "**LLM-as-Judge** : *Classic* (dimensions prédéfinies), *Custom* (prompt et critères propres), *Résolution de cas* (10 dimensions juridiques avec des points de note de 0 à 18), *LLM Custom Rubric* (grille d'évaluation générée automatiquement pour chaque tâche).",
+        "**Correction humaine** : *Correction (Classic)* avec commentaires et annotations, *Correction (résolution de cas)* et *Correction (Custom Rubric)* selon le même schéma que le juge correspondant. Elles activent la page **Correction** dans le projet.",
+        "Pour chaque méthode : **Champ de prédiction** (par ex. `loesung` ou *Toutes les sorties des modèles*) et **Champ de référence** (par ex. `task.musterloesung`). En cas de plusieurs références, la meilleure correspondance compte."
+      ],
+      "tips": [
+        "Les projets d'examen reçoivent automatiquement **deux** juges de résolution de cas sur deux modèles différents (par ex. *Notenpunkte (gpt-5-mini)* et *Notenpunkte (gpt-5.4-mini)*). La correction immédiate en exécute exactement un. L'évaluation par lot exécute les deux. C'est voulu.",
+        "Les paramètres avancés (modèle du juge, température, budget de réflexion, plusieurs juges en ensemble, exécutions par juge) se trouvent sur la page du projet après sa création.",
+        "Pour le *Custom LLM Judge*, vous indiquez votre propre grille sous forme de critères avec description et nombre maximal de points. Avec un nombre maximal de points, le juge évalue tous les critères en un seul passage."
+      ],
+      "pitfalls": [
+        "Une méthode portant le badge **Par lot uniquement** ne s'exécute pas dans l'évaluation immédiate, car elle charge un grand modèle.",
+        "Les juges LLM ont besoin d'une clé API pour le modèle d'évaluation. Sans clé, l'évaluation échoue.",
+        "Le champ de prédiction et le champ de référence doivent exister. Après avoir renommé des champs dans le modèle d'annotation, adaptez les méthodes."
+      ],
+      "keywords": [
+        "évaluation",
+        "méthodes d'évaluation",
+        "métrique",
+        "métriques",
+        "juge",
+        "juge LLM",
+        "résolution de cas",
+        "grille d'évaluation",
+        "BLEU",
+        "ROUGE",
+        "champ de prédiction",
+        "champ de référence",
+        "points de note"
+      ],
+      "links": ["Configurer les clés API"]
+    },
+    "immediate-evaluation": {
+      "title": "Qu'est-ce que l'évaluation immédiate (avis de l'IA) et quand s'exécute-t-elle ?",
+      "summary": "Si l'**Évaluation immédiate** est activée dans le projet, chaque remise est évaluée juste après la soumission avec les méthodes configurées. Les annotateurs voient le résultat aussitôt dans une fenêtre. Pour les examens, il s'agit de la correction par IA avec points de note et justification par dimension.",
+      "steps": [
+        "Activer : assistant, étape *Évaluation* → **Évaluation immédiate**, ou page du projet → Configuration de l'évaluation. Les projets d'examen l'ont activée automatiquement.",
+        "Après la soumission apparaît *Évaluation de votre annotation en cours...*, puis le résultat de chaque méthode. Pour les examens : points de note, points par dimension, appréciation générale, axes d'amélioration.",
+        "Les résultats perdus (onglet fermé, erreur réseau) sont rattrapés par une exécution horaire en arrière-plan."
+      ],
+      "pitfalls": [
+        "*Les méthodes d'évaluation configurées ne s'exécutent que dans l'évaluation par lots* : toutes les méthodes sont soit des corrections humaines, soit des métriques sémantiques. Ajoutez par exemple un juge LLM.",
+        "L'évaluation immédiate fait partie de l'édition étendue."
+      ],
+      "keywords": [
+        "évaluation immédiate",
+        "avis de l'IA",
+        "immédiat",
+        "après la remise",
+        "correction immédiate",
+        "correction par IA",
+        "Sofort-Evaluation"
+      ]
+    },
+    "batch-evaluation": {
+      "title": "Comment lancer une évaluation par lot et où voir les résultats ?",
+      "summary": "Page du projet → **Configuration de l'évaluation → Lancer l'évaluation** ou [Évaluations](/evaluations) → choisir le projet. Dans la boîte de dialogue, vous choisissez le mode, les méthodes, les modèles, les annotateurs et les structures de prompt. Les résultats apparaissent sous *Évaluations*, les exécutions sous *Exécutions*.",
+      "steps": [
+        "**Mode d'évaluation** : *N'évaluer que les manquantes/en échec* (par défaut) ou *Tout évaluer* (écrase les résultats existants).",
+        "Cochez ou décochez les **Métriques**, les **Modèles** (générations), les **Annotateurs** (remises humaines) et les **Structures de prompt**. L'estimation des coûts indique les cellules et les modèles de juge.",
+        "**Démarrer l'évaluation**. Une exécution distincte est lancée pour chaque méthode ; les résultats partiels apparaissent immédiatement.",
+        "Résultats : [Évaluations](/evaluations) avec des filtres par projet, modèles, métriques et niveau d'analyse ; tableau *Résultats par tâche*, tendances, significativité. Export en **JSON** ou **CSV**.",
+        "Exécutions individuelles avec mise en pause, reprise et nouvel essai : dans le bandeau *Évaluations en cours* ou sous [Exécutions](/runs)."
+      ],
+      "keywords": [
+        "lot",
+        "batch",
+        "lancer l'évaluation",
+        "résultats",
+        "exécutions",
+        "export CSV",
+        "significativité",
+        "réévaluer"
+      ]
+    },
+    "korrektur-review": {
+      "title": "Comment des personnes corrigent-elles les remises (correction) et qu'est-ce que le processus de relecture ?",
+      "summary": "La **Correction** est la notation humaine des remises selon le schéma de résolution de cas, une grille propre ou avec des commentaires. Elle s'active via les méthodes *Correction (…)* et s'utilise via l'action rapide **Correction**. La **Relecture** est une phase de vérification au cours de laquelle les annotations sont contrôlées avant leur finalisation.",
+      "steps": [
+        "Activer la correction : sélectionnez la méthode *Correction (résolution de cas)*, *Correction (Custom Rubric)* ou *Correction (Classic)*. Dans la méthode, vous réglez la file d'attente (qui corrige quoi), la correction à l'aveugle (masquer les notes des autres) et la limite de temps.",
+        "Corriger : page du projet → **Correction** → remise suivante. Points par dimension, appréciation globale et conseils d'amélioration, éventuellement des annotations en marge.",
+        "Les annotateurs voient leur correction sous **Mes tâches**, les étudiants sous *Retour* dans l'examen. Une note humaine remplace la note IA dans le classement et dans la plateforme d'apprentissage.",
+        "Relecture : page du projet → *Déroulement et comportement de l'annotation* → **Activer la phase de relecture**, mode *Correction directe*, *Relecture indépendante* ou *Les deux*. Utilisation via l'action rapide **Processus de relecture**."
+      ],
+      "keywords": [
+        "correction",
+        "notation humaine",
+        "corriger",
+        "relecture",
+        "vérification",
+        "annotation en marge",
+        "retour",
+        "à l'aveugle"
+      ]
+    },
+    "reports-leaderboards": {
+      "title": "Que montrent les rapports, les classements et les statistiques d'apprentissage ?",
+      "summary": "Les **Rapports** résument un projet (données, annotations, génération, résultats d'évaluation) et peuvent être publiés pour l'organisation. Les **Classements** classent les LLM, les annotateurs humains et la collaboration avec l'IA. Les **Statistiques d'apprentissage** montrent vos propres fiches à réviser, vos examens en cours et l'évolution de vos notes.",
+      "steps": [
+        "**Rapport** : page du projet → carte *Rapport de projet* → **Modifier le rapport** (textes, interprétation, métriques, configuration du juge, graphiques) → **Publier**, au choix uniquement pour les organisations du projet ou en **public** (lisible même sans connexion). Prérequis : des tâches, des générations et des évaluations existent. Les chiffres sont figés lors de la publication ; **Actualiser les données** dans l'éditeur les recalcule. Les rapports se trouvent sous [Rapports](/reports).",
+        "**Classements** ([Classements](/leaderboards)) : onglets *Annotateurs humains*, *Collaboration avec l'IA* et *LLM*. La métrique et la période sont au choix ; par défaut, ce sont les points de note. La liste des LLM masque les modèles ayant moins de 50 générations ou évaluations, jusqu'à ce que vous désactiviez *Pertinence statistique*.",
+        "Vos propres modèles n'apparaissent dans le classement des LLM que s'ils sont publics.",
+        "**Statistiques d'apprentissage** ([Statistiques d'apprentissage](/learning-stats)) : fiches de révision à réviser aujourd'hui, examens en cours avec échéance, évolution des notes (IA et humaine) et taux de rétention."
+      ],
+      "keywords": [
+        "rapport",
+        "rapports",
+        "publier",
+        "classement",
+        "palmarès",
+        "leaderboard",
+        "statistiques d'apprentissage",
+        "évolution des notes"
+      ]
+    },
+    "lti-setup": {
+      "title": "Comment connecter notre organisation à Moodle ou ILIAS (LTI) ?",
+      "summary": "Via **LTI 1.3**. En tant qu'**administrateur de votre organisation**, vous préparez ici la connexion : clés API, panneau, adresse. Les étapes dans la plateforme d'apprentissage sont décrites séparément dans **Connecter Moodle** et **Connecter ILIAS**. La connexion est **active immédiatement**. Les administrateurs de groupe peuvent le faire pour leurs groupes.",
+      "steps": [
+        "**Préparer les clés API** : [Utilisateurs et organisations](/users-organizations) → organisation → **Clés API** → activer **L'organisation fournit les clés API** et enregistrer une clé pour le modèle d'évaluation. Par défaut, ce sont des modèles d'OpenAI. Sans clé, il n'y a pas de correction par IA ni de repli sur une autre clé.",
+        "**Ouvrir le panneau** : [Utilisateurs et organisations](/users-organizations) → choisir l'organisation → **Plus** → **Plateforme d'apprentissage (LTI)**. En haut, **Évaluation par IA et clés API** indique si la correction par IA est configurée.",
+        "**Choisir la plateforme d'apprentissage et l'adresse** : cliquez sur **Connecter une plateforme d'apprentissage** et choisissez **Moodle**, **ILIAS** ou **Autre**. Choisissez ensuite l'**Adresse pour la plateforme d'apprentissage**. Avec l'**Adresse étudiante**, tout le monde travaille dans l'interface étudiante, y compris les enseignants. Seule la correction s'ouvre dans l'interface experte. Avec l'**Adresse BenGER**, les étudiants travaillent dans l'interface étudiante et les enseignants dans l'interface experte. S'il n'existe qu'une adresse, le choix n'apparaît pas. La suite se trouve dans [Connecter Moodle](/how-to#lti-setup-moodle) ou [Connecter ILIAS](/how-to#lti-setup-ilias).",
+        "**Autre plateforme d'apprentissage** : **Autre** ouvre le formulaire complet. Il affiche les trois URL de l'outil dès avant l'enregistrement. Après l'enregistrement de l'outil, la plateforme d'apprentissage communique le Client ID et le Deployment ID. Saisissez-les avec les URL de la plateforme d'apprentissage. Les URL de l'outil figurent aussi plus tard sous **Configuration de l'outil**.",
+        "**Lancement de test** : dans un cours de test, créez une activité avec évaluation. Ouvrez-la d'abord en tant qu'enseignant : après le consentement, vous liez un examen. Ouvrez-la ensuite en tant qu'étudiant : après le consentement, l'examen s'ouvre. Si aucun examen n'est encore lié, les étudiants ne voient que la mention `not_linked`."
+      ],
+      "tips": [
+        "Les administrateurs de groupe créent des invitations et des connexions uniquement pour leurs groupes. Seul un administrateur de l'organisation peut activer **L'organisation fournit les clés API**."
+      ],
+      "pitfalls": [
+        "La connexion est active dès que la plateforme d'apprentissage utilise le lien. Concluez d'abord le contrat avec nous et ne créez le lien qu'ensuite.",
+        "Un lien d'invitation seul ne connecte encore rien. Tant que la carte **En attente de la plateforme d'apprentissage** figure dans le panneau, la plateforme d'apprentissage ne l'a pas utilisé. Un lien dont vous n'avez plus besoin s'invalide à cet endroit avec **Révoquer**."
+      ],
+      "keywords": [
+        "LTI",
+        "Moodle",
+        "ILIAS",
+        "plateforme d'apprentissage",
+        "LMS",
+        "intégration",
+        "connexion",
+        "enregistrement",
+        "adresse étudiante",
+        "adresse BenGER",
+        "clés API"
+      ],
+      "links": [
+        "Connecter Moodle",
+        "Connecter ILIAS",
+        "Gérer la connexion",
+        "Lier un examen à une activité",
+        "Protection des données de la connexion",
+        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-setup-moodle": {
+      "title": "Comment connecter Moodle ?",
+      "summary": "Avec un **lien d'invitation** : vous le créez dans le panneau, l'administration Moodle le colle dans Moodle et modifie trois paramètres de l'outil. La connexion est ensuite **active immédiatement**.",
+      "steps": [
+        "**Créer un lien d'invitation** : dans le panneau **Connecter une plateforme d'apprentissage** → **Moodle**. Choisissez l'adresse et, si nécessaire, un **Groupe**, puis **Créer un lien d'invitation**. Copiez le lien et envoyez-le à l'administration Moodle. Il n'est affiché qu'une seule fois, reste valable 14 jours et ne fonctionne qu'une fois. Tant que Moodle ne l'a pas utilisé, le panneau affiche la carte **En attente de la plateforme d'apprentissage**.",
+        "**Moodle enregistre l'outil** : l'administration colle le lien sous *Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools verwalten*, dans **LTI Advantage hinzufügen**. Si Moodle demande s'il faut mettre à jour un outil existant, elle choisit **Als neues externes Tool registrieren**, sauf si elle remplace sciemment une connexion antérieure. Elle active ensuite l'outil. La connexion apparaît dans le panneau et est **active immédiatement**.",
+        "**Configurer l'outil dans Moodle** : Moodle crée chaque outil enregistré par lien en mode intégré, uniquement comme outil préconfiguré et avec des évaluations déléguées aux enseignants. L'outil ne peut pas changer cela. L'administration Moodle ouvre donc les paramètres de l'outil (icône *Bearbeiten* sur la carte de l'outil) et règle *Verwendung der Toolkonfiguration* sur **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**, *Standard-Startcontainer* sur **Neues Fenster** et *Bewertungen aus dem Tool akzeptieren* sur **Immer**.",
+        "**C'est terminé lorsque** la carte **En attente de la plateforme d'apprentissage** a disparu et que la connexion figure dans le panneau avec **Connexion active**. Les enseignants créent alors une activité dans le cours, voir [Relier un examen à une activité](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "Moodle doit transmettre le nom et l'adresse e-mail. Les deux doivent être réglés sur **Immer** (toujours). Le lien d'invitation le demande. Vérifiez ce réglage dans les paramètres de l'outil après l'enregistrement.",
+        "Pour Moodle, le réglage recommandé pour *IMS LTI Aufgaben und Bewertung* est **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Moodle reçoit alors, en plus de la note finale, une colonne **KI-Bewertung**. Le lien d'invitation le demande. Les enseignants excluent cette colonne du total du cours, voir [Notes depuis la plateforme d'apprentissage](/how-to#lti-grades).",
+        "L'outil doit se lancer dans une **nouvelle fenêtre**. Dans Moodle, c'est le *Standard-Startcontainer* de l'outil qui en décide, pas l'activité individuelle."
+      ],
+      "pitfalls": [
+        "Si l'outil se lance intégré dans le cours (iframe), les personnes arrivent sur la page de connexion au lieu de l'examen. Après un enregistrement par lien, c'est le réglage par défaut de Moodle. Réglez le *Standard-Startcontainer* de l'outil sur **Neues Fenster**.",
+        "Si les activités Moodle n'ont pas d'évaluation, *Bewertungen aus dem Tool akzeptieren* délègue encore aux enseignants. Réglez-le sur **Immer**. Sinon, les enseignants doivent cocher *… erlauben, Bewertungen hinzuzufügen* dans chaque activité."
+      ],
+      "keywords": [
+        "Moodle",
+        "LTI",
+        "lien d'invitation",
+        "Dynamic Registration",
+        "enregistrement dynamique",
+        "Tools verwalten",
+        "LTI Advantage hinzufügen",
+        "Standard-Startcontainer",
+        "Aktivitätsauswahl",
+        "Bewertungen aus dem Tool akzeptieren",
+        "KI-Bewertung"
+      ],
+      "links": [
+        "Préparer la connexion",
+        "Relier un examen à une activité",
+        "Notes depuis la plateforme d'apprentissage",
+        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-setup-ilias": {
+      "title": "Comment connecter ILIAS ?",
+      "summary": "Avec un **fournisseur global** (globaler Provider) dans ILIAS : vous transmettez trois URL à l'administration ILIAS, elle crée le fournisseur et vous renvoie le Client ID et le Deployment ID, que vous saisissez dans le panneau. La connexion est ensuite **immédiatement active**.",
+      "steps": [
+        "**Transmettre les URL à ILIAS** : dans le panneau **Connecter une plateforme d'apprentissage** → **ILIAS**. Choisissez l'adresse et, si besoin, un **groupe**. L'étape 1 affiche trois URL. Envoyez-les à l'administration ILIAS.",
+        "**Créer le fournisseur global** : dans ILIAS *Administration → ILIAS erweitern → LTI →* onglet *ILIAS als LTI-Konsument* → *Globalen Provider für alle Benutzer hinzufügen*. Y choisir pour *Verfügbarkeit* **in neuen und bestehenden Objekten** et pour *LTI Version* **Version 1.3** : les deux ont une autre valeur par défaut. Saisir les trois URL, pour *Typ des öffentlichen Schlüssels* choisir **URL (Json Web Token)** avec l'URL JWKS, désactiver *Unterstützung für Deep Linking*, activer **Erweiterte Benotungsdienste**.",
+        "**Confidentialité dans le fournisseur** : *Identifikation der Person* sur **ID des ILIAS-Kontos …**, *Anmeldename* sur **Vollständiger Name**. La raison figure dans les conseils.",
+        "ILIAS affiche les notes comme progression d'apprentissage. L'administration ILIAS coche dans le fournisseur *Provider unterstützt Outcome Service* et règle *Voreinstellung Mastery Score* sur **22** avant que les enseignants ne créent des objets. Cela correspond à 4 points de note sur 18. La progression d'apprentissage (Lernfortschritt) doit en outre être activée dans l'administration ILIAS.",
+        "**Renvoyer les valeurs** : après l'enregistrement, rouvrir le fournisseur via son titre. Le champ *Hinweise* contient le **Client ID** et le **Deployment ID**. Dans le panneau **Connecter une plateforme d'apprentissage** → **ILIAS** → **Suivant**, saisir l'adresse ILIAS, le Client ID et le Deployment ID, puis cliquer sur **Connecter**. La connexion est **immédiatement active**.",
+        "**Objet dans le cours** : *Neues Objekt hinzufügen* → *LTI-Konsument* → choisir le fournisseur → cocher *Online*, *Optionen für den Start* sur **Neues Fenster**. Continuez ensuite comme dans [Lier un examen à une activité](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "ILIAS : l'administration crée un fournisseur global et choisit pour *Verfügbarkeit* **in neuen und bestehenden Objekten**. Sous *Identifikation der Person*, elle choisit **ID des ILIAS-Kontos …**. Pour *Anmeldename*, elle choisit **Vollständiger Name**. Cela vaut aussi après un enregistrement par lien. ILIAS transmet alors le nom complet, mais aucune adresse e-mail. Il n'y a donc ni e-mail d'activation automatique ni liaison avec des comptes existants. Juste après le consentement, la page demande donc une fois son adresse e-mail à chaque personne. Cette étape peut être ignorée. Le lien de confirmation envoyé à cette adresse sert en même temps d'e-mail d'activation.",
+        "Vous voulez seulement tester un cours ILIAS ? Dans l'étape ILIAS du panneau, **Créer un lien d'invitation** génère un lien d'enregistrement dynamique pour un seul objet. Dans ILIAS : créer un *LTI-Konsument* → *Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen (LTI 1.3)* → coller le lien → *Anlegen*. Avant d'enregistrer, définir les mêmes paramètres de fournisseur que ci-dessus."
+      ],
+      "pitfalls": [
+        "Dans ILIAS, ne choisissez pas *E-Mail-Adresse* pour *Identifikation der Person*. Dans ILIAS 10.9, chaque transfert de notes échoue dans ce mode avec « User not available ». Fixez le mode avant le premier lancement et ne le modifiez plus ensuite.",
+        "Pour *Typ des öffentlichen Schlüssels*, saisissez l'URL JWKS, pas une clé RSA. ILIAS ne vérifie les signatures de l'outil que via l'URL ; sinon, le transfert des notes échoue."
+      ],
+      "keywords": [
+        "ILIAS",
+        "LTI",
+        "fournisseur global",
+        "globaler Provider",
+        "LTI-Konsument",
+        "Client ID",
+        "Deployment ID",
+        "Identifikation der Person",
+        "Mastery Score",
+        "Erweiterte Benotungsdienste",
+        "progression d'apprentissage",
+        "Lernfortschritt",
+        "connecter ILIAS"
+      ],
+      "links": [
+        "Préparer la connexion",
+        "Lier un examen à une activité",
+        "Confidentialité de la connexion",
+        "Le lancement depuis Moodle ou ILIAS échoue",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-manage": {
+      "title": "Comment gérer une connexion à Moodle ou ILIAS ?",
+      "summary": "Dans le panneau **Plateforme d'apprentissage (LTI)**, chaque connexion a sa propre carte. Vous y activez et désactivez la connexion et ses déploiements, définissez le rôle des enseignants et consultez les activités, les comptes LMS, les transmissions de notes et l'historique. Le panneau est ouvert aux administrateurs de l'organisation, et aux administrateurs de groupe pour les connexions de leurs groupes.",
+      "steps": [
+        "**Activer et désactiver** : un clic sur l'interrupteur **Connexion active** désactive la connexion après confirmation. Cela bloque immédiatement tous les lancements, les pages de la connexion dans l'application et la transmission des notes pour cette plateforme d'apprentissage. L'interrupteur affiche alors **Connexion désactivée** et la carte porte le badge **Désactivée**. Un nouveau clic la réactive après confirmation.",
+        "**Déploiements** : ajouter ou supprimer des Deployment IDs. L'interrupteur **Déploiement actif** à côté d'un ID le bloque individuellement et affiche alors **Déploiement désactivé**. Les autres déploiements continuent de fonctionner. Dans ILIAS, le Deployment ID est l'ID numérique du fournisseur.",
+        "**Modifier** : le **Rôle dans l'organisation pour les enseignants** est contributeur (contributor), administrateur de l'organisation (org_admin) ou aucun rôle dans l'organisation (none). Pour une connexion de groupe, il s'agit du rôle dans le groupe : contributeur ou administrateur de l'organisation (= administrateur du groupe). Les nouveaux enseignants deviennent annotateurs dans l'organisation ; ceux qui y ont déjà un rôle plus élevé le conservent. Les administrateurs de groupe attribuent, sur les connexions de leur groupe, au plus le rôle d'administrateur du groupe. C'est aussi ici que vous modifiez l'adresse, le groupe, le **Rôle dans l'organisation pour les étudiants** et **Proposer la liaison avec des comptes existants**.",
+        "**Activités** : chaque activité avec son cours, l'examen lié, les participants, l'état des transmissions et l'état de la colonne **Évaluation par IA**. **Ouvrir l'aperçu des notes** mène à l'aperçu de l'activité.",
+        "**Comptes LMS** : toutes les personnes de la connexion avec nom, adresse e-mail, pseudonyme, rôle, consentement et dernier lancement, avec une recherche. **Supprimer la liaison** sépare l'identifiant de la plateforme d'apprentissage du compte. Les comptes créés par la plateforme d'apprentissage peuvent être anonymisés avec **Anonymiser**.",
+        "**Transmissions de notes** : toutes les transmissions, celles qui ont échoué ou celles en attente, avec la personne, le cours, l'activité, l'examen et le texte d'erreur. Pour les transmissions échouées ou en attente, **Réessayer** envoie la note immédiatement. Si la plateforme d'apprentissage rejette définitivement une note (par exemple avec 400, 401, 403 ou 404), la transmission échoue immédiatement. Corrigez alors d'abord la cause indiquée dans le texte d'erreur.",
+        "**Renvoyer toutes les notes** : dans la section **Transmissions de notes**, chaque connexion active a son propre bouton. Après confirmation, toutes les notes actuelles de toutes les activités de cette connexion sont renvoyées à la plateforme d'apprentissage, même celles qui n'ont pas changé. Utilisez-le après une panne de la plateforme d'apprentissage, après une modification des paramètres de colonne ou après un nouveau barème de notation. Un message indique ensuite combien de notes sont envoyées et combien de personnes et d'activités ont été ignorées. L'historique consigne l'opération avec ces chiffres.",
+        "**Historique** : chaque modification de la connexion avec l'heure et la personne qui l'a effectuée. Si la plateforme d'apprentissage appelle l'outil via l'autre adresse, la carte affiche un avertissement. Si ILIAS envoie l'adresse e-mail comme identifiant, la carte avertit avec **La transmission des notes vers ILIAS échoue**. **Afficher l'historique de toutes les connexions**, en bas du panneau, montre en plus les liens d'invitation et les connexions supprimées.",
+        "**Évaluation par IA et clés API** : en haut du panneau, vous voyez si l'organisation et chaque groupe disposant d'une connexion peuvent payer la correction par IA, et quelle clé manque.",
+        "**Supprimer** : désactivez d'abord la connexion, de sorte que son interrupteur affiche **Connexion désactivée**. **Supprimer** demande alors si les comptes créés sont conservés ou anonymisés. Les activités, les liaisons LMS ainsi que toutes les participations et transmissions de notes, avec leur état de transmission, disparaissent. Les remises et les évaluations sont conservées. Les notes déjà transmises restent dans la plateforme d'apprentissage. Les comptes conservés restent pseudonymisés. Leurs noms ne sont ensuite visibles que par les administrateurs de votre organisation et par l'administration de la plateforme."
+      ],
+      "tips": [
+        "Après **Supprimer la liaison**, le compte, les remises et les évaluations sont conservés. La participation aux activités et les transmissions de notes de cette connexion sont supprimées. La personne ne réapparaît dans l'aperçu des notes qu'après le prochain lancement. Au prochain lancement, la connexion redemande le consentement. Le compte n'est alors proposé que s'il porte encore l'adresse envoyée par la plateforme d'apprentissage. Sinon, par exemple avec une adresse fictive, un nouveau compte distinct est créé et les évaluations précédentes restent sur l'ancien compte.",
+        "Si vous retirez une personne du groupe d'une connexion, un lancement ne l'y ajoute pas de nouveau. Un rôle abaissé dans le groupe reste lui aussi abaissé. En revanche, un lancement par un enseignant remonte un rôle d'annotateur au **Rôle dans l'organisation pour les enseignants** (pour une connexion de groupe, au rôle dans le groupe).",
+        "**Anonymiser** supprime le nom, l'adresse e-mail, le mot de passe et l'identifiant de la plateforme d'apprentissage, et bloque la connexion au compte. Les remises et les évaluations sont conservées sous un nouveau pseudonyme pour les analyses. Les notes déjà transmises restent dans la plateforme d'apprentissage. Avant l'anonymisation, un aperçu montre ce qui est supprimé et ce qui reste.",
+        "Ne peuvent pas être anonymisés : les comptes de l'administration de la plateforme, votre propre compte, les comptes qui existaient déjà avant la liaison, les comptes liés à d'autres organisations ou groupes et les comptes avec des données de paiement. Les administrateurs de groupe ne peuvent pas anonymiser d'administrateurs de l'organisation.",
+        "En tant qu'administrateur, vous voyez les vrais noms des personnes de vos connexions. Les autres membres voient le pseudonyme dans les listes."
+      ],
+      "pitfalls": [
+        "Si la colonne **Évaluation par IA** manque dans Moodle, c'est que Moodle n'autorise pas l'outil à créer sa propre colonne. L'administration Moodle règle l'outil *IMS LTI Aufgaben und Bewertung* sur **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Rouvrez ensuite l'activité.",
+        "Ne modifiez plus l'*Identifikation der Person* dans ILIAS après le lancement. Elle détermine l'identifiant des personnes, et un changement rompt toutes les liaisons. Seule exception, le mode *E-Mail-Adresse* : avec lui, chaque transmission de notes échoue dans ILIAS 10.9. L'administration ILIAS passe alors à **ID des ILIAS-Kontos …**. Ensuite, chaque personne donne à nouveau son consentement et reçoit un nouveau compte. Les remises précédentes restent sur l'ancien compte.",
+        "L'anonymisation est irréversible. Si la personne relance l'activité, un nouveau compte vide est créé.",
+        "Si vous modifiez l'adresse d'une connexion, adaptez aussi les URL de l'outil dans la plateforme d'apprentissage. D'ici là, les lancements continuent de fonctionner et l'historique affiche un avertissement."
+      ],
+      "keywords": [
+        "gérer la connexion",
+        "désactiver la connexion",
+        "déploiement",
+        "Deployment",
+        "comptes LMS",
+        "supprimer la liaison",
+        "anonymiser",
+        "transmissions de notes",
+        "réessayer",
+        "renvoyer toutes les notes",
+        "historique",
+        "rôle dans l'organisation pour les enseignants",
+        "supprimer la connexion",
+        "connexion active",
+        "connexion désactivée",
+        "désactivée",
+        "Moodle",
+        "ILIAS",
+        "LTI",
+        "User not available"
+      ],
+      "links": [
+        "Configurer la connexion",
+        "Notes depuis la plateforme d'apprentissage",
+        "Protection des données de la connexion",
+        "Le lancement depuis Moodle ou ILIAS échoue"
+      ]
+    },
+    "lti-teacher": {
+      "title": "Comment relier une activité Moodle ou ILIAS à un examen ?",
+      "summary": "Dans le cours, créez une activité *Externes Tool* (outil externe, Moodle) ou un *LTI-Konsument* (consommateur LTI, ILIAS) avec évaluation, puis ouvrez-la. Au **premier lancement**, vous donnez une fois votre consentement, puis vous choisissez l'examen. Ensuite, l'activité ouvre la page de l'examen. La carte **Activités de plateforme d'apprentissage** y mène à l'**Aperçu de l'activité**, avec toutes les remises et les notes.",
+      "steps": [
+        "Moodle : *Aktivität anlegen* → choisir l'outil dans le sélecteur d'activités → laisser l'évaluation active. Si l'activité n'affiche pas d'évaluation, cochez d'abord **… erlauben, Bewertungen hinzuzufügen** (précédé du nom de l'outil). Sans cette case, l'activité n'a pas d'évaluation. Un maximum de 100 convient : l'outil fournit de 0 à 18 points de note et Moodle effectue la conversion. Dans Moodle, c'est l'administration qui définit le conteneur de lancement de l'outil. ILIAS : créer un *LTI-Konsument* avec le fournisseur et choisir **Neues Fenster** sous *Optionen für den Start*. Sous *Optionen für den Lernfortschritt*, le *Mastery Score* doit être de **22**.",
+        "Ouvrez l'activité. Au premier lancement, la connexion vous demande votre consentement, y compris pour l'utilisation à des fins de recherche. S'il existe déjà un compte avec votre adresse e-mail, vous le reliez en vous connectant ou via un lien envoyé par e-mail. Vous pouvez aussi choisir **Continuer avec un compte distinct**. ILIAS ne transmet pas d'adresse e-mail. Cette étape n'existe donc pas et un compte distinct est toujours créé. La page vous demande alors une fois votre adresse e-mail. Le lien que vous recevez ensuite vous permet de définir un mot de passe. Vous pouvez aussi ignorer cette étape.",
+        "Le sélecteur porte le titre de votre activité. Il affiche vos propres examens (*Personnel*) et ceux des contributeurs et administrateurs de votre organisation, chacun avec son auteur. Pour une connexion de groupe, seuls comptent les contributeurs du groupe, les administrateurs du groupe et les administrateurs de l'organisation. Les examens privés peuvent aussi être reliés. Sous la liste, **Ou créer un examen** permet d'en créer un nouveau. S'il n'existe encore aucun examen, le bouton s'appelle **Créer un examen**.",
+        "Peuvent être reliés les examens avec résolution de cas et les examens avec une grille d'évaluation active. Les examens sans tâche ou sans grille d'évaluation active ne peuvent pas être choisis ; la raison est indiquée. Si l'examen a une seule tâche, l'activité est reliée automatiquement à celle-ci. Pour une collection d'examens à plusieurs tâches, vous choisissez une tâche ou, dans Moodle, toute la collection, voir [Relier une collection d'examens](/how-to#lti-collection).",
+        "**Relier**. La correction humaine est alors activée pour l'examen, et les collaborateurs de votre organisation peuvent consulter et corriger les remises.",
+        "Les étudiants ouvrent l'activité, donnent une fois leur consentement et arrivent directement dans l'examen.",
+        "Après la liaison et à chaque lancement suivant, vous arrivez sur la page de l'examen : avec l'adresse BenGER, sur la page du projet dans l'interface experte ; avec l'adresse étudiante, sur la page de l'examen. La carte **Activités de plateforme d'apprentissage** mène à l'**Aperçu de l'activité**. **Ouvrir la correction** mène toujours à l'interface experte, même depuis l'adresse étudiante. Ce qu'affiche l'aperçu est décrit sous [Notes depuis la plateforme d'apprentissage](/how-to#lti-grades).",
+        "**Moodle : exclure KI-Bewertung du total du cours**. Moodle crée la colonne **KI-Bewertung** comme une évaluation normale et la compte dans *Kurs gesamt*. Dès que la colonne apparaît avec la première note IA, ouvrez dans le cours *Bewertungen* → *Setup für Bewertungen*. Dans la ligne KI-Bewertung, cochez la case de la colonne *Gewichtungen*, saisissez 0 et cliquez sur *Änderungen speichern*. Seule la colonne de l'activité compte alors."
+      ],
+      "tips": [
+        "Le consentement vaut pour chaque connexion. Les autres cours et activités de la même plateforme d'apprentissage ne le redemandent pas.",
+        "Sur la page du projet de l'examen, les **Activités de plateforme d'apprentissage** se trouvent à droite sous les actions rapides, avec un lien vers l'aperçu.",
+        "La correction par IA est payée par l'organisation de la connexion. S'il lui manque une clé, le sélecteur et l'aperçu affichent un avertissement."
+      ],
+      "pitfalls": [
+        "Dès qu'une note a été transmise à la plateforme d'apprentissage, la liaison ne peut plus être modifiée. Pour un autre examen ou une autre tâche, créez une nouvelle activité.",
+        "*Cette activité ne peut pas recevoir de notes* : la transmission des notes n'est pas active. Activez l'évaluation dans Moodle, si nécessaire avec la case *… erlauben, Bewertungen hinzuzufügen*. Dans ILIAS, l'administration active *Erweiterte Benotungsdienste* chez le fournisseur. Rouvrez ensuite l'activité.",
+        "Si une activité plus ancienne est reliée à l'examen entier comme une seule note, l'examen n'accepte pas de deuxième tâche, même par import. Reliez alors l'activité à la tâche de l'examen. C'est toujours possible, même après la transmission de notes.",
+        "Si l'outil se lance intégré (iframe), vous arrivez sur la page de connexion. Dans Moodle 4.5, cela ne se modifie pas dans l'activité. L'administration Moodle règle le *Standard-Startcontainer* de l'outil sur **Neues Fenster**. Dans ILIAS, choisissez **Neues Fenster** pour l'objet.",
+        "Si vous ne trouvez pas l'outil dans le sélecteur d'activités de Moodle, demandez à l'administration Moodle de régler *Verwendung der Toolkonfiguration* de l'outil sur **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**."
+      ],
+      "keywords": [
+        "relier une activité",
+        "Externes Tool",
+        "outil externe",
+        "LTI-Konsument",
+        "consommateur LTI",
+        "relier un examen",
+        "grille d'évaluation",
+        "résolution de cas",
+        "Aperçu de l'activité",
+        "cours Moodle",
+        "évaluation",
+        "Kurs gesamt",
+        "Setup für Bewertungen"
+      ],
+      "links": [
+        "Relier une collection d'examens",
+        "Notes depuis la plateforme d'apprentissage",
+        "Configurer la connexion",
+        "Protection des données de la connexion",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-collection": {
+      "title": "Comment lier un recueil d'examens comportant plusieurs tâches ?",
+      "summary": "Il existe deux façons de faire. **Une activité par tâche** fonctionne dans Moodle et ILIAS : chaque activité reçoit la note de sa tâche. **Le recueil entier dans une activité** ne fonctionne que dans Moodle : chaque tâche reçoit sa propre colonne, et la colonne de l'activité reçoit la moyenne des notes finales dès que chaque tâche a une note finale.",
+      "steps": [
+        "**Une activité par tâche (Moodle et ILIAS)** : créez une activité distincte pour chaque tâche, de préférence avec la tâche dans le titre. Ouvrez l'activité, dépliez le recueil dans la sélection, choisissez la tâche et cliquez sur **Relier**. Répétez l'opération pour chaque tâche. Chaque activité ne reçoit que la note de sa tâche. Les étudiants ont néanmoins accès à toutes les tâches du recueil.",
+        "**Le recueil entier dans une activité (Moodle uniquement)** : créez une activité, ouvrez-la et, dans la sélection, choisissez le recueil entier au lieu d'une tâche. Cliquez sur **Relier**.",
+        "BenGER crée alors dans le carnet de notes Moodle une colonne *Aufgabe N: Titel der Aktivität* par tâche. Elle reçoit la note finale de la tâche : la correction, sinon la note de l'IA si l'activité transmet les notes de l'IA. Tant que des notes de l'IA sont transmises, une colonne *KI-Bewertung: Aufgabe N* s'ajoute pour chaque tâche. Les colonnes apparaissent avec la première note de la tâche.",
+        "La colonne de l'activité reçoit la **moyenne des notes finales de toutes les tâches**. Elle n'est envoyée que lorsque chaque tâche a une note finale. D'ici là, la colonne de l'activité reste vide pour cette personne.",
+        "Vérifiez le total du cours. Moodle compte chaque colonne dans *Kurs gesamt* (total du cours), c'est-à-dire la moyenne, chaque colonne de tâche et chaque colonne KI-Bewertung. Si seule la moyenne doit compter, ouvrez *Bewertungen* → *Setup für Bewertungen*, cochez pour chaque colonne *Aufgabe N* et *KI-Bewertung* la case de la colonne *Gewichtungen* (pondérations), saisissez 0 et cliquez sur *Änderungen speichern*. Dans un Moodle en français, ces libellés s'affichent en français."
+      ],
+      "tips": [
+        "BenGER lie automatiquement un examen comportant une seule tâche à cette tâche. Les activités qui étaient auparavant liées à l'examen entier ont été liées, lors de la mise à jour, à l'unique tâche de leur examen.",
+        "Si vous ajoutez plus tard une tâche au recueil, elle reçoit, avec le recueil entier, ses colonnes lors de la prochaine transmission de ses notes. Tant qu'elle n'est pas notée, la moyenne attend.",
+        "Les importations dans l'examen sont possibles dès qu'aucune activité ne reçoit plus l'examen entier sous forme d'une seule note. Les activités par tâche et le recueil entier ne bloquent aucune importation.",
+        "Le recueil entier nécessite dans Moodle, pour l'outil *IMS LTI Aufgaben und Bewertung*, le réglage **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Sinon, la sélection ne le propose pas."
+      ],
+      "pitfalls": [
+        "Dans ILIAS, seule la méthode avec une activité par tâche est possible. ILIAS ne permet pas à l'outil de créer des colonnes et n'accepte qu'une valeur par objet et par personne, la note finale.",
+        "La liaison peut être modifiée (autre examen, autre tâche, passage d'une tâche au recueil entier) jusqu'à ce que la première note de l'activité soit arrivée dans la plateforme d'apprentissage. Ensuite, BenGER refuse la modification, car une colonne mélangerait sinon les notes de différentes tâches. Créez alors une nouvelle activité. Exception : une ancienne activité liée à l'examen entier peut toujours être liée à l'unique tâche de son examen.",
+        "Si vous supprimez une colonne de tâche dans Moodle, BenGER ne la recrée pas de lui-même. Si vous supprimez une tâche dans BenGER, sa colonne reste dans Moodle. BenGER ne supprime jamais de colonne dans la plateforme d'apprentissage.",
+        "Si la tâche d'une activité par tâche est supprimée, l'activité ne reçoit plus de notes. Liez-la à une autre tâche ou créez une nouvelle activité."
+      ],
+      "keywords": [
+        "recueil d'examens",
+        "collection d'examens",
+        "plusieurs tâches",
+        "relier une tâche",
+        "recueil entier",
+        "colonne par tâche",
+        "moyenne",
+        "colonne principale",
+        "colonne de tâche",
+        "carnet de notes",
+        "importation",
+        "Moodle",
+        "ILIAS"
+      ],
+      "links": [
+        "Lier un examen à une activité",
+        "Notes depuis la plateforme d'apprentissage",
+        "Le recueil ne peut pas être lié ou la colonne reste vide",
+        "Référence technique pour votre service informatique (LTI 1.3)"
+      ]
+    },
+    "lti-grades": {
+      "title": "Comment les notes arrivent-elles dans la plateforme d'apprentissage ?",
+      "summary": "Après la remise, l'IA corrige et la note part aussitôt vers la plateforme d'apprentissage. Si vous corrigez vous-même la remise, votre note devient la note finale. La note IA est conservée. L'**Aperçu de l'activité** affiche les deux notes et ce que la plateforme d'apprentissage a reçu.",
+      "steps": [
+        "Ouvrez l'activité dans la plateforme d'apprentissage. Vous arrivez sur la page de l'examen ; sous **Activités de plateforme d'apprentissage**, **Ouvrir l'aperçu** mène à l'aperçu. Depuis le panneau de la connexion, vous y accédez aussi via **Ouvrir l'aperçu des notes**.",
+        "Le tableau **Remises et notes** affiche pour chaque personne le nom, la remise, la **Note IA**, la **Correction** et ce qu'ont reçu la colonne de l'activité et la colonne KI-Bewertung (évaluation par IA). S'y ajoute le statut (*Transmise*, *Transmission en cours*, *Pas encore de note*, *Ignorée* ou *Échec*) avec le texte de l'erreur.",
+        "**Ouvrir la correction** mène directement à la remise dans la correction. Elle s'ouvre dans l'interface experte, même depuis l'adresse étudiante. Dans la colonne de l'activité, votre note remplace la note IA.",
+        "Si une transmission a échoué, la ligne propose **Renvoyer**. Cela vaut pour les transmissions en échec, pour celles en attente après une tentative manquée et pour les colonnes marquées *Diffère de la plateforme d'apprentissage*. **Renvoyer** renvoie la note immédiatement. **Renvoyer les échecs** fait de même pour toutes les transmissions en erreur en une seule fois.",
+        "Après confirmation, **Renvoyer toutes les notes** renvoie chaque note actuelle de l'activité, même celles qui n'ont pas changé. Utilisez-le après une panne de la plateforme d'apprentissage, après une modification des paramètres de colonnes ou après un nouveau barème de notation. Un message indique ensuite combien de notes sont envoyées et combien de personnes ont été ignorées (sans note, sans consentement ou avec un compte anonymisé). Les notes partent par petits groupes ; dans les grands cours, cela prend quelques minutes.",
+        "Sous **Colonnes dans la plateforme d'apprentissage**, vous voyez si la colonne **KI-Bewertung** est active. Si elle a été supprimée dans Moodle, **Recréer la colonne** la crée à nouveau."
+      ],
+      "tips": [
+        "Moodle reçoit deux colonnes. La colonne de l'activité contient la note finale (la correction, sinon la note IA), convertie sur le maximum de l'activité. La colonne **KI-Bewertung** contient toujours la note IA sur l'échelle de 0 à 18. Elle s'appelle *KI-Bewertung: Titel der Aktivität* (avec le titre de l'activité), ce qui permet de distinguer plusieurs activités d'un même cours. Les colonnes plus anciennes s'appellent seulement *KI-Bewertung*. Pour cela, l'outil doit avoir *IMS LTI Aufgaben und Bewertung* réglé sur **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**, sinon Moodle ne reçoit que la note finale.",
+        "ILIAS reçoit une valeur par personne, la note finale. ILIAS l'affiche comme progression d'apprentissage. ILIAS n'affiche pas le commentaire de la note.",
+        "Si, dans Moodle, toute une collection d'examens est reliée à l'activité, les colonnes *Aufgabe N* et *KI-Bewertung: Aufgabe N* s'ajoutent pour chaque tâche. La colonne de l'activité reçoit alors la moyenne des notes finales, seulement une fois que chaque tâche a une note finale. Voir [Relier une collection d'examens](/how-to#lti-collection).",
+        "Une correction ne supprime rien. La note IA reste dans l'aperçu et dans la colonne KI-Bewertung. En cas de plusieurs corrections, c'est la dernière modifiée qui compte.",
+        "Si une note change après coup, par exemple à cause d'un nouveau barème de notation, la nouvelle valeur part vers la plateforme d'apprentissage au plus tard après environ une heure.",
+        "Pendant la correction, la note IA est masquée par défaut jusqu'à ce que vous ayez soumis votre propre note.",
+        "Si vous avez écrasé ou verrouillé une note dans le carnet de notes de Moodle, Moodle ne la modifie pas, même après **Renvoyer toutes les notes**. Dans la colonne **KI-Bewertung**, en revanche, la valeur envoyée remplace une modification manuelle. ILIAS reprend toujours la dernière valeur envoyée.",
+        "Les noms réels sont visibles ici par les enseignants des cours qui relient cet examen, par les collaborateurs autorisés à noter cet examen, par les administrateurs de l'organisation et par l'administration de la plateforme. Les comptes anonymisés apparaissent comme *Anonymisé*."
+      ],
+      "pitfalls": [
+        "Si l'organisation ne fournit pas de clés API ou s'il manque une clé adaptée, aucune correction par IA n'a lieu. Les étudiants en voient la raison : leur organisation ne paie pas encore la correction par IA, ou il lui manque une clé API pour le modèle d'évaluation. La remise reste enregistrée. L'aperçu affiche *En attente d'une clé API de l'organisation*. Dès que la clé est enregistrée, la remise est corrigée lors de la vérification horaire suivante, donc au plus tard après environ une heure.",
+        "Moodle crée la colonne **KI-Bewertung** comme une évaluation normale et la compte dans *Kurs gesamt* (total du cours), même si une correction détermine la note finale. Mettez sa pondération à 0 : dans le cours, *Bewertungen* → *Setup für Bewertungen*, cochez dans la ligne KI-Bewertung la case de la colonne *Gewichtungen*, saisissez 0 et cliquez sur *Änderungen speichern*. Si la colonne est recréée, recommencez.",
+        "Une transmission en échec est répétée automatiquement. Si la plateforme d'apprentissage était injoignable ou a renvoyé une erreur serveur, la note repart après 10, 30 et 90 secondes. Ensuite, les intervalles augmentent jusqu'à six heures. Après dix tentatives, la transmission est considérée comme en échec et elle est encore tentée toutes les six heures. Si en revanche la plateforme d'apprentissage refuse définitivement la note (par exemple avec 400, 401, 403 ou 404), la transmission échoue immédiatement. Corrigez la cause indiquée dans le texte de l'erreur, puis cliquez sur **Renvoyer**.",
+        "Si chaque transmission vers ILIAS échoue avec « ILIAS kennt die Person nicht » (ILIAS ne connaît pas la personne) ou « User not available », le fournisseur ILIAS identifie les personnes par *E-Mail-Adresse*. Dans ILIAS 10.9, la transmission des notes ne fonctionne pas dans ce mode. L'administration ILIAS règle *Identifikation der Person* sur **ID des ILIAS-Kontos …**. Ensuite, chaque personne donne à nouveau son consentement et reçoit un nouveau compte. Les remises précédentes restent sur l'ancien compte.",
+        "Si la connexion est désactivée, aucune note ne part et l'aperçu de l'activité n'affiche qu'un avertissement. Les transmissions de cette période sont considérées comme en échec. Après la réactivation, **Renvoyer** ou **Renvoyer toutes les notes** les envoient immédiatement. Sinon, l'outil les retente de lui-même environ six heures après l'échec."
+      ],
+      "keywords": [
+        "transmission des notes",
+        "notes",
+        "KI-Bewertung",
+        "évaluation par IA",
+        "note IA",
+        "note finale",
+        "carnet de notes",
+        "gestion des colonnes",
+        "Renvoyer",
+        "Renvoyer toutes les notes",
+        "Grade Sync",
+        "synchronisation des notes",
+        "barème de notation",
+        "Kurs gesamt",
+        "total du cours",
+        "pondération"
+      ],
+      "links": [
+        "Relier un examen à une activité",
+        "Correction humaine",
+        "Les notes n'arrivent pas dans la plateforme d'apprentissage",
+        "Gérer la connexion",
+        "Protection des données de la connexion"
+      ]
+    },
+    "lti-privacy": {
+      "title": "Que dois-je savoir sur la protection des données de la connexion à la plateforme d'apprentissage ?",
+      "summary": "La connexion demande **le consentement avant chaque compte**, une fois par connexion, aux étudiants comme aux enseignants. Les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage, et seulement le nom pour ILIAS. Dans l'application, un pseudonyme apparaît. La correction par IA s'exécute uniquement avec les clés de votre organisation. L'hébergement se fait en **Allemagne**. Nous sommes sous-traitant et satisfaisons aux exigences de votre service de protection des données. Indiquez-nous concrètement ce dont vous avez besoin.",
+      "steps": [
+        "**Le consentement d'abord** : au premier lancement, la personne voit ce que la plateforme d'apprentissage a transmis et consent à deux points : le traitement (compte avec nom et adresse e-mail, pseudonyme, transmission des notes) et l'utilisation à des fins de recherche. Aucun compte n'est créé avant. Le lancement vérifié attend au plus 30 minutes sur le serveur. Si la personne demande un lien de confirmation, une copie du lancement avec le lien reste enregistrée jusqu'à 24 heures.",
+        "**L'utilisation à des fins de recherche est obligatoire** : sans ce consentement, l'outil ne peut pas être utilisé depuis la plateforme d'apprentissage. Un accès subordonné à un consentement soulève la question de l'art. 7, paragraphe 4, du RGPD. C'est votre service de protection des données qui juge si cela convient à votre cours.",
+        "**Vrai nom et pseudonyme** : les comptes portent le nom et l'adresse e-mail issus de la plateforme d'apprentissage. ILIAS ne fournit que le nom. Dans l'application, le pseudonyme apparaît. Les vrais noms sont visibles par les administrateurs de l'organisation, par les administrateurs de groupe pour leur groupe, par les enseignants du cours, par les collaborateurs autorisés à noter l'examen lié et par l'administration de la plateforme. Les enseignants du cours sont les enseignants de chaque cours de la connexion qui lie l'examen. Par défaut, les enseignants de la connexion peuvent aussi noter, car ils deviennent contributeurs dans l'organisation.",
+        "**Indiquer vos exigences** : contrat de sous-traitance (AVV) selon votre modèle ou le nôtre, annexe sur les mesures techniques et organisationnelles (TOM), entrée pour votre registre des activités de traitement, contribution à une analyse d'impact (DSFA), sous-traitants ultérieurs, délais de suppression. La liste complète des demandes figure dans la référence technique.",
+        "**Le contrat avant le lien d'invitation** : une connexion est active dès que la plateforme d'apprentissage utilise le lien. Concluez donc le contrat avant que l'administrateur de votre organisation ne crée le lien. Il appartient à l'université d'y veiller.",
+        "**Désigner des interlocuteurs** : une personne pour le volet juridique (généralement le service juridique ou la coordination de la protection des données, pas l'enseignant individuel) et une pour l'administration de Moodle ou d'ILIAS."
+      ],
+      "tips": [
+        "La correction par IA des examens liés s'exécute uniquement avec les **clés API de votre organisation**, jamais avec une clé à nous. Si la clé manque, aucune correction n'a lieu. C'est donc vous qui décidez quel fournisseur traite les textes des copies.",
+        "Aucune liste de participants n'est lue. La connexion utilise au plus trois autorisations liées aux notes (deux pour ILIAS) et pas de Names and Role Provisioning.",
+        "Un compte existant n'est lié que si la personne se connecte ou confirme un lien reçu par e-mail. Les comptes de l'administration de la plateforme ne sont jamais liés.",
+        "Les nouveaux comptes avec une adresse joignable reçoivent après le consentement un e-mail pour définir un mot de passe. Pour les comptes sans adresse joignable, par exemple tous les comptes issus d'ILIAS, la page demande une fois une adresse e-mail directement après le consentement. Cette étape peut être ignorée. L'adresse ne s'applique qu'une fois que la personne a ouvert le lien de confirmation. Ce lien sert aussi d'e-mail pour définir le mot de passe. Une adresse qui appartient déjà à un autre compte est refusée. Qui ignore l'étape renseigne l'adresse plus tard dans l'application.",
+        "Les administrateurs de votre organisation anonymisent les comptes créés par la plateforme d'apprentissage. Le nom, l'adresse e-mail et l'identifiant de la plateforme d'apprentissage sont supprimés ; les remises et les notes sont conservées sans lien avec la personne. La suppression complète d'un compte est possible sur demande.",
+        "La note de l'IA et la correction figurent côte à côte, et la correction constitue la note finale. Jusqu'à la correction, c'est la note de l'IA qui figure dans la plateforme d'apprentissage."
+      ],
+      "pitfalls": [
+        "Dans ILIAS, réglez avant le lancement l'**Identifikation der Person** sur **ID des ILIAS-Kontos …**. Pour le *Anmeldename*, choisissez **Vollständiger Name**. Le mode *E-Mail-Adresse* ne convient pas, car avec lui chaque transmission de notes échoue dans ILIAS 10.9. ILIAS transmet donc le nom, mais pas d'adresse e-mail : pas d'e-mail d'activation automatique, pas de liaison avec des comptes existants. Après le consentement, la page demande une fois une adresse e-mail. Ne modifiez plus l'identification ensuite. Un changement modifie l'identifiant de chaque personne et rompt toutes les liaisons.",
+        "C'est l'université, en tant que responsable du traitement, qui décide si une analyse d'impact relative à la protection des données est nécessaire et comment qualifier juridiquement la note de l'IA avant la correction. Nous fournissons la description du traitement à titre de contribution.",
+        "Les notes déjà transmises à la plateforme d'apprentissage y restent, même après une anonymisation. Vous les supprimez dans la plateforme d'apprentissage."
+      ],
+      "keywords": [
+        "protection des données",
+        "données personnelles",
+        "RGPD",
+        "DSGVO",
+        "contrat de sous-traitance",
+        "AVV",
+        "sous-traitance",
+        "TOM",
+        "analyse d'impact",
+        "DSFA",
+        "registre des activités de traitement",
+        "pseudonyme",
+        "vrai nom",
+        "consentement",
+        "utilisation à des fins de recherche",
+        "anonymisation",
+        "hébergement",
+        "suppression",
+        "Identifikation der Person"
+      ],
+      "links": [
+        "Référence complète sur la protection des données et la technique",
+        "Configurer la connexion",
+        "Gérer la connexion",
+        "Politique de confidentialité"
+      ]
+    },
+    "api-zugaenge": {
+      "title": "Comment configurer un accès API pour des scripts ou un benchmark runner ?",
+      "summary": "Avec une **clé d'accès** (elle commence par `bgr_`). En tant qu'administrateur de l'organisation ou d'un groupe, vous créez les clés de votre organisation sous **Accès API** ; les clés personnelles se créent dans votre [profil](/profile). La clé ne vous est affichée qu'une seule fois.",
+      "steps": [
+        "**Créer une clé** : pour l'organisation, ouvrez [Utilisateurs et organisations](/users-organizations), choisissez l'organisation et cliquez sur **Accès API**. Pour vous-même, allez dans votre [profil](/profile), section **Accès API**. Cliquez ensuite sur **Nouvelle clé** et donnez-lui un nom qui vous permettra de la reconnaître plus tard.",
+        "**Choisir la portée** : choisissez un préréglage : **Benchmark en lecture seule**, **Exécuter le benchmark et soumettre** ou **Accès complet à votre organisation**. Sous **Avancé**, vous voyez chaque autorisation séparément. Pour les clés d'organisation, vous choisissez en plus le rôle et, si nécessaire, un groupe et des projets précis. La validité est fixée à un an.",
+        "**Copier** : après **Créer la clé**, la clé complète s'affiche. Copiez-la aussitôt avec **Copier** et conservez-la en lieu sûr, par exemple dans un gestionnaire de mots de passe. Ensuite, vous ne voyez plus que son identifiant.",
+        "**Tester la connexion** : cliquez sur **Tester la connexion**. BenGER appelle alors l'interface comme le fera votre script et vous montre l'organisation et les autorisations de la clé.",
+        "**Utiliser dans un script ou un runner** : reprenez l'exemple `curl` ou Python affiché. La clé figure dans l'en-tête `Authorization: Bearer <Schlüssel>`. Stockez-la comme variable d'environnement ou comme secret de votre runner, jamais dans le code source."
+      ],
+      "tips": [
+        "**Renouveler** crée une nouvelle clé avec les mêmes paramètres. L'ancienne continue de fonctionner jusqu'à ce que vous la révoquiez. Vous basculez ainsi vos scripts sans interruption.",
+        "Sous **Utilisation**, vous voyez combien de fois une clé a été utilisée au cours des 30 derniers jours et quelles interfaces elle a appelées.",
+        "Une clé d'organisation agit comme un compte de service distinct. Une clé personnelle agit en votre nom et ne voit jamais plus que vous."
+      ],
+      "pitfalls": [
+        "Vous ne voyez la clé complète qu'immédiatement après sa création. Si vous l'avez perdue, créez-en une nouvelle et révoquez l'ancienne.",
+        "Une clé d'organisation ne peut lire les corrigés types qu'avec le rôle **Contributeur**.",
+        "Si une clé est tombée entre de mauvaises mains, révoquez-la immédiatement avec **Révoquer**. Elle ne fonctionne alors plus."
+      ],
+      "keywords": [
+        "API",
+        "accès API",
+        "clé d'accès",
+        "clé API",
+        "token",
+        "jeton",
+        "interface",
+        "script",
+        "runner",
+        "benchmark",
+        "bgr_",
+        "curl",
+        "Python"
+      ],
+      "links": ["Profil", "Utilisateurs et organisations"]
+    },
+    "ts-no-projects": {
+      "title": "« Je ne vois aucun projet » ou « mon projet a disparu »",
+      "summary": "C'est presque toujours le contexte : en haut à droite, dans le menu du compte, choisissez l'organisation sous **Changer de contexte**. Ensuite : le projet est-il archivé (*Plus → Archivés*) ou limité à un groupe dont vous ne faites pas partie ?",
+      "keywords": [
+        "disparu",
+        "invisible",
+        "pas visible",
+        "vide",
+        "manquant",
+        "aucun projet"
+      ],
+      "links": ["Contexte privé ou organisation", "Groupes"]
+    },
+    "ts-no-models": {
+      "title": "« Aucune clé API configurée » ou des modèles manquent dans la sélection",
+      "summary": "Il manque la clé du fournisseur. Enregistrez votre propre clé sous [Profil](/profile) → *Gestion des clés API*, ou l'organisation doit activer *L'organisation fournit les clés API* et enregistrer le fournisseur. Si l'organisation fournit des clés, il n'y a pas de repli sur votre clé personnelle.",
+      "keywords": [
+        "aucune clé API",
+        "modèle manquant",
+        "non disponible",
+        "fournisseur",
+        "clé API",
+        "sélecteur de modèles"
+      ],
+      "links": ["Configurer une clé API"]
+    },
+    "ts-generation-fails": {
+      "title": "La génération ou l'évaluation échoue",
+      "summary": "Vérifiez dans cet ordre : la clé est valide et dispose de crédits (*limite d'utilisation ou de débit atteinte* signifie qu'il n'y a plus de crédits chez le fournisseur), le modèle est encore actif dans le [catalogue de modèles](/models), la structure de prompt et la méthode renvoient à des champs existants. Les détails de chaque exécution se trouvent sous [Exécutions](/runs) ; les exécutions échouées peuvent y être relancées.",
+      "tips": [
+        "Avec *Régénérer*, une tâche n'est régénérée que si le prompt a changé. Avec *Tout générer*, vous forcez la régénération."
+      ],
+      "keywords": [
+        "échec",
+        "échoué",
+        "erreur",
+        "échec de la génération",
+        "erreur d'évaluation",
+        "limite de débit",
+        "rate limit",
+        "clé invalide"
+      ]
+    },
+    "ts-import-validation": {
+      "title": "« Erreur de validation de l'import : These fields are not present in the data »",
+      "summary": "Votre fichier a d'autres noms de colonnes que les variables `$feld` du modèle d'annotation. Renommez les colonnes, utilisez la **Correspondance des champs** dans la boîte de dialogue d'import, ou choisissez **Importer quand même**, puis générez le modèle à partir des données sous *Association des champs et modèle* sur la page des données.",
+      "keywords": [
+        "erreur de validation",
+        "champs manquants",
+        "not present",
+        "correspondance des champs",
+        "échec de l'import",
+        "import échoué"
+      ],
+      "links": ["Téléverser des données"]
+    },
+    "ts-unknown-component": {
+      "title": "Un champ manque dans l'interface d'annotation ou « Unknown component type »",
+      "summary": "La balise du XML n'est pas reconnue. Les noms de balise sont sensibles à la casse (`TextArea`, pas `Textarea`). Les balises d'examen comme `Angabe`, `Gliederung` et `Loesung` n'existent que dans l'édition étendue. Les champs de données manquants (`value=\"$feld\"`) restent vides, sans message d'erreur.",
+      "keywords": [
+        "Unknown component type",
+        "champ manquant",
+        "vide",
+        "ne s'affiche pas",
+        "erreur XML",
+        "balise inconnue"
+      ],
+      "links": ["Modifier le XML"]
+    },
+    "ts-import-button": {
+      "title": "« Où est le bouton d'import ? » et autres fonctions déplacées",
+      "summary": "**Importer un projet**, **Archivés**, **Projets supprimés** et **Découvrir** se trouvent dans la liste des projets, dans le menu **Plus**. L'import de tâches dans un projet se fait sur la page *Données du projet*. Les modèles personnels se gèrent sous [Modèles](/models), les clés API personnelles dans le [profil](/profile).",
+      "keywords": [
+        "bouton d'import",
+        "importer",
+        "menu Plus",
+        "où est",
+        "introuvable",
+        "déplacé"
+      ]
+    },
+    "ts-lti-errors": {
+      "title": "Le lancement depuis Moodle ou ILIAS échoue",
+      "summary": "La page d'erreur indique un **code d'erreur** et, en cas d'erreur serveur inattendue, une **référence**. Cherchez le code dans la liste ci-dessous. Chaque entrée indique la cause, la solution et qui peut vous aider. Les étudiants s'adressent à leurs enseignants, les enseignants aux administrateurs de leur organisation. Certaines erreurs sont affichées directement par la page de consentement ou de confirmation, avec seulement un titre. La liste indique ces titres.",
+      "steps": [
+        "`invalid_request` : la plateforme d'apprentissage a envoyé une demande de lancement incomplète. Rouvrez l'activité. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",
+        "`registration_not_found` : aucune connexion ne correspond à la plateforme d'apprentissage. Le plus souvent, l'ID de plateforme (Issuer) ou le Client ID dans les paramètres de l'outil ne correspond pas à la connexion, ou la connexion a été supprimée. Deux connexions actives impossibles à distinguer mènent aussi à ce code. Les administrateurs de votre organisation vérifient la connexion, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil.",
+        "`registration_disabled` : l'organisation a désactivé la connexion. Une connexion désactivée affiche ce code à chaque lancement. Dans le panneau, sa carte porte le badge **Désactivée** et l'interrupteur indique **Connexion désactivée**. Les administrateurs de votre organisation la réactivent d'un clic sur l'interrupteur.",
+        "`org_inactive` : l'organisation à laquelle appartient la connexion est désactivée. Seul l'exploitant de la plateforme peut changer cela. Les enseignants s'adressent à lui.",
+        "`unknown_deployment` : la plateforme d'apprentissage envoie un Deployment ID qui n'est pas enregistré dans la connexion. Dans ILIAS, le Deployment ID est l'ID du fournisseur (Provider-ID). L'administration de la plateforme d'apprentissage communique l'ID, les administrateurs de votre organisation l'ajoutent dans la connexion sous **Déploiements**.",
+        "`deployment_disabled` : le Deployment ID est enregistré dans la connexion, mais désactivé. À côté de l'ID, l'interrupteur indique **Déploiement désactivé**. Les administrateurs de votre organisation le réactivent sous **Déploiements** d'un clic sur l'interrupteur.",
+        "`tool_not_configured` : la clé de signature de l'outil ne peut pas être chargée sur le serveur. Seul l'exploitant de la plateforme peut corriger cela. Les enseignants s'adressent à lui.",
+        "`state_unavailable` : un problème temporaire du serveur. Le serveur n'a pas pu enregistrer ou lire la connexion. Le navigateur n'y est pour rien. Réessayez dans quelques minutes. Si cela persiste, les enseignants transmettent le code à l'exploitant de la plateforme.",
+        "`invalid_state` : la connexion datait de plus de 5 minutes ou avait déjà été utilisée, par exemple après *Retour*, après un rechargement ou après un double envoi. Rouvrez l'activité dans la plateforme d'apprentissage.",
+        "`invalid_token` : les identifiants envoyés par la plateforme d'apprentissage n'ont pas pu être vérifiés. Causes possibles : un Client ID erroné dans la connexion, de nouvelles clés de la plateforme d'apprentissage ou une horloge serveur déréglée. Rouvrez l'activité. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage vérifie les paramètres de l'outil avec les administrateurs de votre organisation.",
+        "`jwks_unreachable` : la plateforme n'a pas pu charger les clés de la plateforme d'apprentissage qui servent à vérifier la connexion. Le plus souvent, un pare-feu devant la plateforme d'apprentissage bloque cette plateforme ; plus rarement, l'URL des clés (JWKS) dans la connexion est erronée ou la plateforme d'apprentissage est momentanément injoignable. Les paramètres de l'outil peuvent pourtant être parfaitement corrects. Réessayez dans quelques minutes. Si l'erreur revient à chaque fois, l'administration de la plateforme d'apprentissage ouvre l'URL des clés (pour ILIAS `lticerts.php`) et l'URL du jeton (`ltitoken.php`, pour le transfert des notes) à cette plateforme.",
+        "`nonce_mismatch` : la réponse de la plateforme d'apprentissage ne correspond pas à la connexion entamée. Rouvrez l'activité dans la plateforme d'apprentissage.",
+        "`nonce_reused` : la même connexion est arrivée une deuxième fois. Rouvrez l'activité dans la plateforme d'apprentissage.",
+        "`unsupported_message` : la plateforme d'apprentissage envoie une requête que l'outil ne prend pas en charge, par exemple Deep Linking. L'administration de la plateforme d'apprentissage désactive Deep Linking dans les paramètres de l'outil.",
+        "`not_linked` : l'activité n'est encore liée à aucun examen. Les enseignants ouvrent eux-mêmes l'activité dans la plateforme d'apprentissage et choisissent un examen. Les étudiants s'adressent à leurs enseignants.",
+        "`exam_unavailable` : l'examen lié a été supprimé. Les enseignants ouvrent l'activité et lient un autre examen. Si des notes ont déjà été transférées, ils créent une nouvelle activité dans la plateforme d'apprentissage. Les étudiants s'adressent à leurs enseignants.",
+        "`user_inactive` : le compte de la personne est désactivé sur cette plateforme. Seul l'exploitant de la plateforme peut le réactiver. Les enseignants s'adressent à lui. Un compte anonymisé ne revient pas : lors de l'anonymisation, il perd sa liaison avec la plateforme d'apprentissage, si bien qu'un nouveau compte est créé au prochain lancement après le consentement.",
+        "`membership_removed` : un administrateur a retiré la personne de l'organisation ou du groupe de la connexion. Un lancement depuis la plateforme d'apprentissage ne rétablit pas l'adhésion. Pour que la personne retrouve l'accès, les administrateurs de votre organisation l'invitent avec **Inviter un membre** à l'adresse e-mail de son compte. Si la personne accepte l'invitation en étant connectée, l'adhésion est de nouveau active. Si le compte n'a pas encore de mot de passe, la personne en définit d'abord un avec **Mot de passe oublié ?**. Si le compte n'a qu'une adresse fictive (la plateforme d'apprentissage n'a envoyé aucune adresse ou une adresse déjà utilisée), ni l'invitation ni l'e-mail de mot de passe n'arrivent. L'exploitant de la plateforme rétablit alors l'adhésion avec **Ajouter un utilisateur existant**. Les administrateurs rétablissent une adhésion à un groupe en ajoutant la personne au groupe.",
+        "`launch_expired` : sur la page de consentement et le choix du compte, ce cas apparaît sans code sous le titre **Connexion expirée**. Le lancement a expiré ou est déjà terminé. Cela arrive si la page de consentement ou le choix du compte est resté ouvert plus de 30 minutes, ou si le lancement a déjà été terminé dans un autre onglet. Rouvrez l'activité dans la plateforme d'apprentissage.",
+        "`launch_mismatch` : sur la page de consentement et le choix du compte, ce cas apparaît sans code sous le titre **La connexion ne correspond pas**. La page appartient à un autre lancement, ou le navigateur n'a pas le cookie de ce lancement. Cela arrive si l'adresse est ouverte dans un autre navigateur ou si l'outil est lancé en mode intégré. Rouvrez l'activité et effectuez toutes les étapes dans le même navigateur.",
+        "`link_proof_failed` : sur la page de confirmation, ce cas apparaît sans code sous le titre **Échec de la confirmation**. Le lien de confirmation reçu par e-mail est invalide, date de plus de 24 heures ou a déjà été utilisé. Rouvrez l'activité et demandez un nouveau lien.",
+        "`account_not_linkable` : ce compte ne peut pas être lié à une plateforme d'apprentissage, par exemple un compte disposant de droits d'administration sur toute la plateforme. Les administrateurs de votre organisation suppriment la liaison existante sous **Comptes LMS** avec **Supprimer la liaison**. Rouvrez ensuite l'activité et donnez votre consentement. La page **Compte distinct** ne propose alors que **Continuer**, ce qui crée un compte séparé.",
+        "`internal` : une erreur inattendue sur le serveur. La page d'erreur affiche une **référence**. Réessayez dans quelques minutes. Si l'erreur persiste, les enseignants transmettent le code d'erreur et la référence à l'exploitant de la plateforme. La référence lui permet de retrouver l'erreur dans le journal du serveur."
+      ],
+      "tips": [
+        "Les administrateurs de votre organisation gèrent la connexion sous [Utilisateurs et organisations](/users-organizations) → organisation → **Plus** → **Plateforme d'apprentissage (LTI)**. Ils y activent et désactivent la connexion et les déploiements, ajoutent des Deployment IDs et suppriment les liaisons des comptes LMS.",
+        "Les paramètres de l'outil, comme le conteneur de lancement et l'acceptation des notes, le Deployment ID, la confidentialité (dans Moodle la transmission du nom et de l'e-mail, dans ILIAS l'*Identifikation der Person*) ainsi que le transfert des notes (dans Moodle *IMS LTI Aufgaben und Bewertung*, dans ILIAS *Erweiterte Benotungsdienste*), ne peuvent être modifiés que par l'administration de la plateforme d'apprentissage."
+      ],
+      "pitfalls": [
+        "Si l'outil se lance intégré dans le cours (iframe), les personnes arrivent sur la page de connexion au lieu de l'examen ou voient **La connexion ne correspond pas** (`launch_mismatch`). Le navigateur ne transmet pas les cookies de connexion dans le cadre intégré. Réglez l'outil sur **Nouvelle fenêtre** dans la plateforme d'apprentissage. Après un enregistrement par lien, Moodle règle l'outil sur « intégré ». L'administration Moodle modifie alors le *conteneur de lancement par défaut* de l'outil. Dans Moodle 4.5, les enseignants ne peuvent pas le modifier activité par activité.",
+        "`state_unavailable` n'a rien à voir avec les cookies ou le navigateur. Changer de navigateur n'aide pas, réessayer quelques minutes plus tard, si.",
+        "*Retour*, un rechargement ou un favori vers une page du lancement mènent à `invalid_state`. Lancez toujours depuis la plateforme d'apprentissage.",
+        "`unknown_deployment` et `deployment_disabled` ne sont pas la même chose. Dans le premier cas, l'ID manque dans la connexion ; dans le second, il est enregistré mais désactivé."
+      ],
+      "keywords": [
+        "erreur LTI",
+        "code d'erreur",
+        "page d'erreur",
+        "référence",
+        "échec du lancement",
+        "lancement Moodle",
+        "lancement ILIAS",
+        "connexion désactivée",
+        "Deployment ID",
+        "ID du fournisseur",
+        "Provider-ID",
+        "iframe",
+        "intégré",
+        "conteneur de lancement par défaut",
+        "page de connexion",
+        "connexion expirée",
+        "la connexion ne correspond pas",
+        "échec de la confirmation",
+        "LTI Fehler",
+        "Fehlercode"
+      ],
+      "links": [
+        "Configurer la connexion",
+        "Gérer la connexion",
+        "Lier un examen à une activité",
+        "Les notes n'arrivent pas dans la plateforme d'apprentissage"
+      ]
+    },
+    "ts-lti-grades": {
+      "title": "Les notes n'arrivent pas dans Moodle ou ILIAS",
+      "summary": "Ouvrez l'**Aperçu de l'activité** ou, dans le panneau de la connexion, les **Transmissions de notes**. Vous y trouvez le statut et le texte d'erreur de chaque transmission. Les causes les plus fréquentes sont une activité sans évaluation, une transmission des notes désactivée dans la plateforme d'apprentissage, une clé API manquante et, dans ILIAS, l'*Identifikation der Person* par *E-Mail-Adresse*. ILIAS signale alors « User not available ».",
+      "steps": [
+        "**ILIAS : « ILIAS kennt die Person nicht » ou « User not available »** : le fournisseur ILIAS identifie les personnes par *E-Mail-Adresse*. Dans ILIAS 10.9, chaque transmission de notes échoue dans ce mode. La carte de la connexion affiche alors l'avertissement **La transmission des notes vers ILIAS échoue**. L'administration ILIAS règle *Identifikation der Person* sur **ID des ILIAS-Kontos …** chez le fournisseur. L'identifiant de chaque personne change alors. Au lancement suivant, chaque personne donne à nouveau son consentement, reçoit un nouveau compte et se voit demander une fois son adresse e-mail. Les remises précédentes restent sur l'ancien compte.",
+        "**ILIAS : aucune valeur n'arrive** : *Erweiterte Benotungsdienste* doit être activé chez le fournisseur. Rouvrez ensuite l'activité.",
+        "**ILIAS : un examen réussi reste « in Bearbeitung » (en cours)** : le *Mastery Score* de l'objet est encore à 80. Réglez-le sur **22** sous *Optionen für den Lernfortschritt*. Si le champ est absent, l'administration ILIAS coche *Provider unterstützt Outcome Service* chez le fournisseur. ILIAS n'affiche la progression d'apprentissage que si elle est activée dans l'administration ILIAS.",
+        "**Moodle : l'activité n'a pas d'évaluation** : sans évaluation, il n'y a pas de colonne de notes. Activez l'évaluation dans l'activité, si nécessaire avec la case *… erlauben, Bewertungen hinzuzufügen*.",
+        "**Statut Échec avec 400, 401, 403 ou 404** : la plateforme d'apprentissage refuse définitivement la note. L'outil ne réessaie donc pas immédiatement. Corrigez la cause indiquée dans le texte de l'erreur, puis cliquez sur **Renvoyer** ou, dans le panneau, sur **Réessayer**.",
+        "**Statut Transmission en cours ou En attente avec texte d'erreur** : la plateforme d'apprentissage était brièvement injoignable ou a renvoyé une erreur serveur. L'outil réessaie après 10, 30 et 90 secondes, puis à intervalles croissants jusqu'à six heures.",
+        "**Pas encore de note** : la correction par IA est encore en cours ou n'a pas pu démarrer. S'il manque une clé API à l'organisation, l'aperçu affiche *En attente d'une clé API de l'organisation*.",
+        "**Connexion désactivée** : tant que l'interrupteur affiche **Connexion désactivée**, aucune note ne part. Activez la connexion et cliquez sur **Renvoyer toutes les notes** ou, dans la ligne, sur **Renvoyer**.",
+        "**La plateforme d'apprentissage était en panne ou la transmission des notes y était désactivée** : cliquez ensuite sur **Renvoyer toutes les notes**. L'aperçu de l'activité le propose pour chaque activité, le panneau de la connexion le propose sous **Transmissions de notes** pour toutes les activités d'une connexion. Sans ce clic, les notes partent avec les répétitions automatiques, ce qui peut prendre jusqu'à six heures."
+      ],
+      "tips": [
+        "Si une note change après coup, par exemple à cause d'une correction ou d'un nouveau barème de notation, la nouvelle valeur part vers la plateforme d'apprentissage au plus tard après environ une heure.",
+        "ILIAS ne reçoit que la note finale de chaque personne. La colonne **KI-Bewertung** n'existe que dans Moodle.",
+        "Si Moodle affiche toujours une autre valeur après **Renvoyer toutes les notes**, la note a été écrasée ou verrouillée dans le carnet de notes de Moodle. Moodle ne modifie pas ces notes. Annulez l'écrasement dans Moodle ; Moodle affiche alors la valeur envoyée."
+      ],
+      "pitfalls": [
+        "Ne modifiez *Identifikation der Person* dans ILIAS que pour quitter le mode *E-Mail-Adresse*. Chaque changement rompt toutes les liaisons existantes."
+      ],
+      "keywords": [
+        "les notes n'arrivent pas",
+        "échec de la transmission des notes",
+        "User not available",
+        "ILIAS kennt die Person nicht",
+        "Identifikation der Person",
+        "E-Mail-Adresse",
+        "adresse e-mail",
+        "Mastery Score",
+        "progression d'apprentissage",
+        "Erweiterte Benotungsdienste",
+        "Renvoyer",
+        "Renvoyer toutes les notes",
+        "panne"
+      ],
+      "links": [
+        "Notes depuis la plateforme d'apprentissage",
+        "Gérer la connexion",
+        "Configurer la connexion",
+        "La colonne principale d'une collection d'examens reste vide"
+      ]
+    },
+    "ts-lti-collection": {
+      "title": "Impossible de lier un recueil d'examens, ou la colonne principale reste vide",
+      "summary": "Un recueil d'examens comporte plusieurs tâches. Dans la sélection, choisissez une tâche ou, dans Moodle, le recueil entier. Le recueil entier nécessite dans Moodle la gestion des colonnes. Sa colonne principale, celle de l'activité, ne reçoit la moyenne que lorsque chaque tâche a une note finale.",
+      "steps": [
+        "**La sélection exige une tâche (`task_required`)** : l'examen comporte plusieurs tâches. Dépliez le recueil et choisissez la tâche dont la note sera attribuée à l'activité. Dans Moodle, vous pouvez à la place choisir le recueil entier.",
+        "**Le recueil entier ne peut pas être choisi (`collection_unsupported`)** : la connexion est ILIAS, ou Moodle n'a pas le droit de créer des colonnes. Dans ILIAS, créez une activité distincte par tâche. Dans Moodle, l'administration règle pour l'outil *IMS LTI Aufgaben und Bewertung* l'option **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Rouvrez ensuite l'activité pour que la plateforme d'apprentissage transmette les nouveaux droits.",
+        "**La colonne principale reste vide** : pour le recueil entier, la colonne de l'activité ne reçoit la moyenne que lorsque chaque tâche de la personne a une note finale. Vérifiez dans les colonnes *Aufgabe N* quelle tâche manque encore et notez-la. Si l'activité ne transfère pas les notes de l'IA, chaque tâche a besoin d'une correction. Si une tâche a été ajoutée au recueil, la moyenne attend aussi cette tâche.",
+        "**Une colonne de tâche manque dans Moodle** : la colonne apparaît avec la première note de la tâche. Si elle a été supprimée dans Moodle, BenGER ne la recrée pas de lui-même.",
+        "**La liaison ne peut pas être modifiée (`relink_blocked`)** : une note de l'activité est déjà arrivée dans la plateforme d'apprentissage. Créez une nouvelle activité pour l'autre examen, l'autre tâche ou l'autre mode.",
+        "**Import refusé (`multi_task_unsupported`)** : une ancienne activité reçoit l'examen entier comme une seule note. Liez-la à la tâche de l'examen. Les imports sont ensuite possibles."
+      ],
+      "tips": [
+        "Une activité par tâche fonctionne dans Moodle et dans ILIAS. Le recueil entier dans une seule activité n'existe que dans Moodle."
+      ],
+      "keywords": [
+        "recueil d'examens",
+        "plusieurs tâches",
+        "la colonne principale reste vide",
+        "moyenne manquante",
+        "colonne de tâche",
+        "task_required",
+        "collection_unsupported",
+        "relink_blocked",
+        "multi_task_unsupported",
+        "gestion des colonnes",
+        "Klausurensammlung"
+      ],
+      "links": [
+        "Lier un recueil d'examens",
+        "Les notes n'arrivent pas dans Moodle ou ILIAS",
+        "Notes depuis la plateforme d'apprentissage"
+      ]
+    }
+  },
+  "howToCategories": {
+    "start": {
+      "title": "Premiers pas",
+      "blurb": "Ce que sont BenGER et l'espace d'apprentissage, comment vous y retrouver et ce qu'il faut configurer en premier."
+    },
+    "organizations": {
+      "title": "Organisations, groupes et invitations",
+      "blurb": "Membres, rôles, groupes (p. ex. chaires) et liens d'invitation."
+    },
+    "projects": {
+      "title": "Créer et configurer des projets",
+      "blurb": "L'assistant de projet, les types de projet, les paramètres et la page du projet."
+    },
+    "data": {
+      "title": "Téléverser, importer et exporter des données",
+      "blurb": "Formats de fichier, correspondance des champs et export/import de projets."
+    },
+    "annotation": {
+      "title": "Interface d'annotation et XML",
+      "blurb": "L'interface que voient les annotateurs et comment adapter le XML qui la définit."
+    },
+    "generation": {
+      "title": "Modèles d'IA et génération",
+      "blurb": "Clés API, modèles personnalisés, prompts et exécutions de génération."
+    },
+    "evaluation": {
+      "title": "Évaluation, correction et rapports",
+      "blurb": "Méthodes d'évaluation, évaluation immédiate, correction humaine, rapports et classements."
+    },
+    "integrations": {
+      "title": "Intégrations (Moodle, ILIAS, LTI)",
+      "blurb": "Intégrer les examens BenGER dans des plateformes d'apprentissage."
+    },
+    "student": {
+      "title": "Pour les étudiants",
+      "blurb": "S'entraîner aux examens, réviser avec des fiches, comprendre ses résultats."
+    },
+    "troubleshooting": {
+      "title": "Résoudre les problèmes",
+      "blurb": "Les messages d'erreur les plus fréquents et ce qui se cache derrière."
+    }
+  }
+}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 
 import type { UserProfile } from './types'
 
@@ -9,7 +10,7 @@ interface ProfileAccountSectionProps {
 }
 
 export function ProfileAccountSection({ profile }: ProfileAccountSectionProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <div className="border-t border-zinc-200 pt-8 dark:border-zinc-700">
@@ -20,19 +21,21 @@ export function ProfileAccountSection({ profile }: ProfileAccountSectionProps) {
         {profile?.created_at && (
           <div>
             <span className="font-medium">{t('profile.memberSince')}</span>{' '}
-            {new Date(profile.created_at).toLocaleDateString()}
+            {new Date(profile.created_at).toLocaleDateString(intlTag(locale))}
           </div>
         )}
         {profile?.updated_at && (
           <div>
             <span className="font-medium">{t('profile.lastUpdated')}</span>{' '}
-            {new Date(profile.updated_at).toLocaleDateString()}
+            {new Date(profile.updated_at).toLocaleDateString(intlTag(locale))}
           </div>
         )}
         {profile?.profile_confirmed_at && (
           <div>
             <span className="font-medium">{t('profile.lastConfirmed')}</span>{' '}
-            {new Date(profile.profile_confirmed_at).toLocaleDateString()}
+            {new Date(profile.profile_confirmed_at).toLocaleDateString(
+              intlTag(locale),
+            )}
           </div>
         )}
       </div>

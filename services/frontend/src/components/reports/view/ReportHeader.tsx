@@ -37,7 +37,7 @@ export function ReportHeader({
             </h1>
             {isDraft && (
               <Badge variant="outline" data-testid="draft-badge">
-                {t('reports.view.draft', 'Entwurf')}
+                {t('reports.view.draft')}
               </Badge>
             )}
           </div>
@@ -52,21 +52,21 @@ export function ReportHeader({
             href={editHref}
             className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
           >
-            {t('reports.view.edit', 'Bearbeiten')}
+            {t('reports.view.edit')}
           </Link>
         )}
       </div>
       <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-zinc-500 dark:text-zinc-400">
         {published && (
           <span>
-            {t('reports.view.publishedOn', 'Veröffentlicht am {date}', {
+            {t('reports.view.publishedOn', {
               date: published,
             })}
           </span>
         )}
         {generated && (
           <span data-testid="data-as-of">
-            {t('reports.view.dataAsOf', 'Datenstand: {date}', {
+            {t('reports.view.dataAsOf', {
               date: generated,
             })}
           </span>

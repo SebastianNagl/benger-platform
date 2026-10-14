@@ -149,6 +149,9 @@ spec:
             {{- with $pool.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+            {{- with (include "benger.overlayEnv" (dict "root" $ "role" "workers")) }}
+            {{- . | nindent 12 }}
+            {{- end }}
           resources:
             {{- toYaml $pool.resources | nindent 12 }}
 {{- end }}

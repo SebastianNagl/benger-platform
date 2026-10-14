@@ -17,35 +17,24 @@ export const PROJECT_KIND_OPTIONS: {
   icon: string
   nameKey: string
   descriptionKey: string
-  nameFallback: string
-  descriptionFallback: string
 }[] = [
   {
     id: 'generic',
     icon: '🗂️',
     nameKey: 'projects.creation.wizard.step1.kind.generic',
     descriptionKey: 'projects.creation.wizard.step1.kind.genericDescription',
-    nameFallback: 'Generisch',
-    descriptionFallback:
-      'Benchmark-/Annotationsprojekt ohne Klausur- oder Karten-Logik',
   },
   {
     id: 'exam',
     icon: '⚖️',
     nameKey: 'projects.creation.wizard.step1.kind.exam',
     descriptionKey: 'projects.creation.wizard.step1.kind.examDescription',
-    nameFallback: 'Klausur',
-    descriptionFallback:
-      'Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar',
   },
   {
     id: 'flashcard_collection',
     icon: '🗃️',
     nameKey: 'projects.creation.wizard.step1.kind.deck',
     descriptionKey: 'projects.creation.wizard.step1.kind.deckDescription',
-    nameFallback: 'Kartenstapel',
-    descriptionFallback:
-      'Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)',
   },
 ]
 
@@ -90,16 +79,13 @@ export function ProjectTypeSelector({
   return (
     <div data-testid="project-type-and-icon">
       <Label>
-        {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}{' '}
+        {t('projects.creation.wizard.step1.kind.title')}{' '}
         <span className="text-red-600 dark:text-red-400">*</span>
       </Label>
       <div
         className="mt-2 grid grid-cols-3 gap-2"
         role="radiogroup"
-        aria-label={t(
-          'projects.creation.wizard.step1.kind.title',
-          'Projekttyp',
-        )}
+        aria-label={t('projects.creation.wizard.step1.kind.title')}
       >
         {PROJECT_KIND_OPTIONS.map((opt) => {
           const isSelected = projectKind === opt.id
@@ -109,7 +95,7 @@ export function ProjectTypeSelector({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              title={t(opt.descriptionKey, opt.descriptionFallback)}
+              title={t(opt.descriptionKey)}
               onClick={() => onChange({ projectKind: opt.id })}
               data-testid={`project-kind-${opt.id}`}
               className={cn(
@@ -122,19 +108,14 @@ export function ProjectTypeSelector({
               <span className="text-lg" aria-hidden>
                 {opt.icon}
               </span>
-              {t(opt.nameKey, opt.nameFallback)}
+              {t(opt.nameKey)}
             </button>
           )
         })}
       </div>
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        {selected
-          ? `${t(selected.descriptionKey, selected.descriptionFallback)} · `
-          : ''}
-        {t(
-          'projects.creation.wizard.step1.kind.locked',
-          'Der Projekttyp kann von Bearbeitenden unter „Einstellungen“ geändert werden.',
-        )}
+        {selected ? `${t(selected.descriptionKey)} · ` : ''}
+        {t('projects.creation.wizard.step1.kind.locked')}
       </p>
     </div>
   )
@@ -163,7 +144,7 @@ export function IconPickerModal({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
-      title={t('projects.creation.wizard.step1.icon.title', 'Symbol wählen')}
+      title={t('projects.creation.wizard.step1.icon.title')}
     >
       <div className="space-y-4" data-testid="icon-picker-modal">
         <div
@@ -202,15 +183,12 @@ export function IconPickerModal({
             />
           </span>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {t(
-              'projects.creation.wizard.step1.icon.help',
-              'Wird in Listen, im Projektkopf und unter „Entdecken“ angezeigt.',
-            )}
+            {t('projects.creation.wizard.step1.icon.help')}
           </p>
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>
-            {t('common.cancel', 'Abbrechen')}
+            {t('common.cancel')}
           </Button>
           <Button
             variant="filled"
@@ -225,7 +203,7 @@ export function IconPickerModal({
               onClose()
             }}
           >
-            {t('common.save', 'Speichern')}
+            {t('common.save')}
           </Button>
         </div>
       </div>

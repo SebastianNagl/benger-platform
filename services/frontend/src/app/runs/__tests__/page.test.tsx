@@ -25,8 +25,9 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
+    locale: 'de',
+    t: (key: string, vars?: Record<string, unknown>) =>
+      require('@/lib/i18n/catalog').translateKey('de', key, vars),
   }),
 }))
 

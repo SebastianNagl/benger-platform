@@ -37,22 +37,22 @@ describe('ScoreCard', () => {
   it('renders with default props (higherIsBetter=true, range 0-1, format decimal)', () => {
     render(<ScoreCard metric="F1" value={0.85} />)
     expect(screen.getByText('F1')).toBeInTheDocument()
-    expect(screen.getByText('0.850')).toBeInTheDocument()
+    expect(screen.getByText('0,850')).toBeInTheDocument()
   })
 
   it('renders with low score (red color, <0.5)', () => {
     render(<ScoreCard metric="F1" value={0.2} />)
-    expect(screen.getByText('0.200')).toBeInTheDocument()
+    expect(screen.getByText('0,200')).toBeInTheDocument()
   })
 
   it('renders with mid score (yellow, 0.5-0.7)', () => {
     render(<ScoreCard metric="F1" value={0.6} />)
-    expect(screen.getByText('0.600')).toBeInTheDocument()
+    expect(screen.getByText('0,600')).toBeInTheDocument()
   })
 
   it('renders with formatAs="percentage"', () => {
     render(<ScoreCard metric="F1" value={0.85} formatAs="percentage" />)
-    expect(screen.getByText('85.0%')).toBeInTheDocument()
+    expect(screen.getByText('85,0%')).toBeInTheDocument()
   })
 
   it('renders with formatAs="raw"', () => {
@@ -64,12 +64,12 @@ describe('ScoreCard', () => {
         valueRange={{ min: 0, max: 100 }}
       />,
     )
-    expect(screen.getByText('42.50')).toBeInTheDocument()
+    expect(screen.getByText('42,50')).toBeInTheDocument()
   })
 
   it('renders with higherIsBetter=false', () => {
     render(<ScoreCard metric="Loss" value={0.3} higherIsBetter={false} />)
-    expect(screen.getByText('0.300')).toBeInTheDocument()
+    expect(screen.getByText('0,300')).toBeInTheDocument()
   })
 
   it('renders with custom valueRange', () => {
@@ -81,7 +81,7 @@ describe('ScoreCard', () => {
         formatAs="raw"
       />,
     )
-    expect(screen.getByText('25.00')).toBeInTheDocument()
+    expect(screen.getByText('25,00')).toBeInTheDocument()
   })
 
   it('renders confidence interval in non-compact mode', () => {
@@ -132,18 +132,22 @@ describe('ScoreCard', () => {
 
 describe('formatAcademicScore', () => {
   it('formats as decimal with default 3 decimals', () => {
-    expect(formatAcademicScore(0.8567)).toBe('0.857')
+    expect(formatAcademicScore(0.8567, { locale: 'en' })).toBe('0.857')
   })
 
   it('formats as percentage', () => {
-    expect(formatAcademicScore(0.85, { asPercentage: true })).toBe('85.0%')
+    expect(
+      formatAcademicScore(0.85, { asPercentage: true, locale: 'en' }),
+    ).toBe('85.0%')
   })
 
   it('formats with custom decimal places', () => {
-    expect(formatAcademicScore(0.85, { decimals: 2 })).toBe('0.85')
+    expect(formatAcademicScore(0.85, { decimals: 2, locale: 'en' })).toBe(
+      '0.85',
+    )
   })
 
   it('uses default decimals when not specified', () => {
-    expect(formatAcademicScore(0.1234, {})).toBe('0.123')
+    expect(formatAcademicScore(0.1234, { locale: 'en' })).toBe('0.123')
   })
 })

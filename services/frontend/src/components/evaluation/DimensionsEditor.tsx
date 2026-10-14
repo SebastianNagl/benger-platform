@@ -123,10 +123,10 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-          {t('evaluationBuilder.parameters.dimensions', 'Scoring Dimensions')}
+          {t('evaluationBuilder.parameters.dimensions')}
         </label>
         <div className="text-xs text-gray-500 dark:text-gray-400">
-          {t('evaluationBuilder.parameters.totalMax', 'Total max')}:{' '}
+          {t('evaluationBuilder.parameters.totalMax')}:{' '}
           <span
             className={clsx(
               'font-mono',
@@ -145,21 +145,13 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
       <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-200">
         <div className="flex items-start gap-2">
           <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <div>
-            {t(
-              'evaluationBuilder.parameters.dimensionsHint',
-              'Define weighted dimensions to switch the judge into single-call multi-dimension mode. The judge will return one JSON with per-dimension scores (each clamped to its max_score) plus a total_score. Leave max_score empty on every dimension to keep the legacy per-criterion 1-5 scoring.',
-            )}
-          </div>
+          <div>{t('evaluationBuilder.parameters.dimensionsHint')}</div>
         </div>
       </div>
 
       {rows.length === 0 && (
         <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
-          {t(
-            'evaluationBuilder.parameters.noDimensions',
-            'No dimensions defined. Click "Add dimension" to start.',
-          )}
+          {t('evaluationBuilder.parameters.noDimensions')}
         </div>
       )}
 
@@ -172,7 +164,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-4">
                 <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  {t('evaluationBuilder.parameters.dimensionKey', 'Key')}
+                  {t('evaluationBuilder.parameters.dimensionKey')}
                 </label>
                 <input
                   type="text"
@@ -186,15 +178,14 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
               </div>
               <div className="col-span-5">
                 <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  {t(
-                    'evaluationBuilder.parameters.dimensionName',
-                    'Display Name',
-                  )}
+                  {t('evaluationBuilder.parameters.dimensionName')}
                 </label>
                 <input
                   type="text"
                   value={row.name}
-                  placeholder="Ergebnisrichtigkeit"
+                  placeholder={t(
+                    'evaluationBuilder.parameters.dimensionNamePlaceholder',
+                  )}
                   onChange={(e) =>
                     updateRow(row.rowId, { name: e.target.value })
                   }
@@ -203,7 +194,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  {t('evaluationBuilder.parameters.dimensionMax', 'Max')}
+                  {t('evaluationBuilder.parameters.dimensionMax')}
                 </label>
                 <input
                   type="number"
@@ -224,8 +215,8 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   type="button"
                   onClick={() => removeRow(row.rowId)}
                   className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
-                  title={t('common.remove', 'Remove')}
-                  aria-label={t('common.remove', 'Remove')}
+                  title={t('common.remove')}
+                  aria-label={t('common.remove')}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </button>
@@ -233,17 +224,13 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
 
               <div className="col-span-12">
                 <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  {t(
-                    'evaluationBuilder.parameters.dimensionDescription',
-                    'Description',
-                  )}
+                  {t('evaluationBuilder.parameters.dimensionDescription')}
                 </label>
                 <input
                   type="text"
                   value={row.description}
                   placeholder={t(
                     'evaluationBuilder.parameters.dimensionDescriptionPlaceholder',
-                    'What this dimension assesses (optional, shown to the judge in the rubric)',
                   )}
                   onChange={(e) =>
                     updateRow(row.rowId, { description: e.target.value })
@@ -254,13 +241,12 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
 
               <div className="col-span-12">
                 <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
-                  {t('evaluationBuilder.parameters.dimensionRubric', 'Rubric')}
+                  {t('evaluationBuilder.parameters.dimensionRubric')}
                 </label>
                 <textarea
                   value={row.rubric}
                   placeholder={t(
                     'evaluationBuilder.parameters.dimensionRubricPlaceholder',
-                    'Anchored guidance for the judge: what earns 0, what earns max_score (optional).',
                   )}
                   rows={2}
                   onChange={(e) =>
@@ -280,27 +266,21 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
         className="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
       >
         <PlusIcon className="h-3.5 w-3.5" />
-        {t('evaluationBuilder.parameters.addDimension', 'Add dimension')}
+        {t('evaluationBuilder.parameters.addDimension')}
       </button>
 
       {(duplicateKeys.length > 0 || invalidKeys.length > 0) && (
         <div className="rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300">
           {duplicateKeys.length > 0 && (
             <div>
-              {t(
-                'evaluationBuilder.parameters.duplicateKeys',
-                'Duplicate keys',
-              )}
-              : <code className="font-mono">{duplicateKeys.join(', ')}</code>
+              {t('evaluationBuilder.parameters.duplicateKeys')}:{' '}
+              <code className="font-mono">{duplicateKeys.join(', ')}</code>
             </div>
           )}
           {invalidKeys.length > 0 && (
             <div>
-              {t(
-                'evaluationBuilder.parameters.invalidKeys',
-                'Keys must be snake_case (lowercase, digits, underscores; start with a letter)',
-              )}
-              : <code className="font-mono">{invalidKeys.join(', ')}</code>
+              {t('evaluationBuilder.parameters.invalidKeys')}:{' '}
+              <code className="font-mono">{invalidKeys.join(', ')}</code>
             </div>
           )}
         </div>

@@ -214,8 +214,7 @@ const mockUser = {
   updated_at: '2024-01-01',
 }
 const mockAddToast = jest.fn()
-const mockT = (key: string, fallback?: any) =>
-  typeof fallback === 'string' ? fallback : key
+const mockT = (key: string, _vars?: Record<string, unknown>) => key
 
 const mockProject = { id: 1, title: 'Test Project', task_count: 10 }
 const mockEvalConfig = {

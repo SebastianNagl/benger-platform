@@ -55,7 +55,7 @@ export function ProjectSelector({
     return (
       <Card className="border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/20">
         <p className="text-red-800 dark:text-red-200">
-          Failed to load projects: {error}
+          {t('generation.projectSelector.loadFailed', { error })}
         </p>
       </Card>
     )
@@ -221,7 +221,12 @@ export function ProjectSelector({
                             handleStatusPillNavigation(project.id)
                           }}
                           className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none dark:bg-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900/70"
-                          aria-label={`Navigate to ${project.title} settings`}
+                          aria-label={t(
+                            'generation.projectSelector.openSettings',
+                            {
+                              title: project.title,
+                            },
+                          )}
                         >
                           {t(
                             'generation.projectSelector.statusLabels.complete',
@@ -235,7 +240,12 @@ export function ProjectSelector({
                             handleStatusPillNavigation(project.id)
                           }}
                           className="inline-flex cursor-pointer items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
-                          aria-label={`Navigate to ${project.title} settings`}
+                          aria-label={t(
+                            'generation.projectSelector.openSettings',
+                            {
+                              title: project.title,
+                            },
+                          )}
                         >
                           {t('generation.projectSelector.statusLabels.ready')}
                         </button>
@@ -246,7 +256,12 @@ export function ProjectSelector({
                             handleStatusPillNavigation(project.id)
                           }}
                           className="inline-flex cursor-pointer items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-200 focus:ring-2 focus:ring-amber-500 focus:ring-offset-1 focus:outline-none dark:bg-amber-900/50 dark:text-amber-200 dark:hover:bg-amber-900/70"
-                          aria-label={`Navigate to ${project.title} settings`}
+                          aria-label={t(
+                            'generation.projectSelector.openSettings',
+                            {
+                              title: project.title,
+                            },
+                          )}
                         >
                           {t(
                             'generation.projectSelector.statusLabels.setupNeeded',

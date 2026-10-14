@@ -3,6 +3,7 @@
 import { Badge } from '@/components/ui/badge'
 import { useI18n } from '@/contexts/I18nContext'
 import type { InvitationDetails } from '@/lib/api/invitations'
+import { intlTag } from '@/lib/i18n/locales'
 
 /**
  * The delivery state of an invitation mail, as one badge.
@@ -28,7 +29,7 @@ export function InvitationDeliveryBadge({
     | 'email_last_error'
   >
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const status = invitation.email_status || 'unknown'
 
   const variant =
@@ -48,13 +49,13 @@ export function InvitationDeliveryBadge({
     details.push(
       `${t('admin.invitationDelivery.sentAt')}: ${new Date(
         invitation.email_sent_at,
-      ).toLocaleString()}`,
+      ).toLocaleString(intlTag(locale))}`,
     )
   } else if (invitation.email_last_attempt_at) {
     details.push(
       `${t('admin.invitationDelivery.lastAttemptAt')}: ${new Date(
         invitation.email_last_attempt_at,
-      ).toLocaleString()}`,
+      ).toLocaleString(intlTag(locale))}`,
     )
   }
   if (invitation.email_attempts) {

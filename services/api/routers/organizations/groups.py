@@ -118,6 +118,15 @@ class GroupMemberResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _human_group_member():
+    """Group members that are people, not access-key service accounts."""
+    from models import User as DBUser
+
+    return OrganizationGroupMembership.user_id.not_in(
+        select(DBUser.id).where(DBUser.is_service_account.is_(True))
+    )
+
+
 async def _get_membership(
     db: AsyncSession, user_id: str, org_id: str
 ) -> Optional[OrganizationMembership]:
@@ -230,7 +239,8 @@ async def list_organization_groups(
                 func.count(OrganizationGroupMembership.id),
             )
             .where(
-                OrganizationGroupMembership.group_id.in_([g.id for g in groups])
+                OrganizationGroupMembership.group_id.in_([g.id for g in groups]),
+                _human_group_member(),
             )
             .group_by(OrganizationGroupMembership.group_id)
         )
@@ -356,7 +366,8 @@ async def update_organization_group(
     count = (
         await db.execute(
             select(func.count(OrganizationGroupMembership.id)).where(
-                OrganizationGroupMembership.group_id == group_id
+                OrganizationGroupMembership.group_id == group_id,
+                _human_group_member(),
             )
         )
     ).scalar_one()
@@ -438,6 +449,11 @@ async def delete_organization_group(
             ),
         )
 
+    # Access keys scoped to the group die with it (FK cascade); revoke them
+    # first so their service accounts and memberships are retired too.
+    from services.api_key_service import revoke_all_for_group
+
+    await revoke_all_for_group(db, group_id, current_user.id, "group_deleted")
     await db.delete(group)
     await db.commit()
     return {"message": "Group deleted"}
@@ -475,7 +491,10 @@ async def list_group_members(
             await db.execute(
                 select(OrganizationGroupMembership)
                 .options(joinedload(OrganizationGroupMembership.user))
-                .where(OrganizationGroupMembership.group_id == group_id)
+                .where(
+                    OrganizationGroupMembership.group_id == group_id,
+                    _human_group_member(),
+                )
                 .order_by(OrganizationGroupMembership.created_at)
             )
         )

@@ -12,6 +12,10 @@ class SupportedLanguage(Enum):
 
     ENGLISH = "en"
     GERMAN = "de"
+    FRENCH = "fr"
+
+
+_SUPPORTED_CODES = tuple(lang.value for lang in SupportedLanguage)
 
 
 class EmailTranslations:
@@ -210,6 +214,102 @@ class EmailTranslations:
                 "refresh": "Aktualisieren",
             },
         },
+        "fr": {
+            # Email verification email
+            "verification_email": {
+                "subject": "Vérifiez votre compte BenGER",
+                "greeting": "Bonjour {user_name},",
+                "welcome_title": "Bienvenue sur BenGER !",
+                "intro": "Merci de vous être inscrit sur BenGER. Pour finaliser votre inscription et accéder à la plateforme, veuillez confirmer votre adresse e-mail en cliquant sur le bouton ci-dessous :",
+                "button_text": "Vérifier l'adresse e-mail",
+                "expiration_notice": "Ce lien expire dans <strong>48 heures</strong>.",
+                "manual_link_text": "Si le bouton ne fonctionne pas, vous pouvez copier ce lien et le coller dans votre navigateur :",
+                "important_notice": "<strong>Important :</strong> vous devez vérifier votre adresse e-mail avant de pouvoir vous connecter à BenGER.",
+                "ignore_notice": "Si vous n'avez pas créé de compte sur BenGER, veuillez ignorer cet e-mail.",
+                "footer_description": "BenGER - Plateforme d'évaluation de modèles de langage juridiques allemands",
+                "footer_link_text": "Visiter BenGER",
+            },
+            # Reminder email
+            "reminder_email": {
+                "subject": "Rappel : vérifiez votre compte BenGER",
+                "greeting": "Bonjour {user_name},",
+                "title": "Rappel de vérification de l'adresse e-mail",
+                "intro": "Nous avons remarqué que vous n'avez pas encore vérifié votre adresse e-mail. Pour accéder à votre compte BenGER, veuillez confirmer votre adresse e-mail en cliquant sur le bouton ci-dessous :",
+                "button_text": "Vérifier l'adresse e-mail",
+                "expiration_notice": "Ce lien expire dans <strong>48 heures</strong>.",
+                "manual_link_text": "Si le bouton ne fonctionne pas, vous pouvez copier ce lien et le coller dans votre navigateur :",
+                "help_text": "En cas de problème, vérifiez votre dossier de courrier indésirable ou contactez le support.",
+                "ignore_notice": "Si vous n'avez pas créé de compte sur BenGER, veuillez ignorer cet e-mail.",
+            },
+            # Frontend messages
+            "frontend": {
+                "verify_email_title": "Vérifiez votre adresse e-mail",
+                "verify_email_instruction": "Veuillez consulter vos e-mails et cliquer sur le lien de vérification pour continuer.",
+                "verification_required": "Vérification de l'adresse e-mail requise",
+                "verification_required_message": "Vous devez vérifier votre adresse e-mail avant de pouvoir vous connecter à BenGER.",
+                "didnt_receive_email": "Vous n'avez pas reçu l'e-mail ?",
+                "troubleshooting_tips": [
+                    "Vérifiez votre dossier de courrier indésirable",
+                    "Assurez-vous d'avoir saisi la bonne adresse e-mail",
+                    "Le lien de vérification expire au bout de 48 heures",
+                ],
+                "resend_verification": "Renvoyer l'e-mail de vérification",
+                "back_to_login": "Retour à la connexion",
+                "verification_success": "Adresse e-mail vérifiée avec succès ! Vous pouvez maintenant vous connecter.",
+                "verification_failed": "Lien de vérification invalide ou expiré. Veuillez réessayer.",
+                "verification_already_verified": "Votre adresse e-mail est déjà vérifiée.",
+            },
+            # Invitation-based registration
+            "invitation": {
+                "signup_with_invitation": "S'inscrire avec une invitation",
+                "invitation_code": "Code d'invitation",
+                "invitation_code_placeholder": "Saisissez votre code d'invitation",
+                "validate_invitation": "Valider l'invitation",
+                "invitation_valid": "Invitation valide pour rejoindre {organization_name} en tant que {role}",
+                "invitation_invalid": "Code d'invitation invalide ou expiré",
+                "signup_and_join": "Créer un compte et rejoindre l'organisation",
+                "invitation_signup_success": "Compte créé ! Consultez vos e-mails pour vérifier votre adresse et finaliser l'inscription.",
+                "auto_join_message": "Après la vérification de votre adresse e-mail, vous rejoindrez automatiquement {organization_name}.",
+                "email_must_match": "L'adresse e-mail doit correspondre à l'invitation ({expected_email})",
+                "invitation_expired": "Cette invitation a expiré",
+                "invitation_already_used": "Cette invitation a déjà été utilisée",
+            },
+            # Admin interface
+            "admin": {
+                "email_verification_management": "Gestion de la vérification des e-mails",
+                "monitor_and_manage": "Surveiller et gérer le système de vérification des e-mails",
+                "overview": "Vue d'ensemble",
+                "users": "Utilisateurs",
+                "analytics": "Analyses",
+                "maintenance": "Maintenance",
+                "total_users": "Utilisateurs au total",
+                "verified_users": "Utilisateurs vérifiés",
+                "unverified_users": "Utilisateurs non vérifiés",
+                "verification_rate": "Taux de vérification",
+                "pending_verification": "Vérification en attente",
+                "expired_tokens": "Jetons expirés",
+                "recent_unverified": "Récemment non vérifiés",
+                "registered_users": "Utilisateurs inscrits",
+                "email_verified": "E-mail vérifié",
+                "need_verification": "Vérification nécessaire",
+                "overall_rate": "Taux global",
+                "awaiting_email_click": "En attente du clic dans l'e-mail",
+                "need_cleanup": "Nettoyage nécessaire",
+                "last_7_days": "7 derniers jours",
+                "all_users_verified": "Tous les utilisateurs ont vérifié leur adresse e-mail !",
+                "maintenance_operations": "Opérations de maintenance",
+                "admin_tasks_description": "Tâches administratives du système de vérification des e-mails",
+                "cleanup_expired_tokens": "Nettoyer les jetons expirés",
+                "cleanup_description": "Supprimer les jetons de vérification de plus de 48 heures",
+                "send_reminder_emails": "Envoyer des e-mails de rappel",
+                "reminder_description": "Envoyer des rappels de vérification aux utilisateurs sans e-mail récent",
+                "refresh_data": "Actualiser les données",
+                "refresh_description": "Mettre à jour toutes les statistiques et données utilisateur",
+                "run_cleanup": "Lancer le nettoyage",
+                "send_reminders": "Envoyer les rappels",
+                "refresh": "Actualiser",
+            },
+        },
     }
 
     @classmethod
@@ -218,7 +318,7 @@ class EmailTranslations:
         Get translated text with optional formatting
 
         Args:
-            language: Language code (en, de)
+            language: Language code (en, de, fr)
             category: Translation category (verification_email, frontend, admin)
             key: Translation key
             **kwargs: Format parameters for string interpolation
@@ -290,17 +390,17 @@ class EmailTranslations:
             accept_language: Accept-Language header
 
         Returns:
-            Detected language code (en or de)
+            Detected language code (en, de or fr)
         """
         # Check Accept-Language header first
         if accept_language:
-            # Parse Accept-Language header (e.g., "de-DE,de;q=0.9,en;q=0.8")
+            # Parse Accept-Language header (e.g., "de-DE,de;q=0.9,en;q=0.8").
+            # The first supported language in header order wins.
             for lang_item in accept_language.split(","):
                 lang = lang_item.split(";")[0].strip().lower()
-                if lang.startswith("de"):
-                    return "de"
-                elif lang.startswith("en"):
-                    return "en"
+                for code in _SUPPORTED_CODES:
+                    if lang.startswith(code):
+                        return code
 
         # Default to English
         return "en"
@@ -318,10 +418,10 @@ class LanguageDetector:
     def detect_from_user_profile(user_locale: Optional[str] = None) -> str:
         """Detect language from user profile settings"""
         if user_locale:
-            if user_locale.startswith("de"):
-                return "de"
-            elif user_locale.startswith("en"):
-                return "en"
+            locale = user_locale.strip().lower()
+            for code in _SUPPORTED_CODES:
+                if locale.startswith(code):
+                    return code
         return "en"
 
 

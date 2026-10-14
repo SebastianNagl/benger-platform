@@ -175,12 +175,14 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     const progressId = `export-generations-${Date.now()}`
 
     try {
-      startProgress(progressId, 'Exporting LLM generations...', {
-        sublabel: `Preparing ${filteredTasks.length} tasks`,
+      startProgress(progressId, t('generation.progress.exporting'), {
+        sublabel: t('generation.progress.preparing', {
+          count: filteredTasks.length,
+        }),
         indeterminate: false,
       })
 
-      updateProgress(progressId, 30, 'Formatting data...')
+      updateProgress(progressId, 30, t('generation.progress.formatting'))
 
       // Create export data with prompts and responses
       const exportData = filteredTasks.map((task) => ({
@@ -191,7 +193,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
         created_at: task.created_at,
       }))
 
-      updateProgress(progressId, 70, 'Creating download...')
+      updateProgress(progressId, 70, t('generation.progress.creating'))
 
       // Create and download JSON file
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
@@ -206,14 +208,19 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
 
-      updateProgress(progressId, 100, 'Export complete!')
+      updateProgress(progressId, 100, t('generation.progress.complete'))
       completeProgress(progressId, 'success')
 
-      addToast(`Exported ${filteredTasks.length} LLM generations`, 'success')
+      addToast(
+        t('generation.success.exported', { count: filteredTasks.length }),
+        'success',
+      )
     } catch (error: any) {
       completeProgress(progressId, 'error')
       addToast(
-        `Export failed: ${error.message || 'Failed to export generations'}`,
+        t('generation.errors.exportFailed', {
+          error: error.message || t('toasts.generation.exportFailed'),
+        }),
         'error',
       )
     }
@@ -224,7 +231,7 @@ export function GenerationTab({ projectId }: GenerationTabProps) {
     const progressId = `refresh-generations-${Date.now()}`
 
     try {
-      startProgress(progressId, 'Refreshing LLM generations...', {
+      startProgress(progressId, t('generation.progress.refreshing'), {
         indeterminate: true,
       })
 

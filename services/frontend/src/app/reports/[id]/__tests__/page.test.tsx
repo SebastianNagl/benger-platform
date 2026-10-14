@@ -39,18 +39,8 @@ jest.mock('recharts', () =>
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: 'de',
-    t: (
-      key: string,
-      fallback?: string | Record<string, any>,
-      vars?: Record<string, any>,
-    ) => {
-      const base = typeof fallback === 'string' ? fallback : key
-      const v = typeof fallback === 'string' ? vars : fallback
-      if (!v) return base
-      return base.replace(/\{(\w+)\}/g, (m, name) =>
-        v[name] !== undefined ? String(v[name]) : m,
-      )
-    },
+    t: (key: string, vars?: Record<string, unknown>) =>
+      require('@/lib/i18n/catalog').translateKey('de', key, vars),
   }),
 }))
 

@@ -24,6 +24,7 @@ import { projectsAPI } from '@/lib/api/projects'
 import {
   buildImportFile,
   detectFormat,
+  ImportParseError,
   parseImportData,
 } from '@/lib/import/parseImportData'
 import { logger } from '@/lib/utils/logger'
@@ -155,15 +156,19 @@ export function ImportDataModal({
       // korrektur) — forwarded alongside the task rows when present.
       let extras: Record<string, unknown> = {}
 
-      startProgress(progressId, 'Importing data...', {
-        sublabel: 'Processing file...',
+      startProgress(progressId, t('projects.import.progress.importing'), {
+        sublabel: t('projects.import.progress.processingFile'),
         indeterminate: false,
       })
 
       if (!mappedData) {
         // Determine which data source to use based on what's available
         if (selectedFile) {
-          updateProgress(progressId, 10, `Reading ${selectedFile.name}...`)
+          updateProgress(
+            progressId,
+            10,
+            t('projects.import.progress.reading', { name: selectedFile.name }),
+          )
 
           // Read file content
           const content = await new Promise<string>((resolve, reject) => {
@@ -173,7 +178,7 @@ export function ImportDataModal({
             reader.readAsText(selectedFile)
           })
 
-          updateProgress(progressId, 30, 'Parsing data...')
+          updateProgress(progressId, 30, t('projects.import.progress.parsing'))
 
           const parsed = parseImportData(
             content,
@@ -182,10 +187,14 @@ export function ImportDataModal({
           data = parsed.rows
           extras = parsed.extras
         } else if (pastedData) {
-          updateProgress(progressId, 10, 'Processing pasted data...')
+          updateProgress(
+            progressId,
+            10,
+            t('projects.import.progress.processingPasted'),
+          )
 
           const trimmed = pastedData.trim()
-          updateProgress(progressId, 30, 'Parsing data...')
+          updateProgress(progressId, 30, t('projects.import.progress.parsing'))
           const parsed = parseImportData(trimmed, detectFormat(trimmed))
           data = parsed.rows
           extras = parsed.extras
@@ -197,15 +206,12 @@ export function ImportDataModal({
       }
 
       // Show validation warnings but don't block import (Label Studio style)
-      updateProgress(progressId, 50, 'Validating data...')
+      updateProgress(progressId, 50, t('projects.import.progress.validating'))
       const validation = validateDataAgainstTemplate(data)
 
       if (!validation.valid && templateFields.length > 0) {
         // Show field mapping as an option, not a blocker
-        addToast(
-          `Some fields don't match your template. You can import as-is or use field mapping.`,
-          'error',
-        )
+        addToast(t('projects.import.fieldMismatch'), 'error')
         setValidationErrors(validation.errors)
         setParsedData(data)
         setShowFieldMapping(true)
@@ -213,7 +219,11 @@ export function ImportDataModal({
         return
       }
 
-      updateProgress(progressId, 60, `Importing ${data.length} tasks...`)
+      updateProgress(
+        progressId,
+        60,
+        t('projects.import.progress.importingTasks', { count: data.length }),
+      )
 
       logger.debug('[ImportDataModal] Sending data to API', {
         projectId,
@@ -230,7 +240,13 @@ export function ImportDataModal({
       const job = await projectsAPI.runNestedImportJob(projectId, file, {
         onStatus: (status) => {
           if (status.status === 'running' || status.status === 'pending') {
-            updateProgress(progressId, 80, `Importing ${data.length} tasks...`)
+            updateProgress(
+              progressId,
+              80,
+              t('projects.import.progress.importingTasks', {
+                count: data.length,
+              }),
+            )
           }
         },
       })
@@ -238,7 +254,7 @@ export function ImportDataModal({
 
       logger.debug('[ImportDataModal] Import successful', result)
 
-      updateProgress(progressId, 100, 'Import complete!')
+      updateProgress(progressId, 100, t('projects.import.progress.complete'))
       completeProgress(progressId, 'success')
 
       // Show toast immediately
@@ -262,16 +278,14 @@ export function ImportDataModal({
       // Provide more detailed error message
       let errorMessage = t('projects.import.failed')
 
-      if (error.message?.includes('Invalid JSON')) {
-        errorMessage =
-          'Invalid JSON format. Please check your data and try again.'
-      } else if (error.message?.includes('Failed to parse')) {
+      if (error instanceof ImportParseError && error.kind === 'invalidJson') {
+        errorMessage = t('projects.import.invalidJson')
+      } else if (error instanceof ImportParseError) {
         errorMessage = error.message
       } else if (error.response?.status === 401) {
-        errorMessage = 'Authentication failed. Please login again.'
+        errorMessage = t('projects.import.authFailed')
       } else if (error.response?.status === 403) {
-        errorMessage =
-          'You do not have permission to import data to this project.'
+        errorMessage = t('projects.import.forbidden')
       } else if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail
       } else if (error.message) {

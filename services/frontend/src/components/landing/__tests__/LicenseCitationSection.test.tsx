@@ -51,11 +51,16 @@ describe('LicenseCitationSection', () => {
     expect(cards.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('flags the benchmark paper as a preprint accepted at EMNLP 2026', () => {
+  it('cites the benchmark paper in Findings of EMNLP 2026 with the Zenodo v2.1 DOI', () => {
     render(<LicenseCitationSection />)
-    // The status is a line of the BibTeX body itself, not a separate label.
+    // The venue is a line of the BibTeX body itself, not a separate label.
     expect(
-      screen.getByText(/note=\{Preprint, accepted at EMNLP 2026\}/),
+      screen.getByText(
+        /booktitle=\{Findings of the Association for Computational Linguistics: EMNLP 2026\}/,
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/doi=\{10\.5281\/zenodo\.23366269\}/),
     ).toBeInTheDocument()
   })
 

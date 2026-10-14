@@ -238,7 +238,6 @@ services:
       ROOT_PATH: ""
       SCHEMA_VALIDATION_MODE: lenient
       ACCESS_TOKEN_EXPIRE_MINUTES: 60
-      INTERNAL_SERVICE_API_KEY: test-internal-service-key
       PYTHONDONTWRITEBYTECODE: 1
       # API Keys (optional)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -320,7 +319,6 @@ services:
       INTERNAL_API_URL: http://test-api:8000
       # JWT
       JWT_SECRET_KEY: test-jwt-secret-key
-      INTERNAL_SERVICE_API_KEY: test-internal-service-key
       # Environment
       ENVIRONMENT: test
       TESTING: "true"
@@ -468,6 +466,10 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ../services/api:/app
+      # Read-only docs mount so the public-API OpenAPI snapshot test
+      # (tests/unit/test_v1_openapi_snapshot.py) compares against the
+      # committed docs/api-docs/openapi-v1.json instead of skipping.
+      - ../docs:/docs:ro
       - ../services/shared:/shared
     environment:
       DATABASE_URL: postgresql://postgres:postgres_test@test-db:5432/test_benger

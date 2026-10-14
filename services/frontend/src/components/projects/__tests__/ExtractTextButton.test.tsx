@@ -10,7 +10,7 @@ jest.mock('@/components/shared/Toast', () => ({
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
+    t: (k: string, _vars?: Record<string, unknown>) => k,
   }),
 }))
 const mockExtract = jest.fn()

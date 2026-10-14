@@ -33,92 +33,10 @@ jest.mock('@heroicons/react/24/outline', () => ({
   XMarkIcon: (props: any) => <svg {...props} data-testid="x-mark-icon" />,
 }))
 
-// Mock I18n context
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, vars?: Record<string, any>) => {
-      const translations: Record<string, string> = {
-        'organizations.storageConnections.dialogTitle':
-          'Cloud storage connections',
-        'organizations.storageConnections.dialogDescription':
-          'Connect S3-compatible storage so members can import files straight from the bucket.',
-        'organizations.storageConnections.adminOnly':
-          'Only organization admins can manage storage connections.',
-        'organizations.storageConnections.loading': 'Loading connections...',
-        'organizations.storageConnections.empty':
-          'No storage connections configured yet.',
-        'organizations.storageConnections.awsDefaultEndpoint':
-          'AWS default endpoint',
-        'organizations.storageConnections.accessKeyHint': 'Key ...{hint}',
-        'organizations.storageConnections.addConnection': 'Add connection',
-        'organizations.storageConnections.addTitle': 'New storage connection',
-        'organizations.storageConnections.editTitle': 'Edit storage connection',
-        'organizations.storageConnections.name': 'Name',
-        'organizations.storageConnections.namePlaceholder': 'Name',
-        'organizations.storageConnections.endpoint': 'Endpoint URL',
-        'organizations.storageConnections.endpointPlaceholder':
-          'Endpoint URL (empty = AWS S3)',
-        'organizations.storageConnections.bucket': 'Bucket',
-        'organizations.storageConnections.bucketPlaceholder': 'Bucket',
-        'organizations.storageConnections.prefix': 'Prefix',
-        'organizations.storageConnections.prefixPlaceholder':
-          'Prefix (optional)',
-        'organizations.storageConnections.region': 'Region',
-        'organizations.storageConnections.regionPlaceholder':
-          'Region (optional)',
-        'organizations.storageConnections.useSsl': 'Use SSL',
-        'organizations.storageConnections.accessKey': 'Access key',
-        'organizations.storageConnections.accessKeyPlaceholder':
-          'Access key ID',
-        'organizations.storageConnections.accessKeyKeepPlaceholder':
-          'Access key ID (leave empty to keep the stored one)',
-        'organizations.storageConnections.secretKey': 'Secret key',
-        'organizations.storageConnections.secretKeyPlaceholder':
-          'Secret access key',
-        'organizations.storageConnections.secretKeyKeepPlaceholder':
-          'Secret access key (leave empty to keep the stored one)',
-        'organizations.storageConnections.toggleAccessKey':
-          'Show/hide access key',
-        'organizations.storageConnections.toggleSecretKey':
-          'Show/hide secret key',
-        'organizations.storageConnections.testConnection': 'Test connection',
-        'organizations.storageConnections.testing': 'Testing...',
-        'organizations.storageConnections.testFailed': 'Connection test failed',
-        'organizations.storageConnections.save': 'Save',
-        'organizations.storageConnections.saving': 'Saving...',
-        'organizations.storageConnections.saved':
-          'Storage connection "{name}" saved',
-        'organizations.storageConnections.updated':
-          'Storage connection "{name}" updated',
-        'organizations.storageConnections.saveFailed':
-          'Failed to save the storage connection',
-        'organizations.storageConnections.edit': 'Edit',
-        'organizations.storageConnections.delete': 'Delete',
-        'organizations.storageConnections.deleteConfirm': 'Really delete?',
-        'organizations.storageConnections.deleteConfirmYes': 'Yes, delete',
-        'organizations.storageConnections.deleting': 'Deleting...',
-        'organizations.storageConnections.deleted':
-          'Storage connection "{name}" deleted',
-        'organizations.storageConnections.deleteFailed':
-          'Failed to delete the storage connection',
-        'organizations.storageConnections.encryptedInfo':
-          'Credentials are stored encrypted and never returned to the browser.',
-        'organizations.storageConnections.membersInfo':
-          'All members of the organization can import files into their projects via these connections.',
-        'common.cancel': 'Cancel',
-        'common.done': 'Done',
-      }
-      let result = translations[key] || key
-      if (vars) {
-        Object.entries(vars).forEach(([k, v]) => {
-          result = result.replace(`{${k}}`, String(v))
-        })
-      }
-      return result
-    },
-    locale: 'en',
-  }),
-}))
+// Catalog-backed I18n context (English copy)
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 // Mock shared Button
 jest.mock('@/components/shared/Button', () => ({
@@ -226,7 +144,7 @@ describe('OrgStorageConnections', () => {
       expect(await screen.findByText('Chair bucket')).toBeInTheDocument()
       expect(screen.getByText('https://minio.example.org')).toBeInTheDocument()
       expect(screen.getByText('law-exams/imports/')).toBeInTheDocument()
-      expect(screen.getByText('Key ...A1B2')).toBeInTheDocument()
+      expect(screen.getByText('Key …A1B2')).toBeInTheDocument()
     })
 
     it('falls back to the AWS default endpoint label', async () => {
@@ -545,7 +463,7 @@ describe('OrgStorageConnections', () => {
     it('calls onOpenChange(false) via the close button and Done', async () => {
       const onOpenChange = jest.fn()
       renderModal({ onOpenChange })
-      fireEvent.click(screen.getByLabelText('Close modal'))
+      fireEvent.click(screen.getByLabelText('Close'))
       expect(onOpenChange).toHaveBeenCalledWith(false)
       fireEvent.click(screen.getByText('Done'))
       expect(onOpenChange).toHaveBeenCalledTimes(2)

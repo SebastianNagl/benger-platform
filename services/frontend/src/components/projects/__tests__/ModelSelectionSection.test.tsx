@@ -23,6 +23,7 @@
  */
 
 import type { Model, ModelError } from '@/hooks/useModels'
+import { createMockT } from '@/test-utils/i18nMock'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
@@ -98,16 +99,8 @@ const makeModel = (overrides: Partial<Model> = {}): Model =>
     ...overrides,
   }) as Model
 
-// A trivial translator: returns the fallback when supplied, else the key.
-const t = (key: string, params?: any): string => {
-  if (typeof params === 'string') return params // fallback-as-2nd-arg form
-  if (params && typeof params === 'object') {
-    if (key === 'project.modelSelection.selectedCount') {
-      return `${params.selected} / ${params.total} selected`
-    }
-  }
-  return key
-}
+// English catalog t, so assertions read the copy users see.
+const t = createMockT('en')
 
 type Props = React.ComponentProps<typeof ModelSelectionSection>
 
@@ -139,29 +132,21 @@ describe('ModelSelectionSection', () => {
   describe('outer canEditProject gate', () => {
     it('renders only the read-only message when the user cannot edit', () => {
       renderSection({ canEditProject: () => false })
-      expect(
-        screen.getByText('read-only: project.modelSelection.title'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('read-only: Model Selection')).toBeInTheDocument()
       // The editable header button is absent.
-      expect(
-        screen.queryByText('project.modelSelection.title'),
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Model Selection')).not.toBeInTheDocument()
     })
 
     it('renders the editable header when the user can edit', () => {
       renderSection()
-      expect(
-        screen.getByText('project.modelSelection.title'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Model Selection')).toBeInTheDocument()
     })
   })
 
   describe('collapsed summary badge', () => {
     it('shows the loading label when collapsed + loading', () => {
       renderSection({ expandedModels: false, modelsLoading: true })
-      expect(
-        screen.getByText('project.modelSelection.loading'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Loading...')).toBeInTheDocument()
     })
 
     it('shows the error label when collapsed + error', () => {
@@ -169,9 +154,7 @@ describe('ModelSelectionSection', () => {
         expandedModels: false,
         modelsError: { type: 'OTHER', message: 'boom' } as ModelError,
       })
-      expect(
-        screen.getByText('project.modelSelection.errorLoading'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Not configured')).toBeInTheDocument()
     })
 
     it('shows the selected/total count when collapsed + models present', () => {
@@ -180,21 +163,17 @@ describe('ModelSelectionSection', () => {
         selectedModelIds: ['gpt-x'],
         sortedModels: [makeModel(), makeModel({ id: 'b', name: 'B' })],
       })
-      expect(screen.getByText('1 / 2 selected')).toBeInTheDocument()
+      expect(screen.getByText('1 of 2 selected')).toBeInTheDocument()
     })
 
     it('shows the no-models label when collapsed + sortedModels is null', () => {
       renderSection({ expandedModels: false, sortedModels: null })
-      expect(
-        screen.getByText('project.modelSelection.noModelsAvailable'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('No models available')).toBeInTheDocument()
     })
 
     it('hides the badge entirely when expanded', () => {
       renderSection({ expandedModels: true, sortedModels: null })
-      expect(
-        screen.queryByText('project.modelSelection.noModelsAvailable'),
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('No models available')).not.toBeInTheDocument()
     })
   })
 
@@ -205,7 +184,7 @@ describe('ModelSelectionSection', () => {
       renderSection({ expandedModels: false, setExpandedModels })
       await user.click(
         screen.getByRole('button', {
-          name: /project\.modelSelection\.title/i,
+          name: /Model Selection/i,
         }),
       )
       expect(setExpandedModels).toHaveBeenCalledWith(true)
@@ -217,7 +196,7 @@ describe('ModelSelectionSection', () => {
       renderSection({ expandedModels: true, setExpandedModels })
       await user.click(
         screen.getByRole('button', {
-          name: /project\.modelSelection\.title/i,
+          name: /Model Selection/i,
         }),
       )
       expect(setExpandedModels).toHaveBeenCalledWith(false)
@@ -228,7 +207,7 @@ describe('ModelSelectionSection', () => {
     it('shows the loadingModels copy', () => {
       renderSection({ modelsLoading: true })
       expect(
-        screen.getByText('project.modelSelection.loadingModels'),
+        screen.getByText('Loading available models...'),
       ).toBeInTheDocument()
     })
   })
@@ -242,11 +221,13 @@ describe('ModelSelectionSection', () => {
         onNavigateToProfile,
       })
       expect(
-        screen.getByText('project.modelSelection.noApiKeys'),
+        screen.getByText(
+          'No API keys configured. Please configure API keys in your profile to use LLM models.',
+        ),
       ).toBeInTheDocument()
       await user.click(
         screen.getByRole('button', {
-          name: 'project.modelSelection.configureApiKeys',
+          name: 'Configure API Keys',
         }),
       )
       expect(onNavigateToProfile).toHaveBeenCalledTimes(1)
@@ -259,7 +240,7 @@ describe('ModelSelectionSection', () => {
       expect(screen.getByText('Network down')).toBeInTheDocument()
       expect(
         screen.queryByRole('button', {
-          name: 'project.modelSelection.configureApiKeys',
+          name: 'Configure API Keys',
         }),
       ).not.toBeInTheDocument()
     })
@@ -269,7 +250,7 @@ describe('ModelSelectionSection', () => {
         modelsError: { type: 'OTHER' } as ModelError,
       })
       expect(
-        screen.getByText('project.modelSelection.failedToLoad'),
+        screen.getByText('Failed to load models. Please try again later.'),
       ).toBeInTheDocument()
     })
   })
@@ -285,9 +266,7 @@ describe('ModelSelectionSection', () => {
         return calls === 1
       }
       renderSection({ canEditProject })
-      expect(
-        screen.getByText('read-only: project.modelSelection.title'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('read-only: Model Selection')).toBeInTheDocument()
     })
   })
 
@@ -297,11 +276,13 @@ describe('ModelSelectionSection', () => {
       const onNavigateToProfile = jest.fn()
       renderSection({ sortedModels: [], onNavigateToProfile })
       expect(
-        screen.getByText('project.modelSelection.noModelsForProfile'),
+        screen.getByText(
+          'No models available. Please configure API keys in your profile.',
+        ),
       ).toBeInTheDocument()
       await user.click(
         screen.getByRole('button', {
-          name: 'project.modelSelection.configureApiKeys',
+          name: 'Configure API Keys',
         }),
       )
       expect(onNavigateToProfile).toHaveBeenCalledTimes(1)
@@ -310,7 +291,9 @@ describe('ModelSelectionSection', () => {
     it('also shows the empty branch when sortedModels is null', () => {
       renderSection({ sortedModels: null })
       expect(
-        screen.getByText('project.modelSelection.noModelsForProfile'),
+        screen.getByText(
+          'No models available. Please configure API keys in your profile.',
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -522,9 +505,9 @@ describe('ModelSelectionSection', () => {
       })
       const [tempInput] = screen.getAllByRole('spinbutton')
       expect(tempInput).toBeDisabled()
-      // The fixed tooltip copy is supplied via fallback string
+      // The fixed-temperature tooltip copy comes from the catalog
       expect(
-        screen.getByTitle(/This model requires temperature=1/),
+        screen.getByTitle(/This model requires temperature = 1/),
       ).toBeInTheDocument()
     })
 
@@ -567,7 +550,7 @@ describe('ModelSelectionSection', () => {
     it('renders the label, the default tag, and capitalised options', () => {
       renderWithSelectReasoning()
       expect(screen.getByText('Reasoning Effort:')).toBeInTheDocument()
-      // default tag: t(...,'Default') resolves to the fallback 'Default', and
+      // default tag: t('project.modelSelection.default') reads 'Default', and
       // the raw default value ('medium') is rendered alongside it inside one
       // <span> whose combined text reads "(Default: medium)".
       expect(

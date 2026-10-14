@@ -456,7 +456,7 @@ describe('ProjectDetailPage — header icon editing', () => {
     ;(useRouter as jest.Mock).mockReturnValue(mockRouter)
     ;(useAuth as jest.Mock).mockReturnValue({ user, currentOrganization: null })
     ;(useI18n as jest.Mock).mockReturnValue({
-      t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
+      t: (k: string, _vars?: Record<string, unknown>) => k,
     })
     ;(useUIStore as jest.Mock).mockReturnValue({ isSidebarHidden: false })
     ;(useModels as jest.Mock).mockReturnValue({

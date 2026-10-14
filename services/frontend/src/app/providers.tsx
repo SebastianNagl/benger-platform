@@ -8,7 +8,7 @@ import { HydrationProvider } from '@/contexts/HydrationContext'
 import { I18nProvider } from '@/contexts/I18nContext'
 import { ProgressProvider } from '@/contexts/ProgressContext'
 import { DialogProvider } from '@/hooks/useDialogs'
-import { loadExtended } from '@/lib/extensions'
+import { loadExtensions } from '@/lib/extensions'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { useEffect, useState } from 'react'
@@ -34,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   )
 
   useEffect(() => {
-    loadExtended()
+    loadExtensions()
   }, [])
   return (
     <GlobalErrorBoundary>

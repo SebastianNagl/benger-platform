@@ -87,25 +87,19 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
 
   const handleLeave = async () => {
     const ok = await confirm({
-      title: t('project.participant.leave', 'Projekt verlassen'),
-      message: t(
-        'project.participant.leaveConfirm',
-        'Sie verlieren den Zugang zu diesem Projekt. Ihre bisherigen Abgaben bleiben erhalten.',
-      ),
+      title: t('project.participant.leave'),
+      message: t('project.participant.leaveConfirm'),
       variant: 'warning',
-      confirmText: t('project.participant.leave', 'Projekt verlassen'),
+      confirmText: t('project.participant.leave'),
     })
     if (!ok) return
     setLeaving(true)
     try {
       await sharesAPI.leaveProject(projectId)
-      addToast(
-        t('project.participant.left', 'Sie haben das Projekt verlassen.'),
-        'success',
-      )
+      addToast(t('project.participant.left'), 'success')
       onLeft()
     } catch (err: any) {
-      addToast(err?.message || t('common.error', 'Fehler'), 'error')
+      addToast(err?.message || t('common.error'), 'error')
     } finally {
       setLeaving(false)
     }
@@ -121,13 +115,13 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
     >
       <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
         <UserGroupIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />
-        {t('project.participant.title', 'Teilnahme')}
+        {t('project.participant.title')}
       </h2>
       <p
         className="mb-4 text-sm text-zinc-600 dark:text-zinc-400"
         data-testid="participant-via"
       >
-        {t(`projects.list.participantVia.${effectiveVia}`, 'Beigetreten')}
+        {t(`projects.list.participantVia.${effectiveVia}`)}
       </p>
       {canLeave ? (
         <Button
@@ -137,7 +131,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
           data-testid="participant-leave"
           className="w-full"
         >
-          {t('project.participant.leave', 'Projekt verlassen')}
+          {t('project.participant.leave')}
         </Button>
       ) : participation ? (
         <p
@@ -145,19 +139,10 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
           data-testid="participant-cannot-leave"
         >
           {blockedReason === 'entitlement_not_leavable'
-            ? t(
-                'project.participant.cannotLeavePurchase',
-                'Gekaufter Zugang kann nicht verlassen werden.',
-              )
+            ? t('project.participant.cannotLeavePurchase')
             : blockedReason === 'attempted'
-              ? t(
-                  'project.participant.cannotLeaveAttempted',
-                  'Ihre Abgabe bleibt für Sie einsehbar. Diesen Zugang können Sie nicht verlassen.',
-                )
-              : t(
-                  'project.participant.cannotLeaveOrg',
-                  'Der Zugang kommt über Ihre Organisation und wird dort verwaltet.',
-                )}
+              ? t('project.participant.cannotLeaveAttempted')
+              : t('project.participant.cannotLeaveOrg')}
         </p>
       ) : null}
       {CohortLeaderboard && (

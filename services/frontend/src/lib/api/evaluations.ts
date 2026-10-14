@@ -3,6 +3,8 @@
  * Handles evaluation, model, and data-related operations
  */
 
+import { translate } from '@/lib/utils/translate'
+
 import { BaseApiClient } from './base'
 import type { HistorySeries, ImmediateEvaluationData } from './evaluation-types'
 import {
@@ -296,10 +298,10 @@ export class EvaluationsClient extends BaseApiClient {
     try {
       // Validate inputs
       if (!file) {
-        throw new Error('File is required for upload')
+        throw new Error(translate('evaluation.upload.fileRequired'))
       }
       if (!taskId) {
-        throw new Error('Task ID is required for upload')
+        throw new Error(translate('evaluation.upload.taskIdRequired'))
       }
 
       // Parse the file content
@@ -314,30 +316,36 @@ export class EvaluationsClient extends BaseApiClient {
           const reader = new FileReader()
           reader.onload = () => resolve(reader.result as string)
           reader.onerror = (error) =>
-            reject(new Error('Failed to read file: ' + error))
+            reject(
+              new Error(
+                translate('evaluation.upload.readFailed', {
+                  error: String(error),
+                }),
+              ),
+            )
           reader.readAsText(file)
         })
       }
 
       // Validate file content
       if (!fileContent.trim()) {
-        throw new Error('File is empty or contains no valid content')
+        throw new Error(translate('evaluation.upload.emptyFile'))
       }
 
       let data: any[]
       try {
         data = JSON.parse(fileContent)
       } catch (parseError) {
-        throw new Error('Invalid JSON format in file')
+        throw new Error(translate('evaluation.upload.invalidJson'))
       }
 
       // Validate data format
       if (!Array.isArray(data)) {
-        throw new Error('File must contain an array of items')
+        throw new Error(translate('evaluation.upload.notArray'))
       }
 
       if (data.length === 0) {
-        throw new Error('File contains no items')
+        throw new Error(translate('evaluation.upload.noItems'))
       }
 
       // Auto-detect content type based on structure
@@ -349,9 +357,7 @@ export class EvaluationsClient extends BaseApiClient {
       } else if (firstItem.prompt !== undefined) {
         contentType = 'prompts'
       } else {
-        throw new Error(
-          'Unknown content type - file must contain questions (with "question" and "answer" fields) or prompts (with "prompt" field)',
-        )
+        throw new Error(translate('evaluation.upload.unknownContentType'))
       }
 
       if (contentType === 'questions') {
@@ -368,7 +374,10 @@ export class EvaluationsClient extends BaseApiClient {
             }
           } catch (transformError) {
             throw new Error(
-              `Invalid question format at index ${index}: ${transformError}`,
+              translate('evaluation.upload.invalidQuestion', {
+                index,
+                error: String(transformError),
+              }),
             )
           }
         })
@@ -381,12 +390,13 @@ export class EvaluationsClient extends BaseApiClient {
 
         // Validate response
         if (!response) {
-          throw new Error('No response received from server')
+          throw new Error(translate('evaluation.upload.noResponse'))
         }
 
         // Transform response to match expected UploadResponse format
         return {
-          message: response.message || 'Questions uploaded successfully',
+          message:
+            response.message || translate('evaluation.api.questionsUploaded'),
           data_id: taskId,
           task_id: taskId,
           status: response.success !== false ? 'success' : 'error',
@@ -403,7 +413,10 @@ export class EvaluationsClient extends BaseApiClient {
             }
           } catch (transformError) {
             throw new Error(
-              `Invalid prompt format at index ${index}: ${transformError}`,
+              translate('evaluation.upload.invalidPrompt', {
+                index,
+                error: String(transformError),
+              }),
             )
           }
         })
@@ -413,7 +426,8 @@ export class EvaluationsClient extends BaseApiClient {
 
         // Transform response to match expected UploadResponse format
         return {
-          message: response.message || 'Prompts uploaded successfully',
+          message:
+            response.message || translate('evaluation.api.promptsUploaded'),
           data_id: taskId,
           task_id: taskId,
           status: response.success ? 'success' : 'error',
@@ -424,9 +438,11 @@ export class EvaluationsClient extends BaseApiClient {
       //  error handling with specific error types
       if (error instanceof Error) {
         // Re-throw with more context
-        throw new Error(`Data upload failed: ${error.message}`)
+        throw new Error(
+          translate('evaluation.upload.failed', { error: error.message }),
+        )
       } else {
-        throw new Error('Data upload failed: Unknown error occurred')
+        throw new Error(translate('evaluation.upload.failedUnknown'))
       }
     }
   }
@@ -1021,13 +1037,12 @@ export class EvaluationsClient extends BaseApiClient {
     return {
       success: false,
       task_id: taskId,
-      message: 'Evaluation is taking longer than expected',
+      message: translate('evaluation.api.takingLonger'),
       results: last?.results ?? [],
       methods: last?.methods ?? null,
       expected_metrics: last?.expected_metrics ?? null,
       completed_metrics: last?.completed_metrics ?? null,
-      error:
-        'Some methods did not finish within the expected time. Partial results are shown below.',
+      error: translate('evaluation.api.partialResults'),
       status: 'failed',
     }
   }

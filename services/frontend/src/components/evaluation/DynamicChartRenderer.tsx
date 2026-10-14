@@ -9,6 +9,7 @@
 
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { useEffect, useRef, useState } from 'react'
 import type { ChartType } from './ChartTypeSelector'
 import { EvaluationResultsTable } from './EvaluationResultsTable'
@@ -259,7 +260,7 @@ function ScoreHeatmap({
   height = 400,
   colorScheme = 'default',
 }: ScoreHeatmapProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   // Get color for score value
   const getScoreColor = (value: number) => {
     if (colorScheme === 'accessible') {
@@ -311,7 +312,9 @@ function ScoreHeatmap({
                         : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
                     }`}
                   >
-                    {value !== undefined ? value.toFixed(3) : '—'}
+                    {value !== undefined
+                      ? formatDecimal(value, locale, 3)
+                      : '—'}
                   </td>
                 )
               })}

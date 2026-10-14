@@ -657,3 +657,102 @@ def test_generation_loop_cooperative_cancel_midrun(
         .first()
     )
     assert refreshed.status == "cancelled"
+
+
+# ---------------------------------------------------------------------------
+# case_data carries the prompt inputs, never the whole task (2026-10-13)
+# ---------------------------------------------------------------------------
+
+
+SECRET_SOLUTION = "GEHEIME MUSTERLOESUNG 433 BGB"
+
+
+def _child_case_data(db_conn, rg):
+    import json as _json
+
+    children = (
+        db_conn.query(Generation).filter(Generation.generation_id == rg.id).all()
+    )
+    assert len(children) == 1
+    return _json.loads(children[0].case_data)
+
+
+def test_case_data_records_prompt_inputs_without_the_reference_solution(
+    db_conn, make_user, make_llm_model, make_project, make_task, patch_ai_service,
+):
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    structure = {
+        "system_prompt": "Du bist ein Jurist.",
+        "instruction_prompt": "Sachverhalt:\n$sachverhalt\n\nVermerk: $bearbeitervermerk\n\nLöse den Fall.",
+    }
+    project = make_project(
+        created_by=user.id,
+        label_config=None,
+        generation_config={"prompt_structures": [{"key": "s1", "structure": structure}]},
+    )
+    task = make_task(
+        project.id,
+        {
+            "sachverhalt": "K kauft von B einen Gebrauchtwagen.",
+            "bearbeitervermerk": "Auf Verjährung ist nicht einzugehen.",
+            "musterloesung": SECRET_SOLUTION,
+            "korrekturhinweise": "Nur für Korrektoren.",
+        },
+        created_by=user.id,
+    )
+    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    db_conn.commit()
+
+    result = tasks.generate_llm_responses(
+        generation_id=rg.id,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
+        model_id=model.id,
+        user_id=user.id,
+        structure_key="s1",
+        run_index=0,
+    )
+    assert result["status"] == "success", result
+
+    case_data = _child_case_data(db_conn, rg)
+    assert set(case_data) == {"text", "task_item_id", "prompt_inputs"}
+    assert case_data["task_item_id"] == task.id
+    assert case_data["prompt_inputs"] == {
+        "sachverhalt": "K kauft von B einen Gebrauchtwagen.",
+        "bearbeitervermerk": "Auf Verjährung ist nicht einzugehen.",
+    }
+    blob = str(case_data)
+    assert SECRET_SOLUTION not in blob
+    assert "Korrektoren" not in blob
+    assert "original_task_data" not in blob
+
+
+def test_case_data_without_a_structure_records_only_placeholder_inputs(
+    db_conn, make_user, make_llm_model, make_project, make_task, patch_ai_service,
+):
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id, label_config=None)
+    task = make_task(
+        project.id,
+        {"text": "Ist der Vertrag gültig?", "musterloesung": SECRET_SOLUTION},
+        created_by=user.id,
+    )
+    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    db_conn.commit()
+
+    result = tasks.generate_llm_responses(
+        generation_id=rg.id,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
+        model_id=model.id,
+        user_id=user.id,
+        run_index=0,
+    )
+    assert result["status"] == "success", result
+
+    case_data = _child_case_data(db_conn, rg)
+    assert set(case_data) == {"text", "task_item_id", "prompt_inputs"}
+    # The default instruction prompt interpolates no {key} placeholder, so
+    # nothing of the task is recorded; above all not the reference solution.
+    assert case_data["prompt_inputs"] == {}
+    assert SECRET_SOLUTION not in str(case_data)

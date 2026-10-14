@@ -87,6 +87,7 @@ from sqlalchemy.orm import Session
 
 import extensions
 from models import (
+    ApiKey,
     CustomModelCredential,
     Invitation,
     LtiGradeSync,
@@ -124,10 +125,11 @@ ANONYMIZED_USERNAME_PREFIX = "anon-"
 #: A fresh pseudonym replaces the old one: staff saw the old pseudonym next
 #: to the real name, so keeping it would let them re-identify the records.
 ANONYMIZED_PSEUDONYM_PREFIX = "Anonym-"
-#: Username prefixes only the system hands out: ``anon-`` (this module) and
-#: ``lti-`` (accounts an LMS launch creates). Signup and profile updates
+#: Username prefixes only the system hands out: ``anon-`` (this module),
+#: ``lti-`` (accounts an LMS launch creates) and ``svc-`` (access-key service
+#: accounts, services/api_key_service.py). Signup and profile updates
 #: should refuse them (:func:`is_reserved_username`).
-RESERVED_USERNAME_PREFIXES = (ANONYMIZED_USERNAME_PREFIX, "lti-")
+RESERVED_USERNAME_PREFIXES = (ANONYMIZED_USERNAME_PREFIX, "lti-", "svc-")
 LINK_PROVISIONED = "provisioned"
 
 BLOCKER_SUPERADMIN = "superadmin"
@@ -472,6 +474,15 @@ def anonymization_footprint_sync(db: Session, user_id: str) -> Dict[str, Dict[st
                     OrganizationMembership.is_active == True,  # noqa: E712
                 ),
             ),
+            # Personal access keys still active (revoked, not deleted).
+            "access_keys": _count(
+                db,
+                select(func.count(ApiKey.id)).where(
+                    ApiKey.owner_type == "user",
+                    ApiKey.user_id == user_id,
+                    ApiKey.revoked_at.is_(None),
+                ),
+            ),
         },
     }
 
@@ -578,6 +589,21 @@ def _update_by_user(
         .execution_options(synchronize_session=False)
     ).scalars()
     return _counts(rows)
+
+
+def _revoke_access_keys(db: Session, user_ids: List[str], actor_id: Optional[str]):
+    """Revoke the users' personal access keys and strip IP and user agent
+    from their key usage history. Returns revoked counts per user."""
+    from services.api_key_service import (
+        revoke_personal_keys_for_users_sync,
+        scrub_usage_for_users_sync,
+    )
+
+    counts = revoke_personal_keys_for_users_sync(
+        db, user_ids, actor_id, "owner_anonymized"
+    )
+    scrub_usage_for_users_sync(db, user_ids)
+    return counts
 
 
 def _footprints_kept(db: Session, user_ids: List[str]) -> Dict[str, Dict[str, int]]:
@@ -904,6 +930,7 @@ def _anonymize_batch(
 
     steps: List[tuple] = [
         ("sessions", lambda: _delete_by_user(db, RefreshToken, RefreshToken.user_id, uids)),
+        ("access_keys", lambda: _revoke_access_keys(db, uids, actor_id)),
         ("lti_user_links", lambda: _delete_by_user(db, LtiUserLink, LtiUserLink.user_id, uids)),
         ("lti_grade_syncs", lambda: _delete_by_user(db, LtiGradeSync, LtiGradeSync.user_id, uids)),
         (
@@ -1132,7 +1159,7 @@ def revoke_lms_link_tokens(user_ids: Iterable[str]) -> int:
     anonymized accounts on its own, and the tokens expire within 24 h).
     """
     ids = [str(uid) for uid in user_ids if uid]
-    if not ids or getattr(extensions, "_extended", None) is None:
+    if not ids or not extensions.is_loaded("benger_extended"):
         return 0
     try:
         identity = importlib.import_module("benger_extended.lti.identity")

@@ -61,6 +61,17 @@ api:
     maxReplicas: 3
     targetCPUUtilizationPercentage: 80
   env:
+    # API keys (public /api/v1 access, core 2.37). The pepper is optional:
+    # create `kubectl -n <ns> create secret generic benger-api-key-pepper
+    # --from-literal=pepper=$(openssl rand -hex 32)` once per namespace;
+    # without it keys are hashed unpeppered (hash_version 1 either way).
+    - name: API_KEY_PEPPER
+      valueFrom:
+        secretKeyRef: {name: benger-api-key-pepper, key: pepper, optional: true}
+    - name: API_USAGE_IP_MODE
+      value: "truncated"
+    - name: API_USAGE_RETENTION_DAYS
+      value: "400"
     - name: ENVIRONMENT
       value: "production"  # IMPORTANT: Must be 'production' for proper authentication
     - name: FRONTEND_URL
@@ -175,6 +186,33 @@ api:
           key: stripe_price_metered
           optional: true
 
+# Extension overlays (platform core 2.37). Each enabled entry becomes one
+# package in BENGER_EXTENSIONS, in ascending `order`; the `required` ones
+# form BENGER_REQUIRE_EXTENSIONS. Both env vars are rendered into the api,
+# the bulk workers, every worker pool and beat (benger.overlayEnv in
+# templates/_helpers.tpl), after {api,workers}.extraEnv, so an overlay's
+# value wins when a name appears in both. `api.env` / `workers.env` hold the
+# overlay's own env entries (k8s EnvVar shape) for that role.
+#
+# When the map is empty nothing is rendered and the registry's default
+# (benger_extended, required only via the legacy BENGER_REQUIRE_EXTENDED in
+# extraEnv) applies. When ANY overlay is enabled the map is the complete list:
+# an edition that still needs benger_extended has to declare it here too
+# (the extended values file, order 10) or the package is no longer loaded.
+#
+# Shape:
+#   overlays:
+#     compliance:
+#       enabled: true
+#       package: benger_compliance   # default: benger_<name>
+#       required: true               # default: false
+#       order: 20                    # default: 100; lower loads first
+#       api:
+#         env: []                    # k8s EnvVar entries for the api
+#       workers:
+#         env: []                    # ... for workers, pools and beat
+overlays: {}
+
 workers:
   name: workers
   # THE BULK POOL. Long, memory-hungry work only. User-blocking tasks live on
@@ -250,6 +288,9 @@ workers:
     maxReplicas: 2
     targetCPUUtilizationPercentage: 80
   env:
+    # Retention of the API-key usage log (tasks.cleanup_api_key_usage_events).
+    - name: API_USAGE_RETENTION_DAYS
+      value: "400"
     - name: ENVIRONMENT
       value: "production"  # IMPORTANT: Must be 'production' for proper authentication
     - name: FRONTEND_URL

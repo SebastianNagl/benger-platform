@@ -1,43 +1,39 @@
 'use client'
 
 import { useHydration } from '@/contexts/HydrationContext'
+import {
+  subscribeTranslations,
+  translateKey,
+  type TranslationVars,
+} from '@/lib/i18n/catalog'
+import {
+  DEFAULT_LOCALE,
+  LOCALE_STORAGE_KEY,
+  readStoredLocale,
+  type Locale,
+} from '@/lib/i18n/locales'
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
 
-// Load translations with fallback
-let deTranslations: any = {}
-let enTranslations: any = {}
+export type { Locale } from '@/lib/i18n/locales'
 
-try {
-  // Try ES6 import first
-  deTranslations = require('@/locales/de/common.json')
-  enTranslations = require('@/locales/en/common.json')
-} catch (error) {
-  console.error('Failed to load translations with require:', error)
-  // Fallback to empty objects
-  deTranslations = {}
-  enTranslations = {}
-}
-
-const translations = {
-  de: deTranslations,
-  en: enTranslations,
-}
-
-type Locale = 'de' | 'en'
+/**
+ * Translate a catalog key. There is deliberately no inline default: every
+ * string lives in the locale JSONs (src/locales/<locale>/ for the platform,
+ * registerTranslations() for extensions).
+ */
+export type TranslateFn = (key: string, variables?: TranslationVars) => any
 
 interface I18nContextType {
   locale: Locale
-  t: (
-    key: string,
-    defaultValueOrVariables?: string | Record<string, any>,
-    variables?: Record<string, any>,
-  ) => any
+  t: TranslateFn
   changeLocale: (locale: Locale) => void
   isReady: boolean
 }
@@ -45,7 +41,9 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | undefined>(undefined)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>('de')
+  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE)
+  // Bumped when an extension registers copy after the first render.
+  const [catalogVersion, setCatalogVersion] = useState(0)
   const mounted = useHydration()
   const hasLoadedPreference = useRef(false)
 
@@ -53,184 +51,58 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!mounted || hasLoadedPreference.current) return
     hasLoadedPreference.current = true
-
-    try {
-      const storedLocale = localStorage.getItem('preferred-locale') as Locale
-      if (storedLocale && (storedLocale === 'de' || storedLocale === 'en')) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: load preference on mount
-        setLocale(storedLocale)
-      }
-    } catch (error) {
-      // localStorage might not be available, ignore
-      // Failed to load language preference from localStorage
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional: load preference on mount
+    setLocale(readStoredLocale())
   }, [mounted])
 
-  const t = (
-    key: string,
-    defaultValueOrVariables?: string | Record<string, any>,
-    variables?: Record<string, any>,
-  ): any => {
-    // Determine if second arg is default value (string) or variables (object)
-    let defaultValue: string | undefined
-    let vars: Record<string, any> | undefined
-
-    if (typeof defaultValueOrVariables === 'string') {
-      defaultValue = defaultValueOrVariables
-      vars = variables
-    } else {
-      vars = defaultValueOrVariables
-    }
-
-    try {
-      const keys = key.split('.')
-      let value: any = translations[locale]
-
-      for (const k of keys) {
-        value = value?.[k]
-      }
-
-      if (value === undefined) {
-        // Interpolate {var} placeholders into the inline fallback too — keys
-        // that live only as code-side defaults (e.g. extended student-feature
-        // strings not mirrored in the locale JSON) must still substitute their
-        // counts/values instead of rendering a literal "{count}".
-        if (typeof defaultValue === 'string' && vars) {
-          return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
-            vars[variableName] !== undefined
-              ? String(vars[variableName])
-              : match,
-          )
-        }
-        return defaultValue ?? key
-      }
-
-      // Guard: if the resolved value is a plain object (branch node, not a leaf),
-      // return the key string to prevent React error #31 (object as child).
-      // Arrays are allowed since some translations are intentionally arrays.
-      if (
-        typeof value === 'object' &&
-        value !== null &&
-        !Array.isArray(value)
-      ) {
-        return defaultValue ?? key
-      }
-
-      // Handle variable interpolation
-      if (vars && typeof value === 'string') {
-        return value.replace(/\{(\w+)\}/g, (match, variableName) => {
-          return vars[variableName] !== undefined
-            ? String(vars[variableName])
-            : match
-        })
-      }
-
-      return value
-    } catch (error) {
-      console.error('Translation error for key', key, error)
-      return key
-    }
-  }
-
-  const changeLocale = (newLocale: Locale) => {
-    try {
-      localStorage.setItem('preferred-locale', newLocale)
-      setLocale(newLocale)
-    } catch (error) {
-      // Failed to save language preference - continue with locale change
-      setLocale(newLocale)
-    }
-  }
-
-  // Return default translations during SSR/hydration
-  if (!mounted) {
-    const defaultT = (
-      key: string,
-      defaultValueOrVariables?: string | Record<string, any>,
-      variables?: Record<string, any>,
-    ): any => {
-      // Determine if second arg is default value (string) or variables (object)
-      let defaultValue: string | undefined
-      let vars: Record<string, any> | undefined
-
-      if (typeof defaultValueOrVariables === 'string') {
-        defaultValue = defaultValueOrVariables
-        vars = variables
-      } else {
-        vars = defaultValueOrVariables
-      }
-
-      try {
-        const keys = key.split('.')
-        let value: any = translations['de'] // Use German as default
-
-        for (const k of keys) {
-          value = value?.[k]
-        }
-
-        if (value === undefined) {
-          // Same fallback interpolation as the mounted path (see note above).
-          if (typeof defaultValue === 'string' && vars) {
-            return defaultValue.replace(/\{(\w+)\}/g, (match, variableName) =>
-              vars[variableName] !== undefined
-                ? String(vars[variableName])
-                : match,
-            )
-          }
-          return defaultValue ?? key
-        }
-
-        // Handle variable interpolation
-        if (vars && typeof value === 'string') {
-          return value.replace(/\{(\w+)\}/g, (match, variableName) => {
-            return vars[variableName] !== undefined
-              ? String(vars[variableName])
-              : match
-          })
-        }
-
-        return value
-      } catch (error) {
-        // SSR Translation error for key - return key as fallback
-        return defaultValue ?? key
-      }
-    }
-
-    return (
-      <I18nContext.Provider
-        value={{
-          locale: 'de',
-          t: defaultT,
-          changeLocale: () => {},
-          isReady: false,
-        }}
-      >
-        {children}
-      </I18nContext.Provider>
-    )
-  }
-
-  return (
-    <I18nContext.Provider value={{ locale, t, changeLocale, isReady: true }}>
-      {children}
-    </I18nContext.Provider>
+  useEffect(
+    () => subscribeTranslations(() => setCatalogVersion((v) => v + 1)),
+    [],
   )
+
+  // SSR and the first client render use the default locale so markup matches.
+  const activeLocale = mounted ? locale : DEFAULT_LOCALE
+
+  useEffect(() => {
+    if (mounted) document.documentElement.lang = activeLocale
+  }, [mounted, activeLocale])
+
+  const t = useCallback<TranslateFn>(
+    (key, variables) => translateKey(activeLocale, key, variables),
+    // catalogVersion: new identity after a registration so memoized
+    // consumers re-translate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeLocale, catalogVersion],
+  )
+
+  const changeLocale = useCallback((newLocale: Locale) => {
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, newLocale)
+    } catch {
+      // localStorage unavailable: the choice holds for this session only
+    }
+    setLocale(newLocale)
+  }, [])
+
+  const value = useMemo<I18nContextType>(
+    () =>
+      mounted
+        ? { locale: activeLocale, t, changeLocale, isReady: true }
+        : { locale: activeLocale, t, changeLocale: () => {}, isReady: false },
+    [mounted, activeLocale, t, changeLocale],
+  )
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
 
-export function useI18n() {
+export function useI18n(): I18nContextType {
   const context = useContext(I18nContext)
   if (context === undefined) {
-    // Provide a fallback for cases where the hook is called outside of provider
-    // useI18n called outside of I18nProvider, using fallback
+    // Outside the provider (isolated renders): translate with the default
+    // locale so copy still resolves from the catalog.
     return {
-      locale: 'de' as Locale,
-      t: (
-        key: string,
-        defaultValueOrVariables?: string | Record<string, any>,
-      ) =>
-        typeof defaultValueOrVariables === 'string'
-          ? defaultValueOrVariables
-          : key,
+      locale: DEFAULT_LOCALE,
+      t: (key, variables) => translateKey(DEFAULT_LOCALE, key, variables),
       changeLocale: () => {},
       isReady: false,
     }

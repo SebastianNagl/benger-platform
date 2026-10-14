@@ -105,6 +105,7 @@ TASK_QUEUES: dict[str, str] = {
     "tasks.reconcile_grading_usage": MAINTENANCE,  # extended
     "tasks.lti_grade_sync_sweep": MAINTENANCE,  # extended
     "tasks.cleanup_project_data": MAINTENANCE,
+    "tasks.cleanup_api_key_usage_events": MAINTENANCE,
     "tasks.get_supported_metrics": MAINTENANCE,
     # --- generation: one LLM call per task, minutes each ---
     "tasks.generate_response": GENERATION,
@@ -150,6 +151,13 @@ def import_queue_for_size(size_bytes) -> str:
 # Extended task names, tracked separately so the platform-side test can assert
 # they are still routed even though `benger_extended` is not installed there.
 # A platform-side deletion would otherwise silently strand them on DEFAULT_QUEUE.
+#
+# Convention for every OTHER extension package (core 2.37): its tasks live in
+# its own namespace, `<EXTENSION_ID>.*` (``compliance.run_suite``), and are
+# routed through ``get_task_queues()`` -> :func:`register_task_queue` at load
+# time (``extension_registry.load_all`` feeds it in the API and the worker
+# process). Those names are recorded in :data:`EXTENSION_REGISTERED_TASK_NAMES`
+# and never appear in this table's source.
 EXTENDED_TASK_NAMES = frozenset(
     {
         "tasks.grade_and_schedule_card",
@@ -204,16 +212,50 @@ TASK_TIME_LIMIT_OVERRIDES: dict[str, tuple[int, int]] = {
 }
 
 
-def register_task_queue(task_name: str, queue: str) -> None:
+# Task names extension packages routed through :func:`register_task_queue`,
+# and which package did it. The platform-side routing test treats these names
+# like :data:`EXTENDED_TASK_NAMES` (declared, but not registered in platform CI).
+EXTENSION_REGISTERED_TASK_NAMES: set[str] = set()
+_TASK_OWNERS: dict[str, str] = {}
+
+
+def register_task_queue(task_name: str, queue: str, owner: str | None = None) -> None:
     """Claim a queue for a task name at import time.
 
     Extension hook for out-of-tree packages. The queue must already be one of
     :data:`QUEUES`; a genuinely new queue name needs a worker pool to consume it,
     which is a Helm/values decision and cannot be made from Python.
+
+    ``owner`` is the registering package (the registry passes its name). A
+    name one package routed may not be re-routed by another: that raises
+    :class:`ValueError`. Re-registering under the same owner (a reload) is
+    fine, and so is an ownerless call from platform code or tests.
     """
     if queue not in QUEUES:
         raise ValueError(f"{queue!r} is not a declared queue; expected one of {QUEUES}")
+    previous_owner = _TASK_OWNERS.get(task_name)
+    if previous_owner is not None and owner is not None and previous_owner != owner:
+        raise ValueError(
+            f"task {task_name!r} is routed by {previous_owner!r}; "
+            f"{owner!r} may not re-route it"
+        )
+    if owner is not None and previous_owner is None and task_name in TASK_QUEUES:
+        logger.warning(
+            "celery_queues: %s re-routes the platform task %r to %r (was %r)",
+            owner,
+            task_name,
+            queue,
+            TASK_QUEUES[task_name],
+        )
     TASK_QUEUES[task_name] = queue
+    EXTENSION_REGISTERED_TASK_NAMES.add(task_name)
+    if owner is not None:
+        _TASK_OWNERS[task_name] = owner
+
+
+def task_owner(task_name: str) -> str | None:
+    """The package that routed ``task_name`` through :func:`register_task_queue`."""
+    return _TASK_OWNERS.get(task_name)
 
 
 def queue_for(task_name: str) -> str:

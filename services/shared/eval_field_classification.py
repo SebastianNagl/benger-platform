@@ -36,7 +36,10 @@ The classifier knows two things:
 
 from __future__ import annotations
 
+import logging
 from typing import Callable, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 ClassifierRule = Callable[[List[str]], Tuple[List[str], List[str]]]
 """A classifier rule takes the raw `prediction_fields` list and returns
@@ -85,13 +88,34 @@ def same_field(a: Optional[str], b: Optional[str]) -> bool:
 
 
 _RULES: Dict[str, ClassifierRule] = {}
+# Which extension package registered each rule (None: the platform).
+_RULE_OWNERS: Dict[str, Optional[str]] = {}
+
+
+def _registration_owner() -> Optional[str]:
+    try:
+        from extension_registry import current_owner
+    except ImportError:  # /shared not on sys.path (stub-test lane)
+        return None
+    return current_owner()
 
 
 def register_classifier_rule(metric: str, rule: ClassifierRule) -> None:
     """Register a metric-specific override that runs when the default
-    classifier finds zero explicit human fields. Idempotent — re-registering
-    the same metric replaces the rule, so reload-safe in dev."""
+    classifier finds zero explicit human fields. Idempotent: re-registering
+    the same metric replaces the rule, so reload-safe in dev. A rule one
+    extension package registered that another replaces is logged with both
+    names (``extension_registry.owner``)."""
+    owner = _registration_owner()
+    if metric in _RULES and _RULE_OWNERS.get(metric) != owner:
+        logger.warning(
+            "classifier rule for %r registered by %s replaces %s's",
+            metric,
+            owner or "the platform",
+            _RULE_OWNERS.get(metric) or "the platform",
+        )
     _RULES[metric] = rule
+    _RULE_OWNERS[metric] = owner
 
 
 def classify_pred_fields(

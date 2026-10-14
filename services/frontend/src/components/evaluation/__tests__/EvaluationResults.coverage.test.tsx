@@ -39,12 +39,10 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: mockAddToast }),
 }))
 
+// Key-returning t(): assertions target translation keys.
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, params?: any) => {
-      if (typeof params === 'string') return params
-      return key
-    },
+    t: (key: string, _vars?: Record<string, unknown>) => key,
     locale: 'en',
   }),
 }))
@@ -510,7 +508,7 @@ describe('By-run chart toggle', () => {
       expect(mockGetProjectEvaluationResults).toHaveBeenCalled(),
     )
     expect(
-      screen.queryByText('Diagramm pro Lauf splitten'),
+      screen.queryByText('evaluation.multiFieldResults.byRunChart'),
     ).not.toBeInTheDocument()
 
     // With per-run data → toggle visible.
@@ -523,7 +521,7 @@ describe('By-run chart toggle', () => {
     )
     await waitFor(() =>
       expect(
-        screen.getByText('Diagramm pro Lauf splitten'),
+        screen.getByText('evaluation.multiFieldResults.byRunChart'),
       ).toBeInTheDocument(),
     )
   })
@@ -543,13 +541,13 @@ describe('By-run chart toggle', () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText('Diagramm pro Lauf splitten'),
+        screen.getByText('evaluation.multiFieldResults.byRunChart'),
       ).toBeInTheDocument(),
     )
 
     // Toggle the by-run checkbox on.
     const toggle = screen
-      .getByText('Diagramm pro Lauf splitten')
+      .getByText('evaluation.multiFieldResults.byRunChart')
       .closest('label')!
       .querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => {
@@ -582,11 +580,11 @@ describe('By-run chart toggle', () => {
     )
     await waitFor(() =>
       expect(
-        screen.getByText('Diagramm pro Lauf splitten'),
+        screen.getByText('evaluation.multiFieldResults.byRunChart'),
       ).toBeInTheDocument(),
     )
     const toggle = screen
-      .getByText('Diagramm pro Lauf splitten')
+      .getByText('evaluation.multiFieldResults.byRunChart')
       .closest('label')!
       .querySelector('input[type="checkbox"]') as HTMLInputElement
     await act(async () => {

@@ -27,6 +27,7 @@ import {
   getMetricSummable,
 } from '@/lib/api/evaluation-types'
 import type { LLMLeaderboardEntry } from '@/lib/api/leaderboards'
+import { intlTag } from '@/lib/i18n/locales'
 import { Menu } from '@headlessui/react'
 import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid'
 import {
@@ -99,7 +100,7 @@ const providerColors: Record<string, string> = {
 
 export function LLMLeaderboardTable() {
   const { apiClient } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { projects, fetchProjects } = useProjects()
   const [period, setPeriod] = useState<TimePeriod>('overall')
   // Clicking a row opens the per-project score view for that model.
@@ -267,6 +268,7 @@ export function LLMLeaderboardTable() {
       score,
       getMetricScale(metric),
       aggregation === 'sum',
+      locale,
     )
   }
 
@@ -276,7 +278,7 @@ export function LLMLeaderboardTable() {
     // CI on a sum is set to null by the aggregator, so we shouldn't get
     // here in that case; defensive `sum=false` keeps the format consistent
     // with the metric's natural scale if a caller does pass it.
-    const fmt = (v: number) => formatValueForScale(v, scale, false)
+    const fmt = (v: number) => formatValueForScale(v, scale, false, locale)
     return `${fmt(ci_lower)} – ${fmt(ci_upper)}`
   }
 
@@ -634,7 +636,7 @@ export function LLMLeaderboardTable() {
                   {t('leaderboards.llm.model')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('leaderboards.llm.generations', 'Generations')}
+                  {t('leaderboards.llm.generations')}
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {getScoreColumnLabel()}
@@ -703,7 +705,9 @@ export function LLMLeaderboardTable() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-right text-sm whitespace-nowrap text-zinc-500">
-                      {(entry.generation_count ?? 0).toLocaleString()}
+                      {(entry.generation_count ?? 0).toLocaleString(
+                        intlTag(locale),
+                      )}
                     </td>
                     <td className="px-4 py-4 text-right text-sm whitespace-nowrap">
                       {hasScore ? (

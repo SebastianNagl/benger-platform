@@ -32,7 +32,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
 }))
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, varsOrDefault?: any) => {
+    t: (key: string, vars?: Record<string, unknown>) => {
       const translations: Record<
         string,
         any
@@ -47,8 +47,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         }
       }
       if (typeof value !== 'string') return key
-      if (varsOrDefault && typeof varsOrDefault === 'object') {
-        for (const [k, v] of Object.entries(varsOrDefault)) {
+      if (vars && typeof vars === 'object') {
+        for (const [k, v] of Object.entries(vars)) {
           value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
         }
       }
@@ -505,7 +505,7 @@ describe('FileUploadField Component', () => {
       }
       render(<FileUploadField {...defaultProps} value={file} />)
 
-      expect(screen.getByText('1024.0 MB')).toBeInTheDocument()
+      expect(screen.getByText('1,024.0 MB')).toBeInTheDocument()
     })
 
     it('handles zero byte files', () => {
