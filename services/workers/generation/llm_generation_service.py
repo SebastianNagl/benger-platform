@@ -597,6 +597,43 @@ def generate_llm_responses_impl(
             _duplicate_skip = False
             from sqlalchemy.exc import IntegrityError as _IntegrityError
 
+            def _existing_response(task_id, ri):
+                """(found, stored_prompt) of the newest completed response for
+                this task, model, structure and run_index, under ANY parent.
+
+                run_index-aware: a multi-run gen has one completed child PER
+                run_index. Without that filter a missing-mode trial N>0 would
+                skip on run_index 0's row (so a runs_requested=N missing-mode
+                trigger generated only 1 trial). It also dedups a surviving
+                prior trial before re-dispatch (resume/retry).
+                """
+                row = (
+                    db.query(
+                        tasks.DBLLMResponse.id,
+                        tasks.DBResponseGeneration.prompt_used,
+                    )
+                    .join(
+                        tasks.DBResponseGeneration,
+                        tasks.DBLLMResponse.generation_id == tasks.DBResponseGeneration.id,
+                    )
+                    .filter(
+                        tasks.DBLLMResponse.task_id == task_id,
+                        tasks.DBLLMResponse.model_id == model_id,
+                        tasks.DBResponseGeneration.structure_key == structure_key,
+                        tasks.DBLLMResponse.run_index == ri,
+                        tasks.DBLLMResponse.status == "completed",
+                    )
+                    .order_by(tasks.DBLLMResponse.created_at.desc())
+                    .first()
+                )
+                return (row is not None, row[1] if row is not None else None)
+
+            # Set when a trial skipped because an earlier parent already holds
+            # a completed response with the same prompt. That run_index is
+            # done, so the parent must not derive "failed" from producing
+            # nothing (it used to latch "Trial failed").
+            _reused_existing = False
+
             # Generate responses for each task and prompt combination.
             for task_data in tasks_data:
                 task_content = task_data.get("data", {})
@@ -620,41 +657,14 @@ def generate_llm_responses_impl(
 
                         if not force_rerun:
                             # Check for existing completed response with prompt provenance
-                            # Single query: join to get both response and stored prompt
-                            existing = (
-                                db.query(
-                                    tasks.DBLLMResponse.id,
-                                    tasks.DBResponseGeneration.prompt_used,
-                                )
-                                .join(
-                                    tasks.DBResponseGeneration,
-                                    tasks.DBLLMResponse.generation_id == tasks.DBResponseGeneration.id,
-                                )
-                                .filter(
-                                    tasks.DBLLMResponse.task_id == task_data["id"],
-                                    tasks.DBLLMResponse.model_id == model_id,
-                                    tasks.DBResponseGeneration.structure_key == structure_key,
-                                    # run_index-aware: a multi-run gen has one
-                                    # completed child PER run_index. Without this
-                                    # a missing-mode trial N>0 would skip on
-                                    # run_index 0's row (so a runs_requested=N
-                                    # missing-mode trigger generated only 1
-                                    # trial). It also dedups a surviving prior
-                                    # trial before re-dispatch (resume/retry).
-                                    tasks.DBLLMResponse.run_index == run_index,
-                                    tasks.DBLLMResponse.status == "completed",
-                                )
-                                .order_by(tasks.DBLLMResponse.created_at.desc())
-                                .first()
-                            )
-
-                            if existing:
-                                _, stored_prompt = existing
+                            found, stored_prompt = _existing_response(task_data["id"], run_index)
+                            if found:
                                 if stored_prompt is None or stored_prompt == _captured_prompt_json:
                                     tasks.logger.info(
                                         f"⏭️ Skipping existing response for task {task_data['id']}, "
                                         f"prompt {'unchanged' if stored_prompt else 'legacy'}"
                                     )
+                                    _reused_existing = True
                                     continue
                                 else:
                                     tasks.logger.info(
@@ -1412,7 +1422,11 @@ def generate_llm_responses_impl(
             # when every trial produced a response, and "failed" on the first
             # trial that errored without one. User-terminal statuses
             # (cancelled/stopped/paused — incl. the #198 mid-call abort) win.
-            trial_failed = responses_generated == 0 and total_expected > 0
+            # A trial that reused an earlier parent's response produced nothing
+            # here but is done, not failed.
+            trial_failed = (
+                responses_generated == 0 and total_expected > 0 and not _reused_existing
+            )
 
             db.refresh(generation)
 
@@ -1435,6 +1449,32 @@ def generate_llm_responses_impl(
                     ).scalar()
                     or 0
                 )
+                if (
+                    _completed < _runs_requested
+                    and not config_data.get("force_rerun", False)
+                    and generation.task_id
+                ):
+                    # run_indices this parent has no child for, but that an
+                    # earlier parent already answered with the same prompt: the
+                    # trials for them skip (see _existing_response), so they
+                    # count as done. Otherwise a missing-mode retry of a cell
+                    # with an older completed answer latched "Trial failed".
+                    _own = {
+                        r[0]
+                        for r in db.execute(
+                            _sql_text(
+                                "SELECT DISTINCT run_index FROM generations "
+                                "WHERE generation_id = :gid"
+                            ),
+                            {"gid": generation_id},
+                        ).fetchall()
+                    }
+                    for _ri in range(_runs_requested):
+                        if _ri in _own:
+                            continue
+                        _found, _stored = _existing_response(generation.task_id, _ri)
+                        if _found and (_stored is None or _stored == _captured_prompt_json):
+                            _completed += 1
             except (TypeError, ValueError):
                 # Bare-Mock db (unit tests): ``db.execute(...).scalar()`` returns a
                 # Mock and ``int(Mock or 0)`` raises TypeError — fall back to this
@@ -1442,7 +1482,10 @@ def generate_llm_responses_impl(
                 # (not TypeError/ValueError) and propagates to the outer handler,
                 # which marks the trial failed and lets Celery retry — far better
                 # than silently mis-deriving the parent off one trial's count.
-                _completed = 0 if (_aborted or trial_failed) else responses_generated
+                _completed = (
+                    0 if (_aborted or trial_failed)
+                    else responses_generated or int(_reused_existing)
+                )
 
             if generation.status in ("cancelled", "stopped", "paused"):
                 # User-terminal (incl. the #198 mid-call abort) — the user asked
@@ -1696,6 +1739,15 @@ def generate_llm_responses_impl(
                         "generation_id": generation_id,
                         "model_id": model_id,
                         "message": "run_index already generated by another trial",
+                        "responses_generated": 0,
+                        "total_expected": total_expected,
+                    }
+                if _reused_existing:
+                    return {
+                        "status": "skipped",
+                        "generation_id": generation_id,
+                        "model_id": model_id,
+                        "message": "a completed response with the same prompt already exists",
                         "responses_generated": 0,
                         "total_expected": total_expected,
                     }
