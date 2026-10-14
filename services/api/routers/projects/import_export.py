@@ -1,5 +1,6 @@
 """Project import and export endpoints."""
 
+import asyncio
 import csv
 import io
 import json
@@ -362,6 +363,18 @@ async def download_export_job(
 _IMPORT_UPLOAD_MAX_BYTES = 2 * 1024 * 1024 * 1024
 
 
+async def _import_queue(object_key: str) -> str:
+    """Queue for an import of ``object_key``: small uploads (the wizard's data
+    step, "Daten importieren") run on `interactive` so they don't wait behind
+    a generation or evaluation run; see ``celery_queues.import_queue_for_size``.
+    An unreadable size keeps the job on `bulk`."""
+    # /shared, imported lazily like celery_client does.
+    import celery_queues
+
+    info = await asyncio.to_thread(object_storage.get_file_info, object_key)
+    return celery_queues.import_queue_for_size((info or {}).get("size"))
+
+
 def _serialize_import_job(job: ImportJob) -> dict:
     return {
         "job_id": job.id,
@@ -507,7 +520,11 @@ async def create_import_job(
     await db.refresh(job)
 
     try:
-        result = send_task_safe("tasks.import_project", args=[job.id])
+        result = send_task_safe(
+            "tasks.import_project",
+            args=[job.id],
+            queue=await _import_queue(object_key),
+        )
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:
@@ -695,6 +712,8 @@ async def create_cloud_import_jobs(
 
     try:
         for job in jobs:
+            # Stays on `bulk`: the object lives in the org's own bucket, so its
+            # size would cost a round-trip with that connection's credentials.
             result = send_task_safe("tasks.import_project", args=[job.id])
             job.celery_task_id = getattr(result, "id", None)
         await db.commit()
@@ -964,7 +983,11 @@ async def create_full_import_job(
     await db.refresh(job)
 
     try:
-        result = send_task_safe("tasks.import_project", args=[job.id])
+        result = send_task_safe(
+            "tasks.import_project",
+            args=[job.id],
+            queue=await _import_queue(object_key),
+        )
         job.celery_task_id = getattr(result, "id", None)
         await db.commit()
     except Exception as exc:

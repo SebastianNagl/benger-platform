@@ -344,6 +344,66 @@ class TestCreateImportJob:
 
 
 @pytest.mark.integration
+class TestImportQueueBySize:
+    """Small imports go to `interactive` so the creation wizard's data step does
+    not wait behind a generation or evaluation run on `bulk`."""
+
+    async def _post_nested(self, client, db, size):
+        admin, _contrib, _annot, _org, project = await _seed_world(db)
+        info = None if size is None else {"size": size}
+        with _as_user(admin), patch(
+            "routers.projects.import_export.object_storage.get_file_info",
+            return_value=info,
+        ) as mock_info, patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-q"),
+        ) as mock_send:
+            resp = await client.post(
+                f"/api/projects/{project.id}/imports",
+                json={"object_key": _valid_key(project.id)},
+            )
+        assert resp.status_code == 202, resp.text
+        mock_info.assert_called_once_with(_valid_key(project.id))
+        return mock_send.call_args.kwargs["queue"]
+
+    @pytest.mark.asyncio
+    async def test_small_nested_import_runs_interactive(
+        self, async_test_client, async_test_db
+    ):
+        assert await self._post_nested(async_test_client, async_test_db, 30_000) == "interactive"
+
+    @pytest.mark.asyncio
+    async def test_large_nested_import_stays_bulk(self, async_test_client, async_test_db):
+        assert await self._post_nested(
+            async_test_client, async_test_db, 50 * 1024 * 1024
+        ) == "bulk"
+
+    @pytest.mark.asyncio
+    async def test_unknown_size_stays_bulk(self, async_test_client, async_test_db):
+        assert await self._post_nested(async_test_client, async_test_db, None) == "bulk"
+
+    @pytest.mark.asyncio
+    async def test_small_full_project_import_runs_interactive(
+        self, async_test_client, async_test_db
+    ):
+        user = await _make_user(async_test_db, name="Solo importer")
+        await async_test_db.commit()
+        key = f"imports/2026/10/{user.id}/20261014_090000_small.json"
+        with _as_user(user), patch(
+            "routers.projects.import_export.object_storage.get_file_info",
+            return_value={"size": 12_000},
+        ), patch(
+            "routers.projects.import_export.send_task_safe",
+            return_value=MagicMock(id="celery-full"),
+        ) as mock_send:
+            resp = await async_test_client.post(
+                "/api/projects/project-imports", json={"object_key": key}
+            )
+        assert resp.status_code == 202, resp.text
+        assert mock_send.call_args.kwargs["queue"] == "interactive"
+
+
+@pytest.mark.integration
 class TestGetImportJobStatus:
     @pytest.mark.asyncio
     async def test_status_returns_job_fields(
