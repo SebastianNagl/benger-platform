@@ -12,11 +12,11 @@ Estimate accuracy is best-effort — UI surfaces a "± ~20%" caveat.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Literal, Optional, Set
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -24,10 +24,11 @@ from auth_module import require_user
 from database import get_async_db
 from models import LLMModel, User
 from project_models import Project
-from routers.generation_task_list import MISSING_MODE_REGENERATE_STATUSES
 from routers.projects.helpers import (
     check_project_accessible_async,
 )
+from evaluation_planning import judge_call_counts, judge_runs, plan_evaluation
+from services.generation_planning import plan_generation_cells_sync, run_structure_keys
 from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
     JUDGE_OUTPUT_FIXED_TOKENS,
@@ -279,410 +280,98 @@ _DEFAULT_OUTPUT_UTILIZATION = 0.6
 _EVAL_OUTPUT_UTILIZATION = 0.15
 
 
-def _count_evaluation_judge_calls(
-    db: Session,
-    project_id: str,
-    judge_model_id: str,
-    generation_mode: Optional[str],
-    *,
-    config_ids: Optional[Set[str]] = None,
-    model_ids: Optional[List[str]] = None,
-    annotator_user_ids: Optional[List[str]] = None,
-    structure_keys: Optional[List[str]] = None,
-) -> int:
-    """Count LLM-judge API calls that would actually fire for
-    ``judge_model_id`` across all the project's enabled LLM-judge configs.
-
-    The project's `evaluation_config.evaluation_configs` lists every
-    metric configured. Only configs whose `metric` starts with
-    `llm_judge_` cost API tokens — deterministic metrics (BERTScore,
-    BLEU, ROUGE, semsim, METEOR, MoverScore, coherence, exact_match)
-    are compute-only.
-
-    For each LLM-judge config that names this judge in its
-    `metric_parameters.judges[].judge_model_id`:
-
-    - Resolve subjects per `prediction_fields` entry:
-        * `__all_model__`         → every completed generation
-        * `__all_human__`         → every annotation
-        * starts with `human:`    → every annotation (the suffix is the
-                                    field inside the annotation, not a
-                                    subject filter)
-        * any other plain string  → the worker auto-evaluates the field
-                                    on BOTH models AND humans (services/
-                                    workers/tasks.py around lines 234,
-                                    3289-3291) — so the cost has to as
-                                    well, otherwise the human-side bill
-                                    is invisible. Returns generations
-                                    AND annotations.
-    - Multiply by this config's own `runs` for this judge (NOT the
-      request-level `runs_per_call`, which was the global max across all
-      selected configs and double-counted any per-config `runs:1` when
-      another selected config carried `runs:3` — issue #132).
-    - For mode='missing', subtract subjects whose `task_evaluations`
-      row is already scored under field_name `{config_id}|{pred_field}|...`.
-
-    The run's scope narrows all of this the way the worker does:
-    ``config_ids`` keeps only the configs being run, ``model_ids`` and
-    ``structure_keys`` narrow the generations, ``annotator_user_ids`` the
-    annotations (an empty list means none are selected). Without the scope
-    one judge model was priced over every config naming it and every
-    generation of every model in the project.
-
-    Returns the total API-call count across all judge configs that
-    target ``judge_model_id``.
-    """
-    cfgs = _load_llm_judge_configs(db, project_id, judge_model_id)
-    if config_ids is not None:
-        cfgs = [c for c in cfgs if c["id"] in config_ids]
-    if not cfgs:
-        return 0
-
-    # Resolve the run's subjects once.
-    gen_ids_by_field = _completed_generation_ids(
-        db, project_id, model_ids=model_ids, structure_keys=structure_keys
-    )
-    annotation_ids = _annotation_ids(
-        db, project_id, annotator_user_ids=annotator_user_ids
-    )
-
-    total = 0
-    for cfg in cfgs:
-        # `cfg["runs"]` is this judge's run count in this specific config.
-        # `runs_per_call` from the request was a global "max runs across all
-        # selected configs' judges" and is intentionally not used here — it
-        # would double-count any config whose per-judge runs differs from
-        # the global max (issue #132).
-        runs = cfg["runs"]
-        for pf in cfg["prediction_fields"]:
-            subj_keys = _subjects_for_pred_field(
-                pf, gen_ids_by_field=gen_ids_by_field,
-                annotation_ids=annotation_ids,
-            )
-            if generation_mode == "missing":
-                done = _already_scored_subjects(
-                    db, project_id, config_id=cfg["id"], pred_field=pf
-                )
-                missing = [s for s in subj_keys if s not in done]
-                total += len(missing) * runs
-            else:
-                total += len(subj_keys) * runs
-    return total
-
-
-def _load_llm_judge_configs(db: Session, project_id: str, judge_model_id: str) -> List[Dict[str, Any]]:
-    """Pull the project's enabled LLM-judge configs that name this
-    `judge_model_id` in their judges ensemble. Returns dicts with
-    `metric` (id), `prediction_fields`, and `runs` (for this judge)."""
-    from project_models import Project
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        return []
-    eval_cfg = proj.evaluation_config or {}
+def _run_eval_configs(project, request: "CostEstimateRequest") -> List[Dict[str, Any]]:
+    """The stored configs a run started from the dialog grades: every enabled
+    config, narrowed to the ticked ones when the client names them. A client
+    that sends configs without ids keeps every enabled config."""
+    eval_cfg = project.evaluation_config or {}
     if not isinstance(eval_cfg, dict):
         try:
             import json as _json
+
             eval_cfg = _json.loads(eval_cfg)
         except Exception:
             return []
-    out: List[Dict[str, Any]] = []
-    for c in eval_cfg.get("evaluation_configs") or []:
-        if c.get("enabled") is False:
-            continue
-        metric = c.get("metric") or ""
-        if not metric.startswith("llm_judge_"):
-            continue
-        params = c.get("metric_parameters") or {}
-        # Two ensemble shapes the codebase uses:
-        # 1. judges: [{judge_model_id, runs}]            (preferred)
-        # 2. judge_model + runs_per_judge                (legacy single-judge)
-        runs_for_this_judge = 0
-        if isinstance(params.get("judges"), list):
-            for j in params["judges"]:
-                if (j or {}).get("judge_model_id") == judge_model_id:
-                    runs_for_this_judge = max(int(j.get("runs") or 1), 1)
-                    break
-        elif params.get("judge_model") == judge_model_id:
-            runs_for_this_judge = max(int(params.get("runs_per_judge") or 1), 1)
-        if runs_for_this_judge == 0:
-            continue
-        config_id = c.get("id")
-        if not config_id:
-            # Configs without an id can't be skip-set matched against
-            # stored task_evaluations rows; the worker writes
-            # `field_name = "{config_id}|{pred_field}|{ref_field}"` and
-            # we need an exact config_id to match. Skip rather than
-            # over-count.
-            continue
-        out.append(
-            {
-                "id": config_id,
-                "metric": metric,
-                "prediction_fields": list(c.get("prediction_fields") or []),
-                "reference_fields": list(c.get("reference_fields") or []),
-                "metric_parameters": params,
-                "runs": runs_for_this_judge,
-            }
-        )
-    return out
+    configs = [
+        c for c in (eval_cfg.get("evaluation_configs") or [])
+        if isinstance(c, dict) and c.get("enabled") is not False
+    ]
+    if request.evaluation_configs and all(c.id for c in request.evaluation_configs):
+        selected = {c.id for c in request.evaluation_configs}
+        configs = [c for c in configs if c.get("id") in selected]
+    return configs
 
 
-def _completed_generation_ids(
-    db: Session,
-    project_id: str,
-    *,
-    model_ids: Optional[List[str]] = None,
-    structure_keys: Optional[List[str]] = None,
-) -> List[str]:
-    """Completed generation ids for the project, narrowed like the worker
-    narrows a scoped run (model ids, prompt structures; an empty model list
-    means none were selected). Cached scope —
-    helper resolves fields against this list rather than re-querying."""
-    from project_models import Task
-    from models import Generation, ResponseGeneration
-    if model_ids is not None and not model_ids:
-        return []
-    q = (
-        db.query(Generation.id)
-        .join(Task, Task.id == Generation.task_id)
-        .filter(Task.project_id == project_id, Generation.status == "completed")
-    )
-    if model_ids:
-        q = q.filter(Generation.model_id.in_(model_ids))
-    if structure_keys:
-        q = q.join(
-            ResponseGeneration, Generation.generation_id == ResponseGeneration.id
-        ).filter(ResponseGeneration.structure_key.in_(structure_keys))
-    return [r[0] for r in q.all()]
-
-
-def _annotation_ids(
-    db: Session,
-    project_id: str,
-    *,
-    annotator_user_ids: Optional[List[str]] = None,
-) -> List[str]:
-    """Non-cancelled annotation ids (the worker skips cancelled ones). None
-    means every annotator; an empty list means none were selected."""
-    from project_models import Annotation, Task
-    if annotator_user_ids is not None and not annotator_user_ids:
-        return []
-    q = (
-        db.query(Annotation.id)
-        .join(Task, Task.id == Annotation.task_id)
-        .filter(Task.project_id == project_id, Annotation.was_cancelled == False)  # noqa: E712
-    )
-    if annotator_user_ids:
-        q = q.filter(Annotation.completed_by.in_(annotator_user_ids))
-    return [r[0] for r in q.all()]
-
-
-def _subjects_for_pred_field(
-    pred_field: str,
-    *,
-    gen_ids_by_field: List[str],
-    annotation_ids: List[str],
-) -> List[tuple]:
-    """Return a list of subject keys for one `prediction_fields` entry.
-
-    Each key is `(kind, id)` where kind ∈ {'generation','annotation'}.
-
-    Mirrors the worker's resolution at services/workers/tasks.py:234
-    and the human-eval block around line 3289-3291: a plain field name
-    (no `model:`/`human:`/`__all_*__` prefix) gets auto-prefixed to
-    `human:<field>` for annotation context AND used as a model field —
-    so the cost includes both subject sets, matching what the worker
-    will actually run.
-    """
-    if pred_field == "__all_model__":
-        return [("generation", gid) for gid in gen_ids_by_field]
-    if pred_field == "__all_human__" or pred_field.startswith("human:"):
-        return [("annotation", aid) for aid in annotation_ids]
-    if pred_field.startswith("model:"):
-        return [("generation", gid) for gid in gen_ids_by_field]
-    # Plain field name — both sides.
-    return [("generation", gid) for gid in gen_ids_by_field] + [
-        ("annotation", aid) for aid in annotation_ids
+def _judge_configs(configs: List[Dict[str, Any]], judge_model_id: str) -> List[Dict[str, Any]]:
+    """The ``llm_judge_*`` configs among ``configs`` that run this judge."""
+    return [
+        c for c in configs
+        if (c.get("metric") or "").startswith("llm_judge_")
+        and any(j == judge_model_id for j, _runs in judge_runs(c))
     ]
 
 
-def _already_scored_subjects(
-    db: Session, project_id: str, *, config_id: str, pred_field: str
-) -> set:
-    """Return subject keys (`(kind, id)`) already scored for this
-    config+pred_field combination — i.e. what the worker would skip
-    under `evaluate_missing_only`.
-
-    The worker writes `task_evaluations.field_name = "{config_id}|{pred_field}|{ref_field}"`
-    (see services/workers/tasks.py:4747, 5318). Match on exact
-    `config_id|pred_field|` prefix; using only `metric_id-%` (issue #132)
-    over-attributes across same-metric configs and silently treats one
-    config's rows as another's, masking real missing cells.
-
-    Plain (unprefixed) field names are stored as-is in the field_name's
-    middle slot for BOTH arms — the worker does NOT add a `human:`
-    prefix when writing the annotation-arm row (see worker write sites
-    around services/workers/tasks.py:4747 and 5318 — same composite,
-    distinguished only by whether `generation_id` or `annotation_id` is
-    populated). So a plain pred_field maps to ONE field_name shape but
-    TWO subject_col lookups.
-    """
-    from models import TaskEvaluation
-
-    if pred_field.startswith("human:") or pred_field == "__all_human__":
-        return _scored_for(
-            db, project_id, config_id=config_id, pred_field_norm=pred_field,
-            subject_col=TaskEvaluation.annotation_id, kind="annotation",
+def _eval_judge_calls(
+    db: Session, request: "CostEstimateRequest", configs: List[Dict[str, Any]]
+) -> Dict[str, int]:
+    """Judge calls per judge model for the run, from the planner the worker
+    dispatches with (services/shared/evaluation_planning.py). Planned per
+    config because the project dialog starts one run per config."""
+    calls: Dict[str, int] = {}
+    for config in configs:
+        if not (config.get("metric") or "").startswith("llm_judge_"):
+            continue
+        plan = plan_evaluation(
+            db,
+            request.project_id,
+            [config],
+            # An explicit empty model list deselects the generation side.
+            model_ids=request.model_ids if "model_ids" in request.model_fields_set else None,
+            annotator_user_ids=request.annotator_user_ids,
+            structure_keys=request.structure_keys,
+            missing_only=request.generation_mode == "missing",
         )
-    if pred_field == "__all_model__" or pred_field.startswith("model:"):
-        return _scored_for(
-            db, project_id, config_id=config_id, pred_field_norm=pred_field,
-            subject_col=TaskEvaluation.generation_id, kind="generation",
-        )
-    # Plain field — stored under the bare name for both arms; distinguish
-    # by which subject_col is populated. Two queries, union.
-    model_done = _scored_for(
-        db, project_id, config_id=config_id, pred_field_norm=pred_field,
-        subject_col=TaskEvaluation.generation_id, kind="generation",
-    )
-    human_done = _scored_for(
-        db, project_id, config_id=config_id, pred_field_norm=pred_field,
-        subject_col=TaskEvaluation.annotation_id, kind="annotation",
-    )
-    return model_done | human_done
+        for judge, n in judge_call_counts(plan, [config]).items():
+            calls[judge] = calls.get(judge, 0) + n
+    return calls
 
 
-def _scored_for(
-    db: Session, project_id: str, *, config_id: str, pred_field_norm: str,
-    subject_col, kind: str,
-) -> set:
-    from models import TaskEvaluation, EvaluationRun
-    # DISTINCT bounds the result at one row per scored subject; without it the
-    # row count grows with every historical re-run of the same cell (issue #106).
-    rows = (
-        db.query(subject_col)
-        .join(EvaluationRun, EvaluationRun.id == TaskEvaluation.evaluation_id)
-        .filter(
-            EvaluationRun.project_id == project_id,
-            TaskEvaluation.field_name.like(f"{config_id}|{pred_field_norm}|%"),
-            TaskEvaluation.metrics.isnot(None),
-            TaskEvaluation.error_message.is_(None),
-            subject_col.isnot(None),
-        )
-        .distinct()
-        .all()
+def _has_completed_generations(db: Session, project_id: str) -> bool:
+    from models import Generation
+    from project_models import Task
+
+    return (
+        db.query(Generation.id)
+        .join(Task, Task.id == Generation.task_id)
+        .filter(Task.project_id == project_id, Generation.status == "completed")
+        .first()
+        is not None
     )
-    return {(kind, r[0]) for r in rows if r[0] is not None}
 
 
 def _count_cells_to_generate(
     db: Session,
     project_id: str,
     model_id: str,
-    structure_keys: Optional[List[str]],
+    structure_keys: Optional[List[Optional[str]]],
     generation_mode: Optional[str],
 ) -> int:
-    """Count (task, structure) cells that would actually fire for `model_id`.
-
-    Mirrors the should_generate() decision in
-    services/api/routers/generation_task_list.py around lines 555-585:
-
-    - mode in ('all', 'single', None): every (task, structure) cell counts,
-      regardless of existing generations.
-    - mode == 'missing': a cell counts only when the latest matching
-      `response_generations` row ended without an answer (failed, stopped,
-      cancelled; ``MISSING_MODE_REGENERATE_STATUSES``) or no row exists at
-      all. Cells whose latest is `completed`/`pending`/`running`/`paused`
-      are skipped — they wouldn't be re-queued.
-
-    The cell count, not raw task count, is what drives cost: with one
-    structure active and 14/15 tasks already succeeded, "Generate missing"
-    fires 1 cell, not 15.
-    """
+    """(task, structure) cells a generation run queues for ``model_id``, from
+    the planner the generate endpoint dispatches with
+    (services/generation_planning.py)."""
     from project_models import Task
-    from models import ResponseGeneration as DBResponseGeneration
-
-    structures: List[Optional[str]] = list(structure_keys) if structure_keys else [None]
-
-    if generation_mode != "missing":
-        # Only the task count matters here — don't materialize the ID list.
-        task_count = (
-            db.query(func.count(Task.id)).filter(Task.project_id == project_id).scalar()
-        )
-        return task_count * len(structures)
 
     task_ids = [r[0] for r in db.query(Task.id).filter(Task.project_id == project_id).all()]
-    if not task_ids:
-        return 0
-
-    # Issue #83: mode == "missing" — bulk-fetch latest status per cell in two
-    # round-trips (exact structure_key matches + NULL fallback rows) instead
-    # of one query per (task, structure). The Python merge below preserves
-    # the exact-match-preferred-over-NULL precedence the worker uses.
-    sk_values: List[str] = [s for s in structures if s is not None]
-    has_none = None in structures
-
-    exact_map: Dict[tuple, str] = {}
-    if sk_values:
-        rows_exact = (
-            db.query(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.structure_key,
-                DBResponseGeneration.status,
-            )
-            .filter(
-                DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.task_id.in_(task_ids),
-                DBResponseGeneration.model_id == model_id,
-                DBResponseGeneration.structure_key.in_(sk_values),
-            )
-            .distinct(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.structure_key,
-            )
-            .order_by(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.structure_key,
-                DBResponseGeneration.created_at.desc(),
-            )
-            .all()
+    return len(
+        plan_generation_cells_sync(
+            db,
+            project_id,
+            task_ids,
+            [model_id],
+            list(structure_keys) if structure_keys else [None],
+            generation_mode,
         )
-        exact_map = {(r.task_id, r.structure_key): r.status for r in rows_exact}
-
-    null_map: Dict[str, str] = {}
-    if sk_values or has_none:
-        rows_null = (
-            db.query(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.status,
-            )
-            .filter(
-                DBResponseGeneration.project_id == project_id,
-                DBResponseGeneration.task_id.in_(task_ids),
-                DBResponseGeneration.model_id == model_id,
-                DBResponseGeneration.structure_key.is_(None),
-            )
-            .distinct(DBResponseGeneration.task_id)
-            .order_by(
-                DBResponseGeneration.task_id,
-                DBResponseGeneration.created_at.desc(),
-            )
-            .all()
-        )
-        null_map = {r.task_id: r.status for r in rows_null}
-
-    cells = 0
-    for task_id in task_ids:
-        for sk in structures:
-            if sk is not None:
-                status_val = exact_map.get((task_id, sk))
-                if status_val is None:
-                    status_val = null_map.get(task_id)
-            else:
-                status_val = null_map.get(task_id)
-            if status_val is None or status_val in MISSING_MODE_REGENERATE_STATUSES:
-                cells += 1
-    return cells
+    )
 
 
 @router.post("/cost-estimate", response_model=CostEstimateResponse)
@@ -764,7 +453,7 @@ def _compute_cost_estimate_impl(
     if not sample_texts:
         sample_texts = [""]
     default_basis = "task_data"
-    if request.mode == "evaluation" and _completed_generation_ids(db, request.project_id):
+    if request.mode == "evaluation" and _has_completed_generations(db, request.project_id):
         default_basis = "generation_outputs"
     input_basis = default_basis
     output_basis = "utilization"
@@ -806,12 +495,19 @@ def _compute_cost_estimate_impl(
             annotator_user_ids=request.annotator_user_ids,
         )
 
-    # The configs being run, when the client names them. A client that sends
-    # configs without ids (or none) keeps the old behavior: every enabled
-    # config naming the judge is priced.
-    selected_config_ids: Optional[Set[str]] = None
-    if request.evaluation_configs and all(c.id for c in request.evaluation_configs):
-        selected_config_ids = {c.id for c in request.evaluation_configs}
+    # Evaluation: the configs the run grades and the judge calls they make,
+    # planned once for every judge priced below.
+    run_configs: List[Dict[str, Any]] = []
+    calls_by_judge: Dict[str, int] = {}
+    if request.mode == "evaluation":
+        run_configs = _run_eval_configs(project, request)
+        calls_by_judge = _eval_judge_calls(db, request, run_configs)
+    else:
+        # Generation: the structures the run generates, as the endpoint
+        # resolves them.
+        gen_structure_keys = run_structure_keys(
+            project.generation_config, request.structure_keys
+        )
 
     per_model_costs: List[PerModelCost] = []
     total_usd = 0.0
@@ -845,21 +541,7 @@ def _compute_cost_estimate_impl(
         # generations were missing instead of which judge calls are
         # missing. Different question, different answer.
         if request.mode == "evaluation":
-            cells = _count_evaluation_judge_calls(
-                db=db,
-                project_id=request.project_id,
-                judge_model_id=model_id,
-                generation_mode=request.generation_mode,
-                config_ids=selected_config_ids,
-                # An explicit empty model list deselects the generation side.
-                model_ids=(
-                    request.model_ids
-                    if "model_ids" in request.model_fields_set
-                    else None
-                ),
-                annotator_user_ids=request.annotator_user_ids,
-                structure_keys=request.structure_keys,
-            )
+            cells = calls_by_judge.get(model_id, 0)
             # The judge-call count already factors run_index, so don't
             # multiply by runs_per_call again below.
             runs_already_counted = True
@@ -868,7 +550,7 @@ def _compute_cost_estimate_impl(
                 db=db,
                 project_id=request.project_id,
                 model_id=model_id,
-                structure_keys=request.structure_keys,
+                structure_keys=gen_structure_keys,
                 generation_mode=request.generation_mode,
             )
             runs_already_counted = False
@@ -883,7 +565,7 @@ def _compute_cost_estimate_impl(
         model_outputs: Optional[List[Optional[float]]] = None
         model_basis = default_basis
         if request.mode == "evaluation":
-            judge_cfgs = _load_llm_judge_configs(db, request.project_id, model_id)
+            judge_cfgs = _judge_configs(run_configs, model_id)
             rendered_cfgs = [c for c in judge_cfgs if renders_judge_prompt(c)]
             rendered = (
                 sample_judge_calls(

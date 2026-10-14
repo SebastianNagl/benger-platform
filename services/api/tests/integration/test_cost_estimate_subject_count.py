@@ -477,10 +477,15 @@ async def _set_project_judge_configs(
     db: AsyncSession, project: Project, configs: List[Dict],
 ) -> None:
     """Set `project.evaluation_config.evaluation_configs` so the cost
-    endpoint's `_load_llm_judge_configs` can find these configs.
+    endpoint plans the run over these configs.
 
     Each config dict needs: id, metric, prediction_fields, judges:[{judge_model_id, runs}].
+    A config without reference_fields gets `musterloesung`, the reference
+    `_seed_scored_cells` writes: the worker calls a judge once per
+    (prediction, reference) pair, so a config without one costs nothing.
     """
+    for config in configs:
+        config.setdefault("reference_fields", ["musterloesung"])
     project.evaluation_config = {"evaluation_configs": configs}
     db.add(project)
     await db.flush()
@@ -851,14 +856,8 @@ class TestEvaluationJudgeCalls:
     async def test_rescored_cells_dedup_server_side(
         self, async_test_client, async_test_db
     ):
-        """Issue #106: the skip-set query must return one row per scored
-        subject, not one per historical TaskEvaluation row. Every re-run of
-        an evaluation used to add a full copy of the result set to the rows
-        the API pulls into Python before deduplicating.
-        """
-        from sqlalchemy import event
-
-        from routers.cost_estimate import _scored_for
+        """Issue #106: cells scored by several historical runs count once;
+        a config covered twice over still has nothing missing."""
 
         actor = await _seed_user(async_test_db)
         await _seed_judge_pricing(async_test_db, JUDGE_A)
@@ -883,36 +882,6 @@ class TestEvaluationJudgeCalls:
                 generation_ids=all_gen_ids,
             )
         await async_test_db.commit()
-
-        # `_scored_for` is sync-only and takes a sync Session. Bridge it onto
-        # a sync Session bound to THIS async connection/transaction via
-        # run_sync, exactly as the endpoint does, so it sees the seeded rows.
-        def _run_scored_for(sync_db):
-            captured: List[str] = []
-
-            def _capture(conn, cursor, statement, parameters, context, executemany):
-                captured.append(statement)
-
-            bind = sync_db.get_bind()
-            event.listen(bind, "before_cursor_execute", _capture)
-            try:
-                scored = _scored_for(
-                    sync_db, pid,
-                    config_id=cfg_id, pred_field_norm="__all_model__",
-                    subject_col=TaskEvaluation.generation_id, kind="generation",
-                )
-            finally:
-                event.remove(bind, "before_cursor_execute", _capture)
-            return scored, captured
-
-        scored, captured = await async_test_db.run_sync(_run_scored_for)
-
-        # Set semantics unchanged: each subject counted once.
-        assert scored == {("generation", gid) for gid in all_gen_ids}
-        # And the dedup happened in SQL, not by fetching duplicate rows.
-        selects = [s for s in captured if s.lstrip().upper().startswith("SELECT")]
-        assert selects, "skip-set query was not captured"
-        assert any("DISTINCT" in s.upper() for s in selects)
 
         # End-to-end: a fully (re-)covered config reports zero missing cells.
         with _as_user(actor):

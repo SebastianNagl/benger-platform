@@ -294,144 +294,6 @@ def _build_multidim_judge_row_metrics(
     return metrics, float(normalized)
 
 
-def _row_has_score(metrics: dict | None) -> bool:
-    """A TaskEvaluation row counts as 'already evaluated' if any non-error
-    metric carries a numeric value — either as a bare float (legacy shape)
-    or under the unified ``{value, method, details, error}`` dict produced
-    by SampleEvaluator after the academic-rigor overhaul.
-
-    Without the dict-aware branch, every recently persisted row reads as
-    "missing" and ``evaluate_missing_only=True`` silently re-runs every
-    successful evaluation — burning API quota and shifting scores via LLM
-    nondeterminism. Mirrors ``_coerce_metric_value`` from
-    ``services/api/routers/evaluations/results.py``; kept duplicated rather
-    than imported across the worker / API package boundary.
-    """
-    if not metrics:
-        return False
-    for k, v in metrics.items():
-        if k == "error":
-            continue
-        if isinstance(v, bool):
-            continue
-        if isinstance(v, (int, float)):
-            return True
-        if isinstance(v, dict):
-            inner = v.get("value")
-            if isinstance(inner, (int, float)) and not isinstance(inner, bool):
-                return True
-    return False
-
-
-def _row_is_terminal_error(metrics: dict | None) -> bool:
-    """A row that's been tried and failed in a non-recoverable way must NOT
-    be re-tried on the next ``evaluate_missing_only=True`` run. The worker
-    writes such rows with the unified ``{value: None, ..., error: "<msg>"}``
-    blob shape, OR with a non-None top-level ``error_message`` on the row.
-
-    Without this gate, every retry would re-attempt the same hopeless target,
-    accumulate another stub row each time, and (if it's an LLM judge call)
-    burn API budget on a call we already know fails. Pairs with
-    ``_row_has_score`` — both must be considered when populating the
-    "already evaluated" set in missing-only logic.
-    """
-    if not metrics:
-        return False
-    for k, v in metrics.items():
-        if k == "error":
-            continue
-        if isinstance(v, dict) and v.get("error"):
-            return True
-    return False
-
-
-def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str | None:
-    """Normalize a stored ``TaskEvaluation.field_name`` to the canonical
-    pipe format ``{config_id}|{pred_field}|{ref_field}`` so missing-only
-    matching tolerates legacy colon-separated rows and rows missing the
-    ``human:`` annotation prefix.
-
-    The worker has changed the separator from ``:`` to ``|`` and the
-    annotation prefix convention at least once; without this normalization,
-    rows persisted before the change get classified as "missing" and
-    re-evaluated on every missing-only run — wasting API quota and
-    polluting score history with duplicates under the new format.
-
-    Bare legacy names (e.g. ``'loesung'``) without a separator are returned
-    unchanged: recovering ``config_id`` requires project context that this
-    helper doesn't have. The matching backfill ``migrate_field_names.py``
-    should be run once per project to bring those rows up to canonical.
-    """
-    if not field_name:
-        return field_name
-    if "|" in field_name:
-        parts = field_name.split("|")
-    elif ":" in field_name:
-        parts = field_name.split(":")
-    else:
-        return field_name  # bare legacy — caller should have backfilled
-    if len(parts) != 3:
-        return field_name
-    cfg, pred, ref = parts
-    if is_annotation and not pred.startswith("human:") and not pred.startswith("model:"):
-        pred = f"human:{pred}"
-    return f"{cfg}|{pred}|{ref}"
-
-
-def _pred_field_matches(row_field_name: str | None, config_pred_field: str) -> bool:
-    """Does a stored *bare* ``TaskEvaluation.field_name`` correspond to a
-    config's ``prediction_fields`` entry, for missing-only key reconstruction?
-
-    Immediate eval persists the BARE prediction field as ``field_name`` (e.g.
-    ``"human:loesung"`` or ``"loesung"`` — see the immediate-eval block in
-    ``run_single_sample_evaluation``), whereas the missing-only matcher keys on
-    the 3-part ``{config_id}|{pred}|{ref}`` form. 3-part rows are already handled
-    by :func:`_normalize_field_key`; this helper only bridges the bare form so a
-    row whose ``evaluation_config_id`` is known can be mapped back to the exact
-    expected key. The ``human:``/``model:`` role prefix is tolerated on either
-    side so a bare ``"loesung"`` row matches a ``"human:loesung"`` config field.
-    """
-    if not row_field_name:
-        return False
-    # 3-part rows are the _normalize_field_key path, not this one.
-    if "|" in row_field_name:
-        return False
-
-    from eval_field_classification import same_field
-
-    return same_field(row_field_name, config_pred_field)
-
-
-def _reconstruct_expected_keys(row, configs_by_id: dict) -> set:
-    """Expected-key strings an existing ``TaskEvaluation`` row satisfies, derived
-    from its discrete ``evaluation_config_id`` (Issue #111 / migration 057).
-
-    Immediate eval stores a bare ``field_name`` that the 3-part missing-only
-    matcher misses, but it also stores ``evaluation_config_id``; from that we
-    rebuild the exact ``{config_id}|{pred}|{ref}`` strings that
-    ``all_expected_field_keys`` is built from, so an immediate-graded unit counts
-    as "done" without changing what immediate writes. Returns an empty set when
-    the row carries no config id, or a config id not among the current run's
-    configs (a re-saved config gets a new id — those rows aren't recognized).
-
-    Wildcard prediction fields (``__all_human__``/``__all_model__``) are skipped:
-    the expected set holds the literal wildcard string while rows hold the
-    expanded field, so wildcard configs are a pre-existing missing-only
-    limitation this must not silently change.
-    """
-    keys: set = set()
-    cfg = configs_by_id.get(getattr(row, "evaluation_config_id", None))
-    if not cfg:
-        return keys
-    for pf in cfg.get("prediction_fields", []):
-        if pf in ("__all_human__", "__all_model__"):
-            continue
-        if _pred_field_matches(row.field_name, pf):
-            for rf in cfg.get("reference_fields", []):
-                keys.add(f"{cfg.get('id', 'unknown')}|{pf}|{rf}")
-    return keys
-
-
 # Add current directory to Python path for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -446,6 +308,17 @@ _shared_dir = (
 )
 if _shared_dir not in sys.path:
     sys.path.insert(0, _shared_dir)
+
+# The missing-only helpers live with the shared evaluation planner, which the
+# cost estimate uses too; re-exported here for the cell evaluators
+# (``tasks._normalize_field_key``) and the tests that import them from tasks.
+from evaluation_planning import (  # noqa: E402,F401
+    _normalize_field_key,
+    _pred_field_matches,
+    _reconstruct_expected_keys,
+    _row_has_score,
+    _row_is_terminal_error,
+)
 
 # Per-metric floors on the DEFAULT max_tokens. A Bewertungsbogen judge
 # (llm_judge_rubric) answers with one JSON object carrying a reason per step —
@@ -2094,7 +1967,7 @@ def run_evaluation(
 
         try:
             # Import models here to avoid circular imports
-            from models import EvaluationRun, TaskEvaluation, Generation, ResponseGeneration
+            from models import EvaluationRun, Generation
             from project_models import Annotation, Project, Task
 
             # Update evaluation status to running
@@ -2211,15 +2084,9 @@ def run_evaluation(
             from models import EvaluationJudgeRun
             import uuid as _uuid_judge
 
-            def _resolve_judges(params: Dict[str, Any]) -> List[Dict[str, Any]]:
-                judges = params.get("judges")
-                if isinstance(judges, list) and judges:
-                    return judges
-                # `or`, not a .get default: writers also store the key with a
-                # null or empty value, which a default does not cover.
-                legacy = params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID
-                runs = int(params.get("runs_per_judge", 1) or 1)
-                return [{"judge_model_id": legacy, "runs": runs}]
+            # Shared with the cost estimate, so both read a config's judges
+            # the same way.
+            from evaluation_planning import resolve_judges as _resolve_judges
 
             # Cache (judge_model_id, run_index) -> judge_run_id within this
             # evaluation so multiple metrics that share the same judge reuse
@@ -2512,13 +2379,29 @@ def run_evaluation(
             # and computes the final metrics dict exactly once when every
             # header sub-task has finished.
 
-            # Load tasks (same filters as the legacy body)
-            tasks_query = db.query(Task).filter(Task.project_id == project_id)
-            if task_ids:
-                tasks_query = tasks_query.filter(Task.id.in_(task_ids))
-            tasks = tasks_query.limit(batch_size * 10).all()
+            # What to grade comes from the shared planner, which the cost
+            # estimate also prices (services/shared/evaluation_planning.py):
+            # the run's tasks, each config's side, and one cell per subject
+            # left after the scope filters and the missing-only skip set.
+            # Every task of the project is planned; this used to load at most
+            # batch_size * 10 tasks in no fixed order, so larger projects
+            # (EKK 27.06: 3273 tasks) were graded only partly per run.
+            from evaluation_planning import plan_evaluation
 
-            if not tasks:
+            plan = plan_evaluation(
+                db,
+                project_id,
+                enabled_configs,
+                task_ids=task_ids,
+                model_ids=model_ids,
+                annotator_user_ids=annotator_user_ids,
+                structure_keys=structure_keys,
+                label_config_version=label_config_version,
+                missing_only=evaluate_missing_only,
+            )
+            run_task_ids = plan.task_ids
+
+            if not run_task_ids:
                 evaluation.status = "failed"
                 evaluation.error_message = "No tasks found in project"
                 db.commit()
@@ -2528,228 +2411,24 @@ def run_evaluation(
                     "evaluation_id": evaluation_id,
                 }
 
-            logger.info(f"Loaded {len(tasks)} tasks for evaluation enumeration")
-
-            # Pre-compute expected field keys (same as legacy 2747-2753).
-            all_expected_field_keys = {
-                f"{c.get('id', 'unknown')}|{pf}|{rf}"
-                for c in enabled_configs
-                for pf in c.get("prediction_fields", [])
-                for rf in c.get("reference_fields", [])
-            }
-
-            # Index configs by id so missing-only can reconstruct expected keys
-            # for rows that carry the discrete `evaluation_config_id` (Issue #111)
-            # but a bare `field_name` — i.e. immediate-eval rows, which the 3-part
-            # `_normalize_field_key` matcher alone never recognizes. See
-            # `_reconstruct_expected_keys`.
-            configs_by_id = {c.get("id", "unknown"): c for c in enabled_configs}
-
-            # Pre-load the gen-side missing-only skip set (same query as
-            # legacy 2755-2794 — terminal-error rows count as "tried" to
-            # avoid hopeless retries).
-            evaluated_by_gen: Dict[str, set] = {}
-            if evaluate_missing_only:
-                task_id_list = [t.id for t in tasks]
-                existing = (
-                    db.query(
-                        TaskEvaluation.generation_id,
-                        TaskEvaluation.field_name,
-                        TaskEvaluation.metrics,
-                        TaskEvaluation.evaluation_config_id,
-                    )
-                    .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
-                    .filter(
-                        TaskEvaluation.task_id.in_(task_id_list),
-                        TaskEvaluation.generation_id.isnot(None),
-                        EvaluationRun.status.in_(("completed", "running", "pending", "cancelled", "paused")),
-                    )
-                    .all()
-                )
-                for r in existing:
-                    if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
-                        done = evaluated_by_gen.setdefault(r.generation_id, set())
-                        done.add(_normalize_field_key(r.field_name, is_annotation=False))
-                        # Also recognize bare-field_name rows (immediate eval) via
-                        # their discrete evaluation_config_id.
-                        done |= _reconstruct_expected_keys(r, configs_by_id)
+            logger.info(f"Loaded {len(run_task_ids)} tasks for evaluation enumeration")
+            if annotator_user_ids:
                 logger.info(
-                    f"Loaded existing gen evaluations: {sum(len(v) for v in evaluated_by_gen.values())} "
-                    f"results across {len(evaluated_by_gen)} generations"
+                    f"[evaluation {evaluation_id}] annotator_user_ids filter active "
+                    f"({len(annotator_user_ids)} ids); annotation pool reduced from "
+                    f"{plan.ann_pre_filter} to {plan.ann_pool_scoped}"
                 )
 
-            # Classify EVERY config up front, not just far enough to learn
-            # that one of them is human-side. Two things depend on the full
-            # picture: the model-side enumeration below is now guarded the
-            # same way the annotation side already was, and a run that
-            # dispatches nothing has to say WHICH config matched nothing and
-            # why.
-            config_sides: List[dict] = []
-            classifier_unavailable = False
-            try:
-                from eval_field_classification import classify_pred_fields as _classify_pf
-
-                for c in enabled_configs:
-                    metric = c.get("metric", "") or ""
-                    pred = c.get("prediction_fields", []) or []
-                    if metric.startswith("korrektur_"):
-                        human_pfs, llm_pfs = [], []
-                    else:
-                        human_pfs, llm_pfs = _classify_pf(metric, pred)
-                    config_sides.append({
-                        "config_id": c.get("id") or metric or "unknown",
-                        "metric": metric,
-                        "display_name": c.get("display_name"),
-                        "human_fields": list(human_pfs),
-                        "llm_fields": list(llm_pfs),
-                    })
-            except Exception:
-                # The worker cannot tell which side to grade. Previously this
-                # silently skipped the entire annotation block and the run
-                # graded nothing; now it is a reported, blocking reason.
-                classifier_unavailable = True
-                config_sides = [
-                    {
-                        "config_id": c.get("id") or c.get("metric") or "unknown",
-                        "metric": c.get("metric", "") or "",
-                        "display_name": c.get("display_name"),
-                        "human_fields": [],
-                        "llm_fields": [],
-                    }
-                    for c in enabled_configs
-                ]
-
-            # An explicitly empty selection (not None) deselects that side: the
-            # evaluation dialog sends annotator_user_ids=[] for "model
-            # generations only" and model_ids=[] for "submitted answers only".
-            # Stripping the side's fields here also covers plain fields, which
-            # otherwise grade both sides.
-            skip_generations = model_ids is not None and len(model_ids) == 0
-            skip_annotations = (
-                annotator_user_ids is not None and len(annotator_user_ids) == 0
-            )
-            if skip_generations or skip_annotations:
-                for side in config_sides:
-                    had_fields = bool(side["human_fields"] or side["llm_fields"])
-                    if skip_annotations:
-                        side["human_fields"] = []
-                    if skip_generations:
-                        side["llm_fields"] = []
-                    if had_fields and not (side["human_fields"] or side["llm_fields"]):
-                        side["side_not_selected"] = True
-
+            config_sides = plan.config_sides
+            classifier_unavailable = plan.classifier_unavailable
+            gen_cells = plan.gen_cells
+            ann_cells = plan.ann_cells
+            gen_pool_scoped = plan.gen_pool_scoped
+            ann_pool_scoped = plan.ann_pool_scoped
+            ann_pre_filter = plan.ann_pre_filter
+            generation_filters_active = plan.generation_filters_active
             has_human_config = any(s["human_fields"] for s in config_sides)
             has_llm_config = any(s["llm_fields"] for s in config_sides)
-
-            # Enumerate generation cells.
-            uses_all_model = any(
-                "__all_model__" in c.get("prediction_fields", []) for c in enabled_configs
-            )
-            gen_cells: List[tuple] = []  # (task_id, generation_id, already_done_field_keys)
-            # Subject counters separate "nothing to grade" from "everything
-            # already graded" - the distinction the old short-circuit lost.
-            gen_pool_scoped = 0
-            generation_filters_active = bool(
-                label_config_version or model_ids or structure_keys
-            )
-            for task in tasks if has_llm_config else []:
-                generations_query = db.query(Generation).filter(Generation.task_id == task.id)
-                if not uses_all_model:
-                    generations_query = generations_query.filter(
-                        Generation.parse_status == "success"
-                    )
-                if label_config_version:
-                    generations_query = generations_query.filter(
-                        Generation.label_config_version == label_config_version
-                    )
-                if model_ids:
-                    generations_query = generations_query.filter(
-                        Generation.model_id.in_(model_ids)
-                    )
-                if structure_keys:
-                    # Scope generation cells to specific prompt structures
-                    # (Generation.generation_id -> response_generations.id).
-                    # SQL IN never matches NULL, so legacy generations with
-                    # structure_key IS NULL are excluded whenever the filter
-                    # is given — intended: a scoped run grades only cells
-                    # produced under the named structures.
-                    generations_query = generations_query.join(
-                        ResponseGeneration,
-                        Generation.generation_id == ResponseGeneration.id,
-                    ).filter(ResponseGeneration.structure_key.in_(structure_keys))
-                generations = generations_query.all()
-                gen_pool_scoped += len(generations)
-                for gen in generations:
-                    gen_done = evaluated_by_gen.get(gen.id, set())
-                    if evaluate_missing_only:
-                        if all_expected_field_keys and all_expected_field_keys.issubset(gen_done):
-                            # Fully evaluated already; nothing to dispatch for this cell.
-                            continue
-                    # Pass the per-cell already-done set to the sub-task so it
-                    # can skip already-evaluated field_keys WITHOUT firing the
-                    # LLM judge call (ON CONFLICT DO NOTHING would catch the
-                    # INSERT but the LLM call would already have happened).
-                    gen_cells.append((task.id, gen.id, sorted(gen_done) if gen_done else []))
-
-            # Annotation-side enumeration. The legacy body at ~3357-3412
-            # pre-loaded all annotations once (with the annotator_user_ids
-            # scope filter applied) and the existing-annotation-eval set
-            # for dedup. We keep that pattern, just used for enumeration
-            # instead of in-place iteration.
-            ann_cells: List[tuple] = []  # (task_id, annotation_id)
-            ann_pool_scoped = 0
-            ann_pre_filter = 0
-            if has_human_config:
-                task_id_list = [t.id for t in tasks]
-                ann_query = db.query(Annotation).filter(
-                    Annotation.task_id.in_(task_id_list),
-                    Annotation.was_cancelled == False,  # noqa: E712
-                )
-                ann_pre_filter = ann_query.count()
-                if annotator_user_ids:
-                    ann_query = ann_query.filter(
-                        Annotation.completed_by.in_(annotator_user_ids)
-                    )
-                all_annotations = ann_query.all()
-                ann_pool_scoped = len(all_annotations)
-                if annotator_user_ids:
-                    logger.info(
-                        f"[evaluation {evaluation_id}] annotator_user_ids filter active "
-                        f"({len(annotator_user_ids)} ids); annotation pool reduced from "
-                        f"{ann_pre_filter} to {len(all_annotations)}"
-                    )
-
-                evaluated_by_ann: Dict[str, set] = {}
-                if evaluate_missing_only:
-                    existing_ann = (
-                        db.query(
-                            TaskEvaluation.annotation_id,
-                            TaskEvaluation.field_name,
-                            TaskEvaluation.metrics,
-                            TaskEvaluation.evaluation_config_id,
-                        )
-                        .join(EvaluationRun, TaskEvaluation.evaluation_id == EvaluationRun.id)
-                        .filter(
-                            TaskEvaluation.task_id.in_(task_id_list),
-                            TaskEvaluation.annotation_id.isnot(None),
-                            EvaluationRun.status.in_(("completed", "running", "pending", "cancelled", "paused")),
-                        )
-                        .all()
-                    )
-                    for r in existing_ann:
-                        if _row_has_score(r.metrics) or _row_is_terminal_error(r.metrics):
-                            done = evaluated_by_ann.setdefault(r.annotation_id, set())
-                            done.add(_normalize_field_key(r.field_name, is_annotation=True))
-                            # Also recognize bare-field_name rows (immediate eval)
-                            # via their discrete evaluation_config_id.
-                            done |= _reconstruct_expected_keys(r, configs_by_id)
-
-                for ann in all_annotations:
-                    ann_done = evaluated_by_ann.get(ann.id, set())
-                    if evaluate_missing_only:
-                        if all_expected_field_keys and all_expected_field_keys.issubset(ann_done):
-                            continue
-                    ann_cells.append((ann.task_id, ann.id, sorted(ann_done) if ann_done else []))
 
             # ── Build serialized judge_run_ids_by_config for Celery kwargs ────
             # The full `judge_runs_by_config` dict (built upstream during judge
@@ -2787,13 +2466,13 @@ def run_evaluation(
             if has_llm_config and gen_pool_scoped == 0:
                 gen_pool_raw = (
                     db.query(Generation)
-                    .filter(Generation.task_id.in_([t.id for t in tasks]))
+                    .filter(Generation.task_id.in_(run_task_ids))
                     .count()
                 )
             if has_human_config and ann_pool_scoped == 0:
                 ann_pool_raw = (
                     db.query(Annotation)
-                    .filter(Annotation.task_id.in_([t.id for t in tasks]))
+                    .filter(Annotation.task_id.in_(run_task_ids))
                     .count()
                 )
 
@@ -2823,7 +2502,6 @@ def run_evaluation(
             # so the happy path runs no extra query.
             subject_counts = None
             if any(r["reason"] is not None for r in match_records):
-                run_task_ids = [t.id for t in tasks]
                 subject_counts = {
                     "generations": (
                         db.query(Generation)

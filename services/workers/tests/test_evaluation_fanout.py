@@ -697,33 +697,43 @@ def test_orchestrator_preloads_missing_only_skip_sets():
     """Pre-filtering the chord header against the existing-evaluations
     skip set keeps Celery message count under control on retries (we
     don't fan out N×K cells just to ON-CONFLICT them away inside each
-    sub-task)."""
+    sub-task). The enumeration lives in the shared planner, which the cost
+    estimate uses too; the orchestrator must plan through it."""
+    import inspect
+
+    import evaluation_planning
+
     src = _tasks_source()
     import ast
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == "run_evaluation":
             body_src = ast.get_source_segment(src, node) or ""
-            # Both skip sets get materialized in the orchestrator's pre-filter.
-            assert "evaluated_by_gen" in body_src, (
-                "orchestrator must build the gen-side missing-only skip set"
+            assert "plan_evaluation(" in body_src, (
+                "orchestrator must enumerate its cells with the shared planner"
             )
-            assert "evaluated_by_ann" in body_src, (
-                "orchestrator must build the ann-side missing-only skip set"
+            assert "missing_only=evaluate_missing_only" in body_src, (
+                "orchestrator must pass its missing-only flag to the planner"
             )
-            assert "all_expected_field_keys.issubset" in body_src, (
-                "orchestrator must skip fully-evaluated cells before dispatch"
-            )
-            # Status filter must include 'cancelled' so successful rows
-            # under a cancelled parent run are still reused on re-trigger
-            # in missing-only mode (e.g. an admin cancels mid-run and the
-            # user re-triggers via the UI's "evaluate missing" path).
-            assert body_src.count('"cancelled"') >= 2, (
-                "preload status filter must include 'cancelled' at both "
-                "gen-side and ann-side sites"
-            )
-            return
-    raise AssertionError("run_evaluation function not found")
+            break
+    else:
+        raise AssertionError("run_evaluation function not found")
+
+    plan_src = inspect.getsource(evaluation_planning.plan_evaluation)
+    # Both skip sets get materialized before the cells are built.
+    assert "TaskEvaluation.generation_id" in plan_src, (
+        "planner must build the gen-side missing-only skip set"
+    )
+    assert "TaskEvaluation.annotation_id" in plan_src, (
+        "planner must build the ann-side missing-only skip set"
+    )
+    assert "expected.issubset(done)" in plan_src, (
+        "planner must skip fully-evaluated cells before dispatch"
+    )
+    # Rows under a cancelled parent run are still reused on re-trigger in
+    # missing-only mode (an admin cancels mid-run, the user re-triggers via
+    # "evaluate missing").
+    assert "cancelled" in evaluation_planning._COUNTED_RUN_STATUSES
 
 
 def test_finalizer_recomputes_metrics_from_db():
