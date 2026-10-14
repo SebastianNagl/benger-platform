@@ -537,7 +537,7 @@ async def _seed_scored_cells(
     that look identical to what the worker writes under
     `field_name = "{config_id}|{pred_field}|{reference_field}"`.
 
-    The skip-set query in `_already_scored_subjects` filters on this
+    The planner's skip-set query (evaluation_planning._graded_keys) filters on this
     field_name shape, the project_id (via the EvaluationRun join),
     metrics is not null, and error_message is null.
     """
@@ -630,7 +630,7 @@ def _per_model_cells(body: Dict, judge_id: str) -> int:
 
 
 class TestEvaluationJudgeCalls:
-    """Issue #132: `_count_evaluation_judge_calls` regression tests.
+    """Issue #132: judge-call count regression tests (now the shared planner).
 
     These pin the per-judge cell-count behavior that drives the dollar
     figure. Pre-fix the estimator over-counted by ~63x on partially-
@@ -806,7 +806,7 @@ class TestEvaluationJudgeCalls:
         self, async_test_client, async_test_db
     ):
         """Defect 1: per-judge dollar math must route through
-        `_count_evaluation_judge_calls`, not `_count_eval_subjects`.
+        the shared planner's judge-call count, not `_count_eval_subjects`.
         Pre-fix every judge was billed for the full subject_count across
         all configs, regardless of whether the judge appeared in them.
         """

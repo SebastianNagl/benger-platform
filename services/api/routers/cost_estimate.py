@@ -384,7 +384,7 @@ async def estimate_cost(
 
     The endpoint runs on the async lane for the project-existence check and the
     access-control gate. The cost computation itself is a deep graph of
-    sync-only DB helpers (``_count_eval_subjects``, ``_count_evaluation_judge_calls``,
+    sync-only DB helpers (``_count_eval_subjects``, ``_eval_judge_calls``,
     ``_count_cells_to_generate``, ``_resolve_pricing`` …) plus the sync-only
     ``token_estimation`` samplers — none of which has an async twin and which
     all take ``db: Session``. Rather than partially convert (which the async
@@ -484,7 +484,7 @@ def _compute_cost_estimate_impl(
     subject_count = 0
     if request.mode == "evaluation":
         # subject_count is the cell pool across the project for display only.
-        # The per-model dollar math goes through _count_evaluation_judge_calls
+        # The per-model dollar math goes through _eval_judge_calls (the shared planner)
         # below (per-judge, missing-aware). Issue #132: this used to drive
         # pricing and produced a 63x overshoot on partially-covered projects.
         subject_count = _count_eval_subjects(
@@ -627,7 +627,7 @@ def _compute_cost_estimate_impl(
             + (token_est.output_estimate / 1000.0) * pricing["output_per_1k"]
         )
         # Eval mode prices the actual missing-aware per-judge cell count
-        # returned by `_count_evaluation_judge_calls` (issue #132). The
+        # returned by `_eval_judge_calls` (issue #132). The
         # per-judge function already folds in this config's per-judge `runs`,
         # so `runs_already_counted=True` and no global runs multiplier
         # applies. The legacy cells-based formula still drives the generation
