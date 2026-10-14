@@ -22,6 +22,7 @@ export const PLATFORM_CHANGELOG: ChangelogEntry[] = [
     id: '2026-10-13-api-access-organizations-personally',
     date: '2026-10-13',
     audience: 'benger',
+    requires: 'publicApi',
   },
   {
     id: '2026-10-12-belong-several-organizations-project',

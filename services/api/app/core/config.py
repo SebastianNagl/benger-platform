@@ -132,6 +132,10 @@ class Settings(BaseSettings):
     # tag ("live" in production, "test" elsewhere); a key is only accepted by
     # a deployment with the same tag.
     api_key_pepper: str = ""
+    # Whether the access-key feature (key management and /api/v1) is on when
+    # no extension package decides it through the ``public_api_enabled``
+    # hook. Off by default: the feature is unreleased.
+    public_api_enabled: bool = False
     api_key_environment: Optional[str] = None
     api_key_default_rpm: int = 120
     api_key_default_rpd: int = 20000

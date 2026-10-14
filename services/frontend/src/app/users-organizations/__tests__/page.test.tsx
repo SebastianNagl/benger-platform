@@ -41,6 +41,11 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => mockAuthReturn,
 }))
 
+const mockPublicApi: { current: boolean | null } = { current: true }
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi.current,
+}))
+
 jest.mock('@/components/shared/Breadcrumb', () => ({
   Breadcrumb: ({ items }: any) => (
     <nav data-testid="breadcrumb">
@@ -97,6 +102,7 @@ jest.mock(
 describe('UsersOrganizationsPage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockPublicApi.current = true
     mockAuthReturn = {
       user: mockSuperadmin,
       organizations: mockOrgs,
@@ -159,6 +165,21 @@ describe('UsersOrganizationsPage', () => {
         await screen.findByTestId('admin-access-keys-link'),
       ).toHaveAttribute('href', '/admin/access-keys')
     })
+
+    it.each([
+      ['off', false],
+      ['still loading', null],
+    ])(
+      'hides the access-key link while the public API is %s',
+      async (_label, value) => {
+        mockPublicApi.current = value
+        render(<UsersOrganizationsPage />)
+        await screen.findByText('admin.organizations.tabLabel')
+        expect(
+          screen.queryByTestId('admin-access-keys-link'),
+        ).not.toBeInTheDocument()
+      },
+    )
 
     it('should render OrganizationsTab component', async () => {
       render(<UsersOrganizationsPage />)

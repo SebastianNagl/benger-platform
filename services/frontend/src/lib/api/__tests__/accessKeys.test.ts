@@ -4,7 +4,11 @@
  * the connection test against /api/v1/me.
  */
 
-import { ACCESS_KEY_WHOAMI_PATH, AccessKeysClient } from '../accessKeys'
+import {
+  ACCESS_KEY_WHOAMI_PATH,
+  AccessKeysClient,
+  getPublicApiAvailability,
+} from '../accessKeys'
 
 const mockCalls: Array<{ method: string; url: string; body?: unknown }> = []
 const mockClearCache = jest.fn()
@@ -38,6 +42,21 @@ describe('AccessKeysClient', () => {
     mockClearCache.mockClear()
     mockNextResult = { ok: 1 }
     client = new AccessKeysClient()
+  })
+
+  it('reads the public API availability, anything but true is off', async () => {
+    mockNextResult = { enabled: true }
+    expect(await client.availability()).toEqual({ enabled: true })
+    expect(mockCalls[0]).toEqual({
+      method: 'GET',
+      url: '/access-keys/availability',
+    })
+    for (const body of [{ enabled: false }, {}, null, { enabled: 'yes' }]) {
+      mockNextResult = body
+      expect(await client.availability()).toEqual({ enabled: false })
+    }
+    mockNextResult = { enabled: true }
+    expect(await getPublicApiAvailability()).toEqual({ enabled: true })
   })
 
   it('reads the scope catalog', async () => {

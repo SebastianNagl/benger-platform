@@ -7,5 +7,6 @@ export const API_ACCESS_GUIDES: HowToGuide[] = [
     id: 'api-zugaenge',
     category: 'integrations',
     links: ['/profile', '/users-organizations'],
+    requires: 'publicApi',
   },
 ]

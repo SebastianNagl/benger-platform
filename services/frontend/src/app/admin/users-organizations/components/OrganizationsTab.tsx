@@ -26,6 +26,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { Organization, OrganizationMember } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import {
@@ -131,6 +132,8 @@ export function OrganizationsTab() {
   const [showAddUserModal, setShowAddUserModal] = useState(false)
   const [showApiKeysModal, setShowApiKeysModal] = useState(false)
   const [showAccessKeysModal, setShowAccessKeysModal] = useState(false)
+  // Access keys stay invisible unless the public API is on for this user.
+  const publicApiEnabled = usePublicApiEnabled() === true
   const [showStorageConnectionsModal, setShowStorageConnectionsModal] =
     useState(false)
   const [showGroupsModal, setShowGroupsModal] = useState(false)
@@ -1105,6 +1108,7 @@ export function OrganizationsTab() {
               </Button>
             )}
           {selectedOrganization &&
+            publicApiEnabled &&
             (canManageOrg || isGroupAdminOfSelectedOrg) && (
               <Button
                 onClick={() => setShowAccessKeysModal(true)}
@@ -1626,7 +1630,7 @@ export function OrganizationsTab() {
           )}
 
           {/* Access keys for the public /api/v1 (bgr_...) */}
-          {selectedOrganization && (
+          {selectedOrganization && publicApiEnabled && (
             <OrgAccessKeys
               organizationId={selectedOrganization.id}
               isAdmin={canManageOrg}

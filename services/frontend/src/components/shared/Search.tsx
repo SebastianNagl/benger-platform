@@ -26,6 +26,7 @@ import { navigation } from '@/components/layout/Navigation'
 import { SearchIcon } from '@/components/shared/SearchIcon'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { projectsAPI } from '@/lib/api/projects'
 import { useHowToGuides } from '@/lib/howto'
 import { buildSearchIndex, rankSearchResults } from '@/lib/search'
@@ -72,6 +73,7 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
   // Every registered how-to guide is searchable; the hook re-renders when
   // the extended package registers its guides after initial load.
   const guides = useHowToGuides()
+  const publicApi = usePublicApiEnabled() === true
 
   // Get localized search results: the static page index (roles applied)
   // plus the how-to guides; see lib/search for the list.
@@ -80,8 +82,15 @@ function useAutocomplete({ onNavigate }: { onNavigate: () => void }) {
     if (!isReady) {
       return []
     }
-    return buildSearchIndex({ t, locale, user, organizations, guides })
-  }, [t, locale, user, organizations, isReady, guides])
+    return buildSearchIndex({
+      t,
+      locale,
+      user,
+      organizations,
+      guides,
+      publicApi,
+    })
+  }, [t, locale, user, organizations, isReady, guides, publicApi])
 
   // Memoize the localized results to prevent unnecessary re-translations
   const localizedResults = useMemo(() => {

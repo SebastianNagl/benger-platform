@@ -33,6 +33,11 @@ jest.mock('@/hooks/useResolvedUiMode', () => ({
   useResolvedUiMode: () => mockUiMode,
 }))
 
+let mockPublicApi: boolean | null = false
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi,
+}))
+
 let mockStudentLockedHost = false
 jest.mock('@/lib/utils/subdomain', () => ({
   isStudentLockedHost: () => mockStudentLockedHost,
@@ -55,6 +60,7 @@ registerTranslations('changelog-page-test', {
       't-platform-both': 'Plattform beide',
       't-benger-only': 'Nur BenGER',
       't-vertretbar-only': 'Nur Vertretbar',
+      't-public-api': 'Öffentliche API',
     },
   },
   en: {
@@ -73,6 +79,7 @@ describe('ChangelogPage', () => {
     mockUiMode = 'expert'
     mockUser = null
     mockStudentLockedHost = false
+    mockPublicApi = false
     PLATFORM_CHANGELOG.length = 0
     PLATFORM_CHANGELOG.push(
       {
@@ -93,6 +100,34 @@ describe('ChangelogPage', () => {
         audience: 'vertretbar',
       },
     ])
+  })
+
+  it.each([
+    ['off', false],
+    ['still loading', null],
+  ])('hides public-API entries while the flag is %s', (_label, value) => {
+    mockPublicApi = value
+    PLATFORM_CHANGELOG.push({
+      id: 't-public-api',
+      date: '2026-08-24',
+      audience: 'benger',
+      requires: 'publicApi',
+    })
+    render(<ChangelogPage />)
+    expect(screen.queryByText('Öffentliche API')).not.toBeInTheDocument()
+    expect(screen.getByText('Nur BenGER')).toBeInTheDocument()
+  })
+
+  it('shows public-API entries when the flag is on', () => {
+    mockPublicApi = true
+    PLATFORM_CHANGELOG.push({
+      id: 't-public-api',
+      date: '2026-08-24',
+      audience: 'benger',
+      requires: 'publicApi',
+    })
+    render(<ChangelogPage />)
+    expect(screen.getByText('Öffentliche API')).toBeInTheDocument()
   })
 
   it('renders title and intro in the legal wrapper', () => {

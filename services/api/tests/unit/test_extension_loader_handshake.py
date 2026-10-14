@@ -467,6 +467,7 @@ class TestHookOwnership:
             "project_real_name_user_ids",
             "projects_real_name_user_ids",
             "lti_anonymization_policy",
+            "public_api_enabled",
         }
         assert extensions.PENDING_HOOK_KEYS <= set(extensions.HOOK_SPECS)
         assert set(extensions.HOOK_SPECS.values()) <= {

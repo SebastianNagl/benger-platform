@@ -44,4 +44,12 @@ describe('PLATFORM_CHANGELOG', () => {
     const sorted = [...dates].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0))
     expect(dates).toEqual(sorted)
   })
+
+  it('gates the API-access announcement behind the public_api flag', () => {
+    const gated = PLATFORM_CHANGELOG.filter((e) =>
+      e.id.startsWith('2026-10-13-api-access'),
+    )
+    expect(gated.length).toBeGreaterThan(0)
+    for (const entry of gated) expect(entry.requires).toBe('publicApi')
+  })
 })

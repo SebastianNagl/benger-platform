@@ -46,11 +46,14 @@ from schemas.access_key_schemas import (
     UsageEventPage,
     UsageSummary,
 )
+from routers.public_api_gate import require_public_api
 from services import api_key_service as svc
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Access keys"])
+# Unreleased feature: every route answers 404 feature_disabled unless the
+# public_api gate is open for the caller (routers/public_api_gate.py).
+router = APIRouter(tags=["Access keys"], dependencies=[Depends(require_public_api)])
 
 #: Active keys per owner (a user's personal keys, an org's keys).
 MAX_ACTIVE_PERSONAL_KEYS = 25

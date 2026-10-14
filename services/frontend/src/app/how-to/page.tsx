@@ -6,9 +6,11 @@ import { GuideCard } from '@/components/howto'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import {
   HOWTO_CATEGORIES,
   categoryText,
+  filterAvailableGuides,
   guideText,
   useHowToGuides,
   type HowToCategoryId,
@@ -24,7 +26,9 @@ type CategoryFilter = HowToCategoryId | 'all'
  */
 export default function HowToPage() {
   const { t, locale } = useI18n()
-  const guides = useHowToGuides()
+  // Guides about features that are off for this user stay hidden.
+  const publicApi = usePublicApiEnabled() === true
+  const guides = filterAvailableGuides(useHowToGuides(), { publicApi })
   const [category, setCategory] = useState<CategoryFilter>('all')
   const scrolledTo = useRef<string | null>(null)
 

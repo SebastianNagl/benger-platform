@@ -24,6 +24,7 @@ What an API-side package may provide (all optional):
 """
 
 import importlib  # noqa: F401  (tests patch extensions.importlib.import_module)
+import inspect
 import logging
 import os
 
@@ -72,6 +73,7 @@ HOOK_SPECS = {
     "project_real_name_user_ids": SINGLE_OWNER,
     "projects_real_name_user_ids": SINGLE_OWNER,
     "lti_anonymization_policy": SINGLE_OWNER,
+    "public_api_enabled": SINGLE_OWNER,
     # Reserved for the next phases; the platform does not call them yet.
     "on_submission_finalized": CALL_ALL,
     "assessment_transition": SINGLE_OWNER,
@@ -927,6 +929,31 @@ def lti_anonymization_policy(db, user_id):
         logger.exception("lti_anonymization_policy hook failed for %s", user_id)
         return {"implicit_org_ids": set(), "blockers": ["policy_unavailable"]}
     return policy
+
+
+async def public_api_enabled(db, user, *, organization_id=None):
+    """Whether the access-key feature (key management and ``/api/v1``) is
+    available for ``user`` (SINGLE_OWNER, core 2.38).
+
+    ``db`` is an ``AsyncSession``; ``user`` may be ``None`` (anonymous) or
+    the service account behind an organization key, in which case
+    ``organization_id`` names the key's organization. The hook may be sync
+    or async. Without an implementation the ``PUBLIC_API_ENABLED`` setting
+    decides (default off); if the hook fails the feature counts as off.
+    """
+    try:
+        hook = _single_hook("public_api_enabled")
+        if hook:
+            result = hook(db, user, organization_id=organization_id)
+            if inspect.isawaitable(result):
+                result = await result
+            return bool(result)
+    except Exception:
+        logger.exception("public_api_enabled hook failed")
+        return False
+    from app.core.config import get_settings
+
+    return bool(get_settings().public_api_enabled)
 
 
 def _protected_org_ids(db):

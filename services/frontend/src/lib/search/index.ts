@@ -8,6 +8,7 @@
  */
 
 import {
+  filterAvailableGuides,
   getHowToGuides,
   guideSearchText,
   guideText,
@@ -28,6 +29,11 @@ export interface SearchIndexContext {
   locale: string
   user: { is_superadmin?: boolean } | null | undefined
   organizations: Array<{ role?: string }> | null | undefined
+  /**
+   * Public API (access keys + /api/v1) switched on for this user (feature
+   * flag `public_api`). Off or unknown hides its page and guides.
+   */
+  publicApi?: boolean
   /** Injected for tests; defaults to the registry. */
   guides?: HowToGuide[]
 }
@@ -56,6 +62,7 @@ function page(
 /** Static pages the current user may open, honoring roles. */
 export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
   const { t, user, organizations } = ctx
+  const publicApi = ctx.publicApi === true
   const cat = {
     benger: t('search.categories.benger'),
     projects: t('search.categories.projectsAndData'),
@@ -285,13 +292,17 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
         cat.admin,
         'lti moodle ilias integration registrierung',
       ),
-      page(
-        t,
-        '/admin/access-keys',
-        'adminAccessKeys',
-        cat.admin,
-        'api-zugänge zugangsschlüssel api keys access keys token widerrufen nutzung',
-      ),
+      ...(publicApi
+        ? [
+            page(
+              t,
+              '/admin/access-keys',
+              'adminAccessKeys',
+              cat.admin,
+              'api-zugänge zugangsschlüssel api keys access keys token widerrufen nutzung',
+            ),
+          ]
+        : []),
       page(
         t,
         '/admin/email-verification',
@@ -314,7 +325,9 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
 /** Every registered how-to guide as a deep-linked result. */
 export function buildGuideIndex(ctx: SearchIndexContext): SearchEntry[] {
   const { t, locale } = ctx
-  const guides = ctx.guides ?? getHowToGuides()
+  const guides = filterAvailableGuides(ctx.guides ?? getHowToGuides(), {
+    publicApi: ctx.publicApi === true,
+  })
   const category = t('search.categories.howto')
   return guides.map((g) => {
     const copy = guideText(g, locale)

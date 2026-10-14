@@ -556,6 +556,13 @@ whenever one is added, renamed or removed):
   every string lives in a locale catalog. How-to guides and changelog
   entries carry ids only; their copy lives under ``howToGuides.<id>`` /
   ``howToCategories.<id>`` and ``changelogEntries.<id>``.
+  Access keys and ``/api/v1`` are gated (unreleased): the SINGLE_OWNER
+  hook ``public_api_enabled(db: AsyncSession, user, *, organization_id)``
+  (sync or async) decides per caller, ``PUBLIC_API_ENABLED`` (default off)
+  without an implementation; key management, the platform and overlay v1
+  routers answer 404 ``feature_disabled`` while it is closed, and
+  ``GET /api/access-keys/availability`` returns ``{"enabled": bool}`` for
+  the frontend's entry points.
 """
 
 import os

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Iterable, Optional, Sequence, Set, Tuple
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
 
 V1_PREFIX = "/api/v1"
 
@@ -27,12 +27,17 @@ V1_PREFIX = "/api/v1"
 def build_v1_router() -> APIRouter:
     from routers.v1 import docs, exports, me, projects, tasks
 
+    from routers.public_api_gate import require_public_api, require_public_api_public
+
+    # Unreleased: the whole surface answers 404 feature_disabled unless the
+    # public_api gate is open for the caller. The docs need no login, so they
+    # get the anonymous-capable variant.
     router = APIRouter(prefix=V1_PREFIX)
-    router.include_router(me.router)
-    router.include_router(projects.router)
-    router.include_router(tasks.router)
-    router.include_router(exports.router)
-    router.include_router(docs.router)
+    router.include_router(me.router, dependencies=[Depends(require_public_api)])
+    router.include_router(projects.router, dependencies=[Depends(require_public_api)])
+    router.include_router(tasks.router, dependencies=[Depends(require_public_api)])
+    router.include_router(exports.router, dependencies=[Depends(require_public_api)])
+    router.include_router(docs.router, dependencies=[Depends(require_public_api_public)])
     return router
 
 
@@ -93,6 +98,13 @@ def include_overlay_v1_routers(
                 "Overlay /api/v1 routes collide with existing ones: "
                 + "; ".join(f"{m} {p}" for m, p in clash)
             )
+        from routers.public_api_gate import require_public_api
+
+        # Overlay routes share the platform's availability gate.
+        kwargs["dependencies"] = [
+            Depends(require_public_api),
+            *(kwargs.get("dependencies") or ()),
+        ]
         app.include_router(router, prefix=prefix, **kwargs)
 
 

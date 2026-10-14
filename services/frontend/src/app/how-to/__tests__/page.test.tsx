@@ -24,6 +24,10 @@ jest.mock('@/contexts/I18nContext', () => ({
         .translateKey(mockLocale, key, vars),
   }),
 }))
+let mockPublicApi: boolean | null = false
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi,
+}))
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
 }))
@@ -97,6 +101,7 @@ registerTranslations('howto-page-test', {
 
 beforeEach(() => {
   mockLocale = 'de'
+  mockPublicApi = false
   registerHowToGuides('platform', GUIDES)
   registerHowToGuides('extended', [])
   window.location.hash = ''
@@ -187,5 +192,32 @@ describe('HowToPage', () => {
     Element.prototype.scrollIntoView = spy
     render(<HowToPage />)
     expect(spy).toHaveBeenCalled()
+  })
+
+  it.each([
+    ['off', false],
+    ['still loading', null],
+  ])(
+    'hides guides that require the public API while it is %s',
+    (_label, value) => {
+      mockPublicApi = value
+      registerHowToGuides('extended', [
+        { id: 't-gated', category: 'integrations', requires: 'publicApi' },
+      ])
+      render(<HowToPage />)
+      expect(
+        screen.queryByTestId('howto-guide-t-gated'),
+      ).not.toBeInTheDocument()
+      expect(screen.getByTestId('howto-guide-t-api-keys')).toBeInTheDocument()
+    },
+  )
+
+  it('shows guides that require the public API when it is on', () => {
+    mockPublicApi = true
+    registerHowToGuides('extended', [
+      { id: 't-gated', category: 'integrations', requires: 'publicApi' },
+    ])
+    render(<HowToPage />)
+    expect(screen.getByTestId('howto-guide-t-gated')).toBeInTheDocument()
   })
 })

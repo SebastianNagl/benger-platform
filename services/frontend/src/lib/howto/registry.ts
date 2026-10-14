@@ -61,6 +61,27 @@ export interface HowToGuide {
   links?: string[]
   /** Language-neutral search terms (e.g. error codes), matched in every locale. */
   searchTerms?: string[]
+  /**
+   * Feature the guide is about. While it is off for the current user the
+   * guide is hidden on /how-to and in the nav search.
+   * `publicApi` = access keys and /api/v1 (feature flag `public_api`).
+   */
+  requires?: 'publicApi'
+}
+
+/** What is switched on for the current user, for guides with `requires`. */
+export interface HowToAvailability {
+  publicApi: boolean
+}
+
+/** The guides the current user may see, given what is switched on. */
+export function filterAvailableGuides(
+  guides: HowToGuide[],
+  availability: HowToAvailability,
+): HowToGuide[] {
+  return guides.filter(
+    (g) => g.requires !== 'publicApi' || availability.publicApi,
+  )
 }
 
 /** A guide's copy in one locale (missing lists come back empty). */

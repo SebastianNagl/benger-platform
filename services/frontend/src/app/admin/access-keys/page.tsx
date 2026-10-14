@@ -7,6 +7,7 @@
  * on the profile page; this page is the emergency brake and the audit view.
  */
 
+import NotFound from '@/app/not-found'
 import {
   AccessKeyStatusBadge,
   RevokeKeyPanel,
@@ -15,9 +16,11 @@ import {
 import { formatDate } from '@/components/accessKeys/accessKeyUtils'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { accessKeysAPI } from '@/lib/api/accessKeys'
 import { organizationsAPI } from '@/lib/api/organizations'
 import type {
@@ -35,6 +38,9 @@ export default function AdminAccessKeysPage() {
   const { user } = useAuth()
   const { t, locale } = useI18n()
   const isSuperadmin = Boolean(user?.is_superadmin)
+  // The page does not exist unless the public API is on for this user.
+  const publicApiEnabled = usePublicApiEnabled()
+  const canView = isSuperadmin && publicApiEnabled === true
 
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [orgFilter, setOrgFilter] = useState('')
@@ -70,17 +76,17 @@ export default function AdminAccessKeysPage() {
   )
 
   useEffect(() => {
-    if (!isSuperadmin) return
+    if (!canView) return
     void load()
-  }, [isSuperadmin, load])
+  }, [canView, load])
 
   useEffect(() => {
-    if (!isSuperadmin) return
+    if (!canView) return
     organizationsAPI
       .getOrganizations()
       .then((rows) => setOrganizations(rows ?? []))
       .catch(() => setOrganizations([]))
-  }, [isSuperadmin])
+  }, [canView])
 
   const orgName = (id: string | null) =>
     id ? (organizations.find((o) => o.id === id)?.name ?? id) : ''
@@ -95,6 +101,21 @@ export default function AdminAccessKeysPage() {
       />
     </div>
   )
+
+  if (publicApiEnabled === null) {
+    return (
+      <div
+        className="flex justify-center py-16"
+        data-testid="admin-access-keys-loading"
+      >
+        <LoadingSpinner />
+      </div>
+    )
+  }
+
+  if (!publicApiEnabled) {
+    return <NotFound />
+  }
 
   if (!isSuperadmin) {
     return (

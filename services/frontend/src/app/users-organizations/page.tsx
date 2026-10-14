@@ -4,6 +4,7 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
 import { UserOrganizationPermissions } from '@/lib/permissions/userOrganizationPermissions'
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react'
 import {
@@ -22,6 +23,7 @@ export default function UsersOrganizationsPage() {
   const searchParams = useSearchParams()
   const { user, organizations } = useAuth()
   const { t } = useI18n()
+  const publicApiEnabled = usePublicApiEnabled()
 
   const tabFromUrl = searchParams?.get('tab')
   const initialTab =
@@ -100,7 +102,7 @@ export default function UsersOrganizationsPage() {
           <p className="mt-2 text-lg text-zinc-600 dark:text-zinc-400">
             {t('admin.usersOrganizationsDescription')}
           </p>
-          {user?.is_superadmin && (
+          {user?.is_superadmin && publicApiEnabled === true && (
             <Link
               href="/admin/access-keys"
               className="mt-2 inline-flex items-center gap-1 text-sm text-emerald-600 hover:underline dark:text-emerald-400"

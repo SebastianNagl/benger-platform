@@ -57,6 +57,16 @@ const ME_BASE = '/users/me/access-keys'
 const ADMIN_BASE = '/admin/access-keys'
 
 export class AccessKeysClient extends BaseApiClient {
+  /**
+   * Whether the public API (access keys + /api/v1) is switched on for the
+   * current session (feature flag `public_api`). Answers anonymously too.
+   * Anything but an explicit `true` counts as off.
+   */
+  async availability(): Promise<{ enabled: boolean }> {
+    const body = await this.get('/access-keys/availability')
+    return { enabled: body?.enabled === true }
+  }
+
   /** Scope definitions (German and English) and the presets. */
   async scopes(): Promise<ScopeCatalog> {
     return this.get('/access-keys/scopes')
@@ -230,3 +240,8 @@ export class AccessKeysClient extends BaseApiClient {
 }
 
 export const accessKeysAPI = new AccessKeysClient()
+
+/** GET /access-keys/availability: is the public API on for this session? */
+export function getPublicApiAvailability(): Promise<{ enabled: boolean }> {
+  return accessKeysAPI.availability()
+}

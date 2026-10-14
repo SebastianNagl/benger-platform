@@ -20,6 +20,10 @@ describe('api-zugaenge guide', () => {
     ).toHaveLength(1)
   })
 
+  it('is hidden unless the public API is on', () => {
+    expect(guide.requires).toBe('publicApi')
+  })
+
   it('has the five quick-start steps in both languages', () => {
     expect(de.steps).toHaveLength(5)
     expect(en.steps).toHaveLength(5)

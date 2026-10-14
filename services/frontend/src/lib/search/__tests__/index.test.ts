@@ -90,6 +90,30 @@ describe('buildPageIndex', () => {
     expect(superadmin).not.toContain('/admin/feature-flags')
   })
 
+  it('lists the access-key overview only when the public API is on', () => {
+    const urls = (publicApi?: boolean) =>
+      buildPageIndex({
+        t,
+        locale: 'de',
+        user: { is_superadmin: true },
+        organizations: [],
+        publicApi,
+      }).map((p) => p.url)
+    expect(urls(true)).toContain('/admin/access-keys')
+    expect(urls(false)).not.toContain('/admin/access-keys')
+    expect(urls(undefined)).not.toContain('/admin/access-keys')
+    // Still superadmin-only.
+    expect(
+      buildPageIndex({
+        t,
+        locale: 'de',
+        user: {},
+        organizations: [{ role: 'ORG_ADMIN' }],
+        publicApi: true,
+      }).map((p) => p.url),
+    ).not.toContain('/admin/access-keys')
+  })
+
   it('omits signed-in-only pages for anonymous visitors', () => {
     const urls = buildPageIndex({
       t,
@@ -115,6 +139,42 @@ describe('buildGuideIndex / buildSearchIndex', () => {
     expect(entry.title).toBe('How do I add an API key?')
     expect(entry.description).toBe('Under Settings → Models.')
     expect(entry.category).toBe('search.categories.howto')
+  })
+
+  it('hides guides that require the public API unless it is on', () => {
+    const gated: HowToGuide = {
+      ...guide,
+      id: 'search-test-gated',
+      requires: 'publicApi',
+    }
+    const urls = (publicApi?: boolean) =>
+      buildGuideIndex({
+        t,
+        locale: 'en',
+        user: {},
+        organizations: [],
+        guides: [guide, gated],
+        publicApi,
+      }).map((e) => e.url)
+    expect(urls(false)).toEqual(['/how-to#search-test-api-keys'])
+    expect(urls(undefined)).toEqual(['/how-to#search-test-api-keys'])
+    expect(urls(true)).toEqual([
+      '/how-to#search-test-api-keys',
+      '/how-to#search-test-gated',
+    ])
+  })
+
+  it('hides the registered api-zugaenge guide while the public API is off', () => {
+    const urls = (publicApi: boolean) =>
+      buildGuideIndex({
+        t,
+        locale: 'de',
+        user: {},
+        organizations: [],
+        publicApi,
+      }).map((e) => e.url)
+    expect(urls(false)).not.toContain('/how-to#api-zugaenge')
+    expect(urls(true)).toContain('/how-to#api-zugaenge')
   })
 
   it('combines pages and guides', () => {

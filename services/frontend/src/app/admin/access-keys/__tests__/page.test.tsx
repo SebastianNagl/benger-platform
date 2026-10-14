@@ -21,6 +21,13 @@ jest.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: mockUser.current }),
 }))
 
+const mockPublicApi: { current: boolean | null } = { current: true }
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi.current,
+}))
+
+jest.mock('@/components/shared', () => ({ HeroPattern: () => null }))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({ t: mockTranslate, locale: 'de' }),
 }))
@@ -71,6 +78,7 @@ const REVOKED_KEY = makeKey({
 beforeEach(() => {
   jest.clearAllMocks()
   mockUser.current = { is_superadmin: true }
+  mockPublicApi.current = true
   orgs.getOrganizations.mockResolvedValue([
     { id: 'org-1', name: 'Uni Test' },
     { id: 'org-2', name: 'Kanzlei' },
@@ -82,6 +90,27 @@ beforeEach(() => {
 })
 
 describe('Admin access keys page', () => {
+  it('is not found while the public API is off, even for superadmins', () => {
+    mockPublicApi.current = false
+    render(<AdminAccessKeysPage />)
+    expect(screen.getByText('errors.404.title')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('admin-access-keys-denied'),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('accessKeys.admin.title')).not.toBeInTheDocument()
+    expect(api.adminListKeys).not.toHaveBeenCalled()
+    expect(orgs.getOrganizations).not.toHaveBeenCalled()
+  })
+
+  it('shows only a spinner while availability is unknown', () => {
+    mockPublicApi.current = null
+    render(<AdminAccessKeysPage />)
+    expect(screen.getByTestId('admin-access-keys-loading')).toBeInTheDocument()
+    expect(screen.queryByText('accessKeys.admin.title')).not.toBeInTheDocument()
+    expect(screen.queryByText('errors.404.title')).not.toBeInTheDocument()
+    expect(api.adminListKeys).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['a non-superadmin', { is_superadmin: false }],
     ['a signed-out visitor', null],

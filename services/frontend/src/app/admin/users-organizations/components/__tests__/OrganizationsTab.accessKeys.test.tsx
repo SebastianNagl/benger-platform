@@ -52,6 +52,12 @@ jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
 }))
 
+// Public API feature flag: on unless a test switches it off.
+const mockPublicApi: { current: boolean | null } = { current: true }
+jest.mock('@/hooks/usePublicApiEnabled', () => ({
+  usePublicApiEnabled: () => mockPublicApi.current,
+}))
+
 jest.mock('@/hooks/useDialogs', () => ({
   useErrorAlert: () => jest.fn(),
   useDeleteConfirm: () => jest.fn(),
@@ -190,6 +196,7 @@ const setupMocks = ({
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockPublicApi.current = true
 })
 
 const waitForOrg = () =>
@@ -270,6 +277,27 @@ describe('OrganizationsTab access keys button', () => {
         isAdmin: false,
         canManageGroups: false,
       })
+    },
+  )
+  it.each([
+    ['off', false],
+    ['still loading', null],
+  ])(
+    'hides the button and the dialog while the public API is %s',
+    async (_label, value) => {
+      mockPublicApi.current = value
+      setupMocks()
+      render(<OrganizationsTab />)
+
+      await waitForOrg()
+      expect(
+        screen.queryByTestId('org-access-keys-button'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByTestId('org-access-keys-stub'),
+      ).not.toBeInTheDocument()
+      // The provider keys button is unaffected by the flag.
+      expect(screen.getByTestId('org-api-keys-button')).toBeInTheDocument()
     },
   )
 })

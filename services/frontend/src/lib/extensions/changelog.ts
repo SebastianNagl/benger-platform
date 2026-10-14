@@ -22,6 +22,22 @@ export interface ChangelogEntry {
   /** ISO date the change shipped, 'YYYY-MM-DD'. */
   date: string
   audience: ChangelogAudience
+  /**
+   * Feature the entry announces. While it is off for the current user the
+   * entry is hidden on /changelog. `publicApi` = access keys and /api/v1
+   * (feature flag `public_api`).
+   */
+  requires?: 'publicApi'
+}
+
+/** The entries the current user may see, given what is switched on. */
+export function filterAvailableChangelogEntries(
+  entries: ChangelogEntry[],
+  availability: { publicApi: boolean },
+): ChangelogEntry[] {
+  return entries.filter(
+    (e) => e.requires !== 'publicApi' || availability.publicApi,
+  )
 }
 
 const buckets: Record<string, ChangelogEntry[]> = {}
