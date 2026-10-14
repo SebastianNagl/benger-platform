@@ -74,6 +74,12 @@ def _implicit_structure_keys(prompt_structures) -> List[str]:
 # Callers above this bound must page through explicit task_ids.
 GENERATION_FALLBACK_MAX_TASKS = 10_000
 
+# A cell whose newest row ended without an answer gets generated again under
+# mode "missing": failed, stopped by the user, or cancelled by a rerun. Pending,
+# running and paused cells are still in flight; completed ones are done. Shared
+# with the cost estimate so both count the same cells.
+MISSING_MODE_REGENERATE_STATUSES = frozenset({"failed", "stopped", "cancelled"})
+
 
 # ============= Request/Response Models =============
 
@@ -975,7 +981,9 @@ async def start_generation(
                     should_generate = True
                 else:  # mode == "missing"
                     latest = latest_status.get((task_id, model_id, structure_key))
-                    should_generate = (latest is None) or (latest == "failed")
+                    should_generate = (
+                        latest is None or latest in MISSING_MODE_REGENERATE_STATUSES
+                    )
 
                 if should_generate:
                     tasks_to_queue.append((task_id, model_id, structure_key))
