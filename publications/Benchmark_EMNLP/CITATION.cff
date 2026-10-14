@@ -66,7 +66,7 @@ abstract: >-
 preferred-citation:
   type: conference-paper
   title: "BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law"
-  collection-title: "Proceedings of the 2026 Conference on Empirical Methods in Natural Language Processing"
+  collection-title: "Findings of the Association for Computational Linguistics: EMNLP 2026"
   publisher:
     name: "Association for Computational Linguistics"
   authors:
@@ -93,7 +93,7 @@ preferred-citation:
   identifiers:
     - type: other
       value: "arXiv:2605.28183"
-      description: "arXiv preprint of the EMNLP 2026 paper"
+      description: "arXiv preprint of the Findings of EMNLP 2026 paper"
     - type: doi
       value: 10.5281/zenodo.20489788
       description: "Zenodo archival snapshot (BenGER v2.0)"
