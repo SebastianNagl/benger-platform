@@ -15,6 +15,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { customModelsAPI } from '@/lib/api/customModels'
 import type { CustomModel } from '@/lib/api/types'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 import { CustomModelCredentialRow } from './CustomModelCredentialRow'
@@ -49,7 +50,7 @@ export function CustomModelList({
   onEdit,
   onChanged,
 }: CustomModelListProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { addToast } = useToast()
 
   const [expandedIds, setExpandedIds] = useState<string[]>([])
@@ -178,8 +179,9 @@ export function CustomModelList({
                   {model.input_cost_per_million != null &&
                   model.output_cost_per_million != null ? (
                     <span>
-                      ${model.input_cost_per_million.toFixed(2)} / $
-                      {model.output_cost_per_million.toFixed(2)}{' '}
+                      ${formatDecimal(model.input_cost_per_million, locale, 2)}{' '}
+                      / $
+                      {formatDecimal(model.output_cost_per_million, locale, 2)}{' '}
                       {t('customModels.list.perMillion')}
                     </span>
                   ) : (

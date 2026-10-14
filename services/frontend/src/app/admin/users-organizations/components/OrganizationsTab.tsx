@@ -1122,7 +1122,7 @@ export function OrganizationsTab() {
                 variant="outline"
                 data-testid="org-more-button"
               >
-                {t('admin.organizations.more', 'Mehr')}
+                {t('admin.organizations.more')}
                 <ChevronDownIcon className="h-4 w-4" />
               </Menu.Button>
               <Menu.Items className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-lg bg-white p-1 shadow-lg ring-1 ring-black/5 transition duration-100 ease-out focus:outline-none data-closed:scale-95 data-closed:transform data-closed:opacity-0 dark:bg-zinc-900">
@@ -1153,10 +1153,7 @@ export function OrganizationsTab() {
                         data-testid="org-lti-button"
                       >
                         <AcademicCapIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-                        {t(
-                          'admin.organizations.lmsIntegration',
-                          'Lernplattform (LTI)',
-                        )}
+                        {t('admin.organizations.lmsIntegration')}
                       </button>
                     )}
                   </Menu.Item>

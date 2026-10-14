@@ -383,7 +383,7 @@ describe('LoginPage', () => {
       render(<LoginPage />)
 
       const nav = screen.getByRole('navigation')
-      expect(nav).toHaveAttribute('aria-label', 'Global')
+      expect(nav).toHaveAttribute('aria-label', 'layout.minimal.globalNav')
     })
   })
 

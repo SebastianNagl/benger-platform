@@ -23,15 +23,15 @@ export default function LearningStatsPage() {
         <Breadcrumb
           items={[
             {
-              label: t('navigation.dashboard', 'Dashboard'),
+              label: t('navigation.dashboard'),
               href: '/dashboard',
             },
-            { label: t('navigation.learningStats', 'Lernstatistik') },
+            { label: t('navigation.learningStats') },
           ]}
         />
       </div>
       <h1 className="mb-6 text-3xl font-bold text-zinc-900 dark:text-white">
-        {t('dashboard.personal.title', 'Meine Lernstatistik')}
+        {t('dashboard.personal.title')}
       </h1>
       {PersonalAnalyticsPage ? (
         // eslint-disable-next-line react-hooks/static-components
@@ -41,10 +41,7 @@ export default function LearningStatsPage() {
           className="text-sm text-zinc-500 dark:text-zinc-400"
           data-testid="learning-stats-unavailable"
         >
-          {t(
-            'dashboard.personal.unavailable',
-            'Die Lernstatistik ist in dieser Edition nicht verfügbar.',
-          )}
+          {t('dashboard.personal.unavailable')}
         </p>
       )}
     </ResponsiveContainer>

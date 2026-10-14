@@ -183,7 +183,26 @@
     },
     "import": {
       "noData": "Keine Daten zum Importieren",
-      "failed": "Daten konnten nicht importiert werden"
+      "failed": "Daten konnten nicht importiert werden",
+      "progress": {
+        "importing": "Daten werden importiert...",
+        "processingFile": "Datei wird verarbeitet...",
+        "reading": "{name} wird gelesen...",
+        "parsing": "Daten werden analysiert...",
+        "processingPasted": "Eingefügte Daten werden verarbeitet...",
+        "validating": "Daten werden geprüft...",
+        "importingTasks": "{count} Aufgaben werden importiert...",
+        "complete": "Import abgeschlossen!"
+      },
+      "fieldMismatch": "Einige Felder passen nicht zu deiner Vorlage. Du kannst unverändert importieren oder die Feldzuordnung verwenden.",
+      "invalidJsonDetail": "Ungültiges JSON-Format: {error}",
+      "parseFailed": "{format}-Daten konnten nicht verarbeitet werden: {error}",
+      "invalidJson": "Ungültiges JSON-Format. Bitte prüfe deine Daten und versuche es erneut.",
+      "authFailed": "Authentifizierung fehlgeschlagen. Bitte melde dich erneut an.",
+      "forbidden": "Du hast keine Berechtigung, Daten in dieses Projekt zu importieren.",
+      "parseFileFailed": "Datei konnte nicht verarbeitet werden: {error}",
+      "readFileFailed": "Datei konnte nicht gelesen werden",
+      "processFileFailed": "Datei konnte nicht verarbeitet werden"
     },
     "table": {
       "project": "Projekt",
@@ -580,7 +599,17 @@
             "addPersonalKey": "Hinterlegen Sie einen eigenen {provider}-Schlüssel im Profil.",
             "noKeyAnywhere": "Hinterlegen Sie einen eigenen Schlüssel im Profil, oder bitten Sie die Administration Ihrer Organisation um einen {provider}-Schlüssel."
           }
-        }
+        },
+        "orgAssignFailed": "Das Projekt wurde erstellt, konnte aber den ausgewählten Organisationen nicht zugewiesen werden. Bitte weise sie in den Projekteinstellungen zu.",
+        "korrekturLabels": {
+          "title": "Korrektur (Classic): Highlight-Labels",
+          "description": "Farben und Bezeichnungen für Markierungen, die Korrektoren beim Kommentieren verwenden können.",
+          "namePlaceholder": "Label-Name",
+          "remove": "Label entfernen",
+          "add": "+ Label hinzufügen"
+        },
+        "variantIdPlaceholder": "z. B. variant_a",
+        "dataFieldOption": "{field} (Daten)"
       },
       "structuredExam": {
         "button": "Klausur strukturiert erfassen",
@@ -679,7 +708,10 @@
       "kindExam": "Klausur",
       "study": "Lernen",
       "importTargetGroupLabel": "Gruppe",
-      "importTargetGroupOrgWide": "Gesamte Organisation"
+      "importTargetGroupOrgWide": "Gesamte Organisation",
+      "publicContributorBadge": "Öffentlich · Mitwirkende:r",
+      "publicAnnotatorBadge": "Öffentlich · Annotator:in",
+      "emptyExportFile": "Leere Datei vom Server erhalten"
     },
     "columns": {
       "label": "Spalten",
@@ -708,7 +740,7 @@
       "templateSimpleQA": "Einfache Frage & Antwort",
       "templateSimpleQADesc": "Direkte Feldreferenz",
       "templateTemplateQA": "Vorlagen-Frage & Antwort",
-      "templateTemplateQADesc": "Mit {Platzhaltern}",
+      "templateTemplateQADesc": "Mit {{field}}-Platzhaltern",
       "templateLegalAnalysis": "Rechtliche Analyse",
       "templateLegalAnalysisDesc": "Komplexe Vorlage",
       "templateClassification": "Klassifizierung",
@@ -746,7 +778,7 @@
       "docSystemPromptDesc": "Anweisungen auf Systemebene",
       "docInstructionPromptDesc": "Aufgabenspezifische Anweisungen",
       "docStringOption": "String: Direkter Text oder $field-Referenz",
-      "docObjectOption": "Objekt: Vorlage mit {Platzhaltern} und Feldzuordnungen",
+      "docObjectOption": "Objekt: Vorlage mit {{field}}-Platzhaltern und Feldzuordnungen",
       "docFieldReferences": "Feldreferenzen:",
       "docSimpleFieldRef": "Einfache Feldreferenz",
       "docNestedFieldRef": "Verschachteltes Feld mit Punkt-Notation",
@@ -870,7 +902,8 @@
       "assign": "+ Zuweisen",
       "unassigned": "Nicht zugewiesen",
       "unknown": "Unbekannt",
-      "removeAssignment": "Zuweisung entfernen"
+      "removeAssignment": "Zuweisung entfernen",
+      "moreList": "+{count} weitere: {names}"
     },
     "promptStructures": {
       "loadFailed": "Prompt-Strukturen konnten nicht geladen werden",
@@ -917,7 +950,8 @@
       "purge": "Endgültig löschen",
       "purged": "Projekt endgültig gelöscht.",
       "purgeConfirm": "„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden."
-    }
+    },
+    "archivedTitle": "Archivierte Projekte"
   },
   "project": {
     "loading": "Projekt wird geladen...",
@@ -954,7 +988,8 @@
       "notConfigured": "Nicht konfiguriert",
       "editConfiguration": "Konfiguration bearbeiten",
       "noConfigSet": "Keine Label-Konfiguration festgelegt",
-      "configureLabels": "Labels konfigurieren"
+      "configureLabels": "Labels konfigurieren",
+      "fieldReferenceHelp": "Verweise in deinem XML mit der Syntax $feldname auf Felder der Aufgabendaten (z. B. $text, $question)."
     },
     "generationStructure": {
       "title": "Generierungsstruktur",
@@ -1008,8 +1043,9 @@
       "saved": "Bedingte Anweisungen gespeichert",
       "saveFailed": "Speichern fehlgeschlagen",
       "weightError": "Gewichte müssen 100% ergeben",
-      "weightWarning": "Gewichte ergeben {{total}}%, müssen 100% sein",
-      "aiAllowed": "KI erlaubt"
+      "weightWarning": "Gewichte ergeben {total}%, müssen 100% sein",
+      "aiAllowed": "KI erlaubt",
+      "variantIdPlaceholder": "z. B. ai, no_ai"
     },
     "modelSelection": {
       "title": "Modellauswahl",
@@ -1031,7 +1067,10 @@
       "temperatureTooltip": "Antwortzufälligkeit (0=Greedy Decoding)",
       "maxTokens": "Max Tokens",
       "thinking": "Denken",
-      "default": "Standard"
+      "default": "Standard",
+      "temperatureFixedValue": "Dieses Modell erfordert Temperatur = {value}",
+      "presetTokens": "{label} ({tokens} Tokens)",
+      "customPreset": "Benutzerdefiniert"
     },
     "promptStructures": {
       "title": "Prompt-Strukturen",
@@ -1064,7 +1103,8 @@
       "deleting": "Wird gelöscht...",
       "delete": "Löschen",
       "loadingStructures": "Prompt-Strukturen werden geladen...",
-      "onlyCreatorCanManage": "Nur der Projektersteller kann Prompt-Strukturen verwalten"
+      "onlyCreatorCanManage": "Nur der Projektersteller kann Prompt-Strukturen verwalten",
+      "fieldReferenceHelp": "Verwende die Syntax $feldname oder $verschachtelter.pfad, um in deinen Prompts auf Felder der Aufgabendaten zu verweisen."
     },
     "permissions": {
       "orgAdminOnly": "Nur Organisationsadministratoren können {section} verwalten.",
@@ -1104,7 +1144,8 @@
       "saving": "Wird gespeichert…",
       "validation": {
         "privateNeedsOrganization": "Organisationsbasierte Projekte benötigen mindestens eine Organisation."
-      }
+      },
+      "saveFailed": "Berechtigungen konnten nicht gespeichert werden"
     },
     "evaluation": {
       "title": "Evaluierungskonfiguration",
@@ -1262,7 +1303,8 @@
           "count2": "2 Annotationen",
           "count3": "3 Annotationen",
           "count4": "4 Annotationen",
-          "count5": "5 Annotationen"
+          "count5": "5 Annotationen",
+          "unlimited": "Unbegrenzt"
         }
       },
       "interface": {
@@ -1510,6 +1552,13 @@
       "title": "Projekt entdecken",
       "back": "Zurück zum Verzeichnis",
       "alreadyMember": "Sie sind diesem Projekt bereits beigetreten."
+    },
+    "generation": {
+      "runCta": "Generierung starten"
+    },
+    "configCard": {
+      "saving": "Speichert…",
+      "unsavedChanges": "Ungespeicherte Änderungen"
     }
   },
   "tasks": {
@@ -1792,11 +1841,27 @@
       "testFailed": "Test fehlgeschlagen",
       "variablesList": "Verfügbare Variablen: {variables}",
       "insertVariable": "Variable einfügen",
-      "promptPlaceholder": "Geben Sie hier Ihren Prompt ein. Verwenden Sie {variable}-Syntax für Variablen.",
+      "promptPlaceholder": "Geben Sie hier den Generierungs-Prompt ein. Verwenden Sie {{variable}} für Variablen.",
       "selectType": "Prompt-Typ auswählen",
       "nameRequired": "Prompt-Name ist erforderlich",
       "contentRequired": "Prompt-Inhalt ist erforderlich",
-      "duplicateName": "Ein Prompt mit diesem Namen existiert bereits"
+      "duplicateName": "Ein Prompt mit diesem Namen existiert bereits",
+      "addNew": "Neuen Prompt hinzufügen",
+      "context": "Kontext (optional)",
+      "contextPlaceholder": "Zusätzlicher Kontext für die Generierung...",
+      "emptyState": "Noch keine Prompts hinzugefügt. Klicken Sie auf „Prompt hinzufügen“, um zu beginnen.",
+      "evaluation": "Evaluierung",
+      "expectedOutput": "Erwartete Ausgabe (optional)",
+      "expectedOutputPlaceholder": "Erwartete Generierungsausgabe für die Evaluierung eingeben...",
+      "instruction": "Anweisung",
+      "maxTokens": "Max. Tokens",
+      "promptNumber": "Prompt {number}",
+      "promptText": "Prompt-Text",
+      "temperature": "Temperatur",
+      "uploadFailed": "Prompts konnten nicht hochgeladen werden",
+      "uploadPrompts": "Prompts hochladen (JSON)",
+      "uploadSuccess": "{count} Prompts erfolgreich hochgeladen",
+      "uploading": "Prompts werden hochgeladen..."
     },
     "import": {
       "description": "Importieren Sie Aufgaben aus verschiedenen Quellen",
@@ -1834,7 +1899,8 @@
       "configureMapping": "Zuordnung konfigurieren",
       "importItems": "{count} Einträge importieren",
       "noData": "Keine Daten zum Importieren",
-      "failed": "Daten konnten nicht importiert werden"
+      "failed": "Daten konnten nicht importiert werden",
+      "templatesCount": "{count} Vorlagen"
     },
     "labeling": {
       "title": "Beschriftungseinrichtung",
@@ -1856,7 +1922,22 @@
       "labelSaved": "Label erfolgreich gespeichert",
       "labelDeleted": "Label erfolgreich gelöscht",
       "labelSaveFailed": "Fehler beim Speichern des Labels",
-      "labelDeleteFailed": "Fehler beim Löschen des Labels"
+      "labelDeleteFailed": "Fehler beim Löschen des Labels",
+      "backToTemplates": "Zurück zu den Vorlagen",
+      "categories": {
+        "nlp": "Verarbeitung natürlicher Sprache"
+      },
+      "chooseTemplate": "Wählen Sie eine Vorlage für Ihre Annotationsaufgabe oder erstellen Sie eine eigene Konfiguration",
+      "configPreview": "Konfigurationsvorschau",
+      "createCustom": "Eigene Konfiguration erstellen",
+      "customConfig": "Eigene Konfiguration",
+      "customTemplate": "Eigene Vorlage",
+      "dataImported": "Daten erfolgreich importiert. Wählen Sie nun aus, wie Sie Ihre Daten beschriften möchten.",
+      "defineCustom": "Definieren Sie Ihre eigene Beschriftungsoberfläche mit benutzerdefinierten Feldern",
+      "definePlaceholder": "Definieren Sie Ihre Beschriftungskonfiguration im JSON-Format. Sie legt fest, wie Ihre Daten zur Annotation angezeigt werden.",
+      "noConfig": "Keine Konfiguration erzeugt",
+      "saveConfig": "Konfiguration speichern",
+      "templatesCount": "{count} Vorlagen"
     },
     "questionCard": {
       "questionId": "Frage {id}",
@@ -1994,6 +2075,18 @@
       "title": "Klausur strukturiert bearbeiten",
       "saved": "Aufgabe gespeichert.",
       "saveError": "Aufgabe konnte nicht gespeichert werden."
+    },
+    "questionManager": {
+      "title": "Fragen ({count})",
+      "hintQa": "Einfache Frage-Antwort-Paare hinzufügen",
+      "hintMultipleChoice": "Multiple-Choice-Fragen mit 4 Optionen hinzufügen",
+      "hintReasoning": "Fragen mit Begründung hinzufügen",
+      "expandAll": "Alle ausklappen",
+      "collapseAll": "Alle einklappen",
+      "addQuestion": "Frage hinzufügen",
+      "empty": "Noch keine Fragen",
+      "emptyHintQa": "Füge dein erstes Frage-Antwort-Paar hinzu, um zu beginnen.",
+      "emptyHint": "Füge deine erste Frage hinzu, um zu beginnen."
     }
   },
   "profile": {
@@ -2173,7 +2266,25 @@
     "updateSuccess": "Profil erfolgreich aktualisiert",
     "updateFailed": "Profil konnte nicht aktualisiert werden",
     "passwordsDoNotMatch": "Passwörter stimmen nicht überein",
-    "accessKeys": "API-Zugänge"
+    "accessKeys": "API-Zugänge",
+    "bundeslaender": {
+      "BW": "Baden-Württemberg",
+      "BY": "Bayern",
+      "BE": "Berlin",
+      "BB": "Brandenburg",
+      "HB": "Bremen",
+      "HH": "Hamburg",
+      "HE": "Hessen",
+      "MV": "Mecklenburg-Vorpommern",
+      "NI": "Niedersachsen",
+      "NW": "Nordrhein-Westfalen",
+      "RP": "Rheinland-Pfalz",
+      "SL": "Saarland",
+      "SN": "Sachsen",
+      "ST": "Sachsen-Anhalt",
+      "SH": "Schleswig-Holstein",
+      "TH": "Thüringen"
+    }
   },
   "leaderboards": {
     "title": "Bestenlisten",
@@ -2544,7 +2655,9 @@
         "noProjectsFound": "Keine Projekte gefunden, die Ihrer Suche entsprechen",
         "noProjects": "Keine Projekte verfügbar",
         "createFirst": "Erstellen Sie zunächst ein Projekt, um Antworten zu generieren"
-      }
+      },
+      "loadFailed": "Projekte konnten nicht geladen werden: {error}",
+      "openSettings": "Zu den Einstellungen von {title}"
     },
     "steps": {
       "selectProject": "Projekt auswählen",
@@ -2735,7 +2848,9 @@
       "regenerate": "Neu generieren",
       "viewResults": "Ergebnisse anzeigen",
       "cellGenerationQueued": "Generierung in Warteschlange",
-      "cellGenerationFailed": "Generierung konnte nicht gestartet werden"
+      "cellGenerationFailed": "Generierung konnte nicht gestartet werden",
+      "allStructures": "Alle Strukturen",
+      "structures": "Prompt-Strukturen"
     },
     "comparison": {
       "modal": {
@@ -2779,7 +2894,9 @@
       "history": "Verlauf",
       "currentLabel": "(aktuell)",
       "noHistory": "Kein Generierungsverlauf verfügbar",
-      "by": "von {user}"
+      "by": "von {user}",
+      "systemPrompt": "System-Prompt",
+      "instructionPrompt": "Anweisungs-Prompt"
     },
     "configurator": {
       "selectModels": "Modelle auswählen",
@@ -2849,7 +2966,11 @@
       "recommended": "Empfehlung",
       "resetToRecommended": "Zurücksetzen auf Empfohlen",
       "noRecommendation": "Keine Empfehlung",
-      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell"
+      "divergentRecommendations": "Verschiedene Empfehlungen pro Modell",
+      "runsPerTask": "Läufe pro Aufgabe",
+      "runsPerTaskDesc": "Wie oft jede Kombination aus Aufgabe und Modell generiert werden soll. Standardmäßig 1, ein Wert > 1 erzeugt mehrere Durchläufe für die Varianzanalyse. Die Kosten vervielfachen sich entsprechend.",
+      "fixedTemperatureOne": "{models} erfordert eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für dieses Modell.",
+      "fixedTemperatureOther": "{models} erfordern eine feste Temperatur von 1.0. Das Backend überschreibt den Wert für diese Modelle."
     }
   },
   "notifications": {
@@ -3791,7 +3912,8 @@
       "showingResults": "Zeige {start} bis {end} von {total} Ergebnissen",
       "perPage": "Pro Seite:",
       "previousPage": "Vorherige Seite",
-      "nextPage": "Nächste Seite"
+      "nextPage": "Nächste Seite",
+      "label": "Seitennavigation"
     },
     "autoSave": {
       "justNow": "gerade eben",
@@ -3818,7 +3940,8 @@
     "export": "Exportieren",
     "clear": "Auswahl aufheben",
     "menu": "Menü",
-    "refresh": "Aktualisieren"
+    "refresh": "Aktualisieren",
+    "unknownUser": "Unbekannter Nutzer"
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -3828,7 +3951,8 @@
   },
   "labeling": {
     "display": {
-      "noData": "Keine Daten für Feld: {field}"
+      "noData": "Keine Daten für Feld: {field}",
+      "imageAlt": "Annotationsbild"
     },
     "annotationCreator": {
       "submitFailed": "Annotation konnte nicht eingereicht werden",
@@ -4502,6 +4626,9 @@
       "addUserFailed": "Benutzer hinzufügen fehlgeschlagen",
       "cancelInvitationFailed": "Stornierung der Einladung fehlgeschlagen",
       "orgUpdateFailed": "Aktualisierung der Organisation fehlgeschlagen"
+    },
+    "lti": {
+      "extendedRequired": "Die LTI-Verwaltung erfordert die Extended Edition."
     }
   },
   "taskCreate": {
@@ -4692,7 +4819,10 @@
       "pValue": "p-Wert",
       "significance": "Signifikanz",
       "effectSize": "Effektstärke",
-      "selectProjectPrompt": "Wählen Sie ein Projekt aus, um Evaluierungsergebnisse anzuzeigen"
+      "selectProjectPrompt": "Wählen Sie ein Projekt aus, um Evaluierungsergebnisse anzuzeigen",
+      "significanceLoadFailed": "Die Signifikanzdaten konnten nicht geladen werden",
+      "loadProjectFailed": "Projekt konnte nicht geladen werden: {error}",
+      "loadProjectDataFailed": "Projektdaten konnten nicht geladen werden: {error}"
     },
     "runNew": "Neue Evaluierung starten",
     "comingSoon": "Evaluierungsfunktionen werden bald verfügbar sein",
@@ -4803,7 +4933,10 @@
       "metricsComputed": "Berechnete Metriken",
       "bestScore": "Beste Bewertung",
       "footerGenerated": "Bericht generiert vom BenGER Evaluierungsframework am",
-      "academicDisclaimer": "Dieser Bericht wurde unter Verwendung etablierter Evaluierungsmetriken aus begutachteter akademischer Literatur erstellt. Alle Metriken sind gemäß ihren Originalspezifikationen implementiert."
+      "academicDisclaimer": "Dieser Bericht wurde unter Verwendung etablierter Evaluierungsmetriken aus begutachteter akademischer Literatur erstellt. Alle Metriken sind gemäß ihren Originalspezifikationen implementiert.",
+      "selectionSummary": "Modelle: {models}, Metriken: {metrics}",
+      "summaryIntro": "Dieser Bericht zeigt die Evaluierungsergebnisse von Sprachmodellen (Anzahl: {models}) über Metriken (Anzahl: {metrics}).",
+      "versus": "{a} vs. {b}"
     },
     "results": {
       "showing": "Zeige {current} von {total} evaluierten Aufgaben",
@@ -4977,7 +5110,7 @@
     },
     "fieldMapping": {
       "title": "Benutzerdefinierte Feldzuordnungen",
-      "helpText": "Ordnen Sie Vorlagenvariablen den Task-Datenfeldern zu. Verwenden Sie {variablen_name} in Ihrem Prompt.",
+      "helpText": "Ordnen Sie Vorlagenvariablen den Task-Datenfeldern zu. Verwenden Sie {{variable_name}} in Ihrem Prompt.",
       "addMapping": "Zuordnung hinzufügen",
       "variableName": "Variablenname",
       "variablePlaceholder": "domain",
@@ -5055,6 +5188,18 @@
       "calibration": {
         "name": "Kalibrierung",
         "description": "Ist die Bewertung angemessen kalibriert?"
+      },
+      "span_precision": {
+        "name": "Span-Präzision"
+      },
+      "set_accuracy": {
+        "name": "Mengen-Genauigkeit (Mehrfachauswahl)"
+      },
+      "partial_credit": {
+        "name": "Teilpunkte"
+      },
+      "scale_appropriateness": {
+        "name": "Skalenangemessenheit"
       }
     },
     "taskFields": {
@@ -5320,7 +5465,11 @@
       "answersOnlyHint": "Ohne Modell werden nur eingereichte Antworten bewertet.",
       "scopeLoading": "Lade verfügbare Modelle und Annotator:innen…",
       "noEvaluatedModels": "Keine bewerteten Modelle in diesem Projekt",
-      "noAnnotators": "Keine Annotator:innen in diesem Projekt"
+      "noAnnotators": "Keine Annotator:innen in diesem Projekt",
+      "runDisabledNoStructures": "Mindestens eine Prompt-Struktur auswählen",
+      "selectStructures": "Prompt-Strukturen",
+      "oneStructureSelected": "1 Prompt-Struktur ausgewählt",
+      "structuresSelected": "{count} Prompt-Strukturen ausgewählt"
     },
     "llmJudge": {
       "title": "LLM-als-Richter Evaluation",
@@ -5503,7 +5652,8 @@
       "groundTruth": "Ground Truth",
       "prediction": "Vorhersage",
       "score": "Score",
-      "moreMetrics": "+{count} weitere"
+      "moreMetrics": "+{count} weitere",
+      "fleissAcrossRuns": "Fleiss κ über {n} Läufe"
     },
     "multiFieldResults": {
       "title": "Evaluierungsergebnisse",
@@ -5589,7 +5739,10 @@
       "showHistory": "Verlauf",
       "withResults": "mit Ergebnissen",
       "includeHistory": "Verlauf einbeziehen",
-      "selectMetric": "Metrik auswählen"
+      "selectMetric": "Metrik auswählen",
+      "byRunChart": "Diagramm pro Lauf splitten",
+      "runsAggregateTooltip": "Standardabweichung über verschiedene Evaluierungsläufe (Mehrfachlauf-Funktion)",
+      "tabsLabel": "Reiter"
     },
     "dashboardTemplates": {
       "title": "Dashboard-Vorlage",
@@ -5672,7 +5825,9 @@
       "correlationMatrix": "Korrelationsmatrix",
       "strongPositive": "Stark positiv",
       "strongNegative": "Stark negativ",
-      "weakNone": "Schwach/keine"
+      "weakNone": "Schwach/keine",
+      "comparisonsAlpha": "{count} Vergleiche, α = {alpha}",
+      "testsUncorrectedAlpha": "{count} Tests, unkorrigiertes α = {alpha}"
     },
     "scoreDistribution": {
       "title": "Score-Verteilung",
@@ -5780,7 +5935,8 @@
       "noModels": "Keine Modelle verfügbar.",
       "evaluations": "{count} Evaluierungen",
       "rank": "Rang #{rank}",
-      "avg": "Durchschn."
+      "avg": "Durchschn.",
+      "noModelsAvailable": "Keine Modelle verfügbar. Hinterlege API-Schlüssel in deinen Profileinstellungen."
     },
     "aggregation": {
       "perSample": "Pro Stichprobe",
@@ -5863,7 +6019,8 @@
         "score": "Score",
         "whiskers": "Whisker (Min/Max)",
         "iqr": "IQR (Q1–Q3)",
-        "medianLabel": "Median"
+        "medianLabel": "Median",
+        "run": "Lauf"
       },
       "heatmap": {
         "fieldCombinationScores": "Feldkombinations-Scores",
@@ -5935,7 +6092,35 @@
       "sampleSize": "n = {n}",
       "clusters": "{count} Cluster",
       "ciLabel": "{level}% KI",
-      "ciShort": "KI"
+      "ciShort": "KI",
+      "acrossRuns": "über {n} Läufe"
+    },
+    "tabExport": {
+      "exporting": "Evaluierungen werden exportiert...",
+      "preparing": "{count} Evaluierungen werden vorbereitet",
+      "refreshing": "Evaluierungen werden aktualisiert...",
+      "refreshLabel": "Evaluierungen aktualisieren"
+    },
+    "api": {
+      "questionsUploaded": "Fragen erfolgreich hochgeladen",
+      "promptsUploaded": "Prompts erfolgreich hochgeladen",
+      "takingLonger": "Die Evaluierung dauert länger als erwartet",
+      "partialResults": "Einige Methoden wurden nicht in der erwarteten Zeit fertig. Unten werden Teilergebnisse angezeigt."
+    },
+    "upload": {
+      "fileRequired": "Für den Upload ist eine Datei erforderlich",
+      "taskIdRequired": "Für den Upload ist eine Aufgaben-ID erforderlich",
+      "readFailed": "Datei konnte nicht gelesen werden: {error}",
+      "emptyFile": "Die Datei ist leer oder enthält keinen gültigen Inhalt",
+      "invalidJson": "Ungültiges JSON-Format in der Datei",
+      "notArray": "Die Datei muss eine Liste von Einträgen enthalten",
+      "noItems": "Die Datei enthält keine Einträge",
+      "unknownContentType": "Unbekannter Inhaltstyp: Die Datei muss Fragen (mit den Feldern „question“ und „answer“) oder Prompts (mit dem Feld „prompt“) enthalten",
+      "invalidQuestion": "Ungültiges Frageformat an Position {index}: {error}",
+      "noResponse": "Keine Antwort vom Server erhalten",
+      "invalidPrompt": "Ungültiges Prompt-Format an Position {index}: {error}",
+      "failed": "Datenupload fehlgeschlagen: {error}",
+      "failedUnknown": "Datenupload fehlgeschlagen: unbekannter Fehler"
     }
   },
   "about": {
@@ -6241,7 +6426,8 @@
       "noFieldsDetected": "Keine spezifischen Felder erkannt. Verwenden Sie die Massenselektoren oben oder konfigurieren Sie zuerst die Label-Konfiguration.",
       "noReferenceFields": "Keine Referenzfelder erkannt. Konfigurieren Sie die Label-Konfiguration, um Referenzfelder zu definieren.",
       "multipleReferencesTitle": "Mehrere Referenzen ausgewählt:",
-      "multipleReferencesDescription": "Scores werden gegen jede Referenz berechnet und der maximale Score wird verwendet (Best-Match-Strategie)."
+      "multipleReferencesDescription": "Scores werden gegen jede Referenz berechnet und der maximale Score wird verwendet (Best-Match-Strategie).",
+      "modelResponseUnstructured": "Modellantwort (unstrukturiert)"
     },
     "warnings": {
       "noReferenceFields": "„{name}“ hat kein Referenzfeld und bewertet so nichts. Wählen Sie eines, zum Beispiel task.musterloesung.",
@@ -6316,7 +6502,33 @@
         "method": "Faktizitätsmethode",
         "summac": "SummaC (empfohlen)",
         "original": "Ursprüngliches FactCC"
-      }
+      },
+      "dimensions": "Bewertungsdimensionen",
+      "totalMax": "Gesamtmaximum",
+      "dimensionsHint": "Definiere gewichtete Dimensionen, um den Judge in den Mehrdimensionen-Modus mit einem einzigen Aufruf zu schalten. Der Judge liefert dann ein JSON mit Punkten pro Dimension (jeweils auf max_score begrenzt) und einem total_score. Lass max_score bei allen Dimensionen leer, um die bisherige 1-5-Bewertung pro Kriterium beizubehalten.",
+      "noDimensions": "Keine Dimensionen definiert. Klicke auf „Dimension hinzufügen“, um zu beginnen.",
+      "dimensionKey": "Schlüssel",
+      "dimensionName": "Anzeigename",
+      "dimensionMax": "Max.",
+      "dimensionDescription": "Beschreibung",
+      "dimensionDescriptionPlaceholder": "Was diese Dimension bewertet (optional, wird dem Judge in der Rubrik angezeigt)",
+      "dimensionRubric": "Rubrik",
+      "dimensionRubricPlaceholder": "Verankerte Hinweise für den Judge: wofür es 0 gibt, wofür max_score (optional).",
+      "addDimension": "Dimension hinzufügen",
+      "duplicateKeys": "Doppelte Schlüssel",
+      "invalidKeys": "Schlüssel müssen snake_case sein (Kleinbuchstaben, Ziffern, Unterstriche; beginnend mit einem Buchstaben)",
+      "customPromptTemplate": "Prompt-Vorlage",
+      "insertVariable": "Variable einfügen",
+      "variableInUse": "Bereits in der Vorlage verwendet",
+      "variableAvailable": "Zum Einfügen klicken",
+      "unmappedVariables": "Die Vorlage verweist auf Variablen, die noch keinem Aufgabenfeld zugeordnet sind",
+      "unmappedVariablesHint": "Füge sie unten unter Feldzuordnungen hinzu, damit sie auf Aufgabendaten aufgelöst werden.",
+      "missingDimensions": "Dimensionsschlüssel, die im Prompt nicht vorkommen",
+      "missingDimensionsHint": "Der Judge bewertet sie nur, wenn sie in den Anweisungen und im JSON-Schema-Beispiel des Prompts vorkommen.",
+      "temperatureRange": "Antwort-Zufälligkeit ({min} bis {max} bei diesem Anbieter)",
+      "maxTokensRange": "Maximale Tokens für die Judge-Antwort ({min}-{max})",
+      "promptTemplatePlaceholder": "Du bist ein juristischer Korrektor.\n\nFall: {{fall}}\nFrage: {{task}}\nReferenz: {{binary_solution}} / {{reasoning}}\n\nZu bewerten: {{answer}}\n\nAntworte als JSON mit den Feldern scores, total_score, overall_assessment.",
+      "dimensionNamePlaceholder": "Ergebnisrichtigkeit"
     },
     "placeholders": {
       "answerType": "Antworttyp auswählen...",
@@ -6347,7 +6559,12 @@
     "validation": {
       "selectMetric": "Bitte wählen Sie eine Metrik",
       "selectPrediction": "Bitte wählen Sie mindestens ein Vorhersagefeld",
-      "selectReference": "Bitte wählen Sie mindestens ein Referenzfeld"
+      "selectReference": "Bitte wählen Sie mindestens ein Referenzfeld",
+      "temperatureFixedDescription": "Dieses Modell erfordert einen festen Temperaturwert.",
+      "fixed": "Fest auf {value}",
+      "temperatureFixed": "Dieses Modell erfordert Temperatur = {value}. Die API lehnt andere Werte ab.",
+      "temperatureTooLow": "Die Temperatur muss für diesen Anbieter mindestens {min} betragen.",
+      "temperatureTooHigh": "Die Temperatur darf für diesen Anbieter höchstens {max} betragen. Die API lehnt höhere Werte ab."
     },
     "toast": {
       "added": "Evaluierung hinzugefügt",
@@ -6358,7 +6575,60 @@
       "configsWillBeEvaluated": "{count} Konfiguration(en) werden evaluiert",
       "running": "Wird ausgeführt...",
       "run": "Evaluierung starten"
-    }
+    },
+    "judgeTemplates": {
+      "text": {
+        "name": "Freitext",
+        "description": "Bewertet Qualität, Richtigkeit und Kohärenz von Textantworten",
+        "hint": "Geeignet für Aufsätze, Zusammenfassungen, Erklärungen und offene Antworten"
+      },
+      "shortText": {
+        "name": "Kurztext",
+        "description": "Bewertet kurze Textantworten",
+        "hint": "Geeignet für Kurzantworten und Lückentexte"
+      },
+      "longText": {
+        "name": "Langtext",
+        "description": "Bewertet ausführliche Textantworten",
+        "hint": "Geeignet für Aufsätze und ausführliche Erklärungen"
+      },
+      "choices": {
+        "name": "Klassifikation (Einfachauswahl)",
+        "description": "Bewertet, ob die richtige Einzelauswahl getroffen wurde",
+        "hint": "Geeignet für Einfachauswahl, Ja/Nein und binäre Entscheidungen"
+      },
+      "singleChoice": {
+        "name": "Einfachauswahl",
+        "description": "Bewertet eine einzelne Auswahl aus Optionen",
+        "hint": "Geeignet für Radiobutton-Auswahl"
+      },
+      "binary": {
+        "name": "Binäre Auswahl",
+        "description": "Bewertet Ja/Nein- oder Wahr/Falsch-Auswahlen",
+        "hint": "Geeignet für Ja/Nein- und Wahr/Falsch-Fragen"
+      },
+      "multipleChoice": {
+        "name": "Mehrfachauswahl",
+        "description": "Bewertet die Auswahl mehrerer richtiger Elemente",
+        "hint": "Geeignet für Checkboxen und mehrere richtige Antworten"
+      },
+      "spanSelection": {
+        "name": "Named Entity Recognition (NER)",
+        "description": "Bewertet Entitätsgrenzen UND Labels (strengster Modus)",
+        "hint": "Bewertet, WO Spans liegen und WIE sie gelabelt sind"
+      },
+      "rating": {
+        "name": "Bewertungsskala",
+        "description": "Bewertet numerische Einstufungen (z. B. 1-5 Sterne)",
+        "hint": "Geeignet für Sternebewertungen und Likert-Skalen"
+      },
+      "numeric": {
+        "name": "Zahlenwert",
+        "description": "Bewertet numerische Vorhersagen",
+        "hint": "Geeignet für Zahlenantworten und Messwerte"
+      }
+    },
+    "detectedAnswerType": "Erkannt: {name}, Kriterien automatisch ausgewählt"
   },
   "annotation": {
     "examLayout": {
@@ -6404,7 +6674,10 @@
       "pleaseProvideAnnotation": "Bitte geben Sie eine Annotation ab",
       "initializationError": "Initialisierungsfehler",
       "tryAgain": "Erneut versuchen",
-      "alreadySubmitted": "Annotation wurde bereits eingereicht"
+      "alreadySubmitted": "Annotation wurde bereits eingereicht",
+      "noLabelConfigTitle": "Keine Label-Konfiguration gefunden",
+      "noLabelConfigText": "Dieses Projekt benötigt eine Label-Konfiguration, die die Annotationsoberfläche festlegt. Bitte konfiguriere die Projekteinstellungen, bevor du annotierst.",
+      "initFailed": "Die Annotationsoberfläche konnte nicht initialisiert werden"
     },
     "interface": {
       "title": "Annotationsschnittstelle",
@@ -6721,7 +6994,14 @@
       "exportingSelected": "Exportiere {count} ausgewählte Aufgaben...",
       "tasksArchived": "{count} Aufgaben erfolgreich archiviert",
       "archiveFailed": "Fehler beim Archivieren der Aufgaben",
-      "tasksAssigned": "Aufgaben erfolgreich zugewiesen"
+      "tasksAssigned": "Aufgaben erfolgreich zugewiesen",
+      "selectionCapped": "Auswahl auf {count} Aufgaben begrenzt; verfeinere die Filter, um die übrigen zu bearbeiten.",
+      "exportCapped": "Export auf {count} Aufgaben begrenzt; verfeinere die Filter, um die übrigen zu exportieren.",
+      "selectAllFailed": "Passende Aufgaben konnten nicht ausgewählt werden",
+      "taskNotFound": "Aufgabe nicht gefunden",
+      "assignmentRemoved": "Zuweisung entfernt",
+      "assignmentRemoveFailed": "Zuweisung konnte nicht entfernt werden",
+      "tagsUpdated": "Tags aktualisiert"
     },
     "confirmations": {
       "deleteTasks": "Möchten Sie {count} Aufgaben wirklich löschen?",
@@ -6739,7 +7019,9 @@
       "tasksCount": "Aufgaben: {current} / {total}",
       "submittedAnnotations": "Eingereichte Annotationen: {count}",
       "generations": "Generierungen: {count}",
-      "viewMetadata": "Klicken Sie, um alle Metadaten anzuzeigen/zu bearbeiten"
+      "viewMetadata": "Klicken Sie, um alle Metadaten anzuzeigen/zu bearbeiten",
+      "pageAllSelected": "Alle {count} Aufgaben auf dieser Seite sind ausgewählt.",
+      "selectAllMatching": "Alle {count} passenden Aufgaben auswählen"
     },
     "shortcuts": {
       "keyboard": "Tastenkombinationen: Pfeiltasten (Seiten navigieren), Strg/Cmd +/- (Zoom), Strg/Cmd+0 (Zoom zurücksetzen)"
@@ -6837,7 +7119,9 @@
         "refresh": "Aktualisieren",
         "loading": "Wird geladen..."
       }
-    }
+    },
+    "redirectingToLogin": "Du wirst in wenigen Sekunden zur Anmeldeseite weitergeleitet.",
+    "canNowLogIn": "Du kannst dich jetzt bei deinem BenGER-Konto anmelden."
   },
   "passwordReset": {
     "title": "Passwort zurücksetzen",
@@ -6863,7 +7147,8 @@
     "invalidDescription": "Dieser Zurücksetzungslink ist ungültig oder wurde bereits verwendet.",
     "mismatch": "Passwörter stimmen nicht überein",
     "tooShort": "Passwort muss mindestens 8 Zeichen lang sein",
-    "tooWeak": "Passwort ist zu schwach"
+    "tooWeak": "Passwort ist zu schwach",
+    "tryAgainLink": "erneut versuchen"
   },
   "reports": {
     "intro": "Veröffentlichte Evaluationsberichte: wie gut Sprachmodelle und Teilnehmende bei den Aufgaben eines Projekts abgeschnitten haben.",
@@ -6917,7 +7202,13 @@
       "statusPublic": "Öffentlich",
       "visibilityLabel": "Sichtbarkeit",
       "visibleToPublic": "Öffentlich sichtbar",
-      "withdraw": "Zurückziehen"
+      "withdraw": "Zurückziehen",
+      "visibleToOrgs": "Sichtbar für Projektorganisationen",
+      "visibilityOrgs": "Nur Projektorganisationen",
+      "visibilityOrgsHint": "Nur angemeldete Mitglieder der Projektorganisationen können den Bericht lesen.",
+      "visibilityPublic": "Öffentlich (auch ohne Anmeldung)",
+      "visibilityPublicHint": "Jeder mit dem Link kann den Bericht lesen.",
+      "errorVisibility": "Sichtbarkeit konnte nicht geändert werden"
     },
     "view": {
       "draft": "Entwurf",
@@ -6987,7 +7278,13 @@
       "stdDev": "Standardabweichung",
       "submissions": "{count} Abgaben",
       "pseudonymHint": "Teilnehmende werden ausschließlich unter Pseudonym angezeigt.",
-      "madeWith": "Erstellt mit"
+      "madeWith": "Erstellt mit",
+      "scaleLabels": {
+        "share": "0–1 (Anteil)",
+        "points100": "0–100 Punkte",
+        "gradePoints": "0–18 Notenpunkte",
+        "raw": "Rohwert"
+      }
     },
     "title": "Berichte",
     "description": "Veröffentlichte Projekt-Evaluationsberichte anzeigen",
@@ -7144,7 +7441,8 @@
         "guidelineConsider": "Berücksichtigen Sie Genauigkeit, Klarheit und Vollständigkeit",
         "guidelineTie": "Verwenden Sie \"Als Gleichstand markieren\", wenn beide Antworten gleich gut sind",
         "guidelineReveal": "Sie können Modellnamen nach Ihrer Auswahl anzeigen lassen",
-        "modelIdentities": "Modellidentitäten"
+        "modelIdentities": "Modellidentitäten",
+        "modelLabel": "Modell {id}"
       }
     },
     "taskCard": {
@@ -7266,6 +7564,10 @@
         "persistContact": "Wenn der Fehler weiterhin besteht, kontaktieren Sie den Support",
         "continueContact": "Kontaktieren Sie den Support, wenn das Problem weiterhin besteht"
       }
+    },
+    "api": {
+      "invalidJson": "Ungültige JSON-Antwort: {error}",
+      "networkUnreachable": "Netzwerkfehler: Die API unter {url} ist nicht erreichbar"
     }
   },
   "invitation": {
@@ -7386,7 +7688,9 @@
       "serverErrorDetails": "Der Server hat einen Fehler festgestellt. Bitte versuchen Sie es später erneut.",
       "networkError": "Netzwerkfehler",
       "networkErrorDetails": "Keine Verbindung zum Server möglich. Bitte überprüfen Sie Ihre Internetverbindung."
-    }
+    },
+    "tempFixedAt": "Temp.: fest auf {value}",
+    "tempMin": "Temp.: min. {value}"
   },
   "howto": {
     "videoComingSoonNote": "Video-Tutorials werden in einem zukünftigen Update verfügbar sein. Folgen Sie vorerst den schriftlichen Anleitungen oben."
@@ -7560,11 +7864,16 @@
       "generation": "Antwortgenerierung",
       "evaluation": "Evaluierung",
       "viewStatus": "Klicken für detaillierten Status →"
+    },
+    "dataTab": {
+      "loadFailed": "Aufgaben konnten nicht geladen werden",
+      "exportFailed": "Aufgaben konnten nicht exportiert werden",
+      "exporting": "Aufgaben werden exportiert"
     }
   },
   "fieldMapping": {
     "title": "Benutzerdefinierte Feldzuordnungen",
-    "helpText": "Ordnen Sie Vorlagenvariablen den Task-Datenfeldern zu. Verwenden Sie {variablen_name} in Ihrem Prompt.",
+    "helpText": "Ordnen Sie Vorlagenvariablen den Task-Datenfeldern zu. Verwenden Sie {{variable_name}} in Ihrem Prompt.",
     "addMapping": "Zuordnung hinzufügen",
     "noMappings": "Keine Feldzuordnungen definiert. Klicken Sie auf \"Zuordnung hinzufügen\".",
     "variableName": "Variablenname",
@@ -8190,7 +8499,8 @@
       "errorNetwork": "Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
       "errorTimeout": "Die Anfrage ist abgelaufen. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
       "errorQuota": "Ihr API-Schlüssel ist gültig, hat aber seine Nutzungs- oder Ratenlimits erreicht.",
-      "errorDefault": "Bitte überprüfen Sie Ihren API-Schlüssel und versuchen Sie es erneut."
+      "errorDefault": "Bitte überprüfen Sie Ihren API-Schlüssel und versuchen Sie es erneut.",
+      "keyPlaceholder": "Dein {provider}-API-Schlüssel"
     },
     "metadata": {
       "updated": "Metadaten aktualisiert",
@@ -8495,7 +8805,9 @@
       "dataProtection": "Datenschutz",
       "followOnNotion": "Folgen Sie uns auf Notion",
       "allRightsReserved": "Alle Rechte vorbehalten.",
-      "globalNav": "Global"
+      "globalNav": "Global",
+      "pageTitle": "Minimale Seite",
+      "pageDescription": "Diese Seite hat ein eigenes Layout und umgeht alle Provider und komplexen Komponenten."
     },
     "footer": {
       "imprint": "Impressum",
@@ -8504,6 +8816,23 @@
       "followNotion": "Folge uns auf Notion",
       "followGithub": "Folge uns auf GitHub",
       "allRightsReserved": "Alle Rechte vorbehalten."
+    },
+    "languageSwitcher": {
+      "label": "Sprache wählen"
+    },
+    "meta": {
+      "benger": {
+        "title": "BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht",
+        "description": "Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM."
+      },
+      "vertretbar": {
+        "title": "Vertretbar – Klausuren üben mit sofortiger KI-Korrektur",
+        "description": "Übe juristische Klausuren mit sofortiger KI-Korrektur und lerne mit Karteikarten, kein eigener API-Schlüssel nötig."
+      }
+    },
+    "themeToggle": {
+      "switchToDark": "Zum dunklen Design wechseln",
+      "switchToLight": "Zum hellen Design wechseln"
     }
   },
   "data": {
@@ -8613,7 +8942,8 @@
       "metrics": "Metriken",
       "samples": "Samples",
       "duration": "Dauer"
-    }
+    },
+    "loadFailed": "Die Läufe konnten nicht geladen werden"
   },
   "generations": {
     "detail": {
@@ -8637,7 +8967,8 @@
       "prompt": "Verwendeter Prompt",
       "linkedEvaluations": "Verknüpfte Evaluierungen",
       "metric": "Metrik",
-      "scoredSamples": "Bewertete Samples"
+      "scoredSamples": "Bewertete Samples",
+      "loadFailed": "Der Generierungs-Lauf konnte nicht geladen werden"
     }
   },
   "customModels": {
@@ -8840,71 +9171,38 @@
     }
   },
   "extended": {
-    "student": {
-      "billing": {
-        "blocked": {
-          "title": "KI-Korrektur nicht möglich",
-          "notPaying": "KI-Korrektur nicht möglich: Deine Organisation bezahlt die KI-Korrektur noch nicht.",
-          "keyMissing": "KI-Korrektur nicht möglich: Deine Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt.",
-          "connectionRemoved": "KI-Korrektur nicht möglich: Die Verbindung zur Lernplattform wurde entfernt.",
-          "other": "KI-Korrektur gerade nicht möglich.",
-          "cardNotPaying": "Deine Organisation bezahlt die KI-Korrektur noch nicht. Deine Abgabe ist gespeichert und wird korrigiert, sobald deine Organisation die KI-Korrektur freischaltet.",
-          "cardKeyMissing": "Deine Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt. Deine Abgabe ist gespeichert und wird korrigiert, sobald der Schlüssel da ist.",
-          "cardConnectionRemoved": "Die Verbindung zur Lernplattform wurde entfernt. Deine Abgabe bleibt gespeichert.",
-          "cardOther": "Die KI-Korrektur ist gerade nicht möglich. Deine Abgabe ist gespeichert."
-        }
+    "featureFlags": {
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} freigegeben",
+      "targetRemoved": "{target} entfernt",
+      "intro": "Jede Änderung gilt sofort, auf benger und vertretbar. \"Freigabeliste\" schaltet die Funktion nur für die eingetragenen Nutzer und für Mitglieder der eingetragenen Organisationen frei. Superadmins sind nicht automatisch freigeschaltet.",
+      "loadFailed": "Feature-Flags konnten nicht geladen werden.",
+      "default": "Standard: {state}",
+      "allowlistEmpty": "Die Liste ist leer, die Funktion ist damit für niemanden frei.",
+      "kindUser": "Nutzer",
+      "kindOrg": "Organisation",
+      "addUser": "Nutzer hinzufügen",
+      "userSearch": "Name, E-Mail oder Pseudonym",
+      "addOrg": "Organisation hinzufügen",
+      "pickOrg": "Organisation wählen",
+      "menu": "Feature Flags",
+      "state": {
+        "off": "Aus",
+        "everyone": "Alle",
+        "allowlist": "Freigabeliste"
       },
-      "examResult": {
-        "sourceHuman": "Korrektur",
-        "sourceAi": "KI-Bewertung",
-        "finalLabel": "Note",
-        "fromHuman": "aus der Korrektur",
-        "fromAi": "aus der KI-Bewertung",
-        "countsForGrade": "Zählt für deine Note",
-        "extraOpinion": "Zusätzliche Einschätzung, zählt nicht für deine Note",
-        "extraShort": "Zählt nicht für deine Note"
-      },
-      "participants": {
-        "anonymized": "Anonymisiert",
-        "lmsNoSubmission": "Noch keine Abgabe",
-        "lmsSubmitted": "Abgabe {date}",
-        "sourceLms": "Lernplattform",
-        "sourceShare": "Freigabe-Link"
-      }
-    },
-    "researchConsent": {
-      "label": "Ich habe die Forschungsdatennutzungsrichtlinie gelesen und stimme der Nutzung meiner anonymisierten Daten für die Forschung zu.",
-      "linkText": "Nutzung meiner anonymisierten Daten für die Forschung",
-      "agree": "Ich stimme zu",
-      "close": "Schließen"
-    },
-    "researchDataPolicy": {
-      "title": "Forschungsdatennutzungsrichtlinie",
-      "lead": "Die Nutzung dieser Plattform setzt voraus, dass Sie uns Rechte an Ihren Nutzungs- und Annotationsdaten für unsere Forschung einräumen, unter der Bedingung, dass die Daten anonymisiert werden.",
-      "scopeTitle": "Geltungsbereich",
-      "scopeText": "Diese Richtlinie betrifft die Daten, die Sie bei der Nutzung von BenGER erzeugen: Annotationen, Korrekturen, Generierungen, Evaluationen sowie die zugehörigen Zeit- und Verhaltensmetadaten. Persönliche Kontodaten sind hiervon nicht erfasst – diese sind in der separaten Datenschutzerklärung geregelt.",
-      "anonymizationTitle": "Anonymisierung",
-      "anonymizationText": "Bevor Daten die Plattform für Forschungszwecke verlassen, werden direkte Identifikatoren (Name, E-Mail, Konto-ID) entfernt oder durch stabile Pseudonyme ersetzt. Untersucht werden aggregierte Statistiken und pseudonymisierte Verläufe, nicht Ihre individuelle Identität.",
-      "useTitle": "Verwendung",
-      "useText": "Anonymisierte Daten werden verwendet, um zu untersuchen, wie Menschen und große Sprachmodelle bei deutschsprachigen juristischen Aufgaben abschneiden: Übereinstimmung, Kalibrierung, Fehlermuster und die Entwicklung besserer Evaluationsmethoden. Ergebnisse können in wissenschaftlichen Publikationen, öffentlichen Benchmarks oder aggregierten Dashboards erscheinen. Rohdaten mit Personenbezug werden nicht veröffentlicht.",
-      "consentTitle": "Ihre Einwilligung",
-      "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
+      "title": "Feature Flags",
+      "rubricAiDisabled": "Die KI-Hilfe für Bewertungsbögen ist derzeit nicht verfügbar."
     },
     "lti": {
-      "orgKey": {
-        "title": "KI-Korrektur für die Lernplattform noch nicht möglich",
-        "adminNotPaying": "Schalten Sie im Dialog „API-Schlüssel der Organisation“ die Option „Organisation stellt API-Schlüssel bereit“ ein und hinterlegen Sie einen Schlüssel für {providers}.",
-        "adminNotPayingSwitch": "Schalten Sie im Dialog „API-Schlüssel der Organisation“ die Option „Organisation stellt API-Schlüssel bereit“ ein.",
-        "adminKeyMissing": "Es fehlt ein API-Schlüssel für {providers}. Hinterlegen Sie ihn im Dialog „API-Schlüssel der Organisation“.",
-        "adminKeyMissingUnnamed": "Es fehlt ein API-Schlüssel für das Bewertungsmodell. Hinterlegen Sie ihn im Dialog „API-Schlüssel der Organisation“.",
-        "teacherNotPaying": "Ihre Organisation stellt noch keine API-Schlüssel für die KI-Korrektur bereit. Bitte wenden Sie sich an Ihren Organisations-Admin.",
-        "teacherKeyMissing": "Ihre Organisation hat noch keinen API-Schlüssel für {providers} hinterlegt. Bitte wenden Sie sich an Ihren Organisations-Admin.",
-        "teacherKeyMissingUnnamed": "Ihre Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt. Bitte wenden Sie sich an Ihren Organisations-Admin.",
-        "pending": "Abgaben aus der Lernplattform bleiben gespeichert und werden korrigiert, sobald der Schlüssel hinterlegt ist.",
-        "pendingNotPaying": "Abgaben aus der Lernplattform bleiben gespeichert und werden korrigiert, sobald die Organisation API-Schlüssel bereitstellt.",
-        "openKeys": "API-Schlüssel öffnen"
-      },
       "admin": {
+        "colIssuer": "Issuer",
+        "issuer": "Issuer",
+        "colClientId": "Client-ID",
+        "clientId": "Client-ID",
+        "colDeployments": "Deployments",
+        "namePlaceholder": "Uni X {family}",
         "accounts": {
           "anonymizedBadge": "Anonymisiert",
           "consent": "Einwilligung am {date} (Version {version})",
@@ -9278,6 +9576,19 @@
           "deployment_disabled": "Alle Deployment-IDs dieser Anbindung sind abgeschaltet. Schalten Sie zuerst eine ein.",
           "grade_resend_failed": "Die Noten konnten nicht eingeplant werden. Bitte versuchen Sie es später erneut."
         }
+      },
+      "orgKey": {
+        "title": "KI-Korrektur für die Lernplattform noch nicht möglich",
+        "adminNotPaying": "Schalten Sie im Dialog „API-Schlüssel der Organisation“ die Option „Organisation stellt API-Schlüssel bereit“ ein und hinterlegen Sie einen Schlüssel für {providers}.",
+        "adminNotPayingSwitch": "Schalten Sie im Dialog „API-Schlüssel der Organisation“ die Option „Organisation stellt API-Schlüssel bereit“ ein.",
+        "adminKeyMissing": "Es fehlt ein API-Schlüssel für {providers}. Hinterlegen Sie ihn im Dialog „API-Schlüssel der Organisation“.",
+        "adminKeyMissingUnnamed": "Es fehlt ein API-Schlüssel für das Bewertungsmodell. Hinterlegen Sie ihn im Dialog „API-Schlüssel der Organisation“.",
+        "teacherNotPaying": "Ihre Organisation stellt noch keine API-Schlüssel für die KI-Korrektur bereit. Bitte wenden Sie sich an Ihren Organisations-Admin.",
+        "teacherKeyMissing": "Ihre Organisation hat noch keinen API-Schlüssel für {providers} hinterlegt. Bitte wenden Sie sich an Ihren Organisations-Admin.",
+        "teacherKeyMissingUnnamed": "Ihre Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt. Bitte wenden Sie sich an Ihren Organisations-Admin.",
+        "pending": "Abgaben aus der Lernplattform bleiben gespeichert und werden korrigiert, sobald der Schlüssel hinterlegt ist.",
+        "pendingNotPaying": "Abgaben aus der Lernplattform bleiben gespeichert und werden korrigiert, sobald die Organisation API-Schlüssel bereitstellt.",
+        "openKeys": "API-Schlüssel öffnen"
       },
       "consent": {
         "continue": "Weiter",
@@ -9745,6 +10056,56 @@
         "iliasHint": "Globaler Provider, drei Schritte",
         "otherHint": "Formular mit allen Feldern"
       }
+    },
+    "student": {
+      "billing": {
+        "blocked": {
+          "title": "KI-Korrektur nicht möglich",
+          "notPaying": "KI-Korrektur nicht möglich: Deine Organisation bezahlt die KI-Korrektur noch nicht.",
+          "keyMissing": "KI-Korrektur nicht möglich: Deine Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt.",
+          "connectionRemoved": "KI-Korrektur nicht möglich: Die Verbindung zur Lernplattform wurde entfernt.",
+          "other": "KI-Korrektur gerade nicht möglich.",
+          "cardNotPaying": "Deine Organisation bezahlt die KI-Korrektur noch nicht. Deine Abgabe ist gespeichert und wird korrigiert, sobald deine Organisation die KI-Korrektur freischaltet.",
+          "cardKeyMissing": "Deine Organisation hat noch keinen API-Schlüssel für das Bewertungsmodell hinterlegt. Deine Abgabe ist gespeichert und wird korrigiert, sobald der Schlüssel da ist.",
+          "cardConnectionRemoved": "Die Verbindung zur Lernplattform wurde entfernt. Deine Abgabe bleibt gespeichert.",
+          "cardOther": "Die KI-Korrektur ist gerade nicht möglich. Deine Abgabe ist gespeichert."
+        }
+      },
+      "examResult": {
+        "sourceHuman": "Korrektur",
+        "sourceAi": "KI-Bewertung",
+        "finalLabel": "Note",
+        "fromHuman": "aus der Korrektur",
+        "fromAi": "aus der KI-Bewertung",
+        "countsForGrade": "Zählt für deine Note",
+        "extraOpinion": "Zusätzliche Einschätzung, zählt nicht für deine Note",
+        "extraShort": "Zählt nicht für deine Note"
+      },
+      "participants": {
+        "anonymized": "Anonymisiert",
+        "lmsNoSubmission": "Noch keine Abgabe",
+        "lmsSubmitted": "Abgabe {date}",
+        "sourceLms": "Lernplattform",
+        "sourceShare": "Freigabe-Link"
+      }
+    },
+    "researchConsent": {
+      "label": "Ich habe die Forschungsdatennutzungsrichtlinie gelesen und stimme der Nutzung meiner anonymisierten Daten für die Forschung zu.",
+      "linkText": "Nutzung meiner anonymisierten Daten für die Forschung",
+      "agree": "Ich stimme zu",
+      "close": "Schließen"
+    },
+    "researchDataPolicy": {
+      "title": "Forschungsdatennutzungsrichtlinie",
+      "lead": "Die Nutzung dieser Plattform setzt voraus, dass Sie uns Rechte an Ihren Nutzungs- und Annotationsdaten für unsere Forschung einräumen, unter der Bedingung, dass die Daten anonymisiert werden.",
+      "scopeTitle": "Geltungsbereich",
+      "scopeText": "Diese Richtlinie betrifft die Daten, die Sie bei der Nutzung von BenGER erzeugen: Annotationen, Korrekturen, Generierungen, Evaluationen sowie die zugehörigen Zeit- und Verhaltensmetadaten. Persönliche Kontodaten sind hiervon nicht erfasst – diese sind in der separaten Datenschutzerklärung geregelt.",
+      "anonymizationTitle": "Anonymisierung",
+      "anonymizationText": "Bevor Daten die Plattform für Forschungszwecke verlassen, werden direkte Identifikatoren (Name, E-Mail, Konto-ID) entfernt oder durch stabile Pseudonyme ersetzt. Untersucht werden aggregierte Statistiken und pseudonymisierte Verläufe, nicht Ihre individuelle Identität.",
+      "useTitle": "Verwendung",
+      "useText": "Anonymisierte Daten werden verwendet, um zu untersuchen, wie Menschen und große Sprachmodelle bei deutschsprachigen juristischen Aufgaben abschneiden: Übereinstimmung, Kalibrierung, Fehlermuster und die Entwicklung besserer Evaluationsmethoden. Ergebnisse können in wissenschaftlichen Publikationen, öffentlichen Benchmarks oder aggregierten Dashboards erscheinen. Rohdaten mit Personenbezug werden nicht veröffentlicht.",
+      "consentTitle": "Ihre Einwilligung",
+      "consentText": "Mit dem Setzen des Häkchens bei der Registrierung erteilen Sie diese Erlaubnis, solange Ihre Daten anonymisiert bleiben. Bestehende Konten dieses Deployments wurden als einwilligend behandelt; wenn Sie das anders handhaben möchten, wenden Sie sich bitte an die Betreiber."
     }
   },
   "student": {
@@ -10326,6 +10687,12 @@
         "lmsAdmin": "Lehrende bitten die Administration der Lernplattform, die Tool-Einstellungen zu prüfen.",
         "support": "Lehrende wenden sich an den Betreiber dieser Plattform."
       }
+    },
+    "link": {
+      "extendedRequired": "Die LTI-Inhaltsverknüpfung erfordert die Extended Edition."
+    },
+    "activity": {
+      "extendedRequired": "Die Ansicht der LMS-Aktivität erfordert die Extended Edition."
     }
   },
   "ltiHost": {
@@ -10592,25 +10959,6 @@
     "studentEmail": "E-Mail des/der Studierenden",
     "title": "Anbieter-Konsole",
     "unpublish": "Zurückziehen"
-  },
-  "vertretbar": {
-    "onboarding": {
-      "free": {
-        "body": "Unbegrenzt KI-Korrektur deiner Klausuren — komplett gratis. Keine Kreditkarte.",
-        "cta": "Kostenlos weiter",
-        "price": "0 €",
-        "tag": "Kostenlos"
-      },
-      "premium": {
-        "body": "Korrektur auf Examens-Niveau mit dem stärkeren Modell — näher an einer echten Examenskorrektur. 1 Premium-Korrektur pro Woche gratis, danach 1 €. Jederzeit kündbar.",
-        "cta": "Examens-Abo starten",
-        "per": " / Monat",
-        "price": "5 €",
-        "tag": "Examens-Abo"
-      },
-      "subtitle": "Beide Pläne korrigieren deine Klausuren — wähl, was zu dir passt. Du kannst jederzeit wechseln.",
-      "title": "Willkommen bei Vertretbar 👋"
-    }
   },
   "billing": {
     "unavailable": "Abrechnung ist in dieser Edition nicht verfügbar."
@@ -10908,6 +11256,147 @@
       "loadMore": "Mehr laden",
       "exportCsv": "Nutzung als CSV",
       "entry": "Alle API-Zugänge"
+    },
+    "scopeDescriptions": {
+      "orgRead": "Organisation und eigene Mitgliedschaft lesen",
+      "projectsRead": "Projekte lesen",
+      "tasksRead": "Aufgaben lesen (ohne Lösungshinweise)",
+      "tasksReadReference": "Aufgaben mit Musterlösungen lesen",
+      "submissionsRead": "Einreichungen lesen",
+      "submissionsWrite": "Einreichungen anlegen",
+      "systemsRead": "Registrierte Systeme lesen",
+      "systemsManage": "Systeme registrieren und verwalten",
+      "runsRead": "Läufe lesen",
+      "runsWrite": "Läufe anlegen",
+      "evaluationsRead": "Evaluationen lesen",
+      "evaluationsRun": "Evaluationen starten",
+      "resultsRead": "Ergebnisse lesen",
+      "exportsRead": "Exporte abrufen",
+      "keysManage": "Eigene Zugangsschlüssel verwalten"
+    }
+  },
+  "architecture": {
+    "sections": {
+      "overview": {
+        "title": "Überblick: Open Core, zwei Oberflächen, ein System",
+        "intro": "BenGER ist als **Open-Core-System** gebaut. Das öffentliche Repository `benger-platform` (Apache-2.0) enthält Annotationssystem, Generierung, Evaluation, Berichte und Organisationsverwaltung. Das private Paket `benger-extended` liefert die proprietären Erweiterungen (Klausurlösung, KI-Korrektur, Korrektur- und Review-Workflows, Timer, Bestenlisten für Menschen, LTI, die Studierendenplattform) und wird beim Build in dieselben Images eingebettet. In Produktion läuft ein Satz Container, der beide Oberflächen bedient: die Expertenplattform auf der BenGER-Adresse und die Studierendenplattform auf einer eigenen Studierenden-Adresse.",
+        "bullets": [
+          "Eine Datenbank, ein Konto: Die Oberfläche wird pro Host und Nutzer:in entschieden (Studierenden- oder Expertenansicht), nicht pro Deployment.",
+          "Die Community-Edition (nur `benger-platform`) läuft ohne die Erweiterungen: Slots und Registries bleiben leer, die Kernfunktionen funktionieren unverändert.",
+          "Datenbankschema und Migrationen für alle Funktionen, auch die erweiterten, liegen im Platform-Repository. Die Erweiterungen bringen Logik mit, kein zweites Migrationssystem."
+        ]
+      },
+      "frontend": {
+        "title": "Frontend",
+        "intro": "**Next.js 15** (App Router, Turbopack) mit React 18, TypeScript und Tailwind CSS. Das Frontend ist eine Anwendung mit zwei Shells: der Experten-Shell mit Seitenleiste und Konfigurationskarten und der Studierenden-Shell mit Lernstatistik, Klausuren und Karteikarten. Welche Shell rendert, entscheidet der Host (die Studierenden-Adresse ist auf die Studierenden-Shell festgelegt) zusammen mit der gespeicherten Nutzerpräferenz.",
+        "bullets": [
+          "Erweiterungspunkte: ein Slot-System (`registerSlot`/`useSlot`) für ganze Seiten und Karten, Registries für Metriken, Metrik-Editoren und Zellen-Renderer, Wizard-Vorlagen, Projekttyp-Presets, Post-Create-Hooks, Changelog- und Anleitungs-Einträge.",
+          "Drei Sprachen (Deutsch, Englisch, Französisch) über eine zentrale Übersetzungsschicht; Dark Mode; responsive Layouts.",
+          "Echtzeit: Server-Sent Events für Benachrichtigungen und Evaluationsfortschritt, WebSockets für laufende Generierungen.",
+          "Der Next-Server proxyt API-Aufrufe und setzt Sitzungs-Cookies pro Basisdomain, sodass Organisations-Subdomains die Sitzung teilen."
+        ]
+      },
+      "api": {
+        "title": "API",
+        "intro": "**FastAPI** mit Pydantic v2 und SQLAlchemy 2. Die API kennt zwei Datenbank-Lanes gegen dieselbe PostgreSQL-Instanz: die synchrone (psycopg2) für bestehenden Code und die asynchrone (asyncpg), in die neue Handler geschrieben werden. Authentifizierung über JWT mit Refresh-Tokens, der Organisationskontext kommt aus der Subdomain.",
+        "bullets": [
+          "Rund 36 Router-Module: Projekte und Aufgaben, Import/Export, Generierung, Evaluation und Sofort-Evaluation, Organisationen mit Gruppen und Einladungen, API-Schlüssel (persönlich, Organisation, Gruppe), eigene Modelle, Prompt-Strukturen, Bestenlisten, Berichte, Läufe, Benachrichtigungen, Objektspeicher, LTI-Administration, Health.",
+          "Alembic-Migrationen laufen beim Start unter einem Advisory-Lock; ein Schema-Validator prüft danach Modell und Datenbank gegeneinander.",
+          "Der Modellkatalog (`llm_models.yaml`) ist die einzige Quelle für Modelle, Preise und Parameter-Constraints und wird beim Start in die Datenbank geseedet.",
+          "Die Erweiterungen laden über `extensions.py`: zusätzliche Router und Lifecycle-Hooks (nach Annotation, nach Entwurf, nach Speichern einer Evaluationskonfiguration, bei Registrierung) mit einem Versions-Handshake zwischen Kern und Erweiterung.",
+          "`/health` prüft Postgres und Redis (Pflicht) sowie die Worker (weich); Drittanbieter werden bewusst nicht in der Liveness-Probe abgefragt."
+        ]
+      },
+      "workers": {
+        "title": "Worker und Warteschlangen",
+        "intro": "**Celery** verarbeitet alles, was länger dauert. Statt eines Workers für alles gibt es sechs getrennte Warteschlangen, die von eigenen Worker-Pools bedient werden: `interactive` (Sofort-Evaluation, Entwürfe), `emails`, `maintenance`, `generation`, `evaluation` und `bulk` (Import/Export). So kann eine große Batch-Evaluation die KI-Korrektur einer einzelnen Abgabe nicht blockieren.",
+        "bullets": [
+          "Generierung: Prompt-Strukturen mit `$feld`-Referenzen und Vorlagen, Schutz vor Antwort-Leaks (Referenzfelder werden nie in Prompts eingesetzt), Mehrfachläufe pro Aufgabe, Provider-Adapter für OpenAI, Anthropic, Google, DeepInfra, Grok, Mistral, Cohere und OpenAI-kompatible eigene Endpunkte.",
+          "Evaluation: lexikalische, semantische und Klassifikationsmetriken, LLM-Judges (klassisch, benutzerdefiniert, Falllösung mit Notenpunkten, Bewertungsbogen), Ensembles mit Inter-Judge-Agreement, statistische Auswertung.",
+          "Beat-Zeitplan: stündlich Aggregat- und Bestenlisten-Neuberechnung, halbstündlich die Nachholung fehlender Sofort-Evaluationen, nächtliche Datenbanksicherung als Kubernetes-CronJob.",
+          "Import und Export laufen ausschließlich über den Objektspeicher: die API nimmt keine großen Dateien entgegen, Clients laden direkt per vorsignierter URL hoch und herunter."
+        ]
+      },
+      "storage": {
+        "title": "Datenhaltung",
+        "intro": "Drei Speicher, jeder mit klarer Aufgabe: **PostgreSQL** für alle Anwendungsdaten, **Redis** für Warteschlangen und Echtzeit, **MinIO** (S3-kompatibel) für Dateien.",
+        "bullets": [
+          "PostgreSQL: Nutzer:innen, Organisationen und Gruppen, Projekte, Aufgaben, Annotationen, Generierungen, Evaluationen, Lernverläufe. Konfigurationen liegen als JSONB und werden serverseitig tief zusammengeführt, damit parallele Speichervorgänge sich nicht überschreiben.",
+          "Redis: Celery-Broker, Pub/Sub für Benachrichtigungen und Fortschritt, Rate-Limits, Sitzungs-Cache.",
+          "MinIO: Projekt-Import und -Export, Datei-Uploads, Organisations-Speicherverbindungen für Cloud-Importe. Der Objektspeicher ist eine harte Abhängigkeit in beiden Editionen; ohne ihn startet die API nicht."
+        ]
+      },
+      "annotation": {
+        "title": "Annotationssystem",
+        "intro": "Ein eigenes, **Label-Studio-kompatibles** Annotationssystem ohne externen Dienst. Die Oberfläche wird aus einer XML-Konfiguration gerendert (`View`, `Text`, `TextArea`, `Choices`, `Labels`, `Rating`, `Likert`, `Number`, `Image`); die Erweiterungen registrieren zusätzliche Komponenten für die Klausurlösung (`Angabe`, `Notizen`, `Gliederung`, `Loesung`).",
+        "bullets": [
+          "Zuweisungsmodi (offen, manuell, automatisch), Limits pro Aufgabe, zufällige Reihenfolge, Zeitlimits mit striktem Timer, Zugriffsfenster, Entwürfe mit wiederherstellbaren Zwischenständen.",
+          "Sofort-Evaluation nach jeder Abgabe über einen serverseitigen Hook, der jede Abgabe genau einmal bewertet, auch wenn der Browser den Aufruf nie abgesetzt hat.",
+          "Review-Phase und menschliche Korrektur (Falllösung, eigene Rubrik, Kommentare) als Erweiterung; Blinding der Referenzfelder bis zur Abgabe.",
+          "Exporte als JSON, CSV, TSV, TXT, Label-Studio-Format, NDJSON und Anki; Round-Trip-Import ganzer Projekte samt Annotationen und Bewertungen."
+        ]
+      },
+      "organizations": {
+        "title": "Organisationen, Gruppen und Zugriff",
+        "intro": "Nutzer:innen können mehreren **Organisationen** angehören; jede Organisation hat eine eigene Subdomain (`{slug}.what-a-benger.net`) und die Rollen Admin, Mitwirkender und Annotator. **Gruppen** (z.B. Lehrstühle) teilen eine Organisation weiter auf: Projektzuordnungen und API-Schlüssel können auf eine Gruppe beschränkt werden. Jede Gruppenmitgliedschaft hat eine eigene Rolle, unabhängig von der Rolle in der Organisation: Auf einem Gruppenprojekt entscheidet die Rolle in der Gruppe, auf organisationsweiten Projekten die Rolle in der Organisation. Org-Admins sind in jeder Gruppe Admin; Gruppen-Admins verwalten ihre Gruppe ohne organisationsweite Rechte.",
+        "bullets": [
+          "Sichtbarkeit von Projekten: privat, Organisation (optional eine Gruppe) oder öffentlich; zusätzlich Freigabe-Links mit Passwort und ein Verzeichnis (*Entdecken*) für Studierende. Wer über Link oder Verzeichnis beitritt, bekommt die schmale Teilnehmer-Stufe ohne Referenzdaten.",
+          "API-Schlüssel werden verschlüsselt gespeichert. Auflösung pro Aufruf: Stellt die Organisation Schlüssel bereit, zahlt sie (Gruppenschlüssel vor Organisationsschlüssel), sonst der persönliche Schlüssel. Eigene Modelle (BYOM) nutzen immer den Schlüssel der aufrufenden Person. Bei Klausuren, die mit einer Lernplattform verknüpft sind, zahlt die Organisation der Anbindung die KI-Korrektur ihrer Studierenden aus der Lernplattform und ihres Personals. Fehlt ihr ein Schlüssel, läuft keine Korrektur.",
+          "Einladungen per E-Mail mit siebentägigem Token, optional gruppenbezogen mit Rolle in der Gruppe (bestehende Mitglieder kommen direkt in die Gruppe); Benachrichtigungen in der App und per E-Mail (SendGrid) mit Ruhezeiten und Digest."
+        ]
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "intro": "**LTI 1.3** verbindet BenGER mit Moodle und ILIAS. Org- und Gruppen-Admins richten Anbindungen selbst ein, per einmaligem Einladungslink (Dynamic Registration) oder von Hand, und die Anbindung ist sofort aktiv. Beim ersten Start wird die Zustimmung eingeholt, einmal je Anbindung, und erst danach ein Konto angelegt oder nach Anmeldung oder E-Mail-Bestätigung ein bestehendes verknüpft. Lehrende verknüpfen die Aktivität mit einer Klausur. Die Noten (0 bis 18 Notenpunkte) gehen über den Assignment and Grade Service zurück: die Endnote in die Spalte der Aktivität und in Moodle die KI-Note in eine eigene Spalte.",
+        "bullets": [
+          "KI-Anbieter: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi u.a.), Grok, Mistral, Cohere. Eigene OpenAI-kompatible Endpunkte lassen sich registrieren und teilen; eine SSRF-Sperre verhindert Aufrufe ins interne Netz.",
+          "E-Mail über SendGrid, mit einem Marken-Absender je Host.",
+          "Cloud-Speicherverbindungen von Organisationen (S3) für Importe direkt aus dem eigenen Bucket."
+        ]
+      },
+      "deployment": {
+        "title": "Betrieb, Deployment und CI",
+        "intro": "Produktion läuft auf **Kubernetes (K3s)** mit Helm, getrennt in eine Produktions- und eine Staging-Umgebung. Traefik terminiert TLS mit Wildcard-Zertifikaten für beide Adressen und leitet Organisations-Subdomains an dieselbe Frontend-Instanz.",
+        "bullets": [
+          "Deployments: API und Frontend mit je zwei Replikas und Rolling Updates, Worker-Pools pro Warteschlange, Celery Beat, MinIO, PostgreSQL, Redis, ein Migrations-Job vor jedem Rollout und ein nächtlicher Backup-CronJob. Autoscaling ist vorbereitet, aber ausgeschaltet.",
+          "CI/CD: Pull Requests auf das Platform-Repository laufen Jest und Lint; ein Merge auf `main` läuft zusätzlich die vollständigen API- und Worker-Suiten (sechs parallele Shards) und löst danach den Build im Extended-Repository aus, der die Images nach GHCR pusht und Produktion ausrollt. Pull Requests im Extended-Repository deployen nach Staging.",
+          "Nächtliche Läufe: kompletter Test-Suite-Lauf inklusive End-to-End-Tests, Coverage-Ratchets und Mutation-Testing; ein Drift-Check vergleicht den Modellkatalog mit der Datenbank.",
+          "Lokale Entwicklung mit Docker Compose und Traefik unter `benger.localhost` und einer lokalen Studierenden-Adresse, Hot Reload über Turbopack, isolierte Test-Infrastruktur (PostgreSQL 5433, Redis 6380, eigener MinIO)."
+        ]
+      }
+    }
+  },
+  "demo": {
+    "envBadge": {
+      "label": "Demo-Umgebung",
+      "body": "Diese Umgebung zeigt Beispielinhalte. Alle Änderungen und neu angelegten Konten werden jede Nacht um 4 Uhr zurückgesetzt."
+    }
+  },
+  "dev": {
+    "modeIndicator": {
+      "tooltip": "Entwicklungsmodus mit automatischer Anmeldung aktiv",
+      "badge": "DEV-MODUS",
+      "title": "Entwicklungsmodus aktiv",
+      "authenticatedAs": "Automatisch angemeldet als:",
+      "emailLabel": "E-Mail:",
+      "hostLabel": "Host:",
+      "superadminLabel": "Superadmin:"
+    }
+  },
+  "dialogs": {
+    "deleteConfirm": {
+      "title": "Löschen bestätigen",
+      "message": "Möchtest du {item} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+      "thisItem": "dieses Element",
+      "thisMember": "dieses Mitglied",
+      "namedUser": "den Benutzer „{name}“"
+    }
+  },
+  "labelConfig": {
+    "parser": {
+      "invalidXml": "Ungültiges XML",
+      "noRoot": "Kein Wurzelelement gefunden",
+      "unknownError": "Unbekannter Fehler beim Parsen"
     }
   }
 }

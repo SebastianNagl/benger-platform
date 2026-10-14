@@ -6,22 +6,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MetricSelector } from '../MetricSelector'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, any> | string) => {
-      const translations: Record<string, string> = {
-        'evaluation.metricSelector.selectMetrics': 'Select Metrics',
-        'evaluation.metricSelector.selectedCount': `${(params as any)?.selected} of ${(params as any)?.total} selected`,
-        'evaluation.metricSelector.clearAll': 'Clear All',
-        'evaluation.metricSelector.searchPlaceholder': 'Search metrics...',
-        'evaluation.metricSelector.quickPresets': 'Quick Presets',
-        'evaluation.metricSelector.noResults': 'No metrics found',
-      }
-      // A string second argument is the inline English fallback.
-      return translations[key] || (typeof params === 'string' ? params : key)
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('@/components/shared/Badge', () => ({
   Badge: ({ children, className, variant }: any) => (
@@ -84,7 +71,7 @@ describe('MetricSelector', () => {
           selectedMetrics={['accuracy', 'f1']}
         />,
       )
-      expect(screen.getByText('2 of 7 selected')).toBeInTheDocument()
+      expect(screen.getByText('2 of 7 metrics selected')).toBeInTheDocument()
     })
 
     it('shows search input', () => {
@@ -219,7 +206,9 @@ describe('MetricSelector', () => {
       const searchInput = screen.getByPlaceholderText('Search metrics...')
       await user.type(searchInput, 'nonexistent')
 
-      expect(screen.getByText('No metrics found')).toBeInTheDocument()
+      expect(
+        screen.getByText('No metrics found matching your search'),
+      ).toBeInTheDocument()
     })
   })
 

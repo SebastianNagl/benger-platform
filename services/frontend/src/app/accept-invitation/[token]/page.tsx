@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
+import { intlTag } from '@/lib/i18n/locales'
 import { useNotificationStore } from '@/stores/notificationStore'
 import {
   ArrowPathIcon,
@@ -24,7 +25,7 @@ export default function AcceptInvitationPage({
 }) {
   const router = useRouter()
   const { user, refreshAuth, isLoading: authLoading } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [accepting, setAccepting] = useState(false)
@@ -103,7 +104,7 @@ export default function AcceptInvitationPage({
 
   const formatExpiryDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString(intlTag(locale), {
       year: 'numeric',
       month: 'long',
       day: 'numeric',

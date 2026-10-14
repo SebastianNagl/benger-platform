@@ -23,9 +23,7 @@ export function MethodsList({
   if (methods.length === 0 && configs.length === 0) return null
   return (
     <div className="mb-6" data-testid="methods-list">
-      <SubHeading>
-        {t('reports.view.methods', 'Bewertungsverfahren')}
-      </SubHeading>
+      <SubHeading>{t('reports.view.methods')}</SubHeading>
       <ul className="grid gap-2 sm:grid-cols-2">
         {methods.map((m) => (
           <li
@@ -36,7 +34,7 @@ export function MethodsList({
               {labelFor(m.id)}
             </div>
             <div className="text-xs text-zinc-500 dark:text-zinc-400">
-              {t('reports.view.scale', 'Skala')}: {scaleLabel(m.scale)}
+              {t('reports.view.scale')}: {scaleLabel(m.scale, t)}
               {' · '}
               {categoryLabel(m.category, t)}
             </div>
@@ -52,12 +50,12 @@ export function MethodsList({
               data-testid="config-chip"
             >
               {c.judge_label
-                ? t('reports.view.judgeConfig', 'Judge: {judge}', {
+                ? t('reports.view.judgeConfig', {
                     judge: c.judge_label,
                   })
                 : c.name || labelFor(c.metric)}
               {' · '}
-              {t('reports.view.samples', 'n = {n}', {
+              {t('reports.view.samples', {
                 n: formatCount(c.n, locale),
               })}
             </li>
@@ -71,15 +69,15 @@ export function MethodsList({
 function categoryLabel(category: string, t: TranslateFn): string {
   switch (category) {
     case 'llm_judge':
-      return t('reports.view.category.llmJudge', 'LLM-Bewertung')
+      return t('reports.view.category.llmJudge')
     case 'human':
-      return t('reports.view.category.human', 'Menschliche Korrektur')
+      return t('reports.view.category.human')
     case 'lexical':
-      return t('reports.view.category.lexical', 'Lexikalische Metrik')
+      return t('reports.view.category.lexical')
     case 'semantic':
-      return t('reports.view.category.semantic', 'Semantische Metrik')
+      return t('reports.view.category.semantic')
     case 'classification':
-      return t('reports.view.category.classification', 'Klassifikation')
+      return t('reports.view.category.classification')
     default:
       return category
   }

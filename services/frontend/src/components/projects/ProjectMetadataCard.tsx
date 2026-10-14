@@ -9,6 +9,8 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 import { projectIcon, projectKindLabelKey } from '@/lib/projectKind'
 import type { Project } from '@/types/labelStudio'
 import { LockClosedIcon } from '@heroicons/react/24/outline'
@@ -22,6 +24,9 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
   // Read-only display: the editable picker lives in the settings card
   // (ProjectKindSection). Student-created projects are locked entirely.
   const lockedStudent = project.origin === 'student'
+  // Dates follow the UI language; the caller still passes its own `t`.
+  const { locale } = useI18n()
+  const tag = intlTag(locale)
   return (
     <div className="mb-8 rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
       <h2 className="mb-6 text-lg font-semibold text-zinc-900 dark:text-white">
@@ -31,13 +36,10 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
       <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
         <div>
           <dt className="flex items-center gap-1 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-            {t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+            {t('projects.creation.wizard.step1.kind.title')}
             {lockedStudent && (
               <span
-                title={t(
-                  'projects.creation.wizard.step1.kind.lockedStudent',
-                  'Der Typ studentischer Projekte kann nicht geändert werden.',
-                )}
+                title={t('projects.creation.wizard.step1.kind.lockedStudent')}
               >
                 <LockClosedIcon className="h-3.5 w-3.5" />
               </span>
@@ -84,9 +86,9 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
             {t('project.details.created')}
           </dt>
           <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
-            {new Date(project.created_at).toLocaleDateString()}{' '}
+            {new Date(project.created_at).toLocaleDateString(tag)}{' '}
             {t('project.details.at')}{' '}
-            {new Date(project.created_at).toLocaleTimeString()}
+            {new Date(project.created_at).toLocaleTimeString(tag)}
           </dd>
         </div>
         {project.updated_at && (
@@ -95,9 +97,9 @@ export function ProjectMetadataCard({ project, t }: ProjectMetadataCardProps) {
               {t('project.details.lastUpdated')}
             </dt>
             <dd className="mt-1 text-sm text-zinc-900 dark:text-white">
-              {new Date(project.updated_at).toLocaleDateString()}{' '}
+              {new Date(project.updated_at).toLocaleDateString(tag)}{' '}
               {t('project.details.at')}{' '}
-              {new Date(project.updated_at).toLocaleTimeString()}
+              {new Date(project.updated_at).toLocaleTimeString(tag)}
             </dd>
           </div>
         )}

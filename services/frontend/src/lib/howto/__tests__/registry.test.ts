@@ -1,6 +1,10 @@
+import { registerTranslations } from '@/lib/i18n/catalog'
+
 import {
+  categoryText,
   getHowToGuides,
   guideSearchText,
+  guideText,
   HOWTO_CATEGORIES,
   normalizeForSearch,
   registerHowToGuides,
@@ -15,8 +19,6 @@ const g = (
 ): HowToGuide => ({
   id,
   category,
-  title: { de: `Titel ${id}`, en: `Title ${id}` },
-  summary: { de: `Zusammenfassung ${id}`, en: `Summary ${id}` },
   ...extra,
 })
 
@@ -43,12 +45,15 @@ describe('how-to registry', () => {
     expect(ids.indexOf('mid')).toBeLessThan(ids.indexOf('late'))
   })
 
-  it('every category id is unique and has both languages', () => {
+  it('every category id is unique and has catalog copy in both languages', () => {
     const ids = HOWTO_CATEGORIES.map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
     HOWTO_CATEGORIES.forEach((c) => {
-      expect(c.title.de).toBeTruthy()
-      expect(c.title.en).toBeTruthy()
+      for (const locale of ['de', 'en']) {
+        const { title, blurb } = categoryText(c.id, locale)
+        expect(title).not.toContain('howToCategories.')
+        expect(blurb).not.toContain('howToCategories.')
+      }
     })
   })
 })
@@ -68,19 +73,73 @@ describe('search helpers', () => {
     )
   })
 
-  it('guideSearchText includes steps, tips, pitfalls and both languages of keywords', () => {
-    const guide = g('k', 'generation', {
-      steps: { de: ['Schritt eins'], en: ['Step one'] },
-      tips: { de: ['Tipp'], en: ['Tip'] },
-      pitfalls: { de: ['Falle'], en: ['Trap'] },
-      keywords: { de: ['Schlüssel'], en: ['key'] },
+  beforeAll(() => {
+    registerTranslations('registry-test', {
+      de: {
+        howToGuides: {
+          k: {
+            title: 'Titel k',
+            summary: 'Zusammenfassung k',
+            steps: ['Schritt eins'],
+            tips: ['Tipp'],
+            pitfalls: ['Falle'],
+            keywords: ['Schlüssel'],
+            links: ['Profil'],
+          },
+        },
+      },
+      en: {
+        howToGuides: {
+          k: {
+            title: 'Title k',
+            summary: 'Summary k',
+            steps: ['Step one'],
+            tips: ['Tip'],
+            pitfalls: ['Trap'],
+            keywords: ['key'],
+            links: ['Profile'],
+          },
+        },
+      },
+      fr: { howToGuides: { k: { keywords: ['clé'] } } },
     })
+  })
+
+  it('guideText reads the copy from the catalog and pairs link labels with hrefs', () => {
+    const guide = g('k', 'generation', { links: ['/profile'] })
+    expect(guideText(guide, 'en')).toEqual({
+      title: 'Title k',
+      summary: 'Summary k',
+      steps: ['Step one'],
+      tips: ['Tip'],
+      pitfalls: ['Trap'],
+      keywords: ['key'],
+      links: [{ label: 'Profile', href: '/profile' }],
+    })
+    expect(guideText(guide, 'de').links).toEqual([
+      { label: 'Profil', href: '/profile' },
+    ])
+    // fr falls back to English copy where the French catalog has none.
+    expect(guideText(guide, 'fr').title).toBe('Title k')
+    expect(guideText(guide, 'fr').keywords).toEqual(['clé'])
+  })
+
+  it('guideText degrades to the key and empty lists for a guide without copy', () => {
+    const text = guideText(g('nope', 'data'), 'de')
+    expect(text.title).toBe('howToGuides.nope.title')
+    expect(text.steps).toEqual([])
+  })
+
+  it('guideSearchText includes steps, tips, pitfalls, the keywords of every language and searchTerms', () => {
+    const guide = g('k', 'generation', { searchTerms: ['not_linked'] })
     const de = guideSearchText(guide, 'de')
     expect(de).toContain('schritt eins')
     expect(de).toContain('tipp')
     expect(de).toContain('falle')
     expect(de).toContain('schlussel')
     expect(de).toContain('key')
+    expect(de).toContain('cle')
+    expect(de).toContain('not_linked')
     expect(de).not.toContain('step one')
   })
 })

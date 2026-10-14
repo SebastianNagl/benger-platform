@@ -52,7 +52,7 @@ export default function AdminLtiPage() {
         {breadcrumb}
         <div className="flex min-h-[400px] items-center justify-center">
           <p className="text-zinc-500 dark:text-zinc-400">
-            LTI administration requires the extended edition.
+            {t('admin.lti.extendedRequired')}
           </p>
         </div>
       </ResponsiveContainer>

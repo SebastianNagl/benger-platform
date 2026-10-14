@@ -15,7 +15,7 @@ describe('ProjectLivePage (slot stub)', () => {
   it('says the page is unavailable without the extended slot', () => {
     render(<ProjectLivePage />)
     expect(
-      screen.getByText(/not available in the community edition/),
+      screen.getByText('student.community.unavailable'),
     ).toBeInTheDocument()
   })
 

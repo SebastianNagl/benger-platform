@@ -27,6 +27,9 @@ jest.mock('next/navigation', () => ({
 // Resolve keys against the real locale files, so the test sees the copy a
 // user sees (the global mock returns the bare key).
 const mockLocale = { current: 'en' as 'en' | 'de' }
+// The key until the regenerated catalog carries it, the English text after.
+const LINK_FALLBACK =
+  /^(lti\.link\.extendedRequired|LTI content linking requires the extended edition\.)$/
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string) => {
@@ -70,18 +73,14 @@ describe('LTI link host route', () => {
   it('renders the community fallback when no slot is registered', () => {
     render(<LtiLinkPage />)
     expect(mockUseSlot).toHaveBeenCalledWith('LtiLinkPicker')
-    expect(
-      screen.getByText('LTI content linking requires the extended edition.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText(LINK_FALLBACK)).toBeInTheDocument()
   })
 
   it('renders the registered LtiLinkPicker slot', () => {
     mockUseSlot.mockReturnValue(() => <div>extended link picker</div>)
     render(<LtiLinkPage />)
     expect(screen.getByText('extended link picker')).toBeInTheDocument()
-    expect(
-      screen.queryByText('LTI content linking requires the extended edition.'),
-    ).not.toBeInTheDocument()
+    expect(screen.queryByText(LINK_FALLBACK)).not.toBeInTheDocument()
   })
 })
 

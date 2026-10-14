@@ -294,12 +294,14 @@ function SearchResult({
   query: string
 }) {
   let id = useId()
+  const { t } = useI18n()
 
-  let sectionTitle = navigation.find((section) =>
+  const sectionTitleKey = navigation.find((section) =>
     section.links.find(
       (link) => result.url && link.href === result.url.split('#')[0],
     ),
   )?.title
+  let sectionTitle = sectionTitleKey ? t(sectionTitleKey) : undefined
   let hierarchy = [sectionTitle, result.pageTitle].filter(
     (x): x is string => typeof x === 'string',
   )

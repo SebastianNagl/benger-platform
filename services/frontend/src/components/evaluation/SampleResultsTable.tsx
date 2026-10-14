@@ -34,6 +34,7 @@ import {
   getMetricCell,
   getMetricDetail,
 } from '@/lib/extensions/metricRenderers'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
   ChevronDownIcon,
@@ -91,16 +92,16 @@ type SampleTableFeatures = typeof features
  * instead of calling a method the value does not have, which used to crash
  * the whole run page when a judge-graded row was expanded.
  */
-function formatMetric(key: string, raw: unknown): ReactNode {
+function formatMetric(key: string, raw: unknown, locale: string): ReactNode {
   const custom = getMetricCell(key)?.(raw)
   if (custom !== null && custom !== undefined) return custom
   if (typeof raw === 'number' && Number.isFinite(raw)) {
-    return formatMetricNumber(key, raw)
+    return formatMetricNumber(key, raw, locale)
   }
   if (raw && typeof raw === 'object') {
     const value = (raw as { value?: unknown }).value
     if (typeof value === 'number' && Number.isFinite(value)) {
-      return formatMetricNumber(key, value)
+      return formatMetricNumber(key, value, locale)
     }
   }
   return 'N/A'
@@ -148,10 +149,7 @@ interface SampleResultsTableProps {
   labelConfig?: string | null
 }
 
-type Translate = (
-  key: string,
-  varsOrFallback?: Record<string, unknown> | string,
-) => string
+type Translate = (key: string, vars?: Record<string, unknown>) => string
 
 /**
  * What the field column shows. The worker keys a sample as
@@ -245,7 +243,7 @@ export function SampleResultsTable({
   configs = [],
   labelConfig = null,
 }: SampleResultsTableProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
@@ -343,7 +341,7 @@ export function SampleResultsTable({
                     {metricDisplayLabel(key, undefined, t)}:
                   </span>{' '}
                   <span className="text-emerald-700 tabular-nums dark:text-emerald-400">
-                    {formatMetric(key, metrics[key])}
+                    {formatMetric(key, metrics[key], locale)}
                   </span>
                 </div>
               ))}
@@ -375,7 +373,7 @@ export function SampleResultsTable({
 
           return (
             <span className={`font-medium tabular-nums ${colorClass}`}>
-              {(score * 100).toFixed(1)}%
+              {formatDecimal(score * 100, locale, 1)}%
             </span>
           )
         },
@@ -386,7 +384,7 @@ export function SampleResultsTable({
         header: t('evaluation.sampleResultsTable.timeMs'),
         cell: ({ row }) => {
           const time = row.original.processing_time_ms
-          return time !== null ? time.toFixed(0) : '-'
+          return time !== null ? formatDecimal(time, locale, 0) : '-'
         },
         size: 100,
       },
@@ -397,10 +395,7 @@ export function SampleResultsTable({
         ? [
             {
               id: 'consistency',
-              header: t(
-                'evaluation.sampleResultsTable.consistency',
-                'Konsistenz',
-              ),
+              header: t('evaluation.sampleResultsTable.consistency'),
               cell: ({ row }: { row: { original: SampleResult } }) => {
                 const c = consistencyByTaskId?.[row.original.task_id]
                 if (!c || (c.n_runs ?? 0) < 2) {
@@ -412,7 +407,7 @@ export function SampleResultsTable({
                       className="font-mono text-xs"
                       title={`n_runs=${c.n_runs}`}
                     >
-                      σ²={c.variance.toFixed(4)}
+                      σ²={formatDecimal(c.variance, locale, 4)}
                     </span>
                   )
                 }
@@ -420,9 +415,11 @@ export function SampleResultsTable({
                   return (
                     <span
                       className="font-mono text-xs"
-                      title={`Fleiss κ across ${c.n_runs} runs`}
+                      title={t('evaluation.sampleResults.fleissAcrossRuns', {
+                        n: c.n_runs,
+                      })}
                     >
-                      κ={c.fleiss_kappa.toFixed(3)}
+                      κ={formatDecimal(c.fleiss_kappa, locale, 3)}
                     </span>
                   )
                 }
@@ -456,6 +453,7 @@ export function SampleResultsTable({
     [
       expandedRow,
       t,
+      locale,
       showConsistencyColumn,
       consistencyByTaskId,
       configs,
@@ -653,7 +651,7 @@ export function SampleResultsTable({
                                       {metricDisplayLabel(key, undefined, t)}
                                     </div>
                                     <div className="font-medium text-zinc-900 tabular-nums dark:text-white">
-                                      {formatMetric(key, value)}
+                                      {formatMetric(key, value, locale)}
                                     </div>
                                   </div>
                                 )

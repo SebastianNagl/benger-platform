@@ -20,33 +20,9 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { EvaluationControlModal } from '../EvaluationControlModal'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    // Three t() call shapes (matches the scope sibling):
-    //   (a) t('key')                  → translation map or the key
-    //   (b) t('key', 'fallback')      → the fallback literal
-    //   (c) t('key', { count: N })    → the bare count as a string
-    t: (key: string, paramOrFallback?: any) => {
-      if (typeof paramOrFallback === 'string') return paramOrFallback
-      if (
-        paramOrFallback &&
-        typeof paramOrFallback === 'object' &&
-        'count' in paramOrFallback
-      ) {
-        return `${paramOrFallback.count}`
-      }
-      const translations: Record<string, string> = {
-        'evaluation.controlModal.title': 'Run Evaluation',
-        'evaluation.controlModal.startEvaluation': 'Start Evaluation',
-        'evaluation.controlModal.cancel': 'Cancel',
-        'evaluation.controlModal.noConfigsFound': 'No configs found',
-        'generation.controlModal.selectAll': 'Select All',
-        'generation.controlModal.clearAll': 'Clear All',
-      }
-      return translations[key] || key
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const mockAddToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
@@ -165,15 +141,15 @@ describe('EvaluationControlModal scope controls', () => {
       expect(m1).toBeChecked()
       expect(m2).toBeChecked()
 
-      // There is one Clear All button per rendered scope section. The metric
-      // section is first in the DOM, so the first Clear All targets it.
-      const clearButtons = screen.getAllByText('Clear All')
+      // There is one "Alle abwählen" button per rendered scope section. The metric
+      // section is first in the DOM, so the first "Alle abwählen" targets it.
+      const clearButtons = screen.getAllByText('Alle abwählen')
       fireEvent.click(clearButtons[0])
       await waitFor(() => expect(m1).not.toBeChecked())
       expect(m2).not.toBeChecked()
 
-      // Re-select all via the first Select All button.
-      const selectButtons = screen.getAllByText('Select All')
+      // Re-select all via the first "Alle auswählen" button.
+      const selectButtons = screen.getAllByText('Alle auswählen')
       fireEvent.click(selectButtons[0])
       await waitFor(() => expect(m1).toBeChecked())
       expect(m2).toBeChecked()
@@ -182,7 +158,7 @@ describe('EvaluationControlModal scope controls', () => {
     it('shows the singular metric-count label when exactly one metric is selected', async () => {
       render(<EvaluationControlModal {...baseProps} />)
       const m2 = await screen.findByLabelText('ROUGE')
-      // Deselect one of two → exactly one selected → singular fallback text.
+      // Deselect one of two → exactly one selected → singular label.
       fireEvent.click(m2)
       expect(await screen.findByText('1 Metrik ausgewählt')).toBeInTheDocument()
     })
@@ -198,7 +174,7 @@ describe('EvaluationControlModal scope controls', () => {
 
       // DOM order of scope sections: metrics, models, annotators. So the
       // SECOND Clear All button is the model section's.
-      const clearButtons = screen.getAllByText('Clear All')
+      const clearButtons = screen.getAllByText('Alle abwählen')
       fireEvent.click(clearButtons[1])
       await waitFor(() => expect(gpt).not.toBeChecked())
       expect(claude).not.toBeChecked()
@@ -209,7 +185,7 @@ describe('EvaluationControlModal scope controls', () => {
       ).toBeInTheDocument()
       expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 
-      const selectButtons = screen.getAllByText('Select All')
+      const selectButtons = screen.getAllByText('Alle auswählen')
       fireEvent.click(selectButtons[1])
       await waitFor(() => expect(gpt).toBeChecked())
       expect(claude).toBeChecked()
@@ -223,11 +199,11 @@ describe('EvaluationControlModal scope controls', () => {
       expect(alice).toBeChecked()
 
       // Third Clear All button = annotator section.
-      const clearButtons = screen.getAllByText('Clear All')
+      const clearButtons = screen.getAllByText('Alle abwählen')
       fireEvent.click(clearButtons[2])
       await waitFor(() => expect(alice).not.toBeChecked())
 
-      const selectButtons = screen.getAllByText('Select All')
+      const selectButtons = screen.getAllByText('Alle auswählen')
       fireEvent.click(selectButtons[2])
       await waitFor(() => expect(alice).toBeChecked())
     })
@@ -328,7 +304,7 @@ describe('EvaluationControlModal scope controls', () => {
       const status = await screen.findByRole('status')
       expect(status).toHaveTextContent(/lade verfügbare modelle/i)
       // Start button is disabled during the scope-fetch window (direct API mode).
-      expect(screen.getByText('Start Evaluation')).toBeDisabled()
+      expect(screen.getByText('Evaluation starten')).toBeDisabled()
     })
   })
 

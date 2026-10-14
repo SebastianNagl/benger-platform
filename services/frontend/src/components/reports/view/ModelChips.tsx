@@ -36,7 +36,7 @@ export function ModelChips({ models, t }: ModelChipsProps) {
       {custom.length > 0 && (
         <div>
           <div className="mb-1 text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-            {t('reports.view.customModels', 'Eigene Modelle')}
+            {t('reports.view.customModels')}
           </div>
           <ul className="flex flex-wrap gap-2">
             {custom.map((m) => (

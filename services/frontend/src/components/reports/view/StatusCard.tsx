@@ -31,7 +31,7 @@ export function StatusCard({
       href="/reports"
       className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
-      {t('reports.view.backToReports', 'Zurück zu den Berichten')}
+      {t('reports.view.backToReports')}
     </Link>
   )
 
@@ -44,7 +44,7 @@ export function StatusCard({
       >
         <div className="mx-auto mb-3 h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-600 dark:border-zinc-700 dark:border-t-emerald-400" />
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          {t('reports.view.loading', 'Bericht wird geladen …')}
+          {t('reports.view.loading')}
         </p>
       </Card>
     )
@@ -54,23 +54,17 @@ export function StatusCard({
     return (
       <Card className="p-8" data-testid="report-forbidden">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-          {t(
-            'reports.view.notPublicTitle',
-            'Dieser Bericht ist nicht öffentlich.',
-          )}
+          {t('reports.view.notPublicTitle')}
         </h2>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-          {t(
-            'reports.view.notPublicText',
-            'Melden Sie sich an, um ihn zu sehen. Veröffentlichte Berichte sind für Mitglieder der beteiligten Organisationen sichtbar.',
-          )}
+          {t('reports.view.notPublicText')}
         </p>
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={loginHref}
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-zinc-950 dark:hover:bg-emerald-400"
           >
-            {t('reports.view.signIn', 'Anmelden')}
+            {t('reports.view.signIn')}
           </Link>
           {backLink}
         </div>
@@ -85,17 +79,10 @@ export function StatusCard({
       role="alert"
     >
       <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-        {t(
-          'reports.view.loadFailedTitle',
-          'Der Bericht konnte nicht geladen werden.',
-        )}
+        {t('reports.view.loadFailedTitle')}
       </h2>
       <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
-        {message ||
-          t(
-            'reports.view.loadFailedText',
-            'Bitte versuchen Sie es in einem Moment erneut.',
-          )}
+        {message || t('reports.view.loadFailedText')}
       </p>
       <div className="mt-5 flex flex-wrap gap-3">
         {onRetry && (
@@ -104,7 +91,7 @@ export function StatusCard({
             onClick={onRetry}
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-zinc-950 dark:hover:bg-emerald-400"
           >
-            {t('reports.view.reload', 'Erneut laden')}
+            {t('reports.view.reload')}
           </button>
         )}
         {backLink}

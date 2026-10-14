@@ -3,6 +3,7 @@
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
+import { intlTag } from '@/lib/i18n/locales'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import {
   ClipboardDocumentIcon,
@@ -55,7 +56,7 @@ export function TaskDataViewModal({
   canEdit = false,
   onSaved,
 }: TaskDataViewModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [viewMode, setViewMode] = useState<ViewMode>('formatted')
   const [searchTerm, setSearchTerm] = useState('')
   const [copySuccess, setCopySuccess] = useState(false)
@@ -377,7 +378,7 @@ export function TaskDataViewModal({
             </span>
             <span>
               {t('tasks.dataView.created', {
-                date: new Date(task.created_at).toLocaleString(),
+                date: new Date(task.created_at).toLocaleString(intlTag(locale)),
               })}
             </span>
           </div>

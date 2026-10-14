@@ -206,10 +206,9 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
         if (value !== constraints.temperature.fixedValue) {
           return {
             type: 'error',
-            message: t(
-              'evaluationBuilder.validation.temperatureFixed',
-              `This model requires temperature = ${constraints.temperature.fixedValue}. The API will reject other values.`,
-            ),
+            message: t('evaluationBuilder.validation.temperatureFixed', {
+              value: constraints.temperature.fixedValue,
+            }),
           }
         }
         return { type: null, message: '' }
@@ -217,19 +216,17 @@ export function useJudgeModelHelpers(): JudgeModelHelpers {
       if (value < constraints.temperature.min) {
         return {
           type: 'error',
-          message: t(
-            'evaluationBuilder.validation.temperatureTooLow',
-            `Temperature must be at least ${constraints.temperature.min} for this provider.`,
-          ),
+          message: t('evaluationBuilder.validation.temperatureTooLow', {
+            min: constraints.temperature.min,
+          }),
         }
       }
       if (value > constraints.temperature.max) {
         return {
           type: 'error',
-          message: t(
-            'evaluationBuilder.validation.temperatureTooHigh',
-            `Temperature must be at most ${constraints.temperature.max} for this provider. The API will reject higher values.`,
-          ),
+          message: t('evaluationBuilder.validation.temperatureTooHigh', {
+            max: constraints.temperature.max,
+          }),
         }
       }
       return { type: null, message: '' }

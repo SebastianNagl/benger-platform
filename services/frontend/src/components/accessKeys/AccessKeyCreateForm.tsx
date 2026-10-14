@@ -19,6 +19,7 @@ import { type FormEvent, useMemo, useState } from 'react'
 
 import {
   type AccessKeyMode,
+  catalogTextOr,
   DEFAULT_EXPIRY,
   EXPIRY_CHOICES,
   type ExpiryChoice,
@@ -176,9 +177,11 @@ export function AccessKeyCreateForm({
   }
 
   const presetLabel = (id: string) =>
-    t(`accessKeys.presets.${id}.label`, id.replace(/_/g, ' '))
+    catalogTextOr(t, `accessKeys.presets.${id}.label`, id.replace(/_/g, ' '))
+  // Overlay presets have no catalog entry: show their scope list instead.
   const presetDescription = (id: string) =>
-    t(
+    catalogTextOr(
+      t,
       `accessKeys.presets.${id}.description`,
       (catalog?.presets?.[id] ?? []).join(', '),
     )

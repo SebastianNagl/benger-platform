@@ -12,11 +12,16 @@ import { useEffect, useState } from 'react'
 export type ChangelogAudience = 'benger' | 'vertretbar' | 'both'
 
 export interface ChangelogEntry {
+  /**
+   * Stable id, `<date>-<short-kebab-slug>`, unique across platform and
+   * extensions. The bullet text lives in the locale catalogs at
+   * `changelogEntries.<id>` (src/locales/<locale>/changelog.json, or the
+   * extension's own changelog.json).
+   */
+  id: string
   /** ISO date the change shipped, 'YYYY-MM-DD'. */
   date: string
   audience: ChangelogAudience
-  /** Bilingual copy, kept inline rather than in the locale JSONs. */
-  text: { de: string; en: string }
 }
 
 const buckets: Record<string, ChangelogEntry[]> = {}

@@ -23,8 +23,8 @@ class TestEmailTranslations:
     def test_get_unsupported_language_falls_back_to_english(self):
         from localization.translations import EmailTranslations
         result_en = EmailTranslations.get("en", "verification_email", "subject")
-        result_fr = EmailTranslations.get("fr", "verification_email", "subject")
-        assert result_fr == result_en  # Falls back to English
+        result_es = EmailTranslations.get("es", "verification_email", "subject")
+        assert result_es == result_en  # Falls back to English
 
     def test_get_missing_key_returns_empty(self):
         from localization.translations import EmailTranslations
@@ -66,9 +66,9 @@ class TestEmailTranslations:
 
     def test_get_list_unsupported_language(self):
         from localization.translations import EmailTranslations
-        result_en = EmailTranslations.get_list("en", "verification_email", "troubleshooting_tips")
-        result_fr = EmailTranslations.get_list("fr", "verification_email", "troubleshooting_tips")
-        assert result_fr == result_en
+        result_en = EmailTranslations.get_list("en", "frontend", "troubleshooting_tips")
+        result_es = EmailTranslations.get_list("es", "frontend", "troubleshooting_tips")
+        assert result_es == result_en
 
     def test_get_list_missing_key(self):
         from localization.translations import EmailTranslations

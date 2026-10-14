@@ -141,8 +141,8 @@ describe('BoxPlotChart - coverage extensions', () => {
           />,
         )
         expect(container.textContent).toContain('GPT-4')
-        expect(container.textContent).toContain('0.750')
-        expect(container.textContent).toContain('0.740')
+        expect(container.textContent).toContain('0,750')
+        expect(container.textContent).toContain('0,740')
         expect(container.textContent).toContain('100')
       }
     })
@@ -203,7 +203,7 @@ describe('BoxPlotChart - coverage extensions', () => {
             t={(k: string) => k}
           />,
         )
-        expect(container.textContent).toContain('0.500')
+        expect(container.textContent).toContain('0,500')
         expect(container.textContent).not.toContain(
           'evaluation.charts.boxPlot.n',
         )

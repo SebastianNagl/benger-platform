@@ -31,27 +31,19 @@ export function ProjectKindSection({
   const currentKindId = project.kind ?? 'generic'
   return (
     <SubSection
-      title={t('projects.creation.wizard.step1.kind.title', 'Projekttyp')}
+      title={t('projects.creation.wizard.step1.kind.title')}
       badge={t(
         PROJECT_KIND_OPTIONS.find((o) => o.id === currentKindId)?.nameKey ??
           'projects.creation.wizard.step1.kind.generic',
-        PROJECT_KIND_OPTIONS.find((o) => o.id === currentKindId)
-          ?.nameFallback ?? 'Generisch',
       )}
     >
       <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
-        {t(
-          'projects.creation.wizard.step1.kind.editableHint',
-          'Der Typ steuert, ob Studierende dieses Projekt als Klausur bzw. Kartenstapel finden können.',
-        )}
+        {t('projects.creation.wizard.step1.kind.editableHint')}
       </p>
       <div
         className="grid grid-cols-3 gap-2"
         role="radiogroup"
-        aria-label={t(
-          'projects.creation.wizard.step1.kind.title',
-          'Projekttyp',
-        )}
+        aria-label={t('projects.creation.wizard.step1.kind.title')}
         data-testid="project-kind-section"
       >
         {PROJECT_KIND_OPTIONS.map((opt) => {
@@ -62,7 +54,7 @@ export function ProjectKindSection({
               type="button"
               role="radio"
               aria-checked={isSelected}
-              title={t(opt.descriptionKey, opt.descriptionFallback)}
+              title={t(opt.descriptionKey)}
               onClick={() => {
                 if (isSelected) return
                 onKindChange(opt.id === 'generic' ? null : opt.id)
@@ -78,7 +70,7 @@ export function ProjectKindSection({
               <span className="text-lg" aria-hidden>
                 {opt.icon}
               </span>
-              {t(opt.nameKey, opt.nameFallback)}
+              {t(opt.nameKey)}
             </button>
           )
         })}

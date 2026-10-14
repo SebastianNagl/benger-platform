@@ -77,8 +77,7 @@ jest.mock('next/navigation', () => ({
 // Mock I18n context
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, arg2?: any, arg3?: any) => {
-      const vars = typeof arg2 === 'object' ? arg2 : arg3
+    t: (key: string, vars?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'projects.list.title': 'Projects',
         'projects.list.subtitle':
@@ -276,7 +275,7 @@ describe('ProjectList', () => {
     it('should display relative timestamps', () => {
       render(<ProjectList />)
       // Date formatting should show relative time
-      const timestamps = screen.getAllByText(/vor/i) // German locale
+      const timestamps = screen.getAllByText(/ ago$/i) // the mock's locale (en)
       expect(timestamps.length).toBeGreaterThan(0)
     })
   })

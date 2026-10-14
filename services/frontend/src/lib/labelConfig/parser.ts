@@ -5,6 +5,8 @@
  * that can be rendered dynamically.
  */
 
+import { translate } from '@/lib/utils/translate'
+
 export interface ParsedComponent {
   type: string
   name?: string
@@ -33,7 +35,8 @@ export function parseLabelConfig(
     const parserError = doc.querySelector('parsererror')
     if (parserError) {
       return {
-        message: parserError.textContent || 'Invalid XML',
+        message:
+          parserError.textContent || translate('labelConfig.parser.invalidXml'),
       }
     }
 
@@ -41,7 +44,7 @@ export function parseLabelConfig(
     const root = doc.documentElement
     if (!root) {
       return {
-        message: 'No root element found',
+        message: translate('labelConfig.parser.noRoot'),
       }
     }
 
@@ -49,7 +52,10 @@ export function parseLabelConfig(
     return parseElement(root)
   } catch (error) {
     return {
-      message: error instanceof Error ? error.message : 'Unknown parsing error',
+      message:
+        error instanceof Error
+          ? error.message
+          : translate('labelConfig.parser.unknownError'),
     }
   }
 }

@@ -685,7 +685,9 @@ describe('GlobalUsersTab', () => {
       await user.click(trashIcons[0])
 
       await waitFor(() => {
-        expect(mockConfirmDelete).toHaveBeenCalledWith('user "Test User 1"')
+        expect(mockConfirmDelete).toHaveBeenCalledWith(
+          'dialogs.deleteConfirm.namedUser',
+        )
       })
     })
 

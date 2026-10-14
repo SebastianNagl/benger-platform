@@ -266,7 +266,9 @@ export function GlobalUsersTab() {
     const user = users.find((u) => u.id === userId)
     if (!user) return
 
-    const confirmed = await confirmDelete(`user "${user.name}"`)
+    const confirmed = await confirmDelete(
+      t('dialogs.deleteConfirm.namedUser', { name: user.name }),
+    )
 
     if (!confirmed) {
       setShowDeleteConfirm(null)
@@ -323,7 +325,7 @@ export function GlobalUsersTab() {
         filtersLabel={t('common.filters.filters')}
         hasActiveFilters={hasActiveFilters}
         onClearFilters={clearAllFilters}
-        clearLabel={t('common.filters.clearAll', 'Clear filters')}
+        clearLabel={t('common.filters.clearAll')}
         rightExtras={
           <span className="text-sm text-zinc-600 dark:text-zinc-400">
             {t('admin.users.filters.totalUsers', {

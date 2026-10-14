@@ -118,7 +118,10 @@ export function Pagination({
         </div>
 
         {/* Navigation controls */}
-        <nav className="flex items-center gap-1" aria-label="Pagination">
+        <nav
+          className="flex items-center gap-1"
+          aria-label={t('common.pagination.label')}
+        >
           {/* Previous button */}
           <button
             onClick={() => onPageChange(currentPage - 1)}

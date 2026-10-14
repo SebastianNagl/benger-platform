@@ -76,7 +76,7 @@ export function TaskAssignmentModal({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to assign tasks')
+        throw new Error(t('tasks.assignment.assignFailed'))
       }
 
       const result = await response.json()

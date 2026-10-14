@@ -28,7 +28,8 @@ import { authRedirect } from '@/utils/authRedirect'
 
 import LtiActivityPage from '../activity/page'
 
-const FALLBACK = 'The LMS activity view requires the extended edition.'
+// The global I18n mock echoes the key back.
+const FALLBACK = 'lti.activity.extendedRequired'
 
 beforeEach(() => {
   mockUseSlot.mockReset()

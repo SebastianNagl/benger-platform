@@ -18,6 +18,7 @@ import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api/client'
 import type { HistorySeries } from '@/lib/api/evaluation-types'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { Project } from '@/types/labelStudio'
 import { useCallback, useEffect, useState } from 'react'
 import { HistoricalTrendChart } from './charts/HistoricalTrendChart'
@@ -63,7 +64,7 @@ interface SignificanceTest {
 export function EvaluationDashboard({
   initialProjectId,
 }: EvaluationDashboardProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
@@ -85,10 +86,12 @@ export function EvaluationDashboard({
         .getProject(parseInt(initialProjectId))
         .then((project: Project) => setSelectedProject(project))
         .catch((err: Error) =>
-          setError(`Failed to load project: ${err.message}`),
+          setError(
+            t('evaluation.dashboard.loadProjectFailed', { error: err.message }),
+          ),
         )
     }
-  }, [initialProjectId])
+  }, [initialProjectId, t])
 
   const fetchProjectData = useCallback(async () => {
     if (!selectedProject) return
@@ -141,11 +144,13 @@ export function EvaluationDashboard({
         setSelectedMetrics(metricsArr.slice(0, 4))
       }
     } catch (err: any) {
-      setError(`Failed to load project data: ${err.message}`)
+      setError(
+        t('evaluation.dashboard.loadProjectDataFailed', { error: err.message }),
+      )
     } finally {
       setLoading(false)
     }
-  }, [selectedProject])
+  }, [selectedProject, t])
 
   const fetchComparisonData = useCallback(async () => {
     if (
@@ -426,7 +431,7 @@ export function EvaluationDashboard({
                               {test.metric}
                             </td>
                             <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                              {test.p_value.toFixed(4)}
+                              {formatDecimal(test.p_value, locale, 4)}
                             </td>
                             <td className="px-4 py-3 text-center whitespace-nowrap">
                               <span
@@ -440,7 +445,7 @@ export function EvaluationDashboard({
                               </span>
                             </td>
                             <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
-                              {test.effect_size.toFixed(3)}
+                              {formatDecimal(test.effect_size, locale, 3)}
                             </td>
                           </tr>
                         ))}

@@ -10,8 +10,8 @@
 import {
   getHowToGuides,
   guideSearchText,
+  guideText,
   normalizeForSearch,
-  pick,
   stripInlineMarkup,
   type HowToGuide,
 } from '@/lib/howto'
@@ -21,7 +21,7 @@ import type { Result } from '@/types/search'
 // even before /how-to was ever visited.
 import '@/data/howto/guides'
 
-type Translate = (key: string, fallback?: string) => string
+type Translate = (key: string, vars?: Record<string, unknown>) => string
 
 export interface SearchIndexContext {
   t: Translate
@@ -61,7 +61,7 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
     projects: t('search.categories.projectsAndData'),
     knowledge: t('search.categories.knowledge'),
     user: t('search.categories.user'),
-    org: t('search.categories.organizations', 'Organisation'),
+    org: t('search.categories.organizations'),
     admin: t('search.categories.administration'),
   }
   const isSuperadmin = Boolean(user?.is_superadmin)
@@ -315,14 +315,17 @@ export function buildPageIndex(ctx: SearchIndexContext): SearchEntry[] {
 export function buildGuideIndex(ctx: SearchIndexContext): SearchEntry[] {
   const { t, locale } = ctx
   const guides = ctx.guides ?? getHowToGuides()
-  const category = t('search.categories.howto', 'Anleitung')
-  return guides.map((g) => ({
-    url: `/how-to#${g.id}`,
-    title: pick(g.title, locale),
-    description: stripInlineMarkup(pick(g.summary, locale)),
-    category,
-    keywords: guideSearchText(g, locale),
-  }))
+  const category = t('search.categories.howto')
+  return guides.map((g) => {
+    const copy = guideText(g, locale)
+    return {
+      url: `/how-to#${g.id}`,
+      title: copy.title,
+      description: stripInlineMarkup(copy.summary),
+      category,
+      keywords: guideSearchText(g, locale),
+    }
+  })
 }
 
 export function buildSearchIndex(ctx: SearchIndexContext): SearchEntry[] {

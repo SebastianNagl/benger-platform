@@ -158,16 +158,10 @@ export function StepSettings({
           <div className="flex items-center justify-between">
             <div>
               <Label>
-                {t(
-                  'projects.creation.wizard.stepSettings.revealSolution',
-                  'Musterlösung nach Abgabe anzeigen',
-                )}
+                {t('projects.creation.wizard.stepSettings.revealSolution')}
               </Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {t(
-                  'projects.creation.wizard.stepSettings.revealSolutionHint',
-                  'Nach der Abgabe sehen Bearbeitende alle Aufgabenfelder inkl. Musterlösung.',
-                )}
+                {t('projects.creation.wizard.stepSettings.revealSolutionHint')}
               </p>
             </div>
             <input
@@ -280,17 +274,9 @@ export function StepSettings({
         <div className="space-y-3 border-t border-zinc-200 pt-4 dark:border-zinc-700">
           <div className="flex items-center justify-between">
             <div>
-              <Label>
-                {t(
-                  'project.settings.accessWindow.title',
-                  'Timed access window',
-                )}
-              </Label>
+              <Label>{t('project.settings.accessWindow.title')}</Label>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {t(
-                  'project.settings.accessWindow.hint',
-                  'Open the project to its access group only during a set time. Owners and admins are never restricted.',
-                )}
+                {t('project.settings.accessWindow.hint')}
               </p>
             </div>
             <input
@@ -318,7 +304,7 @@ export function StepSettings({
             <div className="ml-4 space-y-2">
               <div className="flex items-center gap-2">
                 <Label className="w-16 text-sm">
-                  {t('project.settings.accessWindow.opens', 'Opens')}
+                  {t('project.settings.accessWindow.opens')}
                 </Label>
                 <Input
                   type="datetime-local"
@@ -331,7 +317,7 @@ export function StepSettings({
               </div>
               <div className="flex items-center gap-2">
                 <Label className="w-16 text-sm">
-                  {t('project.settings.accessWindow.closes', 'Closes')}
+                  {t('project.settings.accessWindow.closes')}
                 </Label>
                 <Input
                   type="datetime-local"

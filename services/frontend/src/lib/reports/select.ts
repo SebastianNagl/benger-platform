@@ -5,6 +5,7 @@
  * Everything here is deterministic over `ReportSnapshot` + `ReportChartsConfig`
  * so the page and its tests share one source of truth for ranking.
  */
+import { formatDecimal } from '@/lib/i18n/locales'
 import type {
   ReportChartsConfig,
   ReportConfigRef,
@@ -190,6 +191,7 @@ export function binLabel(
   bins: number[],
   index: number,
   scale: ReportMetricScale,
+  locale: string,
 ): string {
   const lower = bins[index]
   if (scale === '0-18') return String(lower)
@@ -197,7 +199,7 @@ export function binLabel(
     index + 1 < bins.length ? bins[index + 1] : scaleUpper(scale, bins)
   if (scale === '0-1')
     return `${Math.round(lower * 100)}–${Math.round(upper * 100)} %`
-  return `${trim(lower)}–${trim(upper)}`
+  return `${trim(lower, locale)}–${trim(upper, locale)}`
 }
 
 function scaleUpper(scale: ReportMetricScale, bins: number[]): number {
@@ -209,8 +211,10 @@ function scaleUpper(scale: ReportMetricScale, bins: number[]): number {
   return last + step
 }
 
-function trim(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2)
+function trim(value: number, locale: string): string {
+  return Number.isInteger(value)
+    ? String(value)
+    : formatDecimal(value, locale, 2)
 }
 
 /**
@@ -219,6 +223,7 @@ function trim(value: number): string {
  */
 export function toPercentSeries(
   distribution: ReportDistribution,
+  locale: string,
 ): PercentBin[] {
   const { bins, by_kind, scale } = distribution
   const modelTotal = by_kind.model.reduce((a, b) => a + b, 0)
@@ -230,7 +235,7 @@ export function toPercentSeries(
     const human = by_kind.human[i] ?? 0
     return {
       bin,
-      label: binLabel(bins, i, scale),
+      label: binLabel(bins, i, scale, locale),
       model,
       human,
       modelPct: pct(model, modelTotal),
@@ -254,6 +259,7 @@ export interface SubjectDistribution {
 export function topSubjectDistributions(
   rows: RankedRow[],
   distribution: ReportDistribution | null,
+  locale: string,
   limit = 8,
 ): SubjectDistribution[] {
   if (!distribution) return []
@@ -270,7 +276,7 @@ export function topSubjectDistributions(
       total,
       bins: distribution.bins.map((bin, i) => ({
         bin,
-        label: binLabel(distribution.bins, i, distribution.scale),
+        label: binLabel(distribution.bins, i, distribution.scale, locale),
         count: counts[i] ?? 0,
         pct: Math.round(((counts[i] ?? 0) / total) * 1000) / 10,
       })),

@@ -185,13 +185,18 @@ export function AnnotatorBadges({
 
       {remainingCount > 0 && (
         <Tooltip
-          content={`+${remainingCount} more: ${assignments
-            .slice(maxVisible)
-            .map(
-              (a) =>
-                a.user_name || a.user_email || t('projects.annotators.unknown'),
-            )
-            .join(', ')}`}
+          content={t('projects.annotators.moreList', {
+            count: remainingCount,
+            names: assignments
+              .slice(maxVisible)
+              .map(
+                (a) =>
+                  a.user_name ||
+                  a.user_email ||
+                  t('projects.annotators.unknown'),
+              )
+              .join(', '),
+          })}
         >
           <div
             className={` ${sizeClasses[size]} relative flex items-center justify-center rounded-full bg-zinc-200 font-semibold text-zinc-700 ring-2 ring-white transition-transform hover:z-10 hover:scale-110 dark:bg-zinc-700 dark:text-zinc-300 dark:ring-zinc-900`}

@@ -16,7 +16,7 @@ export default function VerifyEmailPage() {
   const searchParams = useSearchParams()
   const token = searchParams?.get('token')
   const messageKey = searchParams?.get('messageKey')
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Host-aware wordmark (Vertretbar on vertretbar.net). Resolved after mount
   // so SSR stays neutral; the brief default is the BenGER name on benger hosts.
@@ -100,7 +100,7 @@ export default function VerifyEmailPage() {
         },
         body: JSON.stringify({
           email: email,
-          language: 'en',
+          language: locale,
         }),
       })
 
@@ -118,7 +118,7 @@ export default function VerifyEmailPage() {
       <header className="relative z-10">
         <nav
           className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
-          aria-label="Global"
+          aria-label={t('layout.minimal.globalNav')}
         >
           <div className="flex lg:flex-1">
             <Link href="/" className="-m-1.5 p-1.5">

@@ -20,20 +20,14 @@ import {
   AdvancedSettingsCard,
   type AdvancedSettings,
 } from '@/components/projects/AdvancedSettingsCard'
+import { createMockT } from '@/test-utils/i18nMock'
 import '@testing-library/jest-dom'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState, type ComponentType } from 'react'
 
-// A translation fn that returns the key, honouring a string default 2nd arg
-// or an object `{ defaultValue }` so the rendered labels are stable + queryable.
-const t = (key: string, params?: any): string => {
-  if (typeof params === 'string') return params
-  if (params && typeof params === 'object' && 'defaultValue' in params) {
-    return params.defaultValue
-  }
-  return key
-}
+// English catalog t, so the rendered labels are the real copy.
+const t = createMockT('en')
 
 function makeSettings(
   overrides: Partial<AdvancedSettings> = {},
@@ -129,25 +123,17 @@ describe('AdvancedSettingsCard', () => {
   describe('canEditProject gating', () => {
     it('renders the read-only message and no controls when editing is forbidden', () => {
       render(<Harness canEdit={false} />)
-      expect(
-        screen.getByText('read-only: project.settings.title'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('read-only: Settings')).toBeInTheDocument()
       // None of the section headings or controls render
-      expect(
-        screen.queryByText('project.settings.annotationBehavior.title'),
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Annotation Behavior')).not.toBeInTheDocument()
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
       expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     })
 
     it('renders the full settings form when editing is allowed', () => {
       render(<Harness />)
-      expect(
-        screen.getByText('project.settings.annotationBehavior.title'),
-      ).toBeInTheDocument()
-      expect(
-        screen.getByText('project.settings.interface.title'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Annotation Behavior')).toBeInTheDocument()
+      expect(screen.getByText('Interface Settings')).toBeInTheDocument()
       expect(
         screen.getByText('Post-Annotation Questionnaire'),
       ).toBeInTheDocument()
@@ -166,7 +152,7 @@ describe('AdvancedSettingsCard', () => {
 
       // The max-annotations select is the one containing the "single"/"double" options.
       const maxSelect = screen
-        .getByText('project.settings.annotationBehavior.annotations.single')
+        .getByText('1 (Single annotation)')
         .closest('select') as HTMLSelectElement
       expect(maxSelect.value).toBe('2')
 
@@ -187,7 +173,7 @@ describe('AdvancedSettingsCard', () => {
       render(<Harness onChange={onChange} />)
 
       const minSelect = screen
-        .getByText('project.settings.annotationBehavior.annotations.count3')
+        .getByText('3 annotations')
         .closest('select') as HTMLSelectElement
       expect(minSelect.value).toBe('1')
 
@@ -203,7 +189,7 @@ describe('AdvancedSettingsCard', () => {
       render(<Harness onChange={onChange} />)
 
       const modeSelect = screen
-        .getByText('project.settings.annotationBehavior.modes.manual')
+        .getByText('Manual (Tasks must be assigned to users)')
         .closest('select') as HTMLSelectElement
       expect(modeSelect.value).toBe('open')
 
@@ -292,7 +278,7 @@ describe('AdvancedSettingsCard', () => {
   describe('Annotation timer', () => {
     it('hides the minutes input and strict-timer toggle when the limit is disabled', () => {
       render(<Harness initial={{ annotation_time_limit_enabled: false }} />)
-      expect(screen.queryByText('Strict timer')).not.toBeInTheDocument()
+      expect(screen.queryByText('Strict Timer')).not.toBeInTheDocument()
       expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
     })
 
@@ -316,7 +302,7 @@ describe('AdvancedSettingsCard', () => {
       // The minutes input (1800s -> 30) and strict toggle now render
       const minutes = screen.getByRole('spinbutton') as HTMLInputElement
       expect(minutes.value).toBe('30')
-      expect(screen.getByText('Strict timer')).toBeInTheDocument()
+      expect(screen.getByText('Strict Timer')).toBeInTheDocument()
     })
 
     it('disabling the timer clears seconds to null and forces strict off', async () => {
@@ -437,27 +423,11 @@ describe('AdvancedSettingsCard', () => {
 
   describe('Interface settings — toggles', () => {
     const cases: Array<[RegExp, keyof AdvancedSettings, boolean]> = [
-      [
-        /project\.settings\.interface\.showInstructions$/i,
-        'show_instruction',
-        true,
-      ],
+      [/^Show Instructions$/i, 'show_instruction', true],
       [/Always show instructions/i, 'instructions_always_visible', false],
-      [
-        /project\.settings\.interface\.showSkipButton$/i,
-        'show_skip_button',
-        true,
-      ],
-      [
-        /project\.settings\.interface\.requireCommentOnSkip$/i,
-        'require_comment_on_skip',
-        false,
-      ],
-      [
-        /project\.settings\.interface\.showSubmitButton$/i,
-        'show_submit_button',
-        true,
-      ],
+      [/^Show Skip Button$/i, 'show_skip_button', true],
+      [/^Require Comment on Skip$/i, 'require_comment_on_skip', false],
+      [/^Show Submit Button$/i, 'show_submit_button', true],
       [
         /Require confirmation before submit/i,
         'require_confirm_before_submit',

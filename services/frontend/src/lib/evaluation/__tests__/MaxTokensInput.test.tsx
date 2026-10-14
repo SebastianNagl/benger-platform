@@ -51,7 +51,15 @@ jest.mock('@/hooks/useModels', () => ({
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (_k: string, fallback?: string) => fallback || _k,
+    t: (key: string, vars?: Record<string, unknown>) => {
+      // German catalog; a key the catalog lacks yet shows its vars
+      const text = jest
+        .requireActual('@/lib/i18n/catalog')
+        .translateKey('de', key, vars)
+      return text === key && vars
+        ? [key, ...Object.values(vars)].join(' ')
+        : text
+    },
     locale: 'de',
     setLocale: jest.fn(),
   }),

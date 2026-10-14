@@ -128,12 +128,12 @@ describe('StatisticalResultsPanel', () => {
 
     it('renders formatted mean values', () => {
       render(<StatisticalResultsPanel data={baseStatisticsData} />)
-      expect(screen.getByText('85.0%')).toBeInTheDocument()
+      expect(screen.getByText('85,0%')).toBeInTheDocument()
     })
 
     it('renders standard deviation', () => {
       render(<StatisticalResultsPanel data={baseStatisticsData} />)
-      expect(screen.getByText('0.0500')).toBeInTheDocument()
+      expect(screen.getByText('0,0500')).toBeInTheDocument()
     })
 
     it('shows sample size n', () => {
@@ -418,7 +418,7 @@ describe('StatisticalResultsPanel', () => {
       )
       expect(screen.getByText('Correlation Matrix')).toBeInTheDocument()
       // 0.92 appears twice in the symmetric matrix (accuracy->f1 and f1->accuracy)
-      const correlationCells = screen.getAllByText('0.92')
+      const correlationCells = screen.getAllByText('0,92')
       expect(correlationCells.length).toBe(2)
     })
 
@@ -502,7 +502,7 @@ describe('StatisticalResultsPanel', () => {
         />,
       )
       // SE should appear as ±value
-      expect(screen.getByText('±0.005')).toBeInTheDocument()
+      expect(screen.getByText('±0,005')).toBeInTheDocument()
     })
 
     it('hides SE annotation in per-model stats when se is not selected', () => {
@@ -529,7 +529,7 @@ describe('StatisticalResultsPanel', () => {
       render(
         <StatisticalResultsPanel data={data} selectedStatistics={['ci']} />,
       )
-      expect(screen.queryByText('±0.005')).not.toBeInTheDocument()
+      expect(screen.queryByText('±0,005')).not.toBeInTheDocument()
     })
   })
 
@@ -594,7 +594,7 @@ describe('StatisticalResultsPanel', () => {
           selectedStatistics={['se', 'ci']}
         />,
       )
-      expect(screen.getByText('±0.008')).toBeInTheDocument()
+      expect(screen.getByText('±0,008')).toBeInTheDocument()
     })
   })
 

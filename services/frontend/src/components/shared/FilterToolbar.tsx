@@ -20,6 +20,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { useI18n } from '@/contexts/I18nContext'
 import {
   FunnelIcon,
   MagnifyingGlassIcon,
@@ -78,9 +79,9 @@ export function FilterToolbar({
   searchValue,
   onSearchChange,
   searchPlaceholder,
-  searchLabel = 'Search',
-  filtersLabel = 'Filters',
-  clearLabel = 'Clear filters',
+  searchLabel,
+  filtersLabel,
+  clearLabel,
   searchHidden = false,
   hasActiveFilters = false,
   onClearFilters,
@@ -91,6 +92,10 @@ export function FilterToolbar({
   children,
   variant = 'card',
 }: FilterToolbarProps) {
+  const { t } = useI18n()
+  searchLabel ??= t('common.filters.search')
+  filtersLabel ??= t('common.filters.filters')
+  clearLabel ??= t('common.filters.clearAll')
   const [showSearch, setShowSearch] = useState(defaultShowSearch)
   const [showFilters, setShowFilters] = useState(defaultShowFilters)
 

@@ -32,6 +32,7 @@ import { TextAreaField } from '@/components/fields/TextAreaField'
 import { TextField } from '@/components/fields/TextField'
 import { TextHighlightField } from '@/components/fields/TextHighlightField'
 import { UrlField } from '@/components/fields/UrlField'
+import { intlTag, readStoredLocale } from '@/lib/i18n/locales'
 
 export interface FieldComponentProps {
   field: TaskTemplateField
@@ -585,7 +586,7 @@ export class TemplateEngine {
           {
             className: 'text-sm text-zinc-700 dark:text-zinc-300',
           },
-          new Date(value).toLocaleDateString(),
+          new Date(value).toLocaleDateString(intlTag(readStoredLocale())),
         )
 
       case 'checkbox':

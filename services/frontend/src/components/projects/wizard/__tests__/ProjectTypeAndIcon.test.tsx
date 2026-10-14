@@ -4,11 +4,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { IconPickerModal, ProjectTypeSelector } from '../ProjectTypeAndIcon'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (k: string, d?: any) => (typeof d === 'string' ? d : k),
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 jest.mock('@/components/shared/Dialog', () => ({
   Dialog: ({ isOpen, title, children }: any) =>
     isOpen ? (

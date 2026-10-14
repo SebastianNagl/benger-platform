@@ -176,12 +176,8 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
 
             {isSuccess ? (
               <div className="text-center text-sm text-gray-600">
-                <p>
-                  You will be redirected to the login page in a few seconds.
-                </p>
-                <p className="mt-2">
-                  You can now log in to your BenGER account.
-                </p>
+                <p>{t('emailVerification.redirectingToLogin')}</p>
+                <p className="mt-2">{t('emailVerification.canNowLogIn')}</p>
               </div>
             ) : (
               <div className="text-center text-sm text-gray-600">

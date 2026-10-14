@@ -265,7 +265,7 @@ describe('OrgAccessKeys dialog', () => {
       ).toBeChecked()
       expect(screen.getByTestId('access-key-scope-runs:write')).toBeChecked()
       expect(screen.getByTestId('access-key-scope-runs:read')).not.toBeChecked()
-      expect(within(list).getByText('DE runs:write')).toBeInTheDocument()
+      expect(within(list).getByText('Läufe anlegen')).toBeInTheDocument()
       expect(
         within(list).getByText(
           'accessKeys.form.implies {"scopes":"submissions:read"}',

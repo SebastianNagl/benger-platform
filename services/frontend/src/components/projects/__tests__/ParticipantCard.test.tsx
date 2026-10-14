@@ -12,11 +12,9 @@ jest.mock('@/hooks/useDialogs', () => ({ useConfirm: () => mockConfirm }))
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: mockAddToast }),
 }))
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 const mockGet = jest.fn()
 const mockLeave = jest.fn()
 jest.mock('@/lib/api/shares', () => ({
@@ -44,7 +42,7 @@ describe('ParticipantCard', () => {
     const onLeft = jest.fn()
     render(<ParticipantCard projectId="p1" via="share" onLeft={onLeft} />)
     expect(screen.getByTestId('participant-via')).toHaveTextContent(
-      'Beigetreten',
+      'Über Freigabe-Link beigetreten',
     )
     fireEvent.click(await screen.findByTestId('participant-leave'))
     await waitFor(() => expect(mockLeave).toHaveBeenCalledWith('p1'))

@@ -248,7 +248,7 @@ describe('DynamicChartRenderer', () => {
       )
       // Should render ScoreHeatmap (the table-based heatmap)
       expect(screen.getByText('GPT-4')).toBeInTheDocument()
-      expect(screen.getByText('0.850')).toBeInTheDocument()
+      expect(screen.getByText('0,850')).toBeInTheDocument()
     })
 
     it('shows unknown chart type message for invalid type', () => {

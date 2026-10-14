@@ -11,6 +11,8 @@ import type {
   ScopeCatalog,
   ScopeDefinition,
 } from '@/lib/api/types'
+import { lookup } from '@/lib/i18n/catalog'
+import { intlTag, toLocale } from '@/lib/i18n/locales'
 
 export const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -62,7 +64,7 @@ export function formatDate(
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(locale === 'en' ? 'en-GB' : 'de-DE')
+  return d.toLocaleDateString(intlTag(locale))
 }
 
 export interface GrantContext {
@@ -153,12 +155,47 @@ export function matchPreset(
   return 'custom'
 }
 
+/** Catalog key of a scope's description: "tasks:read_reference" → accessKeys.scopeDescriptions.tasksReadReference. */
+export function scopeDescriptionKey(name: string): string {
+  const camel = name
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((part, i) =>
+      i === 0
+        ? part.charAt(0).toLowerCase() + part.slice(1)
+        : part.charAt(0).toUpperCase() + part.slice(1),
+    )
+    .join('')
+  return `accessKeys.scopeDescriptions.${camel}`
+}
+
+/**
+ * Description of a scope in the UI language. Built-in scopes come from the
+ * catalog; a scope the catalog doesn't know (an overlay registered it on the
+ * server) falls back to the server's own text in the reader's language
+ * (English when the server has no French text).
+ */
 export function scopeDescription(
   scope: ScopeDefinition | undefined,
   locale: string,
 ): string {
   if (!scope) return ''
-  return locale === 'en' ? scope.description_en : scope.description_de
+  const lang = toLocale(locale)
+  const text = lookup(lang, scopeDescriptionKey(scope.name))
+  if (typeof text === 'string') return text
+  if (lang === 'de') return scope.description_de
+  if (lang === 'fr') return scope.description_fr ?? scope.description_en
+  return scope.description_en
+}
+
+/** `t(key)`, or `fallback` (server data, an id) when the catalog lacks the key. */
+export function catalogTextOr(
+  t: (key: string) => string,
+  key: string,
+  fallback: string,
+): string {
+  const text = t(key)
+  return text === key ? fallback : text
 }
 
 /** Body that recreates a key with the same settings (renewal). */

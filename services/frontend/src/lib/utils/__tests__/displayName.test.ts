@@ -9,6 +9,11 @@ import {
   isUsingPseudonym,
 } from '../displayName'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 // Minimal User type matching the function signatures
 const createUser = (overrides: Record<string, any> = {}) => ({
   id: 'user-1',
@@ -26,11 +31,11 @@ const createUser = (overrides: Record<string, any> = {}) => ({
 
 describe('getUserDisplayName', () => {
   it('should return "Unknown User" for null user', () => {
-    expect(getUserDisplayName(null)).toBe('Unknown User')
+    expect(getUserDisplayName(null)).toBe('common.unknownUser')
   })
 
-  it('should return "Unknown User" for undefined user', () => {
-    expect(getUserDisplayName(undefined)).toBe('Unknown User')
+  it('should return the unknown-user label for undefined user', () => {
+    expect(getUserDisplayName(undefined)).toBe('common.unknownUser')
   })
 
   it('should return real name when use_pseudonym is false', () => {
@@ -70,9 +75,9 @@ describe('getUserDisplayName', () => {
     expect(getUserDisplayName(user as any)).toBe('johndoe')
   })
 
-  it('should return "Unknown User" when both name and username are empty', () => {
+  it('should return the unknown-user label when both name and username are empty', () => {
     const user = createUser({ name: '', username: '' })
-    expect(getUserDisplayName(user as any)).toBe('Unknown User')
+    expect(getUserDisplayName(user as any)).toBe('common.unknownUser')
   })
 })
 

@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useConfirm } from '@/hooks/useDialogs'
 import { projectsAPI } from '@/lib/api/projects'
+import { intlTag } from '@/lib/i18n/locales'
 import { projectIcon } from '@/lib/projectKind'
 import type { Project } from '@/types/labelStudio'
 
@@ -21,7 +22,7 @@ import type { Project } from '@/types/labelStudio'
  * be restored from here, and ONLY here can data really be destroyed.
  */
 export default function DeletedProjectsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const { addToast } = useToast()
@@ -63,13 +64,10 @@ export default function DeletedProjectsPage() {
     setBusyId(project.id)
     try {
       await projectsAPI.restoreProject(project.id)
-      addToast(
-        t('projects.deleted.restored', 'Projekt wiederhergestellt.'),
-        'success',
-      )
+      addToast(t('projects.deleted.restored'), 'success')
       await load()
     } catch (err: any) {
-      addToast(err?.message || t('common.error', 'Fehler'), 'error')
+      addToast(err?.message || t('common.error'), 'error')
     } finally {
       setBusyId(null)
     }
@@ -77,27 +75,20 @@ export default function DeletedProjectsPage() {
 
   const handlePurge = async (project: Project) => {
     const ok = await confirm({
-      title: t('projects.deleted.purge', 'Endgültig löschen'),
-      message: t(
-        'projects.deleted.purgeConfirm',
-        '„{title}“ und ALLE zugehörigen Daten (Aufgaben, Abgaben, Bewertungen, Lernverläufe) endgültig löschen? Das kann nicht rückgängig gemacht werden.',
-        { title: project.title },
-      ),
+      title: t('projects.deleted.purge'),
+      message: t('projects.deleted.purgeConfirm', { title: project.title }),
       variant: 'danger',
-      confirmText: t('projects.deleted.purge', 'Endgültig löschen'),
+      confirmText: t('projects.deleted.purge'),
       confirmButtonVariant: 'filled',
     })
     if (!ok) return
     setBusyId(project.id)
     try {
       await projectsAPI.purgeProject(project.id)
-      addToast(
-        t('projects.deleted.purged', 'Projekt endgültig gelöscht.'),
-        'success',
-      )
+      addToast(t('projects.deleted.purged'), 'success')
       await load()
     } catch (err: any) {
-      addToast(err?.message || t('common.error', 'Fehler'), 'error')
+      addToast(err?.message || t('common.error'), 'error')
     } finally {
       setBusyId(null)
     }
@@ -108,19 +99,16 @@ export default function DeletedProjectsPage() {
       <div className="mb-6">
         <Breadcrumb
           items={[
-            { label: t('navigation.projects', 'Projekte'), href: '/projects' },
-            { label: t('projects.deleted.title', 'Gelöschte Projekte') },
+            { label: t('navigation.projects'), href: '/projects' },
+            { label: t('projects.deleted.title') },
           ]}
         />
       </div>
       <h1 className="mb-2 text-3xl font-bold text-zinc-900 dark:text-white">
-        {t('projects.deleted.title', 'Gelöschte Projekte')}
+        {t('projects.deleted.title')}
       </h1>
       <p className="mb-6 text-sm text-zinc-500 dark:text-zinc-400">
-        {t(
-          'projects.deleted.subtitle',
-          'Gelöschte Projekte sind für alle ausgeblendet, ihre Daten bleiben erhalten. Nur hier können sie wiederhergestellt oder endgültig gelöscht werden.',
-        )}
+        {t('projects.deleted.subtitle')}
       </p>
 
       {loading ? (
@@ -132,7 +120,7 @@ export default function DeletedProjectsPage() {
           className="text-sm text-zinc-500 dark:text-zinc-400"
           data-testid="deleted-empty"
         >
-          {t('projects.deleted.empty', 'Keine gelöschten Projekte.')}
+          {t('projects.deleted.empty')}
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
@@ -140,13 +128,13 @@ export default function DeletedProjectsPage() {
             <thead className="bg-zinc-50 dark:bg-zinc-800/50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.project', 'Projekt')}
+                  {t('projects.deleted.project')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.deletedAt', 'Gelöscht am')}
+                  {t('projects.deleted.deletedAt')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                  {t('projects.deleted.actions', 'Aktionen')}
+                  {t('projects.deleted.actions')}
                 </th>
               </tr>
             </thead>
@@ -159,12 +147,12 @@ export default function DeletedProjectsPage() {
                     </span>
                     {p.title}
                     <span className="ml-2 inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-400/10 dark:text-rose-400">
-                      {t('projects.deleted.badge', 'Gelöscht')}
+                      {t('projects.deleted.badge')}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                     {p.deleted_at
-                      ? new Date(p.deleted_at).toLocaleString('de-DE')
+                      ? new Date(p.deleted_at).toLocaleString(intlTag(locale))
                       : '—'}
                   </td>
                   <td className="px-6 py-4 text-right text-sm whitespace-nowrap">
@@ -176,7 +164,7 @@ export default function DeletedProjectsPage() {
                       data-testid={`deleted-restore-${p.id}`}
                     >
                       <ArrowUturnLeftIcon className="h-4 w-4" />
-                      {t('projects.deleted.restore', 'Wiederherstellen')}
+                      {t('projects.deleted.restore')}
                     </Button>
                     <Button
                       variant="outline"
@@ -186,7 +174,7 @@ export default function DeletedProjectsPage() {
                       data-testid={`deleted-purge-${p.id}`}
                     >
                       <TrashIcon className="h-4 w-4" />
-                      {t('projects.deleted.purge', 'Endgültig löschen')}
+                      {t('projects.deleted.purge')}
                     </Button>
                   </td>
                 </tr>

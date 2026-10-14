@@ -17,21 +17,9 @@ jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }),
 }))
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (
-      key: string,
-      fallback?: string | Record<string, unknown>,
-      vars?: Record<string, unknown>,
-    ) => {
-      const text = typeof fallback === 'string' ? fallback : key
-      const values = (typeof fallback === 'string' ? vars : fallback) ?? {}
-      return text.replace(/\{(\w+)\}/g, (match, name) =>
-        name in values ? String(values[name]) : match,
-      )
-    },
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 jest.mock('@/lib/api/projects', () => ({
   projectsAPI: { importData: jest.fn(), update: jest.fn() },

@@ -1,11 +1,10 @@
+import { translate } from '@/lib/utils/translate'
+
 export default function MinimalPage() {
   return (
     <div>
-      <h1>Minimal Page</h1>
-      <p>
-        This page has its own layout to bypass all providers and complex
-        components.
-      </p>
+      <h1>{translate('layout.minimal.pageTitle')}</h1>
+      <p>{translate('layout.minimal.pageDescription')}</p>
     </div>
   )
 }

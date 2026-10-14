@@ -32,6 +32,7 @@
 
 import fc from 'fast-check'
 
+import { translate } from '@/lib/utils/translate'
 import {
   FIELD_SPECIFIERS,
   generateEvaluationId,
@@ -57,6 +58,28 @@ import {
   type AvailableMetric,
   type MetricDisplayScale,
 } from '../evaluation-types'
+
+// Catalog stand-in with the English labels these assertions were written for.
+jest.mock('@/lib/utils/translate', () => {
+  const T: Record<string, string> = {
+    'evaluationBuilder.fields.allModelResponses': 'All model responses',
+    'evaluationBuilder.fields.allHumanAnnotations': 'All human annotations',
+    'evaluationBuilder.fields.modelResponseUnstructured':
+      'Model Response (unstructured)',
+    'evaluation.dimensions.boundary_accuracy.name': 'Boundary Accuracy',
+    'evaluation.dimensions.label_accuracy.name': 'Label Accuracy',
+    'evaluation.dimensions.coverage.name': 'Entity Coverage',
+    'evaluation.dimensions.span_precision.name': 'Span Precision',
+    'evaluation.dimensions.accuracy.name': 'Selection Accuracy',
+    'evaluation.dimensions.reasoning.name': 'Reasoning Quality',
+    'evaluation.dimensions.set_accuracy.name': 'Set Accuracy (Multi-select)',
+    'evaluation.dimensions.partial_credit.name': 'Partial Credit Score',
+    'evaluation.dimensions.precision.name': 'Numeric Precision',
+    'evaluation.dimensions.scale_appropriateness.name': 'Scale Appropriateness',
+    'evaluation.dimensions.magnitude_accuracy.name': 'Magnitude Accuracy',
+  }
+  return { translate: (key: string) => T[key] ?? key }
+})
 
 // --- Arbitraries ---------------------------------------------------------
 
@@ -510,8 +533,8 @@ describe('getGroupedMetrics — merge algebra', () => {
 
 describe('getDimensionDisplayName — total label lookup', () => {
   it('known type-specific dimensions return their exact documented label', () => {
-    for (const [key, label] of Object.entries(TYPE_SPECIFIC_DIMENSIONS)) {
-      expect(getDimensionDisplayName(key)).toBe(label)
+    for (const [key, labelKey] of Object.entries(TYPE_SPECIFIC_DIMENSIONS)) {
+      expect(getDimensionDisplayName(key)).toBe(translate(labelKey))
     }
   })
 

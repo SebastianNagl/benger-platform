@@ -8,6 +8,7 @@ import { type Metadata } from 'next'
 import { headers } from 'next/headers'
 
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
+import { translate } from '@/lib/utils/translate'
 
 // Define sections for different pages
 // (The /how-to page owns its own localized table of contents since the
@@ -22,12 +23,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = h.get('x-forwarded-host') || h.get('host') || ''
   const vtr = isStudentLockedHost(host)
 
-  const title = vtr
-    ? 'Vertretbar – Klausuren üben mit sofortiger KI-Korrektur'
-    : 'BenGER - Vertrauensvolle KI-Bewertung für deutsches Recht'
-  const description = vtr
-    ? 'Übe juristische Klausuren mit sofortiger KI-Korrektur und lerne mit Karteikarten — kein eigener API-Schlüssel nötig.'
-    : 'Die führende Plattform für wissenschaftlich fundierte Evaluation von Large Language Models im deutschen Rechtskontext. Entwickelt an der TUM.'
+  // Server-rendered metadata has no user locale: translate() falls back to
+  // the default locale on the server.
+  const brand = vtr ? 'vertretbar' : 'benger'
+  const title = translate(`layout.meta.${brand}.title`)
+  const description = translate(`layout.meta.${brand}.description`)
 
   return {
     title: {

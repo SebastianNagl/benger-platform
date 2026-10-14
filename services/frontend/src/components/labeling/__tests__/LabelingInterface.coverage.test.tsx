@@ -131,20 +131,10 @@ jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => null,
 }))
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: any) => {
-      let value = params?.defaultValue || key
-      if (params) {
-        Object.entries(params).forEach(([k, v]) => {
-          if (k !== 'defaultValue') value = value.replace(`{${k}}`, String(v))
-        })
-      }
-      return value
-    },
-    locale: 'en',
-  }),
-}))
+// Catalog-backed I18n context
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 jest.mock('date-fns', () => ({
   formatDistanceToNow: () => '3 minutes',
@@ -771,10 +761,8 @@ describe('LabelingInterface - URL task param navigation', () => {
 
     await waitFor(() => {
       expect(setTaskByIndex).toHaveBeenCalledWith(1)
-      // The success toast uses the taskLoadedFromUrl key (params substituted
-      // by the real i18n at runtime); here we assert the success branch fired.
       expect(__mockToast.addToast).toHaveBeenCalledWith(
-        expect.stringContaining('annotation.taskLoadedFromUrl'),
+        'Loaded task 2 from URL',
         'success',
       )
     })
@@ -795,7 +783,7 @@ describe('LabelingInterface - URL task param navigation', () => {
 
     await waitFor(() => {
       expect(__mockToast.addToast).toHaveBeenCalledWith(
-        expect.stringContaining('annotation.taskNotFound'),
+        'Task 99 not found (max: 1). Loading first task instead.',
         'error',
       )
     })

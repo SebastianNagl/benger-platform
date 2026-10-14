@@ -8,6 +8,42 @@ import userEvent from '@testing-library/user-event'
 import { QuestionData } from '../QuestionCard'
 import { QuestionManager, questionsToJson } from '../QuestionManager'
 
+// The global i18n mock ignores interpolation values; render these keys from
+// test templates so the assertions can still see the numbers.
+const mockI18nTemplates: Record<string, string> = {
+  'tasks.questionManager.title': 'Questions ({count})',
+  'tasks.questionManager.hintQa': 'Add simple question-answer pairs',
+  'tasks.questionManager.hintMultipleChoice':
+    'Add multiple choice questions with 4 options',
+  'tasks.questionManager.hintReasoning': 'Add questions with reasoning',
+  'tasks.questionManager.expandAll': 'Expand All',
+  'tasks.questionManager.collapseAll': 'Collapse All',
+  'tasks.questionManager.addQuestion': 'Add Question',
+  'tasks.questionManager.empty': 'No questions yet',
+  'tasks.questionManager.emptyHintQa':
+    'Add your first question-answer pair to get started.',
+  'tasks.questionManager.emptyHint': 'Add your first question to get started.',
+}
+{
+  const i18nMock = jest.requireMock('@/contexts/I18nContext')
+  const baseUseI18n =
+    i18nMock.useI18n.getMockImplementation?.() ?? i18nMock.useI18n
+  beforeEach(() => {
+    jest.spyOn(i18nMock, 'useI18n').mockImplementation(() => {
+      const base = baseUseI18n()
+      return {
+        ...base,
+        t: (key: string, vars?: Record<string, unknown>) =>
+          key in mockI18nTemplates
+            ? mockI18nTemplates[key].replace(/\{(\w+)\}/g, (m, name) =>
+                vars?.[name] !== undefined ? String(vars[name]) : m,
+              )
+            : base.t(key, vars),
+      }
+    })
+  })
+}
+
 // Mock the Button component
 jest.mock('@/components/shared/Button', () => ({
   Button: ({ children, onClick, className, disabled, type, ...props }: any) => (

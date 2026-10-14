@@ -73,6 +73,39 @@ import {
   useWarningAlert,
 } from '../useDialogs'
 
+// The global i18n mock ignores interpolation values; render these keys from
+// test templates so the assertions can still see the numbers.
+const mockI18nTemplates: Record<string, string> = {
+  'dialogs.deleteConfirm.title': 'Confirm Deletion',
+  'dialogs.deleteConfirm.message':
+    'Are you sure you want to delete {item}? This action cannot be undone.',
+  'dialogs.deleteConfirm.thisItem': 'this item',
+  'common.delete': 'Delete',
+  'common.cancel': 'Cancel',
+  'common.error': 'Error',
+  'common.success': 'Success',
+  'common.warning': 'Warning',
+}
+{
+  const i18nMock = jest.requireMock('@/contexts/I18nContext')
+  const baseUseI18n =
+    i18nMock.useI18n.getMockImplementation?.() ?? i18nMock.useI18n
+  beforeEach(() => {
+    jest.spyOn(i18nMock, 'useI18n').mockImplementation(() => {
+      const base = baseUseI18n()
+      return {
+        ...base,
+        t: (key: string, vars?: Record<string, unknown>) =>
+          key in mockI18nTemplates
+            ? mockI18nTemplates[key].replace(/\{(\w+)\}/g, (m, name) =>
+                vars?.[name] !== undefined ? String(vars[name]) : m,
+              )
+            : base.t(key, vars),
+      }
+    })
+  })
+}
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <DialogProvider>{children}</DialogProvider>
 )

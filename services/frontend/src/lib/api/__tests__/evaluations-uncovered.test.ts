@@ -21,6 +21,11 @@
 
 import { EvaluationsClient } from '../evaluations'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string, vars?: Record<string, unknown>) =>
+    vars ? [key, ...Object.values(vars)].join(' ') : key,
+}))
+
 jest.mock('../base', () => ({
   BaseApiClient: class MockBaseApiClient {
     protected async request<T>(
@@ -226,13 +231,13 @@ describe('EvaluationsClient - uncovered methods', () => {
         success: false,
         task_id: 't1',
         status: 'failed',
-        message: 'Evaluation is taking longer than expected',
+        message: 'evaluation.api.takingLonger',
         results: [],
         methods: null,
         expected_metrics: null,
         completed_metrics: null,
       })
-      expect(result.error).toContain('did not finish within the expected time')
+      expect(result.error).toBe('evaluation.api.partialResults')
     })
   })
 

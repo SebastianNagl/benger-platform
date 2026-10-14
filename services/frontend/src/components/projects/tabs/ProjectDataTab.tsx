@@ -278,7 +278,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       setSelectedTasks(new Set(ids))
       if (truncated) {
         addToast(
-          `Selection capped at ${ids.length} tasks; refine filters to act on the rest.`,
+          t('annotationTab.messages.selectionCapped', { count: ids.length }),
           'warning',
         )
       }
@@ -463,7 +463,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         })
         if (truncated) {
           addToast(
-            `Export capped at ${ids.length} tasks; refine filters to export the rest.`,
+            t('annotationTab.messages.exportCapped', { count: ids.length }),
             'warning',
           )
         }
@@ -814,7 +814,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
       )
 
       if (!task) {
-        addToast(t('errors.taskNotFound'), 'error')
+        addToast(t('annotationTab.messages.taskNotFound'), 'error')
         return
       }
 
@@ -822,10 +822,10 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
 
       // Refresh tasks to show updated assignments
       await reloadCurrentPage()
-      addToast(t('success.assignmentRemoved'), 'success')
+      addToast(t('annotationTab.messages.assignmentRemoved'), 'success')
     } catch (error) {
       console.error('Error removing assignment:', error)
-      addToast(t('errors.assignmentRemoveFailed'), 'error')
+      addToast(t('annotationTab.messages.assignmentRemoveFailed'), 'error')
     }
   }
 
@@ -886,7 +886,7 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 })}
                 onTagsUpdated={async () => {
                   await reloadCurrentPage()
-                  addToast(t('success.tagsUpdated'), 'success')
+                  addToast(t('annotationTab.messages.tagsUpdated'), 'success')
                 }}
               />
 
@@ -1104,14 +1104,18 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
         {showSelectAllMatching && (
           <div className="mb-3 flex items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
             <span>
-              {`All ${filteredTasks.length} tasks on this page are selected.`}
+              {t('annotationTab.display.pageAllSelected', {
+                count: filteredTasks.length,
+              })}
             </span>
             <button
               type="button"
               onClick={handleSelectAllMatching}
               className="ml-4 font-medium underline-offset-2 hover:underline"
             >
-              {`Select all ${totalTasks} matching tasks`}
+              {t('annotationTab.display.selectAllMatching', {
+                count: totalTasks,
+              })}
             </button>
           </div>
         )}
@@ -1180,7 +1184,10 @@ export function ProjectDataTab({ projectId }: ProjectDataTabProps) {
                 </span>
                 <span className="hidden sm:inline"> · </span>
                 <span>
-                  {`Page ${currentPage} of ${Math.max(totalPages, 1)}`}
+                  {t('common.pageOf', {
+                    page: currentPage,
+                    totalPages: Math.max(totalPages, 1),
+                  })}
                 </span>
               </div>
             </div>

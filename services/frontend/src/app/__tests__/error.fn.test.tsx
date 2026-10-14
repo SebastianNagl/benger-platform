@@ -8,7 +8,7 @@ import GlobalError from '../error'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
+    t: (key: string) => key,
     locale: 'en',
   }),
 }))
@@ -44,33 +44,28 @@ describe('GlobalError', () => {
     ;(console.error as jest.Mock).mockClear()
   })
 
-  // The component passes inline German defaults to t() so the card stays
-  // readable even when it renders without I18nProvider (provider-tree crash);
-  // the mock above mirrors the real fallback behavior and returns them.
+  // The mock above returns the key; outside I18nProvider (provider-tree
+  // crash) the real useI18n still resolves these keys from the catalog.
   it('renders error title', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    expect(screen.getByText('Etwas ist schiefgelaufen')).toBeInTheDocument()
+    expect(screen.getByText('errors.global.title')).toBeInTheDocument()
   })
 
   it('renders error description', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    expect(
-      screen.getByText(
-        'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText('errors.global.description')).toBeInTheDocument()
   })
 
   it('renders try again button that calls reset', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    const btn = screen.getByText('Erneut versuchen')
+    const btn = screen.getByText('errors.global.tryAgain')
     fireEvent.click(btn)
     expect(mockReset).toHaveBeenCalledTimes(1)
   })
 
   it('renders reload page button', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
-    const btn = screen.getByText('Seite neu laden')
+    const btn = screen.getByText('errors.global.reloadPage')
     expect(btn).toBeInTheDocument()
   })
 
@@ -78,7 +73,7 @@ describe('GlobalError', () => {
     render(<GlobalError error={mockError} reset={mockReset} />)
     // In test env (NODE_ENV=test), development block won't render
     // But we still test the component renders without error
-    expect(screen.getByText('Etwas ist schiefgelaufen')).toBeInTheDocument()
+    expect(screen.getByText('errors.global.title')).toBeInTheDocument()
   })
 
   it('logs error to console', () => {

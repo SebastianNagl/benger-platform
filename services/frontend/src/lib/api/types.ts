@@ -1097,6 +1097,8 @@ export interface ScopeDefinition {
   name: string
   description_de: string
   description_en: string
+  /** French text (core 2.38); older servers omit it. */
+  description_fr?: string
   implies: string[]
   grantable: ScopeGrantable | string
   source?: string

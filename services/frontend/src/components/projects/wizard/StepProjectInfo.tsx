@@ -241,10 +241,7 @@ export function StepProjectInfo({
           <button
             type="button"
             onClick={() => setIconPickerOpen(true)}
-            title={t(
-              'projects.creation.wizard.step1.icon.title',
-              'Symbol wählen',
-            )}
+            title={t('projects.creation.wizard.step1.icon.title')}
             data-testid="project-icon-button"
             className="flex h-14 w-14 items-center justify-center rounded-xl border border-zinc-200 text-3xl transition-colors hover:border-emerald-400 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:hover:bg-emerald-900/20"
           >
@@ -254,10 +251,7 @@ export function StepProjectInfo({
               )}
           </button>
           <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            {t(
-              'projects.creation.wizard.step1.icon.clickToEdit',
-              'Klicken zum Bearbeiten',
-            )}
+            {t('projects.creation.wizard.step1.icon.clickToEdit')}
           </span>
         </div>
         <IconPickerModal
@@ -445,23 +439,16 @@ export function StepProjectInfo({
                   className="text-sm text-zinc-500 dark:text-zinc-400"
                   data-testid="wizard-org-preselected-hint"
                 >
-                  {t(
-                    'projects.creation.wizard.step1.orgPreselectedHint',
-                    'Vorausgewählt: Ihre Organisation {name}. Wählen Sie „Privat“, wenn nur Sie Zugriff haben sollen.',
-                    {
-                      name:
-                        preselectedOrganization.display_name ||
-                        preselectedOrganization.name,
-                    },
-                  )}
+                  {t('projects.creation.wizard.step1.orgPreselectedHint', {
+                    name:
+                      preselectedOrganization.display_name ||
+                      preselectedOrganization.name,
+                  })}
                 </p>
               )}
             {orgs.length === 0 ? (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {t(
-                  'projects.creation.wizard.step1.noOrganizationsAvailable',
-                  'No organizations available.',
-                )}
+                {t('projects.creation.wizard.step1.noOrganizationsAvailable')}
               </p>
             ) : (
               <div className="space-y-2" data-testid="wizard-organization-list">

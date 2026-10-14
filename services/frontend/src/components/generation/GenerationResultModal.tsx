@@ -3,6 +3,7 @@
 import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { Dialog, Disclosure, Transition } from '@headlessui/react'
 import {
   ArrowPathIcon,
@@ -59,7 +60,7 @@ export function GenerationResultModal({
   result: providedResult,
   availableStructureKeys = [],
 }: GenerationResultModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [loading, setLoading] = useState(true)
   const [results, setResults] = useState<GenerationResult[]>([])
   const [selectedStructureIndex, setSelectedStructureIndex] = useState(0)
@@ -245,7 +246,7 @@ export function GenerationResultModal({
             {parsed.system_prompt && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase">
-                  System Prompt
+                  {t('generation.resultModal.systemPrompt')}
                 </p>
                 <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
                   {parsed.system_prompt}
@@ -255,7 +256,7 @@ export function GenerationResultModal({
             {parsed.instruction_prompt && (
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase">
-                  Instruction Prompt
+                  {t('generation.resultModal.instructionPrompt')}
                 </p>
                 <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
                   {parsed.instruction_prompt}
@@ -460,7 +461,7 @@ export function GenerationResultModal({
                                     <span className="text-sm text-gray-600">
                                       {new Date(
                                         result.generated_at,
-                                      ).toLocaleString()}
+                                      ).toLocaleString(intlTag(locale))}
                                     </span>
                                   </div>
                                 )}
@@ -473,10 +474,11 @@ export function GenerationResultModal({
                                     </span>
                                     <span className="text-sm text-gray-600">
                                       {t('generation.resultModal.seconds', {
-                                        value:
-                                          result.generation_time_seconds.toFixed(
-                                            2,
-                                          ),
+                                        value: formatDecimal(
+                                          result.generation_time_seconds,
+                                          locale,
+                                          2,
+                                        ),
                                       })}
                                     </span>
                                   </div>
@@ -597,7 +599,9 @@ export function GenerationResultModal({
                                               {entry.generated_at
                                                 ? new Date(
                                                     entry.generated_at,
-                                                  ).toLocaleString()
+                                                  ).toLocaleString(
+                                                    intlTag(locale),
+                                                  )
                                                 : '\u2014'}
                                             </span>
                                             {entry.generation_time_seconds !=
@@ -606,10 +610,11 @@ export function GenerationResultModal({
                                                 {t(
                                                   'generation.resultModal.seconds',
                                                   {
-                                                    value:
-                                                      entry.generation_time_seconds.toFixed(
-                                                        2,
-                                                      ),
+                                                    value: formatDecimal(
+                                                      entry.generation_time_seconds,
+                                                      locale,
+                                                      2,
+                                                    ),
                                                   },
                                                 )}
                                               </span>

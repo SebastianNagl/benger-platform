@@ -12,6 +12,28 @@ import {
   isSpecialFieldValue,
 } from '../evaluation-types'
 
+// Catalog stand-in with the English labels these assertions were written for.
+jest.mock('@/lib/utils/translate', () => {
+  const T: Record<string, string> = {
+    'evaluationBuilder.fields.allModelResponses': 'All model responses',
+    'evaluationBuilder.fields.allHumanAnnotations': 'All human annotations',
+    'evaluationBuilder.fields.modelResponseUnstructured':
+      'Model Response (unstructured)',
+    'evaluation.dimensions.boundary_accuracy.name': 'Boundary Accuracy',
+    'evaluation.dimensions.label_accuracy.name': 'Label Accuracy',
+    'evaluation.dimensions.coverage.name': 'Entity Coverage',
+    'evaluation.dimensions.span_precision.name': 'Span Precision',
+    'evaluation.dimensions.accuracy.name': 'Selection Accuracy',
+    'evaluation.dimensions.reasoning.name': 'Reasoning Quality',
+    'evaluation.dimensions.set_accuracy.name': 'Set Accuracy (Multi-select)',
+    'evaluation.dimensions.partial_credit.name': 'Partial Credit Score',
+    'evaluation.dimensions.precision.name': 'Numeric Precision',
+    'evaluation.dimensions.scale_appropriateness.name': 'Scale Appropriateness',
+    'evaluation.dimensions.magnitude_accuracy.name': 'Magnitude Accuracy',
+  }
+  return { translate: (key: string) => T[key] ?? key }
+})
+
 describe('getDimensionDisplayName', () => {
   it('should return known dimension display names', () => {
     // Known type-specific dimensions should return proper names

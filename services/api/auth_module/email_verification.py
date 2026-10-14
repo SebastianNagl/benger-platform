@@ -66,7 +66,7 @@ class EmailVerificationService:
             request_headers: Optional HTTP request headers
 
         Returns:
-            Language code (en or de)
+            Language code (en, de or fr)
         """
         # 1. Check if user has language preference stored
         if hasattr(user, "language_preference") and user.language_preference:
@@ -579,7 +579,7 @@ class EmailVerificationService:
             db: Database session
             user: User object
             base_url: Base URL for verification link (deprecated, will use FRONTEND_URL)
-            language: Language code for email localization (en, de)
+            language: Language code for email localization (en, de, fr)
 
         Returns:
             True if email sent successfully
@@ -851,7 +851,7 @@ class EmailVerificationService:
             db: Database session
             user: User object
             base_url: Base URL for verification link
-            language: Language code for email localization (en, de)
+            language: Language code for email localization (en, de, fr)
 
         Returns:
             Success status and message

@@ -9,6 +9,7 @@ import '@testing-library/jest-dom'
 import { fireEvent, render, screen } from '@testing-library/react'
 
 import { registerHowToGuides, type HowToGuide } from '@/lib/howto'
+import { registerTranslations } from '@/lib/i18n/catalog'
 
 import HowToPage from '../page'
 
@@ -16,15 +17,11 @@ let mockLocale = 'de'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: mockLocale,
-    t: (key: string, fallback?: any, vars?: Record<string, unknown>) => {
-      let text = typeof fallback === 'string' ? fallback : key
-      const v = vars ?? (typeof fallback === 'object' ? fallback : undefined)
-      if (v)
-        Object.entries(v).forEach(([k, val]) => {
-          text = text.replace(`{${k}}`, String(val))
-        })
-      return text
-    },
+    // The real catalog, so labels render as users see them.
+    t: (key: string, vars?: Record<string, unknown>) =>
+      jest
+        .requireActual('@/lib/i18n/catalog')
+        .translateKey(mockLocale, key, vars),
   }),
 }))
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
@@ -43,53 +40,60 @@ jest.mock('next/link', () => ({
 }))
 
 const GUIDES: HowToGuide[] = [
-  {
-    id: 'what-is-benger',
-    category: 'start',
-    title: { de: 'Was ist BenGER?', en: 'What is BenGER?' },
-    summary: { de: 'Die Expertenplattform.', en: 'The expert platform.' },
-  },
-  {
-    id: 'api-keys',
-    category: 'generation',
-    title: {
-      de: 'Wie hinterlege ich einen API-Schlüssel?',
-      en: 'How do I add an API key?',
-    },
-    summary: {
-      de: 'Unter **Einstellungen** → `Modelle` (*optional*).',
-      en: 'Under **Settings** → `Models` (*optional*).',
-    },
-    steps: {
-      de: ['Öffnen Sie [Modelle](/settings/models).', 'Schlüssel einfügen.'],
-      en: ['Open [Models](/settings/models).', 'Paste the key.'],
-    },
-    tips: {
-      de: ['Der Schlüssel wird verschlüsselt gespeichert.'],
-      en: ['The key is stored encrypted.'],
-    },
-    pitfalls: {
-      de: ['Ohne Guthaben schlägt die Generierung fehl.'],
-      en: ['Without credit the generation fails.'],
-    },
-    links: [
-      { label: { de: 'Modellkatalog', en: 'Model catalog' }, href: '/models' },
-    ],
-    keywords: { de: ['OpenAI'], en: ['provider'] },
-  },
-  {
-    id: 'invite-group',
-    category: 'organizations',
-    title: {
-      de: 'Wie lade ich jemanden in eine Gruppe ein?',
-      en: 'How do I invite someone to a group?',
-    },
-    summary: {
-      de: 'Über den Gruppen-Einladungslink.',
-      en: 'Via the group invitation link.',
-    },
-  },
+  { id: 't-what-is-benger', category: 'start' },
+  { id: 't-api-keys', category: 'generation', links: ['/models'] },
+  { id: 't-invite-group', category: 'organizations' },
 ]
+
+// Guide copy lives in the catalog; the test guides bring their own.
+registerTranslations('howto-page-test', {
+  de: {
+    howToGuides: {
+      't-what-is-benger': {
+        title: 'Was ist BenGER?',
+        summary: 'Die Expertenplattform.',
+      },
+      't-api-keys': {
+        title: 'Wie hinterlege ich einen API-Schlüssel?',
+        summary: 'Unter **Einstellungen** → `Modelle` (*optional*).',
+        steps: [
+          'Öffnen Sie [Modelle](/settings/models).',
+          'Schlüssel einfügen.',
+        ],
+        tips: ['Der Schlüssel wird verschlüsselt gespeichert.'],
+        pitfalls: ['Ohne Guthaben schlägt die Generierung fehl.'],
+        links: ['Modellkatalog'],
+        keywords: ['OpenAI'],
+      },
+      't-invite-group': {
+        title: 'Wie lade ich jemanden in eine Gruppe ein?',
+        summary: 'Über den Gruppen-Einladungslink.',
+      },
+    },
+  },
+  en: {
+    howToGuides: {
+      't-what-is-benger': {
+        title: 'What is BenGER?',
+        summary: 'The expert platform.',
+      },
+      't-api-keys': {
+        title: 'How do I add an API key?',
+        summary: 'Under **Settings** → `Models` (*optional*).',
+        steps: ['Open [Models](/settings/models).', 'Paste the key.'],
+        tips: ['The key is stored encrypted.'],
+        pitfalls: ['Without credit the generation fails.'],
+        links: ['Model catalog'],
+        keywords: ['provider'],
+      },
+      't-invite-group': {
+        title: 'How do I invite someone to a group?',
+        summary: 'Via the group invitation link.',
+      },
+    },
+  },
+  fr: {},
+})
 
 beforeEach(() => {
   mockLocale = 'de'
@@ -114,14 +118,16 @@ describe('HowToPage', () => {
         name: 'KI-Modelle & Generierung',
       }),
     ).toBeInTheDocument()
-    expect(screen.getByTestId('howto-guide-what-is-benger')).toBeInTheDocument()
-    expect(screen.getByTestId('howto-guide-api-keys')).toBeInTheDocument()
-    expect(screen.getByTestId('howto-guide-invite-group')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('howto-guide-t-what-is-benger'),
+    ).toBeInTheDocument()
+    expect(screen.getByTestId('howto-guide-t-api-keys')).toBeInTheDocument()
+    expect(screen.getByTestId('howto-guide-t-invite-group')).toBeInTheDocument()
   })
 
   it('renders steps, tips, pitfalls, related links and inline formatting', () => {
     render(<HowToPage />)
-    const card = screen.getByTestId('howto-guide-api-keys')
+    const card = screen.getByTestId('howto-guide-t-api-keys')
     expect(card).toHaveTextContent('Schlüssel einfügen.')
     expect(card).toHaveTextContent('Gut zu wissen')
     expect(card).toHaveTextContent('Typische Stolpersteine')
@@ -145,21 +151,23 @@ describe('HowToPage', () => {
         name: /Organisationen, Gruppen & Einladungen/,
       }),
     )
-    expect(screen.getByTestId('howto-guide-invite-group')).toBeInTheDocument()
-    expect(screen.queryByTestId('howto-guide-api-keys')).not.toBeInTheDocument()
+    expect(screen.getByTestId('howto-guide-t-invite-group')).toBeInTheDocument()
+    expect(
+      screen.queryByTestId('howto-guide-t-api-keys'),
+    ).not.toBeInTheDocument()
     fireEvent.click(
       screen.getByRole('button', {
         name: /Organisationen, Gruppen & Einladungen/,
       }),
     )
-    expect(screen.getByTestId('howto-guide-api-keys')).toBeInTheDocument()
+    expect(screen.getByTestId('howto-guide-t-api-keys')).toBeInTheDocument()
   })
 
   it('lists every visible guide in the table of contents', () => {
     render(<HowToPage />)
     const toc = screen.getByTestId('howto-toc')
     expect(toc).toHaveTextContent('Was ist BenGER?')
-    expect(toc.querySelector('a[href="#api-keys"]')).toBeInTheDocument()
+    expect(toc.querySelector('a[href="#t-api-keys"]')).toBeInTheDocument()
   })
 
   it('renders English copy when the locale is en', () => {
@@ -168,13 +176,13 @@ describe('HowToPage', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Getting started' }),
     ).toBeInTheDocument()
-    expect(screen.getByTestId('howto-guide-api-keys')).toHaveTextContent(
+    expect(screen.getByTestId('howto-guide-t-api-keys')).toHaveTextContent(
       'How do I add an API key?',
     )
   })
 
   it('scrolls to the guide named in the URL hash', () => {
-    window.location.hash = '#invite-group'
+    window.location.hash = '#t-invite-group'
     const spy = jest.fn()
     Element.prototype.scrollIntoView = spy
     render(<HowToPage />)

@@ -74,35 +74,6 @@ const METRIC_DEFAULTS: Record<string, MetricParameters> = {
   },
 }
 
-const PARAMETER_DESCRIPTIONS: Record<string, Record<string, string>> = {
-  bleu: {
-    max_order:
-      'Highest n-gram order (1-4). Use 1 for very short texts, 4 for standard.',
-    weights: 'Weight for each n-gram level. Must sum to 1.0.',
-    smoothing:
-      'Smoothing method for short sentences (method1, method2, method3, method4).',
-  },
-  rouge: {
-    variant:
-      'ROUGE variant (rouge1: unigrams, rouge2: bigrams, rougeL: LCS, rougeLsum: LCS summary-level).',
-    use_stemmer:
-      'Enable stemming to match word variations (e.g., "running" matches "run").',
-  },
-  meteor: {
-    alpha:
-      'Precision weight (0.0-1.0). Higher values favor precision over recall.',
-    beta: 'Recall preference (positive). Higher values favor recall over precision.',
-    gamma:
-      'Fragmentation penalty (positive). Higher values penalize non-contiguous matches.',
-  },
-  chrf: {
-    char_order:
-      'Maximum character n-gram order (1-6). Use 6 for German/morphologically rich languages.',
-    word_order: 'Maximum word n-gram order (0-2). 0=chrF, 2=chrF++.',
-    beta: 'F-beta score parameter (1-3). 2=F2 (recall-weighted), 1=F1 (balanced).',
-  },
-}
-
 const METRICS_WITH_PARAMETERS = ['bleu', 'rouge', 'meteor', 'chrf']
 
 export function MetricParameterInput({
@@ -119,7 +90,6 @@ export function MetricParameterInput({
   }
 
   const defaults = METRIC_DEFAULTS[metric] || {}
-  const descriptions = PARAMETER_DESCRIPTIONS[metric] || {}
 
   const handleParameterChange = (key: string, value: any) => {
     onChange({ ...parameters, [key]: value })

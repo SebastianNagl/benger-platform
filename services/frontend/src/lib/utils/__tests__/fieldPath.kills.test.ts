@@ -109,7 +109,7 @@ describe('fieldPath kills · getAllPaths undefined guard (L108 obj === undefined
 describe('fieldPath kills · formatValue Date branch (L144 instanceof + block)', () => {
   it('formats a Date via toLocaleDateString, not the object/JSON fallback', () => {
     const d = new Date('2026-07-13T00:00:00Z')
-    expect(formatValue(d)).toBe(d.toLocaleDateString())
+    expect(formatValue(d)).toBe(d.toLocaleDateString('de-DE'))
   })
 })
 

@@ -1,9 +1,12 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
+
 import { useSlot } from '@/lib/extensions/slots'
 import { useParams } from 'next/navigation'
 
 export default function ReviewPage() {
+  const { t } = useI18n()
   const params = useParams<{ id: string }>()
   const projectId = params!.id
   const ReviewComponent = useSlot('ReviewPage')
@@ -12,7 +15,7 @@ export default function ReviewPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-zinc-500 dark:text-zinc-400">
-          Review feature is not available in the community edition.
+          {t('student.community.unavailable')}
         </p>
       </div>
     )

@@ -82,6 +82,7 @@ jest.mock('@heroicons/react/24/outline', () => ({
 
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
+import { translateKey } from '@/lib/i18n/catalog'
 import { useRouter } from 'next/navigation'
 import * as React from 'react'
 import GenerationRunDetailPage from '../page'
@@ -95,9 +96,10 @@ const mockRouter = {
   prefetch: jest.fn(),
 }
 
-// t() returns the provided fallback (second arg) when present, mirroring
-// how the page calls t('key', 'German fallback').
-const mockT = (key: string, fallback?: string) => fallback ?? key
+// t() resolves against the real German catalog (keys not in the catalog
+// come back as the key).
+const mockT = (key: string, vars?: Record<string, unknown>) =>
+  translateKey('de', key, vars)
 
 const baseDetail = {
   id: 'gen-run-123',
@@ -211,7 +213,10 @@ describe('GenerationRunDetailPage', () => {
     )
     await waitFor(() => {
       expect(
-        screen.getByText('Failed to load generation run'),
+        // Key until the regenerated catalog carries it, German text after.
+        screen.getByText(
+          /^(generations\.detail\.loadFailed|Der Generierungs-Lauf konnte nicht geladen werden)$/,
+        ),
       ).toBeInTheDocument()
     })
   })
@@ -239,7 +244,7 @@ describe('GenerationRunDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Not found')).toBeInTheDocument()
     })
-    await user.click(screen.getByText('Zurück'))
+    await user.click(screen.getByText('Zurück zu Läufe'))
     expect(mockRouter.push).toHaveBeenCalledWith('/runs?type=generation')
   })
 

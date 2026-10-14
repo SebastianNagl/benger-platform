@@ -101,8 +101,9 @@ export function StepEvaluationMethods({
 
   const typeByName = new Map(annotationFields.map((f) => [f.name, f.type]))
   const labelFor = (opt: FieldOption): string => {
-    if (opt.labelKey) return t(opt.labelKey, opt.label)
-    if (opt.kind === 'data') return `${opt.value} (data)`
+    if (opt.labelKey) return t(opt.labelKey)
+    if (opt.kind === 'data')
+      return t('projects.creation.wizard.dataFieldOption', { field: opt.value })
     if (opt.kind === 'human') {
       const base = getBaseFieldName(opt.value)
       const type = typeByName.get(base)
@@ -296,15 +297,11 @@ export function StepEvaluationMethods({
                               <span
                                 title={t(
                                   'projects.creation.wizard.step7.batchOnlyHint',
-                                  'Dieses Verfahren lädt ein großes Modell und läuft nur in der Batch-Evaluation, nicht in der Sofort-Evaluation.',
                                 )}
                                 className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                 data-testid={`metric-batch-only-${metricKey}`}
                               >
-                                {t(
-                                  'projects.creation.wizard.step7.batchOnly',
-                                  'Nur Batch',
-                                )}
+                                {t('projects.creation.wizard.step7.batchOnly')}
                               </span>
                             )}
                         </p>
@@ -414,7 +411,7 @@ export function StepEvaluationMethods({
                                   {predictionOptionGroups.map((group) => (
                                     <Fragment key={group.kind}>
                                       <SelectGroupLabel>
-                                        {t(group.labelKey, group.label)}
+                                        {t(group.labelKey)}
                                       </SelectGroupLabel>
                                       {group.options.map((opt) => (
                                         <SelectItem
@@ -527,11 +524,10 @@ export function StepEvaluationMethods({
         <div className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
           <div>
             <h3 className="text-sm font-semibold text-zinc-900 dark:text-white">
-              Korrektur (Classic) — Highlight-Labels
+              {t('projects.creation.wizard.korrekturLabels.title')}
             </h3>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Farben und Bezeichnungen für Markierungen, die Korrektoren beim
-              Kommentieren verwenden können.
+              {t('projects.creation.wizard.korrekturLabels.description')}
             </p>
           </div>
           <div className="space-y-2">
@@ -561,7 +557,9 @@ export function StepEvaluationMethods({
                     }
                     setKorrekturLabels(updated)
                   }}
-                  placeholder="Label-Name"
+                  placeholder={t(
+                    'projects.creation.wizard.korrekturLabels.namePlaceholder',
+                  )}
                   className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
                 />
                 <button
@@ -572,7 +570,9 @@ export function StepEvaluationMethods({
                     )
                   }}
                   className="text-zinc-400 hover:text-red-500"
-                  aria-label="Label entfernen"
+                  aria-label={t(
+                    'projects.creation.wizard.korrekturLabels.remove',
+                  )}
                 >
                   &times;
                 </button>
@@ -596,7 +596,7 @@ export function StepEvaluationMethods({
               }}
               className="text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
             >
-              + Label hinzufügen
+              {t('projects.creation.wizard.korrekturLabels.add')}
             </button>
           </div>
         </div>

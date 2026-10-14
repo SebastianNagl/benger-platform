@@ -7,10 +7,14 @@ import React from 'react'
 import MinimalLayout from '../layout'
 import MinimalPage from '../page'
 
+jest.mock('@/lib/utils/translate', () => ({
+  translate: (key: string) => key,
+}))
+
 describe('MinimalPage', () => {
   it('should render the minimal page heading', () => {
     render(<MinimalPage />)
-    expect(screen.getByText('Minimal Page')).toBeInTheDocument()
+    expect(screen.getByText('layout.minimal.pageTitle')).toBeInTheDocument()
   })
 })
 

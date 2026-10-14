@@ -18,6 +18,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { api } from '@/lib/api'
+import { dateFnsLocale } from '@/lib/i18n/locales'
 import {
   getEvaluationReceivedHref,
   isEvaluationReceivedType,
@@ -35,7 +36,6 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { formatDistanceToNow } from 'date-fns'
-import { de } from 'date-fns/locale'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
@@ -80,7 +80,7 @@ function NotificationsPageContent() {
   const { t, locale } = useI18n()
   const uiMode = useResolvedUiMode()
 
-  const dateFnsLocale = locale === 'de' ? de : undefined
+  const dfLocale = dateFnsLocale(locale)
 
   // Use the notifications hook for real-time updates
   const {
@@ -389,13 +389,16 @@ function NotificationsPageContent() {
 
   // Helper to translate notification type label for filter dropdown
   const getTypeLabel = (type: string) => {
-    const translatedTitle = t(
-      `notifications.content.${type}.title`,
-      type
-        .split('_')
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' '),
-    )
+    const titleKey = `notifications.content.${type}.title`
+    const found = t(titleKey)
+    // Unknown types (no catalog entry) fall back to the humanized type id.
+    const translatedTitle =
+      found === titleKey
+        ? type
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ')
+        : found
     // Strip variable placeholders for the label display
     return typeof translatedTitle === 'string'
       ? translatedTitle
@@ -642,13 +645,13 @@ function NotificationsPageContent() {
               <thead className="bg-zinc-50 dark:bg-zinc-800">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
-                    {t('notifications.columnNotification', 'Notification')}
+                    {t('notifications.columnNotification')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
-                    {t('notifications.columnTime', 'Time')}
+                    {t('notifications.columnTime')}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase">
-                    {t('notifications.columnStatus', 'Status')}
+                    {t('notifications.columnStatus')}
                   </th>
                 </tr>
               </thead>
@@ -696,7 +699,7 @@ function NotificationsPageContent() {
                       <td className="px-6 py-4 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                         {formatDistanceToNow(
                           new Date(notification.created_at),
-                          { addSuffix: true, locale: dateFnsLocale },
+                          { addSuffix: true, locale: dfLocale },
                         )}
                       </td>
                       <td className="px-6 py-4">

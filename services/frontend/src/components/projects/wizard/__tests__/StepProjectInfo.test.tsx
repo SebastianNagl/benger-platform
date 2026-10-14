@@ -16,8 +16,7 @@ import { INITIAL_WIZARD_DATA, WizardData } from '../types'
 // Plain key-returning translation mock (mirrors ProjectCreationWizard.test.tsx)
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: string) =>
-      typeof fallback === 'string' ? fallback : key,
+    t: (key: string, _vars?: Record<string, unknown>) => key,
     locale: 'en',
   }),
 }))
@@ -301,7 +300,9 @@ describe('StepProjectInfo', () => {
         ).toBeInTheDocument(),
       )
       expect(
-        screen.getByText('No organizations available.'),
+        screen.getByText(
+          'projects.creation.wizard.step1.noOrganizationsAvailable',
+        ),
       ).toBeInTheDocument()
       expect(
         screen.queryByTestId('wizard-organization-list'),
@@ -316,7 +317,9 @@ describe('StepProjectInfo', () => {
       // Empty-state message renders since orgs stayed []
       await waitFor(() =>
         expect(
-          screen.getByText('No organizations available.'),
+          screen.getByText(
+            'projects.creation.wizard.step1.noOrganizationsAvailable',
+          ),
         ).toBeInTheDocument(),
       )
     })

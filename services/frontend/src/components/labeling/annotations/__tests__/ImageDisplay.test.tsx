@@ -22,6 +22,32 @@ jest.mock('@/lib/labelConfig/dataBinding', () => ({
 
 import ImageDisplay from '../ImageDisplay'
 
+// The global i18n mock ignores interpolation values; render these keys from
+// test templates so the assertions can still see the numbers.
+const mockI18nTemplates: Record<string, string> = {
+  'labeling.display.noData': 'No image data for field: {field}',
+  'labeling.display.imageAlt': 'Annotation image',
+}
+{
+  const i18nMock = jest.requireMock('@/contexts/I18nContext')
+  const baseUseI18n =
+    i18nMock.useI18n.getMockImplementation?.() ?? i18nMock.useI18n
+  beforeEach(() => {
+    jest.spyOn(i18nMock, 'useI18n').mockImplementation(() => {
+      const base = baseUseI18n()
+      return {
+        ...base,
+        t: (key: string, vars?: Record<string, unknown>) =>
+          key in mockI18nTemplates
+            ? mockI18nTemplates[key].replace(/\{(\w+)\}/g, (m, name) =>
+                vars?.[name] !== undefined ? String(vars[name]) : m,
+              )
+            : base.t(key, vars),
+      }
+    })
+  })
+}
+
 describe('ImageDisplay', () => {
   const defaultProps = {
     config: {

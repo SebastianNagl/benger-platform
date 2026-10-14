@@ -156,7 +156,7 @@ describe('DistributionChart', () => {
 
 describe('PerSubjectDistribution', () => {
   it('renders one mini histogram per subject', () => {
-    const subjects = topSubjectDistributions(modelRows, gradeDist)
+    const subjects = topSubjectDistributions(modelRows, gradeDist, 'de')
     render(
       <PerSubjectDistribution
         subjects={subjects}

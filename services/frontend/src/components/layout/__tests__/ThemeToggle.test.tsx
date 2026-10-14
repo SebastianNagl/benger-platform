@@ -2,6 +2,32 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import { ThemeToggle } from '../ThemeToggle'
 
+// The global i18n mock ignores interpolation values; render these keys from
+// test templates so the assertions can still see the numbers.
+const mockI18nTemplates: Record<string, string> = {
+  'layout.themeToggle.switchToDark': 'Switch to dark theme',
+  'layout.themeToggle.switchToLight': 'Switch to light theme',
+}
+{
+  const i18nMock = jest.requireMock('@/contexts/I18nContext')
+  const baseUseI18n =
+    i18nMock.useI18n.getMockImplementation?.() ?? i18nMock.useI18n
+  beforeEach(() => {
+    jest.spyOn(i18nMock, 'useI18n').mockImplementation(() => {
+      const base = baseUseI18n()
+      return {
+        ...base,
+        t: (key: string, vars?: Record<string, unknown>) =>
+          key in mockI18nTemplates
+            ? mockI18nTemplates[key].replace(/\{(\w+)\}/g, (m, name) =>
+                vars?.[name] !== undefined ? String(vars[name]) : m,
+              )
+            : base.t(key, vars),
+      }
+    })
+  })
+}
+
 // Mock next-themes
 jest.mock('next-themes', () => ({
   useTheme: jest.fn(),

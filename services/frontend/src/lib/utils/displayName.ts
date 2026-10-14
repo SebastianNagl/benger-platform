@@ -6,6 +6,7 @@
  */
 
 import type { User } from '@/lib/api/types'
+import { translate } from '@/lib/utils/translate'
 
 /**
  * Get the appropriate display name for a user based on their pseudonym preference.
@@ -28,7 +29,7 @@ import type { User } from '@/lib/api/types'
  */
 export function getUserDisplayName(user: User | null | undefined): string {
   if (!user) {
-    return 'Unknown User'
+    return translate('common.unknownUser')
   }
 
   // Respect user's privacy preference
@@ -37,7 +38,7 @@ export function getUserDisplayName(user: User | null | undefined): string {
   }
 
   // Fall back to real name
-  return user.name || user.username || 'Unknown User'
+  return user.name || user.username || translate('common.unknownUser')
 }
 
 /**

@@ -21,6 +21,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 
 import { ResultsTabs } from './ResultsTabs'
 import type {
@@ -75,7 +76,7 @@ export function ResultDetailsModal({
   evaluationConfigs = [],
   selectedMetricName = null,
 }: ResultDetailsModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const isAnnotatorCell = modelId?.startsWith('annotator:') ?? false
   const [activeTab, setActiveTab] = useState<
     'annotation' | 'generation' | 'evaluation'
@@ -144,14 +145,11 @@ export function ResultDetailsModal({
                   {!isAnnotatorCell && generationData && generationData[0] && (
                     <>
                       {' '}
-                      ·{' '}
-                      {t('evaluation.multiFieldResults.generation') ??
-                        'Generation'}
-                      :{' '}
+                      · {t('evaluation.multiFieldResults.generation')}:{' '}
                       {generationData[0].generated_at
                         ? new Date(
                             generationData[0].generated_at,
-                          ).toLocaleString()
+                          ).toLocaleString(intlTag(locale))
                         : (generationData[0].generation_id || '').slice(0, 8) +
                           '…'}
                     </>
@@ -202,7 +200,10 @@ export function ResultDetailsModal({
 
           {/* Tab Navigation - show only relevant tabs per cell type */}
           <div className="border-b border-zinc-200 dark:border-zinc-700">
-            <nav className="flex px-6" aria-label="Tabs">
+            <nav
+              className="flex px-6"
+              aria-label={t('evaluation.multiFieldResults.tabsLabel')}
+            >
               {isAnnotatorCell && (
                 <button
                   onClick={() => setActiveTab('annotation')}
@@ -212,10 +213,7 @@ export function ResultDetailsModal({
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                   }`}
                 >
-                  {t(
-                    'evaluation.multiFieldResults.annotationResult',
-                    'Annotation Result',
-                  )}
+                  {t('evaluation.multiFieldResults.annotationResult')}
                   {activeTab === 'annotation' && (
                     <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
                   )}

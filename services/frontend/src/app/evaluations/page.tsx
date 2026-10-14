@@ -672,7 +672,7 @@ export default function EvaluationDashboard() {
         } catch (err: any) {
           setSignificanceData([])
           setSignificanceError(
-            err?.message || 'Failed to load significance data',
+            err?.message || t('evaluation.dashboard.significanceLoadFailed'),
           )
         }
       } else {

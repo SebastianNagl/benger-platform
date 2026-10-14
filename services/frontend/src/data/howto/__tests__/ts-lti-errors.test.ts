@@ -9,6 +9,7 @@
 
 import {
   guideSearchText,
+  guideText,
   normalizeForSearch,
   type HowToGuide,
 } from '@/lib/howto/registry'
@@ -28,15 +29,55 @@ function getGuide(): HowToGuide {
   return guide
 }
 
+type Bi<T> = { de: T; en: T }
+
+/** A guide with its de/en catalog copy side by side (lists absent when empty). */
+interface GuideCopy {
+  id: string
+  category: HowToGuide['category']
+  title: Bi<string>
+  summary: Bi<string>
+  steps?: Bi<string[]>
+  tips?: Bi<string[]>
+  pitfalls?: Bi<string[]>
+  keywords?: Bi<string[]>
+  links?: { href: string; label: Bi<string> }[]
+}
+
+function copyOf(raw: HowToGuide): GuideCopy {
+  const de = guideText(raw, 'de')
+  const en = guideText(raw, 'en')
+  const list = (field: 'steps' | 'tips' | 'pitfalls' | 'keywords') =>
+    de[field].length || en[field].length
+      ? { de: de[field], en: en[field] }
+      : undefined
+  return {
+    id: raw.id,
+    category: raw.category,
+    title: { de: de.title, en: en.title },
+    summary: { de: de.summary, en: en.summary },
+    steps: list('steps'),
+    tips: list('tips'),
+    pitfalls: list('pitfalls'),
+    keywords: list('keywords'),
+    links: raw.links?.map((href, i) => ({
+      href,
+      label: { de: de.links[i].label, en: en.links[i].label },
+    })),
+  }
+}
+
+function copy(): GuideCopy {
+  return copyOf(getGuide())
+}
+
 function stepFor(code: string, locale: 'de' | 'en'): string {
-  const step = getGuide().steps?.[locale].find((s) =>
-    s.startsWith(`\`${code}\`:`),
-  )
+  const step = copy().steps?.[locale].find((s) => s.startsWith(`\`${code}\`:`))
   if (!step) throw new Error(`no ${locale} step for ${code}`)
   return step
 }
 
-function allText(guide: HowToGuide, locale: 'de' | 'en'): string[] {
+function allText(guide: GuideCopy, locale: 'de' | 'en'): string[] {
   return [
     guide.title[locale],
     guide.summary[locale],
@@ -57,7 +98,7 @@ describe('ts-lti-errors guide', () => {
   it.each(LOCALES)(
     'has one %s step per launch error code, in registry order',
     (locale) => {
-      const leads = (getGuide().steps?.[locale] ?? []).map(
+      const leads = (copy().steps?.[locale] ?? []).map(
         (step) => /^`([a-z_]+)`: /.exec(step)?.[1],
       )
       expect(leads).toEqual([...LTI_LAUNCH_ERROR_CODES])
@@ -65,7 +106,7 @@ describe('ts-lti-errors guide', () => {
   )
 
   it('keeps German and English lists the same length', () => {
-    const guide = getGuide()
+    const guide = copy()
     for (const field of ['steps', 'tips', 'pitfalls', 'keywords'] as const) {
       const list = guide[field]
       expect(list).toBeDefined()
@@ -83,7 +124,7 @@ describe('ts-lti-errors guide', () => {
   })
 
   it.each(LOCALES)('uses plain wording in %s', (locale) => {
-    for (const text of allText(getGuide(), locale)) {
+    for (const text of allText(copy(), locale)) {
       expect(text).not.toMatch(/\u2014/) // no em dash
       expect(text).not.toMatch(/ \u2013 /) // no en dash as a dash
       expect(text).not.toMatch(/vertretbar/i)
@@ -92,13 +133,13 @@ describe('ts-lti-errors guide', () => {
   })
 
   it('addresses readers formally in German', () => {
-    for (const text of allText(getGuide(), 'de')) {
+    for (const text of allText(copy(), 'de')) {
       expect(text).not.toMatch(/\b(du|dich|dein|deine|deinen|deiner)\b/i)
     }
   })
 
   it('explains how to read the error page', () => {
-    const guide = getGuide()
+    const guide = copy()
     expect(guide.summary.de).toMatch(/Fehlercode/)
     expect(guide.summary.de).toMatch(/Referenz/)
     expect(guide.summary.en).toMatch(/error code/)
@@ -206,7 +247,7 @@ describe('ts-lti-errors guide', () => {
         }
         expect(typeof node).toBe('string')
         expect(stepFor(code, locale)).toContain(`**${node as string}**`)
-        const keywords = (getGuide().keywords?.[locale] ?? []).map((k) =>
+        const keywords = (copy().keywords?.[locale] ?? []).map((k) =>
           k.toLowerCase(),
         )
         expect(keywords).toContain((node as string).toLowerCase())
@@ -291,7 +332,7 @@ describe('ts-lti-errors guide', () => {
   })
 
   it('names the ILIAS identification among the LMS-side settings', () => {
-    const guide = getGuide()
+    const guide = copy()
     expect(guide.tips?.de.join('\n')).toMatch(/Identifikation der Person/)
     expect(guide.tips?.de.join('\n')).toMatch(/Erweiterte Benotungsdienste/)
     expect(guide.tips?.en.join('\n')).toMatch(/User identification/)
@@ -344,7 +385,7 @@ describe('ts-lti-errors guide', () => {
   })
 
   it('warns that an iframe launch lands on the login page', () => {
-    const guide = getGuide()
+    const guide = copy()
     expect(
       guide.pitfalls?.de.some(
         (p) => /iframe/.test(p) && /Anmeldeseite/.test(p),
@@ -357,7 +398,7 @@ describe('ts-lti-errors guide', () => {
 
   it('links only to guides that exist', () => {
     const ids = new Set(PLATFORM_HOWTO_GUIDES.map((g) => g.id))
-    const links = getGuide().links ?? []
+    const links = copy().links ?? []
     expect(links.map((l) => l.href)).toEqual(
       expect.arrayContaining(['/how-to#lti-setup', '/how-to#lti-manage']),
     )

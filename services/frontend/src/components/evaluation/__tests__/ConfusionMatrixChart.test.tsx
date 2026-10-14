@@ -75,7 +75,7 @@ describe('ConfusionMatrixChart', () => {
       render(<ConfusionMatrixChart data={sampleData} />)
       // Text includes trailing colon and space: "Overall Accuracy: "
       expect(screen.getByText(/Overall Accuracy/)).toBeInTheDocument()
-      expect(screen.getByText('83.60%')).toBeInTheDocument()
+      expect(screen.getByText('83,60%')).toBeInTheDocument()
     })
 
     it('renders per-class metrics for all labels', () => {
@@ -88,21 +88,21 @@ describe('ConfusionMatrixChart', () => {
     it('renders precision values for each class', () => {
       render(<ConfusionMatrixChart data={sampleData} />)
       // Yes precision: 91.8%
-      expect(screen.getByText('91.8%')).toBeInTheDocument()
+      expect(screen.getByText('91,8%')).toBeInTheDocument()
       // No precision: 78.4%
-      expect(screen.getByText('78.4%')).toBeInTheDocument()
+      expect(screen.getByText('78,4%')).toBeInTheDocument()
     })
 
     it('renders recall values for each class', () => {
       render(<ConfusionMatrixChart data={sampleData} />)
       // Yes recall: 86.5%
-      expect(screen.getByText('86.5%')).toBeInTheDocument()
+      expect(screen.getByText('86,5%')).toBeInTheDocument()
     })
 
     it('renders F1 values for each class', () => {
       render(<ConfusionMatrixChart data={sampleData} />)
       // Yes F1: 89.1%
-      expect(screen.getByText('89.1%')).toBeInTheDocument()
+      expect(screen.getByText('89,1%')).toBeInTheDocument()
     })
 
     it('renders metric labels', () => {
@@ -127,7 +127,7 @@ describe('ConfusionMatrixChart', () => {
       }
       render(<ConfusionMatrixChart data={data} />)
       // Should render 0.0% for all missing values
-      const zeros = screen.getAllByText('0.0%')
+      const zeros = screen.getAllByText('0,0%')
       expect(zeros.length).toBeGreaterThanOrEqual(3) // At least 3 classes * some metrics
     })
 
@@ -147,7 +147,7 @@ describe('ConfusionMatrixChart', () => {
       render(<ConfusionMatrixChart data={binaryData} />)
       expect(screen.getByText('Positive')).toBeInTheDocument()
       expect(screen.getByText('Negative')).toBeInTheDocument()
-      expect(screen.getByText('85.00%')).toBeInTheDocument()
+      expect(screen.getByText('85,00%')).toBeInTheDocument()
     })
   })
 })

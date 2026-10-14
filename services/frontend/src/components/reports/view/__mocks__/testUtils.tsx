@@ -1,13 +1,9 @@
+import { translateKey } from '@/lib/i18n/catalog'
+
 import type { TranslateFn } from '../chartTheme'
 
-/** Fallback-returning translate stub with {var} interpolation. */
-export const t: TranslateFn = (key, fallback, vars) => {
-  const base = fallback ?? key
-  if (!vars) return base
-  return base.replace(/\{(\w+)\}/g, (m, name) =>
-    vars[name] !== undefined ? String(vars[name]) : m,
-  )
-}
+/** Translate stub reading the German catalog, with {var} interpolation. */
+export const t: TranslateFn = (key, vars) => translateKey('de', key, vars)
 
 /** Recharts stand-in: renders enough DOM to assert series/keys. */
 export function rechartsMock() {

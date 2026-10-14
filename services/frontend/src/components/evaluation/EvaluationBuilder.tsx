@@ -460,7 +460,9 @@ export function EvaluationBuilder({
           if (template) {
             setDetectedAnswerType(answerType)
             addToast(
-              `Detected ${template.name} - auto-selected criteria`,
+              t('evaluationBuilder.detectedAnswerType', {
+                name: t(template.nameKey),
+              }),
               'info',
             )
             return {
@@ -708,12 +710,16 @@ export function EvaluationBuilder({
                       <div className="flex items-center gap-2">
                         <InformationCircleIcon className="h-4 w-4 text-emerald-600" />
                         <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
-                          Detected:{' '}
-                          {LLM_JUDGE_TEMPLATES[
-                            newEvaluation.metric_parameters.answer_type ||
-                              detectedAnswerType ||
-                              'text'
-                          ]?.name || 'Free-form Text'}
+                          {t('evaluationBuilder.parameters.detected')}{' '}
+                          {t(
+                            (
+                              LLM_JUDGE_TEMPLATES[
+                                newEvaluation.metric_parameters.answer_type ||
+                                  detectedAnswerType ||
+                                  'text'
+                              ] ?? LLM_JUDGE_TEMPLATES.text
+                            ).nameKey,
+                          )}
                         </span>
                       </div>
                       <Badge variant="secondary">
@@ -723,11 +729,15 @@ export function EvaluationBuilder({
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
-                      {LLM_JUDGE_TEMPLATES[
-                        newEvaluation.metric_parameters.answer_type ||
-                          detectedAnswerType ||
-                          'text'
-                      ]?.hint || ''}
+                      {(() => {
+                        const hintKey =
+                          LLM_JUDGE_TEMPLATES[
+                            newEvaluation.metric_parameters.answer_type ||
+                              detectedAnswerType ||
+                              'text'
+                          ]?.hintKey
+                        return hintKey ? t(hintKey) : ''
+                      })()}
                     </p>
                   </div>
                 )}
@@ -762,13 +772,15 @@ export function EvaluationBuilder({
                         },
                       }))
                     }}
-                    displayValue={
-                      LLM_JUDGE_TEMPLATES[
-                        newEvaluation.metric_parameters.answer_type ||
-                          detectedAnswerType ||
-                          'text'
-                      ]?.name
-                    }
+                    displayValue={(() => {
+                      const nameKey =
+                        LLM_JUDGE_TEMPLATES[
+                          newEvaluation.metric_parameters.answer_type ||
+                            detectedAnswerType ||
+                            'text'
+                        ]?.nameKey
+                      return nameKey ? t(nameKey) : undefined
+                    })()}
                   >
                     <SelectTrigger>
                       <SelectValue
@@ -781,7 +793,7 @@ export function EvaluationBuilder({
                       {Object.entries(LLM_JUDGE_TEMPLATES).map(
                         ([key, tmpl]) => (
                           <SelectItem key={key} value={key}>
-                            {tmpl.name}
+                            {t(tmpl.nameKey)}
                           </SelectItem>
                         ),
                       )}
@@ -860,12 +872,9 @@ export function EvaluationBuilder({
                 )?.type === 'budget' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t(
-                        'evaluationBuilder.parameters.thinkingBudget',
-                        'Thinking Budget',
-                      )}
+                      {t('evaluationBuilder.parameters.thinkingBudget')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                        Thinking
+                        {t('project.modelSelection.thinking')}
                       </span>
                     </label>
                     <input
@@ -897,7 +906,6 @@ export function EvaluationBuilder({
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {t(
                         'evaluationBuilder.parameters.thinkingBudgetDescription',
-                        'Token budget for AI reasoning before generating response',
                       )}
                     </p>
                   </div>
@@ -910,12 +918,9 @@ export function EvaluationBuilder({
                 )?.type === 'effort' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t(
-                        'evaluationBuilder.parameters.reasoningLevel',
-                        'Reasoning Level',
-                      )}
+                      {t('evaluationBuilder.parameters.reasoningLevel')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                        Thinking
+                        {t('project.modelSelection.thinking')}
                       </span>
                     </label>
                     <Select
@@ -942,29 +947,19 @@ export function EvaluationBuilder({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningLow',
-                            'Low',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningLow')}
                         </SelectItem>
                         <SelectItem value="medium">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningMedium',
-                            'Medium (Default)',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningMedium')}
                         </SelectItem>
                         <SelectItem value="high">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningHigh',
-                            'High',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningHigh')}
                         </SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {t(
                         'evaluationBuilder.parameters.reasoningLevelDescription',
-                        'How much reasoning the model should use',
                       )}
                     </p>
                   </div>
@@ -1003,10 +998,7 @@ export function EvaluationBuilder({
                   <div className="flex items-center gap-2">
                     <InformationCircleIcon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm text-purple-700 dark:text-purple-300">
-                      {t(
-                        'evaluation.customLLMJudge.hint',
-                        'Configure your own evaluation prompt and criteria. Use template variables like {{prediction}} and {{ground_truth}}.',
-                      )}
+                      {t('evaluation.customLLMJudge.hint')}
                     </span>
                   </div>
                 </div>
@@ -1082,12 +1074,9 @@ export function EvaluationBuilder({
                 )?.type === 'budget' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t(
-                        'evaluationBuilder.parameters.thinkingBudget',
-                        'Thinking Budget',
-                      )}
+                      {t('evaluationBuilder.parameters.thinkingBudget')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                        Thinking
+                        {t('project.modelSelection.thinking')}
                       </span>
                     </label>
                     <input
@@ -1119,7 +1108,6 @@ export function EvaluationBuilder({
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {t(
                         'evaluationBuilder.parameters.thinkingBudgetDescription',
-                        'Token budget for AI reasoning before generating response',
                       )}
                     </p>
                   </div>
@@ -1132,12 +1120,9 @@ export function EvaluationBuilder({
                 )?.type === 'effort' && (
                   <div>
                     <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
-                      {t(
-                        'evaluationBuilder.parameters.reasoningLevel',
-                        'Reasoning Level',
-                      )}
+                      {t('evaluationBuilder.parameters.reasoningLevel')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                        Thinking
+                        {t('project.modelSelection.thinking')}
                       </span>
                     </label>
                     <Select
@@ -1164,29 +1149,19 @@ export function EvaluationBuilder({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="low">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningLow',
-                            'Low',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningLow')}
                         </SelectItem>
                         <SelectItem value="medium">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningMedium',
-                            'Medium (Default)',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningMedium')}
                         </SelectItem>
                         <SelectItem value="high">
-                          {t(
-                            'evaluationBuilder.parameters.reasoningHigh',
-                            'High',
-                          )}
+                          {t('evaluationBuilder.parameters.reasoningHigh')}
                         </SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       {t(
                         'evaluationBuilder.parameters.reasoningLevelDescription',
-                        'How much reasoning the model should use',
                       )}
                     </p>
                   </div>

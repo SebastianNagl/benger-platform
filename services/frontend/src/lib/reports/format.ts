@@ -5,6 +5,8 @@
  * "84,7 %" and English readers "84.7 %". The scale families mirror
  * `ReportMetricScale` / `MetricDisplayScale`.
  */
+import { intlTag } from '@/lib/i18n/locales'
+import { translate } from '@/lib/utils/translate'
 import type { ReportMethod, ReportMetricScale } from '@/types/report'
 
 /** Minimal shape of a metric registry entry the viewer cares about. */
@@ -15,20 +17,13 @@ export interface MetricRegistryEntry {
 
 export type MetricRegistry = Record<string, MetricRegistryEntry>
 
-const LOCALE_TAGS: Record<string, string> = { de: 'de-DE', en: 'en-US' }
-
-/** Map the app locale ('de' | 'en') to a BCP-47 tag for Intl APIs. */
-export function localeTag(locale: string): string {
-  return LOCALE_TAGS[locale] ?? locale
-}
-
 export function formatNumber(
   value: number,
   locale: string,
   maximumFractionDigits = 1,
   minimumFractionDigits = 0,
 ): string {
-  return value.toLocaleString(localeTag(locale), {
+  return value.toLocaleString(intlTag(locale), {
     minimumFractionDigits,
     maximumFractionDigits,
   })
@@ -118,17 +113,20 @@ export function metricScale(
   return registry?.[id]?.display_scale ?? 'raw'
 }
 
-/** Human-readable scale description (German, matches the viewer's language). */
-export function scaleLabel(scale: ReportMetricScale | undefined): string {
+/** Human-readable scale description in the UI language. */
+export function scaleLabel(
+  scale: ReportMetricScale | undefined,
+  t: (key: string) => string = translate,
+): string {
   switch (scale) {
     case '0-1':
-      return '0–1 (Anteil)'
+      return t('reports.view.scaleLabels.share')
     case '0-100':
-      return '0–100 Punkte'
+      return t('reports.view.scaleLabels.points100')
     case '0-18':
-      return '0–18 Notenpunkte'
+      return t('reports.view.scaleLabels.gradePoints')
     default:
-      return 'Rohwert'
+      return t('reports.view.scaleLabels.raw')
   }
 }
 
@@ -164,7 +162,7 @@ export function formatDate(
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString(localeTag(locale), {
+  return d.toLocaleDateString(intlTag(locale), {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -179,7 +177,7 @@ export function formatDateTime(
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleString(localeTag(locale), {
+  return d.toLocaleString(intlTag(locale), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

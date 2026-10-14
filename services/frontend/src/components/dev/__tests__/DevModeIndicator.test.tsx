@@ -53,7 +53,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
     })
 
@@ -63,7 +63,9 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.queryByText('DEV MODE')).not.toBeInTheDocument()
+        expect(
+          screen.queryByText('dev.modeIndicator.badge'),
+        ).not.toBeInTheDocument()
       })
     })
 
@@ -75,7 +77,9 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.queryByText('DEV MODE')).not.toBeInTheDocument()
+        expect(
+          screen.queryByText('dev.modeIndicator.badge'),
+        ).not.toBeInTheDocument()
       })
     })
 
@@ -87,7 +91,9 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.queryByText('DEV MODE')).not.toBeInTheDocument()
+        expect(
+          screen.queryByText('dev.modeIndicator.badge'),
+        ).not.toBeInTheDocument()
       })
     })
   })
@@ -102,7 +108,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
     })
 
@@ -112,7 +118,7 @@ describe('DevModeIndicator', () => {
       await waitFor(() => {
         const badge = screen.getByRole('button')
         expect(badge).toBeInTheDocument()
-        expect(badge).toHaveTextContent('DEV MODE')
+        expect(badge).toHaveTextContent('dev.modeIndicator.badge')
       })
     })
 
@@ -121,10 +127,7 @@ describe('DevModeIndicator', () => {
 
       await waitFor(() => {
         const badge = screen.getByRole('button')
-        expect(badge).toHaveAttribute(
-          'title',
-          'Development mode with auto-authentication enabled',
-        )
+        expect(badge).toHaveAttribute('title', 'dev.modeIndicator.tooltip')
       })
     })
 
@@ -204,11 +207,11 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       expect(
-        screen.queryByText('Development Mode Active'),
+        screen.queryByText('dev.modeIndicator.title'),
       ).not.toBeInTheDocument()
     })
 
@@ -217,13 +220,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
     })
 
     it('hides details popup when badge clicked again', async () => {
@@ -231,16 +234,16 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
 
       await user.click(badge)
       expect(
-        screen.queryByText('Development Mode Active'),
+        screen.queryByText('dev.modeIndicator.title'),
       ).not.toBeInTheDocument()
     })
 
@@ -249,7 +252,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -263,7 +266,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -277,7 +280,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -291,13 +294,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText(/Superadmin:.*Yes/)).toBeInTheDocument()
+      expect(screen.getByText(/superadminLabel.*Yes/)).toBeInTheDocument()
     })
 
     it('displays superadmin status as No for non-superadmin', async () => {
@@ -314,13 +317,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText(/Superadmin:.*No/)).toBeInTheDocument()
+      expect(screen.getByText(/superadminLabel.*No/)).toBeInTheDocument()
     })
 
     it('includes close button in details popup', async () => {
@@ -328,7 +331,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -343,18 +346,18 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
 
       const closeButton = screen.getByRole('button', { name: /close/i })
       await user.click(closeButton)
 
       expect(
-        screen.queryByText('Development Mode Active'),
+        screen.queryByText('dev.modeIndicator.title'),
       ).not.toBeInTheDocument()
     })
 
@@ -363,7 +366,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -378,7 +381,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -409,7 +412,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -432,7 +435,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -457,13 +460,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
     })
 
     it('handles undefined is_superadmin', async () => {
@@ -480,13 +483,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText(/Superadmin:.*No/)).toBeInTheDocument()
+      expect(screen.getByText(/superadminLabel.*No/)).toBeInTheDocument()
     })
   })
 
@@ -501,7 +504,9 @@ describe('DevModeIndicator', () => {
       const { rerender } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.queryByText('DEV MODE')).not.toBeInTheDocument()
+        expect(
+          screen.queryByText('dev.modeIndicator.badge'),
+        ).not.toBeInTheDocument()
       })
 
       mockUseAuth.mockReturnValue({
@@ -516,7 +521,7 @@ describe('DevModeIndicator', () => {
       rerender(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
     })
 
@@ -524,14 +529,16 @@ describe('DevModeIndicator', () => {
       const { rerender } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       mockUseAuth.mockReturnValue({ user: null })
       rerender(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.queryByText('DEV MODE')).not.toBeInTheDocument()
+        expect(
+          screen.queryByText('dev.modeIndicator.badge'),
+        ).not.toBeInTheDocument()
       })
     })
 
@@ -539,7 +546,7 @@ describe('DevModeIndicator', () => {
       const { rerender } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       mockUseAuth.mockReturnValue({
@@ -554,7 +561,7 @@ describe('DevModeIndicator', () => {
       rerender(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
     })
   })
@@ -570,7 +577,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -578,7 +585,7 @@ describe('DevModeIndicator', () => {
       expect(badge).toHaveFocus()
 
       await user.keyboard('{Enter}')
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
     })
 
     it('close button is keyboard accessible', async () => {
@@ -586,7 +593,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -602,7 +609,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -617,10 +624,7 @@ describe('DevModeIndicator', () => {
 
       await waitFor(() => {
         const badge = screen.getByRole('button')
-        expect(badge).toHaveAttribute(
-          'title',
-          'Development mode with auto-authentication enabled',
-        )
+        expect(badge).toHaveAttribute('title', 'dev.modeIndicator.tooltip')
       })
     })
   })
@@ -634,18 +638,18 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
 
       // Click odd number of times to end with closed state
       await user.click(badge)
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
       await user.click(badge)
       await user.click(badge)
 
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
     })
 
     it('handles missing user properties gracefully', async () => {
@@ -661,13 +665,13 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
       await user.click(badge)
 
-      expect(screen.getByText('Development Mode Active')).toBeInTheDocument()
+      expect(screen.getByText('dev.modeIndicator.title')).toBeInTheDocument()
     })
 
     it('returns null when not visible', () => {
@@ -684,7 +688,7 @@ describe('DevModeIndicator', () => {
       render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -714,7 +718,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -738,7 +742,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -753,7 +757,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')
@@ -768,7 +772,7 @@ describe('DevModeIndicator', () => {
       const { container } = render(<DevModeIndicator />)
 
       await waitFor(() => {
-        expect(screen.getByText('DEV MODE')).toBeInTheDocument()
+        expect(screen.getByText('dev.modeIndicator.badge')).toBeInTheDocument()
       })
 
       const badge = screen.getByRole('button')

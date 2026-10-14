@@ -6,7 +6,7 @@ import { render, screen } from '@testing-library/react'
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: string) => fallback || key,
+    t: (key: string, _vars?: Record<string, unknown>) => key,
     locale: 'en',
   }),
 }))

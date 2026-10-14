@@ -47,7 +47,7 @@ jest.mock('@/components/shared/Breadcrumb', () => ({
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallback?: any) => {
+    t: (key: string, vars?: Record<string, unknown>) => {
       const translations: Record<string, string> = {
         'common.retry': 'Retry',
         'navigation.dashboard': 'Dashboard',
@@ -63,7 +63,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'reports.published': 'Published',
       }
       if (translations[key]) return translations[key]
-      return typeof fallback === 'string' ? fallback : key
+      return require('@/lib/i18n/catalog').translateKey('de', key, vars)
     },
     locale: 'en',
   }),

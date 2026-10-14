@@ -261,7 +261,7 @@ export function MetricSelector({
                 onClick={() => applyPreset(presetName)}
                 className="text-xs"
               >
-                {t(PRESET_LABEL_KEYS[presetName], presetName)}
+                {t(PRESET_LABEL_KEYS[presetName])}
               </Button>
             ))}
           </div>

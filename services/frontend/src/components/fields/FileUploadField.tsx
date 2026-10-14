@@ -7,6 +7,7 @@
  */
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CloudArrowUpIcon,
   DocumentIcon,
@@ -31,7 +32,7 @@ export function FileUploadField({
   context,
   className = '',
 }: BaseFieldProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const inputRef = useRef<HTMLInputElement>(null)
   const currentFile = value as FileInfo | null
 
@@ -59,8 +60,9 @@ export function FileUploadField({
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B'
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+    if (bytes < 1024 * 1024)
+      return formatDecimal(bytes / 1024, locale, 1) + ' KB'
+    return formatDecimal(bytes / (1024 * 1024), locale, 1) + ' MB'
   }
 
   return (

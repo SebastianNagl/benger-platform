@@ -150,7 +150,7 @@ export function FieldMappingEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {t('fieldMapping.title', 'Custom Field Mappings')}
+            {t('fieldMapping.title')}
           </h4>
           {loading && <LoadingSpinner size="small" />}
         </div>
@@ -160,33 +160,27 @@ export function FieldMappingEditor({
           className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
         >
           <PlusIcon className="h-4 w-4" />
-          {t('fieldMapping.addMapping', 'Add Mapping')}
+          {t('fieldMapping.addMapping')}
         </button>
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        {t(
-          'fieldMapping.helpText',
-          'Map custom template variables to task data fields. Use {{variable_name}} in your prompt.',
-        )}
+        {t('fieldMapping.helpText')}
       </p>
 
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center dark:border-gray-600">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t(
-              'fieldMapping.noMappings',
-              'No field mappings defined. Click "Add Mapping" to create one.',
-            )}
+            {t('fieldMapping.noMappings')}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {/* Header row */}
           <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-            <div>{t('fieldMapping.variableName', 'Variable Name')}</div>
+            <div>{t('fieldMapping.variableName')}</div>
             <div></div>
-            <div>{t('fieldMapping.taskField', 'Task Data Field')}</div>
+            <div>{t('fieldMapping.taskField')}</div>
             <div></div>
           </div>
 
@@ -221,10 +215,7 @@ export function FieldMappingEditor({
                       )
                       updateRow(row.id, 'variableName', sanitized)
                     }}
-                    placeholder={t(
-                      'fieldMapping.variablePlaceholder',
-                      'domain',
-                    )}
+                    placeholder={t('fieldMapping.variablePlaceholder')}
                     className={clsx(
                       'w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none',
                       hasError
@@ -242,10 +233,7 @@ export function FieldMappingEditor({
                       )}
                     >
                       {hasError
-                        ? t(
-                            'fieldMapping.reservedVariable',
-                            'Reserved variable name',
-                          )
+                        ? t('fieldMapping.reservedVariable')
                         : getVariablePreview(row.variableName)}
                     </span>
                   )}
@@ -261,10 +249,7 @@ export function FieldMappingEditor({
                   projectId={projectId}
                   value={row.fieldPath}
                   onChange={(path) => updateRow(row.id, 'fieldPath', path)}
-                  placeholder={t(
-                    'fieldMapping.selectField',
-                    'Select a field...',
-                  )}
+                  placeholder={t('fieldMapping.selectField')}
                   allowManualEntry={true}
                 />
 
@@ -273,7 +258,7 @@ export function FieldMappingEditor({
                   type="button"
                   onClick={() => removeRow(row.id)}
                   className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800 dark:hover:text-red-400"
-                  title={t('common.delete', 'Delete')}
+                  title={t('common.delete')}
                 >
                   <TrashIcon className="h-4 w-4" />
                 </button>
@@ -288,10 +273,7 @@ export function FieldMappingEditor({
         <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
           <div className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
             <InformationCircleIcon className="h-4 w-4" />
-            {t(
-              'fieldMapping.availableFields',
-              'Available fields in your tasks:',
-            )}
+            {t('fieldMapping.availableFields')}
           </div>
           <div className="flex flex-wrap gap-1">
             {fields.slice(0, 10).map((field) => (
@@ -305,7 +287,9 @@ export function FieldMappingEditor({
             ))}
             {fields.length > 10 && (
               <span className="text-xs text-gray-500">
-                +{fields.length - 10} more
+                {t('evaluation.filters.moreCount', {
+                  count: fields.length - 10,
+                })}
               </span>
             )}
           </div>

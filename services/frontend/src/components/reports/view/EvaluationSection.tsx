@@ -95,19 +95,14 @@ export function EvaluationSection({
     scale: scaleFor(id),
   })
 
-  const title = t('reports.view.evaluation', 'Auswertung')
+  const title = t('reports.view.evaluation')
 
   if (!snapshot) {
     return (
       <ReportSection title={title} id="evaluation">
         {interpretation && <Prose>{interpretation}</Prose>}
         <div className="mt-3">
-          <QuietNote>
-            {t(
-              'reports.view.noSnapshot',
-              'Für diesen Bericht liegt noch keine Auswertung vor.',
-            )}
-          </QuietNote>
+          <QuietNote>{t('reports.view.noSnapshot')}</QuietNote>
         </div>
       </ReportSection>
     )
@@ -136,10 +131,10 @@ export function EvaluationSection({
     ? distributionFor(snapshot, configId, distMetric)
     : null
   const distValueLabel = primary.gradeMetric
-    ? t('reports.view.gradePoints', 'Notenpunkte')
+    ? t('reports.view.gradePoints')
     : (primaryColumn?.label ?? '')
   const subjectDistributions = distribution
-    ? topSubjectDistributions(modelRows, distribution, 8)
+    ? topSubjectDistributions(modelRows, distribution, locale, 8)
     : []
 
   return (
@@ -165,9 +160,7 @@ export function EvaluationSection({
 
       {interpretation && (
         <div className="mb-6">
-          <SubHeading>
-            {t('reports.view.interpretation', 'Interpretation')}
-          </SubHeading>
+          <SubHeading>{t('reports.view.interpretation')}</SubHeading>
           <Prose>{interpretation}</Prose>
         </div>
       )}
@@ -175,27 +168,24 @@ export function EvaluationSection({
       {primaryColumn ? (
         <>
           <RankingTable
-            title={t('reports.view.performanceByModel', 'Leistung nach Modell')}
+            title={t('reports.view.performanceByModel')}
             rows={modelRows}
             primary={primaryColumn}
             gradeMetric={primary.gradeMetric}
             otherColumns={otherModelColumns}
-            subjectHeader={t('reports.view.model', 'Modell')}
+            subjectHeader={t('reports.view.model')}
             locale={locale}
             t={t}
             testId="ranking-table-models"
           />
           {showHumans && humanRows.length > 0 && (
             <RankingTable
-              title={t(
-                'reports.view.performanceByHuman',
-                'Leistung menschlicher Teilnehmender',
-              )}
+              title={t('reports.view.performanceByHuman')}
               rows={humanRows}
               primary={primaryColumn}
               gradeMetric={primary.gradeMetric}
               otherColumns={otherHumanColumns}
-              subjectHeader={t('reports.view.participant', 'Teilnehmende')}
+              subjectHeader={t('reports.view.participant')}
               locale={locale}
               t={t}
               testId="ranking-table-humans"
@@ -208,25 +198,15 @@ export function EvaluationSection({
               title={
                 distribution.by_kind.human.some((n) => n > 0)
                   ? primary.gradeMetric
-                    ? t(
-                        'reports.view.distributionTitle',
-                        'Verteilung der Notenpunkte: Menschen vs. Modelle',
-                      )
-                    : t(
-                        'reports.view.distributionTitleMetric',
-                        'Verteilung ({metric}): Menschen vs. Modelle',
-                        { metric: primaryColumn.label },
-                      )
+                    ? t('reports.view.distributionTitle')
+                    : t('reports.view.distributionTitleMetric', {
+                        metric: primaryColumn.label,
+                      })
                   : primary.gradeMetric
-                    ? t(
-                        'reports.view.distributionTitleModels',
-                        'Verteilung der Notenpunkte über alle Modelle',
-                      )
-                    : t(
-                        'reports.view.distributionTitleMetricModels',
-                        'Verteilung ({metric}) über alle Modelle',
-                        { metric: primaryColumn.label },
-                      )
+                    ? t('reports.view.distributionTitleModels')
+                    : t('reports.view.distributionTitleMetricModels', {
+                        metric: primaryColumn.label,
+                      })
               }
               locale={locale}
               t={t}
@@ -249,19 +229,12 @@ export function EvaluationSection({
           />
         </>
       ) : (
-        <QuietNote>
-          {t(
-            'reports.view.noSeries',
-            'Für diese Metrik liegen keine Werte vor.',
-          )}
-        </QuietNote>
+        <QuietNote>{t('reports.view.noSeries')}</QuietNote>
       )}
 
       {conclusions && (
         <div className="rounded-md bg-zinc-50 p-4 dark:bg-zinc-800/60">
-          <SubHeading>
-            {t('reports.view.conclusions', 'Schlussfolgerungen')}
-          </SubHeading>
+          <SubHeading>{t('reports.view.conclusions')}</SubHeading>
           <Prose>{conclusions}</Prose>
         </div>
       )}

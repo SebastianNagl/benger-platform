@@ -140,7 +140,9 @@ export function ProjectPermissionsPanel({
       } catch (err) {
         if (!cancelled) {
           const msg =
-            err instanceof Error ? err.message : 'Failed to load organizations'
+            err instanceof Error
+              ? err.message
+              : t('organizationsPage.failedToLoadOrganizations')
           addToast(msg, 'error')
         }
       } finally {
@@ -151,7 +153,7 @@ export function ProjectPermissionsPanel({
     return () => {
       cancelled = true
     }
-  }, [addToast])
+  }, [addToast, t])
 
   // Lazily fetch the group list of every checked org (cached per org id;
   // failures degrade to "no groups", keeping the legacy org-wide behavior).
@@ -297,7 +299,7 @@ export function ProjectPermissionsPanel({
           ? t('project.permissions.lmsConflict')
           : err instanceof Error
             ? err.message
-            : 'Failed to save permissions'
+            : t('project.permissions.saveFailed')
       setError(errorMessage)
       addToast(errorMessage, 'error')
     } finally {

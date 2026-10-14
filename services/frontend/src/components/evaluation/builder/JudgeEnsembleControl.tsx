@@ -83,12 +83,12 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
   return (
     <div className="space-y-4 rounded-md border border-emerald-200 bg-emerald-50/40 p-3 dark:border-emerald-800/40 dark:bg-emerald-900/10">
       <div className="text-xs font-semibold text-emerald-800 dark:text-emerald-200">
-        {t('evaluationBuilder.parameters.ensembleAndRuns', 'Ensemble & Läufe')}
+        {t('evaluationBuilder.parameters.ensembleAndRuns')}
       </div>
 
       <div>
         <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-          {t('evaluationBuilder.parameters.runsPerJudge', 'Läufe pro Judge')}
+          {t('evaluationBuilder.parameters.runsPerJudge')}
         </label>
         <input
           type="number"
@@ -102,19 +102,13 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
           className="h-8 w-24 rounded-md border border-gray-300 px-2 text-sm dark:border-gray-600 dark:bg-gray-800"
         />
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {t(
-            'evaluationBuilder.parameters.runsPerJudgeHelp',
-            'Wie oft jeder Judge die gleiche Probe bewertet (Varianzanalyse). Cap 25.',
-          )}
+          {t('evaluationBuilder.parameters.runsPerJudgeHelp')}
         </p>
       </div>
 
       <div>
         <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
-          {t(
-            'evaluationBuilder.parameters.additionalJudges',
-            'Zusätzliche Judges (Ensemble)',
-          )}
+          {t('evaluationBuilder.parameters.additionalJudges')}
         </label>
         <div className="grid grid-cols-2 gap-2">
           {(() => {
@@ -199,10 +193,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                     <span className="truncate text-amber-800 dark:text-amber-200">
                       {id}{' '}
                       <span className="text-amber-600 dark:text-amber-400">
-                        {t(
-                          'evaluationBuilder.parameters.judgeUnavailable',
-                          'nicht mehr verfügbar',
-                        )}
+                        {t('evaluationBuilder.parameters.judgeUnavailable')}
                       </span>
                     </span>
                     <button
@@ -215,10 +206,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
                       }
                       className="shrink-0 rounded px-1.5 py-0.5 text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
                     >
-                      {t(
-                        'evaluationBuilder.parameters.removeJudge',
-                        'Entfernen',
-                      )}
+                      {t('evaluationBuilder.parameters.removeJudge')}
                     </button>
                   </div>
                 ))}
@@ -227,10 +215,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
           })()}
         </div>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          {t(
-            'evaluationBuilder.parameters.additionalJudgesHelp',
-            'Mehrere Judges erzeugen Inter-Judge-Agreement (Cohen/Fleiss kappa, Pearson).',
-          )}
+          {t('evaluationBuilder.parameters.additionalJudgesHelp')}
         </p>
       </div>
     </div>

@@ -7,10 +7,11 @@ import {
   useChangelogEntries,
 } from '../changelog'
 
-const entry = (date: string, textDe: string): ChangelogEntry => ({
+// The id stands in for the text: the registry never reads the catalog.
+const entry = (date: string, id: string): ChangelogEntry => ({
+  id,
   date,
   audience: 'both',
-  text: { de: textDe, en: `${textDe} (en)` },
 })
 
 describe('Changelog registry', () => {
@@ -24,7 +25,7 @@ describe('Changelog registry', () => {
     registerChangelogEntries('test-idempotent', [entry('2026-08-01', 'v1')])
     registerChangelogEntries('test-idempotent', [entry('2026-08-01', 'v1')])
 
-    const matching = getChangelogEntries().filter((e) => e.text.de === 'v1')
+    const matching = getChangelogEntries().filter((e) => e.id === 'v1')
     expect(matching).toHaveLength(1)
   })
 
@@ -32,13 +33,13 @@ describe('Changelog registry', () => {
     registerChangelogEntries('test-source-a', [entry('2026-08-02', 'aus A')])
     registerChangelogEntries('test-source-b', [entry('2026-08-03', 'aus B')])
 
-    const texts = getChangelogEntries().map((e) => e.text.de)
+    const texts = getChangelogEntries().map((e) => e.id)
     expect(texts).toEqual(expect.arrayContaining(['aus A', 'aus B']))
   })
 
   test('useChangelogEntries re-renders when entries register late', () => {
     const { result } = renderHook(() => useChangelogEntries())
-    expect(result.current.some((e) => e.text.de === 'später registriert')).toBe(
+    expect(result.current.some((e) => e.id === 'später registriert')).toBe(
       false,
     )
 
@@ -48,8 +49,6 @@ describe('Changelog registry', () => {
       ])
     })
 
-    expect(result.current.some((e) => e.text.de === 'später registriert')).toBe(
-      true,
-    )
+    expect(result.current.some((e) => e.id === 'später registriert')).toBe(true)
   })
 })

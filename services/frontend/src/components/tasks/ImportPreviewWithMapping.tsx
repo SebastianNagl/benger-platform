@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   FieldMapping,
   MappingSuggestion,
@@ -62,7 +63,7 @@ export function ImportPreviewWithMapping({
   onCancel,
   className,
 }: ImportPreviewWithMappingProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [mappingSuggestion, setMappingSuggestion] =
     useState<MappingSuggestion | null>(null)
@@ -104,11 +105,15 @@ export function ImportPreviewWithMapping({
         setCustomMappings(initialMappings)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process file')
+      setError(
+        err instanceof Error
+          ? err.message
+          : t('projects.import.processFileFailed'),
+      )
     } finally {
       setIsProcessing(false)
     }
-  }, [file, templateFields])
+  }, [file, templateFields]) // eslint-disable-line react-hooks/exhaustive-deps -- t is stable
 
   // Process file when it changes
   useEffect(() => {
@@ -260,7 +265,9 @@ export function ImportPreviewWithMapping({
                 <p className="text-sm font-medium text-gray-500">
                   {t('tasks.import.size')}
                 </p>
-                <p className="text-sm">{formatFileSize(file?.size || 0)}</p>
+                <p className="text-sm">
+                  {formatFileSize(file?.size || 0, locale)}
+                </p>
               </div>
             </div>
 
@@ -480,8 +487,8 @@ export function ImportPreviewWithMapping({
   )
 }
 
-function formatFileSize(bytes: number): string {
+function formatFileSize(bytes: number, locale: string): string {
   if (bytes < 1024) return bytes + ' bytes'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  if (bytes < 1024 * 1024) return formatDecimal(bytes / 1024, locale, 1) + ' KB'
+  return formatDecimal(bytes / (1024 * 1024), locale, 1) + ' MB'
 }

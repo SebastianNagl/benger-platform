@@ -23,6 +23,7 @@ import {
 } from '@/lib/api'
 import { InvitationDetails } from '@/lib/api/invitations'
 import { organizationsAPI } from '@/lib/api/organizations'
+import { intlTag } from '@/lib/i18n/locales'
 import { logger } from '@/lib/utils/logger'
 import {
   BuildingOfficeIcon,
@@ -48,7 +49,7 @@ export default function AdminUsersPage() {
     refreshOrganizations,
     apiClient,
   } = useAuth()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const showError = useErrorAlert()
   const confirmDelete = useDeleteConfirm()
   const [users, setUsers] = useState<User[]>([])
@@ -399,7 +400,7 @@ export default function AdminUsersPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!selectedOrganization) return
 
-    const confirmed = await confirmDelete('this member')
+    const confirmed = await confirmDelete(t('dialogs.deleteConfirm.thisMember'))
     if (!confirmed) return
 
     try {
@@ -979,7 +980,7 @@ export default function AdminUsersPage() {
                             {t('admin.usersPage.created')}{' '}
                             {new Date(
                               selectedOrganization.created_at,
-                            ).toLocaleDateString()}
+                            ).toLocaleDateString(intlTag(locale))}
                           </p>
                         </div>
                       )}
@@ -1173,7 +1174,7 @@ export default function AdminUsersPage() {
                                 {t('admin.usersPage.expires')}{' '}
                                 {new Date(
                                   invitation.expires_at,
-                                ).toLocaleDateString()}
+                                ).toLocaleDateString(intlTag(locale))}
                               </p>
                               <div className="mt-1">
                                 <InvitationDeliveryBadge

@@ -117,10 +117,7 @@ export const LabelConfigEditor = forwardRef<
             <TaskFieldReferencePanel
               projectId={projectId}
               defaultExpanded={false}
-              description={t(
-                'project.labelConfiguration.fieldReferenceHelp',
-                'Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question).',
-              )}
+              description={t('project.labelConfiguration.fieldReferenceHelp')}
             />
           )}
 

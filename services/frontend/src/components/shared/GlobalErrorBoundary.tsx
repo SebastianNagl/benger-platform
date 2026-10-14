@@ -51,18 +51,14 @@ function GlobalErrorContent({ error }: { error?: Error }) {
           </div>
         )}
         <h1 className="mb-4 text-2xl font-bold text-zinc-900 dark:text-white">
-          {t('errors.global.applicationError', 'Anwendungsfehler')}
+          {t('errors.global.applicationError')}
         </h1>
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">
-          {error?.message ||
-            t(
-              'errors.global.unexpectedError',
-              'Ein unerwarteter Fehler ist aufgetreten',
-            )}
+          {error?.message || t('errors.global.unexpectedError')}
         </p>
         <details className="mb-4">
           <summary className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-            {t('errors.global.errorDetails', 'Fehlerdetails')}
+            {t('errors.global.errorDetails')}
           </summary>
           <pre className="mt-2 overflow-auto rounded bg-zinc-100 p-3 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
             {error?.stack}
@@ -72,7 +68,7 @@ function GlobalErrorContent({ error }: { error?: Error }) {
           onClick={() => window.location.reload()}
           className="w-full rounded-md bg-emerald-600 px-4 py-2 text-white transition-colors hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
         >
-          {t('errors.global.reloadPage', 'Seite neu laden')}
+          {t('errors.global.reloadPage')}
         </button>
       </div>
     </div>

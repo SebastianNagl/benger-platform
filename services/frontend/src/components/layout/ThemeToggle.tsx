@@ -1,4 +1,5 @@
 import { useHydration } from '@/contexts/HydrationContext'
+import { useI18n } from '@/contexts/I18nContext'
 import { useTheme } from 'next-themes'
 
 function SunIcon(props: React.ComponentPropsWithoutRef<'svg'>) {
@@ -30,6 +31,7 @@ export function ThemeToggle({
   className?: string
 } = {}) {
   const { resolvedTheme, setTheme } = useTheme()
+  const { t } = useI18n()
   const otherTheme = resolvedTheme === 'dark' ? 'light' : 'dark'
   const mounted = useHydration()
 
@@ -54,7 +56,11 @@ export function ThemeToggle({
     <button
       type="button"
       className={className}
-      aria-label={`Switch to ${otherTheme} theme`}
+      aria-label={t(
+        otherTheme === 'dark'
+          ? 'layout.themeToggle.switchToDark'
+          : 'layout.themeToggle.switchToLight',
+      )}
       onClick={handleThemeToggle}
       data-testid="theme-toggle"
     >

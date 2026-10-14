@@ -12,6 +12,8 @@ jest.mock('@/contexts/I18nContext', () => ({
           'Search projects by name, description, or organization',
         'generation.projectSelector.showing': `Showing ${params?.count || 0} of ${params?.total || 0} projects`,
         'generation.projectSelector.tableHeaders.project': 'Project',
+        'generation.projectSelector.loadFailed': `Failed to load projects: ${params?.error}`,
+        'generation.projectSelector.openSettings': `Navigate to ${params?.title} settings`,
         'generation.projectSelector.tableHeaders.tasks': 'Tasks',
         'generation.projectSelector.tableHeaders.models': 'Models',
         'generation.projectSelector.tableHeaders.prompts': 'Prompts',

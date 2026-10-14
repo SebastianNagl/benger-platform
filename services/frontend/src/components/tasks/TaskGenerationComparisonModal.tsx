@@ -2,6 +2,7 @@
 
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 import { logger } from '@/lib/utils/logger'
 import type { Task } from '@/types/labelStudio'
 import { Dialog, DialogPanel, DialogTitle, Tab } from '@headlessui/react'
@@ -53,7 +54,7 @@ export function TaskGenerationComparisonModal({
   onClose,
   projectId: _projectId,
 }: TaskGenerationComparisonModalProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [selectedTab, setSelectedTab] = useState(0)
   const [viewMode, setViewMode] = useState<'formatted' | 'raw'>('formatted')
   // Per-model result cache: model_id -> results (lazy-loaded on tab select).
@@ -167,13 +168,13 @@ export function TaskGenerationComparisonModal({
         )}
         {result.generated_at && (
           <span className="text-gray-500 dark:text-gray-400">
-            {new Date(result.generated_at).toLocaleString()}
+            {new Date(result.generated_at).toLocaleString(intlTag(locale))}
           </span>
         )}
         {result.generation_time_seconds != null && (
           <span className="text-gray-400">
             {t('generation.resultModal.seconds', {
-              value: result.generation_time_seconds.toFixed(2),
+              value: formatDecimal(result.generation_time_seconds, locale, 2),
             })}
           </span>
         )}

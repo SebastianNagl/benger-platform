@@ -17,9 +17,9 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
-  // Inline German defaults on every t(): when the crash originates inside the
-  // provider tree this segment renders WITHOUT I18nProvider, and the bare-key
-  // fallback would otherwise show raw `errors.global.*` keys.
+  // When the crash originates inside the provider tree this segment renders
+  // WITHOUT I18nProvider; useI18n then still resolves the keys from the
+  // catalog (default locale), so no raw `errors.global.*` keys show.
   const { t } = useI18n()
   // Host resolved on the client only: the server snapshot stays neutral so
   // the first paint never hydration-mismatches (no state, no effect needed).
@@ -69,23 +69,20 @@ export default function GlobalError({
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-white">
-            {t('errors.global.title', 'Etwas ist schiefgelaufen')}
+            {t('errors.global.title')}
           </h2>
         </div>
 
         <p className="mb-4 text-zinc-600 dark:text-zinc-300">
-          {t(
-            'errors.global.description',
-            'Beim Laden dieses Inhalts ist ein unerwarteter Fehler aufgetreten.',
-          )}
+          {t('errors.global.description')}
         </p>
 
         <div className="flex gap-3">
           <Button variant="primary" onClick={reset}>
-            {t('errors.global.tryAgain', 'Erneut versuchen')}
+            {t('errors.global.tryAgain')}
           </Button>
           <Button variant="secondary" onClick={() => window.location.reload()}>
-            {t('errors.global.reloadPage', 'Seite neu laden')}
+            {t('errors.global.reloadPage')}
           </Button>
         </div>
 
@@ -93,7 +90,7 @@ export default function GlobalError({
         {process.env.NODE_ENV === 'development' && (
           <details className="mt-4">
             <summary className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300">
-              {t('errors.global.technicalDetails', 'Technische Details')}
+              {t('errors.global.technicalDetails')}
             </summary>
             <pre className="mt-2 max-h-96 overflow-auto rounded bg-zinc-100 p-3 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
               {error?.message || 'Unknown error'}

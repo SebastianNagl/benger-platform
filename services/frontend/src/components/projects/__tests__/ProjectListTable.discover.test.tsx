@@ -39,12 +39,9 @@ jest.mock('@/contexts/AuthContext', () => ({
     isLoading: false,
   }),
 }))
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, def?: any) => (typeof def === 'string' ? def : key),
-    locale: 'de',
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const project = (o: any = {}) => ({
   id: 'p1',
@@ -133,7 +130,7 @@ describe('ProjectListTable — discover + participant', () => {
     ).toHaveTextContent('Teilnehmer')
     expect(screen.getByTestId('project-participant-badge-p1')).toHaveAttribute(
       'title',
-      'Beigetreten',
+      'Über Freigabe-Link beigetreten',
     )
     expect(
       screen.queryByTestId('projects-table-checkbox-p1'),
@@ -155,7 +152,7 @@ describe('ProjectListTable — discover + participant', () => {
     const badge = screen.getByTestId('project-participant-badge-a1')
     expect(badge).toHaveTextContent('Frühere Abgabe')
     expect(badge).not.toHaveTextContent('Teilnehmer')
-    expect(badge).toHaveAttribute('title', 'Beigetreten')
+    expect(badge).toHaveAttribute('title', 'Zugang über Ihre Abgabe')
     expect(
       screen.queryByTestId('projects-table-checkbox-a1'),
     ).not.toBeInTheDocument()

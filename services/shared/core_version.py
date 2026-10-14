@@ -546,11 +546,21 @@ whenever one is added, renamed or removed):
   settings: ``API_KEY_PEPPER``, ``API_KEY_ENVIRONMENT``,
   ``API_KEY_DEFAULT_RPM`` / ``_RPD``, ``API_USAGE_RETENTION_DAYS``,
   ``API_USAGE_IP_MODE``, ``SERVICE_ACCOUNT_EMAIL_HOST``.
+
+2.38 (2026-10-14): French UI and the shared translation catalog. Frontend
+  module ``@/lib/i18n/locales`` (``Locale`` = de | en | fr, ``LOCALES``,
+  ``intlTag``, ``dateFnsLocale``) and ``@/lib/i18n/catalog``
+  (``registerTranslations(source, {de, en, fr})`` merges an overlay's locale
+  trees into the catalog, ``TranslationBundle``, ``lookup``,
+  ``translateKey``). ``t(key, vars?)`` no longer takes an inline default:
+  every string lives in a locale catalog. How-to guides and changelog
+  entries carry ids only; their copy lives under ``howToGuides.<id>`` /
+  ``howToCategories.<id>`` and ``changelogEntries.<id>``.
 """
 
 import os
 
-CORE_API_VERSION = "2.37"
+CORE_API_VERSION = "2.38"
 
 
 def extended_required() -> bool:

@@ -658,7 +658,7 @@ describe('ResetPasswordConfirmPage', () => {
       render(<ResetPasswordConfirmPage />)
 
       const nav = screen.getByRole('navigation')
-      expect(nav).toHaveAttribute('aria-label', 'Global')
+      expect(nav).toHaveAttribute('aria-label', 'layout.minimal.globalNav')
     })
 
     it('should have proper form id attributes', () => {

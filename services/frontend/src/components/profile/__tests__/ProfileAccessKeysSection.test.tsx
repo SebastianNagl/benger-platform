@@ -106,7 +106,9 @@ describe('ProfileAccessKeysSection', () => {
     // Personal keys may manage their owner's keys, never org-admin scopes;
     // reference solutions follow the owner's own role.
     fireEvent.click(screen.getByTestId('access-key-advanced-toggle'))
-    expect(screen.getByText('EN keys:manage')).toBeInTheDocument()
+    expect(
+      screen.getByText("Manage the owner's own access keys"),
+    ).toBeInTheDocument()
     expect(
       screen.queryByTestId('access-key-scope-compliance:admin'),
     ).not.toBeInTheDocument()

@@ -183,7 +183,26 @@
     },
     "import": {
       "noData": "No data to import",
-      "failed": "Failed to import data"
+      "failed": "Failed to import data",
+      "progress": {
+        "importing": "Importing data...",
+        "processingFile": "Processing file...",
+        "reading": "Reading {name}...",
+        "parsing": "Parsing data...",
+        "processingPasted": "Processing pasted data...",
+        "validating": "Validating data...",
+        "importingTasks": "Importing {count} tasks...",
+        "complete": "Import complete!"
+      },
+      "fieldMismatch": "Some fields don't match your template. You can import as-is or use field mapping.",
+      "invalidJsonDetail": "Invalid JSON format: {error}",
+      "parseFailed": "Failed to parse {format} data: {error}",
+      "invalidJson": "Invalid JSON format. Please check your data and try again.",
+      "authFailed": "Authentication failed. Please sign in again.",
+      "forbidden": "You do not have permission to import data to this project.",
+      "parseFileFailed": "Failed to parse file: {error}",
+      "readFileFailed": "Failed to read file",
+      "processFileFailed": "Failed to process file"
     },
     "table": {
       "project": "Project",
@@ -580,7 +599,17 @@
             "addPersonalKey": "Add a {provider} key of your own in your profile.",
             "noKeyAnywhere": "Add your own key in your profile, or ask your organization's admin for a {provider} key."
           }
-        }
+        },
+        "orgAssignFailed": "Project was created but could not be assigned to the selected organizations. Please assign them from the project settings.",
+        "korrekturLabels": {
+          "title": "Correction (classic): highlight labels",
+          "description": "Colors and names of the highlights graders can use when commenting.",
+          "namePlaceholder": "Label name",
+          "remove": "Remove label",
+          "add": "+ Add label"
+        },
+        "variantIdPlaceholder": "e.g., variant_a",
+        "dataFieldOption": "{field} (data)"
       },
       "structuredExam": {
         "button": "Enter exam (structured)",
@@ -679,7 +708,10 @@
       "kindExam": "Exam",
       "study": "Study",
       "importTargetGroupLabel": "Group",
-      "importTargetGroupOrgWide": "Whole organization"
+      "importTargetGroupOrgWide": "Whole organization",
+      "publicContributorBadge": "Public · Contributor",
+      "publicAnnotatorBadge": "Public · Annotator",
+      "emptyExportFile": "Received empty file from server"
     },
     "columns": {
       "label": "Columns",
@@ -708,7 +740,7 @@
       "templateSimpleQA": "Simple Q&A",
       "templateSimpleQADesc": "Direct field reference",
       "templateTemplateQA": "Template Q&A",
-      "templateTemplateQADesc": "With {{placeholders}}",
+      "templateTemplateQADesc": "With {{field}} placeholders",
       "templateLegalAnalysis": "Legal Analysis",
       "templateLegalAnalysisDesc": "Complex template",
       "templateClassification": "Classification",
@@ -746,7 +778,7 @@
       "docSystemPromptDesc": "System-level instructions",
       "docInstructionPromptDesc": "Task-specific instructions",
       "docStringOption": "String: Direct text or $field reference",
-      "docObjectOption": "Object: Template with {{placeholders}} and field mappings",
+      "docObjectOption": "Object: Template with {{field}} placeholders and field mappings",
       "docFieldReferences": "Field References:",
       "docSimpleFieldRef": "Simple field reference",
       "docNestedFieldRef": "Nested field with dot notation",
@@ -870,7 +902,8 @@
       "assign": "+ Assign",
       "unassigned": "Unassigned",
       "unknown": "Unknown",
-      "removeAssignment": "Remove assignment"
+      "removeAssignment": "Remove assignment",
+      "moreList": "+{count} more: {names}"
     },
     "promptStructures": {
       "loadFailed": "Failed to load prompt structures",
@@ -917,7 +950,8 @@
       "purge": "Delete permanently",
       "purged": "Project permanently deleted.",
       "purgeConfirm": "Permanently delete “{title}” and ALL its data (tasks, submissions, gradings, learning history)? This cannot be undone."
-    }
+    },
+    "archivedTitle": "Archived projects"
   },
   "project": {
     "loading": "Loading project...",
@@ -954,7 +988,8 @@
       "notConfigured": "Not configured",
       "editConfiguration": "Edit Configuration",
       "noConfigSet": "No label configuration set",
-      "configureLabels": "Configure Labels"
+      "configureLabels": "Configure Labels",
+      "fieldReferenceHelp": "Reference task data fields in your XML using $fieldname syntax (e.g., $text, $question)."
     },
     "generationStructure": {
       "title": "Generation Structure",
@@ -1008,8 +1043,9 @@
       "saved": "Conditional instructions saved",
       "saveFailed": "Failed to save",
       "weightError": "Weights must sum to 100%",
-      "weightWarning": "Weights sum to {{total}}%, must be 100%",
-      "aiAllowed": "AI Allowed"
+      "weightWarning": "Weights sum to {total}%, must be 100%",
+      "aiAllowed": "AI Allowed",
+      "variantIdPlaceholder": "e.g. ai, no_ai"
     },
     "modelSelection": {
       "title": "Model Selection",
@@ -1031,7 +1067,10 @@
       "temperatureTooltip": "Response randomness (0=greedy decoding)",
       "maxTokens": "Max Tokens",
       "thinking": "Thinking",
-      "default": "Default"
+      "default": "Default",
+      "temperatureFixedValue": "This model requires temperature = {value}",
+      "presetTokens": "{label} ({tokens} tokens)",
+      "customPreset": "Custom"
     },
     "promptStructures": {
       "title": "Prompt Structures",
@@ -1064,7 +1103,8 @@
       "deleting": "Deleting...",
       "delete": "Delete",
       "loadingStructures": "Loading prompt structures...",
-      "onlyCreatorCanManage": "Only the project creator can manage prompt structures"
+      "onlyCreatorCanManage": "Only the project creator can manage prompt structures",
+      "fieldReferenceHelp": "Use $fieldname or $nested.path syntax to reference task data fields in your prompts."
     },
     "permissions": {
       "orgAdminOnly": "Only organization administrators can manage {section}.",
@@ -1104,7 +1144,8 @@
       "saving": "Saving…",
       "validation": {
         "privateNeedsOrganization": "Organization-scoped projects need at least one organization."
-      }
+      },
+      "saveFailed": "Failed to save permissions"
     },
     "evaluation": {
       "title": "Evaluation Configuration",
@@ -1262,7 +1303,8 @@
           "count2": "2 annotations",
           "count3": "3 annotations",
           "count4": "4 annotations",
-          "count5": "5 annotations"
+          "count5": "5 annotations",
+          "unlimited": "Unlimited"
         }
       },
       "interface": {
@@ -1510,6 +1552,13 @@
       "title": "Discover project",
       "back": "Back to the directory",
       "alreadyMember": "You have already joined this project."
+    },
+    "generation": {
+      "runCta": "Start Generation"
+    },
+    "configCard": {
+      "saving": "Saving…",
+      "unsavedChanges": "Unsaved changes"
     }
   },
   "tasks": {
@@ -1771,7 +1820,7 @@
       "system": "System",
       "instruction": "Instruction",
       "evaluation": "Evaluation",
-      "promptPlaceholder": "Enter the generation prompt...",
+      "promptPlaceholder": "Enter the generation prompt here. Use {{variable}} for variables.",
       "expectedOutputPlaceholder": "Enter expected generation output for evaluation...",
       "contextPlaceholder": "Additional context for the generation...",
       "addPrompt": "Add Prompt",
@@ -1781,7 +1830,38 @@
       "uploadSuccess": "Successfully uploaded {count} prompts",
       "uploadFailed": "Failed to upload prompts",
       "emptyState": "No prompts added yet. Click \"Add Prompt\" to get started.",
-      "addNew": "Add New Prompt"
+      "addNew": "Add New Prompt",
+      "addFirstPrompt": "Add your first prompt",
+      "assistant": "Assistant",
+      "confirm": "Confirm",
+      "confirmDelete": "Do you really want to delete this prompt?",
+      "contentRequired": "Prompt content is required",
+      "delete": "Delete",
+      "deletePrompt": "Delete prompt",
+      "description": "Manage prompts for LLM generation",
+      "duplicateName": "A prompt with this name already exists",
+      "editPrompt": "Edit prompt",
+      "insertVariable": "Insert variable",
+      "nameRequired": "Prompt name is required",
+      "noPrompts": "No prompts yet",
+      "preview": "Preview",
+      "promptContent": "Prompt content",
+      "promptDeleteFailed": "Failed to delete prompt",
+      "promptDeleted": "Prompt deleted successfully",
+      "promptName": "Prompt name",
+      "promptSaveFailed": "Failed to save prompt",
+      "promptSaved": "Prompt saved successfully",
+      "save": "Save",
+      "selectType": "Select prompt type",
+      "template": "Template",
+      "testFailed": "Test failed",
+      "testPrompt": "Test prompt",
+      "testSuccess": "Test successful",
+      "testing": "Testing...",
+      "title": "Prompt Manager",
+      "user": "User",
+      "variables": "Variables",
+      "variablesList": "Available variables: {variables}"
     },
     "import": {
       "description": "Import tasks from various sources",
@@ -1995,6 +2075,18 @@
       "title": "Edit exam (structured)",
       "saved": "Task saved.",
       "saveError": "Task could not be saved."
+    },
+    "questionManager": {
+      "title": "Questions ({count})",
+      "hintQa": "Add simple question-answer pairs",
+      "hintMultipleChoice": "Add multiple choice questions with 4 options",
+      "hintReasoning": "Add questions with reasoning",
+      "expandAll": "Expand all",
+      "collapseAll": "Collapse all",
+      "addQuestion": "Add question",
+      "empty": "No questions yet",
+      "emptyHintQa": "Add your first question-answer pair to get started.",
+      "emptyHint": "Add your first question to get started."
     }
   },
   "profile": {
@@ -2174,7 +2266,25 @@
     "updateSuccess": "Profile updated successfully",
     "updateFailed": "Failed to update profile",
     "passwordsDoNotMatch": "Passwords do not match",
-    "accessKeys": "API access"
+    "accessKeys": "API access",
+    "bundeslaender": {
+      "BW": "Baden-Württemberg",
+      "BY": "Bavaria",
+      "BE": "Berlin",
+      "BB": "Brandenburg",
+      "HB": "Bremen",
+      "HH": "Hamburg",
+      "HE": "Hesse",
+      "MV": "Mecklenburg-Western Pomerania",
+      "NI": "Lower Saxony",
+      "NW": "North Rhine-Westphalia",
+      "RP": "Rhineland-Palatinate",
+      "SL": "Saarland",
+      "SN": "Saxony",
+      "ST": "Saxony-Anhalt",
+      "SH": "Schleswig-Holstein",
+      "TH": "Thuringia"
+    }
   },
   "leaderboards": {
     "title": "Leaderboards",
@@ -2691,7 +2801,9 @@
         "noProjectsFound": "No projects found matching your search",
         "noProjects": "No projects available",
         "createFirst": "Create a project first to start generating responses"
-      }
+      },
+      "loadFailed": "Failed to load projects: {error}",
+      "openSettings": "Navigate to {title} settings"
     },
     "results": {
       "searchPlaceholder": "Search tasks and responses...",
@@ -2736,7 +2848,9 @@
       "regenerate": "Regenerate",
       "viewResults": "View Results",
       "cellGenerationQueued": "Generation queued",
-      "cellGenerationFailed": "Failed to queue generation"
+      "cellGenerationFailed": "Failed to queue generation",
+      "allStructures": "All structures",
+      "structures": "Prompt structures"
     },
     "comparison": {
       "modal": {
@@ -2780,7 +2894,9 @@
       "history": "History",
       "currentLabel": "(current)",
       "noHistory": "No generation history available",
-      "by": "by {user}"
+      "by": "by {user}",
+      "systemPrompt": "System prompt",
+      "instructionPrompt": "Instruction prompt"
     },
     "configurator": {
       "selectModels": "Select Models",
@@ -2850,7 +2966,11 @@
       "recommended": "Recommended",
       "resetToRecommended": "Reset to recommended",
       "noRecommendation": "No recommendation",
-      "divergentRecommendations": "Different recommendations per model"
+      "divergentRecommendations": "Different recommendations per model",
+      "runsPerTask": "Runs per task",
+      "runsPerTaskDesc": "How often each task-model combination is generated. Defaults to 1; a value > 1 produces several trials for variance analysis. Multiplies the cost accordingly.",
+      "fixedTemperatureOne": "{models} requires fixed temperature=1.0. The backend will override for this model.",
+      "fixedTemperatureOther": "{models} require fixed temperature=1.0. The backend will override for these models."
     }
   },
   "notifications": {
@@ -3792,7 +3912,8 @@
       "showingResults": "Showing {start} to {end} of {total} results",
       "perPage": "Per page:",
       "previousPage": "Previous page",
-      "nextPage": "Next page"
+      "nextPage": "Next page",
+      "label": "Pagination"
     },
     "autoSave": {
       "justNow": "just now",
@@ -3819,7 +3940,8 @@
     "export": "Export",
     "clear": "Clear selection",
     "menu": "Menu",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "unknownUser": "Unknown user"
   },
   "validation": {
     "required": "This field is required",
@@ -3829,7 +3951,8 @@
   },
   "labeling": {
     "display": {
-      "noData": "No data for field: {field}"
+      "noData": "No data for field: {field}",
+      "imageAlt": "Annotation image"
     },
     "annotationCreator": {
       "submitFailed": "Failed to submit annotation",
@@ -4503,6 +4626,9 @@
       "addUserFailed": "Add User Failed",
       "cancelInvitationFailed": "Cancel Invitation Failed",
       "orgUpdateFailed": "Organization Update Failed"
+    },
+    "lti": {
+      "extendedRequired": "LTI administration requires the extended edition."
     }
   },
   "taskCreate": {
@@ -4693,7 +4819,10 @@
       "pValue": "p-value",
       "significance": "Significance",
       "effectSize": "Effect Size",
-      "selectProjectPrompt": "Select a project to view evaluation results"
+      "selectProjectPrompt": "Select a project to view evaluation results",
+      "significanceLoadFailed": "Failed to load significance data",
+      "loadProjectFailed": "Failed to load project: {error}",
+      "loadProjectDataFailed": "Failed to load project data: {error}"
     },
     "runNew": "Run New Evaluation",
     "comingSoon": "Evaluation features coming soon",
@@ -4804,7 +4933,10 @@
       "metricsComputed": "Metrics Computed",
       "bestScore": "Best Score",
       "footerGenerated": "Report generated by BenGER Evaluation Framework on",
-      "academicDisclaimer": "This report was generated using established evaluation metrics from peer-reviewed academic literature. All metrics are implemented according to their original specifications."
+      "academicDisclaimer": "This report was generated using established evaluation metrics from peer-reviewed academic literature. All metrics are implemented according to their original specifications.",
+      "selectionSummary": "Models: {models}, metrics: {metrics}",
+      "summaryIntro": "This report presents evaluation results for language models (count: {models}) across metrics (count: {metrics}).",
+      "versus": "{a} vs {b}"
     },
     "results": {
       "showing": "Showing {current} of {total} evaluated tasks",
@@ -5056,6 +5188,18 @@
       "calibration": {
         "name": "Calibration",
         "description": "Is the rating appropriately calibrated?"
+      },
+      "span_precision": {
+        "name": "Span precision"
+      },
+      "set_accuracy": {
+        "name": "Set accuracy (multi-select)"
+      },
+      "partial_credit": {
+        "name": "Partial credit score"
+      },
+      "scale_appropriateness": {
+        "name": "Scale appropriateness"
       }
     },
     "taskFields": {
@@ -5075,7 +5219,7 @@
     "llmJudgeCustom": "Custom LLM Judge",
     "llmJudgeCustomDescription": "Create a fully custom evaluation with your own prompt and criteria",
     "customLLMJudge": {
-      "hint": "Configure your own evaluation prompt and criteria. Use template variables like {{prediction}} and {{ground_truth}}."
+      "hint": "Configure your own evaluation prompt and criteria. Use template variables like {prediction} and {ground_truth}."
     },
     "viewer": {
       "title": "Evaluation Results",
@@ -5321,7 +5465,11 @@
       "answersOnlyHint": "With no model selected, only submitted answers are graded.",
       "scopeLoading": "Loading available models and annotators…",
       "noEvaluatedModels": "No evaluated models on this project yet",
-      "noAnnotators": "No annotators on this project yet"
+      "noAnnotators": "No annotators on this project yet",
+      "runDisabledNoStructures": "Select at least one prompt structure",
+      "selectStructures": "Prompt structures",
+      "oneStructureSelected": "1 prompt structure selected",
+      "structuresSelected": "{count} prompt structures selected"
     },
     "llmJudge": {
       "title": "LLM-as-Judge Evaluation",
@@ -5504,7 +5652,8 @@
       "groundTruth": "Ground Truth",
       "prediction": "Prediction",
       "score": "Score",
-      "moreMetrics": "+{count} more"
+      "moreMetrics": "+{count} more",
+      "fleissAcrossRuns": "Fleiss κ across {n} runs"
     },
     "multiFieldResults": {
       "title": "Evaluation Results",
@@ -5590,7 +5739,10 @@
       "showHistory": "History",
       "withResults": "with results",
       "includeHistory": "Include history",
-      "selectMetric": "Select metric"
+      "selectMetric": "Select metric",
+      "byRunChart": "Split chart by run",
+      "runsAggregateTooltip": "Standard deviation across distinct evaluation runs (multi-run feature)",
+      "tabsLabel": "Tabs"
     },
     "dashboardTemplates": {
       "title": "Dashboard Template",
@@ -5673,7 +5825,9 @@
       "correlationMatrix": "Correlation Matrix",
       "strongPositive": "Strong positive",
       "strongNegative": "Strong negative",
-      "weakNone": "Weak/none"
+      "weakNone": "Weak/none",
+      "comparisonsAlpha": "{count} comparisons, α = {alpha}",
+      "testsUncorrectedAlpha": "{count} tests, uncorrected α = {alpha}"
     },
     "scoreDistribution": {
       "title": "Score Distribution",
@@ -5781,7 +5935,8 @@
       "noModels": "No models available.",
       "evaluations": "{count} evaluations",
       "rank": "Rank #{rank}",
-      "avg": "Avg"
+      "avg": "Avg",
+      "noModelsAvailable": "No models available. Configure API keys in your profile settings."
     },
     "aggregation": {
       "perSample": "Per Sample",
@@ -5864,7 +6019,8 @@
         "score": "Score",
         "whiskers": "Whiskers (min/max)",
         "iqr": "IQR (Q1-Q3)",
-        "medianLabel": "Median"
+        "medianLabel": "Median",
+        "run": "Run"
       },
       "heatmap": {
         "fieldCombinationScores": "Field Combination Scores",
@@ -5936,7 +6092,35 @@
       "sampleSize": "n = {n}",
       "clusters": "{count} clusters",
       "ciLabel": "{level}% CI",
-      "ciShort": "CI"
+      "ciShort": "CI",
+      "acrossRuns": "over {n} runs"
+    },
+    "tabExport": {
+      "exporting": "Exporting evaluations...",
+      "preparing": "Preparing {count} evaluations",
+      "refreshing": "Refreshing evaluations...",
+      "refreshLabel": "Refresh evaluations"
+    },
+    "api": {
+      "questionsUploaded": "Questions uploaded successfully",
+      "promptsUploaded": "Prompts uploaded successfully",
+      "takingLonger": "Evaluation is taking longer than expected",
+      "partialResults": "Some methods did not finish within the expected time. Partial results are shown below."
+    },
+    "upload": {
+      "fileRequired": "File is required for upload",
+      "taskIdRequired": "Task ID is required for upload",
+      "readFailed": "Failed to read file: {error}",
+      "emptyFile": "File is empty or contains no valid content",
+      "invalidJson": "Invalid JSON format in file",
+      "notArray": "File must contain an array of items",
+      "noItems": "File contains no items",
+      "unknownContentType": "Unknown content type: the file must contain questions (with \"question\" and \"answer\" fields) or prompts (with a \"prompt\" field)",
+      "invalidQuestion": "Invalid question format at index {index}: {error}",
+      "noResponse": "No response received from server",
+      "invalidPrompt": "Invalid prompt format at index {index}: {error}",
+      "failed": "Data upload failed: {error}",
+      "failedUnknown": "Data upload failed: unknown error"
     }
   },
   "about": {
@@ -6184,7 +6368,8 @@
         "title": "All API access keys",
         "description": "Review and block the access keys of every organization and person"
       }
-    }
+    },
+    "noResults": "Nothing found for"
   },
   "evaluationBuilder": {
     "configured": "{count} configured",
@@ -6241,7 +6426,8 @@
       "noFieldsDetected": "No specific fields detected. Use bulk selectors above or configure label config first.",
       "noReferenceFields": "No reference fields detected. Configure label config to define reference fields.",
       "multipleReferencesTitle": "Multiple references selected:",
-      "multipleReferencesDescription": "Scores will be computed against each reference and the maximum score will be used (best match strategy)."
+      "multipleReferencesDescription": "Scores will be computed against each reference and the maximum score will be used (best match strategy).",
+      "modelResponseUnstructured": "Model response (unstructured)"
     },
     "warnings": {
       "noReferenceFields": "\"{name}\" has no reference field, so it grades nothing. Choose one, for example task.musterloesung.",
@@ -6316,7 +6502,33 @@
         "method": "Factuality Method",
         "summac": "SummaC (recommended)",
         "original": "Original FactCC"
-      }
+      },
+      "dimensions": "Scoring dimensions",
+      "totalMax": "Total max",
+      "dimensionsHint": "Define weighted dimensions to switch the judge into single-call multi-dimension mode. The judge will return one JSON with per-dimension scores (each clamped to its max_score) plus a total_score. Leave max_score empty on every dimension to keep the legacy per-criterion 1-5 scoring.",
+      "noDimensions": "No dimensions defined. Click \"Add dimension\" to start.",
+      "dimensionKey": "Key",
+      "dimensionName": "Display name",
+      "dimensionMax": "Max",
+      "dimensionDescription": "Description",
+      "dimensionDescriptionPlaceholder": "What this dimension assesses (optional, shown to the judge in the rubric)",
+      "dimensionRubric": "Rubric",
+      "dimensionRubricPlaceholder": "Anchored guidance for the judge: what earns 0, what earns max_score (optional).",
+      "addDimension": "Add dimension",
+      "duplicateKeys": "Duplicate keys",
+      "invalidKeys": "Keys must be snake_case (lowercase, digits, underscores; start with a letter)",
+      "customPromptTemplate": "Prompt template",
+      "insertVariable": "Insert variable",
+      "variableInUse": "Already used in template",
+      "variableAvailable": "Click to insert",
+      "unmappedVariables": "Template references variables not yet mapped to task fields",
+      "unmappedVariablesHint": "Add them to Field Mappings below so they resolve to task data.",
+      "missingDimensions": "Dimension keys not mentioned in the prompt",
+      "missingDimensionsHint": "The judge won't know to score them unless they appear in the prompt's instructions and JSON schema example.",
+      "temperatureRange": "Response randomness ({min} - {max} for this provider)",
+      "maxTokensRange": "Maximum tokens for judge response ({min}-{max})",
+      "promptTemplatePlaceholder": "You are a legal grader.\n\nCase: {{fall}}\nQuestion: {{task}}\nReference: {{binary_solution}} / {{reasoning}}\n\nTo grade: {{answer}}\n\nAnswer as JSON with the fields scores, total_score, overall_assessment.",
+      "dimensionNamePlaceholder": "Result correctness"
     },
     "placeholders": {
       "answerType": "Select answer type...",
@@ -6347,7 +6559,12 @@
     "validation": {
       "selectMetric": "Please select a metric",
       "selectPrediction": "Please select at least one prediction field",
-      "selectReference": "Please select at least one reference field"
+      "selectReference": "Please select at least one reference field",
+      "temperatureFixedDescription": "This model requires a fixed temperature value.",
+      "fixed": "Fixed at {value}",
+      "temperatureFixed": "This model requires temperature = {value}. The API will reject other values.",
+      "temperatureTooLow": "Temperature must be at least {min} for this provider.",
+      "temperatureTooHigh": "Temperature must be at most {max} for this provider. The API will reject higher values."
     },
     "toast": {
       "added": "Evaluation added",
@@ -6358,7 +6575,60 @@
       "configsWillBeEvaluated": "{count} config(s) will be evaluated",
       "running": "Running...",
       "run": "Run Evaluation"
-    }
+    },
+    "judgeTemplates": {
+      "text": {
+        "name": "Free-form text",
+        "description": "Evaluate quality, correctness, and coherence of text responses",
+        "hint": "Best for essays, summaries, explanations, and open-ended responses"
+      },
+      "shortText": {
+        "name": "Short text",
+        "description": "Evaluate brief text responses",
+        "hint": "Best for short answers, fill-in-the-blank"
+      },
+      "longText": {
+        "name": "Long text",
+        "description": "Evaluate detailed text responses",
+        "hint": "Best for essays, detailed explanations"
+      },
+      "choices": {
+        "name": "Classification (single choice)",
+        "description": "Evaluate if the correct single choice was selected",
+        "hint": "Best for single-choice questions, yes/no, binary decisions"
+      },
+      "singleChoice": {
+        "name": "Single choice",
+        "description": "Evaluate single selection from options",
+        "hint": "Best for radio button selections"
+      },
+      "binary": {
+        "name": "Binary choice",
+        "description": "Evaluate yes/no or true/false selections",
+        "hint": "Best for yes/no, true/false questions"
+      },
+      "multipleChoice": {
+        "name": "Multiple choice (multi-select)",
+        "description": "Evaluate selection of multiple correct items",
+        "hint": "Best for checkbox selections, multiple correct answers"
+      },
+      "spanSelection": {
+        "name": "Named entity recognition (NER)",
+        "description": "Evaluate entity boundaries AND labels (strictest mode)",
+        "hint": "Evaluates both WHERE spans are and WHAT they are labeled"
+      },
+      "rating": {
+        "name": "Rating scale",
+        "description": "Evaluate numeric rating predictions (e.g., 1-5 stars)",
+        "hint": "Best for star ratings, Likert scales"
+      },
+      "numeric": {
+        "name": "Numeric value",
+        "description": "Evaluate numeric predictions",
+        "hint": "Best for numerical answers, measurements"
+      }
+    },
+    "detectedAnswerType": "Detected {name}, criteria auto-selected"
   },
   "annotation": {
     "examLayout": {
@@ -6404,7 +6674,10 @@
       "pleaseProvideAnnotation": "Please provide an annotation",
       "initializationError": "Initialization Error",
       "tryAgain": "Try Again",
-      "alreadySubmitted": "Annotation already submitted"
+      "alreadySubmitted": "Annotation already submitted",
+      "noLabelConfigTitle": "No label configuration found",
+      "noLabelConfigText": "This project requires a label configuration to define the annotation interface. Please configure the project settings before annotating.",
+      "initFailed": "Failed to initialize annotation interface"
     },
     "interface": {
       "title": "Annotation Interface",
@@ -6721,7 +6994,14 @@
       "exportingSelected": "Exporting {count} selected tasks...",
       "tasksArchived": "Archived {count} tasks successfully",
       "archiveFailed": "Failed to archive tasks",
-      "tasksAssigned": "Tasks assigned successfully"
+      "tasksAssigned": "Tasks assigned successfully",
+      "selectionCapped": "Selection capped at {count} tasks; refine filters to act on the rest.",
+      "exportCapped": "Export capped at {count} tasks; refine filters to export the rest.",
+      "selectAllFailed": "Could not select the matching tasks",
+      "taskNotFound": "Task not found",
+      "assignmentRemoved": "Assignment removed",
+      "assignmentRemoveFailed": "Failed to remove assignment",
+      "tagsUpdated": "Tags updated"
     },
     "confirmations": {
       "deleteTasks": "Are you sure you want to delete {count} tasks?",
@@ -6739,7 +7019,9 @@
       "tasksCount": "Tasks: {current} / {total}",
       "submittedAnnotations": "Submitted annotations: {count}",
       "generations": "Generations: {count}",
-      "viewMetadata": "Click to view/edit all metadata"
+      "viewMetadata": "Click to view/edit all metadata",
+      "pageAllSelected": "All {count} tasks on this page are selected.",
+      "selectAllMatching": "Select all {count} matching tasks"
     },
     "shortcuts": {
       "keyboard": "Keyboard shortcuts: Arrow keys (navigate pages), Ctrl/Cmd +/- (zoom), Ctrl/Cmd+0 (reset zoom)"
@@ -6837,7 +7119,9 @@
         "refresh": "Refresh",
         "loading": "Loading..."
       }
-    }
+    },
+    "redirectingToLogin": "You will be redirected to the login page in a few seconds.",
+    "canNowLogIn": "You can now log in to your BenGER account."
   },
   "passwordReset": {
     "title": "Reset Password",
@@ -6863,7 +7147,8 @@
     "invalidDescription": "This reset link is invalid or has already been used.",
     "mismatch": "Passwords do not match",
     "tooShort": "Password must be at least 8 characters",
-    "tooWeak": "Password is too weak"
+    "tooWeak": "Password is too weak",
+    "tryAgainLink": "try again"
   },
   "reports": {
     "intro": "Published evaluation reports: how well language models and participants performed on a project's tasks.",
@@ -6917,7 +7202,13 @@
       "statusPublic": "Public",
       "visibilityLabel": "Visibility",
       "visibleToPublic": "Publicly visible",
-      "withdraw": "Withdraw"
+      "withdraw": "Withdraw",
+      "visibleToOrgs": "Visible to project organizations",
+      "visibilityOrgs": "Project organizations only",
+      "visibilityOrgsHint": "Only signed-in members of the project organizations can read the report.",
+      "visibilityPublic": "Public (no sign-in needed)",
+      "visibilityPublicHint": "Anyone with the link can read the report.",
+      "errorVisibility": "Could not change visibility"
     },
     "view": {
       "draft": "Draft",
@@ -6987,7 +7278,13 @@
       "stdDev": "Standard deviation",
       "submissions": "{count} submissions",
       "pseudonymHint": "Participants are shown under pseudonyms only.",
-      "madeWith": "Made with"
+      "madeWith": "Made with",
+      "scaleLabels": {
+        "share": "0–1 (share)",
+        "points100": "0–100 points",
+        "gradePoints": "0–18 grade points",
+        "raw": "Raw value"
+      }
     },
     "title": "Reports",
     "description": "View published project evaluation reports",
@@ -7148,6 +7445,10 @@
         "persistContact": "If the error persists, contact support",
         "continueContact": "Contact support if the problem continues"
       }
+    },
+    "api": {
+      "invalidJson": "Invalid JSON response: {error}",
+      "networkUnreachable": "Network error: Unable to connect to API at {url}"
     }
   },
   "invitation": {
@@ -7268,7 +7569,9 @@
       "serverErrorDetails": "The server encountered an error. Please try again later.",
       "networkError": "Network error",
       "networkErrorDetails": "Unable to connect to the server. Please check your internet connection."
-    }
+    },
+    "tempFixedAt": "Temp: fixed at {value}",
+    "tempMin": "Temp: min {value}"
   },
   "howto": {
     "videoComingSoonNote": "Video tutorials will be available in a future update. For now, follow the written instructions above."
@@ -7442,6 +7745,11 @@
       "generation": "Response Generation",
       "evaluation": "Evaluation",
       "viewStatus": "Click to view detailed status →"
+    },
+    "dataTab": {
+      "loadFailed": "Failed to load tasks",
+      "exportFailed": "Failed to export tasks",
+      "exporting": "Exporting tasks"
     }
   },
   "fieldMapping": {
@@ -8072,7 +8380,8 @@
       "errorNetwork": "Please check your internet connection and try again.",
       "errorTimeout": "The request timed out. Please check your connection and try again.",
       "errorQuota": "Your API key is valid but has reached its usage limits or rate limits.",
-      "errorDefault": "Please check your API key and try again."
+      "errorDefault": "Please check your API key and try again.",
+      "keyPlaceholder": "Your {provider} API key"
     },
     "metadata": {
       "updated": "Metadata updated",
@@ -8374,7 +8683,15 @@
   "evaluations": {
     "card": {
       "moreMetrics": "+{count} more metrics",
-      "samples": "{count} samples"
+      "samples": "{count} samples",
+      "status": {
+        "completed": "Completed",
+        "failed": "Failed",
+        "pending": "Pending",
+        "running": "Running"
+      },
+      "unknownTask": "Unknown task",
+      "viewDetails": "View details"
     },
     "detail": {
       "back": "Back",
@@ -8470,7 +8787,8 @@
         "guidelineConsider": "Consider accuracy, clarity, and completeness",
         "guidelineTie": "Use \"Mark as Tie\" if both responses are equally good",
         "guidelineReveal": "You can reveal model names after making your selection",
-        "modelIdentities": "Model Identities"
+        "modelIdentities": "Model Identities",
+        "modelLabel": "Model {id}"
       }
     },
     "taskCard": {
@@ -8487,7 +8805,9 @@
       "dataProtection": "Data Protection",
       "followOnNotion": "Follow us on Notion",
       "allRightsReserved": "All rights reserved.",
-      "globalNav": "Global"
+      "globalNav": "Global",
+      "pageTitle": "Minimal Page",
+      "pageDescription": "This page has its own layout to bypass all providers and complex components."
     },
     "footer": {
       "imprint": "Imprint",
@@ -8496,6 +8816,23 @@
       "followNotion": "Follow us on Notion",
       "followGithub": "Follow us on GitHub",
       "allRightsReserved": "All rights reserved."
+    },
+    "languageSwitcher": {
+      "label": "Choose language"
+    },
+    "meta": {
+      "benger": {
+        "title": "BenGER - Trustworthy AI evaluation for German law",
+        "description": "The leading platform for scientifically grounded evaluation of large language models in the German legal context. Developed at TUM."
+      },
+      "vertretbar": {
+        "title": "Vertretbar – Practise exams with instant AI grading",
+        "description": "Practise law exams with instant AI grading and study with flashcards, no API key of your own needed."
+      }
+    },
+    "themeToggle": {
+      "switchToDark": "Switch to dark theme",
+      "switchToLight": "Switch to light theme"
     }
   },
   "data": {
@@ -8605,7 +8942,8 @@
       "metrics": "Metrics",
       "samples": "Samples",
       "duration": "Duration"
-    }
+    },
+    "loadFailed": "Failed to load runs"
   },
   "generations": {
     "detail": {
@@ -8629,7 +8967,8 @@
       "prompt": "Prompt used",
       "linkedEvaluations": "Linked evaluations",
       "metric": "Metric",
-      "scoredSamples": "Samples scored"
+      "scoredSamples": "Samples scored",
+      "loadFailed": "Failed to load generation run"
     }
   },
   "customModels": {
@@ -8832,71 +9171,38 @@
     }
   },
   "extended": {
-    "student": {
-      "billing": {
-        "blocked": {
-          "title": "AI grading not possible",
-          "notPaying": "AI grading not possible: your organization does not pay for AI grading yet.",
-          "keyMissing": "AI grading not possible: your organization has not added an API key for the grading model yet.",
-          "connectionRemoved": "AI grading not possible: the connection to the learning platform was removed.",
-          "other": "AI grading is not possible right now.",
-          "cardNotPaying": "Your organization does not pay for AI grading yet. Your submission is saved and will be graded once your organization turns AI grading on.",
-          "cardKeyMissing": "Your organization has not added an API key for the grading model yet. Your submission is saved and will be graded once the key is in place.",
-          "cardConnectionRemoved": "The connection to the learning platform was removed. Your submission stays saved.",
-          "cardOther": "AI grading is not possible right now. Your submission is saved."
-        }
+    "featureFlags": {
+      "saveFailed": "Saving failed.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} added",
+      "targetRemoved": "{target} removed",
+      "intro": "Every change applies at once, on benger and vertretbar. \"Allowlist\" enables the feature only for the listed users and for members of the listed organizations. Superadmins are not enabled automatically.",
+      "loadFailed": "Could not load the feature flags.",
+      "default": "Default: {state}",
+      "allowlistEmpty": "The list is empty, so the feature is on for nobody.",
+      "kindUser": "User",
+      "kindOrg": "Organization",
+      "addUser": "Add user",
+      "userSearch": "Name, email or pseudonym",
+      "addOrg": "Add organization",
+      "pickOrg": "Choose an organization",
+      "menu": "Feature Flags",
+      "state": {
+        "off": "Off",
+        "everyone": "Everyone",
+        "allowlist": "Allowlist"
       },
-      "examResult": {
-        "sourceHuman": "Human grade",
-        "sourceAi": "AI grade",
-        "finalLabel": "Grade",
-        "fromHuman": "from the human grading",
-        "fromAi": "from the AI grading",
-        "countsForGrade": "Counts for your grade",
-        "extraOpinion": "Additional assessment, does not count for your grade",
-        "extraShort": "Does not count for your grade"
-      },
-      "participants": {
-        "anonymized": "Anonymized",
-        "lmsNoSubmission": "No submission yet",
-        "lmsSubmitted": "Submission {date}",
-        "sourceLms": "Learning platform",
-        "sourceShare": "Share link"
-      }
-    },
-    "researchConsent": {
-      "label": "I have read and agree to the use of my anonymized data for research.",
-      "linkText": "use of my anonymized data for research",
-      "agree": "I agree",
-      "close": "Close"
-    },
-    "researchDataPolicy": {
-      "title": "Research Data Use Policy",
-      "lead": "Use of this platform is conditional on granting us rights to your usage and annotation data for our research, on the condition that the data is anonymized.",
-      "scopeTitle": "Scope",
-      "scopeText": "This policy covers the data you generate while using BenGER: annotations, corrections, generations, evaluations, and the timing and behavioural metadata that accompanies them. It does not cover personal account data — that is governed by the separate Privacy Policy.",
-      "anonymizationTitle": "Anonymization",
-      "anonymizationText": "Before any data leaves the platform for research analysis, direct identifiers (name, email, account id) are stripped or replaced with stable pseudonyms. Aggregate statistics and per-pseudonym trajectories are what get studied, not your individual identity.",
-      "useTitle": "How we use it",
-      "useText": "Anonymized data is used to study how humans and large language models perform on German legal tasks: agreement, calibration, error patterns, and the design of better evaluation methods. Results may appear in academic papers, public benchmarks, or aggregate dashboards. Raw, attributable records are not published.",
-      "consentTitle": "Your consent",
-      "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
+      "title": "Feature Flags",
+      "rubricAiDisabled": "AI help for rubrics is currently unavailable."
     },
     "lti": {
-      "orgKey": {
-        "title": "AI grading for the learning platform is not available yet",
-        "adminNotPaying": "In the “Organization API Keys” dialog, switch on “Organization provides API keys” and add a key for {providers}.",
-        "adminNotPayingSwitch": "In the “Organization API Keys” dialog, switch on “Organization provides API keys”.",
-        "adminKeyMissing": "An API key for {providers} is missing. Add it in the “Organization API Keys” dialog.",
-        "adminKeyMissingUnnamed": "An API key for the grading model is missing. Add it in the “Organization API Keys” dialog.",
-        "teacherNotPaying": "Your organization does not provide API keys for AI grading yet. Please contact your organization admin.",
-        "teacherKeyMissing": "Your organization has not added an API key for {providers} yet. Please contact your organization admin.",
-        "teacherKeyMissingUnnamed": "Your organization has not added an API key for the grading model yet. Please contact your organization admin.",
-        "pending": "Submissions from the learning platform are kept and graded once the key is in place.",
-        "pendingNotPaying": "Submissions from the learning platform are kept and graded once the organization provides API keys.",
-        "openKeys": "Open API keys"
-      },
       "admin": {
+        "colIssuer": "Issuer",
+        "issuer": "Issuer",
+        "colClientId": "Client ID",
+        "clientId": "Client ID",
+        "colDeployments": "Deployments",
+        "namePlaceholder": "Uni X {family}",
         "accounts": {
           "anonymizedBadge": "Anonymized",
           "consent": "Consent on {date} (version {version})",
@@ -9270,6 +9576,19 @@
           "deployment_disabled": "All deployment IDs of this connection are switched off. Switch one on first.",
           "grade_resend_failed": "The grades could not be scheduled. Please try again later."
         }
+      },
+      "orgKey": {
+        "title": "AI grading for the learning platform is not available yet",
+        "adminNotPaying": "In the “Organization API Keys” dialog, switch on “Organization provides API keys” and add a key for {providers}.",
+        "adminNotPayingSwitch": "In the “Organization API Keys” dialog, switch on “Organization provides API keys”.",
+        "adminKeyMissing": "An API key for {providers} is missing. Add it in the “Organization API Keys” dialog.",
+        "adminKeyMissingUnnamed": "An API key for the grading model is missing. Add it in the “Organization API Keys” dialog.",
+        "teacherNotPaying": "Your organization does not provide API keys for AI grading yet. Please contact your organization admin.",
+        "teacherKeyMissing": "Your organization has not added an API key for {providers} yet. Please contact your organization admin.",
+        "teacherKeyMissingUnnamed": "Your organization has not added an API key for the grading model yet. Please contact your organization admin.",
+        "pending": "Submissions from the learning platform are kept and graded once the key is in place.",
+        "pendingNotPaying": "Submissions from the learning platform are kept and graded once the organization provides API keys.",
+        "openKeys": "Open API keys"
       },
       "consent": {
         "continue": "Continue",
@@ -9737,6 +10056,56 @@
         "iliasHint": "Global provider, three steps",
         "otherHint": "Form with all fields"
       }
+    },
+    "student": {
+      "billing": {
+        "blocked": {
+          "title": "AI grading not possible",
+          "notPaying": "AI grading not possible: your organization does not pay for AI grading yet.",
+          "keyMissing": "AI grading not possible: your organization has not added an API key for the grading model yet.",
+          "connectionRemoved": "AI grading not possible: the connection to the learning platform was removed.",
+          "other": "AI grading is not possible right now.",
+          "cardNotPaying": "Your organization does not pay for AI grading yet. Your submission is saved and will be graded once your organization turns AI grading on.",
+          "cardKeyMissing": "Your organization has not added an API key for the grading model yet. Your submission is saved and will be graded once the key is in place.",
+          "cardConnectionRemoved": "The connection to the learning platform was removed. Your submission stays saved.",
+          "cardOther": "AI grading is not possible right now. Your submission is saved."
+        }
+      },
+      "examResult": {
+        "sourceHuman": "Human grade",
+        "sourceAi": "AI grade",
+        "finalLabel": "Grade",
+        "fromHuman": "from the human grading",
+        "fromAi": "from the AI grading",
+        "countsForGrade": "Counts for your grade",
+        "extraOpinion": "Additional assessment, does not count for your grade",
+        "extraShort": "Does not count for your grade"
+      },
+      "participants": {
+        "anonymized": "Anonymized",
+        "lmsNoSubmission": "No submission yet",
+        "lmsSubmitted": "Submission {date}",
+        "sourceLms": "Learning platform",
+        "sourceShare": "Share link"
+      }
+    },
+    "researchConsent": {
+      "label": "I have read and agree to the use of my anonymized data for research.",
+      "linkText": "use of my anonymized data for research",
+      "agree": "I agree",
+      "close": "Close"
+    },
+    "researchDataPolicy": {
+      "title": "Research Data Use Policy",
+      "lead": "Use of this platform is conditional on granting us rights to your usage and annotation data for our research, on the condition that the data is anonymized.",
+      "scopeTitle": "Scope",
+      "scopeText": "This policy covers the data you generate while using BenGER: annotations, corrections, generations, evaluations, and the timing and behavioural metadata that accompanies them. It does not cover personal account data — that is governed by the separate Privacy Policy.",
+      "anonymizationTitle": "Anonymization",
+      "anonymizationText": "Before any data leaves the platform for research analysis, direct identifiers (name, email, account id) are stripped or replaced with stable pseudonyms. Aggregate statistics and per-pseudonym trajectories are what get studied, not your individual identity.",
+      "useTitle": "How we use it",
+      "useText": "Anonymized data is used to study how humans and large language models perform on German legal tasks: agreement, calibration, error patterns, and the design of better evaluation methods. Results may appear in academic papers, public benchmarks, or aggregate dashboards. Raw, attributable records are not published.",
+      "consentTitle": "Your consent",
+      "consentText": "Ticking the consent box at signup grants this permission for as long as your data remains anonymized. Pre-existing accounts on this deployment have been treated as having consented; if you'd prefer otherwise, contact the operators."
     }
   },
   "student": {
@@ -10277,25 +10646,6 @@
       "rubricGenerating": "Proposing grading sheet… (can take 1–2 minutes)"
     }
   },
-  "vertretbar": {
-    "onboarding": {
-      "title": "Welcome to Vertretbar 👋",
-      "subtitle": "Both plans grade your exams — pick what fits. You can switch anytime.",
-      "free": {
-        "tag": "Free",
-        "price": "€0",
-        "body": "Unlimited AI grading of your exams — completely free. No credit card.",
-        "cta": "Continue free"
-      },
-      "premium": {
-        "tag": "Exam plan",
-        "price": "€5",
-        "per": " / month",
-        "body": "Exam-level grading with the stronger model — closer to a real Staatsexamen correction. 1 premium grading per week free, then €1. Cancel anytime.",
-        "cta": "Start exam plan"
-      }
-    }
-  },
   "lti": {
     "error": {
       "title": "Launch from the learning platform failed",
@@ -10337,6 +10687,12 @@
         "lmsAdmin": "Teachers ask the learning platform administration to check the tool settings.",
         "support": "Teachers contact the operator of this platform."
       }
+    },
+    "link": {
+      "extendedRequired": "LTI content linking requires the extended edition."
+    },
+    "activity": {
+      "extendedRequired": "The LMS activity view requires the extended edition."
     }
   },
   "ltiHost": {
@@ -10900,6 +11256,147 @@
       "loadMore": "Load more",
       "exportCsv": "Usage as CSV",
       "entry": "All API access keys"
+    },
+    "scopeDescriptions": {
+      "orgRead": "Read the organization and the key's own membership",
+      "projectsRead": "Read projects",
+      "tasksRead": "Read tasks (without reference solutions)",
+      "tasksReadReference": "Read tasks including reference solutions",
+      "submissionsRead": "Read submissions",
+      "submissionsWrite": "Create submissions",
+      "systemsRead": "Read registered systems",
+      "systemsManage": "Register and manage systems",
+      "runsRead": "Read runs",
+      "runsWrite": "Create runs",
+      "evaluationsRead": "Read evaluations",
+      "evaluationsRun": "Start evaluations",
+      "resultsRead": "Read results",
+      "exportsRead": "Download exports",
+      "keysManage": "Manage the owner's own access keys"
+    }
+  },
+  "architecture": {
+    "sections": {
+      "overview": {
+        "title": "Overview: open core, two interfaces, one system",
+        "intro": "BenGER is built as an **open-core system**. The public repository `benger-platform` (Apache-2.0) contains the annotation system, generation, evaluation, reports and organization management. The private package `benger-extended` supplies the proprietary extensions (exam solving, AI grading, grading and review workflows, timers, human leaderboards, LTI, the student platform) and is embedded into the same images at build time. Production runs one set of containers serving both interfaces: the expert platform on the BenGER host and the student platform on a student host of its own.",
+        "bullets": [
+          "One database, one account: the interface is decided per host and user (student or expert view), not per deployment.",
+          "The community edition (`benger-platform` alone) runs without the extensions: slots and registries stay empty, the core functions work unchanged.",
+          "Database schema and migrations for every feature, including the extended ones, live in the platform repository. The extensions bring logic, not a second migration system."
+        ]
+      },
+      "frontend": {
+        "title": "Frontend",
+        "intro": "**Next.js 15** (App Router, Turbopack) with React 18, TypeScript and Tailwind CSS. The frontend is one application with two shells: the expert shell with sidebar and configuration cards, and the student shell with learning statistics, exams and flashcards. Which shell renders is decided by the host (the student host is locked to the student shell) together with the stored user preference.",
+        "bullets": [
+          "Extension points: a slot system (`registerSlot`/`useSlot`) for whole pages and cards, registries for metrics, metric editors and cell renderers, wizard templates, project-type presets, post-create hooks, changelog and guide entries.",
+          "Three languages (German, English, French) through one translation layer; dark mode; responsive layouts.",
+          "Real time: Server-Sent Events for notifications and evaluation progress, WebSockets for running generations.",
+          "The Next server proxies API calls and sets session cookies per base domain, so organization subdomains share the session."
+        ]
+      },
+      "api": {
+        "title": "API",
+        "intro": "**FastAPI** with Pydantic v2 and SQLAlchemy 2. The API has two database lanes against the same PostgreSQL instance: the synchronous one (psycopg2) for existing code and the asynchronous one (asyncpg) that new handlers are written against. Authentication via JWT with refresh tokens; the organization context comes from the subdomain.",
+        "bullets": [
+          "Around 36 router modules: projects and tasks, import/export, generation, evaluation and immediate evaluation, organizations with groups and invitations, API keys (personal, organization, group), custom models, prompt structures, leaderboards, reports, runs, notifications, object storage, LTI administration, health.",
+          "Alembic migrations run at startup under an advisory lock; a schema validator then checks models against the database.",
+          "The model catalog (`llm_models.yaml`) is the single source for models, prices and parameter constraints and is seeded into the database at startup.",
+          "Extensions load through `extensions.py`: additional routers and lifecycle hooks (after annotation, after draft, after saving an evaluation config, on signup) with a version handshake between core and extension.",
+          "`/health` checks Postgres and Redis (required) and the workers (soft); third-party providers are deliberately not part of the liveness probe."
+        ]
+      },
+      "workers": {
+        "title": "Workers and queues",
+        "intro": "**Celery** handles everything that takes longer. Instead of one worker for everything there are six separate queues served by their own worker pools: `interactive` (immediate evaluation, drafts), `emails`, `maintenance`, `generation`, `evaluation` and `bulk` (import/export). A large batch evaluation therefore cannot block the AI grading of a single submission.",
+        "bullets": [
+          "Generation: prompt structures with `$field` references and templates, protection against answer leaks (reference fields are never inserted into prompts), multiple runs per task, provider adapters for OpenAI, Anthropic, Google, DeepInfra, Grok, Mistral, Cohere and OpenAI-compatible custom endpoints.",
+          "Evaluation: lexical, semantic and classification metrics, LLM judges (classic, custom, case solution with grade points, grading sheet), ensembles with inter-judge agreement, statistical analysis.",
+          "Beat schedule: hourly aggregate and leaderboard recomputation, half-hourly catch-up of missing immediate evaluations, nightly database backup as a Kubernetes CronJob.",
+          "Import and export run exclusively through object storage: the API accepts no large files, clients upload and download directly via presigned URLs."
+        ]
+      },
+      "storage": {
+        "title": "Data storage",
+        "intro": "Three stores, each with a clear job: **PostgreSQL** for all application data, **Redis** for queues and real time, **MinIO** (S3-compatible) for files.",
+        "bullets": [
+          "PostgreSQL: users, organizations and groups, projects, tasks, annotations, generations, evaluations, learning histories. Configurations are stored as JSONB and deep-merged server-side so parallel saves do not overwrite each other.",
+          "Redis: Celery broker, pub/sub for notifications and progress, rate limits, session cache.",
+          "MinIO: project import and export, file uploads, organization storage connections for cloud imports. Object storage is a hard dependency in both editions; without it the API does not start."
+        ]
+      },
+      "annotation": {
+        "title": "Annotation system",
+        "intro": "A native, **Label-Studio-compatible** annotation system with no external service. The interface is rendered from an XML configuration (`View`, `Text`, `TextArea`, `Choices`, `Labels`, `Rating`, `Likert`, `Number`, `Image`); the extensions register additional components for exam solving (`Angabe`, `Notizen`, `Gliederung`, `Loesung`).",
+        "bullets": [
+          "Assignment modes (open, manual, automatic), per-task limits, random order, time limits with a strict timer, access windows, drafts with restorable checkpoints.",
+          "Immediate evaluation after every submission through a server-side hook that grades each submission exactly once, even when the browser never issued the call.",
+          "Review phase and human grading (case solution, custom rubric, comments) as an extension; blinding of reference fields until submission.",
+          "Exports as JSON, CSV, TSV, TXT, Label Studio format, NDJSON and Anki; round-trip import of whole projects including annotations and evaluations."
+        ]
+      },
+      "organizations": {
+        "title": "Organizations, groups and access",
+        "intro": "Users can belong to several **organizations**; each organization has its own subdomain (`{slug}.what-a-benger.net`) and the roles admin, contributor and annotator. **Groups** (e.g. chairs) split an organization further: project attachments and API keys can be restricted to a group. Every group membership carries its own role, independent of the organization role: on a group project the group role decides, on organization-wide projects the organization role. Org admins are admin in every group; group admins manage their group without organization-wide rights.",
+        "bullets": [
+          "Project visibility: private, organization (optionally one group) or public; plus password-protected share links and a directory (*Discover*) for students. Whoever joins via link or directory gets the narrow participant tier without reference data.",
+          "API keys are stored encrypted. Resolution per call: if the organization provides keys it pays (group key before organization key), otherwise the personal key. Custom models (BYOM) always use the calling user’s key. On exams linked to a learning platform, the connection’s organization pays for the AI grading of its students from the learning platform and of its staff. Without its key, no grading runs.",
+          "Invitations by email with a seven-day token, optionally group-scoped with a group role (existing members are added to the group directly); notifications in-app and by email (SendGrid) with quiet hours and digests."
+        ]
+      },
+      "integrations": {
+        "title": "Integrations",
+        "intro": "**LTI 1.3** connects BenGER with Moodle and ILIAS. Org and group admins set up connections themselves, through a one-time invitation link (dynamic registration) or by hand, and the connection is active at once. The first launch asks for consent, once per connection, and only then creates an account or, after sign-in or email confirmation, links an existing one. Teachers link the activity to an exam. Grades (0 to 18 grade points) go back via the Assignment and Grade Service: the final grade to the activity column and, in Moodle, the AI grade to a column of its own.",
+        "bullets": [
+          "AI providers: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi and more), Grok, Mistral, Cohere. Custom OpenAI-compatible endpoints can be registered and shared; an SSRF guard blocks calls into internal networks.",
+          "Email via SendGrid, with a branded sender per host.",
+          "Organization cloud storage connections (S3) for imports straight from your own bucket."
+        ]
+      },
+      "deployment": {
+        "title": "Operations, deployment and CI",
+        "intro": "Production runs on **Kubernetes (K3s)** with Helm, split into a production and a staging environment. Traefik terminates TLS with wildcard certificates for both hosts and routes organization subdomains to the same frontend instance.",
+        "bullets": [
+          "Deployments: API and frontend with two replicas each and rolling updates, worker pools per queue, Celery beat, MinIO, PostgreSQL, Redis, a migration job before every rollout and a nightly backup CronJob. Autoscaling is prepared but switched off.",
+          "CI/CD: pull requests on the platform repository run Jest and lint; a merge to `main` additionally runs the full API and worker suites (six parallel shards) and then triggers the build in the extended repository, which pushes the images to GHCR and rolls out production. Pull requests in the extended repository deploy to staging.",
+          "Nightly runs: the complete test suite including end-to-end tests, coverage ratchets and mutation testing; a drift check compares the model catalog with the database.",
+          "Local development with Docker Compose and Traefik under `benger.localhost` and a local student host, hot reload via Turbopack, isolated test infrastructure (PostgreSQL 5433, Redis 6380, its own MinIO)."
+        ]
+      }
+    }
+  },
+  "demo": {
+    "envBadge": {
+      "label": "Demo environment",
+      "body": "This environment shows sample content. All changes and newly created accounts are reset every night at 4 am (Berlin time)."
+    }
+  },
+  "dev": {
+    "modeIndicator": {
+      "tooltip": "Development mode with auto-authentication enabled",
+      "badge": "DEV MODE",
+      "title": "Development mode active",
+      "authenticatedAs": "Auto-authenticated as:",
+      "emailLabel": "Email:",
+      "hostLabel": "Host:",
+      "superadminLabel": "Superadmin:"
+    }
+  },
+  "dialogs": {
+    "deleteConfirm": {
+      "title": "Confirm deletion",
+      "message": "Are you sure you want to delete {item}? This action cannot be undone.",
+      "thisItem": "this item",
+      "thisMember": "this member",
+      "namedUser": "the user \"{name}\""
+    }
+  },
+  "labelConfig": {
+    "parser": {
+      "invalidXml": "Invalid XML",
+      "noRoot": "No root element found",
+      "unknownError": "Unknown parsing error"
     }
   }
 }

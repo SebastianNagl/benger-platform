@@ -3,6 +3,7 @@
  *
  * /architecture renders every section of data/architecture.ts in the
  * active locale, with anchors, the overview diagram and a table of contents.
+ * The copy comes from the catalog (architecture.sections.<id>).
  */
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
@@ -11,6 +12,7 @@ import {
   ARCHITECTURE_DIAGRAM,
   ARCHITECTURE_SECTIONS,
 } from '@/data/architecture'
+import { getMessages, lookup } from '@/lib/i18n/catalog'
 
 import ArchitecturePage from '../page'
 
@@ -18,7 +20,10 @@ let mockLocale = 'de'
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     locale: mockLocale,
-    t: (key: string, fallback?: string) => fallback ?? key,
+    t: (key: string, vars?: Record<string, unknown>) =>
+      jest
+        .requireActual('@/lib/i18n/catalog')
+        .translateKey(mockLocale, key, vars),
   }),
 }))
 jest.mock('@/components/shared/ResponsiveContainer', () => ({
@@ -46,7 +51,9 @@ describe('ArchitecturePage', () => {
     for (const s of ARCHITECTURE_SECTIONS) {
       const section = screen.getByTestId(`architecture-${s.id}`)
       expect(section).toHaveAttribute('id', s.id)
-      expect(section.querySelector('h2')).toHaveTextContent(s.title.de)
+      expect(section.querySelector('h2')).toHaveTextContent(
+        String(lookup('de', `architecture.sections.${s.id}.title`)),
+      )
     }
   })
 
@@ -80,23 +87,34 @@ describe('ArchitecturePage', () => {
 })
 
 describe('ARCHITECTURE_SECTIONS content rules', () => {
-  it('has unique ids and parallel bilingual bullet lists', () => {
+  const copy = () =>
+    JSON.stringify(
+      (['de', 'en', 'fr'] as const).map(
+        (locale) => (getMessages(locale).architecture as any)?.sections,
+      ),
+    )
+
+  it('has unique ids and parallel bullet lists in every locale', () => {
     const ids = ARCHITECTURE_SECTIONS.map((s) => s.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const s of ARCHITECTURE_SECTIONS) {
-      expect(s.bullets.de.length).toBe(s.bullets.en.length)
-      expect(s.bullets.de.length).toBeGreaterThan(0)
+      const key = `architecture.sections.${s.id}.bullets`
+      const de = lookup('de', key) as string[]
+      expect(Array.isArray(de)).toBe(true)
+      expect(de.length).toBeGreaterThan(0)
+      expect(lookup('en', key)).toHaveLength(de.length)
+      expect(lookup('fr', key)).toHaveLength(de.length)
     }
   })
 
   it('stays brand-neutral and names no internal infrastructure', () => {
-    const text = JSON.stringify(ARCHITECTURE_SECTIONS) + ARCHITECTURE_DIAGRAM
+    const text = copy() + ARCHITECTURE_DIAGRAM
     expect(text).not.toMatch(/vertretbar/i)
     expect(text).not.toMatch(/benger-staging|namespace/i)
   })
 
   it('does not advertise things that do not exist', () => {
-    const text = JSON.stringify(ARCHITECTURE_SECTIONS)
+    const text = copy()
     expect(text).not.toMatch(/COCO|CoNLL|Horizontal Pod Autoscal/i)
   })
 })

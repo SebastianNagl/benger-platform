@@ -230,7 +230,7 @@ describe('AuthFailureHandler Component', () => {
       await handler()
 
       expect(mockAddToast).toHaveBeenCalledWith(
-        'Your session has expired. Please log in again.',
+        'toasts.auth.sessionExpired',
         'warning',
       )
     })

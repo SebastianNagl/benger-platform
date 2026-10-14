@@ -55,6 +55,7 @@ jest.mock('@/contexts/I18nContext', () => ({
         'passwordReset.emailLabel': 'Email Address',
         'passwordReset.emailPlaceholder': 'you@example.com',
         'passwordReset.send': 'Send Reset Link',
+        'passwordReset.tryAgainLink': 'try again',
         'passwordReset.sending': 'Sending...',
         'passwordReset.sent': 'Check Your Email',
         'passwordReset.sentDescription':
@@ -65,6 +66,7 @@ jest.mock('@/contexts/I18nContext', () => ({
       }
       return translations[key] || key
     },
+    locale: 'en',
     currentLanguage: 'en',
   }),
 }))
@@ -559,7 +561,7 @@ describe('Reset Password Page', () => {
     it('nav has aria-label', () => {
       const { container } = render(<ResetPasswordPage />)
       const nav = container.querySelector('nav')
-      expect(nav).toHaveAttribute('aria-label', 'Global')
+      expect(nav).toHaveAttribute('aria-label', 'layout.minimal.globalNav')
     })
 
     it('logo has screen reader text', () => {

@@ -3,6 +3,8 @@
  * Issue #220: Support flexible data structures with dynamic field access
  */
 
+import { intlTag, readStoredLocale } from '@/lib/i18n/locales'
+
 /**
  * Get value from nested object using dot notation path
  * @param data - The data object to traverse
@@ -142,7 +144,7 @@ export function formatValue(value: any): string {
   }
 
   if (value instanceof Date) {
-    return value.toLocaleDateString()
+    return value.toLocaleDateString(intlTag(readStoredLocale()))
   }
 
   if (Array.isArray(value)) {

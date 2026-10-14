@@ -27,8 +27,7 @@ jest.mock('date-fns/locale', () => ({ de: {} }))
 
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, defaultValue?: any) =>
-      typeof defaultValue === 'string' ? defaultValue : key,
+    t: (key: string, _vars?: Record<string, unknown>) => key,
     locale: 'en',
   }),
 }))

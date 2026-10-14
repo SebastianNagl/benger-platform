@@ -80,19 +80,14 @@ export function RankingTable({
     <div className="mb-8" data-testid={testId}>
       <SubHeading>{title}</SubHeading>
       {rows.length === 0 ? (
-        <QuietNote>
-          {t(
-            'reports.view.noSeries',
-            'Für diese Metrik liegen keine Werte vor.',
-          )}
-        </QuietNote>
+        <QuietNote>{t('reports.view.noSeries')}</QuietNote>
       ) : (
         <div className="overflow-x-auto rounded-md border border-zinc-200 dark:border-zinc-800">
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
             <thead className="bg-zinc-50 dark:bg-zinc-900/60">
               <tr>
                 <th scope="col" className={clsx(TH, 'w-14')}>
-                  {t('reports.view.rank', 'Rang')}
+                  {t('reports.view.rank')}
                 </th>
                 <th scope="col" className={TH}>
                   {subjectHeader}
@@ -102,12 +97,12 @@ export function RankingTable({
                 </th>
                 {hasGrade && (
                   <th scope="col" className={clsx(TH, NUM)}>
-                    {t('reports.view.gradePoints', 'Notenpunkte')}
+                    {t('reports.view.gradePoints')}
                   </th>
                 )}
                 {hasPassRate && (
                   <th scope="col" className={clsx(TH, NUM)}>
-                    {t('reports.view.passRate', 'Bestanden')}
+                    {t('reports.view.passRate')}
                   </th>
                 )}
                 <th scope="col" className={clsx(TH, NUM)}>

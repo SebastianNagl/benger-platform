@@ -543,7 +543,7 @@ describe('OrgApiKeys', () => {
         expect(screen.getByText('Organization API Keys')).toBeInTheDocument()
       })
 
-      fireEvent.click(screen.getByLabelText('Close modal'))
+      fireEvent.click(screen.getByLabelText('common.close'))
 
       expect(onOpenChange).toHaveBeenCalledWith(false)
     })
@@ -1197,7 +1197,7 @@ describe('OrgApiKeys', () => {
     const MODEL_UNCONFIGURED = {
       id: 'custom-abc',
       name: 'My vLLM',
-      provider: 'Custom',
+      provider: 'project.modelSelection.customPreset',
       base_url: 'http://10.0.0.5:8000/v1',
       endpoint_model_name: 'llama-3-8b',
       requires_api_key: true,
@@ -1206,7 +1206,7 @@ describe('OrgApiKeys', () => {
     const MODEL_CONFIGURED = {
       id: 'custom-def',
       name: 'Shared GPU Model',
-      provider: 'Custom',
+      provider: 'project.modelSelection.customPreset',
       base_url: 'http://10.0.0.6:8000/v1',
       endpoint_model_name: 'qwen-72b',
       requires_api_key: true,

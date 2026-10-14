@@ -49,22 +49,10 @@ jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => mockAuth,
 }))
 
-// The real provider interpolates {name} placeholders into the German default.
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (
-      key: string,
-      fallback?: string | Record<string, unknown>,
-      vars?: Record<string, unknown>,
-    ) => {
-      const text = typeof fallback === 'string' ? fallback : key
-      const values = (typeof fallback === 'string' ? vars : fallback) ?? {}
-      return text.replace(/\{(\w+)\}/g, (match, name) =>
-        name in values ? String(values[name]) : match,
-      )
-    },
-  }),
-}))
+// The real catalog interpolates {name} placeholders into the German copy.
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 // The judged project names no judge, so it runs on DEFAULT_MODEL_ID.
 const CATALOG = [

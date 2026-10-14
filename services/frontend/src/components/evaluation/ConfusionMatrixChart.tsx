@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import dynamic from 'next/dynamic'
 import { useMemo } from 'react'
 
@@ -37,7 +38,7 @@ export function ConfusionMatrixChart({
   width = 700,
   height = 700,
 }: ConfusionMatrixChartProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const plotData = useMemo(() => {
     const { labels, matrix } = data
@@ -141,7 +142,7 @@ export function ConfusionMatrixChart({
             {t('evaluation.confusionMatrix.overallAccuracy')}:{' '}
           </span>
           <span className="text-lg font-semibold text-emerald-600 tabular-nums dark:text-emerald-400">
-            {(data.accuracy * 100).toFixed(2)}%
+            {formatDecimal(data.accuracy * 100, locale, 2)}%
           </span>
         </div>
 
@@ -160,7 +161,12 @@ export function ConfusionMatrixChart({
                     {t('evaluation.confusionMatrix.precision')}:
                   </span>
                   <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
-                    {((data.precision_per_class[label] || 0) * 100).toFixed(1)}%
+                    {formatDecimal(
+                      (data.precision_per_class[label] || 0) * 100,
+                      locale,
+                      1,
+                    )}
+                    %
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -168,7 +174,12 @@ export function ConfusionMatrixChart({
                     {t('evaluation.confusionMatrix.recall')}:
                   </span>
                   <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
-                    {((data.recall_per_class[label] || 0) * 100).toFixed(1)}%
+                    {formatDecimal(
+                      (data.recall_per_class[label] || 0) * 100,
+                      locale,
+                      1,
+                    )}
+                    %
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -176,7 +187,12 @@ export function ConfusionMatrixChart({
                     {t('evaluation.confusionMatrix.f1')}:
                   </span>
                   <span className="font-medium text-zinc-900 tabular-nums dark:text-white">
-                    {((data.f1_per_class[label] || 0) * 100).toFixed(1)}%
+                    {formatDecimal(
+                      (data.f1_per_class[label] || 0) * 100,
+                      locale,
+                      1,
+                    )}
+                    %
                   </span>
                 </div>
               </div>

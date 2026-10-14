@@ -46,6 +46,7 @@ import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
+import { mockUseI18n as mockUseI18nValue } from '@/test-utils/i18nMock'
 import { GlobalDataTab } from '../GlobalDataTab'
 
 // Type assertion for mocked methods
@@ -235,61 +236,7 @@ describe('GlobalDataTab', () => {
     mockUseAuth.mockReturnValue({
       user: mockUser,
     } as any)
-    mockUseI18n.mockReturnValue({
-      t: (key: string, vars?: Record<string, any>) => {
-        const translations: Record<string, string> = {
-          'common.loading': 'Loading...',
-          'common.pagination.perPage': 'Per page:',
-          'common.pagination.previousPage': 'Previous page',
-          'common.pagination.nextPage': 'Next page',
-          'common.pagination.showingResults':
-            'Showing {start} to {end} of {total} results',
-          'data.management.loadingTasks': 'Loading tasks...',
-          'data.management.search': 'Search',
-          'data.management.actions': 'Actions',
-          'data.management.tasksSelected': '{count} task(s) selected',
-          'data.management.markComplete': 'Mark as Complete',
-          'data.management.markIncomplete': 'Mark as Incomplete',
-          'data.management.exportJson': 'Export as JSON',
-          'data.management.exportCsv': 'Export as CSV',
-          'data.management.columns': 'Columns',
-          'data.management.showHideColumns': 'Show/Hide Columns',
-          'data.management.filters': 'Filters',
-          'data.management.orderBy': 'Order by',
-          'data.management.sortBy': 'Sort by',
-          'data.management.createdDate': 'Created Date',
-          'data.management.updatedDate': 'Updated Date',
-          'data.management.status': 'Status',
-          'data.management.taskId': 'Task ID',
-          'data.management.totalTasks': '{count} total tasks',
-          'data.management.selected': '{count} selected',
-          'data.management.searchPlaceholder': 'Search tasks...',
-          'data.management.all': 'All',
-          'data.management.completed': 'Completed',
-          'data.management.incomplete': 'Incomplete',
-          'data.management.inProgress': 'In Progress',
-          'data.management.created': 'Created',
-          'data.management.updated': 'Updated',
-          'data.management.order': 'Order',
-          'data.management.newestFirst': 'Newest First',
-          'data.management.oldestFirst': 'Oldest First',
-          'data.management.columnId': 'ID',
-          'data.management.columnProject': 'Project',
-          'data.management.columnAssignedTo': 'Assigned To',
-          'data.management.columnAnnotations': 'Annotations',
-          'data.management.columnEdit': 'Edit',
-          'data.management.complete': 'Complete',
-        }
-        let result = translations[key] || key
-        if (vars && typeof vars === 'object') {
-          Object.entries(vars).forEach(([k, v]) => {
-            result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
-          })
-        }
-        return result
-      },
-      locale: 'en',
-    } as any)
+    mockUseI18n.mockReturnValue(mockUseI18nValue('en') as any)
     global.fetch = jest.fn()
   })
 
@@ -670,7 +617,7 @@ describe('GlobalDataTab', () => {
       // Wait for the toast to be called
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
-          'Tasks marked as completed',
+          'Tasks marked as completed successfully',
           'success',
         )
       })
@@ -708,7 +655,7 @@ describe('GlobalDataTab', () => {
 
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
-          'Tasks marked as incomplete',
+          'Tasks marked as incomplete successfully',
           'success',
         )
       })
@@ -768,7 +715,10 @@ describe('GlobalDataTab', () => {
         )
       })
 
-      expect(mockShowToast).toHaveBeenCalledWith('Export completed', 'success')
+      expect(mockShowToast).toHaveBeenCalledWith(
+        'Export completed successfully',
+        'success',
+      )
     })
 
     it('exports selected tasks as CSV', async () => {

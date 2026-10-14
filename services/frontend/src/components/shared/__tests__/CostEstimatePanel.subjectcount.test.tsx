@@ -11,12 +11,9 @@ import '@testing-library/jest-dom'
 import { render, screen, waitFor } from '@testing-library/react'
 import { CostEstimatePanel } from '../CostEstimatePanel'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 const mockAddToast = jest.fn()
 jest.mock('@/components/shared/Toast', () => ({
@@ -84,7 +81,7 @@ describe('CostEstimatePanel — subject_count (eval-with-configs) path', () => {
       />,
     )
 
-    await waitFor(() => expect(screen.getByText('$4.00')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('$4,00')).toBeInTheDocument())
 
     // Per-cell breakdown line (subject_count > 0 branch) instead of the
     // tasks×runs×models legacy line.
@@ -116,7 +113,7 @@ describe('CostEstimatePanel — subject_count (eval-with-configs) path', () => {
       />,
     )
 
-    await waitFor(() => expect(screen.getByText('$4.00')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('$4,00')).toBeInTheDocument())
     const hint = screen.getByText('ⓘ')
     // new Date('not-a-real-date').toLocaleTimeString() === 'Invalid Date',
     // so the catch re-uses the raw string. Either way the title is present;

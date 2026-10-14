@@ -219,7 +219,9 @@ describe('VerifyTokenPage', () => {
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
-        expect(screen.getByText(/You will be redirected/i)).toBeInTheDocument()
+        expect(
+          screen.getByText('emailVerification.redirectingToLogin'),
+        ).toBeInTheDocument()
       })
     })
   })

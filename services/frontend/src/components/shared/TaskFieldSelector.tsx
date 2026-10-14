@@ -56,7 +56,7 @@ export function TaskFieldSelector({
         const response = await projectsAPI.getTaskFields(projectId)
         setFields(response.fields)
       } catch (err) {
-        setError(t('taskFields.fetchError', 'Failed to load available fields'))
+        setError(t('taskFields.fetchError'))
         console.error('Failed to fetch task fields:', err)
       } finally {
         setLoading(false)
@@ -91,9 +91,7 @@ export function TaskFieldSelector({
         )}
       >
         <LoadingSpinner size="small" />
-        <span className="text-sm text-zinc-500">
-          {t('taskFields.loading', 'Loading fields...')}
-        </span>
+        <span className="text-sm text-zinc-500">{t('taskFields.loading')}</span>
       </div>
     )
   }
@@ -127,10 +125,7 @@ export function TaskFieldSelector({
               setManualValue('')
             }
           }}
-          placeholder={t(
-            'taskFields.manualPlaceholder',
-            'e.g., $context.field',
-          )}
+          placeholder={t('taskFields.manualPlaceholder')}
           className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
           autoFocus
         />
@@ -138,7 +133,7 @@ export function TaskFieldSelector({
           onClick={handleManualSubmit}
           className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
         >
-          {t('common.add', 'Add')}
+          {t('common.add')}
         </button>
         <button
           onClick={() => {
@@ -147,7 +142,7 @@ export function TaskFieldSelector({
           }}
           className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
-          {t('common.cancel', 'Cancel')}
+          {t('common.cancel')}
         </button>
       </div>
     )
@@ -185,7 +180,7 @@ export function TaskFieldSelector({
                   {value}
                 </code>
               ) : (
-                placeholder || t('taskFields.selectField', 'Select a field...')
+                placeholder || t('taskFields.selectField')
               )}
             </span>
             <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -199,14 +194,14 @@ export function TaskFieldSelector({
           <Listbox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm dark:bg-zinc-800">
             {fields.length === 0 ? (
               <div className="px-4 py-2 text-sm text-zinc-500">
-                {t('taskFields.noFields', 'No fields found in task data')}
+                {t('taskFields.noFields')}
               </div>
             ) : (
               <>
                 {topLevelFields.length > 0 && (
                   <div>
                     <div className="px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-                      {t('taskFields.topLevelFields', 'Top-level Fields')}
+                      {t('taskFields.topLevelFields')}
                     </div>
                     {topLevelFields.map((field) => (
                       <FieldOption key={field.path} field={field} />
@@ -217,7 +212,7 @@ export function TaskFieldSelector({
                 {nestedFields.length > 0 && (
                   <div>
                     <div className="mt-2 border-t border-zinc-200 px-3 py-1.5 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:border-zinc-700 dark:text-zinc-400">
-                      {t('taskFields.nestedFields', 'Nested Fields')}
+                      {t('taskFields.nestedFields')}
                     </div>
                     {nestedFields.map((field) => (
                       <FieldOption key={field.path} field={field} />
@@ -234,7 +229,7 @@ export function TaskFieldSelector({
                       }}
                       className="w-full px-4 py-2 text-left text-sm text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                     >
-                      {t('taskFields.enterManually', 'Enter custom path...')}
+                      {t('taskFields.enterManually')}
                     </button>
                   </div>
                 )}

@@ -8,10 +8,11 @@
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 
+import { createMockT } from '@/test-utils/i18nMock'
+
 import { ProjectMetadataCard } from '../ProjectMetadataCard'
 
-const t = (key: string, fallback?: any) =>
-  typeof fallback === 'string' ? fallback : key
+const t = createMockT('de')
 
 const project = (overrides: Record<string, any> = {}) =>
   ({

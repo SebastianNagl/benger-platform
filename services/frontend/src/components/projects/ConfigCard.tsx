@@ -11,6 +11,7 @@
 
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
 import { useState, type ReactNode } from 'react'
 
 interface ConfigCardProps {
@@ -36,6 +37,7 @@ export function ConfigCard({
   saving,
   children,
 }: ConfigCardProps) {
+  const { t } = useI18n()
   const [expanded, setExpanded] = useState(defaultExpanded)
 
   return (
@@ -80,7 +82,9 @@ export function ConfigCard({
                 saving ? 'animate-pulse bg-emerald-500' : 'bg-amber-500'
               }`}
             />
-            {saving ? 'Speichert…' : 'Ungespeicherte Änderungen'}
+            {saving
+              ? t('project.configCard.saving')
+              : t('project.configCard.unsavedChanges')}
           </span>
         )}
       </div>

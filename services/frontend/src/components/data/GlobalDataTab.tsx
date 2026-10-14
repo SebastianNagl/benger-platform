@@ -160,7 +160,7 @@ export function GlobalDataTab() {
       setTotalTasks(response.total)
     } catch (error) {
       console.error('Failed to fetch tasks:', error)
-      showToast('Failed to load tasks', 'error')
+      showToast(t('toasts.dataTab.loadFailed'), 'error')
     } finally {
       setLoading(false)
     }
@@ -174,6 +174,7 @@ export function GlobalDataTab() {
     projectFilter,
     assignedFilter,
     showToast,
+    t,
   ])
 
   // Initial load
@@ -210,11 +211,11 @@ export function GlobalDataTab() {
         '/data/bulk-update-status?is_labeled=true',
         Array.from(selectedTasks),
       )
-      showToast('Tasks marked as completed', 'success')
+      showToast(t('toasts.tasks.markedComplete'), 'success')
       fetchTasks()
       setSelectedTasks(new Set())
     } catch (error) {
-      showToast('Failed to update tasks', 'error')
+      showToast(t('toasts.tasks.updateFailed'), 'error')
     }
   }
 
@@ -227,11 +228,11 @@ export function GlobalDataTab() {
         '/data/bulk-update-status?is_labeled=false',
         Array.from(selectedTasks),
       )
-      showToast('Tasks marked as incomplete', 'success')
+      showToast(t('toasts.tasks.markedIncomplete'), 'success')
       fetchTasks()
       setSelectedTasks(new Set())
     } catch (error) {
-      showToast('Failed to update tasks', 'error')
+      showToast(t('toasts.tasks.updateFailed'), 'error')
     }
   }
 
@@ -243,7 +244,9 @@ export function GlobalDataTab() {
     // restarts the same toast.
     const progressId = 'global-data-export'
     try {
-      startProgress(progressId, 'Exporting tasks', { indeterminate: true })
+      startProgress(progressId, t('toasts.dataTab.exporting'), {
+        indeterminate: true,
+      })
 
       const params = new URLSearchParams({ format })
       if (selectedTasks.size > 0) {
@@ -268,10 +271,10 @@ export function GlobalDataTab() {
       window.URL.revokeObjectURL(url)
 
       completeProgress(progressId, 'success')
-      showToast('Export completed', 'success')
+      showToast(t('toasts.tasks.exportCompleted'), 'success')
     } catch (error) {
       completeProgress(progressId, 'error')
-      showToast('Failed to export tasks', 'error')
+      showToast(t('toasts.dataTab.exportFailed'), 'error')
     }
   }
 

@@ -6,38 +6,10 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EvaluationDashboard } from '../EvaluationDashboard'
 
-// Mock i18n
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (key: string, params?: Record<string, any>) => {
-      const translations: Record<string, string> = {
-        'evaluation.dashboard.title': 'Evaluation Dashboard',
-        'evaluation.dashboard.description': 'Compare model performance',
-        'evaluation.dashboard.selectProject': 'Select Project',
-        'evaluation.dashboard.selectProjectPrompt': 'Select a project to begin',
-        'evaluation.dashboard.totalEvaluations': 'Total Evaluations',
-        'evaluation.dashboard.modelsEvaluated': 'Models Evaluated',
-        'evaluation.dashboard.bestModel': 'Best Model',
-        'evaluation.dashboard.averageScore': 'Average Score',
-        'evaluation.dashboard.noModelsEvaluated': 'No models evaluated',
-        'evaluation.dashboard.modelLeaderboard': 'Model Leaderboard',
-        'evaluation.dashboard.modelComparisonRadar': 'Model Comparison (Radar)',
-        'evaluation.dashboard.modelComparisonBar': 'Model Comparison (Bar)',
-        'evaluation.dashboard.statisticalSignificance':
-          'Statistical Significance',
-        'evaluation.dashboard.significanceDescription':
-          'Pairwise significance tests',
-        'evaluation.dashboard.modelA': 'Model A',
-        'evaluation.dashboard.modelB': 'Model B',
-        'evaluation.dashboard.metric': 'Metric',
-        'evaluation.dashboard.pValue': 'p-value',
-        'evaluation.dashboard.significance': 'Significance',
-        'evaluation.dashboard.effectSize': 'Effect Size',
-      }
-      return translations[key] || key
-    },
-  }),
-}))
+// Catalog-backed English t()
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('en'),
+)
 
 // Mock API client
 const mockGetProject = jest.fn()
@@ -189,7 +161,11 @@ describe('EvaluationDashboard', () => {
     it('renders the dashboard title and description', () => {
       render(<EvaluationDashboard />)
       expect(screen.getByText('Evaluation Dashboard')).toBeInTheDocument()
-      expect(screen.getByText('Compare model performance')).toBeInTheDocument()
+      expect(
+        screen.getByText(
+          'Compare model performance across metrics with statistical rigor',
+        ),
+      ).toBeInTheDocument()
     })
 
     it('renders the project selector', () => {
@@ -199,7 +175,9 @@ describe('EvaluationDashboard', () => {
 
     it('shows select project prompt when no project is selected', () => {
       render(<EvaluationDashboard />)
-      expect(screen.getByText('Select a project to begin')).toBeInTheDocument()
+      expect(
+        screen.getByText('Select a project to view evaluation results'),
+      ).toBeInTheDocument()
     })
   })
 
@@ -224,7 +202,9 @@ describe('EvaluationDashboard', () => {
       // The error is set via setError but since selectedProject is never set,
       // the error card is not shown in the project content area
       // However the prompt card is still shown
-      expect(screen.getByText('Select a project to begin')).toBeInTheDocument()
+      expect(
+        screen.getByText('Select a project to view evaluation results'),
+      ).toBeInTheDocument()
       consoleSpy.mockRestore()
     })
   })

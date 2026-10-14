@@ -47,7 +47,9 @@ describe('Issue #231: Button Selector Fix', () => {
 
       const button = screen.getByTestId('language-switcher')
       expect(button).toHaveAttribute('aria-label')
-      expect(button.getAttribute('aria-label')).toMatch(/Language:/)
+      expect(button.getAttribute('aria-label')).toMatch(
+        /^Choose language: English$/,
+      )
     })
   })
 
@@ -74,16 +76,24 @@ describe('Issue #231: Button Selector Fix', () => {
 
       const button = screen.getByTestId('theme-toggle')
       expect(button).toHaveAttribute('aria-label')
-      expect(button.getAttribute('aria-label')).toMatch(/Switch to/)
+      expect(button.getAttribute('aria-label')).toMatch(
+        /^Switch to (dark|light) theme$/,
+      )
     })
   })
 })
 
-// Mock I18nContext
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: jest.fn(() => ({
-    t: (key: string) => key,
-    currentLanguage: 'en',
-    changeLanguage: jest.fn(),
-  })),
-}))
+// Catalog-backed i18n mock (English) plus the extra context fields the
+// switcher touches.
+jest.mock('@/contexts/I18nContext', () => {
+  const m = require('@/test-utils/i18nMock').i18nMock('en')
+  return {
+    ...m,
+    useI18n: () => ({
+      ...m.useI18n(),
+      currentLanguage: 'en',
+      changeLanguage: jest.fn(),
+      changeLocale: jest.fn(),
+    }),
+  }
+})

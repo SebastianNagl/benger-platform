@@ -4,6 +4,7 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
 import { useI18n } from '@/contexts/I18nContext'
 import type { ProfileHistoryEntry } from '@/lib/api/types'
+import { intlTag } from '@/lib/i18n/locales'
 
 interface ProfileHistorySectionProps {
   profileHistory: ProfileHistoryEntry[]
@@ -16,7 +17,7 @@ export function ProfileHistorySection({
   expanded,
   onToggle,
 }: ProfileHistorySectionProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   return (
     <div className="border-t border-zinc-200 pt-8 dark:border-zinc-700">
@@ -54,7 +55,7 @@ export function ProfileHistorySection({
                   {entry.change_type}
                 </span>
                 <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {new Date(entry.changed_at).toLocaleString()}
+                  {new Date(entry.changed_at).toLocaleString(intlTag(locale))}
                 </span>
               </div>
               <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">

@@ -56,6 +56,7 @@ class ScopeDef:
     name: str
     description_de: str
     description_en: str
+    description_fr: str
     implies: Tuple[str, ...] = ()
     grantable: str = "any"
     source: str = "platform"
@@ -65,6 +66,7 @@ class ScopeDef:
             "name": self.name,
             "description_de": self.description_de,
             "description_en": self.description_en,
+            "description_fr": self.description_fr,
             "implies": list(self.implies),
             "grantable": self.grantable,
             "source": self.source,
@@ -76,49 +78,79 @@ _BUILTIN: Tuple[ScopeDef, ...] = (
         "org:read",
         "Organisation und eigene Mitgliedschaft lesen",
         "Read the organization and the key's own membership",
+        "Lire l'organisation et l'appartenance de la clé",
     ),
-    ScopeDef("projects:read", "Projekte lesen", "Read projects"),
+    ScopeDef("projects:read", "Projekte lesen", "Read projects", "Lire les projets"),
     ScopeDef(
         "tasks:read",
         "Aufgaben lesen (ohne Lösungshinweise)",
         "Read tasks (without reference solutions)",
+        "Lire les tâches (sans corrigés types)",
     ),
     ScopeDef(
         "tasks:read_reference",
         "Aufgaben mit Musterlösungen lesen",
         "Read tasks including reference solutions",
+        "Lire les tâches avec les corrigés types",
         implies=("tasks:read",),
         grantable="full_data_role",
     ),
-    ScopeDef("submissions:read", "Einreichungen lesen", "Read submissions"),
+    ScopeDef(
+        "submissions:read",
+        "Einreichungen lesen",
+        "Read submissions",
+        "Lire les soumissions",
+    ),
     ScopeDef(
         "submissions:write",
         "Einreichungen anlegen",
         "Create submissions",
+        "Créer des soumissions",
         implies=("submissions:read",),
     ),
-    ScopeDef("systems:read", "Registrierte Systeme lesen", "Read registered systems"),
+    ScopeDef(
+        "systems:read",
+        "Registrierte Systeme lesen",
+        "Read registered systems",
+        "Lire les systèmes enregistrés",
+    ),
     ScopeDef(
         "systems:manage",
         "Systeme registrieren und verwalten",
         "Register and manage systems",
+        "Enregistrer et gérer des systèmes",
         implies=("systems:read",),
     ),
-    ScopeDef("runs:read", "Läufe lesen", "Read runs"),
-    ScopeDef("runs:write", "Läufe anlegen", "Create runs", implies=("runs:read",)),
-    ScopeDef("evaluations:read", "Evaluationen lesen", "Read evaluations"),
+    ScopeDef("runs:read", "Läufe lesen", "Read runs", "Lire les exécutions"),
+    ScopeDef(
+        "runs:write",
+        "Läufe anlegen",
+        "Create runs",
+        "Créer des exécutions",
+        implies=("runs:read",),
+    ),
+    ScopeDef(
+        "evaluations:read",
+        "Evaluationen lesen",
+        "Read evaluations",
+        "Lire les évaluations",
+    ),
     ScopeDef(
         "evaluations:run",
         "Evaluationen starten",
         "Start evaluations",
+        "Lancer des évaluations",
         implies=("evaluations:read",),
     ),
-    ScopeDef("results:read", "Ergebnisse lesen", "Read results"),
-    ScopeDef("exports:read", "Exporte abrufen", "Download exports"),
+    ScopeDef("results:read", "Ergebnisse lesen", "Read results", "Lire les résultats"),
+    ScopeDef(
+        "exports:read", "Exporte abrufen", "Download exports", "Télécharger les exports"
+    ),
     ScopeDef(
         "keys:manage",
         "Eigene Zugangsschlüssel verwalten",
         "Manage the owner's own access keys",
+        "Gérer ses propres clés d'accès",
         grantable="personal_only",
     ),
 )
@@ -183,6 +215,7 @@ def register_scopes(mapping: Mapping[str, Mapping], source: str = "overlay") -> 
             name=name,
             description_de=str(spec.get("description_de") or description),
             description_en=str(spec.get("description_en") or description),
+            description_fr=str(spec.get("description_fr") or description),
             implies=tuple(spec.get("implies") or ()),
             grantable=grantable,
             source=source,

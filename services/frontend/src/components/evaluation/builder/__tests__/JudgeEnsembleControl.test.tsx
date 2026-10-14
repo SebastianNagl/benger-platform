@@ -18,21 +18,10 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { JudgeEnsembleControl } from '../JudgeEnsembleControl'
 
-// i18n: key passthrough, fallback string honored (same pattern as the
-// EvaluationBuilder suites).
+// i18n: plain key passthrough, assertions target the translation keys.
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallbackOrVars?: any) => {
-      if (typeof fallbackOrVars === 'string') return fallbackOrVars
-      if (fallbackOrVars && typeof fallbackOrVars === 'object') {
-        let result = key
-        for (const [k, v] of Object.entries(fallbackOrVars)) {
-          result = result.replace(`{${k}}`, String(v))
-        }
-        return result
-      }
-      return key
-    },
+    t: (key: string, _vars?: Record<string, unknown>) => key,
   }),
 }))
 
@@ -235,7 +224,9 @@ describe('JudgeEnsembleControl — stale saved judges (#274 item 6)', () => {
     expect(orphan).toHaveTextContent('custom-deleted')
 
     // Removing it writes the config WITHOUT the orphan but keeps the rest.
-    await user.click(screen.getByText('Entfernen'))
+    await user.click(
+      screen.getByText('evaluationBuilder.parameters.removeJudge'),
+    )
     const updater = setNewEvaluation.mock.calls[0][0]
     const next = updater({
       metric: 'llm_judge_classic',

@@ -14,12 +14,9 @@ import en from '@/locales/en/common.json'
 
 import { CostEstimatePanel } from '../CostEstimatePanel'
 
-jest.mock('@/contexts/I18nContext', () => ({
-  useI18n: () => ({
-    t: (_key: string, fallback?: any) =>
-      typeof fallback === 'string' ? fallback : _key,
-  }),
-}))
+jest.mock('@/contexts/I18nContext', () =>
+  require('@/test-utils/i18nMock').i18nMock('de'),
+)
 
 jest.mock('@/components/shared/Toast', () => ({
   useToast: () => ({ addToast: jest.fn() }),
@@ -94,7 +91,7 @@ describe('CostEstimatePanel localized note', () => {
     expect(screen.queryByText(/English note/)).not.toBeInTheDocument()
     expect(
       screen.getByText(
-        'Input: 18944 (Mittel) / 19575 (p95) · Output: 600 · Kodierung: o200k_base · Stichprobe: 3',
+        'Input: 18.944 (Mittel) / 19.575 (p95) · Output: 600 · Kodierung: o200k_base · Stichprobe: 3',
       ),
     ).toBeInTheDocument()
   })

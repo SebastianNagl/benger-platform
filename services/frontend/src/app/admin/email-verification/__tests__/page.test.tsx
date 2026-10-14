@@ -85,8 +85,8 @@ describe('EmailVerificationManagement', () => {
     const mockUseI18n = useI18n as jest.MockedFunction<typeof useI18n>
     mockUseI18n.mockReturnValue({
       locale: 'en',
-      t: (key: string) => {
-        // Return translation keys with placeholder replacements
+      t: (key: string, vars?: Record<string, unknown>) => {
+        // English copy for the keys, {placeholders} filled from vars
         const translations: Record<string, string> = {
           'emailVerification.admin.title': 'Email Verification Management',
           'emailVerification.admin.description':
@@ -94,15 +94,15 @@ describe('EmailVerificationManagement', () => {
           'emailVerification.admin.alerts.loadFailed':
             'Failed to load email verification data',
           'emailVerification.admin.alerts.cleanupSuccess':
-            'Cleanup completed! {{count}} expired tokens removed.',
+            'Cleanup completed! {count} expired tokens removed.',
           'emailVerification.admin.alerts.cleanupFailed':
             'Failed to run token cleanup',
           'emailVerification.admin.alerts.remindersSuccess':
-            'Reminder emails sent! {{count}} emails sent successfully.',
+            'Reminder emails sent! {count} emails sent successfully.',
           'emailVerification.admin.alerts.remindersFailed':
             'Failed to send reminder emails',
           'emailVerification.admin.alerts.resendSuccess':
-            'Verification email resent to {{email}}',
+            'Verification email resent to {email}',
           'emailVerification.admin.alerts.resendFailed':
             'Failed to resend verification email',
           'emailVerification.admin.alerts.systemAlerts': 'System Alerts',
@@ -125,16 +125,16 @@ describe('EmailVerificationManagement', () => {
             'Recent Unverified',
           'emailVerification.admin.metrics.lastSevenDays': 'Last 7 Days',
           'emailVerification.admin.users.unverifiedCount':
-            'Unverified Users ({{count}})',
+            'Unverified Users ({count})',
           'emailVerification.admin.users.manageUnverified':
             'Manage Unverified Users',
           'emailVerification.admin.users.allVerified':
             'All users have verified their emails!',
           'emailVerification.admin.users.tokenActive': 'Token Active',
           'emailVerification.admin.users.noToken': 'No Token',
-          'emailVerification.admin.users.registered': 'Registered: {{date}}',
-          'emailVerification.admin.users.lastEmail': 'Last Email: {{date}}',
-          'emailVerification.admin.users.daysAgo': '{{days}} days ago',
+          'emailVerification.admin.users.registered': 'Registered: {date}',
+          'emailVerification.admin.users.lastEmail': 'Last Email: {date}',
+          'emailVerification.admin.users.daysAgo': '{days} days ago',
           'emailVerification.admin.users.resend': 'Resend',
           'emailVerification.admin.analytics.trends': 'Verification Trends',
           'emailVerification.admin.analytics.weeklyRate': 'Weekly Rate',
@@ -167,7 +167,10 @@ describe('EmailVerificationManagement', () => {
           'emailVerification.admin.tabs.analytics': 'Analytics',
           'emailVerification.admin.tabs.maintenance': 'Maintenance',
         }
-        return translations[key] || key
+        const text = translations[key] || key
+        return text.replace(/\{(\w+)\}/g, (m, name) =>
+          vars && vars[name] !== undefined ? String(vars[name]) : m,
+        )
       },
       changeLocale: jest.fn(),
     })

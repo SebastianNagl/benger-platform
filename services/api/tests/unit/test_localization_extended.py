@@ -22,7 +22,7 @@ class TestEmailTranslations:
 
     def test_get_unknown_language_fallback(self):
         from localization.translations import EmailTranslations
-        result = EmailTranslations.get("fr", "email", "verification_subject")
+        result = EmailTranslations.get("es", "email", "verification_subject")
         assert isinstance(result, str)
 
 

@@ -4,7 +4,6 @@ import { LoginModal } from '@/components/auth/LoginModal'
 import { SignupModal } from '@/components/auth/SignupModal'
 import { Button } from '@/components/shared/Button'
 import { useAuth } from '@/contexts/AuthContext'
-import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useViewModeSwitch } from '@/hooks/useViewModeSwitch'
 import { useSlot } from '@/lib/extensions/slots'
@@ -35,7 +34,6 @@ export function AuthButton() {
   // Extended: account-menu entries (e.g. Abo & Abrechnung + tier badge).
   const AuthMenuExtended = useSlot('AuthMenuExtended')
   const viewMode = useViewModeSwitch()
-  const isClient = useHydration()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showSignupModal, setShowSignupModal] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -60,7 +58,7 @@ export function AuthButton() {
   if (isLoading) {
     return (
       <Button variant="filled" disabled>
-        {isClient ? t('common.loading') : 'Loading...'}
+        {t('common.loading')}
       </Button>
     )
   }
@@ -89,7 +87,7 @@ export function AuthButton() {
                 onClick={() => setDropdownOpen(false)}
               >
                 <UserIcon className="mr-3 h-4 w-4" />
-                {isClient ? t('auth.profileSettings') : 'Profile Settings'}
+                {t('auth.profileSettings')}
               </Link>
 
               {AuthMenuExtended && (
@@ -106,9 +104,7 @@ export function AuthButton() {
                 onClick={() => setDropdownOpen(false)}
               >
                 <BellIcon className="mr-3 h-4 w-4" />
-                {isClient
-                  ? t('auth.notificationSettings')
-                  : 'Notification Settings'}
+                {t('auth.notificationSettings')}
               </Link>
 
               {/* Custom models (BYOM) live on /models now — the catalog
@@ -166,7 +162,7 @@ export function AuthButton() {
                 onClick={() => setDropdownOpen(false)}
               >
                 <ListBulletIcon className="mr-3 h-4 w-4" />
-                {isClient ? t('navigation.runs', 'Läufe') : 'Läufe'}
+                {t('navigation.runs')}
               </Link>
 
               {/* Admin and Organizations Section - accessible to ALL authenticated users */}
@@ -176,9 +172,7 @@ export function AuthButton() {
                 onClick={() => setDropdownOpen(false)}
               >
                 <UsersIcon className="mr-3 h-4 w-4" />
-                {isClient
-                  ? t('admin.usersOrganizations')
-                  : 'Users & Organizations'}
+                {t('admin.usersOrganizations')}
               </Link>
               {/* Student⇄expert view switch (issue #35) — only for users with
                   expert-view capability in the extended edition. Sits with the
@@ -213,7 +207,7 @@ export function AuthButton() {
                 data-testid="logout-button"
               >
                 <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
-                {isClient ? t('auth.signOut') : 'Sign Out'}
+                {t('auth.signOut')}
               </button>
             </div>
           </div>
@@ -230,10 +224,10 @@ export function AuthButton() {
           variant="filled"
           className="text-sm"
         >
-          {isClient ? t('auth.signIn') : 'Sign In'}
+          {t('auth.signIn')}
         </Button>
         <Button variant="filled" onClick={() => setShowSignupModal(true)}>
-          {isClient ? t('auth.signUp') : 'Sign up'}
+          {t('auth.signUp')}
         </Button>
       </div>
 

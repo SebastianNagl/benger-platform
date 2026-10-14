@@ -32,6 +32,7 @@ import {
   type ReportContent,
   type ReportResponse,
 } from '@/lib/api/reports'
+import { intlTag } from '@/lib/i18n/locales'
 import type {
   ReportChartsConfig,
   ReportConfigRef,
@@ -270,7 +271,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const router = useRouter()
   const { user, isLoading: authLoading } = useAuth()
   const { addToast } = useToast()
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   const [projectId, setProjectId] = useState<string | null>(null)
   const [report, setReport] = useState<ReportResponse | null>(null)
@@ -422,13 +423,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
       metrics.length > 0 &&
       !metrics.some((m) => state.visibleMetrics.has(m.id))
     ) {
-      addToast(
-        t(
-          'reports.editor.noMetricsVisible',
-          'Mindestens eine Metrik muss sichtbar bleiben.',
-        ),
-        'warning',
-      )
+      addToast(t('reports.editor.noMetricsVisible'), 'warning')
       return
     }
 
@@ -460,16 +455,10 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           ? reconcileWithSnapshot(prev, previous, getSnapshot(refreshed))
           : deriveEditorState(refreshed),
       )
-      addToast(t('reports.editor.refreshed', 'Daten aktualisiert'), 'success')
+      addToast(t('reports.editor.refreshed'), 'success')
     } catch (error) {
       console.error('Failed to refresh report data:', error)
-      addToast(
-        t(
-          'reports.editor.refreshFailed',
-          'Daten konnten nicht aktualisiert werden',
-        ),
-        'error',
-      )
+      addToast(t('reports.editor.refreshFailed'), 'error')
     } finally {
       setRefreshing(false)
     }
@@ -498,16 +487,10 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           role="alert"
         >
           <h1 className="text-lg font-semibold text-amber-900 dark:text-amber-200">
-            {t(
-              'reports.editor.notSuperadmin',
-              'Nur Superadmins können Berichte bearbeiten',
-            )}
+            {t('reports.editor.notSuperadmin')}
           </h1>
           <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-            {t(
-              'reports.editor.notSuperadminHint',
-              'Veröffentlichte Berichte finden Sie unter „Berichte“.',
-            )}
+            {t('reports.editor.notSuperadminHint')}
           </p>
           <div className="mt-4 flex gap-3">
             <Button
@@ -545,7 +528,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
           sectionVisible: { ...state.sectionVisible, [key]: enabled },
         })
       }
-      label={t('reports.editor.showSection', 'Abschnitt anzeigen')}
+      label={t('reports.editor.showSection')}
     />
   )
 
@@ -559,7 +542,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   )
 
   const snapshotDate = snapshot?.generated_at
-    ? new Date(snapshot.generated_at).toLocaleString()
+    ? new Date(snapshot.generated_at).toLocaleString(intlTag(locale))
     : null
 
   return (
@@ -594,17 +577,10 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             </p>
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
               {snapshotDate
-                ? t(
-                    'reports.editor.snapshotGeneratedAt',
-                    'Datenstand: {date}',
-                    {
-                      date: snapshotDate,
-                    },
-                  )
-                : t(
-                    'reports.editor.noSnapshot',
-                    'Noch keine Daten berechnet. Klicken Sie auf „Daten aktualisieren“.',
-                  )}
+                ? t('reports.editor.snapshotGeneratedAt', {
+                    date: snapshotDate,
+                  })
+                : t('reports.editor.noSnapshot')}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -617,8 +593,8 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                 className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
               />
               {refreshing
-                ? t('reports.editor.refreshing', 'Wird aktualisiert...')
-                : t('reports.editor.refresh', 'Daten aktualisieren')}
+                ? t('reports.editor.refreshing')
+                : t('reports.editor.refresh')}
             </Button>
             <a
               href={`/reports/${report.id}`}
@@ -627,7 +603,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               className="inline-flex items-center rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
-              {t('reports.editor.preview', 'Vorschau')}
+              {t('reports.editor.preview')}
             </a>
             <Button
               onClick={() => router.push(`/projects/${projectId}`)}
@@ -705,10 +681,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             <ToggleSwitch
               enabled={state.showDataCount}
               onChange={(enabled) => update({ showDataCount: enabled })}
-              label={t(
-                'reports.editor.showDataCount',
-                'Anzahl der Aufgaben anzeigen',
-              )}
+              label={t('reports.editor.showDataCount')}
             />
           </div>
         </div>
@@ -751,10 +724,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             <ToggleSwitch
               enabled={state.showParticipants}
               onChange={(enabled) => update({ showParticipants: enabled })}
-              label={t(
-                'reports.editor.showParticipants',
-                'Teilnehmende anzeigen',
-              )}
+              label={t('reports.editor.showParticipants')}
             />
           </div>
         </div>
@@ -783,7 +753,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
             <ToggleSwitch
               enabled={state.showModels}
               onChange={(enabled) => update({ showModels: enabled })}
-              label={t('reports.editor.showModels', 'Modelle anzeigen')}
+              label={t('reports.editor.showModels')}
             />
           </div>
         </div>
@@ -826,7 +796,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
 
             <div className="border-t border-zinc-200 pt-6 dark:border-zinc-700">
               <h3 className="text-base font-semibold text-zinc-900 dark:text-white">
-                {t('reports.editor.presentation', 'Darstellung der Evaluation')}
+                {t('reports.editor.presentation')}
               </h3>
 
               {!snapshot || metrics.length === 0 ? (
@@ -840,13 +810,10 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   {/* Primary metric */}
                   <div>
                     <Label htmlFor="primaryMetric">
-                      {t('reports.editor.primaryMetric', 'Primäre Metrik')}
+                      {t('reports.editor.primaryMetric')}
                     </Label>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'reports.editor.primaryMetricHint',
-                        'Metrik, nach der die Rangliste sortiert wird und die das Hauptdiagramm zeigt.',
-                      )}
+                      {t('reports.editor.primaryMetricHint')}
                     </p>
                     <select
                       id="primaryMetric"
@@ -856,9 +823,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       }
                       className={selectClass}
                     >
-                      <option value="">
-                        {t('reports.editor.none', 'Keine')}
-                      </option>
+                      <option value="">{t('reports.editor.none')}</option>
                       {primaryMetricOptions.map((m) => (
                         <option key={m.id} value={m.id}>
                           {metricDisplayName(m)}
@@ -870,20 +835,14 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   {/* Primary config */}
                   <div>
                     <Label htmlFor="primaryConfig">
-                      {t('reports.editor.primaryConfig', 'Judge-Konfiguration')}
+                      {t('reports.editor.primaryConfig')}
                     </Label>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {t(
-                        'reports.editor.primaryConfigHint',
-                        'Welche Bewertungskonfiguration die Rangliste und das Hauptdiagramm liefert.',
-                      )}
+                      {t('reports.editor.primaryConfigHint')}
                     </p>
                     {configsForPrimary.length === 0 ? (
                       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        {t(
-                          'reports.editor.noConfigsForMetric',
-                          'Keine Konfiguration für diese Metrik.',
-                        )}
+                        {t('reports.editor.noConfigsForMetric')}
                       </p>
                     ) : (
                       <select
@@ -906,12 +865,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   {/* Visible configs */}
                   {configs.length > 0 && (
                     <div>
-                      <Label>
-                        {t(
-                          'reports.editor.visibleConfigs',
-                          'Sichtbare Judge-Konfigurationen',
-                        )}
-                      </Label>
+                      <Label>{t('reports.editor.visibleConfigs')}</Label>
                       <div
                         className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2"
                         data-testid="visible-configs"
@@ -941,12 +895,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   {/* Visible metrics */}
                   <div>
                     <div className="mb-1 flex items-center justify-between">
-                      <Label>
-                        {t(
-                          'reports.editor.visibleMetrics',
-                          'Sichtbare Metriken',
-                        )}
-                      </Label>
+                      <Label>{t('reports.editor.visibleMetrics')}</Label>
                       <div className="flex gap-3 text-xs">
                         <button
                           type="button"
@@ -1005,28 +954,20 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                   {/* Hidden subjects */}
                   {subjects.length > 0 && (
                     <div>
-                      <Label>
-                        {t(
-                          'reports.editor.hiddenSubjects',
-                          'Ausgeblendete Modelle/Teilnehmende',
-                        )}
-                      </Label>
+                      <Label>{t('reports.editor.hiddenSubjects')}</Label>
                       <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                        {t(
-                          'reports.editor.hiddenSubjectsHint',
-                          'Angehakte Einträge erscheinen nicht im Bericht.',
-                        )}
+                        {t('reports.editor.hiddenSubjectsHint')}
                       </p>
                       <div className="space-y-3" data-testid="hidden-subjects">
                         {[
                           {
                             key: 'models',
-                            title: t('reports.editor.models', 'Modelle'),
+                            title: t('reports.editor.models'),
                             items: modelSubjects,
                           },
                           {
                             key: 'humans',
-                            title: t('reports.editor.humans', 'Teilnehmende'),
+                            title: t('reports.editor.humans'),
                             items: humanSubjects,
                           },
                         ]
@@ -1059,12 +1000,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                                       {s.label || s.id}
                                       {s.is_custom && (
                                         <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                          (
-                                          {t(
-                                            'reports.editor.customModel',
-                                            'custom',
-                                          )}
-                                          )
+                                          ({t('reports.editor.customModel')})
                                         </span>
                                       )}
                                     </span>
@@ -1083,18 +1019,12 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                       onChange={(enabled) =>
                         update({ showDistribution: enabled })
                       }
-                      label={t(
-                        'reports.editor.showDistribution',
-                        'Verteilung anzeigen',
-                      )}
+                      label={t('reports.editor.showDistribution')}
                     />
                     <ToggleSwitch
                       enabled={state.showHumans}
                       onChange={(enabled) => update({ showHumans: enabled })}
-                      label={t(
-                        'reports.editor.showHumans',
-                        'Menschliche Teilnehmende anzeigen',
-                      )}
+                      label={t('reports.editor.showHumans')}
                     />
                   </div>
                 </div>

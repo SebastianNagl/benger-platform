@@ -16,12 +16,10 @@ import {
   metricDisplayName,
   type AvailableMetric,
 } from '@/lib/api/evaluation-types'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { humanizeMetricId } from '@/lib/reports/format'
 
-type Translate = (
-  key: string,
-  varsOrFallback?: Record<string, unknown> | string,
-) => string
+type Translate = (key: string, vars?: Record<string, unknown>) => string
 
 /** An evaluation config as far as labels are concerned. */
 export interface RunConfigLabel {
@@ -80,11 +78,12 @@ export function metricDisplayLabel(
 export function formatMetricNumber(
   key: string,
   value: number,
+  locale: string,
   registry: Record<string, AvailableMetric> = getMetricDefinitions(),
 ): string {
   const scale = registry[bareMetricName(key)]?.display_scale
-  if (scale === '0-18') return value.toFixed(1)
-  return value.toFixed(3)
+  if (scale === '0-18') return formatDecimal(value, locale, 1)
+  return formatDecimal(value, locale, 3)
 }
 
 /** The three parts of a sample's field key. A plain field name has no config

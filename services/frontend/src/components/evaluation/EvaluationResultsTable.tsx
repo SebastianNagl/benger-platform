@@ -12,6 +12,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -77,12 +78,12 @@ const getMetricValue = (metric: MetricValue | number): number => {
   return typeof metric === 'number' ? metric : metric.value
 }
 
-const formatMetricValue = (value: number): string => {
+const formatMetricValue = (value: number, locale: string): string => {
   // Format based on value range
   if (value >= 0 && value <= 1) {
-    return (value * 100).toFixed(1) + '%'
+    return formatDecimal(value * 100, locale, 1) + '%'
   }
-  return value.toFixed(3)
+  return formatDecimal(value, locale, 3)
 }
 
 export function EvaluationResultsTable({
@@ -93,7 +94,7 @@ export function EvaluationResultsTable({
   baselineModel,
   className = '',
 }: EvaluationResultsTableProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     column: 'modelId',
     direction: 'asc',
@@ -314,7 +315,7 @@ export function EvaluationResultsTable({
                             <span
                               className={`rounded-md px-2 py-1 font-mono font-semibold ${colorClass}`}
                             >
-                              {formatMetricValue(value)}
+                              {formatMetricValue(value, locale)}
                               {significance && (
                                 <sup className="ml-0.5 font-bold">
                                   {significance}
@@ -327,11 +328,13 @@ export function EvaluationResultsTable({
                                 {formatMetricValue(
                                   (metric as MetricValue).confidenceInterval!
                                     .lower,
+                                  locale,
                                 )}
                                 ,{' '}
                                 {formatMetricValue(
                                   (metric as MetricValue).confidenceInterval!
                                     .upper,
+                                  locale,
                                 )}
                                 ]
                               </span>

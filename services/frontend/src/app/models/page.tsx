@@ -15,6 +15,7 @@ import {
 } from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
@@ -57,7 +58,7 @@ interface ProviderCapability {
 }
 
 export default function ModelsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [providerFilter, setProviderFilter] = useState('all')
@@ -351,11 +352,11 @@ export default function ModelsPage() {
                                 !model.parameter_constraints.temperature
                                   .supported && (
                                   <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                    Temp: fixed at{' '}
-                                    {
-                                      model.parameter_constraints.temperature
-                                        .required_value
-                                    }
+                                    {t('models.tempFixedAt', {
+                                      value:
+                                        model.parameter_constraints.temperature
+                                          .required_value,
+                                    })}
                                   </div>
                                 )}
                               {model.parameter_constraints?.temperature?.min !=
@@ -365,11 +366,11 @@ export default function ModelsPage() {
                                 model.parameter_constraints.temperature.min >
                                   0 && (
                                   <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                                    Temp: min{' '}
-                                    {
-                                      model.parameter_constraints.temperature
-                                        .min
-                                    }
+                                    {t('models.tempMin', {
+                                      value:
+                                        model.parameter_constraints.temperature
+                                          .min,
+                                    })}
                                   </div>
                                 )}
                             </td>
@@ -400,8 +401,18 @@ export default function ModelsPage() {
                               model.output_cost_per_million != null ? (
                                 <div className="text-sm">
                                   <div className="text-zinc-900 dark:text-white">
-                                    ${model.input_cost_per_million.toFixed(2)} /
-                                    ${model.output_cost_per_million.toFixed(2)}
+                                    $
+                                    {formatDecimal(
+                                      model.input_cost_per_million,
+                                      locale,
+                                      2,
+                                    )}{' '}
+                                    / $
+                                    {formatDecimal(
+                                      model.output_cost_per_million,
+                                      locale,
+                                      2,
+                                    )}
                                   </div>
                                   <div className="text-xs text-zinc-500 dark:text-zinc-500">
                                     {t('models.input')} / {t('models.output')}

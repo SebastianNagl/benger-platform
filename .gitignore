@@ -197,8 +197,7 @@ targeted_fix.py
 !services/frontend/mutation-floors.json
 
 # Unignore frontend translation files
-!services/frontend/src/locales/de/common.json
-!services/frontend/src/locales/en/common.json
+!services/frontend/src/locales/*/*.json
 
 # Unignore root-level JSON files that are meant to be tracked
 !package.json

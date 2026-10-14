@@ -1,9 +1,12 @@
 'use client'
 
+import { useI18n } from '@/contexts/I18nContext'
+
 import { useSlot } from '@/lib/extensions/slots'
 import { useParams } from 'next/navigation'
 
 export default function MyKorrekturPage() {
+  const { t } = useI18n()
   const params = useParams<{ id: string; taskId: string }>()
   const projectId = params!.id
   const taskId = params!.taskId
@@ -13,7 +16,7 @@ export default function MyKorrekturPage() {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-zinc-500 dark:text-zinc-400">
-          Korrektur feature is not available in the community edition.
+          {t('student.community.unavailable')}
         </p>
       </div>
     )

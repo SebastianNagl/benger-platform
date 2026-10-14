@@ -72,7 +72,7 @@ describe('ConfigCard', () => {
         </ConfigCard>,
       )
       expect(screen.getByRole('status')).toHaveTextContent(
-        'Ungespeicherte Änderungen',
+        'project.configCard.unsavedChanges',
       )
     })
 
@@ -82,7 +82,9 @@ describe('ConfigCard', () => {
           <div>inner</div>
         </ConfigCard>,
       )
-      expect(screen.getByRole('status')).toHaveTextContent('Speichert…')
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'project.configCard.saving',
+      )
     })
 
     it('shows the status chip even while collapsed', () => {
@@ -92,7 +94,7 @@ describe('ConfigCard', () => {
         </ConfigCard>,
       )
       expect(screen.getByRole('status')).toHaveTextContent(
-        'Ungespeicherte Änderungen',
+        'project.configCard.unsavedChanges',
       )
     })
 

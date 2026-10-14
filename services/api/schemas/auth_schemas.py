@@ -144,7 +144,7 @@ class PasswordResetRequest(BaseModel):
     """Model for requesting a password reset"""
 
     email: EmailStr = Field(..., description="Email address to send reset link to")
-    language: Optional[str] = Field("en", description="Language for email template (en or de)")
+    language: Optional[str] = Field("en", description="Language for email template (en, de or fr; others fall back)")
 
 
 class PasswordResetConfirm(BaseModel):
@@ -186,7 +186,7 @@ class ResendVerificationRequest(BaseModel):
     """Model for resending email verification"""
 
     email: EmailStr = Field(..., description="Email address to resend verification to")
-    language: Optional[str] = Field("en", description="Language for email template (en or de)")
+    language: Optional[str] = Field("en", description="Language for email template (en, de or fr; others fall back)")
 
 
 class UserProfile(BaseModel):

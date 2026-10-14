@@ -11,6 +11,7 @@ import {
   type ChangelogAudience,
   useChangelogEntries,
 } from '@/lib/extensions/changelog'
+import { intlTag } from '@/lib/i18n/locales'
 import { filterAndGroup } from '@/lib/utils/changelog'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 
@@ -45,10 +46,9 @@ export default function ChangelogPage() {
     brand,
   )
 
-  const dateFormat = new Intl.DateTimeFormat(
-    locale === 'de' ? 'de-DE' : 'en-GB',
-    { dateStyle: 'long' },
-  )
+  const dateFormat = new Intl.DateTimeFormat(intlTag(locale), {
+    dateStyle: 'long',
+  })
   const formatDate = (isoDate: string) => {
     const parsed = new Date(`${isoDate}T00:00:00`)
     return Number.isNaN(parsed.getTime()) ? isoDate : dateFormat.format(parsed)
@@ -75,9 +75,9 @@ export default function ChangelogPage() {
           <section key={group.date}>
             <h2>{formatDate(group.date)}</h2>
             <ul>
-              {group.entries.map((entry, index) => (
-                <li key={index} className="text-zinc-700 dark:text-zinc-200">
-                  {entry.text[locale]}
+              {group.entries.map((entry) => (
+                <li key={entry.id} className="text-zinc-700 dark:text-zinc-200">
+                  {t(`changelogEntries.${entry.id}`)}
                 </li>
               ))}
             </ul>

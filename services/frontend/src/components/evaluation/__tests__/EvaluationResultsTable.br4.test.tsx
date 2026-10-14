@@ -42,7 +42,7 @@ describe('EvaluationResultsTable br4 - uncovered branches', () => {
       },
     ]
     render(<EvaluationResultsTable results={results} />)
-    expect(screen.getByText('85.0%')).toBeInTheDocument()
+    expect(screen.getByText('85,0%')).toBeInTheDocument()
     // No significance indicator should appear
     const sup = document.querySelector('sup')
     expect(sup).toBeNull()

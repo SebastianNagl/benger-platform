@@ -28,6 +28,5 @@ export const LEGEND_SWATCH_CLASS = {
 /** Translation function shape used by every view component. */
 export type TranslateFn = (
   key: string,
-  fallback?: string,
   vars?: Record<string, string | number>,
 ) => string

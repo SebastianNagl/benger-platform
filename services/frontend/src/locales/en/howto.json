@@ -1,0 +1,1322 @@
+{
+  "howToCategories": {
+    "start": {
+      "title": "Getting started",
+      "blurb": "What BenGER and the student interface are, how to find your way around, and what to set up first."
+    },
+    "organizations": {
+      "title": "Organizations, groups & invitations",
+      "blurb": "Members, roles, groups (e.g. chairs) and invitation links."
+    },
+    "projects": {
+      "title": "Creating & configuring projects",
+      "blurb": "The project wizard, project types, settings and the project page."
+    },
+    "data": {
+      "title": "Uploading, importing & exporting data",
+      "blurb": "File formats, field mapping and project export/import."
+    },
+    "annotation": {
+      "title": "Annotation interface & XML",
+      "blurb": "The interface annotators see, and how to edit the XML behind it."
+    },
+    "generation": {
+      "title": "AI models & generation",
+      "blurb": "API keys, custom models, prompts and generation runs."
+    },
+    "evaluation": {
+      "title": "Evaluation, grading & reports",
+      "blurb": "Evaluation methods, immediate evaluation, human grading, reports and leaderboards."
+    },
+    "integrations": {
+      "title": "Integrations (Moodle, ILIAS, LTI)",
+      "blurb": "Embedding BenGER exams in learning platforms."
+    },
+    "student": {
+      "title": "For students",
+      "blurb": "Practising exams, learning with flashcards, understanding results."
+    },
+    "troubleshooting": {
+      "title": "Troubleshooting",
+      "blurb": "The most common error messages and what is behind them."
+    }
+  },
+  "howToGuides": {
+    "what-is-benger": {
+      "title": "What is BenGER, what is the student interface?",
+      "summary": "**BenGER** (what-a-benger.net) is the expert platform: create projects, upload data, have them annotated, generate answers with AI models and evaluate. The **student interface** is the platform for students: practise exams in the legal expert style, get an AI grading in seconds with grade points, learn with flashcards. It has its own address and is reachable in BenGER as *Lernbereich*. Both are interfaces of the same system, with the same database and the same account.",
+      "steps": [
+        "**BenGER** for teachers, researchers and annotators: dashboard, projects, data, generation, evaluation, reports, leaderboards.",
+        "**Student interface** for students: learning statistics, exams, flashcards, discover, leaderboard. Students need no API key of their own. Who pays for the AI grading is explained in the guide on API keys.",
+        "An exam you create in BenGER as a project of type *Exam* and share appears for students in the student interface in their exam list or under *Discover*. You see their submissions and AI gradings in the BenGER project.",
+        "The student interface is also reachable from BenGER: top right in the account menu via **Studierendenansicht**. On what-a-benger.net it is then called *Lernbereich*. Back via **Expertenansicht** in the sidebar."
+      ],
+      "tips": [
+        "Login is per address: you sign in separately on the student interface’s own address and on what-a-benger.net, with the same credentials.",
+        "The open-source community edition of BenGER contains only the expert platform. The student interface is part of the extended edition."
+      ],
+      "keywords": [
+        "student interface",
+        "student platform",
+        "expert platform",
+        "difference",
+        "switch view"
+      ],
+      "links": ["Sharing an exam with students", "API keys and who pays"]
+    },
+    "first-steps": {
+      "title": "What should I set up first?",
+      "summary": "In this order: switch to the right organization, sort out an API key (your own or the organization’s), create a project, upload data, then annotate, generate and evaluate.",
+      "steps": [
+        "**Check the context**: top right in the account menu under *Switch context* pick your organization. In the *Private* context you do not see organization projects.",
+        "**API key**: if your organization provides keys, nothing to do. Otherwise store a key of the AI provider you want to use under [Profile](/profile) → *API key management*.",
+        "**Create a project**: [Projects](/projects) → *New project*, pick type and functions.",
+        "**Upload data**: in the wizard or later via *Project data* (JSON, CSV, TSV, TXT).",
+        "**Annotate**: *Start annotation* on the project page. **Generate** and **evaluate** via the respective configuration card.",
+        "**Results**: [Evaluation](/evaluations), [Reports](/reports) and [Leaderboards](/leaderboards)."
+      ],
+      "keywords": ["getting started", "checklist", "onboarding"]
+    },
+    "navigation-overview": {
+      "title": "Where do I find what in the navigation?",
+      "summary": "The sidebar has three groups. **Quick start**: dashboard, reports, learning statistics, leaderboards. **Projects & data**: projects, data management, generation, evaluation. **Knowledge**: guides, models, architecture. Everything personal sits top right in the account menu.",
+      "steps": [
+        "**Account menu** (top right, your name): profile settings, notification settings, *Switch context* (private or organization), runs, users & organizations, student view, sign out.",
+        "**Search** (magnifier in the header): finds pages, projects and these guides. German and English, typos tolerated.",
+        "**Runs** lists every generation and evaluation run with status. **Notifications** (bell) reports finished runs and invitations.",
+        "**Models** is the model catalog with prices and the place to register your own models."
+      ],
+      "keywords": [
+        "navigation",
+        "menu",
+        "sidebar",
+        "account menu",
+        "search",
+        "where"
+      ]
+    },
+    "org-context": {
+      "title": "Why do I see no projects? Private context vs. organization",
+      "summary": "Projects belong to organizations. In the **Private** context you only see your private projects. Switch to the organization top right in the account menu under **Switch context**.",
+      "steps": [
+        "Click your name top right. The current context is shown in brackets, e.g. *(Private)* or *(Chair X)*.",
+        "Under **Switch context** click the organization. The page reloads under the organization’s address (`organization.what-a-benger.net`).",
+        "Back to your private projects via **Private**."
+      ],
+      "tips": [
+        "The last chosen context is remembered. Bookmarks on the organization address lead straight into the right context."
+      ],
+      "keywords": [
+        "context",
+        "private",
+        "no projects",
+        "empty",
+        "subdomain",
+        "org switcher"
+      ]
+    },
+    "org-roles": {
+      "title": "Which roles exist in an organization and what can they do?",
+      "summary": "Three roles: **Admin** manages the organization, invites and sees everything. **Contributor** creates projects, imports data, starts generation and evaluation. **Annotator** annotates assigned or open tasks and solves exams. Every member has one role in the organization and, in each of their groups, a separate role in the group.",
+      "steps": [
+        "**Admin**: members and roles, groups, the organization’s API keys, invitations, project visibility and [learning platform connections](/how-to#lti-manage) (Moodle, ILIAS). Sees the real names of the people on the organization’s own connections. Bypasses assignments and access windows. Group admins manage their group’s connections.",
+        "**Contributor**: everything around projects and data (import, export, generation, evaluation, reports), but no member management. Also sees and grades other people’s private exams that are linked to a learning platform of the organization. People from a learning platform appear in lists under their pseudonym, except on exams the contributor may grade.",
+        "**Annotator**: sees organization projects as an annotator, no data page, no member list. On exams only the participant view without the model solution before submission.",
+        "**Organization role and group role**: the organization role applies to organization-wide projects and to everything at the organization level. On a project of a [group](/how-to#org-groups) the role in that group counts; it may be higher or lower. Example: annotator in the organization, annotator in chair A (exams there only as a participant), admin in chair B (creates and runs projects there). Organization admins are admin in every group.",
+        "Change roles: [Users & organizations](/users-organizations) → tab *Organizations* → pick the organization → member list. Admins cannot change other admins. Group roles are changed under **Groups** → **Members**."
+      ],
+      "tips": [
+        "New organizations are created by the platform administration (superadmin) only. Write to us if you need one."
+      ],
+      "keywords": [
+        "role",
+        "roles",
+        "admin",
+        "contributor",
+        "annotator",
+        "permissions",
+        "group role"
+      ]
+    },
+    "invite-members": {
+      "title": "How do I invite someone to my organization?",
+      "summary": "Under [Users & organizations](/users-organizations) → *Organizations* → **Invite member** (or **Invite several**). The person gets an email with a link valid for 7 days and joins with the chosen role on accepting.",
+      "steps": [
+        "Pick the organization in the left list, section **Members**.",
+        "**Invite member**: email, optionally a **group** (otherwise *None (whole organization)*) and the **role** (Admin, Contributor, Annotator). With a group you pick the **role in the group** and the **role in the organization** (default Annotator). For several addresses use **Invite several**, separated by comma, semicolon or line break.",
+        "Group admins invite only into their own groups, with any group role. In the organization the invitees become annotators; only organization admins can change that.",
+        "**Send invitation**. Open invitations are listed under *Pending invitations* and can be cancelled there.",
+        "The person clicks the link: with an existing account **Sign in to accept**, otherwise **Accept & create account**. New accounts are verified immediately."
+      ],
+      "pitfalls": [
+        "The invitation is bound to the invited email address. Someone signed in with another account sees a notice and must sign in with the invited address.",
+        "No second invitation is created for an address that is already a member or has an open invitation. With a group chosen, existing organization members are added straight to the group with the chosen role. The result names every skipped address with its reason.",
+        "There is no joining by email domain. Every member comes in through an invitation, a learning-platform connection (LTI) or the platform administration."
+      ],
+      "keywords": ["invite", "invitation", "member", "join", "expired link"]
+    },
+    "org-groups": {
+      "title": "How do I create groups (e.g. chairs) and who manages them?",
+      "summary": "Groups split an organization: projects and API keys can be restricted to a group, and group members only see their group’s projects. Every group member has their own **role in the group** (Admin, Contributor, Annotator). Organization admins create groups under **Groups**. Whoever is admin of a group manages that group’s members, roles and keys without organization-wide rights.",
+      "steps": [
+        "[Users & organizations](/users-organizations) → *Organizations* → pick the organization → button **Groups**.",
+        "**New group**: name (e.g. *Chair of Civil Law*) and description, then **Create group**. Only organization admins can create, rename, deactivate and delete groups.",
+        "**Members** of a group: **Add member** from the existing organization members with their **role in the group** (default Annotator). The role can be changed per member in the list. New people are invited straight into the group (invitation with the *Group* and group role set).",
+        "**Restrict projects to a group**: when creating, under *Visibility → Organization* pick the **group** per organization (default *Whole organization*), later on the project page under *Project visibility*. Offered are the groups where you are contributor or admin; *Whole organization* only with the role contributor or admin in the organization.",
+        "**Keys per group**: in the organization’s *API keys* dialog set the **scope** to the group. Group projects use the group key first, else the organization’s."
+      ],
+      "tips": [
+        "Without groups nothing changes. Everything not restricted to a group keeps applying to the whole organization.",
+        "Group membership drives visibility, the group role drives rights on the group’s projects. On organization-wide projects the organization role applies.",
+        "Organization admins see every group project and are admin in every group. Group admins have admin rights only on their group’s projects, even when they are annotators in the organization."
+      ],
+      "pitfalls": [
+        "A group can only be deleted once no projects, keys or learning-platform registrations point at it. Deactivating (*Group is active* off) always works and only blocks new attachments.",
+        "A group admin does not change organization roles, invites only as organization annotator and cannot create new groups."
+      ],
+      "keywords": [
+        "group",
+        "groups",
+        "chair",
+        "group admin",
+        "scope",
+        "department"
+      ]
+    },
+    "create-project": {
+      "title": "How do I create a new project?",
+      "summary": "Go to **Projects → New project** to start the project wizard. Give the project a name and type, tick the functions it needs, and the wizard shows only the matching steps.",
+      "steps": [
+        "Open [Projects](/projects) and click **New project**.",
+        "**Project info**: name (required), description, icon and the **project type** – *Generic*, *Exam* or *Flashcard deck* (see “Which project type should I pick?”).",
+        "Under **Project functions** tick what you need: *Data import*, *Annotation*, *LLM generation*, *Evaluation*. Each function adds its own step.",
+        "Choose the **visibility**: *Private* (only you), *Organization* (members of one or more organizations, optionally a single group) or *Public*.",
+        "Click **Next** through *Data import*, *Labeling setup*, *Instructions*, *Models*, *Prompts*, *Evaluation* and *Settings*.",
+        "Click **Create project** on the last step. You land on the project page."
+      ],
+      "tips": [
+        "The step chips at the top are clickable, so you can jump back to any earlier step.",
+        "Everything except the name can be changed later on the project page. An empty step is not an error.",
+        "An exam project automatically gets the *Klausurlösung* labeling template, the AI grading (two evaluation methods) and immediate evaluation. Nothing to configure."
+      ],
+      "pitfalls": [
+        "Only the project name is validated. A project without data or without a labeling template can be created, it is simply empty.",
+        "If one sub-step fails during creation (e.g. the data import), the project still exists. Fix the problem on the project page instead of finishing the wizard again, or you end up with a second project."
+      ],
+      "keywords": ["wizard", "setup"],
+      "links": ["New project", "Choosing the project type"]
+    },
+    "project-kind": {
+      "title": "Which project type should I pick: Generic, Exam or Flashcard deck?",
+      "summary": "The project type decides what the project brings along automatically and whether students can find it. *Exam* for case solutions with AI grading, *Flashcard deck* for flashcards with a learning schedule, *Generic* for everything else (benchmarks, annotation studies).",
+      "steps": [
+        "**Generic**: benchmark or annotation project without exam or card logic. You pick template, models and evaluation methods yourself.",
+        "**Exam**: case facts plus model solution, the *Klausurlösung* labeling template (case, notes, outline, solution), AI grading in grade points, immediate evaluation and the model solution revealed after submission. Solvable by students.",
+        "**Flashcard deck**: cards with front and back, a spaced-repetition learning schedule, Anki import and export. Learnable by students.",
+        "The type can be changed later on the project page under **Settings → Project type**."
+      ],
+      "tips": [
+        "Changing the type only changes the type. Template, evaluation methods and data stay as they are. The hints under the type show what students would still be missing.",
+        "Picking the *Karteikarten (leer)* template in the labeling step sets the type to *Flashcard deck* automatically."
+      ],
+      "keywords": ["project type", "exam", "deck", "generic"],
+      "links": ["Sharing an exam with students"]
+    },
+    "exam-project-quick": {
+      "title": "What is the fastest way to enter an exam with case facts and model solution?",
+      "summary": "Use the **Klausur erfassen** tab in the *Data import* step. Fill in the case facts and model solution as text, optionally an outline, grading criteria, examiner notes, additional material and grading notes. No JSON needed.",
+      "steps": [
+        "Pick project type **Exam** and tick **Data import**.",
+        "In the *Data import* step the **Klausur erfassen** tab is preselected. Click **Angabe (Sachverhalt)** and paste the text or upload a file.",
+        "Fill in **Musterlösung** the same way. It is only shown after submission.",
+        "Optionally add via **Inhalt hinzufügen**: outline, grading criteria (your own rubric), examiner notes, additional material, grading notes.",
+        "Continue to **Create project**. The exam is imported as one task."
+      ],
+      "tips": [
+        "With your own **grading criteria** the AI grades against your rubric instead of the default 10-dimension grade-point scheme.",
+        "Several exams in one project (an “exam collection”) are created from a JSON file with several entries, see “Which fields does an exam file need?”.",
+        "The **KI-Generator** can produce synthetic exams from a lecture script. It is marked highly experimental and only visible to selected accounts."
+      ],
+      "keywords": ["case", "model solution", "rubric", "structured entry"],
+      "links": ["Fields of an exam file"]
+    },
+    "project-page": {
+      "title": "How is the project page organized and where do I find what?",
+      "summary": "The project page is made of collapsible cards. Configuration on the left (project details, annotation, generation, evaluation, settings, sharing), quick actions, billing, statistics and the project report on the right. Data, My tasks, Korrektur and Review are separate pages.",
+      "steps": [
+        "**Project details**: status, creator, project ID, organizations. Change title and description right in the page header (pencil on hover).",
+        "**Annotation configuration**: instructions for annotators, A/B variants, the label configuration (XML) and *Annotation workflow & behavior* (assignment mode, time limit, access window, review and grading phase).",
+        "**Generation configuration** and **Evaluation configuration**: models, prompts, evaluation methods, each with a start button.",
+        "**Settings**: project type, visibility of sections (which cards exist) and project visibility (Private, Organization, Public).",
+        "**Sharing**: discoverability under *Entdecken*, share links and participants.",
+        "**Quick actions** on the right: *Start annotation*, *Project data* (tasks, import, export), *My tasks*, *Generation*, *Evaluations*, *Review workflow*, *Korrektur*, *Delete project*."
+      ],
+      "tips": [
+        "If a card is missing, that section is switched off under **Settings → Section visibility**. These switches also drive the progress display.",
+        "Configuration cards save automatically when you leave a field. A failed save keeps the card in edit mode."
+      ],
+      "keywords": ["project page", "cards", "quick actions", "overview"]
+    },
+    "assignment-and-limits": {
+      "title": "How do I distribute tasks to annotators and limit annotations?",
+      "summary": "Via the **assignment mode** in *Annotation workflow & behavior*: *Open* (everyone sees every task), *Manual* (you assign) or *Automatic*. Plus *Max annotations per task* and *Min annotations for completion*.",
+      "steps": [
+        "Project page → **Annotation configuration → Annotation workflow & behavior**.",
+        "Pick the **assignment mode**. In *Manual* or *Automatic* mode annotators only see tasks assigned to them.",
+        "To assign manually: open **Project data**, tick tasks, bulk action **Assign annotators**.",
+        "Set **Max annotations per task** (0 = unlimited) and **Min annotations for completion**. The latter decides when a task counts as done and how progress is computed.",
+        "Optionally **Randomize task order**, skip behavior and **Require confirmation before submit**."
+      ],
+      "pitfalls": [
+        "Organization admins and contributors always bypass assignment. Only the *Annotator* role is bound to assignments.",
+        "An unassigned task is invisible to annotators (no error, it is simply missing). Exams that students should solve via *Entdecken* need the *Open* mode."
+      ],
+      "keywords": ["assign", "assignment", "annotators", "limit", "progress"]
+    },
+    "timer-and-window": {
+      "title": "How do I set a time limit or an access window?",
+      "summary": "**Time limit for annotation** caps the working time per task, the **strict timer** submits automatically when it runs out. The **access window** opens the project only between two points in time.",
+      "steps": [
+        "In the wizard under **Settings** or later under *Annotation workflow & behavior*.",
+        "Tick **Time limit for annotation** and enter the minutes (1 to 360, default 30).",
+        "Only then tick **Strict timer** if the submission should happen automatically when time runs out.",
+        "Tick **Access window** and set *Opens* and *Closes*. Before opening the project is listed but its data hidden. After closing everything is read-only."
+      ],
+      "pitfalls": [
+        "Toggling the time limit resets the strict timer. Order: time limit first, then strict timer.",
+        "Owners and admins are never restricted by the access window. Test it with an annotator account.",
+        "When the strict timer submits automatically, the confirmation before submit is skipped."
+      ],
+      "keywords": ["timer", "time limit", "window", "deadline"]
+    },
+    "safe-exam-browser": {
+      "title": "How do I run an exam in Safe Exam Browser?",
+      "summary": "With **Require Safe Exam Browser**, students write the exam in Safe Exam Browser (SEB). SEB locks other apps and websites during the exam, also on students’ own devices. BenGER generates the SEB configuration itself. Grading then works as usual.",
+      "steps": [
+        "Project page → **Project settings** → **Safe Exam Browser** → tick **Require Safe Exam Browser**.",
+        "For exams from Moodle or ILIAS enter the course page as **Start URL** (required), so students sign in there inside SEB. Enter allowed extra sites (e.g. a statute database) under **Further allowed domains**.",
+        "Optional: set a **quit password** that the supervisors announce in the room.",
+        "Optional: set an **exam password for the configuration file**. The file is then encrypted, SEB asks for the password when opening it, and the supervisors announce it in the room at the start.",
+        "**Save**. The link to start in SEB, the configuration file and the allowed domains for IT are then ready to copy.",
+        "Give students the link to the exam. Opened in a normal browser, it shows instructions and the **Open exam in SEB** button.",
+        "Before the real exam, run a practice exam with the same settings so everyone installs and tests SEB."
+      ],
+      "tips": [
+        "Organizers, admins and graders do not need SEB. Submitted work, grades and corrections stay visible to students in a normal browser afterwards.",
+        "Every change creates a new configuration. Anyone who already opened SEB restarts via the link. If students are writing and a change would lock them out, BenGER asks before saving.",
+        "Inside SEB students stay on the exam: other pages of the app lead back to the exam page.",
+        "Under **Advanced** you can require specific SEB versions (Browser Exam Keys). Without entries any SEB version with this configuration is allowed. With a label per entry, students on another version see which versions are approved.",
+        "**Block screen-sharing and remote-control apps** (under **Advanced**, on for new configurations): before the exam starts, SEB requires apps such as TeamViewer, AnyDesk, Zoom or Teams to be closed.",
+        "The exam password can be set, changed or removed at any time without creating a new configuration."
+      ],
+      "pitfalls": [
+        "SEB exists for Windows, macOS and iPad, not for Linux or Chromebooks. Keep loaner devices ready.",
+        "SEB does not stop second devices such as phones. Supervision in the room is still needed.",
+        "Password links from emails cannot be opened inside SEB. Students need their sign-in details before the exam."
+      ],
+      "keywords": [
+        "SEB",
+        "Safe Exam Browser",
+        "exam",
+        "lockdown",
+        "kiosk",
+        "BYOD",
+        "proctoring"
+      ]
+    },
+    "archive-delete-restore": {
+      "title": "How do I archive, delete or restore a project?",
+      "summary": "Archiving is a bulk action in the project list. Deleting hides the project for everyone, the data is kept. Only superadmins can restore or permanently delete projects under **More → Deleted projects**.",
+      "steps": [
+        "**Archive**: [Projects](/projects) → tick projects → **Actions → Archive selected**. Archived projects live under **More → Archived** and can be unarchived there.",
+        "**Delete**: project page → quick actions → **Delete project**. The project disappears for everyone, tasks, submissions and evaluations stay stored.",
+        "**Restore** (superadmin): **More → Deleted projects** → *Restore* or *Delete permanently*."
+      ],
+      "tips": [
+        "Before deleting permanently, keep an export: tick projects → **Actions → Export selected projects**."
+      ],
+      "keywords": ["archive", "delete", "restore", "trash", "permanent"]
+    },
+    "upload-data": {
+      "title": "How do I upload data and which formats work?",
+      "summary": "As **JSON, CSV, TSV or TXT**, either in the project wizard (step *Data import*) or later on the **Project data** page via the import icon. Every row or object becomes a task. Field names must match the `$field` placeholders of the labeling template.",
+      "steps": [
+        "Project page → quick action **Project data** → import icon (tooltip *Import*). In the wizard: step **Data import**.",
+        "Tab **Upload file** (drag & drop) or **Paste table/JSON** (paste text, *Validate data*). Organizations with a storage connection also get **Cloud storage**.",
+        "The **Data requirements** box shows which fields the template expects. Detected columns of your file appear as chips.",
+        "If a field is missing, the import offers **Import anyway** or the **field mapping**, which maps columns to the expected fields.",
+        "**Import**. The import runs in the background with a progress display."
+      ],
+      "tips": [
+        "**JSON**: an array of objects `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. An object that already has a `data` key is taken as is.",
+        "**CSV/TSV**: the first line holds the column names. **TXT**: every line becomes a task with the field `text`.",
+        "Field names are matched case-insensitively. `Sachverhalt` in the file matches `$sachverhalt` in the template.",
+        "Files up to 2 GB. Save text files as **UTF-8**, otherwise umlauts break."
+      ],
+      "pitfalls": [
+        "CSV is split on the comma, plainly. **Commas or line breaks inside cells tear the row apart.** Use JSON for running text.",
+        "Only contributors and admins may import. Annotators do not see the data page.",
+        "The import creates new tasks, it does not update existing ones. Importing the same file twice doubles the tasks."
+      ],
+      "keywords": [
+        "upload",
+        "import",
+        "csv",
+        "json",
+        "file",
+        "field mapping",
+        "columns"
+      ],
+      "links": ["Fields of an exam file"]
+    },
+    "exam-file-fields": {
+      "title": "Which fields does an exam file need (exam collection)?",
+      "summary": "One JSON object per exam with `sachverhalt` and `musterloesung`. Optionally `muster_gliederung`, `bearbeitervermerk`, `zusatzmaterial` and `korrekturhinweise`. Several objects in one array form an exam collection students solve one after another.",
+      "steps": [
+        "`sachverhalt` (required): the case, visible during the exam.",
+        "`musterloesung` (required): the reference for AI grading, shown only after submission.",
+        "`muster_gliederung`: outline, shown after submission.",
+        "`bearbeitervermerk` and `zusatzmaterial`: visible during the exam, shown inside the case panel.",
+        "`korrekturhinweise`: notes for graders, shown after submission.",
+        "Example: `[{\"sachverhalt\": \"A sells B …\", \"musterloesung\": \"A. Claim …\"}, {\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}]`"
+      ],
+      "tips": [
+        "The hints under **Sharing** on the project page check exactly these fields and report e.g. *The tasks contain no model solution.*"
+      ],
+      "keywords": [
+        "exam collection",
+        "fields",
+        "json structure",
+        "multiple exams"
+      ]
+    },
+    "export-import-project": {
+      "title": "How do I export tasks or a whole project and import it again?",
+      "summary": "**Tasks** of a project: *Project data* page → export icon, gives JSON. **Whole projects** including configuration, annotations and evaluations: tick them in the project list → **Actions → Export selected projects** (ZIP). Bring them back via **More → Import project**.",
+      "steps": [
+        "**Export tasks**: project page → *Project data* → export icon. With active filters or a selection only that subset is exported. The export runs in the background, then the download appears.",
+        "**Export project**: [Projects](/projects) → tick projects → **Actions → Export selected projects**. You get `benger-projects-full-<date>.zip`.",
+        "**Import project**: [Projects](/projects) → **More → Import project** → choose `.json` or `.zip`. The new project opens after the import."
+      ],
+      "pitfalls": [
+        "An imported project is a copy with new IDs. Users and organizations are not copied, you set the visibility anew.",
+        "The project lands in the organization you are currently working in. In private mode the platform uses your first organization.",
+        "**Import project** only accepts project exports. Import a task export from *Project data* on the *Project data* page of an existing project.",
+        "*Unsupported file format version* means the file comes from an older or foreign version. Export it again from the current platform.",
+        "Very large filtered task exports are capped. Narrow the filter or export without filters."
+      ],
+      "keywords": ["export", "zip", "backup", "import project", "anki"]
+    },
+    "labeling-templates": {
+      "title": "Which labeling templates exist and when do I use which?",
+      "summary": "In the **Labeling setup** step you choose from the template gallery: *Question answering*, *Multiple choice*, *Span annotation*, *Klausurlösung*, *Flashcards (empty)* or *Custom* (your own XML). The template defines which fields annotators see and fill in.",
+      "steps": [
+        "**Question answering**: show context and question, capture a free-text answer. Data needs `context` and `question`.",
+        "**Multiple choice**: question with options A to D, optional reasoning. Data needs `question` and `context`.",
+        "**Span annotation**: mark and label text spans (person, organization, statute …). Data needs `text`.",
+        "**Klausurlösung**: case, notes, outline and solution, with highlights in the case text. Data needs `sachverhalt` and `musterloesung`. Set automatically for project type *Exam*.",
+        "**Flashcards (empty)**: front and back. Data needs `front` and `back`. Sets the project type to *Flashcard deck*.",
+        "**Custom**: your own XML, see “How do I edit the XML of the annotation interface?”."
+      ],
+      "tips": [
+        "If you pick no template, the project gets a minimal template with a `text` field and a free-text answer."
+      ],
+      "keywords": [
+        "template",
+        "gallery",
+        "question answering",
+        "multiple choice",
+        "span",
+        "flashcards"
+      ]
+    },
+    "edit-label-xml": {
+      "title": "How do I edit the XML of the annotation interface (label configuration)?",
+      "summary": "Project page → **Annotation configuration → Label configuration → Edit configuration**. The XML follows the Label Studio schema: a `<View>` root, display tags such as `<Text>` with `value=\"$field\"`, input tags such as `<TextArea>` or `<Choices>` with `name` and `toName`.",
+      "steps": [
+        "Open the editor. The **Available Task Fields** panel above lists the fields of your tasks. One click copies `$fieldname`.",
+        "**Display**: `<Text name=\"fall\" value=\"$sachverhalt\"/>` shows a data field. `<Header value=\"Frage\"/>` is a heading. `<Image>` shows images.",
+        "**Input**: `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (free text), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (selection), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (mark spans), `<Rating>`, `<Likert>`, `<Number>`.",
+        "Every input tag needs a unique `name` (becomes the annotation key) and a `toName` pointing at a display tag.",
+        "**Save configuration**. Check the result via **Start annotation**, there is no live preview."
+      ],
+      "tips": [
+        "Exam tags of the extended edition: `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` with `<Label>` children as highlight colors, `<Notizen>`, `<Gliederung>` and `<Loesung linkedTo=\"gliederung\">`. The *Klausurlösung* template shows the complete example.",
+        "`$field.subfield` reaches nested data. Field names are matched case-insensitively.",
+        "The reference of all standard tags: [Label Studio tags](https://labelstud.io/tags/)."
+      ],
+      "pitfalls": [
+        "An unknown tag is silently not rendered. If a field is missing in the interface, check the tag name. *Unknown component type: Gliederung* means the community edition is running without the exam tags.",
+        "`required=\"true\"` only checks that the **data field** exists in the task. It does not force annotators to enter something.",
+        "The editor only checks that the XML is well-formed and contains a `<View>`. Missing `name`/`toName` only show up when annotating.",
+        "**Do not rename an input field once annotations exist.** Old annotations and the evaluation methods (prediction field, e.g. `loesung`) reference the old name."
+      ],
+      "keywords": [
+        "xml",
+        "label config",
+        "label studio",
+        "view",
+        "textarea",
+        "choices",
+        "labels",
+        "interface",
+        "customize"
+      ],
+      "links": ["Label Studio tag reference"]
+    },
+    "annotation-instructions": {
+      "title": "How do I give annotators instructions and how does annotating work?",
+      "summary": "Write instructions in the wizard (step *Instructions*) or on the project page under **Annotation configuration → Annotation instructions**. Annotators start via **Start annotation** or **My tasks**, work task by task and submit with *Submit*.",
+      "steps": [
+        "**Annotation instructions** (Markdown) are shown to annotators above the task.",
+        "**Conditional instruction variants** for A/B tests: several variants with percentage weights that must add up to 100.",
+        "Annotators see open or assigned tasks, may skip (if allowed) and can review their own submission under **My tasks** afterwards.",
+        "With **Show model solution after submission** they also see the reference fields after submitting. If **immediate evaluation** is on, the AI result appears right away.",
+        "**Restorable checkpoints** save a snapshot every five minutes that annotators can bring back."
+      ],
+      "keywords": [
+        "instructions",
+        "annotate",
+        "submit",
+        "my tasks",
+        "variants",
+        "a/b",
+        "checkpoint"
+      ]
+    },
+    "generation-run": {
+      "title": "How do I have AI models generate answers?",
+      "summary": "On the project page under **Generation configuration** pick models and create a prompt, then **Start generation**. In the dialog choose the mode (*Generate missing only* or *Generate all*), models, prompt structures and parameters. Progress is shown under [Generation](/generations) as a task × model matrix.",
+      "steps": [
+        "**Model selection**: tick models from the catalog. Only providers with a key appear. Per model you can set the token limit and thinking budget (reasoning).",
+        "**Prompt structures**: system prompt (role) and instruction prompt (task). Insert task fields as `$field`, e.g. `Case facts:\n$sachverhalt`. Several structures are possible, all active ones run.",
+        "**Start generation**: choose the mode, confirm models and structures, under *Advanced settings* runs per task, temperature, max tokens and seed. The **cost estimate** computes tasks × runs × models.",
+        "Progress and results: [Generation](/generations). Clicking a cell shows the answer, the prompt used and the parameters. Right-click: *Generate* or *Regenerate*. All runs with status: [Runs](/runs)."
+      ],
+      "tips": [
+        "Reference fields such as `musterloesung`, `answer`, `solution`, `ground_truth` or `annotations` are never inserted into prompts, so the model cannot see the solution.",
+        "GPT-5 and o-series models enforce temperature 1.0, the slider is ignored for them. Anthropic and Google do not support a seed.",
+        "*Generate missing only* skips tasks whose answer already exists with an unchanged prompt. After a prompt change they are regenerated.",
+        "For studies with several passes set *Runs per task* above 1. Every run is stored and evaluated separately."
+      ],
+      "keywords": [
+        "generation",
+        "generate",
+        "prompt",
+        "system prompt",
+        "instruction",
+        "placeholder",
+        "temperature",
+        "seed",
+        "runs per task",
+        "cost estimate",
+        "model selection"
+      ],
+      "links": ["Generation", "Model catalog"]
+    },
+    "model-catalog": {
+      "title": "Which models are available and what do they cost?",
+      "summary": "The [model catalog](/models) lists every model with provider, capabilities, prices per million tokens and recommendations for generation and evaluation: OpenAI, Anthropic, Google, DeepInfra (Llama, Qwen, DeepSeek, GLM, Kimi and more), Grok, Mistral and Cohere. Costs are charged by the provider via the key used, not by BenGER.",
+      "tips": [
+        "The *cost estimate* in the generation and evaluation dialogs uses exactly these prices.",
+        "Catalog changes are listed under [Changelog](/changelog). Retired models stay visible in old results but can no longer be selected."
+      ],
+      "keywords": [
+        "model catalog",
+        "models",
+        "prices",
+        "cost",
+        "tokens",
+        "providers"
+      ]
+    },
+    "api-keys": {
+      "title": "How do I set up an API key and whose key gets used?",
+      "summary": "AI models need a key of the respective provider. Either store your own under [Profile](/profile) → **API key management**, or your organization provides keys. The rule: if the organization provides keys, it pays for its projects, otherwise your own key pays.",
+      "steps": [
+        "**Your own key**: [Profile](/profile) → *API key management* → pick the provider (OpenAI, Anthropic, Google, DeepInfra, Grok/xAI, Mistral, Cohere) → paste the key → *Test* → *Save*. The key is stored encrypted and never shown again.",
+        "**Organization keys** (admin): [Users & organizations](/users-organizations) → organization → **API keys** → switch on **Organization provides API keys** and store a key per provider. Optionally set the **scope** to a group.",
+        "**Who pays**: the **Billing** card on every project page tells you. *Organization covers the costs* when the organization provides keys; otherwise *runs on your own API key*.",
+        "On group projects the group key is used first, then the organization key. Never another group’s key."
+      ],
+      "tips": [
+        "You only see models of providers for which a key exists. If a provider is missing in the model picker, the key is missing.",
+        "If the organization provides keys, the personal key form in the profile is disabled. That is intended.",
+        "For exams students solve in the student interface, your organization pays for the AI grading if it provides keys. Otherwise the student interface’s own terms apply. Students who store their own key there pay themselves.",
+        "If an exam is linked to a learning platform (Moodle, ILIAS), the organization of that connection pays for AI grading for students from the learning platform (members or not) and for its own staff, including evaluation runs those people start. It must provide keys and hold a key for the grading model. Otherwise no AI grading runs, and there is no fallback to another key. See [learning platform integration](/how-to#lti-setup)."
+      ],
+      "pitfalls": [
+        "**If the organization provides keys but has none for the chosen provider, there is no fallback to your own key.** The provider is simply unavailable.",
+        "Anyone who is not an active member of the organization cannot use its keys. Their own key is charged silently instead.",
+        "“Your API key is valid but has reached its usage or rate limits” means: no credit or a rate limit at the provider, not an error in BenGER.",
+        "The key must match the provider: `sk-…` is OpenAI, `sk-ant-…` Anthropic, `AI…` Google, `xai-…` Grok."
+      ],
+      "keywords": [
+        "api key",
+        "key",
+        "openai",
+        "anthropic",
+        "credits",
+        "billing",
+        "who pays",
+        "organization provides"
+      ],
+      "links": ["Profile", "Registering custom models"]
+    },
+    "custom-models": {
+      "title": "How do I connect my own model (BYOM, OpenAI-compatible endpoint)?",
+      "summary": "Under [Models](/models) → **Register custom model**. Enter base URL and model name of an OpenAI-compatible chat-completions endpoint and store your key for it. The model is then available for generation and as an LLM judge.",
+      "steps": [
+        "[Models](/models) → section *My models* → **Register custom model**.",
+        "**Display name**, **base URL** (e.g. `https://api.example.com/v1`), **model name at the endpoint** (the value of the `model` field).",
+        "Switch off **API key required** if the endpoint is reachable without authentication (e.g. a local server). Otherwise enter **Your API key**.",
+        "Optionally reasoning parameters and cost per million tokens (for cost reports). **Test**, then save.",
+        "Sharing: in the model list set the visibility to organization or public. Only the endpoint definition is shared. Everyone stores their own key."
+      ],
+      "pitfalls": [
+        "Addresses on internal networks (localhost, private IP ranges) are blocked for security reasons. The endpoint must be publicly reachable.",
+        "Over `http://` instead of `https://` the key travels in clear text with every request.",
+        "Custom models are configured conservatively: no guaranteed structured output, no seed. For exam grading (judges) catalog models are more reliable.",
+        "Deleting only deactivates the model if results already reference it. It stays visible in old runs."
+      ],
+      "keywords": [
+        "custom model",
+        "BYOM",
+        "endpoint",
+        "ollama",
+        "vllm",
+        "base url",
+        "community models"
+      ]
+    },
+    "bewertungsbogen-upload-format": {
+      "title": "What does a grading sheet have to look like so I can upload it?",
+      "summary": "A table with **one text column** (outline item) and **one points column** (max BE per step) is enough. Upload on the **task page → Bewertungsbogen → Hochladen** as `.xlsx`, `.docx`, `.csv`, `.md` or `.json`. The outline editor always opens before saving, so nothing is activated unreviewed.",
+      "steps": [
+        "**Hierarchy comes from the label**: the level is read from the start of the line — `Frage 1`, then `A.`, `I.`, `1.`, `a)`, `aa)`, `(1)` and bullets. Nothing beyond that ordering is needed; eight levels deep works.",
+        "**Points**: a row **with** a point value becomes a scored step, a row **without** one becomes a section. `10`, `0,5`, `2 BE`, `3 P.` all work — decimal commas are fine and half points are allowed.",
+        "**Finding the points column**: a `max. BE` or `Punkte` header is enough; otherwise the first numeric column right of the text is used. Columns headed `Ihre BE`, `Bewertung`, `erreicht` or `Korrektor` are ignored, so an empty marking column does no harm.",
+        "**Focus points**: `(Schwerpunkt!)` or `(weiterer Schwerpunkt!)` after the title marks the step; the marker is stripped from the title.",
+        "**Section note**: `insgesamt 21 BE` is kept as a note on the section and checked against the sum of its steps.",
+        "**Grading hints**: bullet points under a step become its hints — exactly the hints human correctors and the AI judge see later.",
+        "**Grade scale**: a `raw points → grade points` table at the end (e.g. `0–9 | 0`, `10–19 | 1`, …) is adopted as the exam grade scale, including the rounding rule.",
+        "**Total rows** such as `Gesamt-BE` or `Summe` are skipped, but the stated value is compared against the computed sum."
+      ],
+      "tips": [
+        "`.xlsx` is the most reliable source: text and points sit cleanly side by side. In `.docx` the mapping follows the paragraph order inside the cell — usually fine, and flagged when it is uncertain.",
+        "`.csv` and `.md` are often easiest for a sheet you write yourself. In Markdown a list is enough: `- I. Opening of the administrative court process — 1 BE`, and `(2,5 BE)` or `[3 Punkte]` work too.",
+        "`.json` is the lossless route: a sheet curated once in the editor can be exported, edited elsewhere and read back exactly — steps, keys, focus markers and grade scale stay identical.",
+        "With `.csv` using a comma delimiter, decimal commas must be quoted (`\"2,5\"`). With a semicolon — what German Excel writes — the problem does not arise.",
+        "If the file fits none of these shapes — prose, a solution sketch, a sheet without a table — the upload offers **Mit KI strukturieren** (extended edition). A model reads the document and proposes an outline; it invents no points, it only picks up what is there. The result lands in the same outline editor and is explicitly a draft. Readable tables are still parsed exactly and never handed to a model.",
+        "The sheet need not be complete: whatever the import does not recognise, you add in the outline editor before activating."
+      ],
+      "pitfalls": [
+        "Scanned PDFs and images cannot be read. The file needs real text.",
+        "If text and points sit **in the same cell** (`Sachmangel 10 BE`), the import finds no points column. In `.md` that is exactly the expected form — there points belong at the end of the line.",
+        "Word auto-numbering is not in the file: numbered paragraphs arrive without a label (warning `auto_numbering`). The level is right; add the number in the editor or type it into the document as text.",
+        "With no recognisable points column the import stops with a clear message rather than creating an empty sheet. Use **Mit KI strukturieren** then, or write the sheet by hand.",
+        "Warnings such as `alignment_uncertain` or `subtotal_mismatch` are not import failures — they mark where to look in the editor."
+      ],
+      "keywords": [
+        "grading sheet",
+        "rubric",
+        "upload",
+        "excel",
+        "word",
+        "csv",
+        "markdown",
+        "json",
+        "grade scale",
+        "format",
+        "template"
+      ]
+    },
+    "evaluation-methods": {
+      "title": "Which evaluation methods exist and how do I configure them?",
+      "summary": "In the wizard (step *Evaluation*) or on the project page under **Evaluation configuration → Evaluation methods**. You tick methods, map a **prediction field** (what is scored) and a **reference field** (model solution) and pick the judge model for LLM judges.",
+      "steps": [
+        "**Lexical**: Exact Match, BLEU, ROUGE, METEOR, chrF. Fast, compare wording with the reference.",
+        "**Semantic**: Semantic Similarity, BERTScore, MoverScore. Compare meaning via embeddings, batch evaluation only.",
+        "**Classification**: Accuracy, Precision, Recall, F1 for choice tasks.",
+        "**LLM-as-Judge**: *Classic* (predefined dimensions), *Custom* (your own prompt and criteria), *Falllösung* (10 legal dimensions with grade points 0 to 18), *LLM Custom Rubric* (a per-task auto-generated grading sheet).",
+        "**Human grading**: *Korrektur (Classic)* with comments and highlights, *Korrektur (Falllösung)* and *Korrektur (Custom Rubric)* on the same scheme as the respective judge. They unlock the **Korrektur** page in the project.",
+        "For every method: **prediction field** (e.g. `loesung` or *All model outputs*) and **reference field** (e.g. `task.musterloesung`). With several references the best match counts."
+      ],
+      "tips": [
+        "Exam projects automatically get **two** case-solution judges on two different models (e.g. *Notenpunkte (gpt-5-mini)* and *Notenpunkte (gpt-5.4-mini)*). Immediate grading runs exactly one of them. Batch evaluation runs both. This is intended.",
+        "Advanced settings (judge model, temperature, thinking budget, several judges as an ensemble, runs per judge) are on the project page after creation.",
+        "A custom rubric is entered on the *Custom LLM Judge* as criteria with description and maximum score. With a maximum score the judge scores all criteria in one pass."
+      ],
+      "pitfalls": [
+        "A method with the **Batch only** badge does not run in immediate evaluation because it loads a large model.",
+        "LLM judges need an API key for the judge model. Without a key the evaluation fails.",
+        "Prediction and reference fields must exist. After renaming fields in the labeling template, adjust the methods."
+      ],
+      "keywords": [
+        "evaluation",
+        "metrics",
+        "judge",
+        "rubric",
+        "bleu",
+        "rouge",
+        "prediction field",
+        "reference field",
+        "grade points"
+      ],
+      "links": ["Setting up API keys"]
+    },
+    "immediate-evaluation": {
+      "title": "What is immediate evaluation (KI-Votum) and when does it run?",
+      "summary": "With **Immediate evaluation** enabled in the project, every submission is evaluated with the configured methods right after submitting. Annotators see the result immediately in a modal. For exams this is the AI grading with grade points and a justification per dimension.",
+      "steps": [
+        "Enable: wizard step *Evaluation* → **Immediate evaluation**, or project page → evaluation configuration. Exam projects have it on automatically.",
+        "After submitting, *Your annotation is being evaluated…* appears, then the result per method. For exams: grade points, points per dimension, overall assessment, areas to improve.",
+        "Results that got lost (tab closed, network error) are caught up by an hourly background run."
+      ],
+      "pitfalls": [
+        "*The configured evaluation methods run in batch evaluation only*: all methods are either human grading or semantic metrics. Add e.g. an LLM judge.",
+        "Immediate evaluation is part of the extended edition."
+      ],
+      "keywords": ["immediate evaluation", "instant feedback", "after submit"]
+    },
+    "batch-evaluation": {
+      "title": "How do I start a batch evaluation and where do I see the results?",
+      "summary": "Project page → **Evaluation configuration → Start evaluation** or [Evaluations](/evaluations) → pick the project. In the dialog choose mode, methods, models, annotators and prompt structures. Results appear under *Evaluations*, runs under *Runs*.",
+      "steps": [
+        "**Evaluation mode**: *Evaluate only missing/failed* (default) or *Evaluate all* (overwrites existing results).",
+        "Tick or untick **metrics**, **models** (generations), **annotators** (human submissions) and **prompt structures**. The cost estimate shows cells and judge models.",
+        "**Start evaluation**. One run per method is started, partial results appear immediately.",
+        "Results: [Evaluations](/evaluations) with filters for project, models, metrics and analysis level; *Results per task* table, trends, significance. Export as **JSON** or **CSV**.",
+        "Individual runs with pause, resume and retry: in the *Evaluations running* banner or under [Runs](/runs)."
+      ],
+      "keywords": [
+        "batch",
+        "start evaluation",
+        "results",
+        "runs",
+        "csv export",
+        "significance",
+        "re-evaluate"
+      ]
+    },
+    "korrektur-review": {
+      "title": "How do humans grade submissions (Korrektur) and what is the review workflow?",
+      "summary": "**Korrektur** is human grading of submissions on the case-solution scheme, a custom rubric or with comments. It is enabled via the *Korrektur (…)* methods and used via the quick action **Korrektur**. **Review** is a checking phase in which annotations are reviewed before finalization.",
+      "steps": [
+        "Enable grading: pick the method *Korrektur (Falllösung)*, *Korrektur (Custom Rubric)* or *Korrektur (Classic)*. Inside the method you set the queue (who grades what), blind grading (hide other assessments) and a time limit.",
+        "Grade: project page → **Korrektur** → next submission. Points per dimension, overall assessment and improvement tips, optional margin notes.",
+        "Annotators see their grading under **My tasks**, students under *Feedback* in the exam. A human grade overrides the AI grade on the leaderboard and in the learning platform.",
+        "Review: project page → *Annotation workflow & behavior* → **Enable review phase**, mode *Direct correction*, *Independent review* or *Both*. Used via the quick action **Review workflow**."
+      ],
+      "keywords": ["grading", "human evaluation", "review", "feedback", "blind"]
+    },
+    "reports-leaderboards": {
+      "title": "What do reports, leaderboards and learning statistics show?",
+      "summary": "**Reports** summarize a project (data, annotations, generation, evaluation results) and can be published to the organization. **Leaderboards** rank LLMs, human annotators and AI co-creation. **Learning statistics** show your own due cards, open exams and score history.",
+      "steps": [
+        "**Report**: project page → *Project report* card → **Edit report** (texts, interpretation, metrics, judge configuration, charts) → **Publish**, either for the project organizations only or **publicly** (readable without signing in). Requires tasks, generations and evaluations. Numbers are frozen on publish; **Refresh data** in the editor recomputes them. Reports are listed under [Reports](/reports).",
+        "**Leaderboards** ([Leaderboards](/leaderboards)): tabs *Human annotators*, *AI co-creation* and *LLMs*. Metric and time frame selectable, default is grade points. The LLM list hides models with fewer than 50 generations or evaluations until you switch off *Statistical relevance*.",
+        "Custom models only appear on the LLM leaderboard when they are public.",
+        "**Learning statistics** ([Learning statistics](/learning-stats)): flashcards due today, open exams with deadline, score history (AI and human) and retention."
+      ],
+      "keywords": [
+        "report",
+        "publish",
+        "leaderboard",
+        "ranking",
+        "learning statistics",
+        "score history"
+      ]
+    },
+    "lti-setup": {
+      "title": "How do I connect our organization to Moodle or ILIAS (LTI)?",
+      "summary": "Via **LTI 1.3**. As an **admin of your organization** you prepare the connection here: API keys, panel, address. The steps in the learning platform are in **Connecting Moodle** and **Connecting ILIAS**. The connection is **active at once**. Group admins can do this for their groups.",
+      "steps": [
+        "**Prepare the API keys**: [Users & organizations](/users-organizations) → organization → **API keys** → switch on **Organization provides API keys** and store a key for the grading model. The default models are from OpenAI. Without a key there is no AI grading and no fallback to another key.",
+        "**Open the panel**: [Users & organizations](/users-organizations) → pick the organization → **More** → **Learning platform (LTI)**. At the top, **AI grading and API keys** shows whether AI grading is set up.",
+        "**Choose the platform and the address**: click **Connect learning platform** and choose **Moodle**, **ILIAS** or **Other**. Then choose the **Address for the learning platform**. With the **Student address** everyone works in the student interface, teachers included. Only the grading view opens in the expert interface. With the **BenGER address** students work in the student interface and teachers in the expert interface. If there is only one address, there is nothing to choose. Continue with [Connecting Moodle](/how-to#lti-setup-moodle) or [Connecting ILIAS](/how-to#lti-setup-ilias).",
+        "**Other learning platform**: **Other** opens the full form. It shows the three tool URLs before anything is saved. After saving the tool, the learning platform reports the client ID and the deployment ID. Enter them with the learning platform URLs. The tool URLs are also shown later under **Tool configuration**.",
+        "**Test launch**: create an activity with a grade in a test course. Open it first as a teacher: after the consent page, link an exam. Then open it as a student: after the consent page, the exam opens. If no exam is linked yet, students only see the `not_linked` notice."
+      ],
+      "tips": [
+        "Group admins create invitations and connections for their groups only. Only an org admin can switch on **Organization provides API keys**."
+      ],
+      "pitfalls": [
+        "The connection is active as soon as the learning platform redeems the link. Sign the contract with us first and create the link only after that.",
+        "An invitation link alone connects nothing. As long as the **Waiting for the learning platform** card is in the panel, the learning platform has not redeemed it. Revoke a link you no longer need there with **Revoke**."
+      ],
+      "keywords": [
+        "lti",
+        "moodle",
+        "ilias",
+        "lms",
+        "integration",
+        "registration",
+        "student address",
+        "benger address",
+        "api keys"
+      ],
+      "links": [
+        "Connecting Moodle",
+        "Connecting ILIAS",
+        "Managing a connection",
+        "Linking an exam to an activity",
+        "Data protection for the integration",
+        "Launch from Moodle or ILIAS fails",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-setup-moodle": {
+      "title": "How do I connect Moodle?",
+      "summary": "With an **invitation link**: you create it in the panel, the Moodle administration pastes it into Moodle and changes three settings of the tool. Then the connection is **active at once**.",
+      "steps": [
+        "**Create the invitation link**: in the panel, **Connect learning platform** → **Moodle**. Choose the address and a **group** if needed, then **Create invitation link**. Copy the link and send it to the Moodle administration. It is shown only once, is valid for 14 days and works once. Until Moodle redeems it, the panel shows a **Waiting for the learning platform** card.",
+        "**Moodle registers the tool**: the administration pastes the link under *Site administration → Plugins → Activity modules → External tool → Manage tools* into **Add LTI Advantage**. If Moodle asks whether to update an existing tool, they choose **Register as a new external tool**, unless they replace an earlier connection on purpose. Then they activate the tool. The connection shows up in the panel and is **active at once**.",
+        "**Adjust the tool in Moodle**: Moodle creates every tool registered by link as embedded, as a preconfigured tool only, and with grades delegated to teachers. The tool cannot change that. So the Moodle administration opens the tool settings (the *Edit* icon on the tool card) and sets *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**, *Default launch container* to **New window** and *Accept grades from the tool* to **Always**.",
+        "**Done when** the **Waiting for the learning platform** card is gone and the connection shows **Connection on** in the panel. Teachers then create an activity in their course, see [Linking an exam to an activity](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "Moodle must send name and email address. Both must be set to **Always**. The invitation link requests this. Check the tool settings after the registration.",
+        "For Moodle, set *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Moodle then gets a **KI-Bewertung** column next to the final grade. The invitation link requests this. Teachers take this column out of the course total, see [Grades and the learning platform](/how-to#lti-grades).",
+        "The tool must open in a **new window**. In Moodle the tool’s *Default launch container* decides this, not the single activity."
+      ],
+      "pitfalls": [
+        "If the tool starts embedded in the course (iframe), people land on the login page instead of the exam. After a registration by link, Moodle presets exactly that. Set the tool’s *Default launch container* to **New window**.",
+        "If Moodle activities have no grade, *Accept grades from the tool* still delegates to teachers. Set it to **Always**. Otherwise teachers must tick *Allow … to add grades in the gradebook* in every activity."
+      ],
+      "keywords": [
+        "moodle",
+        "lti",
+        "invitation link",
+        "dynamic registration",
+        "manage tools",
+        "add lti advantage",
+        "default launch container",
+        "activity chooser",
+        "accept grades from the tool",
+        "ki-bewertung"
+      ],
+      "links": [
+        "Preparing the connection",
+        "Linking an exam to an activity",
+        "Grades and the learning platform",
+        "Launch from Moodle or ILIAS fails",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-setup-ilias": {
+      "title": "How do I connect ILIAS?",
+      "summary": "With a **global provider** in ILIAS: you give the ILIAS administration three URLs, they create the provider and report the client ID and deployment ID back, which you enter in the panel. Then the connection is **active at once**.",
+      "steps": [
+        "**Give the URLs to ILIAS**: in the panel, **Connect learning platform** → **ILIAS**. Choose the address and a **group** if needed. Step 1 shows three URLs. Send them to the ILIAS administration.",
+        "**Create a global provider**: in ILIAS, *Administration → Extending ILIAS → LTI →* tab *ILIAS as LTI Consumer* → *Add Global Provider for all Users*. There set *Availability* to **For Creating Objects** and *LTI Version* to **Version 1.3**, both are preset differently. Enter the three URLs, set *Public Key Type* to **URL (Json Web Token)** with the JWKS URL, *Support for Deep Linking* off, **Advanced Grading Services** on.",
+        "**Privacy in the provider**: *User identification* to **ILIAS user id …**, *User name* to **Entire name**. The tips say why.",
+        "ILIAS shows grades as learning progress. The ILIAS administration ticks *Provider supports Outcome Service* on the provider and sets the *Default Mastery Score* to **22** before teachers create objects. This equals 4 of 18 grade points. Learning progress must also be switched on in the ILIAS administration.",
+        "**Report the values back**: after saving, open the provider again by its title. The *Hints* box shows the **Client ID** and **Deployment ID**. In the panel, **Connect learning platform** → **ILIAS** → **Next**, enter the ILIAS address, client ID and deployment ID, and click **Connect**. The connection is **active at once**.",
+        "**Object in the course**: *Add New Object* → *LTI Consumer* → pick the provider → tick *Online*, *Options for Launch* **New Window**. Then continue as in [Linking an exam to an activity](/how-to#lti-teacher)."
+      ],
+      "tips": [
+        "ILIAS: the administration creates a global provider and sets *Availability* to **For Creating Objects** (German ILIAS: *in neuen und bestehenden Objekten*). Under *User identification* they choose **ILIAS user id …** (German ILIAS: *ID des ILIAS-Kontos …*). For the *User name* they choose **Entire name** (German ILIAS: *Vollständiger Name*). This also applies after a registration by link. ILIAS then sends the full name but no email address. So there is no automatic activation mail and no linking to existing accounts. Right after consent the page therefore asks each person once for their email address. The step can be skipped. The confirmation link sent to that address is also the activation mail.",
+        "Only testing one ILIAS course? In the ILIAS step of the panel, **Create invitation link** creates a link for the dynamic registration of a single object. In ILIAS: add an *LTI Consumer* → *Create Own Settings for Tool with Dynamic Registration (LTI 1.3)* → paste the link → *Add*. Before saving, set the same provider settings as above."
+      ],
+      "pitfalls": [
+        "In ILIAS, do not choose *E-Mail Address* (German ILIAS: *E-Mail-Adresse*) under *User identification*. In ILIAS 10.9 every grade transfer fails in this mode with “User not available”. Set the mode before the first launch and do not change it afterwards.",
+        "Under *Public Key Type* enter the JWKS URL, not an RSA key. ILIAS checks the tool’s signatures only through the URL, otherwise grade transfer fails."
+      ],
+      "keywords": [
+        "ilias",
+        "lti",
+        "global provider",
+        "lti consumer",
+        "client id",
+        "deployment id",
+        "user identification",
+        "mastery score",
+        "advanced grading services",
+        "learning progress"
+      ],
+      "links": [
+        "Preparing the connection",
+        "Linking an exam to an activity",
+        "Data protection for the integration",
+        "Launch from Moodle or ILIAS fails",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-manage": {
+      "title": "How do I manage a connection to Moodle or ILIAS?",
+      "summary": "In the **Learning platform (LTI)** panel every connection has its own card. There you switch the connection and its deployments on and off, set the role of teachers and see activities, LMS accounts, grade transfers and the history. The panel is open to org admins, and to group admins for their groups’ connections.",
+      "steps": [
+        "**Switch on and off**: a click on the **Connection on** switch turns the connection off after a confirmation. This immediately blocks all launches, the connection’s pages in the app and the grade transfer for this learning platform. The switch then reads **Connection off**, and the card shows the badge **Switched off**. Another click turns it back on, again after a confirmation.",
+        "**Deployments**: add or remove deployment IDs. The **Deployment on** switch next to an ID blocks that one ID and then reads **Deployment off**. The other deployments keep working. In ILIAS the deployment ID is the numeric provider ID.",
+        "**Edit**: the **Org role for teachers** is contributor, org admin (org_admin) or no org role (none). On a group connection it is the role in the group: contributor or org admin (= admin of the group). New teachers join the organization as annotators; anyone who already has a higher role there keeps it. Group admins grant up to group admin on their group’s connections. Here you also change the address, the group, the **Org role for students** and **Offer linking to existing accounts**.",
+        "**Activities**: every activity with course, linked exam, participants, transfer counts and the state of the **KI-Bewertung** column. **Open grade overview** leads to the activity overview.",
+        "**LMS accounts**: everyone on the connection with name, email address, pseudonym, role, consent and last launch, with search. **Unlink** separates the learning platform identity from the account. Accounts the learning platform created can be anonymized with **Anonymize**.",
+        "**Grade transfers**: all, failed or pending transfers with person, course, activity, exam and error text. For failed and pending transfers, **Retry** sends the grade at once. If the learning platform refuses a grade for good (for example with 400, 401, 403 or 404), the transfer fails at once. Fix the cause from the error text first.",
+        "**Send all grades again**: in the **Grade transfers** section, every connection that is switched on has its own button. After a confirmation, all current grades of all activities of that connection go to the learning platform again, including unchanged ones. Use it after an outage of the learning platform, after changed column settings or after a new grading key. A message then says how many grades are sent and how many people and activities were skipped. The history records the action with these numbers.",
+        "**History**: every change to the connection with time and acting person. If the learning platform calls the tool through the other address, the card shows a warning. If ILIAS sends the email address as identifier, the card warns with **Grade transfer to ILIAS fails**. **Show the history of all connections** at the bottom of the panel also lists invitation links and deleted connections.",
+        "**AI grading and API keys**: the top of the panel shows whether the organization and each group with a connection can pay for AI grading, and which key is missing.",
+        "**Delete**: disable the connection first, so that its switch reads **Connection off**. **Delete** then asks whether the accounts it created stay or are anonymized. Activities, LMS links and all participation and grade transfer records, including their transfer state, go away. Submissions and grades are kept. Grades already sent stay in the learning platform. Kept accounts stay pseudonymized. Afterwards only your organization’s admins and the platform administration see their names."
+      ],
+      "tips": [
+        "After **Unlink** the account, its submissions and its grades stay. The person’s activity participation and grade transfers on this connection are removed, so the person shows up in the grade overview again only after the next launch. On the next launch the connection asks for consent again. It offers the account only if it still has the address the learning platform sends. Otherwise, for example with a placeholder address, a new, separate account is created and the earlier grades stay with the old account.",
+        "If you remove a person from a connection’s group, a launch does not add them back. A group role you lowered stays lowered too. A teacher launch does raise an annotator back to the **Org role for teachers**, though (on a group connection, the role in the group).",
+        "**Anonymize** deletes name, email address, password and the learning platform identity and locks the sign-in. Submissions and grades stay for analysis under a new pseudonym. Grades already transferred stay in the learning platform. Before anonymizing, a preview shows what is deleted and what stays.",
+        "These accounts cannot be anonymized: accounts of the platform administration, your own account, accounts that existed before the link, accounts tied to other organizations or groups, and accounts with payment records. Group admins cannot anonymize org admins.",
+        "As an admin you see the real names of the people on your connections. Other members see the pseudonym in lists."
+      ],
+      "pitfalls": [
+        "If the **KI-Bewertung** column is missing in Moodle, Moodle does not let the tool add a column. The Moodle administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again.",
+        "Do not change the *User identification* in ILIAS after go-live. It decides how people are identified, and a change detaches every link. The one exception is the mode *E-Mail Address*: in ILIAS 10.9 every grade transfer fails with it. The ILIAS administration then switches to **ILIAS user id …**. After that, each person consents again and gets a new account. Earlier submissions stay with the old account.",
+        "Anonymizing cannot be undone. If the person opens the activity again, a new, empty account is created.",
+        "If you change a connection’s address, update the tool URLs in the learning platform too. Until then launches keep working, and the history shows a warning."
+      ],
+      "keywords": [
+        "manage connection",
+        "disable connection",
+        "deployment",
+        "lms accounts",
+        "unlink",
+        "anonymize",
+        "grade transfers",
+        "retry",
+        "history",
+        "teacher role",
+        "delete connection",
+        "connection on",
+        "connection off",
+        "switched off",
+        "user not available"
+      ],
+      "links": [
+        "Setting up a connection",
+        "Grades and the learning platform",
+        "Data protection for the integration",
+        "Launch from Moodle or ILIAS fails"
+      ]
+    },
+    "lti-teacher": {
+      "title": "How do I link a Moodle or ILIAS activity to an exam?",
+      "summary": "Create an *External tool* activity (Moodle) or an *LTI consumer* (ILIAS) with a grade in your course and open it. On the **first launch** you consent once and then pick the exam. After that the activity opens the exam’s page. There the **Learning platform activities** card leads to the **activity overview** with all submissions and grades.",
+      "steps": [
+        "Moodle: *Add an activity* → pick the tool in the activity chooser → keep grading on. If the activity shows no grade settings, first tick **Allow … to add grades in the gradebook** (the tool’s name fills the gap). Without the tick the activity has no grade. A maximum of 100 is fine, the tool sends 0 to 18 grade points and Moodle rescales. In Moodle the administration sets the launch container for the tool. ILIAS: create an *LTI consumer* with the provider and choose **New window** as launch option. Under *Options for Learning Progress* the *Mastery Score* should be **22**.",
+        "Open the activity. On the first launch the connection asks for your consent, including research use. If an account with your email address already exists, link it by signing in or through a link sent by email. Or choose **Continue with a separate account**. ILIAS sends no email address. There this step does not apply, and a separate account is always created. The page then asks you once for your email address. With the link you receive you set a password. You can also skip this step.",
+        "The picker carries your activity’s title. It lists your own exams (*Own*) and the exams of your organization’s contributors and admins, each with its author. On a group connection only the group’s contributors, the group admins and the org admins count. Private exams can be linked too. Below the list, **Or create a new exam** creates a new one. If there is no exam yet, the button reads **Create new exam**.",
+        "Exams with a case solution (Falllösung) and exams with an active grading sheet (Bewertungsbogen) can be linked. Exams without a task or without an active grading sheet cannot be chosen. The reason is shown next to them. If the exam has one task, the activity is linked to it automatically. For an exam collection with several tasks you choose one task or, in Moodle, the whole collection, see [Linking an exam collection](/how-to#lti-collection).",
+        "**Link**. This switches on human grading for the exam, and your organization’s staff can view and grade the submissions.",
+        "Students open the activity, consent once and land directly in the exam.",
+        "After linking and on every later launch you land on the exam’s page: with the BenGER address on the project page in the expert interface, with the Student address on the exam page. The **Learning platform activities** card leads to the **activity overview**. **Open grading** always leads to the expert interface, also with the Student address. What the overview shows is described under [Grades and the learning platform](/how-to#lti-grades).",
+        "**Moodle: take the KI-Bewertung out of the course total**. Moodle creates the **KI-Bewertung** column as a normal grade item and counts it in the *Course total*. Once the column appears with the first AI grade, open *Grades* → *Gradebook setup* in the course. In the KI-Bewertung row, tick the box in the *Weights* column, enter 0 and click *Save changes*. Then only the activity column counts."
+      ],
+      "tips": [
+        "Consent applies per connection. Further courses and activities of the same learning platform do not ask again.",
+        "On the exam’s project page, the **Learning platform activities** sit on the right below the quick actions, with a link to the overview.",
+        "The organization of the connection pays for AI grading. If it lacks a key, the picker and the overview show a notice."
+      ],
+      "pitfalls": [
+        "Once a grade has been sent to the learning platform, the link cannot be changed. Create a new activity for another exam or task.",
+        "*This activity cannot receive grades*: grade sync is off. Turn on grading in Moodle, if needed with the tick *Allow … to add grades in the gradebook*. In ILIAS the administration switches on *Advanced Grading Services* on the provider. Then open the activity again.",
+        "If an older activity is linked to the whole exam as one grade, the exam does not accept a second task, not even by import. Then link the activity to the exam’s task. This always works, also after grades were sent.",
+        "If the tool starts embedded (iframe), you land on the login page. In Moodle 4.5 you cannot change this in the activity. The Moodle administration sets the tool’s *Default launch container* to **New window**. In ILIAS, choose **New window** on the object.",
+        "If you cannot find the tool in the Moodle activity chooser, ask the Moodle administration to set the tool’s *Tool configuration usage* to **Show in activity chooser and as a preconfigured tool**."
+      ],
+      "keywords": [
+        "link activity",
+        "external tool",
+        "lti consumer",
+        "link exam",
+        "grading sheet",
+        "activity overview",
+        "moodle course",
+        "gradebook",
+        "course total",
+        "gradebook setup"
+      ],
+      "links": [
+        "Linking an exam collection",
+        "Grades and the learning platform",
+        "Setting up a connection",
+        "Data protection for the integration",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-collection": {
+      "title": "How do I link an exam collection with several tasks?",
+      "summary": "There are two ways. **One activity per task** works in Moodle and ILIAS: each activity receives the grade of its task. **The whole collection on one activity** works in Moodle only: each task gets its own column, and the activity column receives the mean of the final grades once every task has a final grade.",
+      "steps": [
+        "**One activity per task (Moodle and ILIAS)**: create one activity per task, ideally with the task in its title. Open the activity, expand the collection in the picker, choose the task and click **Link**. Repeat this for every task. Each activity receives only its task’s grade. Students still reach every task of the collection.",
+        "**The whole collection on one activity (Moodle only)**: create one activity, open it and choose the whole collection instead of a task in the picker. Click **Link**.",
+        "BenGER then creates one column per task in the Moodle gradebook, *Aufgabe N: activity title*. It receives the task’s final grade: the human grade, otherwise the AI grade if the activity sends AI grades. While AI grades are sent, each task also gets a column *KI-Bewertung: Aufgabe N*. The columns appear with the task’s first grade.",
+        "The activity column receives the **mean of the final grades of all tasks**. It is sent only once every task has a final grade. Until then the activity column stays empty for that person.",
+        "Check the course total. Moodle counts every column in the *Course total*: the mean, each task column and each KI-Bewertung column. If only the mean should count, open *Grades* → *Gradebook setup*, tick the box in the *Weights* column of every *Aufgabe N* and *KI-Bewertung* column, enter 0 and click *Save changes*."
+      ],
+      "tips": [
+        "BenGER links an exam with one task to that task automatically. Activities that were linked to the whole exam earlier were linked to the only task of their exam during the update.",
+        "If you add a task to the collection later, it gets its columns on the whole collection with the next transfer of its grades. Until it is graded, the mean waits.",
+        "Imports into the exam are possible once no activity receives the whole exam as one grade any more. Activities per task and the whole collection do not block imports.",
+        "The whole collection needs the Moodle tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**. Otherwise the picker does not offer it."
+      ],
+      "pitfalls": [
+        "In ILIAS only the way with one activity per task exists. ILIAS does not let the tool create columns and takes only one value per object and person, the final grade.",
+        "The link can be changed (another exam, another task, a switch between one task and the whole collection) until the activity’s first grade has reached the learning platform. After that BenGER refuses the change, because a column would otherwise mix grades of different tasks. Then create a new activity. Exception: an older activity that links the whole exam can always be linked to the only task of its exam.",
+        "If you delete a task column in Moodle, BenGER does not create it again by itself. If you delete a task in BenGER, its column stays in Moodle. BenGER never deletes a column in the learning platform.",
+        "If the task of a one-task activity is deleted, the activity receives no more grades. Link it to another task or create a new activity."
+      ],
+      "keywords": [
+        "exam collection",
+        "several tasks",
+        "link task",
+        "whole collection",
+        "column per task",
+        "mean",
+        "average",
+        "main column",
+        "task column",
+        "gradebook",
+        "import"
+      ],
+      "links": [
+        "Linking an exam to an activity",
+        "Grades and the learning platform",
+        "Collection cannot be linked or a column stays empty",
+        "Technical reference for your IT (LTI 1.3)"
+      ]
+    },
+    "lti-grades": {
+      "title": "How do grades get into the learning platform?",
+      "summary": "After submission the AI grades the solution, and the grade goes to the learning platform right away. If you grade the submission yourself, your grade becomes the final grade. The AI grade is kept. The **activity overview** shows both grades and what the learning platform received.",
+      "steps": [
+        "Open the activity from the learning platform. You land on the exam’s page; there **Open overview** in the **Learning platform activities** leads to the overview. In the connection panel, **Open grade overview** leads there as well.",
+        "The table **Submissions and grades** shows for each person the name, the submission, the **AI grade**, the **Human grade** and what the activity column and the KI-Bewertung column received. It also shows the status (*Transferred*, *Being transferred*, *No grade yet*, *Skipped* or *Failed*) with the error text.",
+        "**Open grading** takes you straight to the submission in the grading view. It opens in the expert interface, also with the Student address. Your grade replaces the AI grade in the activity column.",
+        "If a transfer has an error, the row offers **Send again**. This covers failed transfers, pending ones after a failed attempt and columns marked *Differs from the learning platform*. **Send again** sends the grade once more, right away. **Send failed ones again** does this for all transfers with an error at once.",
+        "**Send all grades again** sends every current grade of the activity once more after a confirmation, including unchanged ones. Use it after an outage of the learning platform, after changed column settings or after a new grading key. A message then says how many grades are sent and how many people were skipped (no grade, no consent or an anonymized account). The grades go out in small groups; in large courses this takes a few minutes.",
+        "Under **Columns in the learning platform** you see whether the **KI-Bewertung** column is active. If it was deleted in Moodle, **Create column again** brings it back."
+      ],
+      "tips": [
+        "Moodle gets two columns. The activity column holds the final grade (the human grade, otherwise the AI grade), rescaled to the activity’s maximum. The **KI-Bewertung** column always holds the AI grade on the 0 to 18 scale. It is named *KI-Bewertung: activity title*, so several activities in one course can be told apart. Older columns are named *KI-Bewertung* only. This needs the tool’s *IMS LTI Assignment and Grade Services* set to **Use this service for grade sync and column management**, otherwise Moodle gets the final grade only.",
+        "ILIAS gets one value per person, the final grade. ILIAS shows it as learning progress. ILIAS does not show the comment on the grade.",
+        "If a whole exam collection is linked to the activity in Moodle, each task adds the columns *Aufgabe N* and *KI-Bewertung: Aufgabe N*. The activity column then receives the mean of the final grades, only once every task has a final grade. See [Linking an exam collection](/how-to#lti-collection).",
+        "Grading deletes nothing. The AI grade stays in the overview and in the KI-Bewertung column. With several human grades, the most recently edited one counts.",
+        "If a grade changes later, for example through a new grading key, the new value reaches the learning platform within about an hour.",
+        "By default the AI grade is hidden while you grade, until you have submitted your own grade.",
+        "If you overrode or locked a grade in the Moodle gradebook, Moodle keeps it, also after **Send all grades again**. In the **KI-Bewertung** column, however, the value sent replaces a change made by hand. ILIAS always takes the value sent last.",
+        "Real names are shown here to the teachers of the courses that link this exam, to staff who may grade this exam, to the organization’s admins and to the platform administration. Anonymized accounts show as *Anonymized*."
+      ],
+      "pitfalls": [
+        "If the organization does not provide API keys or has no matching key, no AI grading runs. Students see the reason: their organization does not pay for AI grading yet, or it has no API key for the grading model. The submission stays saved. The overview shows *Waiting for an API key of the organization*. Once the key is in place, the submission is graded at the next hourly check, so within about an hour.",
+        "Moodle creates the **KI-Bewertung** column as a normal grade item and counts it in the *Course total*, even when a human grade decides the final grade. Set its weight to 0: in the course, *Grades* → *Gradebook setup*, tick the box in the *Weights* column of the KI-Bewertung row, enter 0 and click *Save changes*. If the column is created again, repeat this.",
+        "A failed transfer is retried automatically. If the learning platform was unreachable or had a server error, the grade goes out again after 10, 30 and 90 seconds. After that the intervals grow up to six hours. After ten attempts the transfer counts as failed and is still retried every six hours. If the learning platform refuses the grade for good (for example with 400, 401, 403 or 404), the transfer fails at once. Fix the cause from the error text, then click **Send again**.",
+        "If every transfer to ILIAS fails with “ILIAS kennt die Person nicht” or “User not available”, the ILIAS provider identifies people by *E-Mail Address*. In ILIAS 10.9 the grade transfer does not work in this mode. The ILIAS administration switches *User identification* to **ILIAS user id …**. After that, each person consents again and gets a new account. Earlier submissions stay with the old account.",
+        "While the connection is disabled, no grades go out, and the activity overview only shows a notice. Transfers from that time count as failed. After enabling the connection, **Send again** or **Send all grades again** sends them at once. Otherwise the tool retries them by itself about six hours after the failure."
+      ],
+      "keywords": [
+        "grade transfer",
+        "grades",
+        "ai grade",
+        "final grade",
+        "gradebook",
+        "column management",
+        "send again",
+        "send all grades again",
+        "grade sync",
+        "grading key",
+        "course total",
+        "weight"
+      ],
+      "links": [
+        "Linking an exam to an activity",
+        "Human grading",
+        "Grades do not arrive in the learning platform",
+        "Managing a connection",
+        "Data protection for the integration"
+      ]
+    },
+    "lti-privacy": {
+      "title": "What do I need to know about data protection for the LMS integration?",
+      "summary": "The integration asks for **consent before any account exists**, once per connection, from students and teachers. Accounts carry name and email address from the learning platform, from ILIAS only the name. The app shows a pseudonym. AI grading runs only on your organization’s keys. Hosting is in **Germany**. We act as processor and will meet the requirements your data protection office sets. Please tell us specifically what you need.",
+      "steps": [
+        "**Consent first**: on the first launch the person sees what the learning platform sent and agrees to two points. These are the processing (an account with name and email address, the pseudonym, the grade transfer) and research use. No account exists before that. The checked launch waits on the server for at most 30 minutes. If the person requests a confirmation link, a copy of the launch is kept with the link for up to 24 hours.",
+        "**Research use is required**: without this consent the tool cannot be used from the learning platform. Access that depends on consent raises the question of Art. 7(4) GDPR. Whether this fits your course is for your data protection office to assess.",
+        "**Real name and pseudonym**: accounts carry name and email address from the learning platform. From ILIAS only the name arrives. The app shows the pseudonym. Real names are visible to the organization’s admins, to group admins for their group, to the course teachers, to staff who may grade the linked exam and to the platform administration. Course teachers are the teachers of any course on the connection that links the exam. By default the connection’s teachers may grade too, because they become contributors in the organization.",
+        "**State your requirements**: a data processing agreement on your template or ours, a TOMs annex, an entry for your record of processing, input for a DPIA, subprocessors, retention periods. The full prompt list is in the technical reference.",
+        "**Contract before the invitation link**: a connection is active as soon as the learning platform redeems the link. Sign the contract before your organization admin creates the link. Making sure of this is the university’s task.",
+        "**Name the contacts**: one for the legal side (usually the legal office or data protection coordination, not the individual teacher) and one for the Moodle or ILIAS administration."
+      ],
+      "tips": [
+        "AI grading of linked exams runs only on **your organization’s API keys**, never on one of ours. Without a key nothing is graded. So you decide which provider processes solution text.",
+        "No course roster is read. The integration uses at most three grade-related permissions (two on ILIAS) and no Names and Role Provisioning.",
+        "An existing account is linked only when the person signs in or confirms a link sent by email. Accounts of the platform administration are never linked.",
+        "New accounts with a deliverable address get an email to set a password after consent. Accounts without a deliverable address, such as every account from ILIAS, are asked once for an email address right after consent. The step can be skipped. The address counts only once the person opens the confirmation link. That link is also the email to set the password. An address that already belongs to another account is refused. Anyone who skips the step adds an address in the app later.",
+        "Your organization’s admins anonymize accounts the learning platform created. Name, email address and the learning platform identity are deleted, while submissions and grades stay without personal reference. Full deletion of an account is available on request.",
+        "The AI grade and the human grade are kept side by side, and the human grade is the final grade. Until a teacher grades, the AI grade is the value in the learning platform."
+      ],
+      "pitfalls": [
+        "Before go-live, set the **User identification** in ILIAS to **ILIAS user id …**. For the *User name*, choose **Entire name**. The mode *E-Mail Address* is not suitable, because in ILIAS 10.9 every grade transfer fails with it. ILIAS therefore sends the name but no email address: no automatic activation mail, no linking to existing accounts. After consent the page asks once for an email address. Do not change the identification afterwards. A change alters every person’s identifier and detaches every link.",
+        "Whether a data protection impact assessment is needed, and how the AI grade before human grading is to be assessed legally, is for the university as controller to decide. We supply the processing description as input.",
+        "Grades already sent to the learning platform stay there, also after anonymization. You delete them in the learning platform."
+      ],
+      "keywords": [
+        "data protection",
+        "gdpr",
+        "dpa",
+        "processor",
+        "dpia",
+        "record of processing",
+        "pseudonym",
+        "real name",
+        "consent",
+        "research use",
+        "anonymization",
+        "hosting",
+        "deletion",
+        "user identification"
+      ],
+      "links": [
+        "Full data protection and technical reference",
+        "Setting up a connection",
+        "Managing a connection",
+        "Privacy policy"
+      ]
+    },
+    "api-zugaenge": {
+      "title": "How do I set up API access for scripts or a benchmark runner?",
+      "summary": "With an **access key** (it starts with `bgr_`). As an org or group admin you create keys for your organization under **API access**, personal keys on your [profile](/profile). The key is shown to you only once.",
+      "steps": [
+        "**Create the key**: for the organization, open [Users & organizations](/users-organizations), pick the organization and click **API access**. For yourself, go to **API access** on your [profile](/profile). Click **New key** and give it a name you will recognize later.",
+        "**Choose the scope**: pick a preset: **Read the benchmark only**, **Run and submit to the benchmark** or **Full access to your own organization**. **Advanced** lists every permission on its own. For organization keys you also choose the role and, if needed, a group and single projects. Validity defaults to one year.",
+        "**Copy**: after **Create key** the full key appears. Copy it right away with **Copy** and keep it safe, for example in a password manager. Afterwards you only see its identifier.",
+        "**Test the connection**: click **Test connection**. BenGER calls the API the way your script will and shows the key's organization and permissions.",
+        "**Use it in a script or runner**: take the `curl` or Python example shown. The key goes into the `Authorization: Bearer <key>` header. Store it as an environment variable or a secret of your runner, never in the source code."
+      ],
+      "tips": [
+        "**Renew** creates a new key with the same settings. The old one keeps working until you revoke it, so your scripts switch over without downtime.",
+        "**Usage** shows how often a key was used in the last 30 days and which endpoints it called.",
+        "An organization key acts as its own service account. A personal key acts as you and never sees more than you do."
+      ],
+      "pitfalls": [
+        "You only see the full key right after creating it. If you lost it, create a new one and revoke the old one.",
+        "An organization key can read reference solutions only with the **Contributor** role.",
+        "If a key got into the wrong hands, revoke it at once with **Revoke**. It stops working immediately."
+      ],
+      "keywords": [
+        "api",
+        "api access",
+        "access key",
+        "token",
+        "script",
+        "runner",
+        "benchmark",
+        "bgr_",
+        "curl",
+        "python"
+      ],
+      "links": ["Profile", "Users & organizations"]
+    },
+    "ts-no-projects": {
+      "title": "“I see no projects” or “my project has disappeared”",
+      "summary": "Almost always the context: top right in the account menu under **Switch context** pick the organization. Then: is the project archived (*More → Archived*) or restricted to a group you do not belong to?",
+      "keywords": [
+        "disappeared",
+        "not visible",
+        "empty",
+        "missing",
+        "no projects"
+      ],
+      "links": ["Private context vs. organization", "Groups"]
+    },
+    "ts-no-models": {
+      "title": "“No API keys configured” or models are missing from the picker",
+      "summary": "The provider key is missing. Store your own key under [Profile](/profile) → *API key management*, or the organization must switch on *Organization provides API keys* and add the provider. If the organization provides keys, there is no fallback to your own.",
+      "keywords": ["no api keys", "model missing", "unavailable", "provider"],
+      "links": ["Setting up API keys"]
+    },
+    "ts-generation-fails": {
+      "title": "Generation or evaluation fails",
+      "summary": "Check in this order: key valid and funded (*usage or rate limit reached* means no credit at the provider), model still active in the [model catalog](/models), prompt structure and methods reference existing fields. Details of every run are under [Runs](/runs), failed runs can be retried there.",
+      "tips": [
+        "*Regenerate* only re-creates a task when the prompt changed. *Generate all* forces regeneration."
+      ],
+      "keywords": [
+        "failed",
+        "error",
+        "generation failed",
+        "evaluation error",
+        "rate limit",
+        "invalid key"
+      ]
+    },
+    "ts-import-validation": {
+      "title": "“Import validation error: These fields are not present in the data”",
+      "summary": "Your file has different column names than the `$field` placeholders of the labeling template. Either rename columns, use the **field mapping** in the import dialog, or **Import anyway** and then generate the template from the data under *Field mapping & template* on the data page.",
+      "keywords": [
+        "validation error",
+        "missing fields",
+        "field mapping",
+        "import failed"
+      ],
+      "links": ["Uploading data"]
+    },
+    "ts-unknown-component": {
+      "title": "A field is missing in the annotation interface or “Unknown component type”",
+      "summary": "The tag in the XML is not recognized. Tag names are case-sensitive (`TextArea`, not `Textarea`). Exam tags such as `Angabe`, `Gliederung` and `Loesung` exist only in the extended edition. Missing data fields (`value=\"$field\"`) stay empty without an error.",
+      "keywords": [
+        "unknown component",
+        "field missing",
+        "empty",
+        "not shown",
+        "xml error"
+      ],
+      "links": ["Editing the XML"]
+    },
+    "ts-import-button": {
+      "title": "“Where is the import button?” and other moved functions",
+      "summary": "**Import project**, **Archived**, **Deleted projects** and **Discover** sit in the project list under the **More** menu. Importing tasks into a project is on the *Project data* page. Custom models are managed under [Models](/models), personal API keys in the [profile](/profile).",
+      "keywords": [
+        "import button",
+        "more menu",
+        "where is",
+        "cannot find",
+        "moved"
+      ]
+    },
+    "ts-lti-errors": {
+      "title": "Launch from Moodle or ILIAS fails",
+      "summary": "The error page shows an **error code**, and a **reference** for unexpected server errors. Find the code in the list below. Each entry gives the cause, the fix and who can help. Students contact their teachers, teachers contact the admins of their organization. The consent or confirmation page shows some errors itself, with a heading only. The list names these headings.",
+      "steps": [
+        "`invalid_request`: the learning platform sent an incomplete launch request. Open the activity again. If the error comes every time, the learning platform administration checks the tool settings.",
+        "`registration_not_found`: no connection matches the learning platform. Usually the platform ID (issuer) or client ID in the tool settings does not match the connection, or the connection was deleted. Two active connections that cannot be told apart also lead to this code. The admins of your organization check the connection, the learning platform administration checks the tool settings.",
+        "`registration_disabled`: the organization has switched off the connection. A switched-off connection shows this code on every launch. In the panel its card shows the badge **Switched off**, and the switch reads **Connection off**. The admins of your organization switch it back on with a click on the switch.",
+        "`org_inactive`: the organization that owns the connection is deactivated. Only the operator of the platform can change that. Teachers contact the operator.",
+        "`unknown_deployment`: the learning platform sends a deployment ID that is not registered in the connection. In ILIAS the deployment ID is the provider ID. The learning platform administration provides the ID, and the admins of your organization add it to the connection under **Deployments**.",
+        "`deployment_disabled`: the deployment ID is registered in the connection but switched off. Next to the ID the switch reads **Deployment off**. The admins of your organization switch it back on under **Deployments** with a click on the switch.",
+        "`tool_not_configured`: the tool signing key cannot be loaded on the server. Only the operator of the platform can fix this. Teachers contact the operator.",
+        "`state_unavailable`: a temporary server problem. The server could not store or read the sign-in. This is not caused by the browser. Try again in a few minutes. If it persists, teachers pass the code on to the operator of the platform.",
+        "`invalid_state`: the sign-in was older than 5 minutes or was already used, for example after going back, reloading or submitting twice. Open the activity again from the learning platform.",
+        "`invalid_token`: the sign-in data from the learning platform could not be verified. Possible causes are a wrong client ID in the connection, new keys on the learning platform, or a server clock that is off. Open the activity again. If the error comes every time, the learning platform administration checks the tool settings together with the admins of your organization.",
+        "`jwks_unreachable`: the platform could not load the keys of the learning platform that it checks the sign-in with. Usually a firewall in front of the learning platform blocks this platform, less often the key URL (JWKS) in the connection is wrong or the learning platform is down. The tool settings can be entirely correct. Try again in a few minutes. If the error comes every time, the learning platform administration opens the key URL (on ILIAS `lticerts.php`) and the token URL (`ltitoken.php`, for sending grades) to this platform.",
+        "`nonce_mismatch`: the response of the learning platform does not match the sign-in that was started. Open the activity again from the learning platform.",
+        "`nonce_reused`: the same sign-in arrived a second time. Open the activity again from the learning platform.",
+        "`unsupported_message`: the learning platform sends a request the tool does not support, for example Deep Linking. The learning platform administration switches Deep Linking off in the tool settings.",
+        "`not_linked`: the activity is not linked to an exam yet. Teachers open the activity themselves from the learning platform and pick an exam. Students contact their teachers.",
+        "`exam_unavailable`: the linked exam was deleted. Teachers open the activity and link another exam. If grades were already sent, they create a new activity in the learning platform. Students contact their teachers.",
+        "`user_inactive`: the account of the person is deactivated on this platform. Only the operator of the platform can activate it again. Teachers contact the operator. An anonymized account does not come back. Anonymizing removes its link to the learning platform, so the next launch creates a new account after consent.",
+        "`membership_removed`: an admin removed the person from the organization or the group of the connection. A launch from the learning platform does not restore the membership. If the person should have access again, the admins of your organization send an invitation with **Invite Member** to the email address of their account. Once the person accepts it while signed in, the membership is active again. If the account has no password yet, the person first sets one with **Forgot your password?**. If the account only has a placeholder address (the learning platform sent no address or one that is already in use), neither the invitation nor the password mail arrives. The operator of the platform then restores the membership with **Add Existing User**. The admins restore a group membership by adding the person to the group again.",
+        "`launch_expired`: on the consent page and the account choice this case appears without a code as **Sign-in expired**. The launch has expired or was already completed. This happens when the consent page or the account choice was open for more than 30 minutes, or when the launch was already completed in another tab. Open the activity again from the learning platform.",
+        "`launch_mismatch`: on the consent page and the account choice this case appears without a code as **Sign-in does not match**. The page belongs to another launch, or the browser does not have the cookie of this launch. This happens when the address is opened in another browser or the tool starts embedded. Open the activity again and finish all steps in the same browser.",
+        "`link_proof_failed`: on the confirmation page this case appears without a code as **Confirmation failed**. The confirmation link from the email is invalid, older than 24 hours or already used. Open the activity again and request a new link.",
+        "`account_not_linkable`: this account may not be linked to a learning platform, for example an account with administration rights for the whole platform. The admins of your organization remove the existing link under **LMS accounts** with **Unlink**. Then open the activity again and consent. The page **Separate account** then offers only **Continue**. This creates a separate account.",
+        "`internal`: an unexpected error on the server. The error page shows a **reference** for it. Try again in a few minutes. If the error persists, teachers pass the error code and reference on to the operator of the platform. With the reference the operator finds the error in the server log."
+      ],
+      "tips": [
+        "The admins of your organization manage the connection under [Users & organizations](/users-organizations) → organization → **More** → **Learning platform (LTI)**. There they switch the connection and its deployments on and off, add deployment IDs and unlink LMS accounts.",
+        "Only the learning platform administration changes the tool settings such as the launch container and accepting grades, the deployment ID, privacy (in Moodle sending name and email, in ILIAS the *User identification*) and the grade transfer (in Moodle *IMS LTI Assignment and Grade Services*, in ILIAS *Advanced Grading Services*)."
+      ],
+      "pitfalls": [
+        "If the tool starts embedded in the course (iframe), people land on the login page instead of the exam, or see **Sign-in does not match** (`launch_mismatch`). The browser does not pass the sign-in cookies into the embedded frame. Set the tool to **New window** in the learning platform. After a registration by link, Moodle presets embedded. There the Moodle administration changes the tool’s *Default launch container*. Teachers cannot change it per activity in Moodle 4.5.",
+        "`state_unavailable` has nothing to do with cookies or the browser. Another browser does not help, a new attempt after a few minutes does.",
+        "Going back, reloading or a bookmark on a launch page leads to `invalid_state`. Always start from the learning platform.",
+        "`unknown_deployment` and `deployment_disabled` are not the same. In the first case the ID is missing from the connection, in the second it is registered and switched off."
+      ],
+      "keywords": [
+        "lti error",
+        "error code",
+        "error page",
+        "reference",
+        "launch failed",
+        "moodle launch",
+        "ilias launch",
+        "connection disabled",
+        "deployment id",
+        "provider id",
+        "iframe",
+        "embedded",
+        "default launch container",
+        "login page",
+        "sign-in expired",
+        "sign-in does not match",
+        "confirmation failed"
+      ],
+      "links": [
+        "Setting up a connection",
+        "Managing a connection",
+        "Linking an exam to an activity",
+        "Grades do not arrive in the learning platform"
+      ]
+    },
+    "ts-lti-grades": {
+      "title": "Grades do not arrive in Moodle or ILIAS",
+      "summary": "Open the **activity overview**, or **Grade transfers** in the connection panel. They show the status and the error text of every transfer. The most common causes are an activity without a grade, grade sync switched off in the learning platform, a missing API key and, in ILIAS, the *User identification* set to *E-Mail Address*. ILIAS then answers “User not available”.",
+      "steps": [
+        "**ILIAS: “ILIAS kennt die Person nicht” or “User not available”**: the ILIAS provider identifies people by *E-Mail Address*. In ILIAS 10.9 every grade transfer fails in this mode. The connection card then warns with **Grade transfer to ILIAS fails**. The ILIAS administration switches the provider’s *User identification* to **ILIAS user id …**. After that, the identifier of every person changes. On the next launch each person consents again, gets a new account and is asked once for their email address. Earlier submissions stay with the old account.",
+        "**ILIAS: no value arrives**: *Advanced Grading Services* must be switched on for the provider. Then open the activity again.",
+        "**ILIAS: a passed exam shows as “in progress”**: the object’s *Mastery Score* is still 80. Set it to **22** under *Options for Learning Progress*. If the field is missing, the ILIAS administration ticks *Provider supports Outcome Service* on the provider. ILIAS shows learning progress only when it is switched on in the ILIAS administration.",
+        "**Moodle: the activity has no grade**: without a grade there is no grade column. Switch on grading in the activity, if needed with the tick *Allow … to add grades in the gradebook*.",
+        "**Status Failed with 400, 401, 403 or 404**: the learning platform refuses the grade for good. So the tool does not try again right away. Fix the cause from the error text, then click **Send again**, or **Retry** in the panel.",
+        "**Status Being transferred or Pending with an error text**: the learning platform was briefly unreachable or had a server error. The tool tries again after 10, 30 and 90 seconds, then at growing intervals of up to six hours.",
+        "**No grade yet**: the AI grading is still running or could not start. If the organization lacks an API key, the overview shows *Waiting for an API key of the organization*.",
+        "**Connection switched off**: while the switch reads **Connection off**, no grades go out. Switch the connection on and click **Send all grades again**, or **Send again** in the row.",
+        "**The learning platform was down, or grade transfer was off there**: afterwards click **Send all grades again**. The activity overview offers it per activity, the connection panel under **Grade transfers** for all activities of a connection. Without this click the grades go out with the automatic retries. That can take up to six hours."
+      ],
+      "tips": [
+        "If a grade changes later, for example through a human grade or a new grading key, the new value reaches the learning platform within about an hour.",
+        "ILIAS gets only the final grade per person. A **KI-Bewertung** column exists in Moodle only.",
+        "If Moodle still shows another value after **Send all grades again**, the grade was overridden or locked in the Moodle gradebook. Moodle does not change such grades. Remove the override in Moodle, and Moodle shows the value sent."
+      ],
+      "pitfalls": [
+        "Change the *User identification* in ILIAS only to leave the mode *E-Mail Address*. Every change detaches all existing links."
+      ],
+      "keywords": [
+        "grades missing",
+        "grade transfer failed",
+        "user not available",
+        "user identification",
+        "email address",
+        "mastery score",
+        "learning progress",
+        "advanced grading services",
+        "send again",
+        "send all grades again",
+        "outage"
+      ],
+      "links": [
+        "Grades and the learning platform",
+        "Managing a connection",
+        "Setting up a connection",
+        "The main column of an exam collection stays empty"
+      ]
+    },
+    "ts-lti-collection": {
+      "title": "An exam collection cannot be linked or the main column stays empty",
+      "summary": "An exam collection has several tasks. Choose one task in the picker, or, in Moodle, the whole collection. The whole collection needs column management in Moodle. Its main column, the activity column, receives the mean only once every task has a final grade.",
+      "steps": [
+        "**The picker asks for a task (`task_required`)**: the exam has several tasks. Expand the collection and choose the task whose grade the activity receives. In Moodle you can choose the whole collection instead.",
+        "**The whole collection cannot be chosen (`collection_unsupported`)**: the connection is ILIAS, or Moodle does not let the tool create columns. In ILIAS, create one activity per task. In Moodle, the administration sets the tool’s *IMS LTI Assignment and Grade Services* to **Use this service for grade sync and column management**. Then open the activity again so that the learning platform sends the new rights.",
+        "**The main column stays empty**: on the whole collection, the activity column receives the mean only once every task of the person has a final grade. Check in the *Aufgabe N* columns which task is still missing and grade it. If the activity does not send AI grades, every task needs a human grade. If a task was added to the collection, the mean also waits for that task.",
+        "**A task column is missing in Moodle**: the column appears with the task’s first grade. If it was deleted in Moodle, BenGER does not create it again by itself.",
+        "**The link cannot be changed (`relink_blocked`)**: a grade of the activity has already reached the learning platform. Create a new activity for the other exam, the other task or the other way.",
+        "**Import refused (`multi_task_unsupported`)**: an older activity receives the whole exam as one grade. Link it to the exam’s task. After that, imports are possible."
+      ],
+      "tips": [
+        "One activity per task works in Moodle and ILIAS. The whole collection on one activity exists in Moodle only."
+      ],
+      "keywords": [
+        "exam collection",
+        "several tasks",
+        "main column empty",
+        "mean missing",
+        "task column",
+        "task_required",
+        "collection_unsupported",
+        "relink_blocked",
+        "multi_task_unsupported",
+        "column management"
+      ],
+      "links": [
+        "Linking an exam collection",
+        "Grades do not arrive in Moodle or ILIAS",
+        "Grades and the learning platform"
+      ]
+    }
+  }
+}

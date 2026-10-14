@@ -14,6 +14,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Card } from '@/components/shared/Card'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   CheckCircleIcon,
   InformationCircleIcon,
@@ -114,17 +115,17 @@ interface StatisticalResultsPanelProps {
   className?: string
 }
 
-const formatValue = (value: number): string => {
+const formatValue = (value: number, locale: string): string => {
   if (value >= 0 && value <= 1) {
-    return `${(value * 100).toFixed(1)}%`
+    return `${formatDecimal(value * 100, locale, 1)}%`
   }
-  return value.toFixed(4)
+  return formatDecimal(value, locale, 4)
 }
 
-const formatPValue = (p: number): string => {
-  if (p < 0.001) return '<0.001'
-  if (p < 0.01) return p.toFixed(3)
-  return p.toFixed(2)
+const formatPValue = (p: number, locale: string): string => {
+  if (p < 0.001) return `<${formatDecimal(0.001, locale, 3)}`
+  if (p < 0.01) return formatDecimal(p, locale, 3)
+  return formatDecimal(p, locale, 2)
 }
 
 const getSignificanceStars = (p?: number): string => {
@@ -165,7 +166,7 @@ export function StatisticalResultsPanel({
   selectedStatistics = [],
   className = '',
 }: StatisticalResultsPanelProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
 
   // Helper to check if a statistic should be shown
   // If no statistics selected, show all (default behavior)
@@ -294,14 +295,14 @@ export function StatisticalResultsPanel({
                             <div
                               title={
                                 showStat('ci')
-                                  ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]`
+                                  ? `CI: [${formatValue(stats.ci_lower, locale)}, ${formatValue(stats.ci_upper, locale)}]`
                                   : undefined
                               }
                             >
-                              <span>{formatValue(stats.mean)}</span>
+                              <span>{formatValue(stats.mean, locale)}</span>
                               {showStat('se') && stats.se !== undefined && (
                                 <span className="ml-1 text-xs text-gray-400">
-                                  ±{stats.se.toFixed(3)}
+                                  ±{formatDecimal(stats.se, locale, 3)}
                                 </span>
                               )}
                             </div>
@@ -372,14 +373,14 @@ export function StatisticalResultsPanel({
                               <div
                                 title={
                                   showStat('ci')
-                                    ? `CI: [${formatValue(stats.ci_lower)}, ${formatValue(stats.ci_upper)}]`
+                                    ? `CI: [${formatValue(stats.ci_lower, locale)}, ${formatValue(stats.ci_upper, locale)}]`
                                     : undefined
                                 }
                               >
-                                <span>{formatValue(stats.mean)}</span>
+                                <span>{formatValue(stats.mean, locale)}</span>
                                 {showStat('se') && stats.se !== undefined && (
                                   <span className="ml-1 text-xs text-gray-400">
-                                    ±{stats.se.toFixed(3)}
+                                    ±{formatDecimal(stats.se, locale, 3)}
                                   </span>
                                 )}
                               </div>
@@ -448,20 +449,22 @@ export function StatisticalResultsPanel({
                       {metric}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300">
-                      {formatValue(stats.mean)}
+                      {formatValue(stats.mean, locale)}
                     </td>
                     {showStat('ci') && (
                       <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
-                        [{formatValue(stats.ci_lower)},{' '}
-                        {formatValue(stats.ci_upper)}]
+                        [{formatValue(stats.ci_lower, locale)},{' '}
+                        {formatValue(stats.ci_upper, locale)}]
                       </td>
                     )}
                     <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
-                      {stats.std.toFixed(4)}
+                      {formatDecimal(stats.std, locale, 4)}
                     </td>
                     {showStat('se') && (
                       <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
-                        {stats.se !== undefined ? stats.se.toFixed(4) : '—'}
+                        {stats.se !== undefined
+                          ? formatDecimal(stats.se, locale, 4)
+                          : '—'}
                       </td>
                     )}
                     <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
@@ -504,11 +507,15 @@ export function StatisticalResultsPanel({
                           )}
                         </span>
                         <span className="ml-1 text-gray-500 dark:text-gray-400">
-                          ({data.bonferroni_correction.num_comparisons}{' '}
-                          comparisons, α ={' '}
-                          {data.bonferroni_correction.corrected_alpha.toFixed(
-                            4,
-                          )}
+                          (
+                          {t('evaluation.statisticalResults.comparisonsAlpha', {
+                            count: data.bonferroni_correction.num_comparisons,
+                            alpha: formatDecimal(
+                              data.bonferroni_correction.corrected_alpha,
+                              locale,
+                              4,
+                            ),
+                          })}
                           )
                         </span>
                       </>
@@ -520,9 +527,15 @@ export function StatisticalResultsPanel({
                           )}
                         </span>
                         <span className="ml-1 text-gray-500 dark:text-gray-400">
-                          ({data.bonferroni_correction.num_comparisons} tests,
-                          uncorrected α ={' '}
-                          {data.bonferroni_correction.original_alpha})
+                          (
+                          {t(
+                            'evaluation.statisticalResults.testsUncorrectedAlpha',
+                            {
+                              count: data.bonferroni_correction.num_comparisons,
+                              alpha: data.bonferroni_correction.original_alpha,
+                            },
+                          )}
+                          )
                         </span>
                       </>
                     )}
@@ -592,7 +605,7 @@ export function StatisticalResultsPanel({
                       <td className="px-3 py-2 text-center font-mono text-sm">
                         {comp.ttest_p !== undefined && (
                           <span className="text-gray-700 dark:text-gray-300">
-                            {formatPValue(comp.ttest_p)}
+                            {formatPValue(comp.ttest_p, locale)}
                             <sup className="ml-0.5 font-bold text-emerald-600">
                               {getSignificanceStars(comp.ttest_p)}
                             </sup>
@@ -605,7 +618,7 @@ export function StatisticalResultsPanel({
                             <Badge
                               className={`text-xs ${getEffectSizeColor(comp.cohens_d_interpretation)}`}
                             >
-                              d={comp.cohens_d.toFixed(2)} (
+                              d={formatDecimal(comp.cohens_d, locale, 2)} (
                               {comp.cohens_d_interpretation})
                             </Badge>
                           )}
@@ -667,10 +680,14 @@ export function StatisticalResultsPanel({
                             key={metricB}
                             className={`px-2 py-2 text-center font-mono text-xs ${getCorrelationColor(value)}`}
                             title={
-                              value !== null ? `r = ${value.toFixed(3)}` : 'N/A'
+                              value !== null
+                                ? `r = ${formatDecimal(value, locale, 3)}`
+                                : 'N/A'
                             }
                           >
-                            {value !== null ? value.toFixed(2) : '-'}
+                            {value !== null
+                              ? formatDecimal(value, locale, 2)
+                              : '-'}
                           </td>
                         )
                       })}

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
+import { intlTag } from '@/lib/i18n/locales'
 import {
   Activity,
   AlertTriangle,
@@ -65,7 +66,7 @@ interface StatisticsReport {
 }
 
 export default function EmailVerificationManagement() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { user } = useAuth()
   const [statistics, setStatistics] = useState<VerificationStatistics | null>(
     null,
@@ -190,10 +191,9 @@ export default function EmailVerificationManagement() {
 
       const result = await response.json()
       setSuccess(
-        t('emailVerification.admin.alerts.cleanupSuccess').replace(
-          '{{count}}',
-          String(result.tokens_cleaned || 0),
-        ),
+        t('emailVerification.admin.alerts.cleanupSuccess', {
+          count: result.tokens_cleaned || 0,
+        }),
       )
 
       // Refresh data
@@ -226,10 +226,9 @@ export default function EmailVerificationManagement() {
 
       const result = await response.json()
       setSuccess(
-        t('emailVerification.admin.alerts.remindersSuccess').replace(
-          '{{count}}',
-          String(result.reminders_sent || 0),
-        ),
+        t('emailVerification.admin.alerts.remindersSuccess', {
+          count: result.reminders_sent || 0,
+        }),
       )
 
       // Refresh data
@@ -263,10 +262,9 @@ export default function EmailVerificationManagement() {
       const result = await response.json()
       if (result.success) {
         setSuccess(
-          t('emailVerification.admin.alerts.resendSuccess').replace(
-            '{{email}}',
-            result.user_email,
-          ),
+          t('emailVerification.admin.alerts.resendSuccess', {
+            email: result.user_email,
+          }),
         )
       } else {
         setError(
@@ -286,7 +284,7 @@ export default function EmailVerificationManagement() {
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Never'
-    return new Date(dateString).toLocaleDateString()
+    return new Date(dateString).toLocaleDateString(intlTag(locale))
   }
 
   const getVerificationRateColor = (rate: number) => {
@@ -450,10 +448,9 @@ export default function EmailVerificationManagement() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <Users className="mr-2 h-5 w-5" />
-            {t('emailVerification.admin.users.unverifiedCount').replace(
-              '{{count}}',
-              String(unverifiedUsers.length),
-            )}
+            {t('emailVerification.admin.users.unverifiedCount', {
+              count: unverifiedUsers.length,
+            })}
           </CardTitle>
           <CardDescription>
             {t('emailVerification.admin.users.manageUnverified')}
@@ -490,22 +487,19 @@ export default function EmailVerificationManagement() {
                     </p>
                     <div className="text-muted-foreground mt-2 flex items-center space-x-4 text-xs">
                       <span>
-                        {t('emailVerification.admin.users.registered').replace(
-                          '{{date}}',
-                          formatDate(user.created_at),
-                        )}
+                        {t('emailVerification.admin.users.registered', {
+                          date: formatDate(user.created_at),
+                        })}
                       </span>
                       <span>
-                        {t('emailVerification.admin.users.lastEmail').replace(
-                          '{{date}}',
-                          formatDate(user.email_verification_sent_at),
-                        )}
+                        {t('emailVerification.admin.users.lastEmail', {
+                          date: formatDate(user.email_verification_sent_at),
+                        })}
                       </span>
                       <span>
-                        {t('emailVerification.admin.users.daysAgo').replace(
-                          '{{days}}',
-                          String(user.days_since_registration),
-                        )}
+                        {t('emailVerification.admin.users.daysAgo', {
+                          days: user.days_since_registration,
+                        })}
                       </span>
                     </div>
                   </div>

@@ -473,7 +473,10 @@ describe('NotificationSettingsPage', () => {
       render(<NotificationSettingsPage />)
 
       await waitFor(() => {
-        expect(screen.getByText('Loading translations...')).toBeInTheDocument()
+        // Without t() the page falls back to translate() (default locale).
+        expect(
+          screen.getByText('Übersetzungen werden geladen...'),
+        ).toBeInTheDocument()
       })
     })
   })

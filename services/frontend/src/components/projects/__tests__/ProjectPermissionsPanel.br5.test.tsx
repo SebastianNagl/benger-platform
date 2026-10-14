@@ -316,7 +316,9 @@ describe('ProjectPermissionsPanel — organization branches', () => {
     await waitFor(() => {
       // Non-Error rejection → component uses its 'Failed to load organizations'
       // fallback message.
-      expect(toast.error).toHaveBeenCalledWith('Failed to load organizations')
+      expect(toast.error).toHaveBeenCalledWith(
+        'organizationsPage.failedToLoadOrganizations',
+      )
     })
   })
 

@@ -289,37 +289,24 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
   const purposeText = (warning: KeyWarning): string => {
     const models = warning.models.join(', ')
     return warning.purpose === 'evaluation'
-      ? t(
-          'projects.creation.wizard.keyWarning.purpose.evaluation',
-          'Bewertung mit {models}',
-          { models },
-        )
-      : t(
-          'projects.creation.wizard.keyWarning.purpose.generation',
-          'Generierung mit {models}',
-          { models },
-        )
+      ? t('projects.creation.wizard.keyWarning.purpose.evaluation', { models })
+      : t('projects.creation.wizard.keyWarning.purpose.generation', { models })
   }
 
   const reasonText = (warning: KeyWarning): string => {
     const provider = warning.provider
     switch (warning.reason) {
       case 'no_organization':
-        return t(
-          'projects.creation.wizard.keyWarning.reason.noOrganization',
-          'Das Projekt gehört keiner Organisation an, daher wird mit Ihrem eigenen {provider}-Schlüssel bewertet, und Sie haben keinen hinterlegt.',
-          { provider },
-        )
+        return t('projects.creation.wizard.keyWarning.reason.noOrganization', {
+          provider,
+        })
       case 'not_member':
-        return t(
-          'projects.creation.wizard.keyWarning.reason.notMember',
-          'Sie sind in keiner der gewählten Organisationen Mitglied, daher wird mit Ihrem eigenen {provider}-Schlüssel bewertet, und Sie haben keinen hinterlegt.',
-          { provider },
-        )
+        return t('projects.creation.wizard.keyWarning.reason.notMember', {
+          provider,
+        })
       case 'organization_without_key':
         return t(
           'projects.creation.wizard.keyWarning.reason.organizationWithoutKey',
-          'In {organizations} steht Ihnen kein {provider}-Schlüssel zur Verfügung.',
           {
             provider,
             organizations: organizationNames(warning.organizationIds),
@@ -327,16 +314,12 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
         )
       default:
         return warning.organizationIds.length === 0
-          ? t(
-              'projects.creation.wizard.keyWarning.reason.noPersonalKey',
-              'Sie haben keinen eigenen {provider}-Schlüssel hinterlegt und gehören keiner Organisation an.',
-              { provider },
-            )
-          : t(
-              'projects.creation.wizard.keyWarning.reason.noKeyAnywhere',
-              'Weder Ihre eigenen Schlüssel noch Ihre Organisationen stellen einen {provider}-Schlüssel bereit.',
-              { provider },
-            )
+          ? t('projects.creation.wizard.keyWarning.reason.noPersonalKey', {
+              provider,
+            })
+          : t('projects.creation.wizard.keyWarning.reason.noKeyAnywhere', {
+              provider,
+            })
     }
   }
 
@@ -344,49 +327,37 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
     const provider = warning.provider
     switch (warning.reason) {
       case 'no_organization':
-        return t(
-          'projects.creation.wizard.keyWarning.action.noOrganization',
-          'Wählen Sie im ersten Schritt eine Organisation mit {provider}-Schlüssel, oder hinterlegen Sie einen eigenen Schlüssel im Profil.',
-          { provider },
-        )
+        return t('projects.creation.wizard.keyWarning.action.noOrganization', {
+          provider,
+        })
       case 'not_member':
-        return t(
-          'projects.creation.wizard.keyWarning.action.notMember',
-          'Wählen Sie eine Organisation, in der Sie Mitglied sind, oder hinterlegen Sie einen eigenen Schlüssel im Profil.',
-          { provider },
-        )
+        return t('projects.creation.wizard.keyWarning.action.notMember', {
+          provider,
+        })
       case 'organization_without_key':
         if (warning.requiresPrivateKeys === true) {
           return t(
             'projects.creation.wizard.keyWarning.action.requiresPrivateKeys',
-            'Die Organisation verlangt eigene Schlüssel. Hinterlegen Sie einen {provider}-Schlüssel im Profil.',
             { provider },
           )
         }
         if (warning.requiresPrivateKeys === false) {
-          return t(
-            'projects.creation.wizard.keyWarning.action.askAdmin',
-            'Bitten Sie die Administration der Organisation, einen {provider}-Schlüssel zu hinterlegen.',
-            { provider },
-          )
+          return t('projects.creation.wizard.keyWarning.action.askAdmin', {
+            provider,
+          })
         }
         return t(
           'projects.creation.wizard.keyWarning.action.askAdminOrPersonal',
-          'Bitten Sie die Administration der Organisation um einen {provider}-Schlüssel, oder hinterlegen Sie einen eigenen im Profil, falls die Organisation eigene Schlüssel verlangt.',
           { provider },
         )
       default:
         return warning.organizationIds.length === 0
-          ? t(
-              'projects.creation.wizard.keyWarning.action.addPersonalKey',
-              'Hinterlegen Sie einen eigenen {provider}-Schlüssel im Profil.',
-              { provider },
-            )
-          : t(
-              'projects.creation.wizard.keyWarning.action.noKeyAnywhere',
-              'Hinterlegen Sie einen eigenen Schlüssel im Profil, oder bitten Sie die Administration Ihrer Organisation um einen {provider}-Schlüssel.',
-              { provider },
-            )
+          ? t('projects.creation.wizard.keyWarning.action.addPersonalKey', {
+              provider,
+            })
+          : t('projects.creation.wizard.keyWarning.action.noKeyAnywhere', {
+              provider,
+            })
     }
   }
 
@@ -394,10 +365,7 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
     <Alert variant="warning" className="mb-8">
       <div className="space-y-3 text-sm" data-testid="wizard-key-warning">
         <p className="font-medium text-zinc-900 dark:text-white">
-          {t(
-            'projects.creation.wizard.keyWarning.title',
-            'Für dieses Projekt fehlt ein API-Schlüssel',
-          )}
+          {t('projects.creation.wizard.keyWarning.title')}
         </p>
         <ul className="list-disc space-y-2 pl-5 text-zinc-700 dark:text-zinc-300">
           {warnings.map((warning) => (
@@ -419,15 +387,9 @@ export function WizardKeyWarning({ data }: WizardKeyWarningProps) {
             className="font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
             data-testid="wizard-key-warning-profile-link"
           >
-            {t(
-              'projects.creation.wizard.keyWarning.manageKeys',
-              'API-Schlüssel im Profil verwalten',
-            )}
+            {t('projects.creation.wizard.keyWarning.manageKeys')}
           </Link>{' '}
-          {t(
-            'projects.creation.wizard.keyWarning.nonBlocking',
-            'Sie können das Projekt trotzdem erstellen.',
-          )}
+          {t('projects.creation.wizard.keyWarning.nonBlocking')}
         </p>
       </div>
     </Alert>

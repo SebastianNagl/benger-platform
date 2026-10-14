@@ -10,7 +10,7 @@ import { PromptStructuresManager } from '../PromptStructuresManager'
 // Mock I18nContext
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, varsOrDefault?: any) => {
+    t: (key: string, vars?: Record<string, unknown>) => {
       const translations: Record<
         string,
         any
@@ -25,8 +25,8 @@ jest.mock('@/contexts/I18nContext', () => ({
         }
       }
       if (typeof value !== 'string') return key
-      if (varsOrDefault && typeof varsOrDefault === 'object') {
-        for (const [k, v] of Object.entries(varsOrDefault)) {
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) {
           value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))
         }
       }

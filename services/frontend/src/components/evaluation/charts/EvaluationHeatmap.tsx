@@ -8,6 +8,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal } from '@/lib/i18n/locales'
 import {
   ArrowDownTrayIcon,
   ClipboardDocumentIcon,
@@ -40,7 +41,7 @@ export function EvaluationHeatmap({
   metric,
   onCellClick,
 }: EvaluationHeatmapProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [exportStatus, setExportStatus] = useState<string | null>(null)
 
   const { heatmapData, annotations, minScore, maxScore } = useMemo(() => {
@@ -70,7 +71,7 @@ export function EvaluationHeatmap({
           annotationList.push({
             x: refField,
             y: predField,
-            text: score.toFixed(3),
+            text: formatDecimal(score, locale, 3),
             showarrow: false,
             font: {
               color: textColor,
@@ -88,7 +89,7 @@ export function EvaluationHeatmap({
       minScore: min === Infinity ? 0 : min,
       maxScore: max === -Infinity ? 1 : max,
     }
-  }, [predictionFields, referenceFields, scores])
+  }, [predictionFields, referenceFields, scores, locale])
 
   const plotData = useMemo(() => {
     const customData = predictionFields.map((predField) =>
@@ -365,13 +366,13 @@ export function EvaluationHeatmap({
                 <span className="font-medium">
                   {t('evaluation.charts.heatmap.min')}:
                 </span>
-                <span>{minScore.toFixed(4)}</span>
+                <span>{formatDecimal(minScore, locale, 4)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="font-medium">
                   {t('evaluation.charts.heatmap.max')}:
                 </span>
-                <span>{maxScore.toFixed(4)}</span>
+                <span>{formatDecimal(maxScore, locale, 4)}</span>
               </div>
             </div>
           </div>

@@ -12,6 +12,14 @@ import {
   sebRequestHeaders,
 } from '@/lib/seb'
 import logger from '@/lib/utils/logger'
+import { translate } from '@/lib/utils/translate'
+
+/** A failed fetch, named so error boundaries can recognise it in any UI language. */
+function networkError(url: string): Error {
+  const error = new Error(translate('errors.api.networkUnreachable', { url }))
+  error.name = 'NetworkError'
+  return error
+}
 
 /**
  * FastAPI returns validation errors as `detail: [{loc, msg, type}, ...]`.
@@ -410,14 +418,16 @@ export class BaseApiClient {
           return JSON.parse(text)
         } catch (jsonError) {
           logger.error('Failed to parse JSON response:', jsonError)
-          throw new Error(`Invalid JSON response: ${jsonError}`)
+          throw new Error(
+            translate('errors.api.invalidJson', { error: String(jsonError) }),
+          )
         }
       }
       return response.text()
     } catch (error) {
       // Handle network errors and other fetch failures
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Network error: Unable to connect to API at ${url}`)
+        throw networkError(url)
       }
       // Re-throw other errors as-is
       throw error
@@ -724,7 +734,9 @@ export class BaseApiClient {
           return jsonResult
         } catch (jsonError) {
           logger.error('Failed to parse JSON response:', jsonError)
-          throw new Error(`Invalid JSON response: ${jsonError}`)
+          throw new Error(
+            translate('errors.api.invalidJson', { error: String(jsonError) }),
+          )
         }
       }
 
@@ -767,7 +779,7 @@ export class BaseApiClient {
       }
 
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error(`Network error: Unable to connect to API at ${url}`)
+        throw networkError(url)
       }
       // Re-throw other errors as-is
       throw error

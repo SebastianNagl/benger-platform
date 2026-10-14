@@ -11,7 +11,6 @@ import { useSectionStore } from '@/components/layout/SectionProvider'
 import { Button } from '@/components/shared/Button'
 import { Tag } from '@/components/shared/Tag'
 import { useAuth } from '@/contexts/AuthContext'
-import { useHydration } from '@/contexts/HydrationContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
 import { remToPx } from '@/lib/remToPx'
@@ -479,7 +478,6 @@ function NavigationGroup({
 export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const { user, organizations } = useAuth()
   const { t } = useI18n()
-  const isClient = useHydration()
   // Extended edition: the personal learning-statistics page (slot-backed;
   // community edition registers nothing and the entry stays hidden).
   const hasLearningStats = !!useSlot('PersonalAnalyticsPage')
@@ -503,28 +501,26 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   const buildNavigation = () => {
     const bengerLinks = [
       {
-        title: isClient ? t('navigation.dashboard') : 'Dashboard',
+        title: t('navigation.dashboard'),
         href: '/dashboard',
         icon: <DashboardIcon />,
       },
       {
-        title: isClient ? t('navigation.reports') : 'Reports',
+        title: t('navigation.reports'),
         href: '/reports',
         icon: <ReportsIcon />,
       },
       ...(hasLearningStats
         ? [
             {
-              title: isClient
-                ? t('navigation.learningStats')
-                : 'Learning Statistics',
+              title: t('navigation.learningStats'),
               href: '/learning-stats',
               icon: <LearningStatsIcon />,
             },
           ]
         : []),
       {
-        title: isClient ? t('navigation.leaderboards') : 'Leaderboards',
+        title: t('navigation.leaderboards'),
         href: '/leaderboards',
         icon: <LeaderboardIcon />,
       },
@@ -532,24 +528,24 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 
     const projectsAndDataLinks = [
       {
-        title: isClient ? t('navigation.projects') : 'Projects',
+        title: t('navigation.projects'),
         href: '/projects',
         icon: <ProjectsIcon />,
       },
       {
-        title: isClient ? t('navigation.dataManagement') : 'Data Management',
+        title: t('navigation.dataManagement'),
         href: '/data',
         icon: <DataIcon />,
         disabled: !hasAccessToRoute('/data'),
       },
       {
-        title: isClient ? t('navigation.generation') : 'Generation',
+        title: t('navigation.generation'),
         href: '/generations',
         icon: <GenerationIcon />,
         disabled: !hasAccessToRoute('/generations'),
       },
       {
-        title: isClient ? t('navigation.evaluation') : 'Evaluation',
+        title: t('navigation.evaluation'),
         href: '/evaluations',
         icon: <EvaluationIcon />,
         disabled: !hasAccessToRoute('/evaluations'),
@@ -558,17 +554,17 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 
     const knowledgeLinks = [
       {
-        title: isClient ? t('navigation.howTo') : 'How-To',
+        title: t('navigation.howTo'),
         href: '/how-to',
         icon: <HowToIcon />,
       },
       {
-        title: isClient ? t('navigation.models') : 'Models',
+        title: t('navigation.models'),
         href: '/models',
         icon: <ModelsIcon />,
       },
       {
-        title: isClient ? t('navigation.architecture') : 'Architecture',
+        title: t('navigation.architecture'),
         href: '/architecture',
         icon: <ArchitectureIcon />,
       },
@@ -576,7 +572,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 
     const navigationGroups = [
       {
-        title: isClient ? t('navigation.quickStart') : 'Quick Start',
+        title: t('navigation.quickStart'),
         links: bengerLinks,
       },
     ]
@@ -584,14 +580,14 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
     // Only add Projects & Data group if user has access to any of its links
     if (projectsAndDataLinks.length > 0) {
       navigationGroups.push({
-        title: isClient ? t('navigation.projectsAndData') : 'Projects & Data',
+        title: t('navigation.projectsAndData'),
         links: projectsAndDataLinks,
       })
     }
 
     // Add Knowledge section
     navigationGroups.push({
-      title: isClient ? t('navigation.knowledge') : 'Knowledge',
+      title: t('navigation.knowledge'),
       links: knowledgeLinks,
     })
 
@@ -615,7 +611,7 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
 
         <li className="sticky bottom-0 z-10 mt-6 min-[416px]:hidden">
           <Button href="#" variant="filled" className="w-full">
-            {isClient ? t('navigation.signIn') : 'Sign in'}
+            {t('navigation.signIn')}
           </Button>
         </li>
       </ul>
@@ -623,33 +619,32 @@ export function Navigation(props: React.ComponentPropsWithoutRef<'nav'>) {
   )
 }
 
-// Export navigation data for Footer and Search components
-// Note: This is a static export used by Footer for page navigation
-// Titles here are kept in English as fallback; the actual Navigation component uses i18n
+// Export navigation data for Footer and Search components.
+// Static export: `title` holds the catalog key, consumers translate it.
 export const navigation: Array<NavGroup> = [
   {
-    title: 'Quick Start',
+    title: 'navigation.quickStart',
     links: [
-      { title: 'Dashboard', href: '/dashboard' },
-      { title: 'Reports', href: '/reports' },
-      { title: 'Leaderboards', href: '/leaderboards' },
+      { title: 'navigation.dashboard', href: '/dashboard' },
+      { title: 'navigation.reports', href: '/reports' },
+      { title: 'navigation.leaderboards', href: '/leaderboards' },
     ],
   },
   {
-    title: 'Projects & Data',
+    title: 'navigation.projectsAndData',
     links: [
-      { title: 'Projects', href: '/projects' },
-      { title: 'Data Management', href: '/data' },
-      { title: 'Generation', href: '/generations' },
-      { title: 'Evaluation', href: '/evaluations' },
+      { title: 'navigation.projects', href: '/projects' },
+      { title: 'navigation.dataManagement', href: '/data' },
+      { title: 'navigation.generation', href: '/generations' },
+      { title: 'navigation.evaluation', href: '/evaluations' },
     ],
   },
   {
-    title: 'Knowledge',
+    title: 'navigation.knowledge',
     links: [
-      { title: 'How-To', href: '/how-to' },
-      { title: 'Models', href: '/models' },
-      { title: 'Architecture', href: '/architecture' },
+      { title: 'navigation.howTo', href: '/how-to' },
+      { title: 'navigation.models', href: '/models' },
+      { title: 'navigation.architecture', href: '/architecture' },
     ],
   },
 ]

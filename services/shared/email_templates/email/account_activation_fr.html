@@ -1,0 +1,18 @@
+Subject: Activez votre compte {{ brand_name }}
+<html>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+    <h2>Votre compte {{ brand_name }} vous attend</h2>
+    <p>Vous avez accepté l'utilisation de {{ brand_name }} via la plateforme d'apprentissage de votre université. Un compte a alors été créé pour vous. Définissez un mot de passe pour pouvoir aussi vous connecter directement sur {{ frontend_host }}.</p>
+    <p>Vos examens et vos résultats sont conservés.</p>
+    <p style="margin: 30px 0;">
+        <a href="{{ activation_url }}" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
+            Activer le compte
+        </a>
+    </p>
+    <p>Ou copiez ce lien dans votre navigateur :</p>
+    <p style="color: #059669;">{{ activation_url }}</p>
+    <p style="color: #666; font-size: 12px; margin-top: 30px;">
+        Ce lien est valable {{ expiry_days }} jours. Vous pouvez continuer à utiliser {{ brand_name }} via votre plateforme d'apprentissage sans activer votre compte. Dans ce cas, ignorez simplement cet e-mail.
+    </p>
+</body>
+</html>

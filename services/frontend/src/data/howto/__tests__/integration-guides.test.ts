@@ -18,9 +18,11 @@ import enCommon from '@/locales/en/common.json'
 import { PLATFORM_CHANGELOG } from '@/data/changelog'
 import {
   guideSearchText,
+  guideText,
   normalizeForSearch,
   type HowToGuide,
 } from '@/lib/howto/registry'
+import { lookup } from '@/lib/i18n/catalog'
 import { LTI_LAUNCH_ERROR_CODES } from '@/lib/lti/launchErrors'
 import { buildGuideIndex, rankSearchResults } from '@/lib/search'
 
@@ -118,13 +120,55 @@ const EM_DASH = /\u2014/
 const EN_DASH_AS_DASH = / \u2013 /
 const COMMONS: Record<Locale, unknown> = { de: deCommon, en: enCommon }
 
-function guide(id: string): HowToGuide {
+type Bi<T> = { de: T; en: T }
+
+/** A guide with its de/en catalog copy side by side (lists absent when empty). */
+interface GuideCopy {
+  id: string
+  category: HowToGuide['category']
+  title: Bi<string>
+  summary: Bi<string>
+  steps?: Bi<string[]>
+  tips?: Bi<string[]>
+  pitfalls?: Bi<string[]>
+  keywords?: Bi<string[]>
+  links?: { href: string; label: Bi<string> }[]
+}
+
+function copyOf(raw: HowToGuide): GuideCopy {
+  const de = guideText(raw, 'de')
+  const en = guideText(raw, 'en')
+  const list = (field: 'steps' | 'tips' | 'pitfalls' | 'keywords') =>
+    de[field].length || en[field].length
+      ? { de: de[field], en: en[field] }
+      : undefined
+  return {
+    id: raw.id,
+    category: raw.category,
+    title: { de: de.title, en: en.title },
+    summary: { de: de.summary, en: en.summary },
+    steps: list('steps'),
+    tips: list('tips'),
+    pitfalls: list('pitfalls'),
+    keywords: list('keywords'),
+    links: raw.links?.map((href, i) => ({
+      href,
+      label: { de: de.links[i].label, en: en.links[i].label },
+    })),
+  }
+}
+
+function rawGuide(id: string): HowToGuide {
   const found = PLATFORM_HOWTO_GUIDES.find((g) => g.id === id)
   if (!found) throw new Error(`guide ${id} missing`)
   return found
 }
 
-function texts(g: HowToGuide, locale: Locale): string[] {
+function guide(id: string): GuideCopy {
+  return copyOf(rawGuide(id))
+}
+
+function texts(g: GuideCopy, locale: Locale): string[] {
   return [
     g.title[locale],
     g.summary[locale],
@@ -315,7 +359,7 @@ describe('ts-lti-errors covers every launch error code', () => {
   })
 
   it.each(LOCALES)('is found by each code (%s search text)', (locale) => {
-    const text = guideSearchText(guide('ts-lti-errors'), locale)
+    const text = guideSearchText(rawGuide('ts-lti-errors'), locale)
     for (const code of LTI_LAUNCH_ERROR_CODES) {
       expect(text).toContain(normalizeForSearch(code))
     }
@@ -695,9 +739,9 @@ describe('LTI guides: exam collections (#122)', () => {
         'multi_task_unsupported',
       ]) {
         expect(text).toContain(`\`${code}\``)
-        expect(guideSearchText(guide('ts-lti-collection'), locale)).toContain(
-          normalizeForSearch(code),
-        )
+        expect(
+          guideSearchText(rawGuide('ts-lti-collection'), locale),
+        ).toContain(normalizeForSearch(code))
       }
       expect(text).toContain(MOODLE.agsColumns[locale])
     }
@@ -1160,8 +1204,9 @@ describe('public LMS integration doc', () => {
 
 describe('related guides and pages', () => {
   it('api-keys says linked exams bill the connection organization', () => {
-    const apiKeys = GENERATION_GUIDES.find((g) => g.id === 'api-keys')
-    expect(apiKeys).toBeDefined()
+    const raw = GENERATION_GUIDES.find((g) => g.id === 'api-keys')
+    expect(raw).toBeDefined()
+    const apiKeys = copyOf(raw!)
     const de = apiKeys!.tips!.de.join('\n')
     const en = apiKeys!.tips!.en.join('\n')
     expect(de).toMatch(/Organisation dieser Anbindung/)
@@ -1175,7 +1220,8 @@ describe('related guides and pages', () => {
   })
 
   it('org-roles names the learning platform connections', () => {
-    const roles = ORGANIZATION_GUIDES.find((g) => g.id === 'org-roles')
+    const raw = ORGANIZATION_GUIDES.find((g) => g.id === 'org-roles')
+    const roles = raw && copyOf(raw)
     expect(roles?.steps?.de.join('\n')).toContain('(/how-to#lti-manage)')
     expect(roles?.steps?.en.join('\n')).toContain('(/how-to#lti-manage)')
     expect(roles?.steps?.de.join('\n')).toMatch(/Pseudonym/)
@@ -1217,7 +1263,8 @@ describe('related guides and pages', () => {
     const entries = PLATFORM_CHANGELOG.filter((e) => e.date === '2026-09-17')
     expect(entries.length).toBeGreaterThanOrEqual(3)
     for (const entry of entries) {
-      for (const text of [entry.text.de, entry.text.en]) {
+      for (const locale of LOCALES) {
+        const text = String(lookup(locale, `changelogEntries.${entry.id}`))
         expect(text).not.toMatch(/vertretbar/i)
         expect(text).not.toMatch(EM_DASH)
       }

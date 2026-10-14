@@ -49,7 +49,7 @@ UNPROVEN_EMAIL_METHODS = frozenset({"system", EMAIL_METHOD_LMS_CLAIM, "admin"})
 # Mail languages the templates exist in, and the default (plan default: the
 # activation and link-confirmation mails are German unless the user prefers
 # otherwise).
-MAIL_LANGUAGES = ("de", "en")
+MAIL_LANGUAGES = ("de", "en", "fr")
 DEFAULT_MAIL_LANGUAGE = "de"
 
 # Upper bound for free-text names (connection, organization) shown in a mail.

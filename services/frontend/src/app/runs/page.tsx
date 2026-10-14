@@ -6,6 +6,8 @@ import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
+import { intlTag } from '@/lib/i18n/locales'
+import { translate } from '@/lib/utils/translate'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 
@@ -65,10 +67,10 @@ function StatusBadge({ status }: { status?: string | null }) {
   return <Badge variant={tone as any}>{status}</Badge>
 }
 
-function formatDate(d?: string | null) {
+function formatDate(d: string | null | undefined, locale: string) {
   if (!d) return '—'
   try {
-    return new Date(d).toLocaleString('de-DE', {
+    return new Date(d).toLocaleString(intlTag(locale), {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -96,7 +98,7 @@ function formatDuration(start?: string | null, end?: string | null) {
 }
 
 export default function RunsPage() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialTab = (searchParams?.get('type') as RunType) || 'evaluation'
@@ -160,7 +162,8 @@ export default function RunsPage() {
       const resp = await apiClient.get(`/runs?${params.toString()}`)
       setData(resp as PaginatedRunsResponse)
     } catch (err: any) {
-      setError(err?.message || 'Failed to load runs')
+      // translate() (not t) keeps the fetch callback's deps stable.
+      setError(err?.message || translate('runs.loadFailed'))
       setData(null)
     } finally {
       setLoading(false)
@@ -200,21 +203,18 @@ export default function RunsPage() {
       <div className="mb-4">
         <Breadcrumb
           items={[
-            { label: 'Home', href: '/dashboard' },
-            { label: t('runs.title', 'Läufe') },
+            { label: t('navigation.dashboard'), href: '/dashboard' },
+            { label: t('runs.title') },
           ]}
         />
       </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900 dark:text-white">
-            {t('runs.title', 'Läufe')}
+            {t('runs.title')}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {t(
-              'runs.subtitle',
-              'Inventar einzelner Generierungs- und Evaluierungsläufe. Klicken Sie eine Zeile an, um die Details des Laufs zu sehen.',
-            )}
+            {t('runs.subtitle')}
           </p>
         </div>
       </div>
@@ -233,8 +233,8 @@ export default function RunsPage() {
               }`}
             >
               {tname === 'evaluation'
-                ? t('runs.tabs.evaluation', 'Evaluierungen')
-                : t('runs.tabs.generation', 'Generierungen')}
+                ? t('runs.tabs.evaluation')
+                : t('runs.tabs.generation')}
             </button>
           ))}
         </nav>
@@ -243,14 +243,14 @@ export default function RunsPage() {
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <label className="text-xs text-zinc-500">
-          {t('runs.filterProject', 'Projekt')}
+          {t('runs.filterProject')}
         </label>
         <select
           value={projectFilter}
           onChange={(e) => handleProjectChange(e.target.value)}
           className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="">{t('runs.allProjects', 'Alle Projekte')}</option>
+          <option value="">{t('runs.allProjects')}</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.title}
@@ -258,7 +258,7 @@ export default function RunsPage() {
           ))}
         </select>
         <label className="text-xs text-zinc-500">
-          {t('runs.filterStatus', 'Status')}
+          {t('runs.filterStatus')}
         </label>
         <select
           value={statusFilter}
@@ -268,19 +268,22 @@ export default function RunsPage() {
           }}
           className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="">{t('runs.allStatuses', 'Alle')}</option>
-          <option value="pending">pending</option>
-          <option value="running">running</option>
-          <option value="completed">completed</option>
-          <option value="failed">failed</option>
+          <option value="">{t('runs.allStatuses')}</option>
+          <option value="pending">
+            {t('evaluations.detail.statusLabels.pending')}
+          </option>
+          <option value="running">
+            {t('evaluations.detail.statusLabels.running')}
+          </option>
+          <option value="completed">
+            {t('evaluations.detail.statusLabels.completed')}
+          </option>
+          <option value="failed">
+            {t('evaluations.detail.statusLabels.failed')}
+          </option>
         </select>
         <span className="ml-auto text-xs text-zinc-500">
-          {data
-            ? String(t('runs.totalCount', '{count} Einträge')).replace(
-                '{count}',
-                String(data.total),
-              )
-            : ''}
+          {data ? t('runs.totalCount', { count: data.total }) : ''}
         </span>
       </div>
 
@@ -295,40 +298,26 @@ export default function RunsPage() {
         <table className="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
           <thead className="bg-zinc-50 text-left text-xs tracking-wide text-zinc-500 uppercase dark:bg-zinc-900/40 dark:text-zinc-400">
             <tr>
-              <th className="px-3 py-2">
-                {t('runs.col.started', 'Gestartet')}
-              </th>
-              <th className="px-3 py-2">{t('runs.col.project', 'Projekt')}</th>
-              <th className="px-3 py-2">{t('runs.col.status', 'Status')}</th>
+              <th className="px-3 py-2">{t('runs.col.started')}</th>
+              <th className="px-3 py-2">{t('runs.col.project')}</th>
+              <th className="px-3 py-2">{t('runs.col.status')}</th>
               {tab === 'generation' ? (
                 <>
-                  <th className="px-3 py-2">{t('runs.col.model', 'Modell')}</th>
-                  <th className="px-3 py-2">
-                    {t('runs.col.structure', 'Struktur')}
-                  </th>
-                  <th className="px-3 py-2 text-right">
-                    {t('runs.col.runs', 'Läufe')}
-                  </th>
+                  <th className="px-3 py-2">{t('runs.col.model')}</th>
+                  <th className="px-3 py-2">{t('runs.col.structure')}</th>
+                  <th className="px-3 py-2 text-right">{t('runs.col.runs')}</th>
                 </>
               ) : (
                 <>
-                  <th className="px-3 py-2">
-                    {t('runs.col.targetModel', 'Ziel-Modell')}
-                  </th>
-                  <th className="px-3 py-2">
-                    {t('runs.col.judges', 'Judges')}
-                  </th>
-                  <th className="px-3 py-2">
-                    {t('runs.col.metrics', 'Metriken')}
-                  </th>
+                  <th className="px-3 py-2">{t('runs.col.targetModel')}</th>
+                  <th className="px-3 py-2">{t('runs.col.judges')}</th>
+                  <th className="px-3 py-2">{t('runs.col.metrics')}</th>
                   <th className="px-3 py-2 text-right">
-                    {t('runs.col.samples', 'Samples')}
+                    {t('runs.col.samples')}
                   </th>
                 </>
               )}
-              <th className="px-3 py-2 text-right">
-                {t('runs.col.duration', 'Dauer')}
-              </th>
+              <th className="px-3 py-2 text-right">{t('runs.col.duration')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
@@ -338,7 +327,7 @@ export default function RunsPage() {
                   colSpan={tab === 'generation' ? 7 : 8}
                   className="px-3 py-6 text-center text-xs text-zinc-500"
                 >
-                  {t('runs.loading', 'Lade…')}
+                  {t('runs.loading')}
                 </td>
               </tr>
             )}
@@ -348,7 +337,7 @@ export default function RunsPage() {
                   colSpan={tab === 'generation' ? 7 : 8}
                   className="px-3 py-6 text-center text-xs text-zinc-500"
                 >
-                  {t('runs.empty', 'Keine Einträge')}
+                  {t('runs.empty')}
                 </td>
               </tr>
             )}
@@ -360,7 +349,7 @@ export default function RunsPage() {
                   className="cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
                 >
                   <td className="px-3 py-2 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
-                    {formatDate(run.created_at)}
+                    {formatDate(run.created_at, locale)}
                   </td>
                   <td className="max-w-xs truncate px-3 py-2">
                     {run.project_title || (
@@ -424,9 +413,7 @@ export default function RunsPage() {
       {data && data.total > PAGE_SIZE && (
         <div className="mt-4 flex items-center justify-between">
           <span className="text-xs text-zinc-500">
-            {String(t('runs.pageInfo', 'Seite {page} von {total}'))
-              .replace('{page}', String(page))
-              .replace('{total}', String(totalPages))}
+            {t('runs.pageInfo', { page, total: totalPages })}
           </span>
           <div className="flex gap-2">
             <Button
@@ -434,14 +421,14 @@ export default function RunsPage() {
               disabled={page <= 1 || loading}
               onClick={() => setPage(page - 1)}
             >
-              {t('runs.prev', 'Zurück')}
+              {t('runs.prev')}
             </Button>
             <Button
               variant="outline"
               disabled={page >= totalPages || loading}
               onClick={() => setPage(page + 1)}
             >
-              {t('runs.next', 'Weiter')}
+              {t('runs.next')}
             </Button>
           </div>
         </div>

@@ -78,10 +78,7 @@ export function PromptTemplateEditor({
   return (
     <div className="space-y-2">
       <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
-        {t(
-          'evaluationBuilder.parameters.customPromptTemplate',
-          'Prompt Template',
-        )}
+        {t('evaluationBuilder.parameters.customPromptTemplate')}
       </label>
 
       <textarea
@@ -90,7 +87,7 @@ export function PromptTemplateEditor({
         onChange={(e) => onChange(e.target.value)}
         placeholder={
           placeholder ||
-          'Du bist ein juristischer Korrektor.\n\nFall: {{fall}}\nFrage: {{task}}\nReferenz: {{binary_solution}} / {{reasoning}}\n\nZu bewerten: {{answer}}\n\nAntworte als JSON mit den Feldern scores, total_score, overall_assessment.'
+          t('evaluationBuilder.parameters.promptTemplatePlaceholder')
         }
         rows={14}
         spellCheck={false}
@@ -99,7 +96,7 @@ export function PromptTemplateEditor({
 
       <div className="flex flex-wrap gap-2">
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          {t('evaluationBuilder.parameters.insertVariable', 'Insert variable')}:
+          {t('evaluationBuilder.parameters.insertVariable')}:
         </span>
         {knownVariables.map((name) => {
           const used = detectedVariables.includes(name)
@@ -116,14 +113,8 @@ export function PromptTemplateEditor({
               )}
               title={
                 used
-                  ? t(
-                      'evaluationBuilder.parameters.variableInUse',
-                      'Already used in template',
-                    )
-                  : t(
-                      'evaluationBuilder.parameters.variableAvailable',
-                      'Click to insert',
-                    )
+                  ? t('evaluationBuilder.parameters.variableInUse')
+                  : t('evaluationBuilder.parameters.variableAvailable')
               }
             >
               {used ? '✓ ' : ''}
@@ -137,15 +128,9 @@ export function PromptTemplateEditor({
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200">
           <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div>
-            {t(
-              'evaluationBuilder.parameters.unmappedVariables',
-              'Template references variables not yet mapped to task fields',
-            )}
-            : <code className="font-mono">{unmappedVariables.join(', ')}</code>.{' '}
-            {t(
-              'evaluationBuilder.parameters.unmappedVariablesHint',
-              'Add them to Field Mappings below so they resolve to task data.',
-            )}
+            {t('evaluationBuilder.parameters.unmappedVariables')}:{' '}
+            <code className="font-mono">{unmappedVariables.join(', ')}</code>.{' '}
+            {t('evaluationBuilder.parameters.unmappedVariablesHint')}
           </div>
         </div>
       )}
@@ -154,15 +139,9 @@ export function PromptTemplateEditor({
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-200">
           <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div>
-            {t(
-              'evaluationBuilder.parameters.missingDimensions',
-              'Dimension keys not mentioned in the prompt',
-            )}
-            : <code className="font-mono">{missingDimensions.join(', ')}</code>.{' '}
-            {t(
-              'evaluationBuilder.parameters.missingDimensionsHint',
-              "The judge won't know to score them unless they appear in the prompt's instructions and JSON schema example.",
-            )}
+            {t('evaluationBuilder.parameters.missingDimensions')}:{' '}
+            <code className="font-mono">{missingDimensions.join(', ')}</code>.{' '}
+            {t('evaluationBuilder.parameters.missingDimensionsHint')}
           </div>
         </div>
       )}

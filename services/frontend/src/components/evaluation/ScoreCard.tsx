@@ -15,6 +15,7 @@
 'use client'
 
 import { useI18n } from '@/contexts/I18nContext'
+import { formatDecimal, intlTag, readStoredLocale } from '@/lib/i18n/locales'
 import { InformationCircleIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
@@ -100,16 +101,17 @@ const getScoreColor = (
 const formatValue = (
   value: number,
   format: 'percentage' | 'decimal' | 'raw' = 'decimal',
+  locale: string,
 ): string => {
   switch (format) {
     case 'percentage':
-      return `${(value * 100).toFixed(1)}%`
+      return `${formatDecimal(value * 100, locale, 1)}%`
     case 'decimal':
-      return value.toFixed(3)
+      return formatDecimal(value, locale, 3)
     case 'raw':
-      return value.toFixed(2)
+      return formatDecimal(value, locale, 2)
     default:
-      return value.toFixed(3)
+      return formatDecimal(value, locale, 3)
   }
 }
 
@@ -127,7 +129,7 @@ export function ScoreCard({
   runsAggregate,
   className = '',
 }: ScoreCardProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [showTooltip, setShowTooltip] = useState(false)
   const colors = getScoreColor(
     value,
@@ -137,7 +139,7 @@ export function ScoreCard({
   )
 
   // Format sample size with commas for readability
-  const formatSampleSize = (n: number) => n.toLocaleString()
+  const formatSampleSize = (n: number) => n.toLocaleString(intlTag(locale))
 
   return (
     <div
@@ -182,7 +184,7 @@ export function ScoreCard({
         <div
           className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold tabular-nums ${colors.value}`}
         >
-          {formatValue(value, formatAs)}
+          {formatValue(value, formatAs, locale)}
         </div>
         {/* Sample size display (academic standard) */}
         {sampleSize !== undefined && (
@@ -206,10 +208,10 @@ export function ScoreCard({
             to keep legacy displays clean. */}
         {runsAggregate && runsAggregate.runs > 1 && (
           <div className={`mt-1 text-xs ${colors.text}`}>
-            ± {formatValue(runsAggregate.stdAcrossRuns, formatAs)}{' '}
+            ± {formatValue(runsAggregate.stdAcrossRuns, formatAs, locale)}{' '}
             <span className="text-gray-500 dark:text-gray-400">
               (
-              {t('evaluation.scoreCard.acrossRuns', 'over {n} runs', {
+              {t('evaluation.scoreCard.acrossRuns', {
                 n: runsAggregate.runs,
               })}
               )
@@ -225,8 +227,8 @@ export function ScoreCard({
             {t('evaluation.scoreCard.ciLabel', {
               level: confidenceInterval.level || 95,
             })}
-            : [{formatValue(confidenceInterval.lower, formatAs)},{' '}
-            {formatValue(confidenceInterval.upper, formatAs)}]
+            : [{formatValue(confidenceInterval.lower, formatAs, locale)},{' '}
+            {formatValue(confidenceInterval.upper, formatAs, locale)}]
           </div>
 
           {/* Visual CI Bar */}
@@ -255,8 +257,8 @@ export function ScoreCard({
       {confidenceInterval && compact && (
         <div className={`text-xs ${colors.text}`}>
           {t('evaluation.scoreCard.ciShort')}: [
-          {formatValue(confidenceInterval.lower, formatAs)},{' '}
-          {formatValue(confidenceInterval.upper, formatAs)}]
+          {formatValue(confidenceInterval.lower, formatAs, locale)},{' '}
+          {formatValue(confidenceInterval.upper, formatAs, locale)}]
         </div>
       )}
 
@@ -277,11 +279,14 @@ export function formatAcademicScore(
   options?: {
     asPercentage?: boolean
     decimals?: number
+    /** UI language; falls back to the stored choice. */
+    locale?: string
   },
 ): string {
+  const locale = options?.locale ?? readStoredLocale()
   const decimals = options?.decimals ?? 3
   if (options?.asPercentage) {
-    return `${(value * 100).toFixed(1)}%`
+    return `${formatDecimal(value * 100, locale, 1)}%`
   }
-  return value.toFixed(decimals)
+  return formatDecimal(value, locale, decimals)
 }

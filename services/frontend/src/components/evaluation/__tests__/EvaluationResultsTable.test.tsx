@@ -78,10 +78,10 @@ describe('EvaluationResultsTable', () => {
 
     it('renders formatted metric values as percentages for 0-1 range', () => {
       render(<EvaluationResultsTable {...defaultProps} />)
-      expect(screen.getByText('85.0%')).toBeInTheDocument()
-      expect(screen.getByText('82.0%')).toBeInTheDocument()
-      expect(screen.getByText('78.0%')).toBeInTheDocument()
-      expect(screen.getByText('75.0%')).toBeInTheDocument()
+      expect(screen.getByText('85,0%')).toBeInTheDocument()
+      expect(screen.getByText('82,0%')).toBeInTheDocument()
+      expect(screen.getByText('78,0%')).toBeInTheDocument()
+      expect(screen.getByText('75,0%')).toBeInTheDocument()
     })
 
     it('falls back to modelId when modelName is not provided', () => {
@@ -95,21 +95,21 @@ describe('EvaluationResultsTable', () => {
     it('applies green class for high scores (>=0.7)', () => {
       const results = [{ modelId: 'high', metrics: { score: 0.85 } }]
       render(<EvaluationResultsTable results={results} />)
-      const scoreEl = screen.getByText('85.0%')
+      const scoreEl = screen.getByText('85,0%')
       expect(scoreEl).toHaveClass('bg-green-100')
     })
 
     it('applies yellow class for medium scores (0.5-0.7)', () => {
       const results = [{ modelId: 'medium', metrics: { score: 0.6 } }]
       render(<EvaluationResultsTable results={results} />)
-      const scoreEl = screen.getByText('60.0%')
+      const scoreEl = screen.getByText('60,0%')
       expect(scoreEl).toHaveClass('bg-yellow-100')
     })
 
     it('applies red class for low scores (<0.5)', () => {
       const results = [{ modelId: 'low', metrics: { score: 0.3 } }]
       render(<EvaluationResultsTable results={results} />)
-      const scoreEl = screen.getByText('30.0%')
+      const scoreEl = screen.getByText('30,0%')
       expect(scoreEl).toHaveClass('bg-red-100')
     })
   })
@@ -128,7 +128,7 @@ describe('EvaluationResultsTable', () => {
         },
       ]
       render(<EvaluationResultsTable results={results} />)
-      expect(screen.getByText('85.0%')).toBeInTheDocument()
+      expect(screen.getByText('85,0%')).toBeInTheDocument()
       expect(screen.getByText(/80.0%/)).toBeInTheDocument()
       expect(screen.getByText(/90.0%/)).toBeInTheDocument()
     })
@@ -292,7 +292,7 @@ describe('EvaluationResultsTable', () => {
         />,
       )
       // 0.2 with higherIsBetter=false means score = 1-0.2 = 0.8, which is green
-      const scoreEl = screen.getByText('20.0%')
+      const scoreEl = screen.getByText('20,0%')
       expect(scoreEl).toHaveClass('bg-green-100')
     })
   })
@@ -301,7 +301,7 @@ describe('EvaluationResultsTable', () => {
     it('formats values > 1 with 3 decimal places (not percentage)', () => {
       const results = [{ modelId: 'test', metrics: { perplexity: 25.678 } }]
       render(<EvaluationResultsTable results={results} />)
-      expect(screen.getByText('25.678')).toBeInTheDocument()
+      expect(screen.getByText('25,678')).toBeInTheDocument()
     })
   })
 })

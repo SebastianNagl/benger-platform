@@ -56,7 +56,7 @@ export interface EvaluationRunScope {
 function configOptionLabel(
   cfg: EvaluationConfigInput,
   all: ReadonlyArray<EvaluationConfigInput>,
-  t: (key: string, fallback?: any) => string,
+  t: (key: string, vars?: Record<string, unknown>) => string,
 ): string {
   const base = (c: EvaluationConfigInput) =>
     c.display_name || metricDisplayLabel(c.metric, undefined, t)
@@ -296,10 +296,7 @@ export function EvaluationControlModal({
   const blockChecks: Array<{ blocked: boolean; reason: string }> = [
     {
       blocked: enabledConfigs.length > 0 && selectedMetrics.length === 0,
-      reason: t(
-        'evaluation.controlModal.runDisabledNoMetrics',
-        'Mindestens eine Metrik auswählen',
-      ).toString(),
+      reason: t('evaluation.controlModal.runDisabledNoMetrics').toString(),
     },
     {
       // No model deselects the generation side and no annotator the answer
@@ -309,27 +306,15 @@ export function EvaluationControlModal({
         selectedModels.length === 0 &&
         selectedAnnotators.length === 0,
       reason: (availableAnnotators.length === 0
-        ? t(
-            'evaluation.controlModal.runDisabledNoModels',
-            'Mindestens ein Modell auswählen',
-          )
+        ? t('evaluation.controlModal.runDisabledNoModels')
         : availableModels.length === 0
-          ? t(
-              'evaluation.controlModal.runDisabledNoAnnotators',
-              'Mindestens eine:n Annotator:in auswählen',
-            )
-          : t(
-              'evaluation.controlModal.runDisabledNoSubjects',
-              'Mindestens ein Modell oder eine:n Annotator:in auswählen',
-            )
+          ? t('evaluation.controlModal.runDisabledNoAnnotators')
+          : t('evaluation.controlModal.runDisabledNoSubjects')
       ).toString(),
     },
     {
       blocked: showStructureScope && selectedStructures.length === 0,
-      reason: t(
-        'evaluation.controlModal.runDisabledNoStructures',
-        'Mindestens eine Prompt-Struktur auswählen',
-      ).toString(),
+      reason: t('evaluation.controlModal.runDisabledNoStructures').toString(),
     },
   ]
   const firstBlocker = blockChecks.find((c) => c.blocked)
@@ -549,7 +534,7 @@ export function EvaluationControlModal({
                   {enabledConfigs.length > 0 && (
                     <div>
                       <label className={R.sectionLabel}>
-                        {t('evaluation.controlModal.selectMetrics', 'Metriken')}
+                        {t('evaluation.controlModal.selectMetrics')}
                       </label>
                       <div className={R.checkList}>
                         {enabledConfigs.map((cfg) => (
@@ -574,14 +559,8 @@ export function EvaluationControlModal({
                       <SelectionFooter
                         summary={
                           selectedMetrics.length === 1
-                            ? t(
-                                'evaluation.controlModal.oneMetricSelected',
-                                '1 Metrik ausgewählt',
-                              )
-                            : t(
-                                'evaluation.controlModal.metricsSelected',
-                                '{count} Metriken ausgewählt',
-                              )
+                            ? t('evaluation.controlModal.oneMetricSelected')
+                            : t('evaluation.controlModal.metricsSelected')
                                 .toString()
                                 .replace(
                                   '{count}',
@@ -602,7 +581,7 @@ export function EvaluationControlModal({
                   {availableModels.length > 0 && (
                     <div>
                       <label className={R.sectionLabel}>
-                        {t('evaluation.controlModal.selectModels', 'Modelle')}
+                        {t('evaluation.controlModal.selectModels')}
                       </label>
                       <div className={R.checkList}>
                         {availableModels.map((m) => (
@@ -642,10 +621,7 @@ export function EvaluationControlModal({
                       {selectedModels.length === 0 &&
                         selectedAnnotators.length > 0 && (
                           <p className={`mt-1 ${R.hint}`}>
-                            {t(
-                              'evaluation.controlModal.answersOnlyHint',
-                              'Ohne Modell werden nur eingereichte Antworten bewertet.',
-                            )}
+                            {t('evaluation.controlModal.answersOnlyHint')}
                           </p>
                         )}
                     </div>
@@ -655,10 +631,7 @@ export function EvaluationControlModal({
                   {availableAnnotators.length > 0 && (
                     <div>
                       <label className={R.sectionLabel}>
-                        {t(
-                          'evaluation.controlModal.selectAnnotators',
-                          'Annotator:innen',
-                        )}
+                        {t('evaluation.controlModal.selectAnnotators')}
                       </label>
                       <div className={R.checkList}>
                         {availableAnnotators.map((a) => (
@@ -681,14 +654,8 @@ export function EvaluationControlModal({
                       <SelectionFooter
                         summary={
                           selectedAnnotators.length === 1
-                            ? t(
-                                'evaluation.controlModal.oneAnnotatorSelected',
-                                '1 Annotator:in ausgewählt',
-                              )
-                            : t(
-                                'evaluation.controlModal.annotatorsSelected',
-                                '{count} Annotator:innen ausgewählt',
-                              )
+                            ? t('evaluation.controlModal.oneAnnotatorSelected')
+                            : t('evaluation.controlModal.annotatorsSelected')
                                 .toString()
                                 .replace(
                                   '{count}',
@@ -707,10 +674,7 @@ export function EvaluationControlModal({
                       {selectedAnnotators.length === 0 &&
                         selectedModels.length > 0 && (
                           <p className={`mt-1 ${R.hint}`}>
-                            {t(
-                              'evaluation.controlModal.modelsOnlyHint',
-                              'Ohne Annotator:in werden nur Modellantworten bewertet.',
-                            )}
+                            {t('evaluation.controlModal.modelsOnlyHint')}
                           </p>
                         )}
                     </div>
@@ -724,10 +688,7 @@ export function EvaluationControlModal({
                   {showStructureScope && (
                     <div>
                       <label className={R.sectionLabel}>
-                        {t(
-                          'evaluation.controlModal.selectStructures',
-                          'Prompt-Strukturen',
-                        )}
+                        {t('evaluation.controlModal.selectStructures')}
                       </label>
                       <div className={R.checkList}>
                         {availableStructures.map((s) => (
@@ -757,14 +718,8 @@ export function EvaluationControlModal({
                       <SelectionFooter
                         summary={
                           selectedStructures.length === 1
-                            ? t(
-                                'evaluation.controlModal.oneStructureSelected',
-                                '1 Prompt-Struktur ausgewählt',
-                              )
-                            : t(
-                                'evaluation.controlModal.structuresSelected',
-                                '{count} Prompt-Strukturen ausgewählt',
-                              )
+                            ? t('evaluation.controlModal.oneStructureSelected')
+                            : t('evaluation.controlModal.structuresSelected')
                                 .toString()
                                 .replace(
                                   '{count}',
@@ -787,10 +742,7 @@ export function EvaluationControlModal({
                       not only when both lists happen to be empty. */}
                   {scopeLoading && (
                     <div className={R.hint} role="status" aria-live="polite">
-                      {t(
-                        'evaluation.controlModal.scopeLoading',
-                        'Lade verfügbare Modelle und Annotator:innen…',
-                      )}
+                      {t('evaluation.controlModal.scopeLoading')}
                     </div>
                   )}
 
@@ -801,20 +753,14 @@ export function EvaluationControlModal({
                     projectId &&
                     availableModels.length === 0 && (
                       <div className={R.emptyState}>
-                        {t(
-                          'evaluation.controlModal.noEvaluatedModels',
-                          'Keine bewerteten Modelle in diesem Projekt',
-                        )}
+                        {t('evaluation.controlModal.noEvaluatedModels')}
                       </div>
                     )}
                   {!scopeLoading &&
                     projectId &&
                     availableAnnotators.length === 0 && (
                       <div className={R.emptyState}>
-                        {t(
-                          'evaluation.controlModal.noAnnotators',
-                          'Keine Annotator:innen in diesem Projekt',
-                        )}
+                        {t('evaluation.controlModal.noAnnotators')}
                       </div>
                     )}
 

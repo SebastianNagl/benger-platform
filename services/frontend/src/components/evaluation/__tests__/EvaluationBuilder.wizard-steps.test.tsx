@@ -18,19 +18,10 @@ import { EvaluationBuilder } from '../EvaluationBuilder'
 
 // ---------- mocks ----------
 
+// i18n: plain key passthrough, assertions target the translation keys.
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
-    t: (key: string, fallbackOrVars?: any) => {
-      if (typeof fallbackOrVars === 'string') return fallbackOrVars
-      if (fallbackOrVars && typeof fallbackOrVars === 'object') {
-        let result = key
-        for (const [k, v] of Object.entries(fallbackOrVars)) {
-          result = result.replace(`{${k}}`, String(v))
-        }
-        return result
-      }
-      return key
-    },
+    t: (key: string, _vars?: Record<string, unknown>) => key,
   }),
 }))
 
@@ -583,7 +574,7 @@ describe('EvaluationBuilder wizard step rendering', () => {
 
       // Should show info panel
       expect(
-        screen.getByText(/Configure your own evaluation prompt/),
+        screen.getByText('evaluation.customLLMJudge.hint'),
       ).toBeInTheDocument()
 
       // Judge model select

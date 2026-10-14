@@ -46,11 +46,11 @@ export function SubjectBinTooltip({
       title={`${valueLabel} ${bin.label}`}
       lines={[
         {
-          label: t('reports.view.shareShort', 'Anteil'),
+          label: t('reports.view.shareShort'),
           value: `${formatNumber(bin.pct, locale, 1)} %`,
         },
         {
-          label: t('reports.view.count', 'Anzahl'),
+          label: t('reports.view.count'),
           value: formatCount(bin.count, locale),
         },
       ]}
@@ -72,9 +72,7 @@ export function PerSubjectDistribution({
   )
   return (
     <div className="mb-8" data-testid="per-subject-distribution">
-      <SubHeading>
-        {t('reports.view.perSubjectDistribution', 'Verteilung je Modell')}
-      </SubHeading>
+      <SubHeading>{t('reports.view.perSubjectDistribution')}</SubHeading>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {subjects.map((subject) => (
           <div
@@ -87,7 +85,7 @@ export function PerSubjectDistribution({
                 {subject.label}
               </span>
               <span className="shrink-0 text-xs text-zinc-500 dark:text-zinc-400">
-                {t('reports.view.samples', 'n = {n}', {
+                {t('reports.view.samples', {
                   n: formatCount(subject.total, locale),
                 })}
               </span>
@@ -135,11 +133,7 @@ export function PerSubjectDistribution({
         ))}
       </div>
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        {t(
-          'reports.view.perSubjectHint',
-          'Anteil der Abgaben je {value}, gleiche Achse für alle Modelle.',
-          { value: valueLabel },
-        )}
+        {t('reports.view.perSubjectHint', { value: valueLabel })}
       </p>
     </div>
   )

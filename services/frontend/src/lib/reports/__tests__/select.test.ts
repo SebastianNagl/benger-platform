@@ -250,7 +250,7 @@ describe('select helpers', () => {
         'cfg-judge-sonnet',
         'llm_judge_falloesung_grade_points',
       )!
-      const series = toPercentSeries(d)
+      const series = toPercentSeries(d, 'en')
       expect(series).toHaveLength(19)
       expect(series[13]).toEqual({
         bin: 13,
@@ -271,19 +271,20 @@ describe('select helpers', () => {
         ...FIX.distributions[0],
         by_kind: { model: FIX.distributions[0].by_kind.model, human: [] },
       }
-      const series = toPercentSeries(d)
+      const series = toPercentSeries(d, 'en')
       expect(series.every((s) => s.human === 0 && s.humanPct === 0)).toBe(true)
     })
 
     it('labels bins per scale', () => {
-      expect(binLabel([0, 1, 2], 1, '0-18')).toBe('1')
-      expect(binLabel([0, 10, 20], 1, '0-100')).toBe('10–20')
-      expect(binLabel([0, 10, 90], 2, '0-100')).toBe('90–100')
-      expect(binLabel([0, 0.5], 1, '0-1')).toBe('50–100 %')
-      expect(binLabel([0, 0.5], 0, '0-1')).toBe('0–50 %')
-      expect(binLabel([0, 0.25, 0.5], 2, 'raw')).toBe('0.50–0.75')
-      expect(binLabel([3], 0, 'raw')).toBe('3–4')
-      expect(binLabel([0, 1], 1, '0-18')).toBe('1')
+      expect(binLabel([0, 1, 2], 1, '0-18', 'en')).toBe('1')
+      expect(binLabel([0, 10, 20], 1, '0-100', 'en')).toBe('10–20')
+      expect(binLabel([0, 10, 90], 2, '0-100', 'en')).toBe('90–100')
+      expect(binLabel([0, 0.5], 1, '0-1', 'en')).toBe('50–100 %')
+      expect(binLabel([0, 0.5], 0, '0-1', 'en')).toBe('0–50 %')
+      expect(binLabel([0, 0.25, 0.5], 2, 'raw', 'en')).toBe('0.50–0.75')
+      expect(binLabel([3], 0, 'raw', 'en')).toBe('3–4')
+      expect(binLabel([0, 0.25, 0.5], 2, 'raw', 'de')).toBe('0,50–0,75')
+      expect(binLabel([0, 1], 1, '0-18', 'en')).toBe('1')
     })
 
     it('builds per-subject histograms for top ranked rows with data', () => {
@@ -298,7 +299,7 @@ describe('select helpers', () => {
         'cfg-judge-sonnet',
         'llm_judge_falloesung_grade_points',
       )
-      const subjects = topSubjectDistributions(rows, d)
+      const subjects = topSubjectDistributions(rows, d, 'en')
       expect(subjects).toHaveLength(1)
       expect(subjects[0]).toMatchObject({
         id: 'gpt-5.4',
@@ -311,8 +312,8 @@ describe('select helpers', () => {
         count: 5,
         pct: 33.3,
       })
-      expect(topSubjectDistributions(rows, null)).toEqual([])
-      expect(topSubjectDistributions(rows, d, 0)).toEqual([])
+      expect(topSubjectDistributions(rows, null, 'en')).toEqual([])
+      expect(topSubjectDistributions(rows, d, 'en', 0)).toEqual([])
     })
 
     it('skips subjects whose histogram is empty', () => {
@@ -326,7 +327,7 @@ describe('select helpers', () => {
         ...FIX.distributions[0],
         by_subject: { 'gpt-5.4': [0, 0, 0] },
       }
-      expect(topSubjectDistributions(rows, d)).toEqual([])
+      expect(topSubjectDistributions(rows, d, 'en')).toEqual([])
     })
   })
 })
