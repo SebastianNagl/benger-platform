@@ -51,7 +51,7 @@ describe('LicenseCitationSection', () => {
     expect(cards.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('cites the benchmark paper in Findings of EMNLP 2026 with the Zenodo v3.0 DOI', () => {
+  it('cites the benchmark paper in Findings of EMNLP 2026 with the Zenodo v2.1 DOI', () => {
     render(<LicenseCitationSection />)
     // The venue is a line of the BibTeX body itself, not a separate label.
     expect(

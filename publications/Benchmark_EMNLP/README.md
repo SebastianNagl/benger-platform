@@ -5,7 +5,7 @@ Quarto manuscript for the BenGER benchmark paper, accepted to Findings of EMNLP 
 ## Public release
 
 - **Paper**: Findings of EMNLP 2026 (camera-ready source in this folder; ACL Anthology entry follows publication). Preprint: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
-- **Zenodo (canonical dataset distribution)**: [10.5281/zenodo.23366269](https://doi.org/10.5281/zenodo.23366269) — v3.0 with the full anonymised `benchathon/`, `zjs/`, `grundprinzipien/`, and `processed/` subtrees plus the task metadata release (legal areas and other attributes per task); see the deposit's `CHANGELOG.md` for the diffs against the predecessors [v2.0](https://doi.org/10.5281/zenodo.20489788) (LLM-as-a-Judge re-anchored on GPT-5.4-mini, expanded Benchathon judge ensemble) and [v1.0](https://doi.org/10.5281/zenodo.20409635).
+- **Zenodo (canonical dataset distribution)**: [10.5281/zenodo.23366269](https://doi.org/10.5281/zenodo.23366269) — v2.1 with the full anonymised `benchathon/`, `zjs/`, `grundprinzipien/`, and `processed/` subtrees plus the task metadata release (legal areas and other attributes per task); see the deposit's `CHANGELOG.md` for the diffs against the predecessors [v2.0](https://doi.org/10.5281/zenodo.20489788) (LLM-as-a-Judge re-anchored on GPT-5.4-mini, expanded Benchathon judge ensemble) and [v1.0](https://doi.org/10.5281/zenodo.20409635).
 - **GitHub** (this folder): ships the manuscript source, the derived `data/processed/` and `data/interim/` JSONs the paper loads, and the scripts that produced everything. The raw platform exports and the unredacted ZJS source stay out of git.
 
 ### Grader anonymisation

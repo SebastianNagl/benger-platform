@@ -32,7 +32,7 @@ authors:
     given-names: Matthias
     affiliation: Technical University of Munich (TUM)
 license: CC-BY-4.0
-version: "3.0.0"
+version: "2.1.0"
 date-released: "2026-10-14"
 doi: 10.5281/zenodo.23366269
 repository-code: "https://github.com/SebastianNagl/benger-platform"
@@ -40,7 +40,7 @@ url: "https://doi.org/10.5281/zenodo.23366269"
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23366269
-    description: "Zenodo archival snapshot of BenGER v3.0 (adds the task metadata release)"
+    description: "Zenodo archival snapshot of BenGER v2.1 (adds the task metadata release)"
   - type: doi
     value: 10.5281/zenodo.20489788
     description: "Predecessor: BenGER v2.0 (GPT-5.4-mini-anchored)"
@@ -99,7 +99,7 @@ preferred-citation:
       description: "arXiv preprint of the Findings of EMNLP 2026 paper"
     - type: doi
       value: 10.5281/zenodo.23366269
-      description: "Zenodo archival snapshot (BenGER v3.0)"
+      description: "Zenodo archival snapshot (BenGER v2.1)"
     # TODO once the ACL Anthology assigns them (post-publication):
     # - type: doi
     #   value: 10.18653/v1/2026.emnlp-main.XXX
