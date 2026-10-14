@@ -51,10 +51,16 @@ def test_inline_copy_present_in_tasks_py():
     this inline copy isn't testing dead code. Body equivalence is asserted
     by the behavioural cases below; if those would diverge from `tasks.py`
     a careful reviewer must keep both in sync."""
-    tasks_path = Path(__file__).parent.parent / "tasks.py"
-    src = tasks_path.read_text()
+    import inspect
+
+    import evaluation_planning
+
+    # The helpers moved to the shared planner (services/shared/
+    # evaluation_planning.py), which the cost estimate uses too; tasks.py
+    # re-exports them.
+    src = inspect.getsource(evaluation_planning)
     assert "def _row_has_score(" in src, (
-        "tasks.py is missing the `_row_has_score` helper that the "
+        "the evaluation planner is missing the `_row_has_score` helper that the "
         "missing-only re-run logic depends on."
     )
 
@@ -163,23 +169,29 @@ def test_inline_normalize_present_in_tasks_py():
     run treated every existing row as missing → re-evaluated everything,
     duplicated rows under the new format, burned LLM-judge quota.
     """
-    tasks_path = Path(__file__).parent.parent / "tasks.py"
-    src = tasks_path.read_text()
+    import inspect
+
+    import evaluation_planning
+
+    # The helpers moved to the shared planner (services/shared/
+    # evaluation_planning.py), which the cost estimate uses too; tasks.py
+    # re-exports them.
+    src = inspect.getsource(evaluation_planning)
     assert "def _normalize_field_key(" in src, (
-        "tasks.py is missing the `_normalize_field_key` helper that the "
+        "the evaluation planner is missing the `_normalize_field_key` helper that the "
         "missing-only re-run logic depends on."
     )
     # Both call sites use it — guards against silent regression where someone
     # removes a normalize call but keeps the helper. Assert each home's floor
     # SEPARATELY (not a combined sum, which would let a developer delete an
     # entire pair of sites and still pass on the slack):
-    #   - tasks.py: the def + the orchestrator's two lookup-set inserts (>= 3).
+    #   - the planner: the def + the skip-set insert + the judge-call count (>= 3).
     #   - cell_evaluator.py: each cell body normalizes at the already-done set
     #     build AND the per-config skip check — 4 calls total (>= 4).
     cell_src = (Path(__file__).parent.parent / "evaluation" / "cell_evaluator.py").read_text()
     assert src.count("_normalize_field_key(") >= 3, (
-        "tasks.py must define _normalize_field_key and call it at both "
-        "orchestrator lookup-set inserts."
+        "the planner must define _normalize_field_key and use it in the "
+        "skip set and the judge-call count."
     )
     assert cell_src.count("_normalize_field_key(") >= 4, (
         "both cell bodies must normalize at the already-done set build AND the "
@@ -279,16 +291,22 @@ def test_inline_terminal_error_helper_present_in_tasks_py():
     (missing API key, content moderation refusal, parse failure) to be
     re-tried on every missing-only run, accumulating stub rows
     indefinitely and burning LLM-judge quota."""
-    tasks_path = Path(__file__).parent.parent / "tasks.py"
-    src = tasks_path.read_text()
+    import inspect
+
+    import evaluation_planning
+
+    # The helpers moved to the shared planner (services/shared/
+    # evaluation_planning.py), which the cost estimate uses too; tasks.py
+    # re-exports them.
+    src = inspect.getsource(evaluation_planning)
     assert "def _row_is_terminal_error(" in src, (
-        "tasks.py is missing the `_row_is_terminal_error` helper that "
+        "the evaluation planner is missing the `_row_is_terminal_error` helper that "
         "blocks retries of known-failed evaluations."
     )
-    # Both missing-only filters must consult it (sites at ~2191 + ~2576).
+    # The one skip-set builder (both sides) must consult it.
     assert src.count("_row_is_terminal_error(") >= 2, (
-        "Expected `_row_is_terminal_error(` calls at both lookup-set "
-        "inserts (generation + annotation) — at least 2 in tasks.py."
+        "Expected the definition plus a `_row_is_terminal_error(` call in the "
+        "skip-set builder that serves generations and annotations."
     )
     # And the silent-fallthrough guard must exist at both LLM-judge sites
     # (writes a terminal-error row instead of falling through to
@@ -425,20 +443,26 @@ def test_inline_pred_field_matches_present_in_tasks_py():
     reconstructs the expected key from ``evaluation_config_id`` via
     ``_pred_field_matches`` + ``_reconstruct_expected_keys``.
     """
-    tasks_path = Path(__file__).parent.parent / "tasks.py"
-    src = tasks_path.read_text()
+    import inspect
+
+    import evaluation_planning
+
+    # The helpers moved to the shared planner (services/shared/
+    # evaluation_planning.py), which the cost estimate uses too; tasks.py
+    # re-exports them.
+    src = inspect.getsource(evaluation_planning)
     assert "def _pred_field_matches(" in src, (
-        "tasks.py is missing the `_pred_field_matches` helper that maps a bare "
+        "the evaluation planner is missing the `_pred_field_matches` helper that maps a bare "
         "immediate-eval field_name to a config prediction field."
     )
     assert "def _reconstruct_expected_keys(" in src, (
-        "tasks.py is missing `_reconstruct_expected_keys` — the config-id-based "
+        "the evaluation planner is missing `_reconstruct_expected_keys` — the config-id-based "
         "recognition of bare immediate-eval rows in missing-only mode."
     )
-    # Definition + BOTH skip-set loops (generation + annotation) must use it.
-    assert src.count("_reconstruct_expected_keys(") >= 3, (
-        "Expected `_reconstruct_expected_keys` definition + calls at BOTH the "
-        "generation and annotation missing-only skip-set inserts in tasks.py."
+    # Definition + the one skip-set builder that serves both sides.
+    assert src.count("_reconstruct_expected_keys(") >= 2, (
+        "Expected `_reconstruct_expected_keys` definition + its call in the "
+        "skip-set builder (generation and annotation side)."
     )
 
 

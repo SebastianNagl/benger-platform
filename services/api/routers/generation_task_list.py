@@ -22,6 +22,12 @@ from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
+from services.generation_planning import (
+    implicit_structure_keys as _implicit_structure_keys,
+    plan_generation_cells,
+    resolve_cell as _resolve_cell,
+    run_structure_keys,
+)
 from routers.generation_revoke import (
     generation_run_task_ids,
     send_generation_trial,
@@ -44,29 +50,6 @@ logger = logging.getLogger(__name__)
 celery_app = get_celery_app()
 
 
-def _implicit_structure_keys(prompt_structures) -> List[str]:
-    """Structure keys used when a caller does NOT pass explicit structure_keys.
-
-    Handles both the dict shape and the legacy list shape, and skips
-    structures flagged ``exclude_from_generation`` — prompts that other
-    features reference by key (e.g. Bewertungsbogen generation) without
-    being general generation prompts. Explicitly requested structure_keys
-    bypass this filter (validated against ALL known keys).
-    """
-    if isinstance(prompt_structures, dict):
-        return [
-            key
-            for key, entry in prompt_structures.items()
-            if not (isinstance(entry, dict) and entry.get("exclude_from_generation"))
-        ]
-    if isinstance(prompt_structures, list):
-        return [
-            ps.get("key", str(i))
-            for i, ps in enumerate(prompt_structures)
-            if not (isinstance(ps, dict) and ps.get("exclude_from_generation"))
-        ]
-    return []
-
 # Issue #106: when a trigger omits explicit task_ids, the handler dispatches
 # for every task in the project. The dispatch itself is synchronous (one
 # ResponseGeneration row per cell plus N Celery sends), so an unbounded
@@ -74,11 +57,6 @@ def _implicit_structure_keys(prompt_structures) -> List[str]:
 # Callers above this bound must page through explicit task_ids.
 GENERATION_FALLBACK_MAX_TASKS = 10_000
 
-# A cell whose newest row ended without an answer gets generated again under
-# mode "missing": failed, stopped by the user, or cancelled by a rerun. Pending,
-# running and paused cells are still in flight; completed ones are done. Shared
-# with the cost estimate so both count the same cells.
-MISSING_MODE_REGENERATE_STATUSES = frozenset({"failed", "stopped", "cancelled"})
 
 
 # ============= Request/Response Models =============
@@ -327,26 +305,6 @@ async def _bulk_latest_generations(
         )
     ).scalars().all()
     return {(r.task_id, r.model_id, r.structure_key): r for r in rows}
-
-
-def _resolve_cell(
-    bulk: Dict[tuple, DBResponseGeneration],
-    task_id: str,
-    model_id: str,
-    structure_key: Optional[str],
-) -> Optional[DBResponseGeneration]:
-    """Look up the latest row for a (task, model, structure) cell, falling
-    back to a legacy NULL-structure row when the exact key is missing.
-
-    Mirrors the case-ordering in the old per-cell query: prefer the exact
-    match, accept the NULL row as a last resort.
-    """
-    exact = bulk.get((task_id, model_id, structure_key))
-    if exact is not None:
-        return exact
-    if structure_key is not None:
-        return bulk.get((task_id, model_id, None))
-    return None
 
 
 def get_single_task_generation_status(
@@ -858,15 +816,6 @@ async def start_generation(
                 detail="Single mode requires exactly one model_id",
             )
 
-    # Get structure keys to use (Issue #762)
-    if request.structure_keys:
-        structure_keys = request.structure_keys
-    else:
-        # Use prompt_structures keys (matching task-status endpoint behavior),
-        # minus exclude_from_generation-flagged prompts.
-        prompt_structures = generation_config.get("prompt_structures", {})
-        structure_keys = _implicit_structure_keys(prompt_structures)
-
     # Validate requested structure_keys against available structures
     if request.structure_keys:
         prompt_structures = generation_config.get("prompt_structures", {})
@@ -885,9 +834,11 @@ async def start_generation(
                     detail=f"Unknown structure keys: {sorted(invalid_keys)}. Available: {sorted(available_keys)}",
                 )
 
-    # If no structures specified, use None (backward compatibility)
-    if not structure_keys:
-        structure_keys = [None]
+    # Structures to generate (issue #762): the requested ones, else the
+    # project's generation structures (matching the task-status endpoint),
+    # else None for a project without structures.
+    structure_keys = run_structure_keys(generation_config, request.structure_keys)
+    if structure_keys == [None]:
         logger.info(
             f"No prompt structures configured for project {project_id}, "
             "using default generation without structure_key"
@@ -935,58 +886,12 @@ async def start_generation(
             status_code=status.HTTP_400_BAD_REQUEST, detail="No tasks found to generate"
         )
 
-    # Determine which task-model-structure combinations to generate
-    tasks_to_queue = []
-
-    # Issue #83: Bulk-fetch the latest status per (task_id, model_id, structure_key)
-    # in a single round-trip instead of one SELECT per cell. For projects with
-    # thousands of cells, the per-cell scan exceeded the browser's fetch-abort
-    # threshold even though the handler completed correctly server-side.
-    latest_status: Dict[tuple, str] = {}
-    if request.mode == "missing":
-        latest_rows = (
-            await db.execute(
-                select(
-                    DBResponseGeneration.task_id,
-                    DBResponseGeneration.model_id,
-                    DBResponseGeneration.structure_key,
-                    DBResponseGeneration.status,
-                )
-                .where(
-                    DBResponseGeneration.project_id == project_id,
-                    DBResponseGeneration.task_id.in_(task_ids),
-                    DBResponseGeneration.model_id.in_(model_ids),
-                )
-                .distinct(
-                    DBResponseGeneration.task_id,
-                    DBResponseGeneration.model_id,
-                    DBResponseGeneration.structure_key,
-                )
-                .order_by(
-                    DBResponseGeneration.task_id,
-                    DBResponseGeneration.model_id,
-                    DBResponseGeneration.structure_key,
-                    DBResponseGeneration.created_at.desc(),
-                )
-            )
-        ).all()
-        latest_status = {
-            (r.task_id, r.model_id, r.structure_key): r.status for r in latest_rows
-        }
-
-    for task_id in task_ids:
-        for model_id in model_ids:
-            for structure_key in structure_keys:
-                if request.mode in ("all", "single"):
-                    should_generate = True
-                else:  # mode == "missing"
-                    latest = latest_status.get((task_id, model_id, structure_key))
-                    should_generate = (
-                        latest is None or latest in MISSING_MODE_REGENERATE_STATUSES
-                    )
-
-                if should_generate:
-                    tasks_to_queue.append((task_id, model_id, structure_key))
+    # Which task-model-structure cells to queue. Shared with the cost
+    # estimate (services/generation_planning.py), so the estimate prices the
+    # cells this run starts.
+    tasks_to_queue = await plan_generation_cells(
+        db, project_id, task_ids, model_ids, structure_keys, request.mode
+    )
 
     # When running in "all" mode, cancel existing pending/running generations for this project
     # to avoid wasting API costs on duplicates that will be overwritten

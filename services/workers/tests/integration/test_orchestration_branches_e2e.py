@@ -1444,6 +1444,26 @@ def test_run_evaluation_annotator_scope_filter(
     assert fresh.status == "completed"
 
 
+def test_run_evaluation_plans_every_task_not_batch_size_times_ten(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    make_generation, make_evaluation_run, exact_match_config,
+):
+    """The orchestrator used to load at most ``batch_size * 10`` tasks in no
+    fixed order, so a run over a larger project (EKK 27.06: 3273 tasks,
+    default batch_size 100) graded only some of them. Every task is planned."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id)
+    for _ in range(12):
+        task = make_task(project.id, {"expected": "ja"}, created_by=user.id)
+        make_generation(project.id, task.id, model.id, user.id, response_content="ja")
+    run = make_evaluation_run(project.id, user.id, status="pending")
+    db_conn.commit()
+
+    result = _run(db_conn, run, project, [exact_match_config()], batch_size=1)
+    assert result["gen_cells"] == 12
+
+
 def _both_sides_scenario(make_user, make_llm_model, make_project, make_task,
                          make_generation, make_annotation, make_evaluation_run):
     user = make_user()

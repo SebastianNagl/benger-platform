@@ -1,8 +1,13 @@
 'use client'
 
+import { Alert } from '@/components/shared/Alert'
 import { BillingOrgSelect } from '@/components/shared/BillingOrgSelect'
 import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
+import {
+  RUN_DIALOG as R,
+  SelectionFooter,
+} from '@/components/shared/RunDialogParts'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useBillingOrganization } from '@/hooks/useBillingOrganization'
@@ -455,7 +460,7 @@ export function EvaluationControlModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 transition-opacity dark:bg-zinc-900/75" />
+          <div className={R.overlay} />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -469,11 +474,11 @@ export function EvaluationControlModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6 dark:bg-zinc-800">
+              <Dialog.Panel className={R.panel}>
                 <div className="absolute top-0 right-0 hidden pt-4 pr-4 sm:block">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-300"
+                    className={R.closeButton}
                     onClick={onClose}
                   >
                     <span className="sr-only">
@@ -483,500 +488,426 @@ export function EvaluationControlModal({
                   </button>
                 </div>
 
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 w-full text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <Dialog.Title
-                      as="h3"
-                      className="text-lg leading-6 font-semibold text-gray-900 dark:text-white"
-                    >
-                      {t('evaluation.controlModal.title')}
-                    </Dialog.Title>
+                <Dialog.Title as="h3" className={R.title}>
+                  {t('evaluation.controlModal.title')}
+                </Dialog.Title>
 
-                    <div className="mt-4 space-y-4">
-                      <BillingOrgSelect projectId={projectId} />
+                <div className="mt-5 space-y-6">
+                  <BillingOrgSelect projectId={projectId} />
 
-                      {/* Evaluation Mode */}
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                          {t('evaluation.controlModal.evaluationMode')}
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex items-start">
-                            <input
-                              id="mode-missing"
-                              type="radio"
-                              value="missing"
-                              checked={mode === 'missing'}
-                              onChange={(e) =>
-                                setMode(e.target.value as 'missing')
-                              }
-                              className="mt-1 mr-2"
-                            />
-                            <div>
-                              <label
-                                htmlFor="mode-missing"
-                                className="cursor-pointer font-medium text-gray-900 dark:text-white"
-                              >
-                                {t(
-                                  'evaluation.controlModal.evaluateMissingOnly',
-                                )}
-                              </label>
-                              <p className="text-sm text-gray-500 dark:text-zinc-400">
-                                {t(
-                                  'evaluation.controlModal.evaluateMissingOnlyDesc',
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-start">
-                            <input
-                              id="mode-all"
-                              type="radio"
-                              value="all"
-                              checked={mode === 'all'}
-                              onChange={(e) => setMode(e.target.value as 'all')}
-                              className="mt-1 mr-2"
-                            />
-                            <div>
-                              <label
-                                htmlFor="mode-all"
-                                className="cursor-pointer font-medium text-gray-900 dark:text-white"
-                              >
-                                {t('evaluation.controlModal.evaluateAll')}
-                              </label>
-                              <p className="text-sm text-gray-500 dark:text-zinc-400">
-                                {t('evaluation.controlModal.evaluateAllDesc')}
-                              </p>
-                            </div>
-                          </div>
+                  {/* Evaluation Mode */}
+                  <div>
+                    <label className={R.sectionLabel}>
+                      {t('evaluation.controlModal.evaluationMode')}
+                    </label>
+                    <div className="space-y-2">
+                      <div className={R.optionCard}>
+                        <input
+                          id="mode-missing"
+                          type="radio"
+                          value="missing"
+                          checked={mode === 'missing'}
+                          onChange={(e) => setMode(e.target.value as 'missing')}
+                          className={R.radio}
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor="mode-missing"
+                            className={R.optionTitle}
+                          >
+                            {t('evaluation.controlModal.evaluateMissingOnly')}
+                          </label>
+                          <p className={R.optionDescription}>
+                            {t(
+                              'evaluation.controlModal.evaluateMissingOnlyDesc',
+                            )}
+                          </p>
                         </div>
                       </div>
-
-                      {/* Metric scope (issue #69) */}
-                      {enabledConfigs.length > 0 && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t(
-                              'evaluation.controlModal.selectMetrics',
-                              'Metriken',
-                            )}
-                          </label>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {enabledConfigs.map((cfg) => (
-                              <label
-                                key={cfg.id}
-                                htmlFor={`metric-${cfg.id}`}
-                                className="flex items-center"
-                              >
-                                <input
-                                  id={`metric-${cfg.id}`}
-                                  type="checkbox"
-                                  checked={selectedMetrics.includes(cfg.id)}
-                                  onChange={() => toggleMetric(cfg.id)}
-                                  className="mr-2"
-                                />
-                                <span className="text-sm">
-                                  {configOptionLabel(cfg, enabledConfigs, t)}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex justify-between text-sm">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedMetrics(
-                                  enabledConfigs.map((c) => c.id),
-                                )
-                              }
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.selectAll')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedMetrics([])}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.clearAll')}
-                            </button>
-                          </div>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
-                            {selectedMetrics.length === 1
-                              ? t(
-                                  'evaluation.controlModal.oneMetricSelected',
-                                  '1 Metrik ausgewählt',
-                                )
-                              : t(
-                                  'evaluation.controlModal.metricsSelected',
-                                  '{count} Metriken ausgewählt',
-                                )
-                                  .toString()
-                                  .replace(
-                                    '{count}',
-                                    String(selectedMetrics.length),
-                                  )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Model scope (issue #69) */}
-                      {availableModels.length > 0 && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t(
-                              'evaluation.controlModal.selectModels',
-                              'Modelle',
-                            )}
-                          </label>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableModels.map((m) => (
-                              <label
-                                key={m.model_id}
-                                htmlFor={`model-${m.model_id}`}
-                                className="flex items-center"
-                              >
-                                <input
-                                  id={`model-${m.model_id}`}
-                                  type="checkbox"
-                                  checked={selectedModels.includes(m.model_id)}
-                                  onChange={() => toggleModel(m.model_id)}
-                                  className="mr-2"
-                                />
-                                <span className="text-sm">{m.model_name}</span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex justify-between text-sm">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedModels(
-                                  availableModels.map((m) => m.model_id),
-                                )
-                              }
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.selectAll')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedModels([])}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.clearAll')}
-                            </button>
-                          </div>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
-                            {selectedModels.length === 1
-                              ? t('generation.controlModal.oneModelSelected')
-                              : t('generation.controlModal.modelsSelected', {
-                                  count: selectedModels.length,
-                                })}
-                          </div>
-                          {selectedModels.length === 0 &&
-                            selectedAnnotators.length > 0 && (
-                              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
-                                {t(
-                                  'evaluation.controlModal.answersOnlyHint',
-                                  'Ohne Modell werden nur eingereichte Antworten bewertet.',
-                                )}
-                              </p>
-                            )}
-                        </div>
-                      )}
-
-                      {/* Annotator scope (issue #69) */}
-                      {availableAnnotators.length > 0 && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t(
-                              'evaluation.controlModal.selectAnnotators',
-                              'Annotator:innen',
-                            )}
-                          </label>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableAnnotators.map((a) => (
-                              <label
-                                key={a.user_id}
-                                htmlFor={`annotator-${a.user_id}`}
-                                className="flex items-center"
-                              >
-                                <input
-                                  id={`annotator-${a.user_id}`}
-                                  type="checkbox"
-                                  checked={selectedAnnotators.includes(
-                                    a.user_id,
-                                  )}
-                                  onChange={() => toggleAnnotator(a.user_id)}
-                                  className="mr-2"
-                                />
-                                <span className="text-sm">
-                                  {a.display_name}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex justify-between text-sm">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedAnnotators(
-                                  availableAnnotators.map((a) => a.user_id),
-                                )
-                              }
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.selectAll')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedAnnotators([])}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.clearAll')}
-                            </button>
-                          </div>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
-                            {selectedAnnotators.length === 1
-                              ? t(
-                                  'evaluation.controlModal.oneAnnotatorSelected',
-                                  '1 Annotator:in ausgewählt',
-                                )
-                              : t(
-                                  'evaluation.controlModal.annotatorsSelected',
-                                  '{count} Annotator:innen ausgewählt',
-                                )
-                                  .toString()
-                                  .replace(
-                                    '{count}',
-                                    String(selectedAnnotators.length),
-                                  )}
-                          </div>
-                          {selectedAnnotators.length === 0 &&
-                            selectedModels.length > 0 && (
-                              <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
-                                {t(
-                                  'evaluation.controlModal.modelsOnlyHint',
-                                  'Ohne Annotator:in werden nur Modellantworten bewertet.',
-                                )}
-                              </p>
-                            )}
-                        </div>
-                      )}
-
-                      {/* Prompt-structure scope: narrows the run to
-                          generations produced under specific prompt
-                          structures. Only rendered when the project defines
-                          more than one structure — with a single structure
-                          the filter is a no-op. */}
-                      {showStructureScope && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t(
-                              'evaluation.controlModal.selectStructures',
-                              'Prompt-Strukturen',
-                            )}
-                          </label>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3 dark:border-zinc-700">
-                            {availableStructures.map((s) => (
-                              <label
-                                key={s.key}
-                                htmlFor={`structure-${s.key}`}
-                                className="flex items-center"
-                              >
-                                <input
-                                  id={`structure-${s.key}`}
-                                  type="checkbox"
-                                  checked={selectedStructures.includes(s.key)}
-                                  onChange={() => toggleStructure(s.key)}
-                                  className="mr-2"
-                                />
-                                <span className="text-sm">
-                                  {s.name}
-                                  {s.name !== s.key && (
-                                    <span className="ml-1 text-xs text-gray-400 dark:text-zinc-500">
-                                      ({s.key})
-                                    </span>
-                                  )}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex justify-between text-sm">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedStructures(
-                                  availableStructures.map((s) => s.key),
-                                )
-                              }
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.selectAll')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedStructures([])}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.clearAll')}
-                            </button>
-                          </div>
-                          <div className="mt-2 text-sm text-gray-600 dark:text-zinc-400">
-                            {selectedStructures.length === 1
-                              ? t(
-                                  'evaluation.controlModal.oneStructureSelected',
-                                  '1 Prompt-Struktur ausgewählt',
-                                )
-                              : t(
-                                  'evaluation.controlModal.structuresSelected',
-                                  '{count} Prompt-Strukturen ausgewählt',
-                                )
-                                  .toString()
-                                  .replace(
-                                    '{count}',
-                                    String(selectedStructures.length),
-                                  )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* C3: indicator visible during every scope refetch,
-                          not only when both lists happen to be empty. */}
-                      {scopeLoading && (
-                        <div
-                          className="text-xs text-zinc-500"
-                          role="status"
-                          aria-live="polite"
-                        >
-                          {t(
-                            'evaluation.controlModal.scopeLoading',
-                            'Lade verfügbare Modelle und Annotator:innen…',
-                          )}
-                        </div>
-                      )}
-
-                      {/* C2: empty-state placeholders surface AFTER a fetch
-                          settles with no rows, so the user can tell apart
-                          "loading" from "project genuinely has none". */}
-                      {!scopeLoading &&
-                        projectId &&
-                        availableModels.length === 0 && (
-                          <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 italic dark:border-zinc-700">
-                            {t(
-                              'evaluation.controlModal.noEvaluatedModels',
-                              'Keine bewerteten Modelle in diesem Projekt',
-                            )}
-                          </div>
-                        )}
-                      {!scopeLoading &&
-                        projectId &&
-                        availableAnnotators.length === 0 && (
-                          <div className="rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs text-zinc-500 italic dark:border-zinc-700">
-                            {t(
-                              'evaluation.controlModal.noAnnotators',
-                              'Keine Annotator:innen in diesem Projekt',
-                            )}
-                          </div>
-                        )}
-
-                      {/* Evaluation Config Summary */}
-                      {displayConfigCount > 0 && (
-                        <div className="rounded-lg border border-gray-300 bg-gray-50 p-3 dark:border-zinc-600 dark:bg-zinc-700">
-                          <p className="text-sm font-medium text-gray-700 dark:text-zinc-300">
-                            {t(
-                              'evaluation.controlModal.evaluationConfigurations',
-                            )}
-                          </p>
-                          <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-white">
-                            {displayConfigCount === 1
-                              ? t('evaluation.controlModal.oneConfigWillBeRun')
-                              : t('evaluation.controlModal.configsWillBeRun', {
-                                  count: displayConfigCount,
-                                })}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Inline cost preview — renders only when at least
-                          one llm_judge_* metric is in the SELECTED set.
-                          Deterministic metrics (exact_match etc.) and
-                          unselected judge configs incur no API cost.
-                          generationMode forwards the all/missing radio so
-                          the backend counts only the judge calls that will
-                          actually fire under the chosen mode. */}
-                      {judgeModelIds.length > 0 && projectId && (
-                        <CostEstimatePanel
-                          projectId={projectId}
-                          mode="evaluation"
-                          judgeModels={judgeModelIds}
-                          runsPerCall={costRunsPerCall}
-                          enabled={isOpen}
-                          modelIds={
-                            availableModels.length > 0
-                              ? selectedModels
-                              : undefined
-                          }
-                          annotatorUserIds={
-                            availableAnnotators.length > 0
-                              ? selectedAnnotators
-                              : undefined
-                          }
-                          evaluationConfigs={costEvaluationConfigs}
-                          generationMode={mode}
-                          structureKeys={
-                            showStructureScope ? selectedStructures : undefined
-                          }
+                      <div className={R.optionCard}>
+                        <input
+                          id="mode-all"
+                          type="radio"
+                          value="all"
+                          checked={mode === 'all'}
+                          onChange={(e) => setMode(e.target.value as 'all')}
+                          className={R.radio}
                         />
-                      )}
+                        <div className="flex-1">
+                          <label htmlFor="mode-all" className={R.optionTitle}>
+                            {t('evaluation.controlModal.evaluateAll')}
+                          </label>
+                          <p className={R.optionDescription}>
+                            {t('evaluation.controlModal.evaluateAllDesc')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="mt-5 flex flex-col items-end gap-2">
+                  {/* Metric scope (issue #69) */}
+                  {enabledConfigs.length > 0 && (
+                    <div>
+                      <label className={R.sectionLabel}>
+                        {t('evaluation.controlModal.selectMetrics', 'Metriken')}
+                      </label>
+                      <div className={R.checkList}>
+                        {enabledConfigs.map((cfg) => (
+                          <label
+                            key={cfg.id}
+                            htmlFor={`metric-${cfg.id}`}
+                            className={R.checkRow}
+                          >
+                            <input
+                              id={`metric-${cfg.id}`}
+                              type="checkbox"
+                              checked={selectedMetrics.includes(cfg.id)}
+                              onChange={() => toggleMetric(cfg.id)}
+                              className={R.checkbox}
+                            />
+                            <span>
+                              {configOptionLabel(cfg, enabledConfigs, t)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <SelectionFooter
+                        summary={
+                          selectedMetrics.length === 1
+                            ? t(
+                                'evaluation.controlModal.oneMetricSelected',
+                                '1 Metrik ausgewählt',
+                              )
+                            : t(
+                                'evaluation.controlModal.metricsSelected',
+                                '{count} Metriken ausgewählt',
+                              )
+                                .toString()
+                                .replace(
+                                  '{count}',
+                                  String(selectedMetrics.length),
+                                )
+                        }
+                        selectAllLabel={t('generation.controlModal.selectAll')}
+                        clearAllLabel={t('generation.controlModal.clearAll')}
+                        onSelectAll={() =>
+                          setSelectedMetrics(enabledConfigs.map((c) => c.id))
+                        }
+                        onClearAll={() => setSelectedMetrics([])}
+                      />
+                    </div>
+                  )}
+
+                  {/* Model scope (issue #69) */}
+                  {availableModels.length > 0 && (
+                    <div>
+                      <label className={R.sectionLabel}>
+                        {t('evaluation.controlModal.selectModels', 'Modelle')}
+                      </label>
+                      <div className={R.checkList}>
+                        {availableModels.map((m) => (
+                          <label
+                            key={m.model_id}
+                            htmlFor={`model-${m.model_id}`}
+                            className={R.checkRow}
+                          >
+                            <input
+                              id={`model-${m.model_id}`}
+                              type="checkbox"
+                              checked={selectedModels.includes(m.model_id)}
+                              onChange={() => toggleModel(m.model_id)}
+                              className={R.checkbox}
+                            />
+                            <span>{m.model_name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <SelectionFooter
+                        summary={
+                          selectedModels.length === 1
+                            ? t('generation.controlModal.oneModelSelected')
+                            : t('generation.controlModal.modelsSelected', {
+                                count: selectedModels.length,
+                              })
+                        }
+                        selectAllLabel={t('generation.controlModal.selectAll')}
+                        clearAllLabel={t('generation.controlModal.clearAll')}
+                        onSelectAll={() =>
+                          setSelectedModels(
+                            availableModels.map((m) => m.model_id),
+                          )
+                        }
+                        onClearAll={() => setSelectedModels([])}
+                      />
+                      {selectedModels.length === 0 &&
+                        selectedAnnotators.length > 0 && (
+                          <p className={`mt-1 ${R.hint}`}>
+                            {t(
+                              'evaluation.controlModal.answersOnlyHint',
+                              'Ohne Modell werden nur eingereichte Antworten bewertet.',
+                            )}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
+                  {/* Annotator scope (issue #69) */}
+                  {availableAnnotators.length > 0 && (
+                    <div>
+                      <label className={R.sectionLabel}>
+                        {t(
+                          'evaluation.controlModal.selectAnnotators',
+                          'Annotator:innen',
+                        )}
+                      </label>
+                      <div className={R.checkList}>
+                        {availableAnnotators.map((a) => (
+                          <label
+                            key={a.user_id}
+                            htmlFor={`annotator-${a.user_id}`}
+                            className={R.checkRow}
+                          >
+                            <input
+                              id={`annotator-${a.user_id}`}
+                              type="checkbox"
+                              checked={selectedAnnotators.includes(a.user_id)}
+                              onChange={() => toggleAnnotator(a.user_id)}
+                              className={R.checkbox}
+                            />
+                            <span>{a.display_name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <SelectionFooter
+                        summary={
+                          selectedAnnotators.length === 1
+                            ? t(
+                                'evaluation.controlModal.oneAnnotatorSelected',
+                                '1 Annotator:in ausgewählt',
+                              )
+                            : t(
+                                'evaluation.controlModal.annotatorsSelected',
+                                '{count} Annotator:innen ausgewählt',
+                              )
+                                .toString()
+                                .replace(
+                                  '{count}',
+                                  String(selectedAnnotators.length),
+                                )
+                        }
+                        selectAllLabel={t('generation.controlModal.selectAll')}
+                        clearAllLabel={t('generation.controlModal.clearAll')}
+                        onSelectAll={() =>
+                          setSelectedAnnotators(
+                            availableAnnotators.map((a) => a.user_id),
+                          )
+                        }
+                        onClearAll={() => setSelectedAnnotators([])}
+                      />
+                      {selectedAnnotators.length === 0 &&
+                        selectedModels.length > 0 && (
+                          <p className={`mt-1 ${R.hint}`}>
+                            {t(
+                              'evaluation.controlModal.modelsOnlyHint',
+                              'Ohne Annotator:in werden nur Modellantworten bewertet.',
+                            )}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
+                  {/* Prompt-structure scope: narrows the run to
+                      generations produced under specific prompt
+                      structures. Only rendered when the project defines
+                      more than one structure — with a single structure
+                      the filter is a no-op. */}
+                  {showStructureScope && (
+                    <div>
+                      <label className={R.sectionLabel}>
+                        {t(
+                          'evaluation.controlModal.selectStructures',
+                          'Prompt-Strukturen',
+                        )}
+                      </label>
+                      <div className={R.checkList}>
+                        {availableStructures.map((s) => (
+                          <label
+                            key={s.key}
+                            htmlFor={`structure-${s.key}`}
+                            className={R.checkRow}
+                          >
+                            <input
+                              id={`structure-${s.key}`}
+                              type="checkbox"
+                              checked={selectedStructures.includes(s.key)}
+                              onChange={() => toggleStructure(s.key)}
+                              className={R.checkbox}
+                            />
+                            <span>
+                              {s.name}
+                              {s.name !== s.key && (
+                                <span className="ml-1 text-xs text-zinc-400 dark:text-zinc-500">
+                                  ({s.key})
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <SelectionFooter
+                        summary={
+                          selectedStructures.length === 1
+                            ? t(
+                                'evaluation.controlModal.oneStructureSelected',
+                                '1 Prompt-Struktur ausgewählt',
+                              )
+                            : t(
+                                'evaluation.controlModal.structuresSelected',
+                                '{count} Prompt-Strukturen ausgewählt',
+                              )
+                                .toString()
+                                .replace(
+                                  '{count}',
+                                  String(selectedStructures.length),
+                                )
+                        }
+                        selectAllLabel={t('generation.controlModal.selectAll')}
+                        clearAllLabel={t('generation.controlModal.clearAll')}
+                        onSelectAll={() =>
+                          setSelectedStructures(
+                            availableStructures.map((s) => s.key),
+                          )
+                        }
+                        onClearAll={() => setSelectedStructures([])}
+                      />
+                    </div>
+                  )}
+
+                  {/* C3: indicator visible during every scope refetch,
+                      not only when both lists happen to be empty. */}
+                  {scopeLoading && (
+                    <div className={R.hint} role="status" aria-live="polite">
+                      {t(
+                        'evaluation.controlModal.scopeLoading',
+                        'Lade verfügbare Modelle und Annotator:innen…',
+                      )}
+                    </div>
+                  )}
+
+                  {/* C2: empty-state placeholders surface AFTER a fetch
+                      settles with no rows, so the user can tell apart
+                      "loading" from "project genuinely has none". */}
+                  {!scopeLoading &&
+                    projectId &&
+                    availableModels.length === 0 && (
+                      <div className={R.emptyState}>
+                        {t(
+                          'evaluation.controlModal.noEvaluatedModels',
+                          'Keine bewerteten Modelle in diesem Projekt',
+                        )}
+                      </div>
+                    )}
+                  {!scopeLoading &&
+                    projectId &&
+                    availableAnnotators.length === 0 && (
+                      <div className={R.emptyState}>
+                        {t(
+                          'evaluation.controlModal.noAnnotators',
+                          'Keine Annotator:innen in diesem Projekt',
+                        )}
+                      </div>
+                    )}
+
+                  {/* Evaluation Config Summary */}
+                  {displayConfigCount > 0 && (
+                    <div className={R.summaryBox}>
+                      <p className={R.summaryLabel}>
+                        {t('evaluation.controlModal.evaluationConfigurations')}
+                      </p>
+                      <p className={R.summaryValue}>
+                        {displayConfigCount === 1
+                          ? t('evaluation.controlModal.oneConfigWillBeRun')
+                          : t('evaluation.controlModal.configsWillBeRun', {
+                              count: displayConfigCount,
+                            })}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Inline cost preview — renders only when at least
+                      one llm_judge_* metric is in the SELECTED set.
+                      Deterministic metrics (exact_match etc.) and
+                      unselected judge configs incur no API cost.
+                      generationMode forwards the all/missing radio so
+                      the backend counts only the judge calls that will
+                      actually fire under the chosen mode. */}
+                  {judgeModelIds.length > 0 && projectId && (
+                    <CostEstimatePanel
+                      projectId={projectId}
+                      mode="evaluation"
+                      judgeModels={judgeModelIds}
+                      runsPerCall={costRunsPerCall}
+                      enabled={isOpen}
+                      modelIds={
+                        availableModels.length > 0 ? selectedModels : undefined
+                      }
+                      annotatorUserIds={
+                        availableAnnotators.length > 0
+                          ? selectedAnnotators
+                          : undefined
+                      }
+                      evaluationConfigs={costEvaluationConfigs}
+                      generationMode={mode}
+                      structureKeys={
+                        showStructureScope ? selectedStructures : undefined
+                      }
+                    />
+                  )}
+
                   {/* C1: visible reason near the disabled CTA, announced
                       to assistive tech via role=alert + aria-describedby on
                       the button. The HTML `title` attribute alone wasn't
                       announced by screen readers. */}
                   {runBlocked && (
-                    <p
-                      id="run-blocked-reason"
-                      role="alert"
-                      className="text-xs text-amber-700 dark:text-amber-400"
-                    >
-                      {runBlockedReason}
-                    </p>
+                    <Alert variant="warning" className="p-3">
+                      <p
+                        id="run-blocked-reason"
+                        role="alert"
+                        className="text-sm text-amber-800 dark:text-amber-300"
+                      >
+                        {runBlockedReason}
+                      </p>
+                    </Alert>
                   )}
-                  <div className="flex w-full justify-end gap-2">
-                    <Button variant="outline" onClick={onClose}>
-                      {t('evaluation.controlModal.cancel')}
-                    </Button>
-                    <Button
-                      variant="filled"
-                      onClick={handleSubmit}
-                      disabled={
-                        loading ||
-                        // Block during the scope-fetch window so a fast click
-                        // can't slip past unfinished selections — only matters
-                        // in direct-API mode where projectId triggers the
-                        // /evaluated-models call.
-                        (scopeLoading && !!projectId) ||
-                        runBlocked ||
-                        (!onRunWithMode && enabledConfigs.length === 0)
-                      }
-                      aria-disabled={runBlocked || undefined}
-                      aria-describedby={
-                        runBlocked ? 'run-blocked-reason' : undefined
-                      }
-                      className="flex items-center gap-2"
-                    >
-                      <PlayIcon className="h-4 w-4" />
-                      {loading
-                        ? t('evaluation.controlModal.starting')
-                        : t('evaluation.controlModal.startEvaluation')}
-                    </Button>
-                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button variant="outline" onClick={onClose}>
+                    {t('evaluation.controlModal.cancel')}
+                  </Button>
+                  <Button
+                    variant="filled"
+                    onClick={handleSubmit}
+                    disabled={
+                      loading ||
+                      // Block during the scope-fetch window so a fast click
+                      // can't slip past unfinished selections — only matters
+                      // in direct-API mode where projectId triggers the
+                      // /evaluated-models call.
+                      (scopeLoading && !!projectId) ||
+                      runBlocked ||
+                      (!onRunWithMode && enabledConfigs.length === 0)
+                    }
+                    aria-disabled={runBlocked || undefined}
+                    aria-describedby={
+                      runBlocked ? 'run-blocked-reason' : undefined
+                    }
+                  >
+                    <PlayIcon className="h-4 w-4" aria-hidden="true" />
+                    {loading
+                      ? t('evaluation.controlModal.starting')
+                      : t('evaluation.controlModal.startEvaluation')}
+                  </Button>
                 </div>
               </Dialog.Panel>
             </Transition.Child>

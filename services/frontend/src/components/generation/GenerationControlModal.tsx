@@ -1,8 +1,14 @@
 'use client'
 import { CustomBadge, OfficialBadge } from '@/components/models/ModelBadges'
+import { Badge } from '@/components/shared/Badge'
 import { BillingOrgSelect } from '@/components/shared/BillingOrgSelect'
 import { Button } from '@/components/shared/Button'
 import { CostEstimatePanel } from '@/components/shared/CostEstimatePanel'
+import { Input } from '@/components/shared/Input'
+import {
+  RUN_DIALOG as R,
+  SelectionFooter,
+} from '@/components/shared/RunDialogParts'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { ModelScopeProvider, useModelScope } from '@/contexts/ModelScopeContext'
@@ -14,7 +20,12 @@ import {
   hasRecommendations,
 } from '@/lib/modelConstraints'
 import { Dialog, Transition } from '@headlessui/react'
-import { ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  ExclamationTriangleIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 
@@ -368,7 +379,7 @@ function GenerationControlModalBody({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
+          <div className={R.overlay} />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -382,11 +393,11 @@ function GenerationControlModalBody({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pt-5 pb-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
+              <Dialog.Panel className={R.panel}>
                 <div className="absolute top-0 right-0 hidden pt-4 pr-4 sm:block">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+                    className={R.closeButton}
                     onClick={onClose}
                   >
                     <span className="sr-only">
@@ -396,626 +407,572 @@ function GenerationControlModalBody({
                   </button>
                 </div>
 
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 w-full text-center sm:mt-0 sm:ml-4 sm:text-left">
-                    <Dialog.Title
-                      as="h3"
-                      className="text-lg leading-6 font-semibold text-gray-900"
-                    >
-                      {t('generation.controlModal.title')}
-                    </Dialog.Title>
+                <Dialog.Title as="h3" className={R.title}>
+                  {t('generation.controlModal.title')}
+                </Dialog.Title>
 
-                    <div className="mt-4 space-y-4">
-                      <h4 className="text-base font-medium text-gray-900">
-                        {t('generation.controlModal.generationOptions')}
-                      </h4>
+                <div className="mt-5 space-y-6">
+                  <h4 className="text-base font-medium text-zinc-900 dark:text-white">
+                    {t('generation.controlModal.generationOptions')}
+                  </h4>
 
-                      <BillingOrgSelect projectId={projectId} />
+                  <BillingOrgSelect projectId={projectId} />
 
-                      {/* Generation Mode */}
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          {t('generation.controlModal.generationMode')}
-                        </label>
-                        <div className="space-y-2">
-                          <div className="flex items-start">
-                            <input
-                              id="mode-missing"
-                              type="radio"
-                              value="missing"
-                              checked={mode === 'missing'}
-                              onChange={(e) =>
-                                setMode(e.target.value as 'missing')
-                              }
-                              className="mt-1 mr-2"
-                            />
-                            <div>
-                              <label
-                                htmlFor="mode-missing"
-                                className="cursor-pointer font-medium"
-                              >
-                                {t(
-                                  'generation.controlModal.generateMissingOnly',
-                                )}
-                              </label>
-                              <p className="text-sm text-gray-500">
-                                {t(
-                                  'generation.controlModal.generateMissingOnlyDesc',
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-start">
-                            <input
-                              id="mode-all"
-                              type="radio"
-                              value="all"
-                              checked={mode === 'all'}
-                              onChange={(e) => setMode(e.target.value as 'all')}
-                              className="mt-1 mr-2"
-                            />
-                            <div>
-                              <label
-                                htmlFor="mode-all"
-                                className="cursor-pointer font-medium"
-                              >
-                                {t('generation.controlModal.generateAll')}
-                              </label>
-                              <p className="text-sm text-gray-500">
-                                {t('generation.controlModal.generateAllDesc')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Model Selection */}
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          {t('generation.controlModal.selectModels')}
-                        </label>
-                        <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
-                          {(() => {
-                            const renderModelRow = (modelId: string) => {
-                              const model = availableModelObjects.find(
-                                (m) => m.id === modelId,
-                              )
-                              const isCustom = model?.is_official === false
-                              const missingCredential =
-                                isMissingCredential(modelId)
-                              return (
-                                <div key={modelId}>
-                                  <label
-                                    htmlFor={`model-${modelId}`}
-                                    className="flex items-center"
-                                  >
-                                    <input
-                                      id={`model-${modelId}`}
-                                      type="checkbox"
-                                      checked={selectedModels.includes(modelId)}
-                                      disabled={missingCredential}
-                                      onChange={() =>
-                                        handleModelToggle(modelId)
-                                      }
-                                      className="mr-2"
-                                    />
-                                    <span
-                                      className={`text-sm ${missingCredential ? 'text-gray-400' : ''}`}
-                                    >
-                                      {model?.name || modelId}
-                                    </span>
-                                    {isCustom && (
-                                      <CustomBadge className="ml-2" />
-                                    )}
-                                  </label>
-                                  {missingCredential && (
-                                    <div className="ml-6 text-xs text-amber-600">
-                                      {t('customModels.picker.missingKey')}{' '}
-                                      <Link
-                                        href="/models"
-                                        className="underline hover:text-amber-700"
-                                      >
-                                        {t('customModels.picker.configureKey')}
-                                      </Link>
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            }
-
-                            return (
-                              <>
-                                {customModelIds.length > 0 &&
-                                  officialModelIds.length > 0 && (
-                                    <div className="flex items-center gap-2 pb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase">
-                                      {t('customModels.picker.officialSection')}
-                                      <OfficialBadge />
-                                    </div>
-                                  )}
-                                {officialModelIds.map(renderModelRow)}
-                                {customModelIds.length > 0 && (
-                                  <div className="flex items-center gap-2 pt-2 pb-1 text-xs font-semibold tracking-wider text-gray-400 uppercase">
-                                    {t('customModels.picker.customSection')}
-                                  </div>
-                                )}
-                                {customModelIds.map(renderModelRow)}
-                              </>
-                            )
-                          })()}
-                        </div>
-                        <div className="mt-2 flex justify-between text-sm">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedModels(selectableModels)}
-                            className="text-blue-600 hover:text-blue-700"
+                  {/* Generation Mode */}
+                  <div>
+                    <label className={R.sectionLabel}>
+                      {t('generation.controlModal.generationMode')}
+                    </label>
+                    <div className="space-y-2">
+                      <div className={R.optionCard}>
+                        <input
+                          id="mode-missing"
+                          type="radio"
+                          value="missing"
+                          checked={mode === 'missing'}
+                          onChange={(e) => setMode(e.target.value as 'missing')}
+                          className={R.radio}
+                        />
+                        <div className="flex-1">
+                          <label
+                            htmlFor="mode-missing"
+                            className={R.optionTitle}
                           >
-                            {t('generation.controlModal.selectAll')}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedModels([])}
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            {t('generation.controlModal.clearAll')}
-                          </button>
-                        </div>
-                        <div className="mt-2 text-sm text-gray-600">
-                          {selectedModels.length === 1
-                            ? t('generation.controlModal.oneModelSelected')
-                            : t('generation.controlModal.modelsSelected', {
-                                count: selectedModels.length,
-                              })}
-                        </div>
-                      </div>
-
-                      {/* Structure Selection (Issue #762) */}
-                      {hasStructures && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                            {t('generation.controlModal.generateMissingOnly')}
+                          </label>
+                          <p className={R.optionDescription}>
                             {t(
-                              'generation.controlModal.selectPromptStructures',
+                              'generation.controlModal.generateMissingOnlyDesc',
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={R.optionCard}>
+                        <input
+                          id="mode-all"
+                          type="radio"
+                          value="all"
+                          checked={mode === 'all'}
+                          onChange={(e) => setMode(e.target.value as 'all')}
+                          className={R.radio}
+                        />
+                        <div className="flex-1">
+                          <label htmlFor="mode-all" className={R.optionTitle}>
+                            {t('generation.controlModal.generateAll')}
+                          </label>
+                          <p className={R.optionDescription}>
+                            {t('generation.controlModal.generateAllDesc')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Model Selection */}
+                  <div>
+                    <label className={R.sectionLabel}>
+                      {t('generation.controlModal.selectModels')}
+                    </label>
+                    <div className={R.checkList}>
+                      {(() => {
+                        const renderModelRow = (modelId: string) => {
+                          const model = availableModelObjects.find(
+                            (m) => m.id === modelId,
+                          )
+                          const isCustom = model?.is_official === false
+                          const missingCredential = isMissingCredential(modelId)
+                          return (
+                            <div key={modelId} className="px-3 py-2">
+                              <label
+                                htmlFor={`model-${modelId}`}
+                                className={`flex items-center gap-3 ${missingCredential ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              >
+                                <input
+                                  id={`model-${modelId}`}
+                                  type="checkbox"
+                                  checked={selectedModels.includes(modelId)}
+                                  disabled={missingCredential}
+                                  onChange={() => handleModelToggle(modelId)}
+                                  className={R.checkbox}
+                                />
+                                <span
+                                  className={`text-sm ${missingCredential ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}
+                                >
+                                  {model?.name || modelId}
+                                </span>
+                                {isCustom && <CustomBadge />}
+                              </label>
+                              {missingCredential && (
+                                <div className={`mt-1 ml-7 ${R.warningText}`}>
+                                  {t('customModels.picker.missingKey')}{' '}
+                                  <Link
+                                    href="/models"
+                                    className="font-medium underline hover:text-amber-800 dark:hover:text-amber-300"
+                                  >
+                                    {t('customModels.picker.configureKey')}
+                                  </Link>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <>
+                            {customModelIds.length > 0 &&
+                              officialModelIds.length > 0 && (
+                                <div className={R.groupLabel}>
+                                  {t('customModels.picker.officialSection')}
+                                  <OfficialBadge />
+                                </div>
+                              )}
+                            {officialModelIds.map(renderModelRow)}
+                            {customModelIds.length > 0 && (
+                              <div className={R.groupLabel}>
+                                {t('customModels.picker.customSection')}
+                              </div>
+                            )}
+                            {customModelIds.map(renderModelRow)}
+                          </>
+                        )
+                      })()}
+                    </div>
+                    <SelectionFooter
+                      summary={
+                        selectedModels.length === 1
+                          ? t('generation.controlModal.oneModelSelected')
+                          : t('generation.controlModal.modelsSelected', {
+                              count: selectedModels.length,
+                            })
+                      }
+                      selectAllLabel={t('generation.controlModal.selectAll')}
+                      clearAllLabel={t('generation.controlModal.clearAll')}
+                      onSelectAll={() => setSelectedModels(selectableModels)}
+                      onClearAll={() => setSelectedModels([])}
+                    />
+                  </div>
+
+                  {/* Structure Selection (Issue #762) */}
+                  {hasStructures && (
+                    <div>
+                      <label className={R.sectionLabel}>
+                        {t('generation.controlModal.selectPromptStructures')}
+                      </label>
+                      <div className={R.checkList}>
+                        {structureKeys.map((structureKey) => {
+                          const structure = availableStructures[structureKey]
+                          return (
+                            <label
+                              key={structureKey}
+                              htmlFor={`structure-${structureKey}`}
+                              className={`${R.checkRow} items-start`}
+                            >
+                              <input
+                                id={`structure-${structureKey}`}
+                                type="checkbox"
+                                checked={selectedStructures.includes(
+                                  structureKey,
+                                )}
+                                onChange={() =>
+                                  handleStructureToggle(structureKey)
+                                }
+                                className={`${R.checkbox} mt-1`}
+                              />
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">
+                                  {structure.name}
+                                </span>
+                                {structure.exclude_from_generation && (
+                                  <Badge variant="secondary" className="ml-2">
+                                    {t(
+                                      'generation.controlModal.excludedFromGeneration',
+                                    )}
+                                  </Badge>
+                                )}
+                                {structure.description && (
+                                  <p className={R.hint}>
+                                    {structure.description}
+                                  </p>
+                                )}
+                              </div>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <SelectionFooter
+                        summary={
+                          selectedStructures.length === 1
+                            ? t('generation.controlModal.oneStructureSelected')
+                            : t('generation.controlModal.structuresSelected', {
+                                count: selectedStructures.length,
+                              })
+                        }
+                        selectAllLabel={t('generation.controlModal.selectAll')}
+                        clearAllLabel={t('generation.controlModal.clearAll')}
+                        onSelectAll={() =>
+                          // "Select all" skips structures flagged
+                          // exclude_from_generation (they can still be
+                          // ticked individually).
+                          setSelectedStructures(
+                            structureKeys.filter(
+                              (key) =>
+                                !availableStructures[key]
+                                  ?.exclude_from_generation,
+                            ),
+                          )
+                        }
+                        onClearAll={() => setSelectedStructures([])}
+                      />
+                    </div>
+                  )}
+
+                  {/* Advanced Settings (Collapsible) */}
+                  <div className="rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced(!showAdvanced)}
+                      aria-expanded={showAdvanced}
+                      className="flex w-full items-center justify-between p-3 text-left text-sm font-medium text-zinc-900 dark:text-white"
+                    >
+                      <span>
+                        {t('generation.controlModal.advancedSettings')}
+                      </span>
+                      {showAdvanced ? (
+                        <ChevronUpIcon
+                          className="h-4 w-4 text-zinc-400"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <ChevronDownIcon
+                          className="h-4 w-4 text-zinc-400"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </button>
+
+                    {showAdvanced && (
+                      <div className="space-y-4 border-t border-zinc-200 p-3 dark:border-zinc-700">
+                        <div>
+                          <label className={R.fieldLabel}>
+                            {t(
+                              'generation.controlModal.runsPerTask',
+                              'Läufe pro Task',
                             )}
                           </label>
-                          <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-3">
-                            {structureKeys.map((structureKey) => {
-                              const structure =
-                                availableStructures[structureKey]
-                              return (
-                                <label
-                                  key={structureKey}
-                                  htmlFor={`structure-${structureKey}`}
-                                  className="flex items-start"
-                                >
-                                  <input
-                                    id={`structure-${structureKey}`}
-                                    type="checkbox"
-                                    checked={selectedStructures.includes(
-                                      structureKey,
-                                    )}
-                                    onChange={() =>
-                                      handleStructureToggle(structureKey)
-                                    }
-                                    className="mt-1 mr-2"
-                                  />
-                                  <div className="flex-1">
-                                    <span className="text-sm font-medium">
-                                      {structure.name}
-                                    </span>
-                                    {structure.exclude_from_generation && (
-                                      <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
-                                        {t(
-                                          'generation.controlModal.excludedFromGeneration',
-                                        )}
-                                      </span>
-                                    )}
-                                    {structure.description && (
-                                      <p className="text-xs text-gray-500">
-                                        {structure.description}
-                                      </p>
-                                    )}
-                                  </div>
-                                </label>
-                              )
-                            })}
-                          </div>
-                          <div className="mt-2 flex justify-between text-sm">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                // "Select all" skips structures flagged
-                                // exclude_from_generation (they can still be
-                                // ticked individually).
-                                setSelectedStructures(
-                                  structureKeys.filter(
-                                    (key) =>
-                                      !availableStructures[key]
-                                        ?.exclude_from_generation,
+                          <div className="mt-1 w-32">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={25}
+                              value={runsPerTask}
+                              onChange={(e) =>
+                                setRunsPerTask(
+                                  Math.max(
+                                    1,
+                                    Math.min(25, parseInt(e.target.value) || 1),
                                   ),
                                 )
                               }
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.selectAll')}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedStructures([])}
-                              className="text-blue-600 hover:text-blue-700"
-                            >
-                              {t('generation.controlModal.clearAll')}
-                            </button>
+                            />
                           </div>
-                          <div className="mt-2 text-sm text-gray-600">
-                            {selectedStructures.length === 1
-                              ? t(
-                                  'generation.controlModal.oneStructureSelected',
-                                )
-                              : t(
-                                  'generation.controlModal.structuresSelected',
-                                  { count: selectedStructures.length },
-                                )}
-                          </div>
+                          <p className={`mt-1 ${R.hint}`}>
+                            {t(
+                              'generation.controlModal.runsPerTaskDesc',
+                              'Wie oft jede Task-Modell-Kombination generiert werden soll. Standardmäßig 1 — ein Wert > 1 erzeugt mehrere Trials für Varianzanalyse. Multipliziert die Kosten entsprechend.',
+                            )}
+                          </p>
                         </div>
-                      )}
-
-                      {/* Advanced Settings (Collapsible) */}
-                      <div className="border-t border-gray-200 pt-4">
-                        <button
-                          type="button"
-                          onClick={() => setShowAdvanced(!showAdvanced)}
-                          className="flex w-full items-center justify-between text-sm font-medium text-gray-700 hover:text-gray-900"
-                        >
-                          <span>
-                            {t('generation.controlModal.advancedSettings')}
-                          </span>
-                          <span className="text-gray-400">
-                            {showAdvanced ? '▼' : '▶'}
-                          </span>
-                        </button>
-
-                        {showAdvanced && (
-                          <div className="mt-3 space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                {t(
-                                  'generation.controlModal.runsPerTask',
-                                  'Läufe pro Task',
-                                )}
-                              </label>
-                              <input
-                                type="number"
-                                min={1}
-                                max={25}
-                                value={runsPerTask}
-                                onChange={(e) =>
-                                  setRunsPerTask(
-                                    Math.max(
-                                      1,
-                                      Math.min(
-                                        25,
-                                        parseInt(e.target.value) || 1,
-                                      ),
-                                    ),
-                                  )
-                                }
-                                className="mt-1 w-32 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              />
-                              <p className="mt-1 text-xs text-gray-500">
-                                {t(
-                                  'generation.controlModal.runsPerTaskDesc',
-                                  'Wie oft jede Task-Modell-Kombination generiert werden soll. Standardmäßig 1 — ein Wert > 1 erzeugt mehrere Trials für Varianzanalyse. Multipliziert die Kosten entsprechend.',
-                                )}
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  {t('generation.controlModal.temperature')}:{' '}
-                                  {temperature.toFixed(1)}
-                                </label>
-                                <input
-                                  type="range"
-                                  min={temperatureConstraints.min}
-                                  max={temperatureConstraints.max}
-                                  step="0.1"
-                                  value={temperature}
-                                  disabled={
-                                    temperatureConstraints.fixed &&
-                                    temperatureConstraints.fixedModels
-                                      .length === selectedModels.length
-                                  }
-                                  onChange={(e) =>
-                                    setTemperature(parseFloat(e.target.value))
-                                  }
-                                  className={`mt-1 w-full ${temperatureConstraints.fixed && temperatureConstraints.fixedModels.length === selectedModels.length ? 'cursor-not-allowed opacity-50' : ''}`}
-                                />
-                                {temperatureConstraints.fixedModels.length >
-                                  0 && (
-                                  <div className="mt-1 flex items-start gap-1 text-xs text-amber-600">
-                                    <ExclamationTriangleIcon className="mt-0.5 h-3 w-3 shrink-0" />
-                                    <span>
-                                      {temperatureConstraints.fixedModels.join(
-                                        ', ',
-                                      )}{' '}
-                                      {temperatureConstraints.fixedModels
-                                        .length === 1
-                                        ? 'requires'
-                                        : 'require'}{' '}
-                                      fixed temperature=1.0. The backend will
-                                      override for{' '}
-                                      {temperatureConstraints.fixedModels
-                                        .length === 1
-                                        ? 'this model'
-                                        : 'these models'}
-                                      .
-                                    </span>
-                                  </div>
-                                )}
-                                {/* Provider-recommended badge (migration 046).
-                                    Shows the consensus recommendation across
-                                    selected models, divergence warning when
-                                    they differ, or "Keine Empfehlung" when
-                                    none of the selected models carries one.
-                                    A "Zurücksetzen" link sets the input back
-                                    to the recommendation when the user has
-                                    deviated from a uniform recommendation. */}
-                                {selectedModels.length > 0 && (
-                                  <div className="mt-1 text-xs">
-                                    {recommendedConsensus.temperature.uniform &&
-                                    recommendedConsensus.temperature.value !==
-                                      undefined ? (
-                                      <span className="text-zinc-600 dark:text-zinc-400">
-                                        {t(
-                                          'generation.controlModal.recommended',
-                                          'Empfehlung',
-                                        )}
-                                        :{' '}
-                                        {recommendedConsensus.temperature.value}
-                                        {temperature !==
-                                          recommendedConsensus.temperature
-                                            .value && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setTemperature(
-                                                recommendedConsensus.temperature
-                                                  .value as number,
-                                              )
-                                            }
-                                            className="ml-2 text-blue-600 hover:underline"
-                                          >
-                                            {t(
-                                              'generation.controlModal.resetToRecommended',
-                                              'Zurücksetzen auf Empfohlen',
-                                            )}
-                                          </button>
-                                        )}
-                                      </span>
-                                    ) : recommendedConsensus.temperature
-                                        .anyRec ? (
-                                      <span
-                                        className="text-amber-600 dark:text-amber-400"
-                                        title={recommendedConsensus.temperature.perModel
-                                          .map(
-                                            (m) =>
-                                              `${m.model}: ${m.value ?? '—'}`,
-                                          )
-                                          .join('\n')}
-                                      >
-                                        {t(
-                                          'generation.controlModal.divergentRecommendations',
-                                          'Verschiedene Empfehlungen pro Modell',
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="text-zinc-400 dark:text-zinc-500">
-                                        {t(
-                                          'generation.controlModal.noRecommendation',
-                                          'Keine Empfehlung',
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {t('generation.controlModal.temperatureDesc')}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  {t(
-                                    'generation.controlModal.defaultMaxTokens',
-                                  )}
-                                </label>
-                                <input
-                                  type="number"
-                                  min="100"
-                                  max="16000"
-                                  value={maxTokens}
-                                  onChange={(e) =>
-                                    setMaxTokens(
-                                      parseInt(e.target.value) || 4000,
-                                    )
-                                  }
-                                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                />
-                                {/* Same recommended-badge pattern for max_tokens. */}
-                                {selectedModels.length > 0 && (
-                                  <div className="mt-1 text-xs">
-                                    {recommendedConsensus.max_tokens.uniform &&
-                                    recommendedConsensus.max_tokens.value !==
-                                      undefined ? (
-                                      <span className="text-zinc-600 dark:text-zinc-400">
-                                        {t(
-                                          'generation.controlModal.recommended',
-                                          'Empfehlung',
-                                        )}
-                                        :{' '}
-                                        {recommendedConsensus.max_tokens.value}
-                                        {maxTokens !==
-                                          recommendedConsensus.max_tokens
-                                            .value && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              setMaxTokens(
-                                                recommendedConsensus.max_tokens
-                                                  .value as number,
-                                              )
-                                            }
-                                            className="ml-2 text-blue-600 hover:underline"
-                                          >
-                                            {t(
-                                              'generation.controlModal.resetToRecommended',
-                                              'Zurücksetzen auf Empfohlen',
-                                            )}
-                                          </button>
-                                        )}
-                                      </span>
-                                    ) : recommendedConsensus.max_tokens
-                                        .anyRec ? (
-                                      <span
-                                        className="text-amber-600 dark:text-amber-400"
-                                        title={recommendedConsensus.max_tokens.perModel
-                                          .map(
-                                            (m) =>
-                                              `${m.model}: ${m.value ?? '—'}`,
-                                          )
-                                          .join('\n')}
-                                      >
-                                        {t(
-                                          'generation.controlModal.divergentRecommendations',
-                                          'Verschiedene Empfehlungen pro Modell',
-                                        )}
-                                      </span>
-                                    ) : (
-                                      <span className="text-zinc-400 dark:text-zinc-500">
-                                        {t(
-                                          'generation.controlModal.noRecommendation',
-                                          'Keine Empfehlung',
-                                        )}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {t(
-                                    'generation.controlModal.defaultMaxTokensDesc',
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                            {/* Phase 6.6 (#6): per-run seed input */}
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700">
-                                {t('generation.controlModal.seed')}
-                              </label>
-                              <input
-                                type="number"
-                                min={0}
-                                value={seed}
-                                onChange={(e) =>
-                                  setSeed(parseInt(e.target.value) || 42)
-                                }
-                                className="mt-1 w-32 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                              />
-                              <p className="mt-1 text-xs text-gray-500">
-                                {t('generation.controlModal.seedDesc')}
-                              </p>
-                            </div>
-
-                            {/* Per-Model Token Limits */}
-                            {selectedModels.length > 0 && (
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700">
-                                  {t(
-                                    'generation.controlModal.perModelTokenLimits',
-                                  )}
-                                </label>
-                                <p className="mb-2 text-xs text-gray-500">
-                                  {t(
-                                    'generation.controlModal.perModelTokenLimitsDesc',
-                                  )}
-                                </p>
-                                <div className="max-h-32 space-y-2 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-2">
-                                  {selectedModels.map((modelId) => (
-                                    <div
-                                      key={modelId}
-                                      className="flex items-center gap-2"
-                                    >
-                                      <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
-                                        {modelId}
-                                      </span>
-                                      <input
-                                        type="number"
-                                        min="100"
-                                        max="16000"
-                                        placeholder={maxTokens.toString()}
-                                        value={modelTokenLimits[modelId] || ''}
-                                        onChange={(e) => {
-                                          const value = e.target.value
-                                          setModelTokenLimits((prev) => {
-                                            if (value === '') {
-                                              const { [modelId]: _, ...rest } =
-                                                prev
-                                              return rest
-                                            }
-                                            return {
-                                              ...prev,
-                                              [modelId]: parseInt(value) || 0,
-                                            }
-                                          })
-                                        }}
-                                        className="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className={R.fieldLabel}>
+                              {t('generation.controlModal.temperature')}:{' '}
+                              {temperature.toFixed(1)}
+                            </label>
+                            <input
+                              type="range"
+                              min={temperatureConstraints.min}
+                              max={temperatureConstraints.max}
+                              step="0.1"
+                              value={temperature}
+                              disabled={
+                                temperatureConstraints.fixed &&
+                                temperatureConstraints.fixedModels.length ===
+                                  selectedModels.length
+                              }
+                              onChange={(e) =>
+                                setTemperature(parseFloat(e.target.value))
+                              }
+                              className={`mt-1 w-full accent-emerald-600 dark:accent-emerald-500 ${temperatureConstraints.fixed && temperatureConstraints.fixedModels.length === selectedModels.length ? 'cursor-not-allowed opacity-50' : ''}`}
+                            />
+                            {temperatureConstraints.fixedModels.length > 0 && (
+                              <div
+                                className={`mt-1 flex items-start gap-1 ${R.warningText}`}
+                              >
+                                <ExclamationTriangleIcon className="mt-0.5 h-3 w-3 shrink-0" />
+                                <span>
+                                  {temperatureConstraints.fixedModels.join(
+                                    ', ',
+                                  )}{' '}
+                                  {temperatureConstraints.fixedModels.length ===
+                                  1
+                                    ? 'requires'
+                                    : 'require'}{' '}
+                                  fixed temperature=1.0. The backend will
+                                  override for{' '}
+                                  {temperatureConstraints.fixedModels.length ===
+                                  1
+                                    ? 'this model'
+                                    : 'these models'}
+                                  .
+                                </span>
                               </div>
                             )}
+                            {/* Provider-recommended badge (migration 046).
+                                Shows the consensus recommendation across
+                                selected models, divergence warning when
+                                they differ, or "Keine Empfehlung" when
+                                none of the selected models carries one.
+                                A "Zurücksetzen" link sets the input back
+                                to the recommendation when the user has
+                                deviated from a uniform recommendation. */}
+                            {selectedModels.length > 0 && (
+                              <div className="mt-1 text-xs">
+                                {recommendedConsensus.temperature.uniform &&
+                                recommendedConsensus.temperature.value !==
+                                  undefined ? (
+                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                    {t(
+                                      'generation.controlModal.recommended',
+                                      'Empfehlung',
+                                    )}
+                                    : {recommendedConsensus.temperature.value}
+                                    {temperature !==
+                                      recommendedConsensus.temperature
+                                        .value && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setTemperature(
+                                            recommendedConsensus.temperature
+                                              .value as number,
+                                          )
+                                        }
+                                        className={`ml-2 ${R.inlineLink}`}
+                                      >
+                                        {t(
+                                          'generation.controlModal.resetToRecommended',
+                                          'Zurücksetzen auf Empfohlen',
+                                        )}
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : recommendedConsensus.temperature.anyRec ? (
+                                  <span
+                                    className="text-amber-700 dark:text-amber-400"
+                                    title={recommendedConsensus.temperature.perModel
+                                      .map(
+                                        (m) => `${m.model}: ${m.value ?? '—'}`,
+                                      )
+                                      .join('\n')}
+                                  >
+                                    {t(
+                                      'generation.controlModal.divergentRecommendations',
+                                      'Verschiedene Empfehlungen pro Modell',
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-400 dark:text-zinc-500">
+                                    {t(
+                                      'generation.controlModal.noRecommendation',
+                                      'Keine Empfehlung',
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <p className={`mt-1 ${R.hint}`}>
+                              {t('generation.controlModal.temperatureDesc')}
+                            </p>
+                          </div>
+                          <div>
+                            <label className={R.fieldLabel}>
+                              {t('generation.controlModal.defaultMaxTokens')}
+                            </label>
+                            <Input
+                              type="number"
+                              min="100"
+                              max="16000"
+                              value={maxTokens}
+                              onChange={(e) =>
+                                setMaxTokens(parseInt(e.target.value) || 4000)
+                              }
+                              className="mt-1"
+                            />
+                            {/* Same recommended-badge pattern for max_tokens. */}
+                            {selectedModels.length > 0 && (
+                              <div className="mt-1 text-xs">
+                                {recommendedConsensus.max_tokens.uniform &&
+                                recommendedConsensus.max_tokens.value !==
+                                  undefined ? (
+                                  <span className="text-zinc-600 dark:text-zinc-400">
+                                    {t(
+                                      'generation.controlModal.recommended',
+                                      'Empfehlung',
+                                    )}
+                                    : {recommendedConsensus.max_tokens.value}
+                                    {maxTokens !==
+                                      recommendedConsensus.max_tokens.value && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setMaxTokens(
+                                            recommendedConsensus.max_tokens
+                                              .value as number,
+                                          )
+                                        }
+                                        className={`ml-2 ${R.inlineLink}`}
+                                      >
+                                        {t(
+                                          'generation.controlModal.resetToRecommended',
+                                          'Zurücksetzen auf Empfohlen',
+                                        )}
+                                      </button>
+                                    )}
+                                  </span>
+                                ) : recommendedConsensus.max_tokens.anyRec ? (
+                                  <span
+                                    className="text-amber-700 dark:text-amber-400"
+                                    title={recommendedConsensus.max_tokens.perModel
+                                      .map(
+                                        (m) => `${m.model}: ${m.value ?? '—'}`,
+                                      )
+                                      .join('\n')}
+                                  >
+                                    {t(
+                                      'generation.controlModal.divergentRecommendations',
+                                      'Verschiedene Empfehlungen pro Modell',
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-400 dark:text-zinc-500">
+                                    {t(
+                                      'generation.controlModal.noRecommendation',
+                                      'Keine Empfehlung',
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            <p className={`mt-1 ${R.hint}`}>
+                              {t(
+                                'generation.controlModal.defaultMaxTokensDesc',
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        {/* Phase 6.6 (#6): per-run seed input */}
+                        <div>
+                          <label className={R.fieldLabel}>
+                            {t('generation.controlModal.seed')}
+                          </label>
+                          <div className="mt-1 w-32">
+                            <Input
+                              type="number"
+                              min={0}
+                              value={seed}
+                              onChange={(e) =>
+                                setSeed(parseInt(e.target.value) || 42)
+                              }
+                            />
+                          </div>
+                          <p className={`mt-1 ${R.hint}`}>
+                            {t('generation.controlModal.seedDesc')}
+                          </p>
+                        </div>
+
+                        {/* Per-Model Token Limits */}
+                        {selectedModels.length > 0 && (
+                          <div>
+                            <label className={R.fieldLabel}>
+                              {t('generation.controlModal.perModelTokenLimits')}
+                            </label>
+                            <p className={`mb-2 ${R.hint}`}>
+                              {t(
+                                'generation.controlModal.perModelTokenLimitsDesc',
+                              )}
+                            </p>
+                            <div className="max-h-40 divide-y divide-zinc-100 overflow-y-auto rounded-lg border border-zinc-200 dark:divide-zinc-700/60 dark:border-zinc-700">
+                              {selectedModels.map((modelId) => (
+                                <div
+                                  key={modelId}
+                                  className="flex items-center gap-2 px-3 py-1.5"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-sm text-zinc-700 dark:text-zinc-300">
+                                    {modelId}
+                                  </span>
+                                  <div className="w-28 shrink-0">
+                                    <Input
+                                      type="number"
+                                      min="100"
+                                      max="16000"
+                                      placeholder={maxTokens.toString()}
+                                      value={modelTokenLimits[modelId] || ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value
+                                        setModelTokenLimits((prev) => {
+                                          if (value === '') {
+                                            const { [modelId]: _, ...rest } =
+                                              prev
+                                            return rest
+                                          }
+                                          return {
+                                            ...prev,
+                                            [modelId]: parseInt(value) || 0,
+                                          }
+                                        })
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
-
-                      {/* Generation Count Info */}
-                      {selectedModels.length > 0 &&
-                        (hasStructures
-                          ? selectedStructures.length > 0
-                          : true) && (
-                          <div className="rounded-lg border border-gray-300 bg-gray-50 p-3">
-                            <p className="text-sm font-medium text-gray-700">
-                              {t(
-                                'generation.controlModal.totalGenerationsPerTask',
-                              )}
-                            </p>
-                            <p className="mt-1 text-lg font-semibold text-gray-900">
-                              {selectedModels.length}{' '}
-                              {selectedModels.length !== 1
-                                ? t('generation.controlModal.models')
-                                : t('generation.controlModal.model')}
-                              {hasStructures && (
-                                <>
-                                  {' '}
-                                  × {selectedStructures.length}{' '}
-                                  {selectedStructures.length !== 1
-                                    ? t('generation.controlModal.structures')
-                                    : t('generation.controlModal.structure')}
-                                </>
-                              )}
-                              {' = '}
-                              {totalGenerations}{' '}
-                              {totalGenerations !== 1
-                                ? t('generation.controlModal.generations')
-                                : t('generation.controlModal.generation')}
-                            </p>
-                          </div>
-                        )}
-                    </div>
+                    )}
                   </div>
-                </div>
 
-                {selectedModels.length > 0 && projectId && (
-                  <div className="mt-5">
+                  {/* Generation Count Info */}
+                  {selectedModels.length > 0 &&
+                    (hasStructures ? selectedStructures.length > 0 : true) && (
+                      <div className={R.summaryBox}>
+                        <p className={R.summaryLabel}>
+                          {t('generation.controlModal.totalGenerationsPerTask')}
+                        </p>
+                        <p className={R.summaryValue}>
+                          {selectedModels.length}{' '}
+                          {selectedModels.length !== 1
+                            ? t('generation.controlModal.models')
+                            : t('generation.controlModal.model')}
+                          {hasStructures && (
+                            <>
+                              {' '}
+                              × {selectedStructures.length}{' '}
+                              {selectedStructures.length !== 1
+                                ? t('generation.controlModal.structures')
+                                : t('generation.controlModal.structure')}
+                            </>
+                          )}
+                          {' = '}
+                          {totalGenerations}{' '}
+                          {totalGenerations !== 1
+                            ? t('generation.controlModal.generations')
+                            : t('generation.controlModal.generation')}
+                        </p>
+                      </div>
+                    )}
+
+                  {selectedModels.length > 0 && projectId && (
                     <CostEstimatePanel
                       projectId={projectId}
                       mode="generation"
@@ -1027,9 +984,13 @@ function GenerationControlModalBody({
                         hasStructures ? selectedStructures : undefined
                       }
                     />
-                  </div>
-                )}
-                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse sm:gap-2">
+                  )}
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button variant="outline" onClick={onClose}>
+                    {t('generation.controlModal.cancel')}
+                  </Button>
                   <Button
                     variant="filled"
                     onClick={handleSubmit}
@@ -1042,9 +1003,6 @@ function GenerationControlModalBody({
                     {loading
                       ? t('generation.controlModal.starting')
                       : t('generation.controlModal.startGeneration')}
-                  </Button>
-                  <Button variant="outline" onClick={onClose}>
-                    {t('generation.controlModal.cancel')}
                   </Button>
                 </div>
               </Dialog.Panel>
