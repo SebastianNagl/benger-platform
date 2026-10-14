@@ -1,0 +1,49 @@
+project:
+  type: default
+
+# CSLAW '27 full archival paper (SoK). ACM small single-column template
+# (acmart, acmsmall). Limit: 15 pages excluding references and appendices.
+#
+# Class options: the quarto-journals/acm extension passes
+# `acm-metadata.acmart-options` (set in manuscript.qmd) verbatim to
+# \documentclass: "acmsmall,screen" for the named version; the blind swap
+# block uses "acmsmall,screen,anonymous" (applied by scripts/blind.py).
+#
+# acmart version: the extension bundles acmart.cls v1.84 (2022), but Quarto
+# does not copy it next to the .tex, so LaTeX loads the TeX Live acmart
+# (v2.20 at the time of writing), the version ACM wants for new submissions.
+#
+# Engine: xelatex. acmart v2 supports it (Libertinus via fontspec), and
+# xelatex takes the German umlauts, the section sign and the Unicode minus
+# in the running text without extra setup.
+#
+# Bibliography: the extension sets biblio-style te.bst and its lua filter
+# replaces a "# References" header with a second \bibliographystyle, which
+# BibTeX rejects. So biblio-style is ACM-Reference-Format here, and the
+# manuscript prints its own references heading before the refs div instead
+# of a "# References" header.
+format:
+  acm-pdf:
+    keep-tex: true
+    pdf-engine: xelatex
+    biblio-style: ACM-Reference-Format
+    template-partials:
+      - _extensions/quarto-journals/acm/partials/title.tex
+      - partials/_acmart_preamble.tex
+      - partials/_acmart_authors.tex
+      - _extensions/quarto-journals/acm/partials/_acmart_abstract.tex
+    include-in-header:
+      text: |
+        \usepackage{multirow}
+        \usepackage{array}
+        \usepackage{placeins}
+        \usepackage{tikz}
+        \usetikzlibrary{positioning,arrows.meta}
+        % Rating marks in the systematization table (Harvey balls).
+        \newcommand{\mfull}{\tikz[baseline=-0.6ex]\fill (0,0) circle (0.75ex);}
+        \newcommand{\mhalf}{\tikz[baseline=-0.6ex]{\draw (0,0) circle (0.75ex); \fill (0,0) -- (90:0.75ex) arc (90:270:0.75ex) -- cycle;}}
+        \newcommand{\mnone}{\tikz[baseline=-0.6ex]\draw (0,0) circle (0.75ex);}
+        \newcommand{\mnt}{\tikz[baseline=-0.6ex]{\draw[dashed, line width=0.5pt] (0,0) circle (0.75ex); \node[font=\tiny] at (0,0) {?};}}
+        \newcommand{\pending}[1]{\textcolor{red}{[PENDING: #1]}}
+
+bibliography: references.bib

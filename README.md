@@ -2,15 +2,16 @@
 
 [![License: Apache 2.0 (code)](https://img.shields.io/badge/Code-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![License: CC BY 4.0 (data)](https://img.shields.io/badge/Data-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20409635-blue.svg)](https://doi.org/10.5281/zenodo.20409635)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.20489788-blue.svg)](https://doi.org/10.5281/zenodo.20489788)
 [![arXiv](https://img.shields.io/badge/arXiv-2605.28183-b31b1b.svg)](https://arxiv.org/abs/2605.28183)
 
-This repository hosts **two distinct projects** under the BenGER name:
+This repository hosts **two distinct projects** under the BenGER name, and the **publications** written with them:
 
 1. **The platform** (Apache 2.0, `services/`) — an open-source web application that runs the full benchmarking pipeline for Large Language Models in the German legal domain: task creation, collaborative annotation, configurable LLM execution, and 40+ automatic and judge-based metrics in one browser-based workflow. *Companion paper: ICAIL 2026 system demonstration (Nagl & Grabmair); source under `publications/Plattform_ICAIL/`.*
-2. **The BenGER benchmark** (CC BY 4.0, `publications/Benchmark_EMNLP/`) — a dataset with three subsets (*Benchathon*, *ZJS*, *Grundprinzipien*) covering legal-reasoning tasks across civil, criminal, and public German law, plus human-validated leaderboards across 12 LLM systems. *Companion paper: full-length research paper with nine co-authors; source under `publications/Benchmark_EMNLP/` (citation below).*
+2. **The BenGER benchmark** (CC BY 4.0, `publications/Benchmark_EMNLP/`) — a dataset with three subsets (*Benchathon*, *ZJS*, *Grundprinzipien*) covering legal-reasoning tasks across civil, criminal, and public German law, plus human-validated leaderboards across 12 LLM systems. *Companion paper: Findings of EMNLP 2026, nine co-authors; source under `publications/Benchmark_EMNLP/` (citation below).*
+3. **Publications** (`publications/`) — the source of every paper in this line of work, one folder per paper with the manuscript, the derived data it loads and the scripts that produced that data. Beyond the two companion papers this covers research that builds on the platform and the benchmark, such as the SoK on grading open-text legal answers. See [Publications](#publications).
 
-The platform generates the benchmark; the benchmark validates the platform. Different scopes, different author lists, different licenses, one repo — pick the project that matches what you came for.
+The platform generates the benchmark; the benchmark validates the platform; the papers document both and the research built on them. Different scopes, different author lists, different licenses, one repo — pick the part that matches what you came for.
 
 ## The BenGER Benchmark
 
@@ -22,8 +23,8 @@ A dataset with three thematic subsets, produced and reviewed by nine co-authors 
 | `zjs` | *Zeitschrift für das Juristische Studium* — published exam-style cases from 2008–2026 | Long-form *Gutachten*-style case analysis | 581 cases |
 | `grundprinzipien` | Foundational legal-principle multiple-choice items | Knowledge probe across the three branches | (see paper) |
 
-**Zenodo (archival, citable)**: [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635) — the full anonymised dataset (`benger-v1.0.zip`) with `benchathon/`, `zjs/`, `grundprinzipien/`, and the small derived `processed/` files used by the manuscript.
-**Paper (preprint)**: [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
+**Zenodo (archival, citable)**: [10.5281/zenodo.20489788](https://doi.org/10.5281/zenodo.20489788) — the full anonymised dataset (`benger-v2.0.zip`) with `benchathon/`, `zjs/`, `grundprinzipien/`, and the small derived `processed/` files used by the manuscript; v2.0 re-anchors the LLM-as-a-Judge on GPT-5.4-mini, the predecessor v1.0 stays at [10.5281/zenodo.20409635](https://doi.org/10.5281/zenodo.20409635).
+**Paper**: Findings of EMNLP 2026; preprint [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
 **In-repo copies of the derived artefacts** the paper loads (small JSON/CSV files, ~5 MB total): `publications/Benchmark_EMNLP/data/processed/` and `publications/Benchmark_EMNLP/data/interim/`.
 
 The data is licensed CC BY 4.0; the platform code is Apache 2.0. Human-grader identities have been replaced with stable codes (`grader_01..grader_07`).
@@ -63,6 +64,17 @@ docker compose exec api python init_complete.py
 
 On modern macOS, Linux, and Windows, `*.localhost` resolves to 127.0.0.1 automatically — no `/etc/hosts` edit needed. To exercise LLM execution, configure provider keys in the app's organization settings after first login.
 
+## Publications
+
+Every paper in this line of work keeps its source under `publications/`, one folder per paper: the manuscript (Quarto or LaTeX), the derived data it loads and the scripts that produced that data, so each paper rebuilds from the folder. Raw material that cannot be shared, such as student scripts and raw platform exports, stays out of git.
+
+| Folder | Paper | Status |
+|---|---|---|
+| `Plattform_ICAIL/` | *BenGER Platform: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks* (Nagl, Grabmair) | ICAIL 2026 system demonstration; preprint [arXiv:2604.13583](https://arxiv.org/abs/2604.13583) |
+| `Benchmark_EMNLP/` | *BenGER: Benchmarking LLM Systems on Subsumption-Based Legal Reasoning in German Law* (Nagl et al., nine authors) | Findings of EMNLP 2026; preprint [arXiv:2605.28183](https://arxiv.org/abs/2605.28183); dataset v2.0 on [Zenodo](https://doi.org/10.5281/zenodo.20489788) |
+| `SoK_CSLAW/` | *SoK: Grading Open-Text Legal Answers, from Law School Exams to Trustworthy Rubric Judges* (Nagl) | Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27) on 2026-10-14; arXiv preprint submitted, identifier follows |
+| `LEXam_DE/` | *Replicating LEXam on German First State Exam-Style Essay Cases to Probe the "Statistical" Face of Legal Reasoning* | Work in progress: the full paper behind an accepted conference abstract, with the reproduction protocol, prompts and configs |
+
 ## Project Structure
 
 ```
@@ -80,7 +92,8 @@ BenGER/
     │   ├── manuscript.qmd  # Quarto source for the paper
     │   ├── data/           # Processed + interim data (raw lives on HF + Zenodo)
     │   └── scripts/        # Data preparation, IP clearance, anonymization
-    └── Plattform_ICAIL/    # The ICAIL system-demonstration paper
+    ├── Plattform_ICAIL/    # The ICAIL system-demonstration paper
+    └── SoK_CSLAW/          # SoK on grading open-text legal answers (CSLAW '27 submission)
 ```
 
 ## Technology Stack
@@ -125,34 +138,48 @@ Test ports (isolated from dev): PostgreSQL 5433, Redis 6380, API 8002, Frontend 
 
 ## Citing BenGER
 
-The platform and the benchmark are separate publications with different author lists. Cite the work you actually use.
+The platform, the benchmark and the SoK are separate publications with different author lists. Cite the work you actually use.
 
 **Platform** — the ICAIL system-demonstration paper (two authors):
 
 ```bibtex
 @inproceedings{nagl2026benger,
-  title     = {{BenGER}: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks},
+  title     = {{BenGER Platform}: A Collaborative Web Platform for End-to-End Benchmarking of {German} Legal Tasks},
   author    = {Nagl, Sebastian and Grabmair, Matthias},
-  booktitle = {Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)},
+  booktitle = {Proceedings of the Twenty-First International Conference on Artificial Intelligence and Law (ICAIL 2026)},
+  publisher = {ACM},
   year      = {2026},
   address   = {Singapore},
-  note      = {System demonstration}
+  note      = {System demonstration; preprint arXiv:2604.13583}
 }
 ```
 
 **Benchmark** — the dataset paper (nine authors across four institutions):
 
 ```bibtex
-@article{nagl2026bengerbench,
+@inproceedings{nagl2026bengerbench,
   title         = {{BenGER}: Benchmarking {LLM} Systems on Subsumption-Based Legal Reasoning in German Law},
   author        = {Nagl, Sebastian and Mayrhofer, Ann-Kristin and Heidebach, Martin
                    and Ko{\c{c}}ak, Aleyna and Zettelmeier, Anne and Breu, Elly
                    and Greiner, Angelina and Milijas, Sofija and Grabmair, Matthias},
+  booktitle     = {Findings of the Association for Computational Linguistics: EMNLP 2026},
+  publisher     = {Association for Computational Linguistics},
   year          = {2026},
   eprint        = {2605.28183},
   archivePrefix = {arXiv},
   primaryClass  = {cs.CL},
-  doi           = {10.5281/zenodo.20409635}
+  doi           = {10.5281/zenodo.20489788}
+}
+```
+
+**SoK** — the systematization paper on grading open-text legal answers (single author):
+
+```bibtex
+@misc{nagl2026sok,
+  title  = {{SoK}: Grading Open-Text Legal Answers, from Law School Exams to Trustworthy Rubric Judges},
+  author = {Nagl, Sebastian},
+  year   = {2026},
+  note   = {Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27); arXiv preprint}
 }
 ```
 

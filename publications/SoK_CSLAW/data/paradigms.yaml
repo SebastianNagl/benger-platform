@@ -1,0 +1,58 @@
+# Coding of the evaluation paradigms against the desiderata (Section 4).
+# Marks: "+" the evidence supports the paradigm on this desideratum,
+# "o" partly or only under conditions, "-" contradicted, "?" not tested.
+# Each mark is argued in Section 5. "why" is the one-line reason that the
+# table does not print; "evidence" gives the class of evidence behind the
+# marks: direct (a comparison on legal answers), transferred (from another
+# domain), normative (a legal source) or hypothesis (our reading). A reviewer of this file can check
+# each against Section 5.
+desiderata:
+  - {id: D1, short: Valid, name: "Construct validity"}
+  - {id: D2, short: Reliable, name: "Reliability"}
+  - {id: D3, short: Reasons, name: "Reasons"}
+  - {id: D4, short: Alternatives, name: "Defensible alternatives"}
+  - {id: D5, short: Robust, name: "Robustness to gaming"}
+  - {id: D6, short: Scale, name: "Cost and scale"}
+  - {id: D7, short: Feedback, name: "Formative feedback"}
+  - {id: D8, short: Oversight, name: "Fit with oversight"}
+paradigms:
+  - id: P1
+    name: "Human grading, unstructured"
+    marks: {D1: "o", D2: "-", D3: "o", D4: "+", D5: "o", D6: "-", D7: "o", D8: "+"}
+    why: "expert judgment is the legal default and recognizes unforeseen paths, but single-grader ICC .58 and length, handwriting and identity effects"
+    evidence: "D1, D2, D5 direct (grader studies); D4, D8 normative; D3, D7 hypothesis"
+  - id: P2
+    name: "Human grading, analytic rubric"
+    marks: {D1: "+", D2: "o", D3: "+", D4: "o", D5: "o", D6: "-", D7: "+", D8: "+"}
+    why: "rubric narrows human spread, rater effects persist; alternatives only if the rubric lists them or the grader departs from it"
+    evidence: "D1, D2, D7 direct and transferred (rubric studies); D4 hypothesis; D8 normative"
+  - id: P3
+    name: "Closed formats"
+    marks: {D1: "-", D2: "+", D3: "-", D4: "-", D5: "+", D6: "+", D7: "-", D8: "o"}
+    why: "reliable and cheap but measures a different construct and changes the task; MCQ gains do not carry to essays"
+    evidence: "D1 direct (MCQ versus essay comparisons); D2, D6 direct; others hypothesis"
+  - id: P4
+    name: "Similarity to a reference"
+    marks: {D1: "-", D2: "+", D3: "-", D4: "-", D5: "-", D6: "+", D7: "-", D8: "-"}
+    why: "r = .07 to .26 with legal experts; rewards copying and length; highest ROUGE with the highest rate of unsupported citations"
+    evidence: "D1, D5 direct; D4 hypothesis (other words for the same path); D3, D7, D8 hypothesis"
+  - id: P5
+    name: "LLM judge, reference answer"
+    marks: {D1: "o", D2: "o", D3: "o", D4: "-", D5: "-", D6: "+", D7: "o", D8: "o"}
+    why: "a reference fixes judges that cannot solve the task, but disagreement concentrates on other reasoning paths; master keys"
+    evidence: "D1 direct (LEXam, BenGER); D4 direct (BenGER disagreement analysis); D5 transferred (master keys); D3, D7, D8 hypothesis"
+  - id: P6
+    name: "LLM judge, generic criteria"
+    marks: {D1: "-", D2: "o", D3: "o", D4: "?", D5: "-", D6: "+", D7: "o", D8: "o"}
+    why: "near-zero correlation without instance information; G-Eval-style correctness .02 to .08; verbosity bias"
+    evidence: "D1 direct (Wendlinger, LeMAJ); D5 transferred (verbosity); D4 not tested; others hypothesis"
+  - id: P7
+    name: "LLM judge, instance rubric"
+    marks: {D1: "+", D2: "o", D3: "+", D4: "?", D5: "-", D6: "+", D7: "o", D8: "o"}
+    why: "high agreement with experts per criterion in and outside law; injection and run-to-run noise remain; no test of alternative paths; feedback of the right form, learning effect untested"
+    evidence: "D1 direct (GradeLegal, Cope, Legal Research Bench) and transferred (HealthBench); D5 direct (injection on rubric graders); D4 not tested (the Thai study, a P5/P6 design with a generic regulation and a gold answer, shows convergence on the majority reading where the regulation is silent); D3 direct (a verdict with a reason per criterion is what these judges output); D7 transferred (rubric feedback studies), untested for model-written feedback in law; D8 hypothesis"
+  - id: P8
+    name: "Pairwise comparison"
+    marks: {D1: "o", D2: "o", D3: "-", D4: "?", D5: "o", D6: "o", D7: "-", D8: "-"}
+    why: "best at ordering constructed quality levels, equal to rubric grading on US exams; relative, no criterion-referenced reasons; position bias"
+    evidence: "D1 direct (JudgmentBench, Cope); D5 transferred (adversarial phrases, position bias); D4 not tested; D3, D7, D8 hypothesis"

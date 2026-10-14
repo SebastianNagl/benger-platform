@@ -1,0 +1,821 @@
+---
+# SoK for ACM CSLAW '27 (full archival paper, single-blind review).
+# Topic of interest: educational methods combining computer science and law.
+# Limit: 15 pages excluding references and appendices.
+#
+# BLIND-REVIEW SWAPS (currently in NAMED mode). `make blind` renders
+# manuscript_blind.pdf by applying every swap to a temporary copy. To switch
+# by hand, comment out each <<NAMED ... NAMED>> block and uncomment the
+# <<BLIND ... BLIND>> block next to it: the author block and the acmart
+# option here, and the self-references marked in the body. The `anonymous`
+# acmart option prints "Anonymous Author(s)" and drops the acknowledgments by
+# itself; add `review` to it for line numbers.
+title: "SoK: Grading Open-Text Legal Answers, from Law School Exams to Trustworthy Rubric Judges"
+short-title: "SoK: Grading Open-Text Legal Answers"
+#<<NAMED
+author:
+  - name: Sebastian Nagl
+    orcid: 0009-0009-6321-9775
+    email: sebastian.nagl@tum.de
+    affiliations:
+      - name: Technical University of Munich (TUM)
+        city: Munich
+        country: Germany
+#NAMED>>
+#<<BLIND
+#author:
+#  - name: Anonymous Author(s)
+#BLIND>>
+acm-metadata:
+  final: false
+#<<NAMED
+  acmart-options: acmsmall,screen
+#NAMED>>
+#<<BLIND
+#  acmart-options: acmsmall,screen,anonymous
+#BLIND>>
+  copyright: none
+  copyright-year: 2027
+  acm-year: 2027
+  doi: XXXXXXX.XXXXXXX
+  conference-acronym: "CSLAW '27"
+  conference-name: "the 6th ACM Symposium on Computer Science and Law"
+  conference-date: "March 23--25, 2027"
+  conference-location: "Chicago, IL, USA"
+  isbn: "978-x-xxxx-xxxx-x/YYYY/MM"
+  keywords:
+    - legal education
+    - law exams
+    - grading rubrics
+    - LLM-as-a-judge
+    - automated assessment
+    - examination law
+    - EU AI Act
+  ccs: |
+    \ccsdesc[500]{Applied computing~Law}
+    \ccsdesc[500]{Applied computing~Education}
+    \ccsdesc[300]{Computing methodologies~Natural language processing}
+abstract: |
+  Law students are examined through open-text answers: case solutions, essays and memos that apply the
+  law to a set of facts. Such answers are expensive to grade, human graders disagree widely on them,
+  and large language models (LLMs) now offer to grade them at scale, both in teaching and in the
+  benchmarks that test legal AI. This paper systematizes how open-text legal answers can be evaluated. We
+  derive eight desiderata from educational measurement and from the law that governs exams, among them
+  validity, reliability, reasons, credit for defensible alternative solutions,
+  robustness to gaming and human oversight. We then compare eight evaluation paradigms against them,
+  from unstructured human grading to LLM judges with instance-specific rubrics and pairwise
+  comparison. Three findings stand out. A rubric written for the task is the
+  strongest lever for agreement between an LLM judge and human graders, but the reported figures
+  answer different questions and rarely come with the human agreement they must be read against. The
+  central validation gap lies where examination law is most demanding: defensible alternative
+  solutions, follow-on errors, and the examiner's correction of model judgments. And rubric-centred
+  grading is the most auditable family, because it makes the standard, its application and the final
+  decision checkable. From this we derive
+  the trustworthy rubric judge: an instance rubric that credits arguments and alternative paths,
+  evidence checked in code, probes, repeated runs, calibration against independent human grades,
+  logging, and an examiner who reads every script. We state what each safeguard rests on, what remains to be
+  tested, and the uses the evidence supports today.
+---
+
+# Introduction {#sec-intro}
+
+Legal education tests a skill that is hard to measure: applying the law to facts in writing. A German
+student receives a fact pattern (*Sachverhalt*) and writes an opinion in appraisal style
+(*Gutachtenstil*); a US student spots the issues in a hypothetical and argues them; a bar candidate
+drafts a memo or a judgment. A German exam case is a proxy for a real case: the fact pattern stands in
+for the file a lawyer or a court receives, and the opinion rehearses the analysis that precedes advice
+or a decision. These answers run to many pages, admit more than one defensible
+solution, and are graded by experts who often disagree. The same German exam can receive grades
+several points apart on the 18-point scale [@hufeld2024], and a single US law professor's grade on an
+essay reached an intraclass correlation (ICC) of .58 with colleagues [@klein1968nature]. Grading is also
+slow, so students get little feedback before the exam that counts, although individual feedback
+measurably improves their grades [@schwarcz2017impact].
+
+Large language models (LLMs) have changed both sides of this problem. They write answers that pass law
+exams [@choi2023chatgpt; @katz2024gpt4; @martinez2025reevaluating], so legal AI needs benchmarks
+that grade open text. And they offer to grade
+answers themselves, as an *LLM judge* [@zheng2023mtbench; @gu2024survey]. Since 2025, legal
+benchmarks and teaching tools have converged on one design: an expert writes a rubric for each task,
+and an LLM checks an answer against it [@shi2026plawbench; @chen2026lexrubric;
+@drozdov2026legalresearchbench; @zubaer2026gradelegal; @cope2026grading]. At the same time, LLM judges
+are known to drift between runs [@haldar2025rating], to favour long answers [@saito2023verbosity],
+and to obey instructions embedded in the answer they grade [@li2026important]. Examination law, data
+protection law and the EU AI Act set further limits on what a machine may decide about a candidate
+[@bverwg2019_6C19_18; @cjeu2023schufa; @aiact2024].
+
+The literature on these questions is scattered across law reviews, educational measurement, natural
+language processing (NLP) and court decisions. This paper brings them together. Our starting point is that grading an open-text legal
+answer is not the prediction of a human grade but the application of standards that must be stated
+and justified to answers that may legitimately differ. Three questions follow: what the grade should
+measure, how that performance is translated into criteria and points, and who answers for that
+translation and can correct it in the single case. In short: *which way of evaluating open-text legal
+answers is best supported by the evidence, for which use, and what must still be shown before it can
+be trusted?*
+
+Our contributions are:
+
+1. **Desiderata.** Eight requirements for evaluating open-text legal answers, from validity theory
+   [@messick1995validity; @kane2013validating] and from examination, data protection and AI law
+   (@sec-desiderata, Table \ref{tab:requirements}).
+2. **A taxonomy of eight paradigms**, from unstructured human grading to LLM judges with
+   instance-specific rubrics and pairwise comparison, with the evidence for and against each
+   (@sec-paradigms, Table \ref{tab:paradigms}).
+3. **A systematization of legal evaluations** of automatic graders: task-specific content is the
+   strongest lever for agreement with human graders, the reported figures answer different questions,
+   and validation is often thin (@sec-legal, Table \ref{tab:studies}).
+4. **A design space of legal rubrics**, from the unit of credit to the key that maps points to grades,
+   with the evidence and law behind each choice (@sec-design).
+5. **The trustworthy rubric judge**: seven safeguards, each tied to the weakness and the legal
+   requirement it answers and to the test that remains, with the uses the evidence supports today and
+   the open problems (@sec-trust, @sec-uses, @sec-open).
+
+The evidence supports task-specific grading information, above all an analytic rubric written for the
+task, as the strongest lever for agreement with human graders, but no architecture is superior on
+every axis: pairwise comparison ordered constructed quality levels better than rubric scores
+[@yang2026judgmentbench], closed
+formats are more reliable, and no rubric judge is yet robust to manipulation. We argue that
+rubric-centred grading should nonetheless be the default for auditable legal assessment. Grading is
+auditable when the standard, its application to each script and the final decision can each be
+checked; a rubric externalizes the standard, makes each criterion application contestable and leaves
+the decision with the examiner. These are design advantages motivated by examination law, not a claim
+that the law mandates one scoring architecture. We therefore propose the *trustworthy rubric judge*,
+a rubric judge wrapped in seven safeguards, and we state the tests it must pass before it grades exams
+that count. A companion
+study, in preparation, builds this judge for German law exams: it generates the grading sheet from the
+case and the reference solution and tests the sheet, the judge and the workflow against an examiner's
+own sheet and grades
+<!-- <<NAMED -->
+[@nagl2027transformation] (@sec-open).
+<!-- NAMED>> -->
+<!-- <<BLIND
+[@anon2027companion] (@sec-open).
+BLIND>> -->
+
+# Background: open-text legal answers and how humans grade them {#sec-background}
+
+*The tasks.* We call an answer *open-text* when the candidate writes free prose that applies law to
+facts and no answer key can list every acceptable text. In Germany the core format is the case
+solution (*Falllösung*): an opinion that states each question, defines the legal requirements,
+subsumes the facts and reaches a result, graded on the statutory scale from 0 to 18 points
+[@jurprnotskv1981]. Practice tasks include memos, contract drafting and research answers
+[@schwarcz2026aipowered; @drozdov2026legalresearchbench] and draft judgments [@karp2025llm]. Our core case is
+the exam; the other tasks differ in the performance measured as well as in who sets the standard and
+what is at stake, so we treat the transfer as a separate question (@sec-open).
+
+*Human graders disagree.* In a 1968 study, 17 law professors graded the same 80 contracts essays
+from 16 schools; a single professor's grade reached an intraclass correlation of .58, the mean over all
+professors .96, so single graders and panel means are different yardsticks [@klein1968nature]. On 15
+scripts of a German beginner-level mock exam,
+each graded by 15 or 16 correctors, the highest and lowest grade for a script lay 6.47 points apart on
+average [@hufeld2024], and in BenGER, a benchmark of German case solutions curated on an open platform
+[@nagl2026benger], three blind reviewers reached a single-rater ICC(2,1) of .63 [@nagl2026bengerdata].
+Grades in the German state exams also differ by
+gender and by the origin of a candidate's name [@towfigh2014benotung; @towfigh2018geschlechts], and by
+the *Land* in which the exam is taken [@kahler2017hangen]. Grades rise with length
+[@augustineadams2016speed], legible handwriting [@greifeneder2010writing] and legal jargon
+[@linn1972nature], and graders are drawn towards a grade they have already seen
+[@vidalrodeiro2007agreement; @attali2011sequential]. Where such features are not part of what the
+task tests, this is construct-irrelevant variance [@messick1995validity].
+
+*Structure helps, but not alone.* An analytic rubric breaks the expected answer into criteria, each
+with points or levels; it is *instance-specific* when it is written for one task rather than for a
+type of task [@dawson2017assessment]. Rubrics raise agreement between human raters, especially when they are
+analytic and task-specific and come with exemplars or rater training [@jonsson2007use], and rubrics used formatively improve
+student performance with an effect of $g$ = .45 [@panadero2023effects]. In German law, some correctors
+note what each part of the expected solution is worth [@frenzel2011korrektur], and a few make this
+binding in a grading sheet (*Bewertungsbogen*), described for take-home papers [@heidebach2015pruefen], which narrows the spread
+between correctors (Table \ref{tab:studies}). Yet rubrics do not remove rater effects: raters still differ in severity
+[@woitschach2018efectos; @engelhard1994examining], read the same criteria differently
+[@bloxham2016lets], and without moderation shared criteria did not make law marking consistent
+[@hanlon2004exploring]. High-stakes testing
+therefore surrounds the rubric with machinery: calibration on common scripts, hidden scripts with
+known scores to catch drifting severity [@olson2019best; @congdon2000stability], independent double
+grading and adjudication [@light2024grading], which the US NextGen bar exam now adopts for its
+written answers [@light2024grading; @bok2024grading; @ncbe2026nextgen].
+
+# Method of this systematization {#sec-method}
+
+*Scope.* We draw on three bodies of sources and keep them apart in the text, since they carry
+different weight. Direct evidence is work that grades or evaluates open-text answers to legal tasks,
+by humans or machines. Transferred evidence is work from other domains that tests rubric-based LLM
+grading against human graders, and the measurement literature on rubrics and raters. Normative sources
+are the legal rules that govern grading: German examination law as the worked example, the EU General
+Data Protection Regulation (GDPR) and AI Act, and US cases on academic judgment. We exclude closed
+formats except where compared with open text, and supervised essay-scoring models, for which we found
+no use on law exams.
+
+*Search.* We searched the ACL Anthology, arXiv, Google Scholar, SSRN, the ACM Digital Library, legal
+education journals and German and EU case-law databases up to 12 October 2026, in English and German,
+with keywords on law exam grading, legal benchmarks, rubric and checklist evaluation, LLM-as-a-judge,
+automated essay and short-answer scoring, and exam law, and followed references in both directions. A
+legal evaluation enters Table \ref{tab:studies} if it grades open-text legal answers automatically and
+reports how, or whether, the grader was compared with humans; reuse of another study's scripts or
+rubrics is marked, and so are preprints.
+
+*Prior surveys.* Surveys and critiques cover LLM judges [@gu2024survey; @chehbouni2025neither], essay and
+short-answer scoring outside law [@ke2019automated; @burrows2015eras; @gao2024automatic;
+@li2025agreement] and legal benchmarks by task and metric [@hu2026evaluation]; none relates grading
+methods to the law that governs grading or treats the rubric as the object of design.
+
+*Coding.* For each legal evaluation we recorded the paradigm (@sec-paradigms), the source of the
+rubric, what the grader was compared with, and the reported agreement of the grader and of the human
+graders (Table \ref{tab:studies}). We rated each paradigm against each desideratum as supported,
+partly or under conditions, contradicted, or not tested, from the evidence discussed in
+@sec-paradigms. The basis of a mark is a comparison on legal answers, evidence from another domain, a
+legal source, or our reading.
+
+# Desiderata {#sec-desiderata}
+
+What makes an evaluation good depends on what it is used for. We follow argument-based validation: a
+score is valid for a use when each inference from the answer to the decision is backed by evidence
+[@kane2013validating; @aera2014standards]. The law adds requirements of its own, which we state first.
+
+## What the law asks of grading {#sec-law}
+
+Table \ref{tab:requirements} lists the requirements.
+
+```{=latex}
+\input{assets/tbl_requirements.tex}
+```
+
+*German examination law.* Exams that control access to a profession fall under the freedom of
+occupation (Art. 12(1) of the Basic Law, GG). Examiners have a margin of appreciation. Each examiner sets their own
+standards for a task and must apply them to every script of that task alike [@bverfge84_34, p. 52;
+@bverwg2018_6B71_17, para. 8]; the law does not demand one scheme shared by all examiners. Courts
+check in full whether a defensible answer was marked wrong; examination-specific judgments of
+persuasiveness, structure and consistency are reviewed only for the limits of that discretion, a
+complete and correct reading of the script, equal application of the examiner's standards, and freedom
+from improper considerations and contradictions [@bverwg2018_6B71_17, paras. 9 to 11]. The candidate has an *answer latitude* (*Antwortspielraum*): a solution that is
+defensible (*vertretbar*) and argued consistently with weighty reasons must not be marked as wrong
+[@bverfge84_59, p. 79; @bverfge84_34, p. 55]. Latitude protects the result, not the mark: a defensible but
+weakly argued solution may earn fewer points than a stronger one. An error must also not be counted
+twice. A follow-on error (*Folgefehler*) is reasoning that is wrong or open to criticism only because
+the candidate took an earlier decision on the path of the solution, and penalizing it again is an
+impermissible double counting (*Doppelverwertung*) [@vgbraunschweig2018]; how much a follow-on error
+still weighs is left to the examiner's judgment [@vglueneburg2024]. The candidate is owed the
+essential reasons for the grade [@bverwg2019_6C19_18, para. 23], though not margin notes that show the
+reason for every point, and a point scheme is an aid the examiner may depart from, not a binding rule
+[@bfh2014viib158]. On substantiated objections the examiners themselves must reconsider their
+evaluation; no other body may do it for them, and written reasons do not replace this reconsideration
+[@bverwg2019_6C19_18]. The examiner must personally and directly acquaint themselves with each script and
+evaluate it independently; an open second correction, in which the second examiner sees the first grade, is
+not forbidden by federal constitutional law [@bverwg2002_6C7_02].
+
+*Data protection.* A candidate's answers and the examiner's comments on them are personal data
+[@cjeu2017nowak], so sending scripts to a model provider needs a legal basis and a processing
+contract. Art. 22 GDPR gives a person the right not to be subject to a decision based solely on
+automated processing that has legal or similarly significant effects, unless the decision is necessary
+for a contract, authorized by Union or Member State law with suitable safeguards, or based on explicit
+consent [@gdpr2016]. The Court of Justice has held that a score is itself such a
+decision when a third party's decision draws strongly on it [@cjeu2023schufa], so an examiner who
+adopts a model grade as given risks a solely automated decision; human involvement must be
+meaningful [@colonna2024teachers], and the person may require an explanation of the procedure and
+principles actually applied [@cjeu2025dunbradstreet].
+
+*AI regulation.* The AI Act classes AI systems intended to evaluate learning outcomes as high-risk
+(Annex III, point 3(b)), which brings the provider duties of risk management, data governance,
+technical documentation, logging, transparency, human oversight, accuracy and robustness against
+manipulation (Arts. 9 to 15)
+[@aiact2024]. A university that uses such a system is a deployer: it must assign oversight to persons
+with the competence and authority to intervene, keep the logs and inform candidates that the system is
+used on them (Art. 26); a public university must also assess the impact on fundamental rights before
+first use (Art. 27); and a candidate may demand an explanation of the system's role in the decision
+(Art. 86). Systems developed and put into service solely for scientific research fall outside the Act
+(Art. 2(6)), and a system that only prepares a human evaluation may escape the high-risk class
+(Art. 6(3)), but a grade proposal that the examiner reviews shapes the decision and is unlikely to escape it. The
+Digital Omnibus moved the application of the provider and deployer duties for Annex III systems to
+2 December 2027 [@omnibus2026] (law as of October 2026).
+
+*The United States, and a cautionary case.* US courts defer to the academic judgment of faculty
+[@horowitz1978; @ewing1985], which argues for keeping the professor's evaluation substantive when a
+model assists. And England's 2020 A-level grades, statistically adjusted to fit each school's past
+results, were withdrawn within days amid protest [@kelly2021tale]: legitimacy can fail before a method fails.
+
+## Eight desiderata {#sec-desiderata-list}
+
+From the measurement literature and the requirements above we derive eight desiderata.
+
+- **D1 Construct validity.** The score supports the interpretation it is used for: it reflects the
+  legal skill the task tests, such as spotting issues, stating rules, subsuming facts and weighing
+  arguments, and not task-irrelevant features such as length, surface style or the grader's identity
+  [@messick1995validity; @williamson2012framework]. Fairness is part of this: the score should not
+  move with task-irrelevant features of a candidate's language, such as phrasing or dialect.
+- **D2 Reliability.** The score changes little with the grader, the run or the occasion. In
+  generalizability theory these are separate sources of error [@brennan2001generalizability].
+- **D3 Reasons.** The grade comes with reasons that let the candidate understand and contest it (L3,
+  L5); a reason per criterion and passage is the form we propose (@sec-trust).
+- **D4 Defensible alternatives.** A defensible solution that departs from the reference is not marked
+  wrong, and an error is not counted again in the steps that depend on it (L2).
+- **D5 Robustness.** The score cannot be raised by padding, copying the case, citing fake authority or
+  embedded instructions [@powers2002stumping; @chen2024humans; @li2026important].
+- **D6 Cost and scale.** The method can grade many answers fast enough for feedback and benchmarks.
+- **D7 Formative value.** The output tells a student what was missing and why [@hattie2007power].
+- **D8 Fit with oversight.** The method keeps the examiner's standards equal across scripts, leaves
+  the evaluation and its reconsideration with the examiner, and documents what the AI Act's oversight
+  duties require (L1, L4 to L6). Whether a deployment is lawful depends on the context and the
+  procedure, not on the method alone.
+
+D1 and D2 come from measurement; D3, D4 and D8 are where the law adds most. The desiderata overlap:
+D3, D4 and D8 all favour designs that make the standard explicit, so a paradigm's count of marks is
+not a score. Agreement with human
+graders, the usual yardstick in NLP, is evidence for D1 and D2 but not proof of either: humans
+disagree, an automatic grader can match a noisy reference by chance [@elangovan2025beyond], and
+consistency is not validity [@han2026agreement].
+
+# Eight evaluation paradigms {#sec-paradigms}
+
+We distinguish eight paradigms by who grades (human or model) and what the grade is anchored to
+(nothing, a reference answer, general criteria, criteria written for the task, or another answer).
+They are the configurations found in the literature, not disjoint classes: the design space behind
+them has at least four axes (who grades, what information the grader receives, whether the judgment
+is absolute or comparative, and how partial judgments are aggregated), and real systems mix them, as
+a pairwise judge with a rubric does [@cope2026grading]. Table \ref{tab:paradigms}
+rates each paradigm on the desiderata.
+
+```{=latex}
+\input{assets/tbl_paradigms.tex}
+```
+
+*P1 Unstructured human grading ("vibe grading").* An expert reads the answer and gives a grade, perhaps with margin
+comments. It is the legal default and the reference most studies validate against, and an expert can
+recognize a defensible alternative that no key foresaw. But single-rater reliability is moderate, at intraclass
+correlations of .58 and .63 [@klein1968nature; @nagl2026bengerdata], correctors' grades spread widely
+[@hufeld2024], and length, handwriting, identity and prior grades leak into the grade (@sec-background).
+
+*P2 Human grading with an analytic rubric.* A rubric makes the standard explicit, cuts the spread
+between human graders [@strecker2026ki; @jonsson2007use] and gives students criteria to learn from
+[@panadero2023effects; @sparrow2004describing]. Its weaknesses are cost and the remaining rater effects, and it credits
+alternatives only if the rubric lists them or the grader departs from it.
+
+*P3 Closed formats.* Multiple choice, classification and extraction tasks are graded exactly and
+cheaply, which is why most legal NLP benchmarks use them [@chalkidis2022lexglue; @guha2023legalbench;
+@zhong2020jecqa; @fei2024lawbench]. But they measure a different construct. Law students gained from
+GPT-4 on multiple-choice questions but not on essays [@choi2025ai]; GPT-4's bar exam percentile falls
+most on the essay component [@martinez2025reevaluating].
+
+*P4 Similarity to a reference.* Metrics such as ROUGE, BLEU and BERTScore compare the answer with a
+reference text [@lin2004rouge; @papineni2002bleu; @zhang2020bertscore]. On legal summaries, experts'
+scores correlated with ROUGE at .13 to .21 and with BERTScore at .07 [@shukla2022legal]; the model
+with the highest ROUGE on case-law analyses
+produced the highest rate of unsupported citations [@hou2025clerc], and near-identical ROUGE on German court
+press releases hid very different expert ranks [@nagl2025courtpressger]. Similarity
+can track grades within one exam, where the reference is the expected solution: METEOR correlated with
+the blind human grade on German case solutions at about .72 [@nagl2026bengerdata]. But it cannot give
+reasons, punishes a defensible alternative path for using other words, and rewards copying the
+reference.
+
+*P5 LLM judge with a reference answer.* The judge compares the answer with a reference answer written by an expert, as in LEXam
+[@fan2026lexam]. Without a reference, judges agree with experts only on questions they can answer
+themselves [@krumdick2025no], and judging accuracy tracks solving accuracy [@tan2025judgebench]. With
+a reference, LEXam's judge passed the alternative annotator test against three experts who agreed
+with each other at a quadratic weighted kappa of .49 [@calderon2025alternative; @fan2026lexam]. A single reference also fixes one path. In BenGER, the judge disagreed with
+human graders most on presentation and on results reached by other reasoning paths than the reference
+solution's [@nagl2026bengerdata], which is exactly the answer latitude the law protects (L2).
+<!-- <<NAMED -->
+Such verdicts are also judge-relative: in our earlier
+work, prompts optimized against a strict judge on LEXam overfit to that judge's
+disposition, while prompts optimized against a lenient judge transferred better
+[@elganayni2026exploiting].
+<!-- NAMED>> -->
+<!-- <<BLIND
+Such verdicts are also judge-relative: prompts optimized against a strict judge on LEXam overfit
+to that judge's disposition, while prompts optimized against a lenient judge transferred better
+[@elganayni2026exploiting].
+BLIND>> -->
+
+*P6 LLM judge with generic criteria.* The judge scores every answer on the same generic dimensions
+[@liu2023geval]. In law this fails without
+task-specific guidance. Open models grading German criminal-law case solutions without a sample solution
+or rubric reached correlations near zero [@wendlinger2024suitability], and a G-Eval-style correctness judge, LeMAJ's baseline (Table \ref{tab:studies}), correlated with
+legal experts at .02 to .08 [@enguehard2025lemaj]. Generic
+dimensions combined with a reference fare better: BenGER's judge, which scores ten dimensions of German
+correction practice against the reference solution, tracked the mean of blind human graders at
+$r$ = .76 with pass/fail $\kappa$ = .60, inside the range of human disagreement
+[@nagl2026bengerdata], and a judge with general criteria ranked systems for German court press releases
+much as experts did [@nagl2025courtpressger]. What makes such judges work is the task-specific
+content they receive (P7).
+
+*P7 LLM judge with an instance-specific rubric.* An expert writes, for each task, the criteria an
+answer must meet, often as atomic yes-or-no items, and the judge checks each criterion. Outside law,
+this design gives judges high agreement with experts per criterion. On HealthBench's 34
+consensus criteria, GPT-4.1 agreed with physicians at a macro-F1 of .71, where the average physician
+scored .57 to .73 by theme [@arora2025healthbench], with similar judge agreement on rubric trees for research
+replication and on expert rubrics in science, finance and consulting [@starace2025paperbench;
+@wang2026profbench]; controlled comparisons favour instance-specific criteria over general ones, over
+a plain prompt and over free grading [@kim2025biggen; @wei2025rocketeval; @du2025deepresearch;
+@liu2026aiassisted; @lee2024applying]. In law, the within-domain comparisons point the same way, with
+caveats. On German exams, GPT-5 with a sample solution and a grading scheme reached a quadratic
+weighted kappa of .60 in criminal and .91 in public law, against .31 and .58 with neither; the scheme
+alone gave most of the gain (.56 and .85), the solution alone less (.39 and .79) [@zubaer2026gradelegal].
+The gain is not universal: for GPT-5.1 the same additions lowered agreement, and the two sets are 71
+take-home solutions and 16 timed mock-exam scripts reused from earlier studies
+[@wendlinger2024suitability; @strecker2026ki]. On four US law-school finals with 205 scripts, GPT-5
+with the professor's rubric correlated with the professor's grades at .78 to .93, mean .87, against
+.66 to .80 with a bare prompt; forcing a score per rubric element changed little (mean .87, better on
+two exams and worse on two), and pairwise comparison with the rubric reached a mean of .86
+[@cope2026grading]; on the one question a professor regraded, the two human gradings agreed more
+with each other than either did with the model, a gap the authors do not find significant. On
+attorney-written binary rubrics for legal research, judges from three providers agreed with the
+attorneys' majority label at $\kappa$ = .71 to .73, against a human baseline of .64 that the authors
+report as attorney-to-attorney agreement, a different comparison [@drozdov2026legalresearchbench].
+
+The weaknesses are real. Expert
+rubrics cost time: building each PLawBench item, rubric included, took about three expert hours [@shi2026plawbench]. Generated
+rubrics fall short of expert ones [@wang2026generating; @dhole2026rubricrag; @zhou2026rubricbench],
+and LLM-written elaborations of human rubrics lowered agreement [@sharma2025researchrubrics]. Finer label
+schemes lower agreement: moving from a binary to a five-way label scheme on short science answers cut
+accuracy from 76% to 57% [@deng2025rubric], and binary grading of the same criteria agreed with humans
+about 20 points better than ternary grading [@sharma2025researchrubrics]. A related finding comes from
+reference-based judges under a generic grading regulation: where the regulation was silent, 22 of 26
+LLM judges scored in or near the majority reading of three examiners and none reproduced the
+defensible minority one, a dissent
+among graders about the same answer rather than an alternative path taken by the candidate
+[@akarajaradwong2026thai]. Even a judge given the committee's criteria and the correct legal analysis
+gave 85 to 90 of 100 points to three written judgments that the committee had failed for serious
+errors, where the committee gave 8 to 37 [@karp2025llm]. And grading against a rubric invites manipulation:
+instructions embedded in an answer succeeded in 56.9% of attacks on average across rubric-based graders
+[@li2026important].
+
+*P8 Pairwise comparison.* The grader compares two answers and picks the better one; many comparisons
+yield a ranking, as in Chatbot Arena [@zheng2023mtbench] or comparative judgment. The strongest
+counter-evidence to rubrics comes from this paradigm. In JudgmentBench, practising attorneys graded
+answers to 30 BigLaw Bench tasks at three quality levels: their pairwise judgments recovered the order
+of the levels with a mean Spearman's $\rho$ of .91, their rubric scores only with .15, and the rubric
+raters agreed with each other at .44; a GPT-5.4 autograder tracked the attorneys' orderings at .38
+with pairwise judgments and .20 with the rubric [@yang2026judgmentbench]. Pairwise ranking also beat
+absolute scoring for essays [@shibata2025lces] and resisted universal adversarial phrases better
+[@raina2024llm]. The quality levels in JudgmentBench were induced by prompting and
+moved all dimensions together, and the rubrics were not validated against graded answers; real
+answers differ in which issues they treat, which is what rubrics capture. Pairwise judges show
+position and length bias [@shi2024judging; @dubois2024length]. Above all, a bare preference is relative: it ranks a script among
+others but gives no criterion-referenced reasons, no feedback, and no grade that holds when the cohort
+changes. That conflicts with the duty to give reasons (L3) and with criterion-referenced grading, towards
+which even the bar exam is moving [@light2024grading]. The objection is to the protocol, not to
+comparison as such: a pairwise judge with the rubric matched absolute rubric grading on US exams
+[@cope2026grading], and anchored comparisons with a reason per criterion are untested. As used today, P8 suits leaderboards better than exams.
+
+# Systematization of legal evaluations {#sec-legal}
+
+Table \ref{tab:studies} lists the automatic graders of open-text legal answers we found, what each was
+compared with, and whether it graded student scripts or model answers. Three patterns stand out.
+
+```{=latex}
+\input{assets/tbl_studies.tex}
+```
+
+*The field has moved from P3 and P4 to P7.* Legal benchmarks long reduced law to closed formats or
+scored generation with overlap or keyword metrics [@chalkidis2022lexglue; @fei2024lawbench;
+@li2024lexeval; @li2025legalagentbench]. Since 2025, the leading benchmarks and the practitioners' own
+evaluations have adopted instance-specific rubrics, written or seeded by experts, with an LLM judge [@shi2026plawbench;
+@chen2026lexrubric; @oh2026korean; @drozdov2026legalresearchbench; @grupen2026lab; @vals2025vlair].
+
+*Task-specific content is the strongest lever, within limits.* Within the same domain, a scheme or
+rubric raised the agreement of the same model, a score per rubric element and pairwise comparison added
+nothing further, the gain varies by model, and the two German sets reuse the scripts of earlier studies
+(@sec-paradigms). Decomposition can also start from the answer instead of the expected performance:
+LeMAJ splits a model's answer into legal data points and checks each against the source material
+without a reference answer [@enguehard2025lemaj]. The two are not the same: a rubric states in advance what counts as performance
+and who answers for it, while answer decomposition structures the checking, omissions included, and
+supplies neither the weights nor the grade.
+
+*Validation is often thin, and human-level claims depend on the unit of comparison.* Several rubric
+benchmarks report agreement between judges but not with humans [@pires2026magisbench], validate on
+three candidate scripts that all passed [@pires2025automatic], or publish no agreement at all
+[@harvey2024biglawbench; @grupen2026lab]. Agreement between judges is not validity [@rao2026jev;
+@han2026agreement]. Few studies report the agreement of their human graders, and where both
+are reported the comparison is rarely like for like: judges are scored against a majority or a mean
+while humans are scored against each other [@drozdov2026legalresearchbench;
+@chlapanis2025greekbarbench; @nagl2026bengerdata], the alternative annotator test being the
+exception (S5), a panel of three judges agrees with itself better
+than three examiners agree with each other, without this showing that it agrees with them
+[@akarajaradwong2026thai], and
+the sharpest contrasts come from constructed quality levels [@yang2026judgmentbench]. Correlation is not accuracy:
+a correlation of one is compatible with every grade three points too high, harmless for a ranking and
+decisive for pass or fail.
+
+# The design space of legal rubrics {#sec-design}
+
+The evidence of @sec-paradigms and @sec-legal favours instance-specific rubrics, but "rubric" covers
+very different instruments [@dawson2017assessment]. Table \ref{tab:design} summarizes the choices that
+any grading sheet for open-text legal answers makes, whether a human or a model applies it.
+
+```{=latex}
+\input{assets/tbl_design.tex}
+```
+
+*What earns credit.* Graders of law essays reward the treatment of major issues more than minor ones
+[@linn1972nature], and a correct result without the authority behind it is a different achievement
+from a correct, authority-grounded answer [@liao2026knowing]. A rubric that credits bare results penalizes defensible
+alternatives and rewards guessing; one that credits the reasoning (the requirement stated, the facts
+subsumed and the argument weighed) fits both legal method and the answer latitude (L2).
+
+*Granularity and scale.* Yes-or-no verdicts agree better than partial-credit or finer label schemes
+[@sharma2025researchrubrics; @deng2025rubric], and on binary expert criteria, experts agree almost
+perfectly [@wang2026profbench]. But splitting further does not always help [@kortemeyer2024grading;
+@liu2026aiassisted]. Agreement is not the construct: coarser labels raise agreement partly by
+discarding information. The granularity should
+follow what the step tests, in units a grader can judge without ambiguity, and the states *not met*,
+*not applicable*, *uncertain* and *check failed* must stay apart even where the criterion is binary.
+The middle ground is a step for each expected legal performance, with a few binary requirements per
+step; on US exams the most granular rubric, not the most granular output, gave the highest agreement, a
+hypothesis from four exams
+[@cope2026grading].
+
+*Structure and weights.* German point schemes come in three types. In the first, every point belongs
+to a step of the expected solution, either as absolute points per step [@heidebach2015pruefen;
+@frenzel2011korrektur] or as a percentage of the total for each item of the outline, so that no
+conversion key is needed [@strecker2026ki, pp. 12 f.]. In the second, a fixed share goes to
+steps and a pool is bound to named criteria, typically method points (*Strukturpunkte*) for structure,
+appraisal style and language, for which 15 to 25% is proposed [@strecker2026ki, p. 14]; the same
+criteria can instead be credited within each section, the option we propose. In the third, the pool is free: the grader
+distributes it on an overall impression. A free pool is tied to nothing a second
+grader or a model could check and reintroduces the variance the sheet was meant to remove, so it has
+no place in a rubric judge; a criteria-bound pool is checkable as far as its criteria are stated and
+its share is fixed. A bounded overall component that must name what it rewards, such as the
+weighting of issues or an unforeseen but sound solution, can be stated, limited and reviewed, and
+belongs in the design space as a documented hybrid (@sec-open).
+
+*Alternatives and follow-on errors.* Where a dispute changes only a result or its reasons, a criterion
+can credit the argument whatever the result. Where another defensible decision removes or adds steps,
+the rubric needs a separate path whose steps are weighted for equal performance, not for equal length,
+and answers that take a path no one foresaw should go to the examiner. A worked example shows the
+three cases a rubric must keep apart. Suppose question A decides whether step B is reached. If the
+candidate denies A defensibly, B falls away and neither earns nor loses points, unless the task asks
+for an auxiliary opinion (*Hilfsgutachten*), in which case B is still expected. If the candidate
+denies A wrongly, what follows from that decision is a follow-on error, judged against the candidate's
+own decision with the weight of the wrong decision left to the examiner, while a new error inside B
+counts on its own. The rubric must therefore record why a step is absent, or it credits work not shown,
+or penalizes a lawful path for omitting steps it did not need; and a judge must not pick, from a
+contradictory answer, the path that scores best. Marking B as not applicable does not settle the total:
+if A carries four points and B six, a denominator of ten penalizes the lawful path, and rescaling to
+four turns a shorter performance into a full score. Alternative paths need a rule, set by the
+examiner, for comparable scoring opportunities and for the total.
+
+*Cardinal errors.* Examiners disagree on which errors can fail a script by themselves, and the
+literature asks each sheet to define them in advance, with minus points or a grade below the computed
+one [@strecker2026ki, pp. 15 f.]. The Polish case shows the stakes: a judge with the committee's criteria and
+solution key gave near-full marks to judgments that the committee had failed outright for fundamental
+errors [@karp2025llm]. Whether such a rule would have caught them was not tested, and a deduction is
+itself a grading decision that needs a professional and legal reason.
+
+*From points to grade.* The key that maps points to the legal grade scale is part of the examiner's
+evaluation: the performance required for a passing grade cannot be fixed rigidly without regard to
+average results [@bverfge84_34, pp. 51 f.], and once set, it applies to every script alike
+[@bverwg2018_6B71_17, para. 8]. Since
+models make mistakes when they add numbers [@kortemeyer2024grading; @baeumel2025lookahead], the sum and
+the key belong in code, not in the judge's output.
+
+*Who writes the rubric, and when.* The examiner sets the standard (L4). The rubric is fixed before
+grading; a defect found while grading is corrected in a new version, the change is documented, and
+every script graded under the old version is regraded on the changed criteria (L1). A model can draft the rubric, but drafting is more than
+extracting the reference solution: the solution does not say which steps earn which points, what can
+be expected under exam conditions, which alternatives are equal or which errors weigh most. A draft
+should mark, per criterion, whether it restates the task, the solution or the examiner's notes, adds
+an alternative, proposes a weight or assumes something the examiner must confirm, and the examiner
+must review and adopt it (@sec-open).
+
+# The trustworthy rubric judge {#sec-trust}
+
+Table \ref{tab:paradigms} shows no paradigm without weaknesses. P7 leads on validity, reasons and scale, but it
+is open to manipulation, its reliability is not guaranteed, and whether it credits alternatives or
+improves learning is untested. We call a rubric judge *trustworthy* when safeguards close these gaps
+far enough for the intended use, and we propose seven. Each has support in the literature, from law or
+from other domains; the combination is new, and @sec-open states the tests it must pass. Most
+safeguards would also fit a reference-based or pairwise judge, but only a rubric makes every reason
+checkable against a criterion. RULERS is the closest prior design outside law [@hong2026rulers]; what
+is specific here is the legal standard, with alternative paths, follow-on errors, examiner-set weights
+and the examiner's decision. Figure \ref{fig:judge} shows the design.
+
+```{=latex}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/judge.pdf}
+\Description{Flow diagram. A versioned rubric written or reviewed by the examiner and a pseudonymized answer go to an LLM judge that returns a verdict and a quote per criterion. Code checks each quote against the answer, then computes the total and grade. The result goes to the examiner as a proposal with flags; a failed check goes back to the judge or to the examiner. The examiner also receives the full script. Before use, the judge passes probes, repeated runs and calibration on human grades.}
+\caption{The trustworthy rubric judge. The rubric and the examiner are human, the judge is a model, the quote check and the total are code, and the dashed box is a procedure of code and humans run before use. A failed quote check is a system error, never a deduction; every grade is logged with its rubric version, model version, quotes and the examiner's changes (S7).}
+\label{fig:judge}
+\end{figure}
+```
+
+**S1 An instance rubric of atomic criteria that credits arguments.** Experts write, or review, criteria
+for each task that state the performance an answer must show [@arora2025healthbench;
+@drozdov2026legalresearchbench]. To respect the answer latitude (L2), criteria credit arguments,
+alternatives get paths of their own, and follow-on errors are judged on the candidate's own decisions
+(@sec-design). Where a model drafts the rubric, an expert must review it, since generated rubrics fall short of
+expert ones [@wang2026generating; @dhole2026rubricrag]. The rubric is fixed before grading; a
+correction creates a new version that is applied to every script (L1). The rubric's weights are set by
+the examiner, and the arithmetic is done by code, because LLMs make mistakes when they add numbers
+[@kortemeyer2024grading]. No legal grader has yet been probed with alternative paths or follow-on
+errors; S3 makes both a standard probe.
+
+**S2 Evidence for every credit, checked in code.** The judge must quote the passage of the answer that
+earns each credit, and a program verifies that the quote is in the answer. Three questions are
+distinct: does the passage exist, does it mean in context what the judge says, and does that
+performance justify the points? A string check answers only the first. A quoted rule may be stated
+only to be rejected or withdrawn later, and an omission has no passage to quote and needs a reason of
+its own. An invalid quote is an error of the grading system, not of the
+candidate: it triggers a repeated run, an abstention or the examiner, never a deduction. The quote
+gives the examiner and the candidate the checkable textual basis for the reason behind each point
+(L3), beyond what the law requires [@bfh2014viib158]; the second and third questions remain the
+examiner's.
+
+**S3 Probes before use.** Before grading real answers, a judge and rubric must pass answers with
+known outcomes. Fake answers come first: empty and off-topic answers and copies of the
+fact pattern must score near zero, the reference solution must score high, and an answer with embedded
+instructions must not gain. Controlled variants of one real answer come second, each with its
+permitted change in score fixed in advance: irrelevant padding must not raise the score, a paraphrase
+that keeps the legal performance must not change it, a defensible
+alternative path must keep its credit, the removal of a decisive reason must lose it, and an appended
+instruction must change nothing. A follow-on error probe changes an upstream decision and keeps
+later steps consistent with it: the score may change only as the examiner's dependency rule says, and
+a new error inside a dependent step must still be found. Known
+attacks give the probe set [@raina2024llm; @zhao2025one; @li2026important; @milani2025when;
+@chen2024humans; @zheng2025cheating]; probes answer the AI Act's demand for robustness (L6) but show
+only that known attacks fail.
+
+**S4 Repeated runs and variance decomposition.** A judge grades the same answer differently on another
+run [@haldar2025rating; @schroeder2024trust]. Generalizability theory separates sources of error such
+as runs, judges and rubrics [@brennan2001generalizability], has been applied to LLM raters
+[@song2026exploring], and the rubric facet matters most where rubrics are generated: a poor rubric can make every grade consistent by forcing the same error on every
+script, so less spread is not success. Stability within a rubric, differences between rubrics,
+systematic severity and consequential errors must be reported apart, as equal standards (L1) and the
+AI Act's accuracy duty (L6) require. High self-consistency does not prove validity
+[@norman2026reliability; @sunkavalli2026llm], so S4 complements S5 and does not replace it.
+
+**S5 Calibration against independent human grades.** The judge is validated on a sample of answers
+graded blind and independently by humans, and its agreement is read against the agreement among the
+humans, for instance with the alternative annotator test [@calderon2025alternative;
+@nagl2026bengerdata]. The human grades must be independent, since
+second graders who see the first grade agree more [@vidalrodeiro2007agreement]. And where several grades are
+defensible, validation should accept a set of grades rather than one: judges selected against forced
+single labels performed up to 31% worse [@guerdan2025validating]. Calibration and the final test must
+use different data, split by task rather than by script if the claim is about new exams. Calibration
+must be repeated when the model changes: model updates shifted judge severity by up to 133 of 1,000
+points [@sunkavalli2026llm]. Calibration must also keep improvements in criterion application apart
+from changes to the standard: a learned transformation of criterion weights or of the point-to-grade
+mapping, such as the regression onto human scores in RULERS [@hong2026rulers], is a grading decision
+in its own right and must be reviewed and adopted by the examiner (L4).
+
+**S6 Escalation to the examiner.** The judge proposes, and the examiner decides (L4, L5). For a graded exam the examiner must
+read every script personally [@bverwg2002_6C7_02], so unflagged scripts are
+not waved through. Flags are not only confidence: answers on unforeseen paths,
+contradictions in the answer, criteria the judge could not apply, failed quote checks, zeroed credits
+and grades near the pass mark go to the examiner whatever its confidence, since a confidently
+wrong grade is the failure that matters. Where the judge is uncertain, it abstains; selective
+evaluation can guarantee a chosen level of human agreement on the retained cases [@jung2025trust] or
+raise it empirically [@kortemeyer2025assessing], an average that says nothing about one candidate.
+Since second readers are drawn towards a grade they have seen [@vidalrodeiro2007agreement], the
+examiner should form a view before seeing the model's grade. This is a method, not a legal duty:
+federal constitutional law does not forbid open second correction [@bverwg2002_6C7_02].
+Whether examiners catch a confidently wrong proposal is the test this safeguard must pass (@sec-open).
+
+**S7 Documentation and data protection.** Every grade records the rubric version, judge, model
+version, prompts, quotes and checks behind it, the judge's original proposal and every human change
+with its reason, kept apart as a corrected criterion application, a rubric change or a reasoned
+individual decision. This is the logging and
+transparency the AI Act requires (L6) and what a candidate may request where the grade is
+an automated decision [@cjeu2025dunbradstreet]. Pseudonymized
+scripts and local models are building blocks, not a data protection concept: the controller, the
+legal basis, access rights and retention, deletion, and any external service each need a
+decision of their own (L7).
+
+The safeguards have costs. Under strict quality targets the savings can be modest: in one calculus
+exam, about 70% of items had to go to humans to reach human accuracy [@kortemeyer2025artificial]. A
+trustworthy rubric judge therefore assists human graders; it does not replace them.
+
+# What the evidence supports {#sec-uses}
+
+The uses differ in stakes and in who bears an error, so the evidence supports them unequally.
+
+*Formative feedback.* Feedback on practice exams is where the case is strongest. Rubric use and
+feedback improve learning [@panadero2023effects; @wisniewski2020power], individual feedback raised law
+students' grades [@schwarcz2017impact], and the American Bar Association (ABA) now requires a formative assessment in every course
+of the first third of the J.D. [@aba2026standards]. A rubric judge can return, for each criterion, what was met,
+the passage that met it and what was missing. Whether model-written feedback improves learning in law
+is untested; students in German law still tended to prefer tutor feedback [@hackl2024kifeedback], and
+generous model grades mislead, so feedback should state its uncertainty.
+
+*Benchmarks of legal AI.* For comparing models, an expert-rubric judge validated against legal experts is
+now the best-supported design [@drozdov2026legalresearchbench; @shi2026plawbench].
+
+*A second reader in graded exams.* A rubric judge that flags scripts where its total and the
+examiner's differ is plausible, and a review of the largest discrepancies on US exams found errors by
+the professor as well as by the model [@cope2026grading], but it is barely tested. German law requires
+the examiner to decide (L4). Since the features of the procedure that shape the result, such as the
+number of examiners and the handling of their differences, must be fixed by rule
+[@bverwg2019_6C19_18, paras. 15 to 17], we argue that a machine role that shapes the assessment belongs
+in the exam regulations too, as pre-marking by assistants is admissible only where the procedure
+provides for it [@bverwg2002_6C7_02].
+
+*Grading without an examiner.* No study validates it for exams that count, and the legal obstacles
+are two and separate. German examination law
+requires the examiner's personal evaluation (L4), which no exception in data protection law removes.
+Art. 22 GDPR adds that a solely automated grade with legal effect needs one of the exceptions of its
+paragraph 2 and the safeguards that go with it (L5), which would have to be shown for the specific use.
+
+# Open problems {#sec-open}
+
+*Who writes the rubric, and how is a generated one judged?* Expert rubrics are the bottleneck.
+Generating them from the reference solution is the obvious step, but generated rubrics fell short of
+expert ones in the comparisons made so far, which generated them without a reference solution
+[@wang2026generating; @zhou2026rubricbench], the one legal set generated from expert solutions was
+only partly reviewed [@oh2026korean], and whether expert review can close the gap at acceptable cost
+is open; rubrics refined against human-scored answers matched detailed human-written ones in essay
+scoring [@harada2025automated], a route to which the caveat of S5 applies. A study of generated legal rubrics must validate three objects apart: the
+rubric as an instrument, its application to real scripts, and the whole workflow with the examiner in
+it. It needs serious comparators (an independent expert sheet, rubrics generated in one pass and step
+by step, the same after expert revision, and a reference-based judge without rubric), a split by task
+rather than by script, the expert sheet as a reference instrument rather than the only right answer, so
+that deviations are classified before they count as errors, and endpoints beyond correlation: wrong
+passes and fails, criterion errors, alternatives and follow-on errors, robustness to the probes of S3
+and the examiner's time.
+<!-- <<NAMED -->
+Our companion study on German exams
+starts this programme with generated sheets, their application, and an examiner's sheet as the
+reference [@nagl2027transformation].
+<!-- NAMED>> -->
+<!-- <<BLIND
+A companion study on German exams starts this programme with generated sheets, their application,
+and an examiner's sheet as the reference [@anon2027companion].
+BLIND>> -->
+
+*Holistic quality.* Some legal quality, such as weighing, judgment and persuasiveness, may resist
+criteria fixed in advance [@sadler2009indeterminacy; @yang2026judgmentbench]. Hybrids that add a
+bounded, reasoned overall component or a pairwise component to criterion checks (@sec-design) and
+document each share need testing.
+
+*The human reference.* Judges are calibrated against human graders who disagree with each other and
+carry their own biases [@hufeld2024; @towfigh2018geschlechts]. Matching them is a low bar, and matching
+their majority can silence a defensible minority reading [@akarajaradwong2026thai].
+
+*Teaching to the rubric.* Students given rubric feedback may learn the rubric rather than the law, as
+prompts optimized against a judge learn its disposition [@elganayni2026exploiting]; whether skill or
+only scores improve is open.
+
+*Beyond education.* The same design fits compliance checks, where LLMs test documentation
+against the AI Act [@marino2025airegbench] or privacy policies against the GDPR [@cory2025wordlevel];
+whether the safeguards transfer is open.
+
+# Limitations {#sec-limitations}
+
+<!-- <<NAMED -->
+Our search is structured but not exhaustive, and several of the most relevant studies are 2026
+preprints. The ratings in Table \ref{tab:paradigms} are one author's reading
+of uneven evidence, much of it from outside law. Several entries in Table \ref{tab:studies} share data or instruments (marked
+*reused*) and BenGER is our own, so the number of papers overstates the number of independent
+confirmations. German law is the worked example, and other jurisdictions constrain grading
+differently. Five cited works are our own, one of them in preparation [@nagl2026bengerdata;
+@nagl2026benger; @nagl2025courtpressger; @elganayni2026exploiting; @nagl2027transformation], and the
+author works on rubric judges, which may bias the reading towards them; we have tried to ask the same
+questions of every study.
+<!-- NAMED>> -->
+<!-- <<BLIND
+Our search is structured but not exhaustive, and several of the most relevant studies are 2026
+preprints. The ratings in Table \ref{tab:paradigms} are one author's reading
+of uneven evidence, much of it from outside law. Several entries in Table \ref{tab:studies} share data
+or instruments (marked *reused*), so the number of papers overstates the number of independent
+confirmations. German law is the worked example, and other jurisdictions constrain grading
+differently. The author works on rubric judges, which may bias the reading towards them; we have
+tried to ask the same questions of every study.
+BLIND>> -->
+
+# Conclusion {#sec-conclusion}
+
+The evidence from law, education and NLP shows that a
+rubric written for the task is the strongest lever for agreement with human graders, and examination
+law shows why rubric-centred grading is the family worth building on: it makes the standard explicit,
+its application contestable and the decision the examiner's. What the evidence
+does not yet show is that any judge credits defensible alternatives, counts a follow-on error once,
+resists manipulation, or is corrected by examiners when it is confidently wrong. The trustworthy
+rubric judge is our answer to these gaps: seven safeguards, each tied to a legal requirement, and a
+test programme for what is not yet shown. Today it is best placed for feedback and benchmarks, and as
+an assistant, not a replacement, where grades count.
+
+<!-- <<NAMED -->
+```{=latex}
+\begin{acks}
+```
+This work is generously funded by the Daimler Benz Foundation as part of project TITAN (*Technologische
+Intelligenz zur Transformation, Automatisierung und Nutzerorientierung des Justizsystems*) and by the
+German Federal Ministry of Justice as part of the *Digitalisierungsinitiative des Bundes für die
+Justiz* under the GSJ project (*Generatives Sprachmodell der Justiz*), a collaboration between the
+justice ministries of North Rhine-Westphalia and Bavaria, TU Munich, and the University of Cologne.
+Claude Opus 5.5, Claude Fable 5.1 and GPT-6 Astra helped with the literature search and the writing;
+the author checked every cited claim against its source and takes full responsibility for all text.
+```{=latex}
+\end{acks}
+```
+<!-- NAMED>> -->
+<!-- <<BLIND
+```{=latex}
+\section*{AI usage disclosure}
+```
+Claude Opus 5.5, Claude Fable 5.1 and GPT-6 Astra helped with the literature search and the writing;
+the author checked every cited claim against its source and takes full responsibility for all text.
+BLIND>> -->
+
+```{=latex}
+\section*{References}
+```
+
+::: {#refs}
+:::
