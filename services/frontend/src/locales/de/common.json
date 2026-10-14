@@ -3524,7 +3524,7 @@
       "citations": [
         {
           "label": "BenGER Plattform",
-          "bibtex": "@inproceedings{nagl2026benger,\n  title={{BenGER}: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks},\n  author={Nagl, Sebastian and Grabmair, Matthias},\n  booktitle={Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)},\n  year={2026},\n  address={Singapore}\n}"
+          "bibtex": "@inproceedings{nagl2026benger,\n  title={{BenGER Platform}: A Collaborative Web Platform for End-to-End Benchmarking of {German} Legal Tasks},\n  author={Nagl, Sebastian and Grabmair, Matthias},\n  booktitle={Proceedings of the Twenty-First International Conference on Artificial Intelligence and Law (ICAIL 2026)},\n  publisher={ACM},\n  year={2026},\n  address={Singapore}\n}"
         },
         {
           "label": "BenGER Benchmark-Datensatz",

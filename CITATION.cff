@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-title: "BenGER: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
+title: "BenGER Platform: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
@@ -19,14 +19,17 @@ keywords:
   - evaluation
 preferred-citation:
   type: conference-paper
-  title: "BenGER: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
+  title: "BenGER Platform: A Collaborative Web Platform for End-to-End Benchmarking of German Legal Tasks"
   authors:
     - family-names: Nagl
       given-names: Sebastian
     - family-names: Grabmair
       given-names: Matthias
-  collection-title: "Proceedings of the International Conference on Artificial Intelligence and Law (ICAIL)"
+  collection-title: "Proceedings of the Twenty-First International Conference on Artificial Intelligence and Law (ICAIL 2026)"
+  publisher:
+    name: "ACM"
   year: 2026
+  url: "https://arxiv.org/abs/2604.13583"
   conference:
     name: "ICAIL 2026"
     city: Singapore
@@ -59,6 +62,14 @@ references:
         given-names: Matthias
     year: 2026
     url: "https://arxiv.org/abs/2605.28183"
-    doi: 10.5281/zenodo.20409635
+    doi: 10.5281/zenodo.20489788
     license: CC-BY-4.0
-    notes: "arXiv preprint 2605.28183; Zenodo archival snapshot at DOI 10.5281/zenodo.20409635."
+    notes: "Findings of EMNLP 2026; arXiv preprint 2605.28183; Zenodo archival snapshot v2.0 at DOI 10.5281/zenodo.20489788 (v1.0: 10.5281/zenodo.20409635)."
+  # The SoK on grading open-text legal answers — see publications/SoK_CSLAW/.
+  - type: unpublished
+    title: "SoK: Grading Open-Text Legal Answers, from Law School Exams to Trustworthy Rubric Judges"
+    authors:
+      - family-names: Nagl
+        given-names: Sebastian
+    year: 2026
+    notes: "Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27) on 2026-10-14; arXiv preprint submitted the same day."
