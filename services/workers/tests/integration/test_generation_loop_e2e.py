@@ -186,6 +186,75 @@ def test_generation_loop_multirun_derives_completed_from_children(
     assert {c.run_index for c in children} == {0, 1, 2}
 
 
+def test_generation_loop_reused_existing_response_is_not_a_failure(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    patch_ai_service,
+):
+    """A missing-mode retry of a cell whose earlier parent already holds a
+    completed response with the same prompt skips the LLM call. That trial is
+    done, not failed: it used to latch the new parent to "Trial failed", so the
+    cell stayed failed and every further retry failed the same way."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id, label_config=None)
+    task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
+    old = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    old.status = "completed"
+    _make_child(db_conn, old, 0, task.id, model.id)
+    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    db_conn.commit()
+
+    result = tasks.generate_llm_responses(
+        generation_id=rg.id,
+        config_data={"project_id": project.id, "rate_limit_delay": 0},
+        model_id=model.id,
+        user_id=user.id,
+        run_index=0,
+    )
+
+    assert result["status"] == "skipped"
+    assert patch_ai_service.calls == 0
+    db_conn.expire(rg)
+    assert rg.status == "completed"
+    assert rg.error_message is None
+    assert (
+        db_conn.query(Generation).filter(Generation.generation_id == rg.id).count()
+        == 0
+    )
+
+
+def test_generation_loop_multirun_counts_reused_run_index(
+    db_conn, make_user, make_llm_model, make_project, make_task,
+    patch_ai_service,
+):
+    """Multi-run: run_index 0 is answered by an earlier parent, run_index 1 is
+    not. The reusing trial leaves the parent running; the generating trial then
+    completes it, because the derivation counts the reused run_index too."""
+    user = make_user()
+    model = make_llm_model(provider="OpenAI")
+    project = make_project(created_by=user.id, label_config=None)
+    task = make_task(project.id, {"text": "Frage"}, created_by=user.id)
+    old = _make_parent(db_conn, project.id, task.id, model.id, user.id)
+    old.status = "completed"
+    _make_child(db_conn, old, 0, task.id, model.id)
+    rg = _make_parent(db_conn, project.id, task.id, model.id, user.id,
+                      runs_requested=2)
+    db_conn.commit()
+
+    for run_index, expected in ((0, "running"), (1, "completed")):
+        tasks.generate_llm_responses(
+            generation_id=rg.id,
+            config_data={"project_id": project.id, "rate_limit_delay": 0},
+            model_id=model.id,
+            user_id=user.id,
+            run_index=run_index,
+        )
+        db_conn.expire(rg)
+        assert rg.status == expected, f"after trial {run_index}"
+    assert rg.runs_completed == 2
+    assert patch_ai_service.calls == 1
+
+
 def test_generation_loop_failed_trial_latches_even_if_not_last(
     db_conn, make_user, make_llm_model, make_project, make_task, monkeypatch,
 ):
