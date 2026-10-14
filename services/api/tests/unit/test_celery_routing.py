@@ -80,3 +80,31 @@ def test_no_task_routes_to_a_retired_queue(router):
             router.route({}, task_name)["queue"].name
             not in celery_queues.LEGACY_QUEUES
         )
+
+
+@pytest.mark.parametrize(
+    "size,expected",
+    [
+        (0, celery_queues.INTERACTIVE),
+        (40_000, celery_queues.INTERACTIVE),
+        (celery_queues.INTERACTIVE_IMPORT_MAX_BYTES, celery_queues.INTERACTIVE),
+        (celery_queues.INTERACTIVE_IMPORT_MAX_BYTES + 1, celery_queues.BULK),
+        (900 * 1024 * 1024, celery_queues.BULK),
+        # Unknown size (head_object failed, local double without the file).
+        (None, celery_queues.BULK),
+        (-1, celery_queues.BULK),
+        ("40000", celery_queues.BULK),
+    ],
+)
+def test_import_queue_for_size(size, expected):
+    """Small imports (wizard data step) must not wait behind a generation run
+    on `bulk`; big or unknown-size ones must stay there."""
+    assert celery_queues.import_queue_for_size(size) == expected
+
+
+def test_interactive_import_override_reaches_the_router(router):
+    """The endpoints pass the size-picked queue as ``queue=``; the router must
+    honour it over the table's `bulk` default for tasks.import_project."""
+    assert router.route({"queue": celery_queues.INTERACTIVE}, "tasks.import_project")[
+        "queue"
+    ].name == celery_queues.INTERACTIVE

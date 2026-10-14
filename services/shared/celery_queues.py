@@ -125,8 +125,27 @@ TASK_QUEUES: dict[str, str] = {
     # --- bulk: long single jobs. NOT on `aux` -- two concurrent exports would
     # block invitation mail, which is the same starvation just relocated.
     "tasks.export_project": BULK,
+    # Default only: the import endpoints route small artifacts to
+    # `interactive` per send (see import_queue_for_size below).
     "tasks.import_project": BULK,
 }
+
+# Imports up to this size go to `interactive` instead of `bulk`. That covers
+# the everyday case: the creation wizard's data step and "Daten importieren"
+# with a handful of tasks (Sachverhalt + Musterloesung from a Word file), where
+# a person watches a spinner. On `bulk` those waited for one of the four slots
+# a generation run or an evaluation chord holds for minutes per task. Bigger
+# artifacts (full project exports with thousands of tasks) stay on `bulk`, and
+# so does an import whose size is unknown. The task keeps its bulk time limits
+# on either queue, because annotations resolve on the task NAME.
+INTERACTIVE_IMPORT_MAX_BYTES = 5 * 1024 * 1024
+
+
+def import_queue_for_size(size_bytes) -> str:
+    """Queue for a ``tasks.import_project`` send, from the artifact's size."""
+    if isinstance(size_bytes, int) and 0 <= size_bytes <= INTERACTIVE_IMPORT_MAX_BYTES:
+        return INTERACTIVE
+    return TASK_QUEUES["tasks.import_project"]
 
 # Extended task names, tracked separately so the platform-side test can assert
 # they are still routed even though `benger_extended` is not installed there.
