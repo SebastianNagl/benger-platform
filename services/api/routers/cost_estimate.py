@@ -28,7 +28,11 @@ from routers.projects.helpers import (
     check_project_accessible_async,
 )
 from evaluation_planning import judge_call_counts, judge_runs, plan_evaluation
-from services.generation_planning import plan_generation_cells_sync, run_structure_keys
+from services.generation_planning import (
+    StructureKeysRequired,
+    plan_generation_cells_sync,
+    run_structure_keys,
+)
 from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
     JUDGE_OUTPUT_FIXED_TOKENS,
@@ -353,7 +357,7 @@ def _count_cells_to_generate(
     db: Session,
     project_id: str,
     model_id: str,
-    structure_keys: Optional[List[Optional[str]]],
+    structure_keys: List[Optional[str]],
     generation_mode: Optional[str],
 ) -> int:
     """(task, structure) cells a generation run queues for ``model_id``, from
@@ -368,7 +372,7 @@ def _count_cells_to_generate(
             project_id,
             task_ids,
             [model_id],
-            list(structure_keys) if structure_keys else [None],
+            list(structure_keys),
             generation_mode,
         )
     )
@@ -504,10 +508,18 @@ def _compute_cost_estimate_impl(
         calls_by_judge = _eval_judge_calls(db, request, run_configs)
     else:
         # Generation: the structures the run generates, as the endpoint
-        # resolves them.
-        gen_structure_keys = run_structure_keys(
-            project.generation_config, request.structure_keys
-        )
+        # resolves them. An explicit [] is the dialog with no structure
+        # ticked (it won't start like that): nothing to price. Omitting the
+        # field on a project with structures is a 422, as on the endpoint.
+        if request.structure_keys == []:
+            gen_structure_keys = []
+        else:
+            try:
+                gen_structure_keys = run_structure_keys(
+                    project.generation_config, request.structure_keys
+                )
+            except StructureKeysRequired as e:
+                raise HTTPException(status_code=422, detail=str(e))
 
     per_model_costs: List[PerModelCost] = []
     total_usd = 0.0

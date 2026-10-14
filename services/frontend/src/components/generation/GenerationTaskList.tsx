@@ -377,8 +377,19 @@ export function GenerationTaskList({
       try {
         const generationConfig = project.generation_config || ({} as any)
         const promptStructures = generationConfig.prompt_structures || {}
-        const allKeys = Object.keys(promptStructures)
-        const keysToUse = selectedStructureKeys || allKeys
+        // Without an explicit pick, regenerate the project's active
+        // structures, else the ones the grid shows. Never the structures
+        // flagged exclude_from_generation (e.g. Bewertungsbogen prompts):
+        // sending every key used to generate those too, at full cost.
+        const generationKeys = Object.keys(promptStructures).filter(
+          (key) => !promptStructures[key]?.exclude_from_generation,
+        )
+        const activeKeys = (
+          generationConfig.selected_configuration?.active_structures || []
+        ).filter((key: string) => generationKeys.includes(key))
+        const keysToUse =
+          selectedStructureKeys ||
+          (activeKeys.length > 0 ? activeKeys : generationKeys)
 
         const requestBody: Record<string, any> = {
           mode: 'single',

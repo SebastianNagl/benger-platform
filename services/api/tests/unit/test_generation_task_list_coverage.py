@@ -775,9 +775,106 @@ class TestStartGeneration:
         assert resp.json()["tasks_queued"] == 1
 
     @pytest.mark.asyncio
-    async def test_with_structure_keys_from_config(self, async_test_client, async_test_db):
-        """Structure keys default from prompt_structures (2 keys) -> 2 cells
-        for one task and one model."""
+    async def test_omitted_structure_keys_is_422_when_project_has_structures(
+        self, async_test_client, async_test_db
+    ):
+        """A project with prompt structures must name the ones to generate.
+        Omitting the field used to generate every structure (2-3x the cost);
+        now it is a 422 that queues nothing and persists none of the request's
+        parameters."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {
+                    "models": ["gpt-4"],
+                    "parameters": {"max_tokens": 4000},
+                },
+                "prompt_structures": {
+                    "default": {"name": "Default"},
+                    "detailed": {"name": "Detailed"},
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={
+                    "mode": "all",
+                    "parameters": {"temperature": 0.5, "max_tokens": 1234, "seed": 7},
+                },
+            )
+            mock_celery.send_task.assert_not_called()
+        assert resp.status_code == 422
+        assert "structure_keys is required" in resp.json()["detail"]
+        assert "['default', 'detailed']" in resp.json()["detail"]
+
+        await async_test_db.refresh(project)
+        assert (
+            project.generation_config["selected_configuration"]["parameters"]["max_tokens"]
+            == 4000
+        )
+        rows = (
+            await async_test_db.execute(
+                select(DBResponseGeneration).where(DBResponseGeneration.project_id == project.id)
+            )
+        ).scalars().all()
+        assert rows == []
+
+    @pytest.mark.asyncio
+    async def test_model_configs_merge_into_stored_ones(
+        self, async_test_client, async_test_db
+    ):
+        """A request's model_configs merge per model into the stored map.
+        Replacing it wiped every other model's settings whenever the dialog
+        sent one override (e.g. GLM-5.2's 64k cap on ZJS). null removes."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {
+                    "models": ["gpt-4"],
+                    "model_configs": {
+                        "glm": {"max_tokens": 64000, "temperature": 0.7},
+                        "qwen": {"max_tokens": 16000, "temperature": 0.7},
+                        "old": {"max_tokens": 2000},
+                    },
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={
+                    "mode": "all",
+                    "model_ids": ["gpt-4"],
+                    "model_configs": {
+                        "gpt-4": {"max_tokens": 3000},
+                        "qwen": {"max_tokens": 12000},
+                        "old": None,
+                    },
+                },
+            )
+        assert resp.status_code == 200, resp.text
+        await async_test_db.refresh(project)
+        assert project.generation_config["selected_configuration"]["model_configs"] == {
+            "glm": {"max_tokens": 64000, "temperature": 0.7},
+            "qwen": {"max_tokens": 12000, "temperature": 0.7},
+            "gpt-4": {"max_tokens": 3000},
+        }
+
+    @pytest.mark.asyncio
+    async def test_named_structure_keys_queue_one_cell_each(
+        self, async_test_client, async_test_db
+    ):
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
@@ -796,18 +893,17 @@ class TestStartGeneration:
             mock_celery.send_task = Mock()
             resp = await async_test_client.post(
                 f"/api/generation-tasks/projects/{project.id}/generate",
-                json={"mode": "all"},
+                json={"mode": "all", "structure_keys": ["detailed"]},
             )
         assert resp.status_code == 200
-        assert resp.json()["tasks_queued"] == 2
+        assert resp.json()["tasks_queued"] == 1
 
     @pytest.mark.asyncio
-    async def test_implicit_structures_skip_exclude_from_generation(
+    async def test_required_structures_exclude_exclude_from_generation(
         self, async_test_client, async_test_db
     ):
-        """A structure flagged exclude_from_generation (e.g. a Bewertungsbogen
-        prompt) is skipped when the run falls back to all prompt_structures —
-        one cell instead of two."""
+        """The 422 lists only generation structures: a structure flagged
+        exclude_from_generation (e.g. a Bewertungsbogen prompt) is not one."""
         admin = await _seed_user(async_test_db, is_superadmin=True)
         project = await _seed_project(
             async_test_db, admin,
@@ -815,6 +911,37 @@ class TestStartGeneration:
                 "selected_configuration": {"models": ["gpt-4"]},
                 "prompt_structures": {
                     "default": {"name": "Default"},
+                    "bewertungsbogen": {
+                        "name": "Bewertungsbogen",
+                        "exclude_from_generation": True,
+                    },
+                },
+            },
+        )
+        await _seed_task(async_test_db, project, admin)
+        await async_test_db.commit()
+
+        with patch("routers.generation_task_list.celery_app") as mock_celery, _as_user(admin):
+            mock_celery.send_task = Mock()
+            resp = await async_test_client.post(
+                f"/api/generation-tasks/projects/{project.id}/generate",
+                json={"mode": "all"},
+            )
+        assert resp.status_code == 422
+        assert "['default']" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_only_excluded_structures_generates_without_structure(
+        self, async_test_client, async_test_db
+    ):
+        """No generation structures at all (only excluded ones) is the
+        plain-task-data case: no field needed, one cell per task."""
+        admin = await _seed_user(async_test_db, is_superadmin=True)
+        project = await _seed_project(
+            async_test_db, admin,
+            generation_config={
+                "selected_configuration": {"models": ["gpt-4"]},
+                "prompt_structures": {
                     "bewertungsbogen": {
                         "name": "Bewertungsbogen",
                         "exclude_from_generation": True,
