@@ -587,6 +587,58 @@ class TestGenerationCells:
         assert _per_model(body_resp.json(), PRICED_MODEL)["cells_to_generate"] == 6
 
     @pytest.mark.asyncio
+    async def test_structures_project_requires_structure_keys(
+        self, async_test_client, async_test_db
+    ):
+        """Same rule as the generate endpoint: a project with prompt
+        structures must name them, so an estimate without the field is a 422
+        instead of pricing every structure."""
+        actor = await _seed_user(async_test_db)
+        await _seed_model(async_test_db, PRICED_MODEL)
+        project = await _seed_project(
+            async_test_db, actor, num_tasks=3,
+            generation_config={"prompt_structures": {"s1": {}, "s2": {}}},
+        )
+        pid = project.id
+        await async_test_db.commit()
+        with _as_user(actor):
+            resp = await _post(
+                async_test_client,
+                project_id=pid,
+                mode="generation",
+                model_ids=[PRICED_MODEL],
+                generation_mode="all",
+            )
+        assert resp.status_code == 422, resp.text
+        assert "structure_keys is required" in resp.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_empty_structure_selection_prices_nothing(
+        self, async_test_client, async_test_db
+    ):
+        """The dialog with no structure ticked sends []: nothing would run,
+        so nothing is priced (it used to price every structure)."""
+        actor = await _seed_user(async_test_db)
+        await _seed_model(async_test_db, PRICED_MODEL)
+        project = await _seed_project(
+            async_test_db, actor, num_tasks=3,
+            generation_config={"prompt_structures": {"s1": {}, "s2": {}}},
+        )
+        pid = project.id
+        await async_test_db.commit()
+        with _as_user(actor):
+            resp = await _post(
+                async_test_client,
+                project_id=pid,
+                mode="generation",
+                model_ids=[PRICED_MODEL],
+                generation_mode="all",
+                structure_keys=[],
+            )
+        assert resp.status_code == 200, resp.text
+        assert _per_model(resp.json(), PRICED_MODEL)["cells_to_generate"] == 0
+
+    @pytest.mark.asyncio
     async def test_mode_missing_skips_completed_counts_failed(
         self, async_test_client, async_test_db
     ):

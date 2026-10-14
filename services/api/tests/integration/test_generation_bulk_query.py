@@ -280,7 +280,7 @@ class TestStartGenerationMissingModeDecisionMatrix:
             with _as_user(admin):
                 resp = await async_test_client.post(
                     f"/api/generation-tasks/projects/{project_id}/generate",
-                    json={"mode": "missing"},
+                    json={"mode": "missing", "structure_keys": ["sk1", "sk2"]},
                 )
         assert resp.status_code == 200, resp.text
         body = resp.json()
@@ -637,7 +637,7 @@ class TestCountCellsBulkQuery:
 
     @pytest.mark.asyncio
     async def test_sk_none_ignores_keyed_rows(self, async_test_db):
-        """Legacy projects with no structures → structure_keys=None. The
+        """Legacy projects with no structures → structure_keys=[None]. The
         helper must only consider NULL rows; non-null-keyed rows must NOT
         rescue the cell from counting."""
         admin = await _make_superadmin(async_test_db)
@@ -659,7 +659,7 @@ class TestCountCellsBulkQuery:
         await async_test_db.commit()
 
         n = await async_test_db.run_sync(
-            lambda s: self._count(s, project_id, None)
+            lambda s: self._count(s, project_id, [None])
         )
         assert n == 1
 

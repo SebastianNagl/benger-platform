@@ -245,6 +245,53 @@ describe('GenerationTaskList context menu + cell generation', () => {
     })
   })
 
+  it.each([
+    [
+      'the active structures',
+      {
+        prompt_structures: { gliederung: {}, loesung: {} },
+        selected_configuration: { active_structures: ['loesung'] },
+      },
+      ['loesung'],
+    ],
+    [
+      'the generation structures, never excluded ones',
+      {
+        prompt_structures: {
+          gliederung: {},
+          loesung: {},
+          bewertungsbogen: { exclude_from_generation: true },
+        },
+      },
+      ['gliederung', 'loesung'],
+    ],
+  ])(
+    'context menu "Generate" sends %s',
+    async (_label, generationConfig, expectedKeys) => {
+      mockGet.mockImplementation((url: string) => {
+        if (url.startsWith('/projects/'))
+          return Promise.resolve({
+            ...projectPayload,
+            generation_config: generationConfig,
+          })
+        return Promise.resolve(taskStatusPayload)
+      })
+      mockPost.mockResolvedValue({ queued: true })
+      render(<GenerationTaskList projectId="test-project" />)
+      await screen.findByText('First task content')
+
+      fireEvent.contextMenu(cellForModel('model-2'))
+      await userEvent.click(await screen.findByText('Generate'))
+
+      await waitFor(() => {
+        expect(mockPost).toHaveBeenCalledWith(
+          '/generation-tasks/projects/test-project/generate',
+          expect.objectContaining({ structure_keys: expectedKeys }),
+        )
+      })
+    },
+  )
+
   it('context menu "View Results" opens the result modal', async () => {
     render(<GenerationTaskList projectId="test-project" />)
     await screen.findByText('First task content')
