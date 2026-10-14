@@ -7,6 +7,13 @@
  * per project (`useBillingOrganization`).
  */
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import { useBillingOrganization } from '@/hooks/useBillingOrganization'
 
@@ -24,36 +31,44 @@ export function BillingOrgSelect({ projectId }: { projectId?: string | null }) {
   const defaultOption = options.find((o) => o.id === defaultOrganizationId)
   const describe = (name: string, providers: string[]) =>
     providers.length > 0 ? `${name} (${providers.join(', ')})` : name
+  const defaultLabel = t('billingChoice.default', {
+    name: defaultOption
+      ? describe(defaultOption.name, defaultOption.providers)
+      : t('billingChoice.personalKeys'),
+  })
+  const picked = options.find((o) => o.id === billingOrganizationId)
+  const value = picked ? picked.id : ''
 
   return (
     <div>
       <label
         htmlFor="billing-org-select"
-        className="mb-2 block text-sm font-medium text-gray-700 dark:text-zinc-300"
+        className="mb-2 block text-sm font-medium text-zinc-900 dark:text-white"
       >
         {t('billingChoice.label')}
       </label>
-      <select
-        id="billing-org-select"
-        data-testid="billing-org-select"
-        value={billingOrganizationId ?? ''}
-        onChange={(e) => setBillingOrganizationId(e.target.value || null)}
-        className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+      {/* The default entry has the empty value, which the shared Select
+          cannot look up on its own, so the trigger text is passed in. */}
+      <Select
+        value={value}
+        onValueChange={(next) => setBillingOrganizationId(next || null)}
+        displayValue={
+          picked ? describe(picked.name, picked.providers) : defaultLabel
+        }
       >
-        <option value="">
-          {t('billingChoice.default', {
-            name: defaultOption
-              ? describe(defaultOption.name, defaultOption.providers)
-              : t('billingChoice.personalKeys'),
-          })}
-        </option>
-        {options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {describe(o.name, o.providers)}
-          </option>
-        ))}
-      </select>
-      <p className="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+        <SelectTrigger id="billing-org-select" data-testid="billing-org-select">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">{defaultLabel}</SelectItem>
+          {options.map((o) => (
+            <SelectItem key={o.id} value={o.id}>
+              {describe(o.name, o.providers)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         {t('billingChoice.hint')}
       </p>
     </div>

@@ -69,11 +69,12 @@ def test_worker_filters_generations_by_structure_key():
     `structure_key.in_(structure_keys)` when the kwarg is set. Pin the join
     + filter shape — a missing join or a filter on the wrong column would
     silently grade every structure's generations."""
-    import tasks
+    import evaluation_planning
 
-    src = inspect.getsource(tasks)
+    # The enumeration lives in the shared planner the worker plans with.
+    src = inspect.getsource(evaluation_planning)
     assert "if structure_keys:" in src, (
-        "worker must guard the structure filter with an if-check"
+        "planner must guard the structure filter with an if-check"
     )
     assert re.search(
         r"\.join\(\s*ResponseGeneration,\s*"

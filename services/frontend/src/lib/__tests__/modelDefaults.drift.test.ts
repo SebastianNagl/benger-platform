@@ -29,9 +29,16 @@ describe('DEFAULT_MODEL_ID', () => {
       fs.readFileSync(path.join(servicesDir, 'workers', file), 'utf8')
     const tasks = read('tasks.py')
     const judgeEvaluator = read('evaluation/judge_evaluator.py')
-    expect(tasks).toContain(
+    // The config's judge list is read by the shared planner, which the
+    // worker and the cost estimate both use.
+    const planner = fs.readFileSync(
+      path.join(servicesDir, 'shared', 'evaluation_planning.py'),
+      'utf8',
+    )
+    expect(planner).toContain(
       'params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID',
     )
+    expect(tasks).toContain('import resolve_judges as _resolve_judges')
     expect(tasks).toContain(
       'judge_entry.get("judge_model_id") or DEFAULT_JUDGE_MODEL_ID',
     )
@@ -39,7 +46,7 @@ describe('DEFAULT_MODEL_ID', () => {
       'params.get("judge_model") or DEFAULT_JUDGE_MODEL_ID',
     )
     // A literal fallback next to the key is how the two drifted.
-    for (const source of [tasks, judgeEvaluator]) {
+    for (const source of [tasks, judgeEvaluator, planner]) {
       expect(source).not.toMatch(/get\("judge_model(_id)?",\s*"/)
     }
   })

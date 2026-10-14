@@ -68,33 +68,35 @@ def test_run_evaluation_accepts_existing_scope_kwargs():
 
 
 def test_worker_imports_shared_classifier():
-    """The worker delegates field classification to the shared module
-    (B1+B2). If the worker inlines its own classifier again, the cost
-    endpoint will silently drift away from the worker. This pins the
-    imported name."""
+    """Field classification is delegated to the shared module (B1+B2), via
+    the shared planner the worker and the cost estimate both enumerate with.
+    If either inlines its own classifier again, the two drift apart."""
+    import evaluation_planning
     import tasks
-    src = inspect.getsource(tasks)
-    assert "from eval_field_classification import classify_pred_fields" in src, (
-        "worker must import classify_pred_fields from the shared module"
+
+    assert "from evaluation_planning import plan_evaluation" in inspect.getsource(tasks), (
+        "worker must enumerate through the shared planner"
     )
+    assert "from eval_field_classification import classify_pred_fields" in (
+        inspect.getsource(evaluation_planning)
+    ), "the planner must import classify_pred_fields from the shared module"
 
 
 def test_worker_filters_annotations_by_completed_by():
-    """The annotation-load query path must filter by
+    """The annotation enumeration must filter by
     `Annotation.completed_by.in_(annotator_user_ids)` when the kwarg is
     set. Pin the filter call shape — a typo'd column would silently
     return all annotations and the bug would only surface in production."""
-    import tasks
-    src = inspect.getsource(tasks)
-    # The filter line and its guarding conditional, allowed to be
-    # separated by other statements (e.g. the pre-count for logging).
+    import evaluation_planning
+
+    src = inspect.getsource(evaluation_planning)
     assert "if annotator_user_ids:" in src, (
-        "worker must guard the annotator filter with an if-check"
+        "planner must guard the annotator filter with an if-check"
     )
     assert re.search(
         r"\.filter\(\s*Annotation\.completed_by\.in_\(\s*annotator_user_ids\s*\)\s*\)",
         src,
-    ), "worker must apply the Annotation.completed_by filter"
+    ), "planner must apply the Annotation.completed_by filter"
 
 
 def test_worker_logs_scope_filters_at_run_start():

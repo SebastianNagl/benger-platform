@@ -1415,8 +1415,8 @@ describe('GenerationControlModal', () => {
       )
 
       // Overlay is rendered in a portal, so we need to search in document.body
-      const overlay = document.body.querySelector('.bg-gray-500\\/75')
-      expect(overlay).toHaveClass('bg-gray-500/75', 'fixed', 'inset-0')
+      const overlay = document.body.querySelector('.bg-black\\/30')
+      expect(overlay).toHaveClass('bg-black/30', 'fixed', 'inset-0')
     })
   })
 
