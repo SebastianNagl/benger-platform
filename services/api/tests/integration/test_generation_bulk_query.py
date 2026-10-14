@@ -200,8 +200,9 @@ async def _seed_response_gen(db, **kwargs) -> DBResponseGeneration:
 class TestStartGenerationMissingModeDecisionMatrix:
     """For every (no row / completed / failed / pending / running / cancelled /
     older-then-newer) state, mode="missing" must queue the same cells the
-    pre-fix per-cell loop would have. The bulk DISTINCT ON path must preserve
-    the `latest is None or latest.status == "failed"` semantics."""
+    pre-fix per-cell loop would have. The bulk DISTINCT ON path queues a cell
+    whose latest row is missing or ended without an answer (failed, stopped,
+    cancelled)."""
 
     @pytest.mark.asyncio
     async def test_missing_mode_queues_only_unfinished_or_failed_cells(
@@ -241,9 +242,10 @@ class TestStartGenerationMissingModeDecisionMatrix:
             (t1_id, "model-A", "sk2", "failed", 0),
             (t1_id, "model-B", "sk1", "failed", 0),
             (t1_id, "model-B", "sk2", "failed", 0),
-            # t2: pending / running / cancelled (treated as "exists, not failed")
-            #     → should NOT queue. Cancelled is the tricky one: it's not
-            #     "failed" so the per-cell loop skips it. We preserve that.
+            # t2: pending / running are still in flight → should NOT queue;
+            #     cancelled ended without an answer → should queue, like
+            #     stopped (ZJS Faelle, 2026-10-13: 579 stopped cells and
+            #     "missing" queued none of them).
             (t2_id, "model-A", "sk1", "pending", 0),
             (t2_id, "model-A", "sk2", "running", 0),
             (t2_id, "model-B", "sk1", "cancelled", 0),
@@ -256,6 +258,9 @@ class TestStartGenerationMissingModeDecisionMatrix:
             # And the reverse: older-failed-then-newer-completed → should NOT queue
             (t3_id, "model-A", "sk2", "failed", -3600),
             (t3_id, "model-A", "sk2", "completed", 0),
+            # Stopped by the user → no answer → queue; paused can resume → not.
+            (t3_id, "model-B", "sk1", "stopped", 0),
+            (t3_id, "model-B", "sk2", "paused", 0),
         ]
         for task_id, model_id, sk, status, age_offset in seeds:
             await _seed_response_gen(
@@ -281,18 +286,18 @@ class TestStartGenerationMissingModeDecisionMatrix:
         body = resp.json()
 
         # Build expected set: every (task, model, sk) cell whose latest row is
-        # None or "failed".
+        # None or ended without an answer (failed / stopped / cancelled).
         expected = {
             (t1_id, "model-A", "sk1"),
             (t1_id, "model-A", "sk2"),
             (t1_id, "model-B", "sk1"),
             (t1_id, "model-B", "sk2"),
+            (t2_id, "model-B", "sk1"),  # latest is cancelled
             (t2_id, "model-B", "sk2"),  # unseeded
             (t3_id, "model-A", "sk1"),  # latest is failed
             # t3 / model-A / sk2 has latest=completed → not queued
-            # All of t3 / model-B / * unseeded → queue
+            # t3 / model-B / sk1 latest stopped → queue; sk2 paused → not
             (t3_id, "model-B", "sk1"),
-            (t3_id, "model-B", "sk2"),
         }
         # tasks_queued is a count; the exact cells are the rows whose IDs are
         # returned in generation_job_ids (the handler inserts one new row per
@@ -587,6 +592,34 @@ class TestCountCellsBulkQuery:
             lambda s: self._count(s, project_id, ["sk-x"])
         )
         assert n == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "status,counted",
+        [("stopped", 1), ("cancelled", 1), ("paused", 0), ("running", 0)],
+    )
+    async def test_cells_without_an_answer_are_counted(
+        self, async_test_db, status, counted
+    ):
+        """The estimate counts the cells the run will queue: a stopped or
+        cancelled cell has no answer and is generated again; paused and
+        running are still in flight. ZJS Faelle showed $0.00 for 579 stopped
+        cells because only "failed" counted."""
+        admin = await _make_superadmin(async_test_db)
+        org = await _make_org(async_test_db)
+        data = await self._project_with_tasks(async_test_db, admin, org, num_tasks=1)
+        project_id = data["project"].id
+        await _seed_response_gen(
+            async_test_db, project_id=project_id, task_id=data["tasks"][0].id,
+            model_id="m-cost", structure_key="sk-x",
+            status=status, created_by=admin.id,
+        )
+        await async_test_db.commit()
+
+        n = await async_test_db.run_sync(
+            lambda s: self._count(s, project_id, ["sk-x"])
+        )
+        assert n == counted
 
     @pytest.mark.asyncio
     async def test_no_rows_at_all_cell_counted(self, async_test_db):

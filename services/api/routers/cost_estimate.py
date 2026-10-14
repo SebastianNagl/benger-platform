@@ -24,6 +24,7 @@ from auth_module import require_user
 from database import get_async_db
 from models import LLMModel, User
 from project_models import Project
+from routers.generation_task_list import MISSING_MODE_REGENERATE_STATUSES
 from routers.projects.helpers import (
     check_project_accessible_async,
 )
@@ -589,9 +590,10 @@ def _count_cells_to_generate(
     - mode in ('all', 'single', None): every (task, structure) cell counts,
       regardless of existing generations.
     - mode == 'missing': a cell counts only when the latest matching
-      `response_generations` row has status='failed' or no row exists
-      at all. Cells whose latest is `completed`/`pending`/`running` are
-      skipped — they wouldn't be re-queued.
+      `response_generations` row ended without an answer (failed, stopped,
+      cancelled; ``MISSING_MODE_REGENERATE_STATUSES``) or no row exists at
+      all. Cells whose latest is `completed`/`pending`/`running`/`paused`
+      are skipped — they wouldn't be re-queued.
 
     The cell count, not raw task count, is what drives cost: with one
     structure active and 14/15 tasks already succeeded, "Generate missing"
@@ -678,7 +680,7 @@ def _count_cells_to_generate(
                     status_val = null_map.get(task_id)
             else:
                 status_val = null_map.get(task_id)
-            if status_val is None or status_val == "failed":
+            if status_val is None or status_val in MISSING_MODE_REGENERATE_STATUSES:
                 cells += 1
     return cells
 
