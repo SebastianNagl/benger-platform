@@ -22,11 +22,13 @@ from models import Generation as DBGeneration
 from models import ResponseGeneration as DBResponseGeneration
 from models import User as DBUser
 from project_models import Project, Task
+from utils.json_merge import deep_merge_dicts
 from services.generation_planning import (
     implicit_structure_keys as _implicit_structure_keys,
     plan_generation_cells,
     resolve_cell as _resolve_cell,
     run_structure_keys,
+    StructureKeysRequired,
 )
 from routers.generation_revoke import (
     generation_run_task_ids,
@@ -126,11 +128,17 @@ class GenerationRequest(BaseModel):
     mode: str = Field(..., pattern="^(all|missing|single)$", description="Generate all, only missing, or a specific task-model cell")
     model_ids: Optional[List[str]] = None  # If not provided, use all project models
     task_ids: Optional[List[str]] = None  # If not provided, use all project tasks
-    structure_keys: Optional[List[str]] = None  # If not provided, use active_structures from config
+    # Required when the project has prompt structures (422 otherwise); a
+    # project without structures generates from the task data alone.
+    structure_keys: Optional[List[str]] = None
     parameters: Optional[GenerationParameters] = None  # LLM generation parameters
-    model_configs: Optional[Dict[str, Dict[str, Any]]] = Field(
+    model_configs: Optional[Dict[str, Optional[Dict[str, Any]]]] = Field(
         default=None,
-        description="Per-model settings: {model_id: {max_tokens: int, reasoning_effort?: str, thinking_budget?: int}}",
+        description=(
+            "Per-model settings, merged into the stored ones: {model_id: "
+            "{max_tokens: int, reasoning_effort?: str, thinking_budget?: int}}; "
+            "null for a model removes its stored settings"
+        ),
     )
     # Multi-run override: when set, this trigger generates N trials per
     # (task, model, structure) regardless of the project default. None falls
@@ -637,6 +645,39 @@ async def start_generation(
     generation_config = project.generation_config or {}
     selected_config = generation_config.get("selected_configuration", {})
 
+    # Structures are checked before any config write below, so a rejected
+    # request never persists its parameters or model_configs.
+    # Validate requested structure_keys against available structures
+    if request.structure_keys:
+        prompt_structures = generation_config.get("prompt_structures", {})
+        if isinstance(prompt_structures, dict):
+            available_keys = set(prompt_structures.keys())
+        elif isinstance(prompt_structures, list):
+            available_keys = {ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)}
+        else:
+            available_keys = set()
+
+        if available_keys:
+            invalid_keys = set(request.structure_keys) - available_keys
+            if invalid_keys:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Unknown structure keys: {sorted(invalid_keys)}. Available: {sorted(available_keys)}",
+                )
+
+    # Structures to generate (issue #762): the requested ones, or None for a
+    # project without structures. A project WITH structures must name them
+    # (422), so an omitted field can't silently generate every structure.
+    try:
+        structure_keys = run_structure_keys(generation_config, request.structure_keys)
+    except StructureKeysRequired as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    if structure_keys == [None]:
+        logger.info(
+            f"No prompt structures configured for project {project_id}, "
+            "using default generation without structure_key"
+        )
+
     # Update parameters in generation_config if provided
     config_updated = False
     if request.parameters:
@@ -655,9 +696,14 @@ async def start_generation(
             f"seed={request.parameters.seed}"
         )
 
-    # Update per-model configs if provided
+    # Update per-model configs if provided. Merged per model into the stored
+    # map (null removes a model's entry), never replaced: the dialog sends only
+    # the models whose limit the user typed, and replacing the map wiped every
+    # other model's stored settings (e.g. a 64k cap the dialog cannot enter).
     if request.model_configs:
-        selected_config["model_configs"] = request.model_configs
+        selected_config["model_configs"] = deep_merge_dicts(
+            selected_config.get("model_configs") or {}, request.model_configs
+        )
         config_updated = True
         logger.info(
             f"Updated per-model configs for project {project_id}: {list(request.model_configs.keys())}"
@@ -815,34 +861,6 @@ async def start_generation(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Single mode requires exactly one model_id",
             )
-
-    # Validate requested structure_keys against available structures
-    if request.structure_keys:
-        prompt_structures = generation_config.get("prompt_structures", {})
-        if isinstance(prompt_structures, dict):
-            available_keys = set(prompt_structures.keys())
-        elif isinstance(prompt_structures, list):
-            available_keys = {ps.get("key", str(i)) for i, ps in enumerate(prompt_structures)}
-        else:
-            available_keys = set()
-
-        if available_keys:
-            invalid_keys = set(request.structure_keys) - available_keys
-            if invalid_keys:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Unknown structure keys: {sorted(invalid_keys)}. Available: {sorted(available_keys)}",
-                )
-
-    # Structures to generate (issue #762): the requested ones, else the
-    # project's generation structures (matching the task-status endpoint),
-    # else None for a project without structures.
-    structure_keys = run_structure_keys(generation_config, request.structure_keys)
-    if structure_keys == [None]:
-        logger.info(
-            f"No prompt structures configured for project {project_id}, "
-            "using default generation without structure_key"
-        )
 
     # Get tasks to process. Only IDs are needed for dispatch — loading full
     # rows pulled every Task.data JSONB blob into memory (issue #106).

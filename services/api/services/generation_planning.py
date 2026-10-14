@@ -23,7 +23,8 @@ Cell = Tuple[str, str, Optional[str]]
 
 
 def implicit_structure_keys(prompt_structures) -> List[str]:
-    """Structure keys used when a caller does NOT pass explicit structure_keys.
+    """The project's generation structures (the grid's columns, and the keys a
+    run must choose from).
 
     Handles both the dict shape and the legacy list shape, and skips
     structures flagged ``exclude_from_generation`` — prompts that other
@@ -46,15 +47,34 @@ def implicit_structure_keys(prompt_structures) -> List[str]:
     return []
 
 
+class StructureKeysRequired(ValueError):
+    """A run on a project with generation structures named none of them."""
+
+    def __init__(self, available: Sequence[str]):
+        self.available = sorted(available)
+        super().__init__(
+            "structure_keys is required: this project has prompt structures "
+            f"{self.available}; name the ones to generate"
+        )
+
+
 def run_structure_keys(
     generation_config: Optional[dict], requested: Optional[Sequence[str]]
 ) -> List[Optional[str]]:
-    """The structures a run generates: the requested ones, else the project's
-    generation structures, else ``[None]`` (a project without structures)."""
+    """The structures a run generates: the requested ones, or ``[None]`` for a
+    project without generation structures.
+
+    A project WITH structures must name them. Falling back to all of them made
+    a call that simply omitted the field generate every structure (2-3x the
+    cost on ZJS and Benchathon); the dialog always sends its selection, so
+    only scripts and API clients ever hit that default.
+    """
     if requested:
         return list(requested)
     keys = implicit_structure_keys((generation_config or {}).get("prompt_structures", {}))
-    return list(keys) if keys else [None]
+    if keys:
+        raise StructureKeysRequired(keys)
+    return [None]
 
 
 def latest_status_stmt(project_id: str, task_ids: Sequence[str], model_ids: Sequence[str]):
