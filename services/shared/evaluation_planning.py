@@ -63,9 +63,34 @@ def _row_is_terminal_error(metrics: dict | None) -> bool:
     for k, v in metrics.items():
         if k == "error":
             continue
-        if isinstance(v, dict) and v.get("error"):
+        if isinstance(v, dict) and v.get("error") and not _error_is_retryable(v):
             return True
     return False
+
+
+# Provider-side failures that a later run can get past: rate limits and an
+# exhausted credit balance (429), timeouts, a missing or revoked key (401/403).
+# The same buckets as ``ai_services.base_service.classify_error_type``, which
+# this module can't import without loading every provider SDK.
+_RETRYABLE_ERROR_TYPES = frozenset({"rate_limit", "timeout", "auth"})
+_RETRYABLE_ERROR_MARKERS = (
+    "error code: 429", "rate limit", "rate_limit", "insufficient_quota", "quota",
+    "timed out", "timeout", "error code: 401", "error code: 403", "unauthorized",
+    "invalid api key", "incorrect api key",
+)
+
+
+def _error_is_retryable(blob: dict) -> bool:
+    """Whether a failed metric blob failed for a reason the provider side can
+    fix (credit topped up, rate limit passed, key replaced). Those rows must
+    not count as graded: a run on a key without credit used to mark every
+    cell as a terminal error, and missing-only skipped them for good."""
+    details = blob.get("details")
+    meta = details.get("call_metadata") if isinstance(details, dict) else None
+    if isinstance(meta, dict) and meta.get("error_type") in _RETRYABLE_ERROR_TYPES:
+        return True
+    msg = str(blob.get("error") or "").lower()
+    return any(marker in msg for marker in _RETRYABLE_ERROR_MARKERS)
 
 
 def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str | None:
