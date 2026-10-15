@@ -271,17 +271,9 @@ class TestNormalizeFieldKey:
         ) == "cfg:weird:extra:musterlösung"
 
 
-# Inline mirror of `tasks.py:_row_is_terminal_error`. Same drift pattern.
-
-def _row_is_terminal_error(metrics):
-    if not metrics:
-        return False
-    for k, v in metrics.items():
-        if k == "error":
-            continue
-        if isinstance(v, dict) and v.get("error"):
-            return True
-    return False
+# The real predicate (it lives in the shared planner, importable without the
+# Celery stack); an inline mirror could not follow the retryable-error rule.
+from evaluation_planning import _row_is_terminal_error  # noqa: E402
 
 
 def test_inline_terminal_error_helper_present_in_tasks_py():
@@ -497,3 +489,34 @@ class TestPredFieldMatches:
     def test_empty(self):
         assert _pred_field_matches(None, "human:loesung") is False
         assert _pred_field_matches("", "human:loesung") is False
+
+
+class TestRetryableErrorsAreNotTerminal:
+    """Provider-side failures a later run can get past must not count as
+    graded, or missing-only skips them for good (10-15: a judge key without
+    credit turned 1142 cells into terminal errors)."""
+
+    def _blob(self, error, error_type=None):
+        details = {"call_metadata": {"error_type": error_type}} if error_type else {}
+        return {"llm_judge_falloesung": {"value": None, "error": error, "details": details}}
+
+    @pytest.mark.parametrize("error", [
+        "Error code: 429 - {'error': {'type': 'insufficient_quota', "
+        "'code': 'credit_balance_exhausted'}}",
+        "Rate limit reached for gpt-5.4-mini",
+        "Request timed out.",
+        "Error code: 401 - Incorrect API key provided",
+    ])
+    def test_provider_errors_are_retried(self, error):
+        assert _row_is_terminal_error(self._blob(error)) is False
+
+    def test_classified_error_type_is_retried(self):
+        assert _row_is_terminal_error(self._blob("upstream said no", "rate_limit")) is False
+
+    def test_hopeless_errors_stay_terminal(self):
+        for error in (
+            "LLM judge evaluator not initialized for config xxx",
+            "Error code: 400 - context length exceeded",
+            "Judge output could not be parsed",
+        ):
+            assert _row_is_terminal_error(self._blob(error)) is True

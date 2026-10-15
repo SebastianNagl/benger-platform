@@ -62,6 +62,9 @@ def _make_evaluator(**kwargs):
 
 
 class TestComputeSemanticCoherence:
+    # Patch the whole ``st_util``: it is bound lazily (``_load_heavy``), so
+    # patching ``st_util.cos_sim`` only worked when an earlier test on the
+    # same xdist worker had loaded it.
     def test_multi_sentence_averages_adjacent_cosines(self):
         """3 embeddings -> 2 adjacent cosine pairs. Each cos_sim().item()==1.0,
         so avg=1.0, coherence=(1+1)/2=1.0 (clamped)."""
@@ -72,7 +75,7 @@ class TestComputeSemanticCoherence:
         cos = MagicMock()
         cos.item.return_value = 1.0
         with patch(f"{SE_MOD}._get_sentence_transformer", return_value=model), patch(
-            f"{SE_MOD}.st_util.cos_sim", return_value=cos
+            f"{SE_MOD}.st_util", MagicMock(cos_sim=MagicMock(return_value=cos))
         ):
             score = ev._compute_semantic_coherence(["a.", "b.", "c."])
         assert score == pytest.approx(1.0)
@@ -85,7 +88,7 @@ class TestComputeSemanticCoherence:
         cos = MagicMock()
         cos.item.return_value = -1.0
         with patch(f"{SE_MOD}._get_sentence_transformer", return_value=model), patch(
-            f"{SE_MOD}.st_util.cos_sim", return_value=cos
+            f"{SE_MOD}.st_util", MagicMock(cos_sim=MagicMock(return_value=cos))
         ):
             score = ev._compute_semantic_coherence(["a.", "b."])
         assert score == pytest.approx(0.0)
@@ -96,11 +99,11 @@ class TestComputeSemanticCoherence:
         model = MagicMock()
         model.encode.return_value = [object()]
         with patch(f"{SE_MOD}._get_sentence_transformer", return_value=model), patch(
-            f"{SE_MOD}.st_util.cos_sim"
-        ) as cos_sim:
+            f"{SE_MOD}.st_util", MagicMock()
+        ) as st_util:
             score = ev._compute_semantic_coherence(["only one."])
         assert score == 1.0
-        cos_sim.assert_not_called()
+        st_util.cos_sim.assert_not_called()
 
     def test_model_none_raises_runtime_error(self):
         """A None model is re-raised through the outer except as the generic

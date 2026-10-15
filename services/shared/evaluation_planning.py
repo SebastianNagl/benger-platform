@@ -63,9 +63,34 @@ def _row_is_terminal_error(metrics: dict | None) -> bool:
     for k, v in metrics.items():
         if k == "error":
             continue
-        if isinstance(v, dict) and v.get("error"):
+        if isinstance(v, dict) and v.get("error") and not _error_is_retryable(v):
             return True
     return False
+
+
+# Provider-side failures that a later run can get past: rate limits and an
+# exhausted credit balance (429), timeouts, a missing or revoked key (401/403).
+# The same buckets as ``ai_services.base_service.classify_error_type``, which
+# this module can't import without loading every provider SDK.
+_RETRYABLE_ERROR_TYPES = frozenset({"rate_limit", "timeout", "auth"})
+_RETRYABLE_ERROR_MARKERS = (
+    "error code: 429", "rate limit", "rate_limit", "insufficient_quota", "quota",
+    "timed out", "timeout", "error code: 401", "error code: 403", "unauthorized",
+    "invalid api key", "incorrect api key",
+)
+
+
+def _error_is_retryable(blob: dict) -> bool:
+    """Whether a failed metric blob failed for a reason the provider side can
+    fix (credit topped up, rate limit passed, key replaced). Those rows must
+    not count as graded: a run on a key without credit used to mark every
+    cell as a terminal error, and missing-only skipped them for good."""
+    details = blob.get("details")
+    meta = details.get("call_metadata") if isinstance(details, dict) else None
+    if isinstance(meta, dict) and meta.get("error_type") in _RETRYABLE_ERROR_TYPES:
+        return True
+    msg = str(blob.get("error") or "").lower()
+    return any(marker in msg for marker in _RETRYABLE_ERROR_MARKERS)
 
 
 def _normalize_field_key(field_name: str | None, *, is_annotation: bool) -> str | None:
@@ -334,9 +359,23 @@ def plan_evaluation(
     has_human_config = any(s["human_fields"] for s in config_sides)
     has_llm_config = any(s["llm_fields"] for s in config_sides)
     configs_by_id = {c.get("id", "unknown"): c for c in enabled_configs}
-    expected = plan.all_expected_field_keys
+    # What a subject must carry to count as fully graded, per side. Checking
+    # a subject against the keys of BOTH sides (the run's whole expected set)
+    # never matched for a config that grades answers and generations
+    # (``["__all_model__", "human:loesung"]``): an answer never carries the
+    # model-side key, so every answer was dispatched again on every
+    # missing-only run (the cell then skipped its graded keys, but the run
+    # counted and queued all of them).
+    expected_gen: set = set()
+    expected_ann: set = set()
+    for c in enabled_configs:
+        if (c.get("metric", "") or "").startswith("korrektur_"):
+            continue
+        gk, ak = _side_field_keys(c)
+        expected_gen.update(_normalize_field_key(k, is_annotation=False) for k in gk)
+        expected_ann.update(_normalize_field_key(k, is_annotation=True) for k in ak)
 
-    def _keep(done: set) -> bool:
+    def _keep(done: set, expected: set) -> bool:
         return not (missing_only and expected and expected.issubset(done))
 
     if has_llm_config:
@@ -369,7 +408,7 @@ def plan_evaluation(
         )
         for gen_id, task_id in gens:
             done = done_by_gen.get(gen_id, set())
-            if _keep(done):
+            if _keep(done, expected_gen):
                 plan.gen_cells.append((task_id, gen_id, sorted(done) if done else []))
 
     if has_human_config:
@@ -391,10 +430,36 @@ def plan_evaluation(
         )
         for ann_id, task_id in anns:
             done = done_by_ann.get(ann_id, set())
-            if _keep(done):
+            if _keep(done, expected_ann):
                 plan.ann_cells.append((task_id, ann_id, sorted(done) if done else []))
 
     return plan
+
+
+def _side_field_keys(config: dict) -> Tuple[List[str], List[str]]:
+    """The ``{config_id}|{pred}|{ref}`` keys one config grades on a generation
+    and on an answer, mirroring the cell evaluators
+    (``evaluation/cell_evaluator.py``): a generation cell grades every
+    non-human prediction field, an answer cell the config's human fields
+    (``human:``-prefixed)."""
+    from eval_field_classification import classify_pred_fields
+
+    cid = config.get("id", "unknown")
+    refs = config.get("reference_fields", []) or []
+    preds = config.get("prediction_fields", []) or []
+    gen_keys = [
+        f"{cid}|{pf}|{rf}"
+        for pf in preds
+        if not (pf.startswith("human:") or pf == "__all_human__")
+        for rf in refs
+    ]
+    human, _llm = classify_pred_fields(config.get("metric"), preds)
+    prefixed = [
+        pf if pf.startswith("human:") or pf == "__all_human__" else f"human:{pf}"
+        for pf in human
+    ]
+    ann_keys = [f"{cid}|{pf}|{rf}" for pf in prefixed for rf in refs]
+    return gen_keys, ann_keys
 
 
 def judge_call_counts(plan: EvaluationPlan, enabled_configs: Sequence[dict]) -> Dict[str, int]:
@@ -407,8 +472,6 @@ def judge_call_counts(plan: EvaluationPlan, enabled_configs: Sequence[dict]) -> 
     Fields missing from a given answer or generation at run time are skipped
     there and can make the run slightly cheaper than this count.
     """
-    from eval_field_classification import classify_pred_fields
-
     counts: Dict[str, int] = {}
     judged = [
         c for c in enabled_configs if (c.get("metric") or "").startswith("llm_judge_")
@@ -428,20 +491,7 @@ def judge_call_counts(plan: EvaluationPlan, enabled_configs: Sequence[dict]) -> 
     ann_keys = {}
     for c in judged:
         cid = c.get("id", "unknown")
-        refs = c.get("reference_fields", [])
-        preds = c.get("prediction_fields", [])
-        gen_keys[cid] = [
-            f"{cid}|{pf}|{rf}"
-            for pf in preds
-            if not (pf.startswith("human:") or pf == "__all_human__")
-            for rf in refs
-        ]
-        human, _llm = classify_pred_fields(c.get("metric"), preds)
-        prefixed = [
-            pf if pf.startswith("human:") or pf == "__all_human__" else f"human:{pf}"
-            for pf in human
-        ]
-        ann_keys[cid] = [f"{cid}|{pf}|{rf}" for pf in prefixed for rf in refs]
+        gen_keys[cid], ann_keys[cid] = _side_field_keys(c)
 
     for _task_id, _gen_id, done in plan.gen_cells:
         done_n = {_normalize_field_key(k, is_annotation=False) for k in done}
