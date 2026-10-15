@@ -10,9 +10,10 @@ conceptual ground for the BenGER Transformation paper (in preparation).
 Status: submitted on 2026-10-14 to the 6th ACM Symposium on Computer Science
 and Law (CSLAW '27) as a full archival paper, topic "educational methods
 combining CS and law" (15 pages ACM small excluding references and
-appendices, single-blind review), and submitted to arXiv as a preprint the
-same day (identifier follows the announcement). `manuscript.pdf` is the
-submitted named version, `manuscript_blind.pdf` the anonymised one.
+appendices, single-blind review). The preprint is on arXiv as
+[arXiv:2610.19992](https://arxiv.org/abs/2610.19992) (submitted the same
+day, cs.CL). `manuscript.pdf` is the submitted named version,
+`manuscript_blind.pdf` the anonymised one.
 
 ## Building
 
