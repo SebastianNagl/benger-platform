@@ -21,7 +21,29 @@ A dataset with three thematic subsets, produced and reviewed by nine co-authors 
 |---|---|---|---|
 | `benchathon` | Curated by the BenGER team — a one-day competitive grading event with seven blind expert reviews per solution | All three legal branches, three difficulty tiers | 45 picks, 180 human grades |
 | `zjs` | *Zeitschrift für das Juristische Studium* — published exam-style cases from 2008–2026 | Long-form *Gutachten*-style case analysis | 581 cases |
-| `grundprinzipien` | Foundational legal-principle multiple-choice items | Knowledge probe across the three branches | (see paper) |
+| `grundprinzipien` | Short doctrinal cases on foundational legal principles, each with a yes/no (*Ja/Nein*) decision and a reasoning | Knowledge probe across the three branches | 531 items |
+
+### What a task looks like
+
+All tasks are in German. There are two formats.
+
+**Long-form case analysis (`benchathon`, `zjs`).** The model gets a fact pattern (*Sachverhalt*) that ends with an instruction for the *Gutachten*, and writes a full legal analysis. A model solution (*Musterlösung*) written by the case author serves as the reference for grading. Abridged example from `zjs` (ZJS 2011, p. 476):
+
+> **Aufgabe:** Der 15-jährige Sohn von Amelie Anderson (A) ist an einer Überdosis Heroin gestorben. […] Sie baut einen Sprengsatz und lässt sich unter einem Vorwand von Gs Sekretärin (S) einen Termin bei G geben. […] Während der Fahrstuhl nach unten fährt, explodiert der Sprengsatz. P, M und T sind sofort tot. […] Erstatten Sie ein Gutachten über die Strafbarkeit von A!
+>
+> **Musterlösung:** I. Totschlag (§ 212 Abs. 1 StGB) durch das Deponieren des Sprengstoffs zum Nachteil von P, M und T. 1. Tatbestand a) Objektiver Tatbestand […]
+
+Each record carries the fact pattern, the model solution and the legal area (civil, criminal or public law); `zjs` records also give title, authors and the journal reference.
+
+**Short doctrinal decision (`grundprinzipien`).** The model gets a short case and a question about one legal principle, answers *Ja* or *Nein* and justifies the answer. Scoring looks at both the decision and the reasoning. Example (principle: *Analogieverbot*):
+
+> **Fall:** A wurde von zwei Erpresserinnen zum Aushändigen einer beträchtlichen Summe Geld genötigt. Während eine der beiden Komplizinnen das besagte Geld auszählte, nähert sich A dieser, um ihr die Kehle zu durchschneiden. […] Die Staatsanwaltschaft möchte A wegen Heimtückemord nach § 211 Abs. 2 Gr. 2 Var. 1 StGB anklagen.
+>
+> **Frage:** Verbotene Analogie? **Lösung:** Nein.
+>
+> **Begründung:** Der Erpresser ist in einer von ihm gesuchten Konfrontation mit dem Erpressten gegenüber einem wehrenden Gegenangriff des Erpressten auf sein Leben regelmäßig nicht arglos im Sinne des Mordmerkmals der Heimtücke […]
+
+**Browse all tasks:** the complete set of tasks from all three subsets, with model solutions and metadata, is on [Zenodo (10.5281/zenodo.23366269)](https://doi.org/10.5281/zenodo.23366269).
 
 **Zenodo (archival, citable)**: [10.5281/zenodo.23366269](https://doi.org/10.5281/zenodo.23366269) — v2.1: the full anonymised dataset with `benchathon/`, `zjs/`, `grundprinzipien/`, the small derived `processed/` files used by the manuscript, and the task metadata (legal areas and other attributes per task). Earlier snapshots: [v2.0](https://doi.org/10.5281/zenodo.20489788) (judge re-anchored on GPT-5.4-mini) and [v1.0](https://doi.org/10.5281/zenodo.20409635).
 **Paper**: Findings of EMNLP 2026; preprint [arXiv:2605.28183](https://arxiv.org/abs/2605.28183)
