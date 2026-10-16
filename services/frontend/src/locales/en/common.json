@@ -48,7 +48,6 @@
     "signIn": "Sign In",
     "signUp": "Sign up",
     "loggedIn": "Welcome back!",
-    "signupComplete": "Account created — welcome aboard!",
     "guard": {
       "loading": "Loading...",
       "authRequired": "Authentication Required",
@@ -2583,7 +2582,13 @@
     },
     "stepBack": "Back",
     "stepNext": "Next",
-    "stepOf": "Step {current} of {total}"
+    "stepOf": "Step {current} of {total}",
+    "invitedSuccess": {
+      "title": "Account created",
+      "description": "You're now a member of your organization. Sign in with your new password to get started.",
+      "redirecting": "Taking you to the sign-in page in a moment.",
+      "loginNow": "Sign in now"
+    }
   },
   "dataManagement": {
     "title": "Data Management",

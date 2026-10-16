@@ -77,6 +77,8 @@ describe('BaseApiClient - Enhanced Error Handling', () => {
 
     // Create fresh client
     client = new TestApiClient()
+    // The GET cache is shared across instances; start each test empty.
+    client.clearCache()
   })
 
   afterEach(() => {

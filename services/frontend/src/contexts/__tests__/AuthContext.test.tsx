@@ -571,7 +571,7 @@ describe('AuthContext', () => {
       )
     })
 
-    it('signs up with an invitation token and stays on this host (dashboard)', async () => {
+    it('signs up with an invitation token without navigating (the register page shows the success screen)', async () => {
       window.location.href = 'http://benger.localhost/register'
 
       const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -604,9 +604,9 @@ describe('AuthContext', () => {
         undefined,
         'invitation-token-123',
       )
-      // No org-subdomain redirect any more: every host shows the same
-      // projects, so the new member simply lands on the dashboard.
-      expect(mockRouter.push).toHaveBeenCalledWith('/dashboard')
+      // No session is opened by an invitation signup; the register page
+      // owns the success screen and the hand-off to /login.
+      expect(mockRouter.push).not.toHaveBeenCalled()
       expect(window.location.href).toBe('http://benger.localhost/register')
     })
 

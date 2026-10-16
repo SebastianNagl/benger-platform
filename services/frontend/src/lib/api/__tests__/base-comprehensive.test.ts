@@ -127,6 +127,8 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
     jest.clearAllMocks()
     localStorageMock.getItem.mockReturnValue(null)
     client = new TestApiClient()
+    // The GET cache is shared across instances; start each test empty.
+    client.clearCache()
   })
 
   describe('Edge cases and error paths', () => {
@@ -240,6 +242,51 @@ describe('BaseApiClient - Comprehensive Coverage', () => {
       const result = await refreshPromise
 
       expect(result).toBe(false)
+    })
+  })
+
+  describe('cache shared across client instances', () => {
+    const jsonResponse = (body: unknown) => ({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () => JSON.stringify(body),
+    })
+
+    it('a write through one instance invalidates what another instance cached', async () => {
+      // The admin organizations page lists members through the global
+      // apiClient but adds them through the standalone organizationsAPI.
+      const reader = new TestApiClient()
+      const writer = new TestApiClient()
+      localStorageMock.getItem.mockReturnValue('admin')
+      ;(global.fetch as jest.Mock)
+        .mockResolvedValueOnce(jsonResponse([{ user_id: 'a' }]))
+        .mockResolvedValueOnce(jsonResponse({ ok: true }))
+        .mockResolvedValueOnce(
+          jsonResponse([{ user_id: 'a' }, { user_id: 'b' }]),
+        )
+
+      await reader.get('/organizations/org1/members')
+      await writer.post('/organizations/org1/members', { user_id: 'b' })
+      const members = await reader.get('/organizations/org1/members')
+
+      expect(members).toHaveLength(2)
+      expect(global.fetch).toHaveBeenCalledTimes(3)
+    })
+
+    it('serves a GET cached by one instance to another', async () => {
+      const first = new TestApiClient()
+      const second = new TestApiClient()
+      localStorageMock.getItem.mockReturnValue('admin')
+      ;(global.fetch as jest.Mock).mockResolvedValueOnce(
+        jsonResponse({ id: 'org1' }),
+      )
+
+      await first.get('/organizations/org1')
+      const org = await second.get('/organizations/org1')
+
+      expect(org).toEqual({ id: 'org1' })
+      expect(global.fetch).toHaveBeenCalledTimes(1)
     })
   })
 

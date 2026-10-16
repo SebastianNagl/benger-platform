@@ -72,4 +72,5 @@ references:
       - family-names: Nagl
         given-names: Sebastian
     year: 2026
-    notes: "Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27) on 2026-10-14; arXiv preprint submitted the same day."
+    url: "https://arxiv.org/abs/2610.19992"
+    notes: "Submitted to the 6th ACM Symposium on Computer Science and Law (CSLAW '27) on 2026-10-14; preprint arXiv:2610.19992."

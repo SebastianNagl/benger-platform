@@ -135,7 +135,7 @@ export const useProjectStore = create<ProjectStore>()(
       // Annotation completion
       allTasksCompleted: false,
       currentPage: 1,
-      pageSize: 30, // Reduced from 100 to improve load performance
+      pageSize: 50,
       totalProjects: 0,
       totalPages: 0,
       labelConfigVersion: 0,

@@ -48,7 +48,6 @@
     "signIn": "Anmelden",
     "signUp": "Registrieren",
     "loggedIn": "Willkommen zurück!",
-    "signupComplete": "Konto angelegt – willkommen!",
     "guard": {
       "loading": "Laden...",
       "authRequired": "Anmeldung erforderlich",
@@ -2583,7 +2582,13 @@
     },
     "stepBack": "Zurück",
     "stepNext": "Weiter",
-    "stepOf": "Schritt {current} von {total}"
+    "stepOf": "Schritt {current} von {total}",
+    "invitedSuccess": {
+      "title": "Konto erstellt",
+      "description": "Du bist jetzt Mitglied deiner Organisation. Melde dich mit deinem neuen Passwort an, um loszulegen.",
+      "redirecting": "Du wirst gleich zur Anmeldung weitergeleitet.",
+      "loginNow": "Jetzt anmelden"
+    }
   },
   "dataManagement": {
     "title": "Datenmanagement",

@@ -109,7 +109,7 @@ describe('ProjectStore', () => {
         taskCycle: [],
         currentTaskIndex: 0,
         currentPage: 1,
-        pageSize: 30,
+        pageSize: 50,
         totalProjects: 0,
         totalPages: 0,
         labelConfigVersion: 0,
@@ -134,7 +134,7 @@ describe('ProjectStore', () => {
       expect(state.taskCycle).toEqual([])
       expect(state.currentTaskIndex).toBe(0)
       expect(state.currentPage).toBe(1)
-      expect(state.pageSize).toBe(30)
+      expect(state.pageSize).toBe(50)
       expect(state.totalProjects).toBe(0)
       expect(state.totalPages).toBe(0)
       expect(state.labelConfigVersion).toBe(0)
@@ -215,7 +215,7 @@ describe('ProjectStore', () => {
 
       expect(mockProjectsAPI.list).toHaveBeenCalledWith(
         1,
-        30,
+        50,
         'test search',
         false,
         false,
@@ -1362,7 +1362,7 @@ describe('ProjectStore', () => {
         // false) instead of dropping them to undefined.
         expect(mockProjectsAPI.list).toHaveBeenCalledWith(
           2,
-          30,
+          50,
           '',
           false,
           false,
