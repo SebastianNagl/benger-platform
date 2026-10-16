@@ -364,7 +364,7 @@ describe('AuthContext - coverage complement', () => {
     expect(result.current.organizations).toEqual([])
   })
 
-  it('signup with an invitation but no organizations flashes and routes to /dashboard', async () => {
+  it('signup with an invitation leaves navigation to the register page', async () => {
     const flash = jest.fn()
     ;(useNotificationStore.getState as jest.Mock).mockReturnValue({
       flashRedirect: jest.fn((url: string) => url),
@@ -398,9 +398,9 @@ describe('AuthContext - coverage complement', () => {
       undefined,
       'invite-token-123',
     )
-    // No orgs -> flash + dashboard push (lines 721-724).
-    expect(flash).toHaveBeenCalled()
-    expect(mockRouter.push).toHaveBeenCalledWith('/dashboard')
+    // No session is opened, so no flash and no push from the context.
+    expect(flash).not.toHaveBeenCalled()
+    expect(mockRouter.push).not.toHaveBeenCalled()
   })
 
   it('silentTokenRefresh swallows a network error (returns without throwing)', async () => {

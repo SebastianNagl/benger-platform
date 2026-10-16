@@ -48,7 +48,6 @@
     "signIn": "Se connecter",
     "signUp": "S'inscrire",
     "loggedIn": "Bon retour parmi nous !",
-    "signupComplete": "Compte créé, bienvenue !",
     "guard": {
       "loading": "Chargement...",
       "authRequired": "Connexion requise",
@@ -2583,7 +2582,13 @@
     },
     "stepBack": "Retour",
     "stepNext": "Suivant",
-    "stepOf": "Étape {current} sur {total}"
+    "stepOf": "Étape {current} sur {total}",
+    "invitedSuccess": {
+      "title": "Compte créé",
+      "description": "Vous êtes désormais membre de votre organisation. Connectez-vous avec votre nouveau mot de passe pour commencer.",
+      "redirecting": "Vous allez être redirigé vers la page de connexion.",
+      "loginNow": "Se connecter maintenant"
+    }
   },
   "dataManagement": {
     "title": "Gestion des données",

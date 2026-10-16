@@ -16,11 +16,16 @@ import { useI18n } from '@/contexts/I18nContext'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import { authRedirect } from '@/utils/authRedirect'
+import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Suspense, useEffect, useState } from 'react'
 
 const TOTAL_STEPS = 5
+
+// How long the "account created" screen stays up after an invitation signup
+// before we hand over to the login page.
+const INVITED_SUCCESS_REDIRECT_MS = 3000
 
 const EXPERTISE_HIERARCHY = [
   'layperson',
@@ -91,6 +96,9 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [invitationToken, setInvitationToken] = useState<string | null>(null)
   const [isInvitedUser, setIsInvitedUser] = useState(false)
+  // Invitation signups don't open a session (the backend sets no cookie), so
+  // the new member sees a short success screen and then signs in.
+  const [invitedSignupDone, setInvitedSignupDone] = useState(false)
   const [redirectUrl, setRedirectUrl] = useState<string | null>(null)
   // Host-aware wordmark (Vertretbar on vertretbar.net); resolved after mount.
   const [brandName, setBrandName] = useState('BenGER')
@@ -196,6 +204,15 @@ export default function RegisterPage() {
       setRedirectUrl(redirect)
     }
   }, [])
+
+  useEffect(() => {
+    if (!invitedSignupDone) return
+    const timer = setTimeout(
+      () => router.push('/login'),
+      INVITED_SUCCESS_REDIRECT_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [invitedSignupDone, router])
 
   // Redirect authenticated users to appropriate page
   useEffect(() => {
@@ -352,6 +369,7 @@ export default function RegisterPage() {
         },
         invitationToken || undefined,
       )
+      if (invitationToken) setInvitedSignupDone(true)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : t('register.registrationFailed'),
@@ -1018,6 +1036,34 @@ export default function RegisterPage() {
     }
   }
 
+  if (invitedSignupDone) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-6 dark:bg-zinc-900">
+        <div
+          className="w-full max-w-md text-center"
+          data-testid="register-invited-success"
+        >
+          <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+          <h1 className="mb-2 text-2xl font-bold text-zinc-900 dark:text-white">
+            {t('register.invitedSuccess.title')}
+          </h1>
+          <p className="mb-6 text-zinc-600 dark:text-zinc-400">
+            {t('register.invitedSuccess.description')}
+          </p>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            {t('register.invitedSuccess.redirecting')}{' '}
+            <Link
+              href="/login"
+              className="font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 dark:hover:text-emerald-300"
+            >
+              {t('register.invitedSuccess.loginNow')}
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-900">
       {/* Minimal Header */}
@@ -1187,7 +1233,11 @@ export default function RegisterPage() {
               )}
 
               {currentStep < TOTAL_STEPS ? (
+                // Distinct keys: without them React reuses the DOM button and
+                // flips its type to "submit" while the step-4 click is still
+                // being dispatched, so the browser submits the form at once.
                 <Button
+                  key="next"
                   type="button"
                   onClick={handleNext}
                   className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
@@ -1197,6 +1247,7 @@ export default function RegisterPage() {
                 </Button>
               ) : (
                 <Button
+                  key="submit"
                   type="submit"
                   disabled={isLoading}
                   className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
