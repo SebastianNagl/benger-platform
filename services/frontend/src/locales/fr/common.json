@@ -9210,27 +9210,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "L'enregistrement a échoué.",
-      "stateSaved": "{flag} : {state}",
-      "targetAdded": "{target} autorisé",
-      "targetRemoved": "{target} retiré",
-      "intro": "Chaque modification s'applique immédiatement, sur benger et sur vertretbar. « Liste d'autorisation » n'active la fonction que pour les utilisateurs inscrits et pour les membres des organisations inscrites. Les superadministrateurs ne sont pas autorisés automatiquement.",
-      "loadFailed": "Impossible de charger les feature flags.",
-      "default": "Par défaut : {state}",
-      "allowlistEmpty": "La liste est vide, la fonction n'est donc activée pour personne.",
-      "kindUser": "Utilisateur",
-      "kindOrg": "Organisation",
-      "addUser": "Ajouter un utilisateur",
-      "userSearch": "Nom, e-mail ou pseudonyme",
-      "addOrg": "Ajouter une organisation",
-      "pickOrg": "Choisir une organisation",
-      "menu": "Feature flags",
-      "state": {
-        "off": "Désactivé",
-        "everyone": "Tous",
-        "allowlist": "Liste d'autorisation"
-      },
-      "title": "Feature flags",
       "rubricAiDisabled": "L'aide IA pour les grilles d'évaluation est actuellement indisponible."
     },
     "lti": {

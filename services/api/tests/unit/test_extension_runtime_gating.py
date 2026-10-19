@@ -95,10 +95,12 @@ class TestHookGating:
         assert set(extensions.HOOK_GATING.values()) <= set(activation.GATING_CLASSES)
 
     def test_classes_are_pinned(self):
-        """Privacy, billing, LMS grade sync and monitoring hooks must keep
-        running while a package is switched off. Moving one to GATED needs
-        this test to change on purpose."""
+        """Privacy, billing, LMS grade sync, monitoring and exam-timer hooks
+        must keep running while a package is switched off. Moving one to
+        GATED needs this test to change on purpose."""
         always = {
+            "on_annotation_created",
+            "on_draft_saved",
             "after_eval_config_save",
             "on_ops_event",
             "privacy_protected_member_ids",
@@ -123,7 +125,7 @@ class TestHookGating:
     def test_always_hooks_run_and_gated_hooks_skip_while_off(self, monkeypatch, mock_redis):
         calls = []
         hooks = {
-            "on_annotation_created": lambda *a: calls.append("annotation"),
+            "after_user_login": lambda *a: calls.append("login"),
             "privacy_protected_member_ids": lambda db, org, ids, **kw: {"u1"},
             "validate_signup": lambda db, user_create: calls.append("signup"),
             "tasks_with_feedback_for_user": lambda *a: {"t1"},
@@ -131,7 +133,7 @@ class TestHookGating:
         _load(monkeypatch, _package(hooks=hooks))
         _set_master(mock_redis, "off")
         with activation.use_context(user_id="u1", inherit=False):
-            extensions.on_annotation_created(None, "t1", "u1", "a1", "p1")
+            extensions.after_user_login(None, object(), {})
             extensions.validate_signup(None, object())
             assert extensions.privacy_protected_member_ids(None, None, ["u1", "u2"]) == {"u1"}
             assert extensions.tasks_with_feedback_for_user(None, "p1", "u1", ["t1"]) == set()
@@ -139,16 +141,16 @@ class TestHookGating:
 
         _set_master(mock_redis, "allowlist", users=["someone-else"])
         with activation.use_context(user_id="u1", inherit=False):
-            extensions.on_annotation_created(None, "t1", "u1", "a1", "p1")
+            extensions.after_user_login(None, object(), {})
             extensions.validate_signup(None, object())
         # POLICY_GLOBAL runs (state is not off), GATED still skips for u1.
         assert calls == ["signup"]
 
         _set_master(mock_redis, "allowlist", users=["u1"])
         with activation.use_context(user_id="u1", inherit=False):
-            extensions.on_annotation_created(None, "t1", "u1", "a1", "p1")
+            extensions.after_user_login(None, object(), {})
             assert extensions.tasks_with_feedback_for_user(None, "p1", "u1", ["t1"]) == {"t1"}
-        assert calls == ["signup", "annotation"]
+        assert calls == ["signup", "login"]
 
     def test_master_flag_is_registered_with_the_package_default(self, monkeypatch):
         _load(monkeypatch, _package(default="allowlist"))

@@ -9210,27 +9210,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "Saving failed.",
-      "stateSaved": "{flag}: {state}",
-      "targetAdded": "{target} added",
-      "targetRemoved": "{target} removed",
-      "intro": "Every change applies at once, on benger and vertretbar. \"Allowlist\" enables the feature only for the listed users and for members of the listed organizations. Superadmins are not enabled automatically.",
-      "loadFailed": "Could not load the feature flags.",
-      "default": "Default: {state}",
-      "allowlistEmpty": "The list is empty, so the feature is on for nobody.",
-      "kindUser": "User",
-      "kindOrg": "Organization",
-      "addUser": "Add user",
-      "userSearch": "Name, email or pseudonym",
-      "addOrg": "Add organization",
-      "pickOrg": "Choose an organization",
-      "menu": "Feature Flags",
-      "state": {
-        "off": "Off",
-        "everyone": "Everyone",
-        "allowlist": "Allowlist"
-      },
-      "title": "Feature Flags",
       "rubricAiDisabled": "AI help for rubrics is currently unavailable."
     },
     "lti": {

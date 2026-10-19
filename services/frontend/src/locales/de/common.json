@@ -9210,27 +9210,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "Speichern fehlgeschlagen.",
-      "stateSaved": "{flag}: {state}",
-      "targetAdded": "{target} freigegeben",
-      "targetRemoved": "{target} entfernt",
-      "intro": "Jede Änderung gilt sofort, auf benger und vertretbar. \"Freigabeliste\" schaltet die Funktion nur für die eingetragenen Nutzer und für Mitglieder der eingetragenen Organisationen frei. Superadmins sind nicht automatisch freigeschaltet.",
-      "loadFailed": "Feature-Flags konnten nicht geladen werden.",
-      "default": "Standard: {state}",
-      "allowlistEmpty": "Die Liste ist leer, die Funktion ist damit für niemanden frei.",
-      "kindUser": "Nutzer",
-      "kindOrg": "Organisation",
-      "addUser": "Nutzer hinzufügen",
-      "userSearch": "Name, E-Mail oder Pseudonym",
-      "addOrg": "Organisation hinzufügen",
-      "pickOrg": "Organisation wählen",
-      "menu": "Feature Flags",
-      "state": {
-        "off": "Aus",
-        "everyone": "Alle",
-        "allowlist": "Freigabeliste"
-      },
-      "title": "Feature Flags",
       "rubricAiDisabled": "Die KI-Hilfe für Bewertungsbögen ist derzeit nicht verfügbar."
     },
     "lti": {

@@ -93,14 +93,19 @@ HOOK_SPECS = {
 # Hook gating classes (core 2.42). Every key in HOOK_SPECS has one; the check
 # runs at import time (:func:`_validate_hook_gating`). See extension_activation:
 # ALWAYS runs whenever the package is loaded (privacy, billing, LMS grade
-# sync, monitoring), POLICY_GLOBAL while its master flag is not ``off``,
+# sync, monitoring, exam timer integrity), POLICY_GLOBAL while its master flag
+# is not ``off``,
 # GATED only when the package is active for the caller of the current
 # request/task context. Moving a privacy or billing hook to GATED needs a
 # test change (tests/unit/test_extension_runtime_gating.py pins the map).
 # --------------------------------------------------------------------------- #
 HOOK_GATING = {
-    "on_annotation_created": activation.GATED,
-    "on_draft_saved": activation.GATED,
+    # Timer integrity: these close the open exam timer session on submit and
+    # mirror drafts into it. The auto-submit task keeps running while the
+    # package is off, so skipping them could hand in a stale draft over the
+    # real submission.
+    "on_annotation_created": activation.ALWAYS,
+    "on_draft_saved": activation.ALWAYS,
     "after_eval_config_save": activation.ALWAYS,
     "validate_signup": activation.POLICY_GLOBAL,
     "after_user_signup": activation.POLICY_GLOBAL,
