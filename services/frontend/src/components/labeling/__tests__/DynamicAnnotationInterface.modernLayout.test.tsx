@@ -257,4 +257,59 @@ describe('DynamicAnnotationInterface modern layout seam', () => {
     expect(notizen).toBeDefined()
     expect(notizen.value).toEqual({ markdown: 'draft-only notes' })
   })
+  describe('state-specific interface (mode state)', () => {
+    const STATE_PREFS = { ...MODERN_PREFS, mode: 'state', state_code: 'BW' }
+
+    it('hands the host chrome plus its own submit to the slot and drops the action bar', async () => {
+      mockUser = { id: 'u1', exam_layout_prefs: STATE_PREFS }
+      const renderTimer = jest.fn(() => <span>timer</span>)
+      const onLeave = jest.fn()
+      const { onSubmit } = renderInterface({
+        allowModernLayout: true,
+        examChrome: { renderTimer, onLeave },
+        requireConfirmBeforeSubmit: true,
+      })
+
+      await screen.findByTestId('modern-shell')
+      expect(
+        screen.queryByText('annotation.interface.submit'),
+      ).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('annotation.interface.confirmDone'),
+      ).not.toBeInTheDocument()
+
+      const chrome = lastSlotProps()!.chrome!
+      expect(chrome.renderTimer).toBe(renderTimer)
+      expect(chrome.onLeave).toBe(onLeave)
+      expect(chrome.requireConfirmBeforeSubmit).toBe(true)
+      expect(chrome.canSubmit).toBe(true)
+
+      // The slot's submit is the host's merged submit (confirm handled by the slot).
+      chrome.onSubmit!()
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      const submitted = onSubmit.mock.calls[0][0] as any[]
+      expect(submitted.find((a) => a.from_name === 'loesung').value).toEqual({
+        markdown: 'Lösungstext',
+      })
+    })
+
+    it('offers no submit when the host hides the submit button', async () => {
+      mockUser = { id: 'u1', exam_layout_prefs: STATE_PREFS }
+      renderInterface({ allowModernLayout: true, showSubmitButton: false })
+      await screen.findByTestId('modern-shell')
+      expect(lastSlotProps()!.chrome!.onSubmit).toBeUndefined()
+    })
+
+    it('passes no chrome and keeps the action bar in modern mode', async () => {
+      renderInterface({
+        allowModernLayout: true,
+        examChrome: { onLeave: jest.fn() },
+      })
+      await screen.findByTestId('modern-shell')
+      expect(lastSlotProps()!.chrome).toBeUndefined()
+      expect(
+        screen.getByText('annotation.interface.submit'),
+      ).toBeInTheDocument()
+    })
+  })
 })

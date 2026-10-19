@@ -85,9 +85,10 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   // Modern exam layout (extended, per-user preference): widens the content
   // column and opts the interface into the ModernExamLayout slot. Inactive
   // (community, classic preference, non-exam config) -> unchanged classic page.
-  const { active: modernExamLayoutActive } = useModernExamLayout(
-    currentProject?.label_config,
-  )
+  // A state-specific interface (prefs mode 'state') additionally replaces
+  // this page's header: timer, back and checkpoints move into its own bar.
+  const { active: modernExamLayoutActive, state: stateExamLayoutActive } =
+    useModernExamLayout(currentProject?.label_config)
 
   const [annotations, setAnnotations] = useState<AnnotationResult[]>([])
   const [loadedAnnotations, setLoadedAnnotations] = useState<
@@ -920,6 +921,117 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     )
   }
 
+  // Header controls, shared with a state-specific exam interface, which
+  // renders them in its own bar instead (examChrome).
+  const checkpointPanel = CheckpointPanel &&
+    currentProject &&
+    currentTask &&
+    !attemptedReadOnly && (
+      <CheckpointPanel
+        projectId={currentProject.id}
+        taskId={currentTask.id}
+        annotations={annotations}
+        enabled={currentProject.restorable_checkpoints_enabled}
+        intervalSeconds={currentProject.checkpoint_interval_seconds}
+        onRestore={(snapshot: any[]) => {
+          setLoadedAnnotations(snapshot)
+          setRestoreKey((k) => k + 1)
+          addToast(t('annotation.checkpoints.restored'), 'success')
+        }}
+      />
+    )
+
+  // The header timer: the TimerIntegration slot (server session, pause,
+  // strict auto-submit) or, without a limit, the elapsed-time readout. A
+  // state-specific exam interface renders it inside its own bar instead
+  // (examChrome.renderTimer), still this one instance and its handlers.
+  const renderTimer = (variant: 'default' | 'state') =>
+    TimerSlot &&
+    currentProject?.annotation_time_limit_enabled &&
+    !attemptedReadOnly &&
+    strictTimerPhase === 'annotating' ? (
+      <TimerSlot
+        variant={variant}
+        project={currentProject}
+        task={currentTask}
+        annotations={annotations}
+        paused={showQuestionnaireModal}
+        onAutoSubmit={async (result: any[]) => {
+          if (!isStrictMode) {
+            // Non-strict: 0:00 starts overtime. No auto-submit — a
+            // half-finished snapshot would burn a KI-Votum grading
+            // (and, for vertretbar subscribers, the weekly free
+            // one). The student keeps writing and submits manually;
+            // the timer keeps counting up.
+            setNonStrictOvertime(true)
+            return
+          }
+          if (hasSubmittedRef.current) return
+          hasSubmittedRef.current = true
+
+          const shouldRunImmediate =
+            !!currentProject?.immediate_evaluation_enabled
+          const hasQuestionnaire = !!isQuestionnaireEnabled
+
+          let annotation: any
+          try {
+            annotation = await projectsAPI.createAnnotation(currentTask.id, {
+              result,
+              was_cancelled: false,
+              auto_submitted: true,
+              lead_time: currentProject.annotation_time_limit_seconds || 0,
+            } as any)
+          } catch (err) {
+            logger.error('Auto-submit failed:', err)
+            if (isStrictMode) setStrictTimerPhase('time_over')
+            return
+          }
+
+          // Track the annotation for the eval slot BEFORE the
+          // questionnaire branch (mirrors the manual-submit path).
+          // Without this, a project with BOTH a questionnaire AND
+          // immediate eval would return into the questionnaire with
+          // lastSubmittedAnnotationId still null, so proceedAfterQuestionnaire
+          // can't hand off and the KI-Votum never shows in-page on
+          // auto-submit. (The grade is still produced server-side via
+          // the on_annotation_created hook regardless; this only
+          // restores the live in-page score for the present student.)
+          if (shouldRunImmediate && annotation) {
+            setLastSubmittedAnnotationId(annotation.id)
+          }
+
+          // Questionnaire takes precedence: it's the explicit closure UX.
+          // proceedAfterQuestionnaire hands off to the (now-tracked)
+          // eval slot once the questionnaire closes.
+          if (hasQuestionnaire && annotation) {
+            setQuestionnaireAnnotationId(annotation.id)
+            setShowQuestionnaireModal(true)
+            return
+          }
+
+          // Immediate eval: ImmediateEvalSlot is mounted via the
+          // setLastSubmittedAnnotationId above. autoSubmittedRef tells
+          // the slot's onClose to advance once dismissed, mirroring the
+          // old monolith's inline auto-submit-then-eval flow.
+          if (shouldRunImmediate && annotation) {
+            autoSubmittedRef.current = true
+            return
+          }
+
+          // Neither modal will intercept — show time_over directly so the user
+          // sees an explicit "your time ran out" screen before advancing.
+          if (isStrictMode) setStrictTimerPhase('time_over')
+        }}
+      />
+    ) : variant === 'state' ? null : (
+      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+        <ClockIcon className="h-4 w-4" />
+        {formatDistanceToNow(startTime, {
+          locale: dateFnsLocale(locale),
+        })}
+      </div>
+    )
+
   return (
     <div
       className={
@@ -936,189 +1048,91 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     >
       {/* Main content */}
       <div className="flex min-h-0 flex-1 flex-col">
-        {/* Header */}
-        <div className="border-b px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="text"
-                onClick={() => router.push(`/projects/${projectId}`)}
-              >
-                <ArrowLeftIcon className="mr-2 h-4 w-4" />
-                {t('annotation.backToProject')}
-              </Button>
-              <Separator orientation="vertical" className="h-6" />
-              <div>
-                <h1 className="text-lg font-semibold">
-                  {currentProject?.title}
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  {(() => {
-                    // Show "absolute" progress: <completed-so-far + 1> of
-                    // <project total>. The store's currentTaskTotal shrinks
-                    // as tasks are completed (it's the size of the remaining
-                    // cycle) — using project.num_tasks as the denominator
-                    // keeps the total stable so the annotator sees forward
-                    // progress (1/13 → 2/13 → ... → 13/13).
-                    //
-                    // Treat 0/missing num_tasks as "no project total known"
-                    // (e.g. legacy projects, clones that never re-counted)
-                    // and fall back to the cycle-relative position so we
-                    // never produce negative numbers.
-                    const rawProjectTotal = currentProject?.num_tasks
-                    const projectTotal =
-                      typeof rawProjectTotal === 'number' && rawProjectTotal > 0
-                        ? rawProjectTotal
-                        : null
-                    const remaining = currentTaskTotal ?? null
-                    const positionInCycle = currentTaskPosition ?? null
-                    const total = projectTotal ?? remaining
-                    const current =
-                      projectTotal != null &&
-                      remaining != null &&
-                      positionInCycle != null
-                        ? projectTotal - remaining + positionInCycle
-                        : positionInCycle
-                    return t('annotation.interface.taskPosition', {
-                      current: current ?? '?',
-                      total: total ?? '?',
-                    })
-                  })()}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Instructions button - allows re-viewing dismissed instructions */}
-              {(currentProject?.instructions ||
-                currentProject?.conditional_instructions?.length) && (
+        {/* Header (a state-specific exam interface brings its own bar) */}
+        {!stateExamLayoutActive && (
+          <div className="border-b px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
                 <Button
                   variant="text"
-                  onClick={() => {
-                    setManualInstructionsOpen(true)
-                    setShowInstructionsModal(true)
-                  }}
+                  onClick={() => router.push(`/projects/${projectId}`)}
                 >
-                  <BookOpenIcon className="mr-2 h-4 w-4" />
-                  {t('annotation.instructions.showInstructions')}
+                  <ArrowLeftIcon className="mr-2 h-4 w-4" />
+                  {t('annotation.backToProject')}
                 </Button>
-              )}
-              {CheckpointPanel &&
-                currentProject &&
-                currentTask &&
-                !attemptedReadOnly && (
-                  <CheckpointPanel
-                    projectId={currentProject.id}
-                    taskId={currentTask.id}
-                    annotations={annotations}
-                    enabled={currentProject.restorable_checkpoints_enabled}
-                    intervalSeconds={currentProject.checkpoint_interval_seconds}
-                    onRestore={(snapshot: any[]) => {
-                      setLoadedAnnotations(snapshot)
-                      setRestoreKey((k) => k + 1)
-                      addToast(t('annotation.checkpoints.restored'), 'success')
-                    }}
-                  />
-                )}
-              {TimerSlot &&
-              currentProject?.annotation_time_limit_enabled &&
-              !attemptedReadOnly &&
-              strictTimerPhase === 'annotating' ? (
-                <TimerSlot
-                  project={currentProject}
-                  task={currentTask}
-                  annotations={annotations}
-                  paused={showQuestionnaireModal}
-                  onAutoSubmit={async (result: any[]) => {
-                    if (!isStrictMode) {
-                      // Non-strict: 0:00 starts overtime. No auto-submit — a
-                      // half-finished snapshot would burn a KI-Votum grading
-                      // (and, for vertretbar subscribers, the weekly free
-                      // one). The student keeps writing and submits manually;
-                      // the timer keeps counting up.
-                      setNonStrictOvertime(true)
-                      return
-                    }
-                    if (hasSubmittedRef.current) return
-                    hasSubmittedRef.current = true
-
-                    const shouldRunImmediate =
-                      !!currentProject?.immediate_evaluation_enabled
-                    const hasQuestionnaire = !!isQuestionnaireEnabled
-
-                    let annotation: any
-                    try {
-                      annotation = await projectsAPI.createAnnotation(
-                        currentTask.id,
-                        {
-                          result,
-                          was_cancelled: false,
-                          auto_submitted: true,
-                          lead_time:
-                            currentProject.annotation_time_limit_seconds || 0,
-                        } as any,
-                      )
-                    } catch (err) {
-                      logger.error('Auto-submit failed:', err)
-                      if (isStrictMode) setStrictTimerPhase('time_over')
-                      return
-                    }
-
-                    // Track the annotation for the eval slot BEFORE the
-                    // questionnaire branch (mirrors the manual-submit path).
-                    // Without this, a project with BOTH a questionnaire AND
-                    // immediate eval would return into the questionnaire with
-                    // lastSubmittedAnnotationId still null, so proceedAfterQuestionnaire
-                    // can't hand off and the KI-Votum never shows in-page on
-                    // auto-submit. (The grade is still produced server-side via
-                    // the on_annotation_created hook regardless; this only
-                    // restores the live in-page score for the present student.)
-                    if (shouldRunImmediate && annotation) {
-                      setLastSubmittedAnnotationId(annotation.id)
-                    }
-
-                    // Questionnaire takes precedence: it's the explicit closure UX.
-                    // proceedAfterQuestionnaire hands off to the (now-tracked)
-                    // eval slot once the questionnaire closes.
-                    if (hasQuestionnaire && annotation) {
-                      setQuestionnaireAnnotationId(annotation.id)
-                      setShowQuestionnaireModal(true)
-                      return
-                    }
-
-                    // Immediate eval: ImmediateEvalSlot is mounted via the
-                    // setLastSubmittedAnnotationId above. autoSubmittedRef tells
-                    // the slot's onClose to advance once dismissed, mirroring the
-                    // old monolith's inline auto-submit-then-eval flow.
-                    if (shouldRunImmediate && annotation) {
-                      autoSubmittedRef.current = true
-                      return
-                    }
-
-                    // Neither modal will intercept — show time_over directly so the user
-                    // sees an explicit "your time ran out" screen before advancing.
-                    if (isStrictMode) setStrictTimerPhase('time_over')
-                  }}
-                />
-              ) : (
-                <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                  <ClockIcon className="h-4 w-4" />
-                  {formatDistanceToNow(startTime, {
-                    locale: dateFnsLocale(locale),
-                  })}
+                <Separator orientation="vertical" className="h-6" />
+                <div>
+                  <h1 className="text-lg font-semibold">
+                    {currentProject?.title}
+                  </h1>
+                  <p className="text-muted-foreground text-sm">
+                    {(() => {
+                      // Show "absolute" progress: <completed-so-far + 1> of
+                      // <project total>. The store's currentTaskTotal shrinks
+                      // as tasks are completed (it's the size of the remaining
+                      // cycle) — using project.num_tasks as the denominator
+                      // keeps the total stable so the annotator sees forward
+                      // progress (1/13 → 2/13 → ... → 13/13).
+                      //
+                      // Treat 0/missing num_tasks as "no project total known"
+                      // (e.g. legacy projects, clones that never re-counted)
+                      // and fall back to the cycle-relative position so we
+                      // never produce negative numbers.
+                      const rawProjectTotal = currentProject?.num_tasks
+                      const projectTotal =
+                        typeof rawProjectTotal === 'number' &&
+                        rawProjectTotal > 0
+                          ? rawProjectTotal
+                          : null
+                      const remaining = currentTaskTotal ?? null
+                      const positionInCycle = currentTaskPosition ?? null
+                      const total = projectTotal ?? remaining
+                      const current =
+                        projectTotal != null &&
+                        remaining != null &&
+                        positionInCycle != null
+                          ? projectTotal - remaining + positionInCycle
+                          : positionInCycle
+                      return t('annotation.interface.taskPosition', {
+                        current: current ?? '?',
+                        total: total ?? '?',
+                      })
+                    })()}
+                  </p>
                 </div>
-              )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Instructions button - allows re-viewing dismissed instructions */}
+                {(currentProject?.instructions ||
+                  currentProject?.conditional_instructions?.length) && (
+                  <Button
+                    variant="text"
+                    onClick={() => {
+                      setManualInstructionsOpen(true)
+                      setShowInstructionsModal(true)
+                    }}
+                  >
+                    <BookOpenIcon className="mr-2 h-4 w-4" />
+                    {t('annotation.instructions.showInstructions')}
+                  </Button>
+                )}
+                {checkpointPanel}
+                {renderTimer('default')}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Task content. Modern: x-overflow hidden so the edge drawers'
             off-screen resting position never grows a horizontal scrollbar. */}
         <div
           className={
-            modernExamLayoutActive
-              ? 'flex-1 overflow-x-hidden overflow-y-auto p-6'
-              : 'flex-1 overflow-auto p-6'
+            stateExamLayoutActive
+              ? 'flex-1 overflow-x-hidden overflow-y-auto'
+              : modernExamLayoutActive
+                ? 'flex-1 overflow-x-hidden overflow-y-auto p-6'
+                : 'flex-1 overflow-auto p-6'
           }
         >
           <div
@@ -1172,6 +1186,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   }
                   startTime={startTime} // Pass start time for auto-save lead_time tracking
                   allowModernLayout // Interactive labeling host: modern exam layout may apply
+                  examChrome={{
+                    renderTimer,
+                    onLeave: () => router.push(`/projects/${projectId}`),
+                    extra: checkpointPanel || undefined,
+                  }}
                   onChange={(results) => setAnnotations(results)}
                   onSubmit={async (results) => {
                     try {

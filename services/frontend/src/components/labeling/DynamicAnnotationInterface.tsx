@@ -15,6 +15,7 @@ import {
   resolvePropsDataBindings,
   validateTaskDataFields,
 } from '@/lib/labelConfig/dataBinding'
+import type { HostExamChrome } from '@/lib/labelConfig/examLayout'
 import {
   extractRequiredDataFields,
   ParsedComponent,
@@ -50,6 +51,10 @@ interface DynamicAnnotationInterfaceProps {
   // The layout additionally requires the user preference, the ModernExamLayout
   // slot, and an exam-shaped config — see useModernExamLayout.
   allowModernLayout?: boolean
+  // Host chrome for a state-specific exam interface (prefs mode 'state'):
+  // the slot renders the host's timer and leave action in its own bar, and
+  // this component's action bar gives way to the slot's submit button.
+  examChrome?: HostExamChrome
 }
 
 export function DynamicAnnotationInterface({
@@ -66,6 +71,7 @@ export function DynamicAnnotationInterface({
   enableAutoSave = true,
   readOnly = false,
   allowModernLayout = false,
+  examChrome,
 }: DynamicAnnotationInterfaceProps) {
   const { t } = useI18n()
 
@@ -76,11 +82,13 @@ export function DynamicAnnotationInterface({
   // hosts, non-exam configs) -> the classic stacked render below, unchanged.
   const {
     active: modernLayoutActive,
+    state: stateLayoutActive,
     prefs: examLayoutPrefs,
     Layout: ModernLayout,
   } = useModernExamLayout(labelConfig)
   const useModernRender =
     allowModernLayout && modernLayoutActive && !!ModernLayout
+  const useStateRender = useModernRender && stateLayoutActive
 
   // Track start time for lead_time calculation - use lazy initializer to avoid calling Date.now() on every render
   const [initialStartTime] = useState(() => startTime || Date.now())
@@ -514,6 +522,17 @@ export function DynamicAnnotationInterface({
               prefs={examLayoutPrefs}
               readOnly={readOnly}
               taskId={taskId?.toString()}
+              chrome={
+                useStateRender
+                  ? {
+                      ...examChrome,
+                      onSubmit: showSubmitButton ? handleSubmit : undefined,
+                      canSubmit:
+                        annotations.size > 0 || componentValues.size > 0,
+                      requireConfirmBeforeSubmit,
+                    }
+                  : undefined
+              }
             />
           </Suspense>
         ) : (
@@ -531,70 +550,73 @@ export function DynamicAnnotationInterface({
         </Alert>
       )}
 
-      {/* Action buttons */}
-      <div className="border-t pt-6">
-        {requireConfirmBeforeSubmit && (
-          <div className="mb-4 border-b border-zinc-200 pb-4 dark:border-zinc-700">
-            <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-              <input
-                type="checkbox"
-                checked={confirmedDone}
-                onChange={(e) => setConfirmedDone(e.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
-              />
-              {t('annotation.interface.confirmDone')}
-            </label>
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {onSkip && (
-              <button
-                type="button"
-                onClick={onSkip}
-                disabled={requireConfirmBeforeSubmit && !confirmedDone}
-                className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-              >
-                {t('annotation.interface.skip')}{' '}
-                <span className="ml-2 text-xs opacity-60">
-                  {t('annotation.interface.skipShortcut')}
-                </span>
-              </button>
-            )}
-
-            {/* Auto-save indicator */}
-            {enableAutoSave && (
-              <AutoSaveIndicator
-                isSaving={autoSave.isSaving}
-                lastSaved={autoSave.lastSaved}
-                error={autoSave.error}
-              />
-            )}
-          </div>
-
-          {showSubmitButton && (
-            <div className="ml-auto flex items-center gap-4">
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={
-                  (annotations.size === 0 && componentValues.size === 0) ||
-                  (requireConfirmBeforeSubmit && !confirmedDone)
-                }
-                className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t('annotation.interface.submit')}{' '}
-                <span className="ml-2 text-xs opacity-90">
-                  {t('annotation.interface.submitShortcut')}
-                </span>
-              </button>
+      {/* Action buttons. A state-specific interface carries its own submit
+          (chrome.onSubmit) in its bar, so the bar here is omitted. */}
+      {!useStateRender && (
+        <div className="border-t pt-6">
+          {requireConfirmBeforeSubmit && (
+            <div className="mb-4 border-b border-zinc-200 pb-4 dark:border-zinc-700">
+              <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={confirmedDone}
+                  onChange={(e) => setConfirmedDone(e.target.checked)}
+                  className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
+                />
+                {t('annotation.interface.confirmDone')}
+              </label>
             </div>
           )}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {onSkip && (
+                <button
+                  type="button"
+                  onClick={onSkip}
+                  disabled={requireConfirmBeforeSubmit && !confirmedDone}
+                  className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                >
+                  {t('annotation.interface.skip')}{' '}
+                  <span className="ml-2 text-xs opacity-60">
+                    {t('annotation.interface.skipShortcut')}
+                  </span>
+                </button>
+              )}
+
+              {/* Auto-save indicator */}
+              {enableAutoSave && (
+                <AutoSaveIndicator
+                  isSaving={autoSave.isSaving}
+                  lastSaved={autoSave.lastSaved}
+                  error={autoSave.error}
+                />
+              )}
+            </div>
+
+            {showSubmitButton && (
+              <div className="ml-auto flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={
+                    (annotations.size === 0 && componentValues.size === 0) ||
+                    (requireConfirmBeforeSubmit && !confirmedDone)
+                  }
+                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t('annotation.interface.submit')}{' '}
+                  <span className="ml-2 text-xs opacity-90">
+                    {t('annotation.interface.submitShortcut')}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
+            {t('annotation.interface.tip')}
+          </div>
         </div>
-        <div className="mt-2 text-center text-xs text-zinc-500 dark:text-zinc-400">
-          {t('annotation.interface.tip')}
-        </div>
-      </div>
+      )}
     </div>
   )
 

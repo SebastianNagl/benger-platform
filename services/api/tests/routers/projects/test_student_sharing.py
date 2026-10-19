@@ -327,6 +327,68 @@ async def test_exam_layout_endpoint_persists_without_side_effects(
 
 
 @pytest.mark.asyncio
+async def test_exam_layout_state_mode(async_test_client, async_test_db):
+    """Mode "state" (state-specific exam interface) needs a Bundesland code;
+    its display settings are validated and survive a switch to another mode."""
+    user = await _make_user(async_test_db)
+
+    async def _row():
+        return (
+            await async_test_db.execute(select(User).where(User.id == user.id))
+        ).scalar_one()
+
+    with _as_user(user):
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "state"}},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {"mode": "state", "state_code": "XX"}},
+        )
+        assert r.status_code == 422
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={
+                "exam_layout_prefs": {
+                    "mode": "state",
+                    "state_code": "BW",
+                    "state_ui": {"align": "sideways"},
+                }
+            },
+        )
+        assert r.status_code == 422
+
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={
+                "exam_layout_prefs": {
+                    "mode": "state",
+                    "state_code": "BW",
+                    "state_ui": {"align": "justify", "hide_time": True},
+                }
+            },
+        )
+        assert r.status_code == 200, r.text
+        stored = (await _row()).exam_layout_prefs
+        assert stored["mode"] == "state"
+        assert stored["state_code"] == "BW"
+        assert stored["state_ui"] == {"align": "justify", "hide_time": True}
+
+        # Switching to modern keeps the state settings for a later switch back.
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={"exam_layout_prefs": {**stored, "mode": "modern"}},
+        )
+        assert r.status_code == 200
+        stored = (await _row()).exam_layout_prefs
+        assert stored["mode"] == "modern"
+        assert stored["state_code"] == "BW"
+        assert stored["state_ui"] == {"align": "justify", "hide_time": True}
+
+
+@pytest.mark.asyncio
 async def test_exam_layout_validation_and_defaults(async_test_client, async_test_db):
     """The Pydantic layer owns the shape: minimal bodies complete to the
     canonical object, bad literals 422, unknown keys never reach the row,

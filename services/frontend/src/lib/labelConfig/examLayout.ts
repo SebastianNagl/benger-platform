@@ -8,6 +8,9 @@
  *   classic — today's stacked cards, each opening a full-screen modal.
  *   modern  — the Loesung editor is the always-open main sheet; the other
  *             fields dock as slide-in side panels (left/right/none).
+ *   state   - a state-specific interface imitating that Bundesland's e-exam
+ *             software (state_code). The same slot renders it; it also takes
+ *             over the host's chrome (timer, leave, submit) via `chrome`.
  *
  * The platform never renders the modern layout itself: DynamicAnnotationInterface
  * delegates the fields region to the ModernExamLayout slot when (and only when)
@@ -18,9 +21,23 @@
 
 import type { ComponentType, ReactNode } from 'react'
 
+import {
+  isBundeslandCode,
+  type BundeslandCode,
+} from '@/lib/profile/bundeslaender'
+
 import type { ParsedComponent } from './parser'
 
-export type ExamLayoutMode = 'classic' | 'modern'
+export type ExamLayoutMode = 'classic' | 'modern' | 'state'
+export type ExamSheetAlign = 'left' | 'center' | 'right' | 'justify'
+
+/** Display-only settings of a state-specific interface. `align` is how the
+ *  whole sheet is shown (the stored Lösung stays plain markdown); `hide_time`
+ *  hides the remaining-time readout while the timer keeps running. */
+export interface ExamStateUiPrefs {
+  align?: ExamSheetAlign
+  hide_time?: boolean
+}
 export type ExamPanelSide = 'left' | 'right'
 export type ExamPanelPosition = ExamPanelSide | 'none'
 
@@ -40,6 +57,10 @@ export interface ExamLayoutPrefs {
    *  Persisted so a width set in one exam applies to the next. */
   left_panel_width?: number
   right_panel_width?: number
+  /** Mode 'state': which state's exam software the interface imitates. Kept
+   *  across mode switches so switching back restores it. */
+  state_code?: BundeslandCode
+  state_ui?: ExamStateUiPrefs
 }
 
 /** Server-validated bounds for the drag-resizable panel widths (px). */
@@ -83,16 +104,64 @@ export interface ModernExamLayoutProps {
    * per node per render — Suspense keys derive from the key argument.
    */
   renderComponent: (config: ParsedComponent, key?: string) => ReactNode
-  /** Resolved placements; mode is already verified to be 'modern'. */
+  /** Resolved placements; mode is already verified to be 'modern' or 'state'. */
   prefs: ExamLayoutPrefs
   readOnly?: boolean
   taskId?: string
+  /** Mode 'state' only: host chrome the state interface renders itself. */
+  chrome?: ExamChrome
 }
+
+/**
+ * Host chrome handed to the layout slot in mode 'state', whose interface
+ * replaces the host's own header (timer, back button) and action bar. The
+ * host keeps owning the behaviour: renderTimer renders the host's timer
+ * (same session, same expiry handling incl. strict auto-submit), onSubmit is
+ * the host's own submit path.
+ */
+export interface ExamChrome {
+  /** Renders the host's timer in the given visual variant; null when the
+   *  attempt has no time limit. */
+  renderTimer?: (variant: 'default' | 'state') => ReactNode
+  /** Leave the attempt without submitting (draft is kept). */
+  onLeave?: () => void
+  /** Extra host controls (e.g. restorable checkpoints) to place in the bar. */
+  extra?: ReactNode
+  /** Supplied by DynamicAnnotationInterface: its merged submit. */
+  onSubmit?: () => void
+  canSubmit?: boolean
+  requireConfirmBeforeSubmit?: boolean
+}
+
+/** What a host passes to DynamicAnnotationInterface (examChrome prop). */
+export type HostExamChrome = Pick<
+  ExamChrome,
+  'renderTimer' | 'onLeave' | 'extra'
+>
 
 export type ModernExamLayoutComponent = ComponentType<ModernExamLayoutProps>
 
 const PANEL_SIDES: ReadonlySet<string> = new Set(['left', 'right'])
 const PANEL_POSITIONS: ReadonlySet<string> = new Set(['left', 'right', 'none'])
+const SHEET_ALIGNS: ReadonlySet<string> = new Set([
+  'left',
+  'center',
+  'right',
+  'justify',
+])
+
+function resolveStateUi(raw: unknown): ExamStateUiPrefs | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined
+  }
+  const value = raw as Record<string, unknown>
+  const out: ExamStateUiPrefs = {}
+  if (SHEET_ALIGNS.has(value.align as string)) {
+    out.align = value.align as ExamSheetAlign
+  }
+  if (typeof value.hide_time === 'boolean') out.hide_time = value.hide_time
+  return Object.keys(out).length > 0 ? out : undefined
+}
 
 /**
  * Total safe-parse of a stored preference value. The API validates every
@@ -113,8 +182,19 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
   const value = raw as Record<string, unknown>
   const leftWidth = resolvePanelWidth(value.left_panel_width)
   const rightWidth = resolvePanelWidth(value.right_panel_width)
+  const stateCode = isBundeslandCode(value.state_code)
+    ? value.state_code
+    : undefined
+  const stateUi = resolveStateUi(value.state_ui)
+  // 'state' without a valid state_code has nothing to render -> classic.
+  const mode: ExamLayoutMode =
+    value.mode === 'modern'
+      ? 'modern'
+      : value.mode === 'state' && stateCode
+        ? 'state'
+        : 'classic'
   return {
-    mode: value.mode === 'modern' ? 'modern' : 'classic',
+    mode,
     case_position: PANEL_SIDES.has(value.case_position as string)
       ? (value.case_position as ExamPanelSide)
       : CLASSIC_LAYOUT.case_position,
@@ -128,6 +208,8 @@ export function resolveExamLayoutPrefs(raw: unknown): ExamLayoutPrefs {
     // JSON.stringify drops nothing unexpected on the write path.
     ...(leftWidth !== undefined ? { left_panel_width: leftWidth } : {}),
     ...(rightWidth !== undefined ? { right_panel_width: rightWidth } : {}),
+    ...(stateCode ? { state_code: stateCode } : {}),
+    ...(stateUi ? { state_ui: stateUi } : {}),
   }
 }
 

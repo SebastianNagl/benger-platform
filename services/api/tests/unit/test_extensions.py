@@ -142,7 +142,10 @@ class TestExtensionLoader:
         # reporter and the project-editor-actions / ProjectLivePage slots.
         # 2.37 adds the N-package extension registry (BENGER_EXTENSIONS,
         # REQUIRES_EXTENSIONS, HOOK_SPECS, include_extension_routers).
-        assert CORE_API_VERSION == "2.38"
+        # 2.38 adds the shared translation catalog (fr locale).
+        # 2.39 adds the state-specific exam interface (exam-layout mode
+        # "state", ExamChrome host hand-off).
+        assert CORE_API_VERSION == "2.39"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
