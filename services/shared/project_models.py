@@ -782,6 +782,40 @@ class TaskWorkPresence(Base):
     )
 
 
+class KorrekturReservation(Base):
+    """A grader has one target of a Korrektur queue open right now (migration 119).
+
+    One row per (user, metric, target), refreshed in place by a heartbeat
+    while the grading modal is open and deleted on submit or close. A row
+    whose ``last_seen_at`` is older than the overlay's TTL counts as gone.
+    Written by the extended edition, which uses it to keep a second grader
+    away from the last free slot of a capped target; the platform only owns
+    the table.
+    """
+
+    __tablename__ = "korrektur_reservations"
+
+    id = Column(String, primary_key=True, index=True)
+    project_id = Column(String, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    task_id = Column(String, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    metric = Column(String, nullable=False)
+    # 'annotation' or 'generation'; target_id points at that row.
+    target_type = Column(String, nullable=False)
+    target_id = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_seen_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        sa.UniqueConstraint(
+            "user_id", "metric", "target_type", "target_id",
+            name="uq_korrektur_reservation_user_target",
+        ),
+        sa.Index("ix_korrektur_reservations_project_metric", "project_id", "metric"),
+        sa.Index("ix_korrektur_reservations_task_id", "task_id"),
+    )
+
+
 class TaskDraftCheckpoint(Base):
     """Append-only restorable draft checkpoints (opt-in per project).
 
