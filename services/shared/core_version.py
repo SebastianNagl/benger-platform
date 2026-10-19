@@ -567,11 +567,11 @@ whenever one is added, renamed or removed):
 2.39 (2026-10-18): state-specific exam interfaces. ``ExamLayoutPrefs``
   (``users.exam_layout_prefs``, ``PUT /auth/me/exam-layout``) gains mode
   ``"state"`` with ``state_code`` (a Bundesland, required for that mode) and
-  ``state_ui`` (``align``, ``hide_time``). The frontend contract
-  (``@/lib/labelConfig/examLayout``) adds ``ExamChrome`` /
+  ``state_ui`` (``align``, ``hide_time``, ``theme``, ``spellcheck``). The
+  frontend contract (``@/lib/labelConfig/examLayout``) adds ``ExamChrome`` /
   ``HostExamChrome``: in state mode ``useModernExamLayout`` reports
   ``state: true``, hosts hide their own header and pass ``examChrome``
-  (``renderTimer(variant)``, ``onLeave``, ``extra``) to
+  (``renderTimer(variant)``, ``onLeave``, ``extra``, ``title``) to
   ``DynamicAnnotationInterface``, which drops its action bar and hands the
   ModernExamLayout slot ``chrome`` incl. ``onSubmit``. The TimerIntegration
   slot receives ``variant: "default" | "state"``.
@@ -583,6 +583,22 @@ whenever one is added, renamed or removed):
   grading modal, with a heartbeat-refreshed ``last_seen_at``. Written by the
   overlay to keep a second grader away from the last free slot of a target
   with a grader cap; the platform only owns the schema.
+
+2.41 (2026-10-19): jurisdiction-specific project types and score-less judges.
+  ``organizations.settings.jurisdiction`` (``"DE"`` | ``"FR"``, default DE;
+  shared ``org_jurisdiction``) is reported per organization by
+  ``/auth/me/contexts`` and set via ``PUT /organizations/{id}/jurisdiction``.
+  Frontend: ``registerWizardProjectType({id, kind, icon, nameKey,
+  descriptionKey, templateId?, jurisdictions?, preset?})`` adds options to
+  the wizard's project-type picker next to the three base kinds;
+  ``RegisteredWizardTemplate.jurisdictions`` limits a template the same
+  way (``@/lib/jurisdiction``). Workers: ``benger_extended.workers.
+  get_inline_judge(metric)`` returns a judge with ``compute`` /
+  ``build_row`` / ``evaluate_single`` that the bulk cells and the
+  immediate lane call instead of the generic score parser
+  (``evaluation/inline_judges.py``). A score-less result carries
+  ``value: None`` and ``details.feedback_only: true``; the evaluation
+  planner counts it as evaluated (``_row_has_score``).
 
 2.42 (2026-10-19): runtime switch for extension packages. The flag engine
   is back in the platform: ``services/shared/feature_flags`` (``registry``:

@@ -3097,7 +3097,10 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
     redelivered or re-finalized run cannot notify twice; a run with nobody to
-    tell (generation-only benchmarks) stays unmarked. Never raises.
+    tell (generation-only benchmarks) stays unmarked. Score-less feedback
+    rows (``details.feedback_only``, core 2.41) are a draft for the teacher,
+    who releases them later (the overlay notifies then), so they tell nobody
+    here. Never raises.
     """
     try:
         meta = evaluation.eval_metadata or {}
@@ -3116,6 +3119,14 @@ def _notify_batch_grading_received(db, evaluation) -> None:
                 FROM task_evaluations te
                 JOIN annotations a ON a.id = te.annotation_id
                 WHERE te.evaluation_id = :eid AND a.completed_by IS NOT NULL
+                  AND NOT COALESCE(
+                    CASE WHEN jsonb_typeof(te.metrics) = 'object' THEN EXISTS (
+                      SELECT 1 FROM jsonb_each(te.metrics) m
+                      WHERE jsonb_typeof(m.value) = 'object'
+                        AND m.value -> 'details' ->> 'feedback_only' = 'true'
+                    ) END,
+                    false
+                  )
                 """
             ),
             {"eid": evaluation.id},

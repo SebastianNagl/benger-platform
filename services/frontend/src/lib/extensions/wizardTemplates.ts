@@ -29,6 +29,11 @@ export interface RegisteredWizardTemplate extends Omit<
 > {
   nameKey: string
   descriptionKey: string
+  /**
+   * Offered only to projects created for these jurisdictions ('DE' | 'FR',
+   * see '@/lib/jurisdiction'). Omitted = offered everywhere.
+   */
+  jurisdictions?: string[]
 }
 
 const registry: { owner: string; template: RegisteredWizardTemplate }[] = []
@@ -119,4 +124,42 @@ export function getWizardKindPreset(
 export function _resetWizardKindPresets() {
   kindPresets.clear()
   kindPresetOwners.clear()
+}
+
+/**
+ * Project types — extra options for the wizard's project-type picker next
+ * to the three built-in ones (Generisch / Klausur / Kartenstapel, always
+ * shown). A registered type is a flavour of a base kind: the project is
+ * created with `kind`, the wizard selects `templateId` as the labeling
+ * template, applies the base kind's preset and then the type's own
+ * `preset` (same contract as a kind preset). `jurisdictions` limits the
+ * type to projects created for those jurisdictions, e.g. the French exam
+ * types the extended edition registers for 'FR'. A duplicate `id` is
+ * ignored, like a duplicate template.
+ */
+export interface RegisteredWizardProjectType {
+  id: string
+  kind: 'generic' | 'exam' | 'flashcard_collection'
+  icon: string
+  nameKey: string
+  descriptionKey: string
+  templateId?: string
+  jurisdictions?: string[]
+  preset?: WizardKindPreset
+}
+
+const projectTypes: RegisteredWizardProjectType[] = []
+
+export function registerWizardProjectType(type: RegisteredWizardProjectType) {
+  if (projectTypes.some((r) => r.id === type.id)) return
+  projectTypes.push(type)
+}
+
+export function getRegisteredWizardProjectTypes(): RegisteredWizardProjectType[] {
+  return [...projectTypes]
+}
+
+/** Test helper. */
+export function _resetWizardProjectTypes() {
+  projectTypes.length = 0
 }

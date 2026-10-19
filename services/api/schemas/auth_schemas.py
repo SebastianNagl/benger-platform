@@ -82,11 +82,15 @@ class ExamStateUiPrefs(BaseModel):
 
     ``align`` is how the whole writing sheet is displayed; the stored Lösung
     stays plain markdown either way. ``hide_time`` hides the remaining-time
-    readout (the timer keeps running).
+    readout (the timer keeps running). ``theme`` is the interface's colour
+    scheme and ``spellcheck`` toggles the browser's spell checking in the
+    writing sheet.
     """
 
     align: Optional[Literal["left", "center", "right", "justify"]] = None
     hide_time: Optional[bool] = None
+    theme: Optional[Literal["standard", "contrast"]] = None
+    spellcheck: Optional[bool] = None
 
 
 class ExamLayoutPrefs(BaseModel):

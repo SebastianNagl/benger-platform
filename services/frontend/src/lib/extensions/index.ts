@@ -39,14 +39,17 @@ export type { ExtensionName } from './enabled'
 export { getRegistrationOwner, setRegistrationOwner } from './owner'
 export { getSlot, hasSlot, registerSlot, useSlot } from './slots'
 export {
+  getRegisteredWizardProjectTypes,
   getRegisteredWizardTemplates,
   getWizardKindPreset,
   getWizardPostCreateHooks,
   registerWizardKindPreset,
   registerWizardPostCreateHook,
+  registerWizardProjectType,
   registerWizardTemplate,
 } from './wizardTemplates'
 export type {
+  RegisteredWizardProjectType,
   RegisteredWizardTemplate,
   WizardKindPreset,
   WizardPostCreateHook,

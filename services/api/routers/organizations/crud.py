@@ -397,6 +397,51 @@ async def update_organization(
     org_dict["member_count"] = member_count or 0
     return OrganizationResponse(**org_dict)
 
+class OrganizationJurisdictionUpdate(BaseModel):
+    jurisdiction: str
+
+
+@router.put("/{organization_id}/jurisdiction")
+async def update_organization_jurisdiction(
+    organization_id: str,
+    body: OrganizationJurisdictionUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Set the organization's jurisdiction (org admin or superadmin).
+
+    Merges ``settings.jurisdiction`` into the stored settings; the generic
+    ``PUT /{organization_id}`` replaces the whole settings object, which the
+    admin panel cannot do safely without reading every other key first.
+    """
+    from org_jurisdiction import JURISDICTIONS, is_valid_jurisdiction, with_jurisdiction
+
+    if not is_valid_jurisdiction(body.jurisdiction):
+        raise HTTPException(
+            status_code=422,
+            detail=f"jurisdiction must be one of {', '.join(JURISDICTIONS)}",
+        )
+    organization = (
+        await db.execute(
+            select(Organization).where(Organization.id == organization_id)
+        )
+    ).scalar_one_or_none()
+    if not organization:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+    can_manage = await db.run_sync(
+        lambda sync_db: can_manage_organization(current_user, organization_id, sync_db)
+    )
+    if not can_manage:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organization admins or superadmins can update organization settings",
+        )
+    organization.settings = with_jurisdiction(organization.settings, body.jurisdiction)
+    organization.updated_at = datetime.utcnow()
+    await db.commit()
+    return {"id": organization_id, "jurisdiction": body.jurisdiction}
+
+
 @router.delete("/{organization_id}")
 async def delete_organization(
     organization_id: str,

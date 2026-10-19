@@ -53,7 +53,7 @@ def _judge_run(db, run):
     return judge_run
 
 
-def _grade(db, run, task_id, annotation_id=None, generation_id=None):
+def _grade(db, run, task_id, annotation_id=None, generation_id=None, metrics=None):
     row = TaskEvaluation(
         id=str(uuid.uuid4()),
         evaluation_id=run.id,
@@ -65,7 +65,7 @@ def _grade(db, run, task_id, annotation_id=None, generation_id=None):
         answer_type="text",
         ground_truth={"value": "Ja"},
         prediction={"value": "Ja"},
-        metrics={"exact_match": 1.0},
+        metrics=metrics or {"exact_match": 1.0},
         passed=True,
     )
     db.add(row)
@@ -145,6 +145,57 @@ class TestBatchTrigger:
         tasks._notify_batch_grading_received(db_conn, run)
 
         assert [call["user_ids"] for call in recorded] == [[student.id]]
+
+
+class TestBatchFeedbackDrafts:
+    def test_score_less_feedback_rows_notify_nobody(
+        self, db_conn, recorded, make_user, make_project, make_task,
+        make_annotation, make_evaluation_run,
+    ):
+        """A feedback-only judge row (core 2.41) is the teacher's draft: the
+        student hears about it when it is released, not when the run ends."""
+        starter = make_user("Teacher")
+        draft_owner = make_user("Draft")
+        graded = make_user("Graded")
+        project = make_project(created_by=starter.id)
+        task = make_task(project.id, {"text": "Cas"})
+        run = make_evaluation_run(project.id, starter.id, status="completed")
+        feedback = {
+            "llm_judge_feedback": {
+                "value": None,
+                "method": "llm_judge_feedback",
+                "details": {"feedback_only": True},
+                "error": None,
+            }
+        }
+        draft_ann = make_annotation(project.id, task.id, draft_owner.id, result=[])
+        _grade(db_conn, run, task.id, annotation_id=draft_ann.id, metrics=feedback)
+        graded_ann = make_annotation(project.id, task.id, graded.id, result=[])
+        _grade(db_conn, run, task.id, annotation_id=graded_ann.id)
+
+        tasks._notify_batch_grading_received(db_conn, run)
+
+        assert [call["user_ids"] for call in recorded] == [[graded.id]]
+
+    def test_a_run_of_only_feedback_stays_unmarked(
+        self, db_conn, recorded, make_user, make_project, make_task,
+        make_annotation, make_evaluation_run,
+    ):
+        starter = make_user("Teacher")
+        student = make_user("Student")
+        project = make_project(created_by=starter.id)
+        task = make_task(project.id, {"text": "Cas"})
+        run = make_evaluation_run(project.id, starter.id, status="completed")
+        annotation = make_annotation(project.id, task.id, student.id, result=[])
+        _grade(
+            db_conn, run, task.id, annotation_id=annotation.id,
+            metrics={"llm_judge_feedback": {"value": None, "details": {"feedback_only": True}}},
+        )
+
+        tasks._notify_batch_grading_received(db_conn, run)
+
+        assert recorded == []
+        assert not (_stored_metadata(db_conn, run.id) or {}).get("annotators_notified")
 
 
 class TestImmediateTrigger:

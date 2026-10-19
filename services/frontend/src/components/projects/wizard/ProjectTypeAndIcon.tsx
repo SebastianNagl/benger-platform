@@ -7,6 +7,12 @@ import { Dialog } from '@/components/shared/Dialog'
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import { useI18n } from '@/contexts/I18nContext'
+import { getRegisteredWizardProjectTypes } from '@/lib/extensions/wizardTemplates'
+import {
+  DEFAULT_JURISDICTION,
+  offeredFor,
+  type Jurisdiction,
+} from '@/lib/jurisdiction'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { cn } from '@/lib/utils'
 
@@ -61,21 +67,43 @@ export const ICON_CHOICES = [
 export { defaultIconForKind } from '@/lib/projectKind'
 
 /**
- * Compact one-row project-type selector. The type drives discoverability,
- * the deck workspace and the student surfaces; it can be changed later in
- * the project details (except on student-created projects). Option
- * descriptions surface as tooltips and under the selected option to keep
- * the row height flat.
+ * Compact project-type selector. The three base kinds are always shown;
+ * extensions add more options with `registerWizardProjectType` (e.g. the
+ * French exam types for 'FR' organizations), each created as one of the
+ * base kinds. The type drives discoverability, the deck workspace and the
+ * student surfaces; it can be changed later in the project details (except
+ * on student-created projects). Option descriptions surface as tooltips and
+ * under the selected option to keep the rows flat.
  */
 export function ProjectTypeSelector({
   projectKind,
+  projectTypeId,
+  jurisdictions = [DEFAULT_JURISDICTION],
   onChange,
 }: {
   projectKind: WizardProjectKind
-  onChange: (partial: { projectKind: WizardProjectKind }) => void
+  projectTypeId?: string
+  jurisdictions?: ReadonlyArray<Jurisdiction>
+  onChange: (partial: {
+    projectKind: WizardProjectKind
+    projectTypeId: string
+  }) => void
 }) {
   const { t } = useI18n()
-  const selected = PROJECT_KIND_OPTIONS.find((o) => o.id === projectKind)
+  const options: {
+    id: string
+    kind: WizardProjectKind
+    icon: string
+    nameKey: string
+    descriptionKey: string
+  }[] = [
+    ...PROJECT_KIND_OPTIONS.map((o) => ({ ...o, kind: o.id })),
+    ...getRegisteredWizardProjectTypes().filter((r) =>
+      offeredFor(r.jurisdictions, jurisdictions),
+    ),
+  ]
+  const selectedId = projectTypeId ?? projectKind
+  const selected = options.find((o) => o.id === selectedId)
   return (
     <div data-testid="project-type-and-icon">
       <Label>
@@ -87,8 +115,8 @@ export function ProjectTypeSelector({
         role="radiogroup"
         aria-label={t('projects.creation.wizard.step1.kind.title')}
       >
-        {PROJECT_KIND_OPTIONS.map((opt) => {
-          const isSelected = projectKind === opt.id
+        {options.map((opt) => {
+          const isSelected = selectedId === opt.id
           return (
             <button
               key={opt.id}
@@ -96,7 +124,9 @@ export function ProjectTypeSelector({
               role="radio"
               aria-checked={isSelected}
               title={t(opt.descriptionKey)}
-              onClick={() => onChange({ projectKind: opt.id })}
+              onClick={() =>
+                onChange({ projectKind: opt.kind, projectTypeId: opt.id })
+              }
               data-testid={`project-kind-${opt.id}`}
               className={cn(
                 'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',

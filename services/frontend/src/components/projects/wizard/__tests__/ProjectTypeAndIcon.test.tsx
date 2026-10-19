@@ -1,6 +1,10 @@
 /**
  * @jest-environment jsdom
  */
+import {
+  _resetWizardProjectTypes,
+  registerWizardProjectType,
+} from '@/lib/extensions/wizardTemplates'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { IconPickerModal, ProjectTypeSelector } from '../ProjectTypeAndIcon'
 
@@ -31,10 +35,74 @@ describe('ProjectTypeSelector', () => {
       'true',
     )
     fireEvent.click(screen.getByTestId('project-kind-exam'))
-    expect(onChange).toHaveBeenCalledWith({ projectKind: 'exam' })
+    expect(onChange).toHaveBeenCalledWith({
+      projectKind: 'exam',
+      projectTypeId: 'exam',
+    })
     expect(
       screen.getByText(/unter „Einstellungen“ geändert/),
     ).toBeInTheDocument()
+  })
+
+  describe('registered project types', () => {
+    beforeEach(() => {
+      _resetWizardProjectTypes()
+      registerWizardProjectType({
+        id: 'fr-dissertation',
+        kind: 'exam',
+        icon: '📝',
+        nameKey: 'x.dissertation',
+        descriptionKey: 'x.dissertationDescription',
+        templateId: 'fr-dissertation',
+        jurisdictions: ['FR'],
+      })
+      registerWizardProjectType({
+        id: 'everywhere',
+        kind: 'generic',
+        icon: '🧪',
+        nameKey: 'x.everywhere',
+        descriptionKey: 'x.everywhereDescription',
+      })
+    })
+    afterEach(() => _resetWizardProjectTypes())
+
+    it('keeps the three base kinds and adds only the types offered here', () => {
+      render(<ProjectTypeSelector projectKind="generic" onChange={jest.fn()} />)
+      for (const id of [
+        'generic',
+        'exam',
+        'flashcard_collection',
+        'everywhere',
+      ]) {
+        expect(screen.getByTestId(`project-kind-${id}`)).toBeInTheDocument()
+      }
+      // German by default: the French type is not offered.
+      expect(screen.queryByTestId('project-kind-fr-dissertation')).toBeNull()
+    })
+
+    it('offers a jurisdiction type and picks it as its base kind', () => {
+      const onChange = jest.fn()
+      render(
+        <ProjectTypeSelector
+          projectKind="exam"
+          projectTypeId="fr-dissertation"
+          jurisdictions={['FR']}
+          onChange={onChange}
+        />,
+      )
+      const option = screen.getByTestId('project-kind-fr-dissertation')
+      expect(option).toHaveAttribute('aria-checked', 'true')
+      // The base exam option is not the selected one.
+      expect(screen.getByTestId('project-kind-exam')).toHaveAttribute(
+        'aria-checked',
+        'false',
+      )
+      fireEvent.click(screen.getByTestId('project-kind-everywhere'))
+      expect(onChange).toHaveBeenCalledWith({
+        projectKind: 'generic',
+        projectTypeId: 'everywhere',
+      })
+    })
   })
 })
 

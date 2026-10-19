@@ -43,6 +43,16 @@ def _row_has_score(metrics: dict | None) -> bool:
             inner = v.get("value")
             if isinstance(inner, (int, float)) and not isinstance(inner, bool):
                 return True
+            # A score-less judge result (inline judges, core 2.41): written
+            # feedback counts as evaluated, so a "missing only" re-run does
+            # not pay for it again.
+            details = v.get("details")
+            if (
+                isinstance(details, dict)
+                and details.get("feedback_only") is True
+                and not v.get("error")
+            ):
+                return True
     return False
 
 

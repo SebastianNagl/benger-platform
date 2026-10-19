@@ -146,6 +146,7 @@ class TestExtensionLoader:
         # 2.39 adds the state-specific exam interface (exam-layout mode
         # "state", ExamChrome host hand-off).
         # 2.40 adds korrektur_reservations (migration 119).
+        # 2.41 adds jurisdictions, wizard project types and inline judges.
         # 2.42 moves the flag engine to the platform and adds the runtime
         # master flags extension.<id> with HOOK_GATING / UNGATED_ROUTES.
         assert CORE_API_VERSION == "2.42"
