@@ -583,11 +583,43 @@ whenever one is added, renamed or removed):
   grading modal, with a heartbeat-refreshed ``last_seen_at``. Written by the
   overlay to keep a second grader away from the last free slot of a target
   with a grader cap; the platform only owns the schema.
+
+2.41 (2026-10-19): runtime switch for extension packages. The flag engine
+  is back in the platform: ``services/shared/feature_flags`` (``registry``:
+  ``FlagDefinition``, ``STATE_*``, ``register_flags(owner, flags)``,
+  ``all_flags``, ``flag``, ``flag_owner``, ``PLATFORM_OWNER``,
+  ``register_master_flag``; ``service``: ``load_snapshot[_sync]``,
+  ``evaluate_all_for[_sync]``, ``is_enabled_for[_sync]``,
+  ``public_api_enabled``; ``worker``: ``flag_enabled_sync``,
+  ``feature_disabled_result``) and ``services/api/feature_flags/deps.py``
+  (``require_feature_flag``, ``feature_disabled_error``,
+  ``require_extension_active``). Routes ``/api/feature-flags`` (``GET /me``
+  answers anonymous callers with ``{flags, extensions}``; superadmin list,
+  PUT, targets and ``DELETE /{name}`` for unregistered rows) plus the old
+  ``/api/ext/feature-flags`` for one release. ``public_api`` is a platform
+  flag (default from ``PUBLIC_API_ENABLED``); the hook stays as an override.
+  The registry sync no longer deletes rows nobody registered (admin GET marks
+  them ``registered: false``); Redis key ``feature_flags:snapshot``. Every
+  loaded package gets a master flag ``extension.<EXTENSION_ID>`` (owner: the
+  package; default ``DEFAULT_RUNTIME_STATE``, else ``everyone`` for
+  benger_extended and ``off`` for the others), and a flag owned by a
+  package evaluates as master AND flag. ``extension_activation`` decides per
+  request/task context (``ExtContext``, ``use_context``,
+  ``extension_active``, ``package_active``) with gating classes ALWAYS /
+  POLICY_GLOBAL / GATED: ``extensions.HOOK_GATING`` (every hook key) and
+  ``extension_registry.WORKER_ATTR_GATING`` (worker getters); package
+  routers and v1 routers answer 404 ``{"code": "feature_disabled", "flag":
+  "extension.<id>"}`` while inactive, except the ``(METHOD, path)`` pairs in
+  the optional package attribute ``UNGATED_ROUTES`` (an unknown entry fails
+  startup for a required package). Metrics registered while a package
+  imports carry it as owner (``register_extended_metrics``); the API lists
+  and the workers run them only while the owner is active. Celery messages
+  carry the header ``benger_ext_ctx`` = ``{user_id, project_id}``.
 """
 
 import os
 
-CORE_API_VERSION = "2.40"
+CORE_API_VERSION = "2.41"
 
 
 def extended_required() -> bool:
