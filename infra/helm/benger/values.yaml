@@ -134,6 +134,34 @@ api:
           name: benger-email-config
           key: EMAIL_FROM_NAME
           optional: true
+    # Mail provider switch (services/shared/mailer/mail_client.py): "sendgrid"
+    # (default) or "cloudflare". With cloudflare, mail from
+    # CLOUDFLARE_EMAIL_DOMAINS (default: the EMAIL_FROM_ADDRESS domain) goes
+    # through Cloudflare Email Sending, other brands stay on SendGrid.
+    - name: EMAIL_PROVIDER
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_PROVIDER
+          optional: true
+    - name: CLOUDFLARE_EMAIL_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_EMAIL_API_TOKEN
+          optional: true
+    - name: CLOUDFLARE_ACCOUNT_ID
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_ACCOUNT_ID
+          optional: true
+    - name: CLOUDFLARE_EMAIL_DOMAINS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_EMAIL_DOMAINS
+          optional: true
     - name: EMAIL_ENABLED
       value: "true"
     - name: MAIL_ENABLED
@@ -349,6 +377,34 @@ workers:
         secretKeyRef:
           name: benger-email-config
           key: EMAIL_FROM_NAME
+          optional: true
+    # Mail provider switch (services/shared/mailer/mail_client.py): "sendgrid"
+    # (default) or "cloudflare". With cloudflare, mail from
+    # CLOUDFLARE_EMAIL_DOMAINS (default: the EMAIL_FROM_ADDRESS domain) goes
+    # through Cloudflare Email Sending, other brands stay on SendGrid.
+    - name: EMAIL_PROVIDER
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: EMAIL_PROVIDER
+          optional: true
+    - name: CLOUDFLARE_EMAIL_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_EMAIL_API_TOKEN
+          optional: true
+    - name: CLOUDFLARE_ACCOUNT_ID
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_ACCOUNT_ID
+          optional: true
+    - name: CLOUDFLARE_EMAIL_DOMAINS
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: CLOUDFLARE_EMAIL_DOMAINS
           optional: true
     - name: EMAIL_ENABLED
       value: "true"

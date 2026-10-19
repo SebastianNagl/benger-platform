@@ -4,7 +4,7 @@ Authentication-related Pydantic models for API requests and responses
 
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 # Import existing auth models for consistency
 from auth_module import Token, TokenData, User, UserCreate, UserLogin
@@ -77,6 +77,18 @@ class UiModeUpdate(BaseModel):
     preferred_ui_mode: Optional[Literal["student", "expert"]] = Field(None)
 
 
+class ExamStateUiPrefs(BaseModel):
+    """Display-only settings of a state-specific exam interface (mode "state").
+
+    ``align`` is how the whole writing sheet is displayed; the stored Lösung
+    stays plain markdown either way. ``hide_time`` hides the remaining-time
+    readout (the timer keeps running).
+    """
+
+    align: Optional[Literal["left", "center", "right", "justify"]] = None
+    hide_time: Optional[bool] = None
+
+
 class ExamLayoutPrefs(BaseModel):
     """Canonical exam-interface layout object stored in users.exam_layout_prefs.
 
@@ -84,11 +96,11 @@ class ExamLayoutPrefs(BaseModel):
     ``{"mode": ...}`` body validates to the full canonical shape. The stored
     value is always the complete ``model_dump()`` — unknown request keys are
     dropped by validation (default ``extra='ignore'``, deploy-skew tolerant),
-    so the column only ever holds exactly these four keys. The case has no
+    so the column only ever holds the keys declared here. The case has no
     ``"none"``: the exam text is mandatory.
     """
 
-    mode: Literal["classic", "modern"]
+    mode: Literal["classic", "modern", "state"]
     case_position: Literal["left", "right"] = "left"
     notes_position: Literal["left", "right", "none"] = "right"
     outline_position: Literal["left", "right", "none"] = "right"
@@ -96,6 +108,17 @@ class ExamLayoutPrefs(BaseModel):
     # default. Persisted so a width set in one exam applies to the next.
     left_panel_width: Optional[int] = Field(None, ge=260, le=720)
     right_panel_width: Optional[int] = Field(None, ge=260, le=720)
+    # State-specific interface (mode "state"): which state's exam software
+    # the interface imitates, plus its display settings. Kept while the user
+    # switches to another mode so a later switch back restores them.
+    state_code: Optional[Bundesland] = None
+    state_ui: Optional[ExamStateUiPrefs] = None
+
+    @model_validator(mode="after")
+    def _state_mode_needs_code(self):
+        if self.mode == "state" and self.state_code is None:
+            raise ValueError('mode "state" requires state_code')
+        return self
 
 
 class ExamLayoutUpdate(BaseModel):

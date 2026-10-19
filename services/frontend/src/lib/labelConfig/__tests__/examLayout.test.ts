@@ -138,6 +138,57 @@ describe('resolveExamLayoutPrefs', () => {
   })
 })
 
+describe('resolveExamLayoutPrefs: state mode', () => {
+  it('keeps mode state with a valid Bundesland code and its display settings', () => {
+    expect(
+      resolveExamLayoutPrefs({
+        mode: 'state',
+        state_code: 'BW',
+        state_ui: { align: 'justify', hide_time: true },
+      }),
+    ).toEqual({
+      ...CLASSIC_LAYOUT,
+      mode: 'state',
+      state_code: 'BW',
+      state_ui: { align: 'justify', hide_time: true },
+    })
+  })
+
+  it('falls back to classic when the state code is missing or invalid', () => {
+    expect(resolveExamLayoutPrefs({ mode: 'state' }).mode).toBe('classic')
+    const resolved = resolveExamLayoutPrefs({ mode: 'state', state_code: 'XX' })
+    expect(resolved.mode).toBe('classic')
+    expect('state_code' in resolved).toBe(false)
+  })
+
+  it('drops invalid state_ui fields and omits an empty state_ui', () => {
+    expect(
+      resolveExamLayoutPrefs({
+        mode: 'state',
+        state_code: 'BW',
+        state_ui: { align: 'sideways', hide_time: false },
+      }).state_ui,
+    ).toEqual({ hide_time: false })
+    const resolved = resolveExamLayoutPrefs({
+      mode: 'state',
+      state_code: 'BW',
+      state_ui: { align: 'sideways' },
+    })
+    expect('state_ui' in resolved).toBe(false)
+  })
+
+  it('keeps state settings while another mode is selected', () => {
+    const resolved = resolveExamLayoutPrefs({
+      mode: 'modern',
+      state_code: 'BW',
+      state_ui: { hide_time: true },
+    })
+    expect(resolved.mode).toBe('modern')
+    expect(resolved.state_code).toBe('BW')
+    expect(resolved.state_ui).toEqual({ hide_time: true })
+  })
+})
+
 describe('isExamShapedConfig', () => {
   it('is false for null/undefined', () => {
     expect(isExamShapedConfig(null)).toBe(false)

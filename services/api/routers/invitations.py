@@ -146,7 +146,7 @@ def invitation_email_status(invitation: Invitation) -> str:
     the bookkeeping columns existed (migration 107) carry no timestamps at
     all, and calling those failures would cry wolf on every historical invite.
 
-    - ``sent``: SendGrid accepted the message.
+    - ``sent``: the mail provider accepted the message.
     - ``failed``: a send was attempted or queued and the last outcome was an
       error. Retries that later succeed clear it.
     - ``queued``: attempted or queued, no confirmation and no error yet.

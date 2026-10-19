@@ -352,6 +352,42 @@ describe('LabelingInterface - branch2 coverage', () => {
     }
   })
 
+  it('hides its own header when a state-specific exam interface is active', () => {
+    const modernHook = require('@/hooks/useModernExamLayout')
+    const spy = jest.spyOn(modernHook, 'useModernExamLayout').mockReturnValue({
+      active: true,
+      state: true,
+      prefs: {
+        mode: 'state',
+        state_code: 'BW',
+        case_position: 'left',
+        notes_position: 'right',
+        outline_position: 'none',
+      },
+      Layout: () => null,
+    })
+    try {
+      setupMocks({
+        currentProject: {
+          id: 'proj-1',
+          title: 'State Exam Project',
+          label_config: '<View><Loesung name="l" toName="t"/></View>',
+        },
+        currentTask: { id: 'task-1', data: {} },
+      })
+
+      render(<LabelingInterface projectId="proj-1" />)
+      expect(screen.getByTestId('labeling-fullscreen')).toHaveClass('fixed')
+      // Back button, title and timer move into the state interface's own bar.
+      expect(screen.queryByText('State Exam Project')).not.toBeInTheDocument()
+      expect(
+        screen.queryByText('annotation.backToProject'),
+      ).not.toBeInTheDocument()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('has no fullscreen wrapper in classic mode', () => {
     setupMocks({
       currentProject: { id: 'proj-1', title: 'Test', label_config: '<View/>' },

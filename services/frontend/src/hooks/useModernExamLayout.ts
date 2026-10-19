@@ -10,7 +10,9 @@
  *      loading) → inactive. useSlot subscribes to registrations, so a late
  *      loadExtended() flips the result without a reload.
  *   3. User preference (users.exam_layout_prefs via the auth user object,
- *      safe-parsed) must be mode 'modern'.
+ *      safe-parsed) must be mode 'modern' or 'state' (the state-specific
+ *      interface renders through the same slot; `state` tells hosts to hand
+ *      their chrome over instead of rendering their own header).
  *   4. The label config must be exam-shaped (contains a Loesung field) —
  *      the preference only applies to exams, never to generic annotation
  *      projects.
@@ -34,8 +36,10 @@ import {
 import { parseLabelConfig } from '@/lib/labelConfig/parser'
 
 export interface ModernExamLayoutState {
-  /** True iff every layer above resolves to the modern layout. */
+  /** True iff every layer above resolves to the modern or state layout. */
   active: boolean
+  /** True iff active AND the preference is a state-specific interface. */
+  state: boolean
   /** Resolved preference (total — falls back to classic defaults). */
   prefs: ExamLayoutPrefs
   /** The registered slot component; null while unregistered. */
@@ -65,7 +69,10 @@ export function useModernExamLayout(
   }, [labelConfig])
 
   const active =
-    isExtendedEdition() && !!Layout && prefs.mode === 'modern' && examShaped
+    isExtendedEdition() &&
+    !!Layout &&
+    (prefs.mode === 'modern' || prefs.mode === 'state') &&
+    examShaped
 
-  return { active, prefs, Layout }
+  return { active, state: active && prefs.mode === 'state', prefs, Layout }
 }

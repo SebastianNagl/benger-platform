@@ -256,7 +256,7 @@ class TestActivationEmailFailureClassification:
             {"status": "error", "status_code": status_code, "error": "boom"}
         )
 
-        with pytest.raises(RuntimeError, match="SendGrid error"):
+        with pytest.raises(RuntimeError, match="Mail provider error"):
             _run(_fake_db(_user()), sendgrid_class=cls, user_id="u-1")
 
     def test_unexpected_exception_propagates_for_retry(self):

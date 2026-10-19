@@ -563,11 +563,23 @@ whenever one is added, renamed or removed):
   routers answer 404 ``feature_disabled`` while it is closed, and
   ``GET /api/access-keys/availability`` returns ``{"enabled": bool}`` for
   the frontend's entry points.
+
+2.39 (2026-10-18): state-specific exam interfaces. ``ExamLayoutPrefs``
+  (``users.exam_layout_prefs``, ``PUT /auth/me/exam-layout``) gains mode
+  ``"state"`` with ``state_code`` (a Bundesland, required for that mode) and
+  ``state_ui`` (``align``, ``hide_time``). The frontend contract
+  (``@/lib/labelConfig/examLayout``) adds ``ExamChrome`` /
+  ``HostExamChrome``: in state mode ``useModernExamLayout`` reports
+  ``state: true``, hosts hide their own header and pass ``examChrome``
+  (``renderTimer(variant)``, ``onLeave``, ``extra``) to
+  ``DynamicAnnotationInterface``, which drops its action bar and hands the
+  ModernExamLayout slot ``chrome`` incl. ``onSubmit``. The TimerIntegration
+  slot receives ``variant: "default" | "state"``.
 """
 
 import os
 
-CORE_API_VERSION = "2.38"
+CORE_API_VERSION = "2.39"
 
 
 def extended_required() -> bool:

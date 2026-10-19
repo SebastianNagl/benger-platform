@@ -7,8 +7,6 @@ import { redirectToLoginAsExpired } from '@/lib/auth/sessionExpired'
 import { sessionManager } from '@/lib/auth/sessionManager'
 import { logger } from '@/lib/utils/logger'
 import { getPrivateUrl } from '@/lib/utils/subdomain'
-import { translate } from '@/lib/utils/translate'
-import { useNotificationStore } from '@/stores/notificationStore'
 import { authRedirect, publicRoutes } from '@/utils/authRedirect'
 import { useRouter } from 'next/navigation'
 import React, {
@@ -547,18 +545,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           invitationToken,
         )
 
-        // If invitation token was provided, user is already verified and added to org
-        // Otherwise, redirect to email verification
-        if (invitationToken) {
-          // Refresh auth to get updated user data (populates the
-          // organizations list); the dashboard already shows the inviting
-          // organization's projects, no host change needed.
-          await initializeAuth()
-          useNotificationStore
-            .getState()
-            .flash(translate('auth.signupComplete'), 'success')
-          router.push('/dashboard')
-        } else {
+        // An invitation signup is already verified and added to the org, but
+        // no session is opened: the register page shows a success screen and
+        // then sends the new member to the login page.
+        // Otherwise, redirect to email verification.
+        if (!invitationToken) {
           // Regular signup needs email verification
           router.push('/verify-email?messageKey=registrationSuccess')
         }
@@ -567,7 +558,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error
       }
     },
-    [apiClient, router, initializeAuth],
+    [apiClient, router],
   )
 
   const updateUser = useCallback((userData: Partial<User>) => {

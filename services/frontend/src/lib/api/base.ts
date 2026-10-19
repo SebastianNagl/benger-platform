@@ -83,13 +83,31 @@ interface CacheEntry {
 
 const CACHE_TTL = 30000 // 30 seconds cache for GET requests
 
+// One GET cache for every client instance. The app holds several instances
+// side by side (the global apiClient, the provider's ApiClient, each one's
+// resource clients, standalone exports like organizationsAPI), and pages
+// routinely read through one and write through another. With a cache per
+// instance, a write only invalidated the writer's own entries, so the
+// post-mutation refetch served the reader's stale copy until a reload.
+const sharedCache = {
+  responses: new Map<string, CacheEntry>(),
+  lastKnownUserId: null as string | null,
+}
+
 export class BaseApiClient {
   private onAuthFailure?: () => void
   private refreshPromise: Promise<boolean> | null = null
   private activeRequests = new Set<string>()
   private requestQueue: Array<() => void> = []
-  private responseCache = new Map<string, CacheEntry>()
-  private lastKnownUserId: string | null = null
+  private responseCache = sharedCache.responses
+
+  private get lastKnownUserId(): string | null {
+    return sharedCache.lastKnownUserId
+  }
+
+  private set lastKnownUserId(userId: string | null) {
+    sharedCache.lastKnownUserId = userId
+  }
 
   /**
    * Clear the response cache (useful after mutations)

@@ -138,11 +138,21 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/config:/etc/traefik:ro
     command:
+      # Static configuration; traefik/config holds dynamic files only (a
+      # traefik.yml there would silently replace this whole command line).
       - "--api.dashboard=true"
       - "--api.insecure=true"
+      - "--ping=true"  # healthcheck
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=benger-test_benger-test-network"
+      # Only route containers of this compose project. Several stacks (classic
+      # dev, benger-risky, benger-test, ...) share one Docker daemon and the
+      # same frontend labels; without this a second stack's frontend joins
+      # the same router and benger.localhost round-robins between them.
+      # The project is COMPOSE_PROJECT_NAME when set (parallel worktree
+      # stacks); runs that pass `-p` instead set BENGER_TRAEFIK_PROJECT
+      # (e.g. the compliance Makefile).
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`,`${BENGER_TRAEFIK_PROJECT:-${COMPOSE_PROJECT_NAME:-benger-test}}`)"
       - "--providers.file.directory=/etc/traefik"
       - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"

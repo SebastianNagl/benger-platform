@@ -1,0 +1,11 @@
+# Local TLS certificates (dynamic configuration, read by the file provider).
+#
+# The static configuration lives entirely in the compose `command:` of each
+# traefik service. Do not put a `traefik.yml` into this directory: traefik
+# auto-loads /etc/traefik/traefik.yml as its static config and then ignores
+# every command-line flag, including the per-project docker constraint that
+# keeps parallel stacks (classic dev, benger-risky, benger-test) apart.
+tls:
+  certificates:
+    - certFile: "/certs/local-cert.pem"
+      keyFile: "/certs/local-key.pem"

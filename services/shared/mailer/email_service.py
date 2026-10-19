@@ -1,7 +1,8 @@
 """
-Email Service for BenGER — SendGrid integration (canonical, shared).
+Email Service for BenGER (canonical, shared).
 
-All outbound mail goes through the SendGrid HTTP API. Templates are loaded
+All outbound mail goes through ``mail_client.build_mail_client``: the SendGrid
+HTTP API, or Cloudflare Email Sending when ``EMAIL_PROVIDER=cloudflare``. Templates are loaded
 from the canonical ``/shared/email_templates/email`` directory and rendered
 via Jinja2.
 
@@ -32,6 +33,7 @@ from jinja2 import Environment, FileSystemLoader
 from account_activation import mask_email
 from email_templates.template_map import template_for
 from mailer.branding import EmailBrand, resolve_email_brand
+from mailer.mail_client import build_mail_client
 from models import Notification
 from sendgrid_client import SendGridClient
 
@@ -65,8 +67,8 @@ class EmailService:
 
         self.mail_enabled = True
 
-        # Initialize SendGrid client for email delivery
-        self.mail_client = SendGridClient()
+        # SendGrid, or Cloudflare with SendGrid for the other brands (EMAIL_PROVIDER).
+        self.mail_client = build_mail_client(SendGridClient)
 
         # Initialize template environment
         self.template_env = self._init_template_environment()
@@ -174,7 +176,7 @@ class EmailService:
         Returns:
             True if email service is available and configured
         """
-        # Check if mail is enabled and SendGrid is configured
+        # Check if mail is enabled and the provider is configured
         return self.mail_enabled and bool(self.mail_client.api_key)
 
     async def send_notification_email(

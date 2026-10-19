@@ -91,6 +91,41 @@ describe('useModernExamLayout', () => {
     expect(result.current.prefs).toEqual(MODERN_PREFS)
   })
 
+  it('reports state=false for the modern preference', () => {
+    expect(setup().result.current.state).toBe(false)
+  })
+
+  it('is active with state=true for a state-specific preference', () => {
+    const { result } = setup({
+      user: {
+        id: 'u1',
+        exam_layout_prefs: { ...MODERN_PREFS, mode: 'state', state_code: 'BW' },
+      },
+    })
+    expect(result.current.active).toBe(true)
+    expect(result.current.state).toBe(true)
+    expect(result.current.prefs.state_code).toBe('BW')
+  })
+
+  it('stays classic for a state preference without a state code', () => {
+    const { result } = setup({
+      user: { id: 'u1', exam_layout_prefs: { ...MODERN_PREFS, mode: 'state' } },
+    })
+    expect(result.current.active).toBe(false)
+    expect(result.current.state).toBe(false)
+  })
+
+  it('reports state=false when the state layout cannot render (community)', () => {
+    const { result } = setup({
+      edition: null,
+      user: {
+        id: 'u1',
+        exam_layout_prefs: { ...MODERN_PREFS, mode: 'state', state_code: 'BW' },
+      },
+    })
+    expect(result.current.state).toBe(false)
+  })
+
   it('is inactive in the community edition even with everything else set', () => {
     const { result } = setup({ edition: null })
     expect(result.current.active).toBe(false)

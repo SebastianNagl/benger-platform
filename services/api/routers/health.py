@@ -210,11 +210,12 @@ async def email_health_check(
     """
     try:
         from email_service import email_service
+        from mailer.mail_client import mail_provider_name
 
         # Basic configuration check
         health_status = {
             "configured": email_service.mail_enabled,
-            "service": "sendgrid",
+            "service": mail_provider_name(),
             "from_email": email_service.from_email,
             "from_name": email_service.from_name,
             "timestamp": datetime.now(timezone.utc).isoformat(),

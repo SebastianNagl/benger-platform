@@ -372,6 +372,48 @@ describe('RegisterPage', () => {
   })
 
   describe('Form Submission', () => {
+    it('shows a success screen after an invitation signup, then goes to login', async () => {
+      window.history.pushState(
+        {},
+        '',
+        'http://localhost/register?invitation=tok-1&email=test%40example.com',
+      )
+      const user = userEvent.setup()
+      mockSignup.mockResolvedValue(undefined)
+
+      render(<RegisterPage />)
+      await user.click(screen.getByTestId('register-step-indicator-5'))
+      // Step 1 is still validated on submit, so fill it via the stepper.
+      await user.click(screen.getByTestId('register-step-indicator-1'))
+      await user.type(screen.getByTestId('auth-register-name-input'), 'Test')
+      await user.type(
+        screen.getByTestId('auth-register-username-input'),
+        'testuser',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-password-input'),
+        'password123',
+      )
+      await user.type(
+        screen.getByTestId('auth-register-confirm-password-input'),
+        'password123',
+      )
+      await user.click(screen.getByTestId('register-step-indicator-5'))
+
+      await user.click(screen.getByTestId('auth-register-submit-button'))
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('register-invited-success'),
+        ).toBeInTheDocument(),
+      )
+      expect(mockSignup.mock.calls[0][5]).toBe('tok-1')
+      expect(mockRouterPush).not.toHaveBeenCalled()
+      await waitFor(
+        () => expect(mockRouterPush).toHaveBeenCalledWith('/login'),
+        { timeout: 4000 },
+      )
+    })
+
     it('should call signup function with correct data', async () => {
       const user = userEvent.setup()
       mockSignup.mockResolvedValue(undefined)
