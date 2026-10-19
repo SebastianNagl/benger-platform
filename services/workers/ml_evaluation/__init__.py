@@ -57,7 +57,7 @@ for _ext in _extension_registry.load_all():
             _register_metric_handlers(metric_registry)
 
 # Master flags ``extension.<EXTENSION_ID>`` of the loaded packages (core
-# 2.41): the worker evaluates them per task (extension_activation), so the
+# 2.42): the worker evaluates them per task (extension_activation), so the
 # definitions (default state) must exist in this process too.
 import extension_activation as _extension_activation  # noqa: E402
 

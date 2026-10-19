@@ -1425,8 +1425,8 @@ class TestNotificationEndpoints:
 
 
 class TestFeatureFlagRouterMounted:
-    """The flag admin API is back in the platform (core 2.41; extended
-    owned it from 2.27 to 2.40): /api/feature-flags plus the legacy
+    """The flag admin API is back in the platform (core 2.42; extended
+    owned it from 2.27 to 2.41): /api/feature-flags plus the legacy
     /api/ext/feature-flags for one release."""
 
     def test_feature_flags_routes_are_mounted(self):

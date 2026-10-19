@@ -3783,7 +3783,7 @@ for _ext in _extension_registry.load_all():
 if not _extension_registry.loaded():
     logger.info("Worker: community edition (no extension package loaded)")
 else:
-    # Master flags extension.<EXTENSION_ID> (core 2.41; idempotent, the
+    # Master flags extension.<EXTENSION_ID> (core 2.42; idempotent, the
     # ml_evaluation import registers them too).
     import extension_activation as _extension_activation  # noqa: E402
 

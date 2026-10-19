@@ -1,4 +1,4 @@
-"""Feature flag evaluation, caching and the lazy registry sync (core 2.41).
+"""Feature flag evaluation, caching and the lazy registry sync (core 2.42).
 
 Persistence is ``models.FeatureFlag`` / ``models.FeatureFlagTarget``.
 
@@ -7,7 +7,7 @@ Snapshot
     allowlist: ``{name: {"state": ..., "users": [...], "orgs": [...]}}``.
     It is cached in Redis under :data:`SNAPSHOT_KEY` for
     :data:`SNAPSHOT_TTL` seconds and dropped on every write
-    (:func:`invalidate_cache`, which also drops the pre-2.41 key
+    (:func:`invalidate_cache`, which also drops the pre-2.42 key
     :data:`LEGACY_SNAPSHOT_KEY`). Redis being down only costs a DB read. A
     registered flag without a row (not synced yet) evaluates with its
     registered default, so a missing row never flips a feature.
@@ -24,7 +24,7 @@ Lazy registry sync (:func:`sync_registry` / :func:`sync_registry_sync`)
     Runs on the first DB snapshot load per process: inserts missing
     registered flags with their default state (``ON CONFLICT (name) DO
     NOTHING``, so an admin-changed state is never overwritten) and refreshes
-    descriptions. Since core 2.41 it never deletes: a row whose name nobody
+    descriptions. Since core 2.42 it never deletes: a row whose name nobody
     registered (a package that is not installed in this process, or a
     retired flag) stays, is listed as ``registered: false`` in the admin
     console and can be deleted there by a superadmin. Every statement is
@@ -261,7 +261,7 @@ def cache_set(snapshot: Dict[str, Dict]) -> None:
 
 def invalidate_cache() -> None:
     """Drop the cached snapshot (call after every flag or target write).
-    Also drops the pre-2.41 key so an older replica cannot serve stale state
+    Also drops the pre-2.42 key so an older replica cannot serve stale state
     during a rollout."""
     cache = _cache()
     if cache is None:

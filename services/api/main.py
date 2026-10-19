@@ -407,7 +407,7 @@ from routers.v1._middleware import V1HeadersMiddleware  # noqa: E402
 
 app.add_middleware(V1HeadersMiddleware)
 
-# Extension activation context (core 2.41): the caller's user id from the
+# Extension activation context (core 2.42): the caller's user id from the
 # session JWT, no DB access. Added last so it is the outermost middleware and
 # every other layer and handler runs inside the context.
 from middleware.extension_context import ExtensionContextMiddleware  # noqa: E402
@@ -549,7 +549,7 @@ app.include_router(marketplace_admin_router)  # Superadmin vendor approval: /api
 app.include_router(grading_feedback_admin_router)  # Superadmin: grading feedback export (/api/admin/grading-feedback)
 app.include_router(leaderboards_router)  # Leaderboards for annotation performance (Issue #790)
 app.include_router(test_seeding_router)  # Test seeding endpoints (guarded by env check + superadmin)
-# Feature flags (core 2.41): /api/feature-flags, plus the pre-2.41 extended
+# Feature flags (core 2.42): /api/feature-flags, plus the pre-2.42 extended
 # path for one release. Included before the extension routers so the
 # platform's copy wins over an older overlay's.
 from routers.feature_flags import (  # noqa: E402

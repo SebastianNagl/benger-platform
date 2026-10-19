@@ -1,9 +1,9 @@
 """The feature flag registry: which flags exist, who owns them, and the
-master flag of every extension package (core 2.41).
+master flag of every extension package (core 2.42).
 
 The ``feature_flags`` / ``feature_flag_targets`` tables only store each
 flag's current state and allowlist; the registry says which names mean
-something. Up to core 2.40 this module lived in ``benger_extended``; it is
+something. Up to core 2.41 this module lived in ``benger_extended``; it is
 back in the platform so the platform itself can register flags
 (``public_api``) and switch whole extension packages at runtime.
 

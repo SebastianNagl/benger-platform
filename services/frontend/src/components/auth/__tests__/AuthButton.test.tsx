@@ -904,7 +904,7 @@ describe('AuthButton', () => {
 
       await user.click(screen.getByRole('button'))
 
-      // The console is platform code again (CORE 2.41).
+      // The console is platform code again (CORE 2.42).
       expect(
         document.querySelector('a[href="/admin/feature-flags"]'),
       ).toBeInTheDocument()

@@ -213,7 +213,7 @@ def _check_dependencies(name: str, module: Any) -> Optional[str]:
 def _load_one(name: str) -> Optional[LoadedExtension]:
     try:
         # Import-time registrations (metrics, flags, ...) are attributed to
-        # the package (core 2.41), so registries can gate them by owner.
+        # the package (core 2.42), so registries can gate them by owner.
         with owner(name):
             module = importlib.import_module(name)
     except ImportError as exc:
@@ -382,7 +382,7 @@ def worker_module(name: str, *, strict: bool = False) -> Any:
 
 
 #: Gating class (``extension_activation``) of each worker getter (core
-#: 2.41). Billing, settlement and privacy getters are ALWAYS: switching a
+#: 2.42). Billing, settlement and privacy getters are ALWAYS: switching a
 #: package off must never skip a billing block or unmask a name. Getters not
 #: listed here are GATED (active only for the task's caller/project).
 WORKER_ATTR_GATING: Dict[str, str] = {

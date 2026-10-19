@@ -506,7 +506,7 @@ class TestPackageSurfaces:
         assert scopes == {"a:read": {"description": "a"}, "c:read": {"description": "c"}}
         assert "a:read" in caplog.text
         collected = extensions.get_v1_routers_all()
-        # Core 2.41: each overlay v1 router also carries the package's
+        # Core 2.42: each overlay v1 router also carries the package's
         # runtime gate (require_extension_active_v1).
         assert [
             (router, {k: v for k, v in kwargs.items() if k != "dependencies"})

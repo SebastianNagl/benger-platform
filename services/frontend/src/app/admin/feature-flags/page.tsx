@@ -10,7 +10,7 @@ import { useI18n } from '@/contexts/I18nContext'
  * Host route for the feature flags admin console.
  *
  * Superadmin guard and page shell follow the other src/app/admin/* pages.
- * The flag engine and the console are platform code (CORE 2.41); extension
+ * The flag engine and the console are platform code (CORE 2.42); extension
  * packages register their flags, including their master flag
  * `extension.<id>`, which switches the whole package per viewer at runtime.
  */

@@ -1,4 +1,4 @@
-"""Runtime gating of extension packages (core 2.41): HOOK_GATING, router
+"""Runtime gating of extension packages (core 2.42): HOOK_GATING, router
 gates with UNGATED_ROUTES, and metric owners.
 
 Fake packages are injected into ``sys.modules`` and loaded through

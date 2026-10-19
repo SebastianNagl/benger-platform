@@ -1,4 +1,4 @@
-"""FastAPI dependencies that close endpoints while a flag is off (core 2.41).
+"""FastAPI dependencies that close endpoints while a flag is off (core 2.42).
 
 ``require_feature_flag(name)``
     ``Depends(require_feature_flag(RUBRIC_GENERATION))``: a signed-in caller

@@ -1,4 +1,4 @@
-"""``extension_activation`` (core 2.41): per-context decisions, memoization,
+"""``extension_activation`` (core 2.42): per-context decisions, memoization,
 propagation across threadpools and Celery messages, worker getter gating."""
 
 from __future__ import annotations

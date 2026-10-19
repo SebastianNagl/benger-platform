@@ -1,4 +1,4 @@
-"""Per-request extension activation context (pure ASGI, core 2.41).
+"""Per-request extension activation context (pure ASGI, core 2.42).
 
 Sets ``extension_activation``'s :class:`ExtContext` for every HTTP and
 WebSocket request: the user id comes from the session JWT (the

@@ -1,4 +1,4 @@
-"""Worker side of the runtime extension switch (core 2.41): the task
+"""Worker side of the runtime extension switch (core 2.42): the task
 context from the ``benger_ext_ctx`` header, the master flags registered in
 the worker, gated worker getters and metric handlers of inactive packages.
 """

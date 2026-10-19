@@ -36,7 +36,7 @@ def _package(name, routers, *, ext_id=None):
     mod = types.ModuleType(name)
     mod.__file__ = f"/fake/{name}/__init__.py"
     mod.COMPATIBLE_CORE_VERSIONS = [CORE_API_VERSION]
-    # These tests are about mounting; the runtime gate (core 2.41) is
+    # These tests are about mounting; the runtime gate (core 2.42) is
     # covered in test_extension_runtime_gating.py, so the fakes start on.
     mod.DEFAULT_RUNTIME_STATE = "everyone"
     if ext_id:

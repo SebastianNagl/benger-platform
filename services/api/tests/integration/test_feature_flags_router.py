@@ -1,5 +1,5 @@
 """``/api/feature-flags`` and the legacy ``/api/ext/feature-flags`` (core
-2.41): ``/me`` shapes (anonymous included), the admin list with
+2.42): ``/me`` shapes (anonymous included), the admin list with
 unregistered rows, ``DELETE /{name}`` and a registry sync that keeps rows
 nobody registers."""
 

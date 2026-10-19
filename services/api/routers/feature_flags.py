@@ -1,7 +1,7 @@
-"""Feature flags API (platform, core 2.41).
+"""Feature flags API (platform, core 2.42).
 
 Mounted at ``/api/feature-flags`` (:data:`router`) and, for one release, at
-the pre-2.41 path ``/api/ext/feature-flags`` (:data:`legacy_router`, the
+the pre-2.42 path ``/api/ext/feature-flags`` (:data:`legacy_router`, the
 extended edition's old mount; the platform's copy is included first, so it
 wins over an older overlay's).
 
@@ -239,7 +239,7 @@ async def my_feature_flags_legacy(
     current_user=Depends(require_user),
     db: AsyncSession = Depends(get_async_db),
 ) -> Dict[str, bool]:
-    """Pre-2.41 shape: flat ``{name: bool}``, login required."""
+    """Pre-2.42 shape: flat ``{name: bool}``, login required."""
     _no_store(response)
     return await service.evaluate_all_for(db, current_user)
 

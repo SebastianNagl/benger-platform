@@ -199,7 +199,7 @@ from metric_filters import (  # noqa: E402
 # Extension point: extended package can register additional metrics per answer type
 _extended_metrics: dict[str, list[str]] = {}
 # (answer_type, metric) -> the package that registered it (None: unknown,
-# e.g. registered outside a package import). Core 2.41.
+# e.g. registered outside a package import). Core 2.42.
 _extended_metric_owners: dict[tuple, Optional[str]] = {}
 
 

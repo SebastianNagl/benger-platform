@@ -1,4 +1,4 @@
-"""The platform flag registry and evaluation rules (core 2.41): owners,
+"""The platform flag registry and evaluation rules (core 2.42): owners,
 master flags, owner coupling, the anonymous rule, and a registry sync that
 never deletes."""
 

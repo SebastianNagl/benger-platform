@@ -584,7 +584,7 @@ whenever one is added, renamed or removed):
   overlay to keep a second grader away from the last free slot of a target
   with a grader cap; the platform only owns the schema.
 
-2.41 (2026-10-19): runtime switch for extension packages. The flag engine
+2.42 (2026-10-19): runtime switch for extension packages. The flag engine
   is back in the platform: ``services/shared/feature_flags`` (``registry``:
   ``FlagDefinition``, ``STATE_*``, ``register_flags(owner, flags)``,
   ``all_flags``, ``flag``, ``flag_owner``, ``PLATFORM_OWNER``,
@@ -619,7 +619,7 @@ whenever one is added, renamed or removed):
 
 import os
 
-CORE_API_VERSION = "2.41"
+CORE_API_VERSION = "2.42"
 
 
 def extended_required() -> bool:

@@ -44,7 +44,7 @@ def _create_celery_app() -> Celery:
     # Every published task carries the extension activation context
     # (header ``benger_ext_ctx``: the request's user and the task's
     # project_id kwarg), so the worker evaluates master flags for the same
-    # caller (core 2.41).
+    # caller (core 2.42).
     import extension_activation
 
     extension_activation.install_publish_signal()

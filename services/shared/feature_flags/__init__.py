@@ -1,4 +1,4 @@
-"""Feature flags (platform, core 2.41): registry, evaluation, caching and the
+"""Feature flags (platform, core 2.42): registry, evaluation, caching and the
 worker gate. The FastAPI dependencies live in ``services/api/feature_flags``.
 
 Overlays register their own flags with :func:`register_flags`; every loaded

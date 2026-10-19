@@ -1,4 +1,4 @@
-"""Runtime activation of extension packages (core 2.41).
+"""Runtime activation of extension packages (core 2.42).
 
 A process-level load (``BENGER_EXTENSIONS``, see ``extension_registry``)
 means a package is *installed*. Whether it is *active* is decided per

@@ -2974,7 +2974,7 @@ class FeatureFlag(Base):
 
     The registry, the evaluation rules and the admin API live in the
     platform's ``feature_flags`` package and ``routers/feature_flags.py``
-    (core 2.41; extended owned them from 2.27 to 2.40). A row whose name no
+    (core 2.42; extended owned them from 2.27 to 2.41). A row whose name no
     loaded package registers is kept and listed as unregistered. ``state`` is one of ``off``,
     ``everyone`` or ``allowlist``; for ``allowlist`` the matching
     ``FeatureFlagTarget`` rows name the users and organizations it applies to.

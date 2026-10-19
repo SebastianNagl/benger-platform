@@ -401,7 +401,7 @@ class SampleEvaluator:
 
         _handler = metric_registry.get(metric_name)
         if _handler is not None:
-            # Core 2.41: a handler of a package that is inactive for this
+            # Core 2.42: a handler of a package that is inactive for this
             # task's caller/project is not run (raises ExtensionInactive,
             # which the cell turns into an error result).
             metric_registry.ensure_owner_active(metric_name)
@@ -622,7 +622,7 @@ class SampleEvaluator:
 
         handler = metric_registry.get(metric_name)
         if handler is not None:
-            # Core 2.41: an inactive owning package yields a feature_disabled
+            # Core 2.42: an inactive owning package yields a feature_disabled
             # result instead of a computed value.
             disabled = metric_registry.disabled_result(metric_name)
             if disabled is not None:

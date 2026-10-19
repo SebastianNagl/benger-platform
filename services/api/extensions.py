@@ -19,7 +19,7 @@ What an API-side package may provide (all optional):
   for the public ``/api/v1`` surface (collected by :func:`get_api_scopes_all`
   and :func:`get_v1_routers_all`).
 
-Runtime switch (core 2.41): every loaded package gets a master feature flag
+Runtime switch (core 2.42): every loaded package gets a master feature flag
 ``extension.<EXTENSION_ID>`` (default: the optional package attribute
 ``DEFAULT_RUNTIME_STATE``, else ``everyone`` for benger_extended and ``off``
 for the others). Hooks run per their class in :data:`HOOK_GATING`, package
@@ -90,7 +90,7 @@ HOOK_SPECS = {
 }
 
 # --------------------------------------------------------------------------- #
-# Hook gating classes (core 2.41). Every key in HOOK_SPECS has one; the check
+# Hook gating classes (core 2.42). Every key in HOOK_SPECS has one; the check
 # runs at import time (:func:`_validate_hook_gating`). See extension_activation:
 # ALWAYS runs whenever the package is loaded (privacy, billing, LMS grade
 # sync, monitoring), POLICY_GLOBAL while its master flag is not ``off``,
@@ -227,7 +227,7 @@ def _hook_impls(key):
     loader did); an exception from it propagates to the wrapper, whose
     try/except shell decides what that means for the caller. Packages that
     are not active for the hook's gating class (:data:`HOOK_GATING`) in the
-    current context are skipped (core 2.41).
+    current context are skipped (core 2.42).
     """
     gating = HOOK_GATING.get(key, activation.GATED)
     impls = []
@@ -479,7 +479,7 @@ def include_extension_routers(app):
     platform itself is logged as well.
 
     Every router gets ``Depends(require_extension_active(package))`` (core
-    2.41): 404 ``feature_disabled`` while the package's master flag is off
+    2.42): 404 ``feature_disabled`` while the package's master flag is off
     for the caller, except the routes the package lists in
     ``UNGATED_ROUTES`` (``(METHOD, full path template)``; webhooks, LMS
     launches and other routes that authenticate on their own).
@@ -585,7 +585,7 @@ def get_v1_routers_all():
     """Concatenation of every package's ``get_v1_routers()``, in hook order.
 
     Each router's kwargs carry ``Depends(require_extension_active_v1(pkg))``
-    (core 2.41): the package's master flag, evaluated for the access key's
+    (core 2.42): the package's master flag, evaluated for the access key's
     organization (org keys) or the caller."""
     from fastapi import Depends
 
@@ -1069,7 +1069,7 @@ async def public_api_enabled(db, user, *, organization_id=None):
     the service account behind an organization key, in which case
     ``organization_id`` names the key's organization. The hook may be sync
     or async and overrides the platform. Without an implementation the
-    platform's ``public_api`` feature flag decides (core 2.41; its default
+    platform's ``public_api`` feature flag decides (core 2.42; its default
     follows ``PUBLIC_API_ENABLED``); if the hook or the evaluation fails the
     feature counts as off.
     """

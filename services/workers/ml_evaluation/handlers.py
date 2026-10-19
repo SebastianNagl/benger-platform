@@ -125,7 +125,7 @@ class MetricRegistry:
 
     def owner_active(self, metric_name: str) -> bool:
         """Whether the package that registered ``metric_name`` is active in
-        the current task context (platform handlers always are; core 2.41)."""
+        the current task context (platform handlers always are; core 2.42)."""
         owner = self._owners.get(metric_name)
         if not owner:
             return True

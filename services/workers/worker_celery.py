@@ -127,7 +127,7 @@ app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
 
 
-# Extension activation context per task (core 2.41). The API (and any task
+# Extension activation context per task (core 2.42). The API (and any task
 # that dispatches further tasks) adds the header ``benger_ext_ctx`` =
 # ``{user_id, project_id}`` on publish; prerun turns it, or the task's own
 # ``user_id`` / ``project_id`` kwargs, into the ExtContext the master flags

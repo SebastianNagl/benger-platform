@@ -31,7 +31,7 @@ def _snapshot(state, orgs=(), users=()):
 
 class TestHookWrapper:
     """Without a hook the platform's ``public_api`` flag decides (core
-    2.41; before, the PUBLIC_API_ENABLED setting did)."""
+    2.42; before, the PUBLIC_API_ENABLED setting did)."""
 
     @pytest.mark.asyncio
     async def test_off_without_hook_by_default(self):
