@@ -38,6 +38,11 @@ jest.mock('@/hooks/useDialogs', () => ({
   DialogProvider: ({ children }: any) => <>{children}</>,
 }))
 
+const mockSync = jest.fn(() => null)
+jest.mock('@/lib/featureFlags', () => ({
+  FeatureFlagsSync: () => mockSync(),
+}))
+
 jest.mock('next-themes', () => ({
   ThemeProvider: ({ children }: any) => <>{children}</>,
 }))
@@ -52,5 +57,14 @@ describe('Providers', () => {
 
     expect(screen.getByTestId('child')).toBeInTheDocument()
     expect(screen.getByText('Hello')).toBeInTheDocument()
+  })
+
+  it('keeps the feature flag store in step with auth', () => {
+    render(
+      <Providers>
+        <div />
+      </Providers>,
+    )
+    expect(mockSync).toHaveBeenCalled()
   })
 })

@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useOptionalApiClient } from '@/contexts/ApiClientContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/contexts/HydrationContext'
-import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
+import { useExtendedActive, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import apiSingleton from '@/lib/api'
 import { useUIStore } from '@/stores'
 
@@ -37,11 +37,12 @@ export function useViewModeSwitch() {
   const apiClient = useOptionalApiClient() ?? apiSingleton
   const setUiMode = useUIStore((s) => s.setUiMode)
   const resolved = useResolvedUiMode()
+  const extendedActive = useExtendedActive()
   const mounted = useHydration()
   const [pending, setPending] = useState(false)
 
   const status = ((): 'unavailable' | 'loading' | 'ready' => {
-    if (!isExtendedEdition()) return 'unavailable'
+    if (!extendedActive) return 'unavailable'
     if (!mounted || isLoading) return 'loading'
     // Open switching (2026-08-25): every authenticated user may move between
     // the vertretbar (student) and benger (expert) shells — students who

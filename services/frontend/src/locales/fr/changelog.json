@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-10-19-runtime-extension-switches": "Les superadministrateurs peuvent activer ou désactiver des paquets d'extension entiers pour certaines organisations ou certains utilisateurs dans « Feature flags », sans nouveau déploiement.",
     "2026-10-14-french-language-menu": "BenGER est désormais aussi disponible en français. Choisissez la langue dans le menu à drapeau en haut à droite (auparavant un simple bouton entre allemand et anglais) ; les formats de date et de nombre suivent la langue choisie.",
     "2026-10-13-evaluations-limited-model-answers": "Les évaluations peuvent se limiter aux réponses des modèles : si vous ne choisissez aucun annotateur, seules les réponses des modèles sont évaluées (et sans modèle, seules les réponses soumises). L'estimation des coûts ne tient plus compte que des métriques, modèles, annotateurs et structures de prompt sélectionnés.",
     "2026-10-13-api-access-organizations-personally": "Nouveau : des accès API pour les organisations et pour vous personnellement. Sous « Accès API », vous créez des clés pour vos scripts et runners de benchmark, choisissez par un préréglage ce qu'elles peuvent faire et les vérifiez directement avec « Tester la connexion ». Les clés peuvent être renouvelées, révoquées et leur utilisation suivie.",

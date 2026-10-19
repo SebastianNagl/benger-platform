@@ -187,7 +187,7 @@ describe('AuthButton', () => {
     expect(screen.getByText('Notification Settings')).toBeInTheDocument()
   })
 
-  it('has no platform Feature Flags link for superadmin', () => {
+  it('shows the platform Feature Flags link for superadmin', () => {
     mockUseAuth.mockReturnValue({
       user: { id: 1, username: 'admin', is_superadmin: true },
       logout: jest.fn(),
@@ -201,7 +201,9 @@ describe('AuthButton', () => {
     render(<AuthButton />)
     fireEvent.click(screen.getByText('admin'))
     expect(screen.getByText('Profile Settings')).toBeInTheDocument()
-    expect(screen.queryByText('Feature Flags')).not.toBeInTheDocument()
+    expect(
+      document.querySelector('a[href="/admin/feature-flags"]'),
+    ).toBeInTheDocument()
   })
 
   it('does not show Feature Flags link for non-superadmin', () => {
@@ -218,6 +220,9 @@ describe('AuthButton', () => {
     render(<AuthButton />)
     fireEvent.click(screen.getByText('user'))
     expect(screen.queryByText('Feature Flags')).not.toBeInTheDocument()
+    expect(
+      document.querySelector('a[href="/admin/feature-flags"]'),
+    ).not.toBeInTheDocument()
   })
 
   it('lists the organizations when memberships exist', () => {

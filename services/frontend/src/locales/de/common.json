@@ -4109,7 +4109,6 @@
     "userManagement": "Benutzerverwaltung",
     "defaultConfiguration": "Standard-Konfiguration",
     "featureFlags": "Feature Flags",
-    "featureFlagsNotAvailable": "Feature-Flags sind in dieser Edition nicht verfügbar.",
     "orgManagement": "Organisationsverwaltung",
     "createOrg": "Organisation erstellen",
     "inviteUser": "Benutzer einladen",
@@ -4634,6 +4633,40 @@
     },
     "lti": {
       "extendedRequired": "Die LTI-Verwaltung erfordert die Extended Edition."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature Flags",
+      "intro": "Jede Änderung gilt sofort. „Freigabeliste“ schaltet etwas nur für die eingetragenen Personen und für Mitglieder der eingetragenen Organisationen ein; Superadmins sind nicht automatisch dabei. Ein Paketschalter (extension.…) schaltet ein ganzes Erweiterungspaket ein oder aus, ohne neues Deployment.",
+      "loadFailed": "Die Feature-Flags konnten nicht geladen werden.",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} hinzugefügt",
+      "targetRemoved": "{target} entfernt",
+      "deleted": "{flag} gelöscht",
+      "default": "Standard: {state}",
+      "updatedAt": "Zuletzt geändert: {date}",
+      "allowlistEmpty": "Die Liste ist leer, also ist es für niemanden eingeschaltet.",
+      "kindUser": "Person",
+      "kindOrg": "Organisation",
+      "addUser": "Person hinzufügen",
+      "userSearch": "Name, E-Mail oder Pseudonym",
+      "addOrg": "Organisation hinzufügen",
+      "pickOrg": "Organisation wählen",
+      "groupPlatform": "Plattform",
+      "groupPackage": "Erweiterungspaket „{owner}“",
+      "masterBadge": "Paketschalter",
+      "unregistered": "Nicht registriert",
+      "unregisteredHint": "Kein geladenes Paket registriert dieses Flag mehr. Die gespeicherte Einstellung wirkt nicht; du kannst sie löschen.",
+      "deleteTitle": "{flag} löschen?",
+      "deleteMessage": "Die gespeicherte Einstellung und ihre Freigabeliste werden gelöscht. Registriert ein Paket das Flag später wieder, startet es mit seinem Standard.",
+      "masterOffTitle": "Paket „{owner}“ ausschalten?",
+      "masterOffMessage": "Damit verschwinden alle Funktionen dieses Pakets sofort für alle, die es gerade erreicht. Gespeicherte Daten bleiben erhalten und werden weiter angezeigt. Laufende Klausuren behalten ihre Zeitbegrenzung: Sie werden bei Ablauf der Zeit weiterhin automatisch abgegeben.",
+      "masterOffConfirm": "Ausschalten",
+      "state": {
+        "off": "Aus",
+        "everyone": "Alle",
+        "allowlist": "Freigabeliste"
+      }
     }
   },
   "taskCreate": {

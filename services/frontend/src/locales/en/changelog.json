@@ -1,5 +1,6 @@
 {
   "changelogEntries": {
+    "2026-10-19-runtime-extension-switches": "Superadmins can switch whole extension packages on or off for single organizations or users under \"Feature Flags\", without a redeploy.",
     "2026-10-14-french-language-menu": "BenGER is now also available in French. You choose the language from the flag menu at the top right (previously a toggle between German and English); date and number formats follow the chosen language.",
     "2026-10-13-evaluations-limited-model-answers": "Evaluations can be limited to model answers: with no annotator selected only the model answers are graded (and with no model only the submitted answers). The cost estimate now counts only the selected metrics, models, annotators and prompt structures.",
     "2026-10-13-api-access-organizations-personally": "New: API access for organizations and for you personally. Under \"API access\" you create keys for scripts and benchmark runners, pick with a preset what they may do, and check them right away with \"Test connection\". Keys can be renewed, revoked and their usage tracked.",

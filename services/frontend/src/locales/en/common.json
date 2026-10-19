@@ -4109,7 +4109,6 @@
     "userManagement": "User Management",
     "defaultConfiguration": "Default Configuration",
     "featureFlags": "Feature Flags",
-    "featureFlagsNotAvailable": "Feature flags are not available in this edition.",
     "orgManagement": "Organization Management",
     "createOrg": "Create Organization",
     "inviteUser": "Invite User",
@@ -4634,6 +4633,40 @@
     },
     "lti": {
       "extendedRequired": "LTI administration requires the extended edition."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature Flags",
+      "intro": "Every change applies at once. \"Allowlist\" turns something on only for the listed users and for members of the listed organizations; superadmins are not included automatically. A package switch (extension.…) turns a whole extension package on or off, without a redeploy.",
+      "loadFailed": "Could not load the feature flags.",
+      "saveFailed": "Saving failed.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} added",
+      "targetRemoved": "{target} removed",
+      "deleted": "{flag} deleted",
+      "default": "Default: {state}",
+      "updatedAt": "Last changed: {date}",
+      "allowlistEmpty": "The list is empty, so it is on for nobody.",
+      "kindUser": "User",
+      "kindOrg": "Organization",
+      "addUser": "Add user",
+      "userSearch": "Name, email or pseudonym",
+      "addOrg": "Add organization",
+      "pickOrg": "Choose an organization",
+      "groupPlatform": "Platform",
+      "groupPackage": "Extension package \"{owner}\"",
+      "masterBadge": "Package switch",
+      "unregistered": "Not registered",
+      "unregisteredHint": "No loaded package registers this flag any more. The stored setting has no effect; you can delete it.",
+      "deleteTitle": "Delete {flag}?",
+      "deleteMessage": "The stored setting and its allowlist are deleted. If a package registers the flag again later, it starts from its default.",
+      "masterOffTitle": "Switch off the package \"{owner}\"?",
+      "masterOffMessage": "Every feature of this package disappears at once for everyone it currently reaches. Stored data is kept and still shown. Exams that are running keep their time limit: they are still handed in automatically when the time is up.",
+      "masterOffConfirm": "Switch off",
+      "state": {
+        "off": "Off",
+        "everyone": "Everyone",
+        "allowlist": "Allowlist"
+      }
     }
   },
   "taskCreate": {

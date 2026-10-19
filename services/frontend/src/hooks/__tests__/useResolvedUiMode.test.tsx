@@ -15,6 +15,7 @@ let mockAuth: any = { user: null }
 let mockLocalMode: 'student' | 'expert' | null = null
 let mockLocked = false
 let mockShell: any = null
+let mockExtendedActive = true
 
 jest.mock('@/contexts/AuthContext', () => ({ useAuth: () => mockAuth }))
 jest.mock('@/stores', () => ({
@@ -26,6 +27,11 @@ jest.mock('@/lib/utils/subdomain', () => ({
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: () => mockShell,
   hasSlot: () => mockShell !== null,
+}))
+
+// Runtime master flag extension.extended (lib/featureFlags).
+jest.mock('@/lib/featureFlags', () => ({
+  useExtensionActive: (id: string) => id === 'extended' && mockExtendedActive,
 }))
 
 import {
@@ -48,6 +54,7 @@ beforeEach(() => {
   mockLocalMode = null
   mockLocked = false
   mockShell = null
+  mockExtendedActive = true
 })
 
 afterAll(() => {
@@ -109,6 +116,15 @@ describe('useResolvedUiMode', () => {
     mockLocked = true
     const { result } = renderHook(() => useResolvedUiMode())
     expect(result.current).toBe('expert')
+  })
+
+  test('extended switched off at runtime renders the expert shell', () => {
+    setEnv(EXT, 'extended')
+    mockShell = StudentShell
+    mockLocked = true
+    mockExtendedActive = false
+    mockAuth = { user: { id: 'u1', preferred_ui_mode: 'student' } }
+    expect(renderHook(() => useResolvedUiMode()).result.current).toBe('expert')
   })
 
   test('anonymous visitors follow the host default', () => {
