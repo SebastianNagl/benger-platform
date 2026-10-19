@@ -4,10 +4,12 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
 import {
   isExtendedEdition,
+  useExtendedActive,
   useResolvedUiMode,
   type UiMode,
 } from '@/hooks/useResolvedUiMode'
 import { useSlot } from '@/lib/extensions/slots'
+import { useActiveExtensionsReady } from '@/lib/featureFlags'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { useUIStore } from '@/stores'
 import { authRedirect } from '@/utils/authRedirect'
@@ -88,6 +90,8 @@ export function StudentModeRedirect() {
   const isHydrated = useHydration()
   const resolvedUiMode = useResolvedUiMode()
   const studentShellReady = Boolean(useSlot('StudentShell'))
+  const extendedActive = useExtendedActive()
+  const extensionsReady = useActiveExtensionsReady()
   const setUiMode = useUIStore((s) => s.setUiMode)
   // Only presence matters here — a logged-out visitor has no view mode to
   // honour and must not be bounced off the public landing page.
@@ -98,11 +102,15 @@ export function StudentModeRedirect() {
     if (!isHydrated || isLoading) return
     if (!isAuthenticated) return
     if (!pathname) return
+    // Whether the extended overlay is switched on for this viewer is not
+    // known yet: deciding now could bounce a student off the student
+    // surface. This effect runs again once it is.
+    if (isExtendedEdition() && !extensionsReady) return
 
     let effectiveMode = resolvedUiMode
     const ltiMode = readLtiUiMode(pathname, userId)
     if (ltiMode) {
-      if (isExtendedEdition() && !studentShellReady) {
+      if (extendedActive && !studentShellReady) {
         // The extended package is still loading: decide once the student
         // shell is registered (this effect runs again then).
         return
@@ -111,7 +119,7 @@ export function StudentModeRedirect() {
       // there is nothing to switch to. On a student-locked host everyone
       // uses the student UI, so only `student` counts there.
       const canSwitch =
-        isExtendedEdition() && (!isStudentLockedHost() || ltiMode === 'student')
+        extendedActive && (!isStudentLockedHost() || ltiMode === 'student')
       if (canSwitch) {
         effectiveMode = ltiMode
         if (useUIStore.getState().uiMode !== ltiMode) setUiMode(ltiMode)
@@ -138,6 +146,8 @@ export function StudentModeRedirect() {
     userId,
     resolvedUiMode,
     studentShellReady,
+    extendedActive,
+    extensionsReady,
     pathname,
     router,
     setUiMode,

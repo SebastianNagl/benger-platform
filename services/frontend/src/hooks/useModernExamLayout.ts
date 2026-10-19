@@ -24,7 +24,7 @@
 import { useMemo } from 'react'
 
 import { useOptionalAuth } from '@/contexts/AuthContext'
-import { isExtendedEdition } from '@/hooks/useResolvedUiMode'
+import { useExtendedActive } from '@/hooks/useResolvedUiMode'
 import { useSlot } from '@/lib/extensions/slots'
 import {
   isExamShapedConfig,
@@ -55,6 +55,7 @@ export function useModernExamLayout(
   // Optional: DynamicAnnotationInterface must stay mountable without an
   // AuthProvider (isolated tests, review surfaces). No auth -> classic.
   const user = useOptionalAuth()?.user
+  const extendedActive = useExtendedActive()
 
   const prefs = useMemo(
     () => resolveExamLayoutPrefs(user?.exam_layout_prefs),
@@ -69,7 +70,7 @@ export function useModernExamLayout(
   }, [labelConfig])
 
   const active =
-    isExtendedEdition() &&
+    extendedActive &&
     !!Layout &&
     (prefs.mode === 'modern' || prefs.mode === 'state') &&
     examShaped

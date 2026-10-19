@@ -31,6 +31,12 @@ jest.mock('@/lib/extensions/slots', () => ({
   },
 }))
 
+// Runtime master flag extension.extended (lib/featureFlags).
+let mockExtendedActive = true
+jest.mock('@/lib/featureFlags', () => ({
+  useExtensionActive: (id: string) => id === 'extended' && mockExtendedActive,
+}))
+
 import { useModernExamLayout } from '../useModernExamLayout'
 
 const EXAM_CONFIG = `
@@ -129,6 +135,16 @@ describe('useModernExamLayout', () => {
   it('is inactive in the community edition even with everything else set', () => {
     const { result } = setup({ edition: null })
     expect(result.current.active).toBe(false)
+  })
+
+  it('is inactive while extended is switched off at runtime', () => {
+    mockExtendedActive = false
+    try {
+      const { result } = setup()
+      expect(result.current.active).toBe(false)
+    } finally {
+      mockExtendedActive = true
+    }
   })
 
   it('is inactive while the slot is not registered, exposing Layout=null', () => {

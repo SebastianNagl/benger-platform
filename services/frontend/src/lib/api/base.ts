@@ -5,6 +5,7 @@
  * Issue #171:  with connection pooling and request management
  */
 
+import { reportFeatureDisabled } from '@/lib/featureFlags/disabled'
 import {
   hasSebJsApi,
   reportSebRefusal,
@@ -613,6 +614,8 @@ export class BaseApiClient {
 
         // A refusal at the Safe Exam Browser gate: let the exam page react.
         reportSebRefusal(response.status, errorData)
+        // A feature switched off since the flags loaded: refetch them.
+        reportFeatureDisabled(response.status, errorData)
 
         // API Error occurred
 
@@ -861,6 +864,7 @@ export class BaseApiClient {
           try {
             const errorData = JSON.parse(errorText)
             reportSebRefusal(response.status, errorData)
+            reportFeatureDisabled(response.status, errorData)
             errorMessage =
               formatErrorDetail(errorData.detail) ||
               errorData.message ||

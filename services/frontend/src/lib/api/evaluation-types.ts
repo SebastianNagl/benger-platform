@@ -7,9 +7,14 @@
  * Issue #483 - Phase 8: Evaluation Mapping
  */
 
+import { isOwnerActive } from '@/lib/extensions/active'
 import {
-  type RegistrationOwners,
+  currentOwnerLabel,
+  pushRegistration,
   recordRegistration,
+  resolveRegistration,
+  type RegistrationOwners,
+  type RegistrationStacks,
 } from '@/lib/extensions/owner'
 import { formatDecimal } from '@/lib/i18n/locales'
 import { translate } from '@/lib/utils/translate'
@@ -1323,32 +1328,68 @@ export const METRIC_ORDER: string[] = GROUPED_METRICS.flatMap((g) => g.metrics)
 // Extension points for extended metrics
 // =============================================================================
 
-const _extendedMetrics: Record<string, AvailableMetric> = {}
+const _extendedMetrics: RegistrationStacks<AvailableMetric> = new Map()
 const _extendedMetricOwners: RegistrationOwners = new Map()
-const _extendedGroups: MetricCategory[] = []
+const _extendedGroups: { owner: string; group: MetricCategory }[] = []
 
 /**
  * Register an additional metric definition (called by an overlay's
- * registerAll()). The last registration per key wins; a different owner
- * overwriting a key logs a warning (see lib/extensions/owner.ts).
+ * registerAll()). Each owner keeps its own definition per key; the newest
+ * one whose owner is active counts (lib/extensions/active.ts). A different
+ * owner registering a key logs a warning (see lib/extensions/owner.ts).
  */
 export function registerMetric(key: string, definition: AvailableMetric) {
   recordRegistration(_extendedMetricOwners, 'metric', key)
-  _extendedMetrics[key] = definition
+  pushRegistration(_extendedMetrics, key, definition)
 }
 
 /**
- * Register an additional metric group for UI display (called by @benger/extended).
+ * Register an additional metric group for UI display (called by an
+ * overlay's registerAll()). Listed only while its owner is active.
  */
 export function registerMetricGroup(group: MetricCategory) {
-  _extendedGroups.push(group)
+  _extendedGroups.push({ owner: currentOwnerLabel(), group })
 }
 
 /**
- * Get all metric definitions (core + extended).
+ * Definitions of the metrics whose owner is active right now (core plus the
+ * active overlays' metrics).
+ */
+export function getActiveMetricDefinitions(): Record<string, AvailableMetric> {
+  const out: Record<string, AvailableMetric> = { ...METRIC_DEFINITIONS }
+  for (const key of _extendedMetrics.keys()) {
+    const def = resolveRegistration(_extendedMetrics, key, isOwnerActive)
+    if (def) out[key] = def
+  }
+  return out
+}
+
+/**
+ * Get all metric definitions (core + extended), for looking up how a metric
+ * is named and scaled. A key resolves to the newest definition whose owner is
+ * active and otherwise to the newest definition at all, so results in stored
+ * data keep their name and scale while the overlay that defines the metric
+ * is switched off. Lists of metrics to pick from go through
+ * getGroupedMetrics, which only offers active ones.
  */
 export function getMetricDefinitions(): Record<string, AvailableMetric> {
-  return { ...METRIC_DEFINITIONS, ..._extendedMetrics }
+  const out: Record<string, AvailableMetric> = { ...METRIC_DEFINITIONS }
+  for (const key of _extendedMetrics.keys()) {
+    const def =
+      resolveRegistration(_extendedMetrics, key, isOwnerActive) ??
+      resolveRegistration(_extendedMetrics, key, () => true)
+    if (def) out[key] = def
+  }
+  return out
+}
+
+/** Whether a metric may be offered for a new config right now. */
+function isMetricOffered(metric: string): boolean {
+  return (
+    metric in METRIC_DEFINITIONS ||
+    !_extendedMetrics.has(metric) ||
+    resolveRegistration(_extendedMetrics, metric, isOwnerActive) !== undefined
+  )
 }
 
 /**
@@ -1429,7 +1470,8 @@ export function isMetricImmediateEligible(key: string): boolean {
 /**
  * Get all metric groups (core + extended). Extended groups whose name matches
  * an existing core group are merged into that group's metrics array (preserving
- * core ordering and description); other extended groups are appended.
+ * core ordering and description); other extended groups are appended. Only
+ * groups and metrics of active owners are listed (lib/extensions/active.ts).
  */
 export function getGroupedMetrics(): MetricCategory[] {
   const merged: MetricCategory[] = GROUPED_METRICS.map((g) => ({
@@ -1437,7 +1479,8 @@ export function getGroupedMetrics(): MetricCategory[] {
     metrics: [...g.metrics],
   }))
   const byName = new Map(merged.map((g) => [g.name, g]))
-  for (const ext of _extendedGroups) {
+  for (const { owner, group: ext } of _extendedGroups) {
+    if (!isOwnerActive(owner)) continue
     const existing = byName.get(ext.name)
     if (existing) {
       for (const m of ext.metrics) {
@@ -1448,6 +1491,10 @@ export function getGroupedMetrics(): MetricCategory[] {
       merged.push(copy)
       byName.set(copy.name, copy)
     }
+  }
+  // A metric that only switched-off overlays define is not offered.
+  for (const group of merged) {
+    group.metrics = group.metrics.filter(isMetricOffered)
   }
   return merged
 }

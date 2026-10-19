@@ -60,6 +60,9 @@ jest.mock('@/lib/api', () => ({
 jest.mock('@/hooks/useResolvedUiMode', () => ({
   isExtendedEdition: () =>
     process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended',
+  // Runtime switch on whenever the build has the overlay.
+  useExtendedActive: () =>
+    process.env.NEXT_PUBLIC_BENGER_EDITION === 'extended',
   useResolvedUiMode: () => mockResolved,
 }))
 

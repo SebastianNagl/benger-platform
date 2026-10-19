@@ -19,6 +19,12 @@
  */
 
 export {
+  getActiveExtensions,
+  isOwnerActive,
+  setActiveExtensions,
+  subscribeActiveExtensions,
+} from './active'
+export {
   getChangelogEntries,
   registerChangelogEntries,
   useChangelogEntries,

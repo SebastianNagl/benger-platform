@@ -4109,7 +4109,6 @@
     "userManagement": "Gestion des utilisateurs",
     "defaultConfiguration": "Configuration par défaut",
     "featureFlags": "Feature flags",
-    "featureFlagsNotAvailable": "Les feature flags ne sont pas disponibles dans cette édition.",
     "orgManagement": "Gestion des organisations",
     "createOrg": "Créer une organisation",
     "inviteUser": "Inviter un utilisateur",
@@ -4634,6 +4633,40 @@
     },
     "lti": {
       "extendedRequired": "L'administration LTI nécessite l'édition Extended."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature flags",
+      "intro": "Chaque modification s'applique immédiatement. « Liste d'autorisation » n'active une fonction que pour les personnes inscrites et pour les membres des organisations inscrites ; les superadministrateurs ne sont pas inclus automatiquement. Un interrupteur de paquet (extension.…) active ou désactive tout un paquet d'extension, sans nouveau déploiement.",
+      "loadFailed": "Impossible de charger les feature flags.",
+      "saveFailed": "L'enregistrement a échoué.",
+      "stateSaved": "{flag} : {state}",
+      "targetAdded": "{target} ajouté",
+      "targetRemoved": "{target} retiré",
+      "deleted": "{flag} supprimé",
+      "default": "Par défaut : {state}",
+      "updatedAt": "Dernière modification : {date}",
+      "allowlistEmpty": "La liste est vide, la fonction n'est donc activée pour personne.",
+      "kindUser": "Utilisateur",
+      "kindOrg": "Organisation",
+      "addUser": "Ajouter un utilisateur",
+      "userSearch": "Nom, e-mail ou pseudonyme",
+      "addOrg": "Ajouter une organisation",
+      "pickOrg": "Choisissez une organisation",
+      "groupPlatform": "Plateforme",
+      "groupPackage": "Paquet d'extension « {owner} »",
+      "masterBadge": "Interrupteur de paquet",
+      "unregistered": "Non enregistré",
+      "unregisteredHint": "Aucun paquet chargé n'enregistre plus ce flag. Le réglage stocké n'a aucun effet ; vous pouvez le supprimer.",
+      "deleteTitle": "Supprimer {flag} ?",
+      "deleteMessage": "Le réglage stocké et sa liste d'autorisation sont supprimés. Si un paquet enregistre de nouveau ce flag plus tard, il repart de sa valeur par défaut.",
+      "masterOffTitle": "Désactiver le paquet « {owner} » ?",
+      "masterOffMessage": "Toutes les fonctions de ce paquet disparaissent immédiatement pour toutes les personnes qu'il atteint actuellement. Les données enregistrées sont conservées et restent affichées. Les examens en cours gardent leur limite de temps : ils sont toujours remis automatiquement à la fin du temps imparti.",
+      "masterOffConfirm": "Désactiver",
+      "state": {
+        "off": "Désactivé",
+        "everyone": "Tout le monde",
+        "allowlist": "Liste d'autorisation"
+      }
     }
   },
   "taskCreate": {

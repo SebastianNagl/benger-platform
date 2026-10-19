@@ -35,6 +35,9 @@ jest.mock('@/hooks/useResolvedUiMode', () => ({
   isExtendedEdition: () => true,
   useResolvedUiMode: () => mockMode.current,
 }))
+jest.mock('@/lib/featureFlags', () => ({
+  useActiveExtensionsReady: () => true,
+}))
 const mockSlots: Record<string, any> = {}
 jest.mock('@/lib/extensions/slots', () => ({
   useSlot: (name: string) => mockSlots[name] ?? null,

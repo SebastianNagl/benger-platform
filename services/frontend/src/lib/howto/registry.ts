@@ -15,6 +15,11 @@
 
 import { useEffect, useState } from 'react'
 
+import {
+  isOwnerActive,
+  subscribeActiveExtensions,
+} from '@/lib/extensions/active'
+import { currentOwnerLabel } from '@/lib/extensions/owner'
 import { lookup } from '@/lib/i18n/catalog'
 import { LOCALES, toLocale } from '@/lib/i18n/locales'
 
@@ -135,7 +140,7 @@ export function guideText(guide: HowToGuide, locale: string): HowToGuideText {
   }
 }
 
-const buckets: Record<string, HowToGuide[]> = {}
+const buckets: Record<string, { owner: string; guides: HowToGuide[] }> = {}
 const listeners: Set<() => void> = new Set()
 
 function notifyListeners() {
@@ -145,31 +150,42 @@ function notifyListeners() {
 /**
  * Register guides under a named source. Re-registering the same source
  * replaces its guides (idempotent), so tests and a repeated loadExtended()
- * never duplicate entries.
+ * never duplicate entries. The source remembers the registering owner; its
+ * guides are listed only while that owner is active
+ * (lib/extensions/active.ts).
  */
 export function registerHowToGuides(source: string, guides: HowToGuide[]) {
-  buckets[source] = guides
+  buckets[source] = { owner: currentOwnerLabel(), guides }
   notifyListeners()
 }
 
-/** All registered guides in category order, sources in registration order. */
+/**
+ * The guides of active owners in category order, sources in registration
+ * order.
+ */
 export function getHowToGuides(): HowToGuide[] {
   const order = new Map(HOWTO_CATEGORIES.map((c, i) => [c.id, i]))
   return Object.values(buckets)
-    .flat()
+    .filter((bucket) => isOwnerActive(bucket.owner))
+    .flatMap((bucket) => bucket.guides)
     .sort(
       (a, b) => (order.get(a.category) ?? 99) - (order.get(b.category) ?? 99),
     )
 }
 
-/** React hook: all guides, re-rendering when a source registers later. */
+/**
+ * React hook: the guides of active owners, re-rendering when a source
+ * registers later or the active overlays change.
+ */
 export function useHowToGuides(): HowToGuide[] {
   const [, setTick] = useState(0)
   useEffect(() => {
     const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
+    const unsubscribeActive = subscribeActiveExtensions(listener)
     return () => {
       listeners.delete(listener)
+      unsubscribeActive()
     }
   }, [])
   return getHowToGuides()
