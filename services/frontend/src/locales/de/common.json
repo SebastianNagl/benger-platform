@@ -4542,7 +4542,17 @@
         "added_to_group": "zur Gruppe hinzugefügt",
         "already_in_group": "bereits in der Gruppe"
       },
-      "accessKeys": "API-Zugänge"
+      "accessKeys": "API-Zugänge",
+      "jurisdiction": {
+        "label": "Rechtsordnung",
+        "help": "Bestimmt, welche landesspezifischen Projekttypen der Projekt-Assistent anbietet (z. B. französische Klausurtypen).",
+        "saved": "Rechtsordnung gespeichert",
+        "failed": "Die Rechtsordnung konnte nicht gespeichert werden",
+        "options": {
+          "DE": "Deutschland",
+          "FR": "Frankreich"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {

@@ -51,6 +51,18 @@ export class OrganizationsClient extends BaseApiClient {
   }
 
   /**
+   * Set the organization's jurisdiction (merged into its settings).
+   */
+  async updateOrganizationJurisdiction(
+    organizationId: string,
+    jurisdiction: string,
+  ): Promise<{ id: string; jurisdiction: string }> {
+    return this.put(`/organizations/${organizationId}/jurisdiction`, {
+      jurisdiction,
+    })
+  }
+
+  /**
    * Delete organization
    */
   async deleteOrganization(

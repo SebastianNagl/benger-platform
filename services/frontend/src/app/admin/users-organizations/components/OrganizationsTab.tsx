@@ -9,6 +9,7 @@ import {
 import { OrgAccessKeys } from '@/components/organization/OrgAccessKeys'
 import { OrgApiKeys } from '@/components/organization/OrgApiKeys'
 import { OrgGroups } from '@/components/organization/OrgGroups'
+import { OrgJurisdictionSetting } from '@/components/organization/OrgJurisdictionSetting'
 import { OrgStorageConnections } from '@/components/organization/OrgStorageConnections'
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
@@ -1262,6 +1263,16 @@ export function OrganizationsTab() {
                             </Badge>
                           )}
                         </div>
+                        <OrgJurisdictionSetting
+                          organization={selectedOrganization}
+                          canManage={canManageOrg}
+                          onSaved={async (jurisdiction) => {
+                            setSelectedOrganization((prev) =>
+                              prev ? { ...prev, jurisdiction } : prev,
+                            )
+                            await refreshOrganizations()
+                          }}
+                        />
                       </>
                     )}
                   </div>

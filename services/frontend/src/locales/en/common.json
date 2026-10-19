@@ -4542,7 +4542,17 @@
         "added_to_group": "added to the group",
         "already_in_group": "already in the group"
       },
-      "accessKeys": "API access"
+      "accessKeys": "API access",
+      "jurisdiction": {
+        "label": "Jurisdiction",
+        "help": "Decides which country-specific project types the project wizard offers (e.g. French exam types).",
+        "saved": "Jurisdiction saved",
+        "failed": "The jurisdiction could not be saved",
+        "options": {
+          "DE": "Germany",
+          "FR": "France"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {

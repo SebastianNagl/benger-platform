@@ -18,6 +18,7 @@ import { apiClient } from '@/lib/api/client'
 import { projectsAPI } from '@/lib/api/projects'
 import { describeEvaluationConfigWarnings } from '@/lib/evaluation/configWarnings'
 import {
+  getRegisteredWizardProjectTypes,
   getRegisteredWizardTemplates,
   getWizardKindPreset,
   getWizardPostCreateHooks,
@@ -29,6 +30,7 @@ import {
   detectFormat,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { offeredFor, type Jurisdiction } from '@/lib/jurisdiction'
 import { extractFieldsFromLabelConfig } from '@/lib/labelConfig/fieldExtractor'
 import { canCreateInOrganization } from '@/lib/permissions/groupScope'
 import { defaultIconForKind } from '@/lib/projectKind'
@@ -36,6 +38,7 @@ import { useProjectStore } from '@/stores/projectStore'
 import { ArrowLeftIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { wizardDataJurisdictions } from './wizard/jurisdictions'
 import { preselectActiveOrganization } from './wizard/orgPreselect'
 import { StepAnnotationInstructions } from './wizard/StepAnnotationInstructions'
 import { StepDataImport } from './wizard/StepDataImport'
@@ -126,33 +129,36 @@ export function ProjectCreationWizard() {
   const isFinishingRef = useRef(false)
   const [isFinishing, setIsFinishing] = useState(false)
 
-  const nlpTemplates: LabelingTemplate[] = useMemo(
-    () => [
-      {
-        id: 'question-answering',
-        name: t('projects.creation.wizard.templates.questionAnswering.name'),
-        description: t(
-          'projects.creation.wizard.templates.questionAnswering.description',
-        ),
-        icon: '\u2753',
-        category: 'NLP',
-        config: `<View>
+  // Every template incl. the jurisdiction-restricted ones: a registered
+  // project type selects its template by id from here.
+  const allTemplates: (LabelingTemplate & { jurisdictions?: string[] })[] =
+    useMemo(
+      () => [
+        {
+          id: 'question-answering',
+          name: t('projects.creation.wizard.templates.questionAnswering.name'),
+          description: t(
+            'projects.creation.wizard.templates.questionAnswering.description',
+          ),
+          icon: '\u2753',
+          category: 'NLP',
+          config: `<View>
   <Text name="context" value="$context"/>
   <Text name="question" value="$question"/>
   <TextArea name="answer" toName="context"
             placeholder="Enter your answer..."
             rows="3" maxSubmissions="1"/>
 </View>`,
-      },
-      {
-        id: 'multiple-choice',
-        name: t('projects.creation.wizard.templates.multipleChoice.name'),
-        description: t(
-          'projects.creation.wizard.templates.multipleChoice.description',
-        ),
-        icon: '\uD83D\uDD18',
-        category: 'NLP',
-        config: `<View>
+        },
+        {
+          id: 'multiple-choice',
+          name: t('projects.creation.wizard.templates.multipleChoice.name'),
+          description: t(
+            'projects.creation.wizard.templates.multipleChoice.description',
+          ),
+          icon: '\uD83D\uDD18',
+          category: 'NLP',
+          config: `<View>
   <Text name="question" value="$question"/>
   <Text name="context" value="$context"/>
   <Choices name="answer" toName="question" choice="single" showInline="true">
@@ -165,16 +171,16 @@ export function ProjectCreationWizard() {
             placeholder="Explain your reasoning..."
             rows="2" required="false"/>
 </View>`,
-      },
-      {
-        id: 'span-annotation',
-        name: t('projects.creation.wizard.templates.spanAnnotation.name'),
-        description: t(
-          'projects.creation.wizard.templates.spanAnnotation.description',
-        ),
-        icon: '\uD83C\uDFF7\uFE0F',
-        category: 'NLP',
-        config: `<View>
+        },
+        {
+          id: 'span-annotation',
+          name: t('projects.creation.wizard.templates.spanAnnotation.name'),
+          description: t(
+            'projects.creation.wizard.templates.spanAnnotation.description',
+          ),
+          icon: '\uD83C\uDFF7\uFE0F',
+          category: 'NLP',
+          config: `<View>
   <Text name="text" value="$text"/>
   <Labels name="label" toName="text">
     <Label value="Person" background="#FF6B6B"/>
@@ -184,27 +190,38 @@ export function ProjectCreationWizard() {
     <Label value="Law_Reference" background="#5F27CD"/>
   </Labels>
 </View>`,
-      },
-      {
-        id: 'custom',
-        name: t('projects.creation.wizard.templates.custom.name'),
-        description: t('projects.creation.wizard.templates.custom.description'),
-        icon: '\u2699\uFE0F',
-        category: 'Custom',
-        config: `<View>
+        },
+        {
+          id: 'custom',
+          name: t('projects.creation.wizard.templates.custom.name'),
+          description: t(
+            'projects.creation.wizard.templates.custom.description',
+          ),
+          icon: '\u2699\uFE0F',
+          category: 'Custom',
+          config: `<View>
   <!-- Define your custom annotation interface -->
   <Text name="text" value="$text"/>
   <!-- Add your components here -->
 </View>`,
-      },
-      ...getRegisteredWizardTemplates().map((r) => ({
-        ...r,
-        name: t(r.nameKey),
-        description: t(r.descriptionKey),
-      })),
-    ],
-    [t],
-  )
+        },
+        ...getRegisteredWizardTemplates().map((r) => ({
+          ...r,
+          name: t(r.nameKey),
+          description: t(r.descriptionKey),
+        })),
+      ],
+      [t],
+    )
+  // The templates the labeling step offers for this project's jurisdictions.
+  const jurisdictionKey = wizardDataJurisdictions(
+    organizations,
+    wizardData,
+  ).join(',')
+  const nlpTemplates: LabelingTemplate[] = useMemo(() => {
+    const active = jurisdictionKey.split(',') as Jurisdiction[]
+    return allTemplates.filter((tpl) => offeredFor(tpl.jurisdictions, active))
+  }, [allTemplates, jurisdictionKey])
 
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).
@@ -345,15 +362,33 @@ export function ProjectCreationWizard() {
         // and switches annotation on, so the project gets the shape the
         // student surfaces, discovery and the deck workspace recognise. The
         // user can still pick another template afterwards.
-        if (partial.projectKind && partial.projectKind !== prev.projectKind) {
+        // A base-kind change without an explicit option (e.g. the
+        // KI-Generator stamping the exam kind) selects that kind's option.
+        if (
+          partial.projectKind &&
+          partial.projectKind !== prev.projectKind &&
+          !('projectTypeId' in partial)
+        ) {
+          next.projectTypeId = partial.projectKind
+        }
+        const prevTypeId = prev.projectTypeId ?? prev.projectKind
+        const nextTypeId = next.projectTypeId ?? next.projectKind
+        if (
+          (partial.projectKind && partial.projectKind !== prev.projectKind) ||
+          nextTypeId !== prevTypeId
+        ) {
+          const registeredType = getRegisteredWizardProjectTypes().find(
+            (r) => r.id === nextTypeId,
+          )
           const templateId =
-            partial.projectKind === 'exam'
+            registeredType?.templateId ??
+            (next.projectKind === 'exam'
               ? 'exam-solving'
-              : partial.projectKind === 'flashcard_collection'
+              : next.projectKind === 'flashcard_collection'
                 ? 'flashcard-deck'
-                : null
+                : null)
           const template = templateId
-            ? nlpTemplates.find((tpl) => tpl.id === templateId)
+            ? allTemplates.find((tpl) => tpl.id === templateId)
             : undefined
           // An update that carries its own labelingConfig (e.g. the
           // KI-Generator stamping type + its synthetic template together)
@@ -370,14 +405,18 @@ export function ProjectCreationWizard() {
           )
           if (!prev.icon || prev.icon === prevDefault) {
             next.icon = defaultIconForKind(
-              partial.projectKind === 'generic' ? null : partial.projectKind,
+              next.projectKind === 'generic' ? null : next.projectKind,
             )
           }
           // Extended kind preset: prefills judge pair / immediate eval /
-          // exam settings so the project works on both surfaces.
-          const preset = getWizardKindPreset(partial.projectKind)
+          // exam settings so the project works on both surfaces; a
+          // registered type's own preset refines it afterwards.
+          const preset = getWizardKindPreset(next.projectKind)
           if (preset) {
             Object.assign(next, preset(next))
+          }
+          if (registeredType?.preset) {
+            Object.assign(next, registeredType.preset(next))
           }
         }
         // Reverse coupling: picking the Karteikarten template while the type
@@ -400,7 +439,7 @@ export function ProjectCreationWizard() {
         return next
       })
     },
-    [nlpTemplates],
+    [allTemplates],
   )
 
   const validateStep = (): boolean => {

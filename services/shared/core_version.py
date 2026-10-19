@@ -583,11 +583,27 @@ whenever one is added, renamed or removed):
   grading modal, with a heartbeat-refreshed ``last_seen_at``. Written by the
   overlay to keep a second grader away from the last free slot of a target
   with a grader cap; the platform only owns the schema.
+
+2.41 (2026-10-19): jurisdiction-specific project types and score-less judges.
+  ``organizations.settings.jurisdiction`` (``"DE"`` | ``"FR"``, default DE;
+  shared ``org_jurisdiction``) is reported per organization by
+  ``/auth/me/contexts`` and set via ``PUT /organizations/{id}/jurisdiction``.
+  Frontend: ``registerWizardProjectType({id, kind, icon, nameKey,
+  descriptionKey, templateId?, jurisdictions?, preset?})`` adds options to
+  the wizard's project-type picker next to the three base kinds;
+  ``RegisteredWizardTemplate.jurisdictions`` limits a template the same
+  way (``@/lib/jurisdiction``). Workers: ``benger_extended.workers.
+  get_inline_judge(metric)`` returns a judge with ``compute`` /
+  ``build_row`` / ``evaluate_single`` that the bulk cells and the
+  immediate lane call instead of the generic score parser
+  (``evaluation/inline_judges.py``). A score-less result carries
+  ``value: None`` and ``details.feedback_only: true``; the evaluation
+  planner counts it as evaluated (``_row_has_score``).
 """
 
 import os
 
-CORE_API_VERSION = "2.40"
+CORE_API_VERSION = "2.41"
 
 
 def extended_required() -> bool:

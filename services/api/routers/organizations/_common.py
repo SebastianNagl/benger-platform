@@ -13,7 +13,7 @@ from typing import List, Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -96,6 +96,19 @@ def can_create_organization(user: User, db: Session) -> bool:
     return admin_membership is not None
 
 
+def _check_settings_jurisdiction(settings):
+    """``settings.jurisdiction`` may only hold a known value (see
+    ``shared/org_jurisdiction``); every other settings key stays free-form."""
+    from org_jurisdiction import JURISDICTIONS, SETTINGS_KEY, is_valid_jurisdiction
+
+    if isinstance(settings, dict) and SETTINGS_KEY in settings:
+        if not is_valid_jurisdiction(settings[SETTINGS_KEY]):
+            raise ValueError(
+                f"settings.{SETTINGS_KEY} must be one of {', '.join(JURISDICTIONS)}"
+            )
+    return settings
+
+
 # Pydantic models for API
 class OrganizationBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -106,7 +119,12 @@ class OrganizationBase(BaseModel):
 
 
 class OrganizationCreate(OrganizationBase):
-    pass
+    # Write-side only: a response must still render an organization whose
+    # stored settings predate the check.
+    @field_validator("settings")
+    @classmethod
+    def _settings_jurisdiction(cls, v):
+        return _check_settings_jurisdiction(v)
 
 
 class OrganizationUpdate(BaseModel):
@@ -115,6 +133,11 @@ class OrganizationUpdate(BaseModel):
     description: Optional[str] = None
     settings: Optional[dict] = None
     is_active: Optional[bool] = None
+
+    @field_validator("settings")
+    @classmethod
+    def _settings_jurisdiction(cls, v):
+        return _check_settings_jurisdiction(v)
 
 
 class OrganizationResponse(OrganizationBase):

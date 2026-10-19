@@ -4542,7 +4542,17 @@
         "added_to_group": "ajouté au groupe",
         "already_in_group": "fait déjà partie du groupe"
       },
-      "accessKeys": "Accès API"
+      "accessKeys": "Accès API",
+      "jurisdiction": {
+        "label": "Système juridique",
+        "help": "Détermine les types de projet propres à un pays que l'assistant de création propose (par ex. les exercices juridiques français).",
+        "saved": "Système juridique enregistré",
+        "failed": "Le système juridique n'a pas pu être enregistré",
+        "options": {
+          "DE": "Allemagne",
+          "FR": "France"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {

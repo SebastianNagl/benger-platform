@@ -298,6 +298,80 @@ describe('ProjectCreationWizard — synthetic step (extended)', () => {
     _resetWizardKindPresets()
   })
 
+  it('a registered project type creates its base kind with its own template, kind preset first, then the type preset', async () => {
+    const {
+      registerWizardTemplate,
+      registerWizardKindPreset,
+      registerWizardProjectType,
+      _resetWizardKindPresets,
+      _resetWizardProjectTypes,
+    } = jest.requireActual('@/lib/extensions/wizardTemplates')
+    registerWizardTemplate({
+      id: 'exam-solving',
+      nameKey: 'x',
+      descriptionKey: 'y',
+      icon: '',
+      category: 'NLP',
+      config: '<View><Angabe name="a" value="$sachverhalt"/></View>',
+    })
+    registerWizardTemplate({
+      id: 'type-template',
+      nameKey: 'x',
+      descriptionKey: 'y',
+      icon: '',
+      category: 'NLP',
+      config: '<View><Loesung name="copie" value="$sujet"/></View>',
+    })
+    _resetWizardKindPresets()
+    _resetWizardProjectTypes()
+    const order: string[] = []
+    registerWizardKindPreset('exam', () => {
+      order.push('kind')
+      return { immediate_evaluation_enabled: true }
+    })
+    const typePreset = jest.fn((data: any) => {
+      order.push('type')
+      // Sees the kind preset's result and the type's template.
+      expect(data.immediate_evaluation_enabled).toBe(true)
+      expect(data.labelingConfig.id).toBe('type-template')
+      return { immediate_evaluation_enabled: false }
+    })
+    registerWizardProjectType({
+      id: 'my-type',
+      kind: 'exam',
+      icon: '🧩',
+      nameKey: 'x.type',
+      descriptionKey: 'x.typeDescription',
+      templateId: 'type-template',
+      preset: typePreset,
+    })
+    mockCreateProject.mockResolvedValue({ id: 'proj-1' })
+    mockProjectUpdate.mockResolvedValue({})
+    const user = userEvent.setup()
+    render(<ProjectCreationWizard />)
+    await user.type(screen.getByTestId('project-create-name-input'), 'Typed')
+    await user.click(screen.getByTestId('project-kind-my-type'))
+    expect(order).toEqual(['kind', 'type'])
+    // Back to the base exam kind: its default template, kind preset only.
+    await user.click(screen.getByTestId('project-kind-exam'))
+    expect(order).toEqual(['kind', 'type', 'kind'])
+    await user.click(screen.getByTestId('project-kind-my-type'))
+    for (
+      let i = 0;
+      i < 8 && !screen.queryByTestId('project-create-submit-button');
+      i++
+    ) {
+      await user.click(screen.getByTestId('project-create-next-button'))
+    }
+    await user.click(screen.getByTestId('project-create-submit-button'))
+    await waitFor(() => expect(mockCreateProject).toHaveBeenCalled())
+    const payload = mockCreateProject.mock.calls[0][0]
+    expect(payload.kind).toBe('exam')
+    expect(payload.label_config).toContain('$sujet')
+    _resetWizardKindPresets()
+    _resetWizardProjectTypes()
+  })
+
   it('skips the synthetic step when the row is left unchecked', async () => {
     const user = userEvent.setup()
     render(<ProjectCreationWizard />)
