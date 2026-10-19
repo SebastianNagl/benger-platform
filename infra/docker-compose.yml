@@ -17,32 +17,34 @@ services:
       - ./traefik/config:/etc/traefik:ro
       - ./traefik/certs:/certs:ro
     command:
+      # Static configuration. This command line is the ONLY static config:
+      # traefik/config holds dynamic files only (see traefik/config/tls.yml).
       # API and Dashboard
       - "--api.dashboard=true"
       - "--api.insecure=true"  # Remove in production
-      
+      - "--ping=true"  # healthcheck
+
       # Docker provider
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--providers.docker.network=infra_benger-network"
-      
+      # Only route containers of this compose project. Several stacks (classic
+      # dev, benger-risky, benger-test, ...) share one Docker daemon and the
+      # same frontend labels; without this a second stack's frontend joins
+      # the same router and benger.localhost round-robins between them.
+      # The project is COMPOSE_PROJECT_NAME when set (parallel worktree
+      # stacks); runs that pass `-p` instead set BENGER_TRAEFIK_PROJECT
+      # (e.g. the compliance Makefile).
+      - "--providers.docker.constraints=Label(`com.docker.compose.project`,`${BENGER_TRAEFIK_PROJECT:-${COMPOSE_PROJECT_NAME:-benger}}`)"
+
       # File provider for additional config
       - "--providers.file.directory=/etc/traefik"
       - "--providers.file.watch=true"
-      
+
       # Entry points
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
-      
-      # SSL/TLS
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@localhost}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/certs/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      
-      # Security
+
       - "--global.sendanonymoususage=false"
-      - "--log.level=DEBUG"
-      - "--accesslog=true"
     labels:
       # Dashboard routing
       - "traefik.enable=true"
