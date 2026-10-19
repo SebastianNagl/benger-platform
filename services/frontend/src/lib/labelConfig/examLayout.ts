@@ -30,13 +30,18 @@ import type { ParsedComponent } from './parser'
 
 export type ExamLayoutMode = 'classic' | 'modern' | 'state'
 export type ExamSheetAlign = 'left' | 'center' | 'right' | 'justify'
+export type ExamStateTheme = 'standard' | 'contrast'
 
 /** Display-only settings of a state-specific interface. `align` is how the
  *  whole sheet is shown (the stored Lösung stays plain markdown); `hide_time`
- *  hides the remaining-time readout while the timer keeps running. */
+ *  hides the remaining-time readout while the timer keeps running; `theme`
+ *  is the interface's colour scheme; `spellcheck` toggles the browser's
+ *  spell checking in the writing sheet. */
 export interface ExamStateUiPrefs {
   align?: ExamSheetAlign
   hide_time?: boolean
+  theme?: ExamStateTheme
+  spellcheck?: boolean
 }
 export type ExamPanelSide = 'left' | 'right'
 export type ExamPanelPosition = ExamPanelSide | 'none'
@@ -125,6 +130,8 @@ export interface ExamChrome {
   renderTimer?: (variant: 'default' | 'state') => ReactNode
   /** Leave the attempt without submitting (draft is kept). */
   onLeave?: () => void
+  /** Title of the exam or project, for interfaces that show it. */
+  title?: string
   /** Extra host controls (e.g. restorable checkpoints) to place in the bar. */
   extra?: ReactNode
   /** Supplied by DynamicAnnotationInterface: its merged submit. */
@@ -136,7 +143,7 @@ export interface ExamChrome {
 /** What a host passes to DynamicAnnotationInterface (examChrome prop). */
 export type HostExamChrome = Pick<
   ExamChrome,
-  'renderTimer' | 'onLeave' | 'extra'
+  'renderTimer' | 'onLeave' | 'extra' | 'title'
 >
 
 export type ModernExamLayoutComponent = ComponentType<ModernExamLayoutProps>
@@ -149,6 +156,7 @@ const SHEET_ALIGNS: ReadonlySet<string> = new Set([
   'right',
   'justify',
 ])
+const STATE_THEMES: ReadonlySet<string> = new Set(['standard', 'contrast'])
 
 function resolveStateUi(raw: unknown): ExamStateUiPrefs | undefined {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
@@ -160,6 +168,10 @@ function resolveStateUi(raw: unknown): ExamStateUiPrefs | undefined {
     out.align = value.align as ExamSheetAlign
   }
   if (typeof value.hide_time === 'boolean') out.hide_time = value.hide_time
+  if (STATE_THEMES.has(value.theme as string)) {
+    out.theme = value.theme as ExamStateTheme
+  }
+  if (typeof value.spellcheck === 'boolean') out.spellcheck = value.spellcheck
   return Object.keys(out).length > 0 ? out : undefined
 }
 

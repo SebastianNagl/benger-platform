@@ -359,6 +359,32 @@ async def test_exam_layout_state_mode(async_test_client, async_test_db):
             },
         )
         assert r.status_code == 422
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={
+                "exam_layout_prefs": {
+                    "mode": "state",
+                    "state_code": "NW",
+                    "state_ui": {"theme": "neon"},
+                }
+            },
+        )
+        assert r.status_code == 422
+
+        r = await async_test_client.put(
+            "/api/auth/me/exam-layout",
+            json={
+                "exam_layout_prefs": {
+                    "mode": "state",
+                    "state_code": "NW",
+                    "state_ui": {"theme": "contrast", "spellcheck": False},
+                }
+            },
+        )
+        assert r.status_code == 200, r.text
+        stored = (await _row()).exam_layout_prefs
+        assert stored["state_code"] == "NW"
+        assert stored["state_ui"] == {"theme": "contrast", "spellcheck": False}
 
         r = await async_test_client.put(
             "/api/auth/me/exam-layout",

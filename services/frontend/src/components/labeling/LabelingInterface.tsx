@@ -1190,6 +1190,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                     renderTimer,
                     onLeave: () => router.push(`/projects/${projectId}`),
                     extra: checkpointPanel || undefined,
+                    title: currentProject?.title,
                   }}
                   onChange={(results) => setAnnotations(results)}
                   onSubmit={async (results) => {

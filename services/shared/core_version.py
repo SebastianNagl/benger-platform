@@ -567,11 +567,11 @@ whenever one is added, renamed or removed):
 2.39 (2026-10-18): state-specific exam interfaces. ``ExamLayoutPrefs``
   (``users.exam_layout_prefs``, ``PUT /auth/me/exam-layout``) gains mode
   ``"state"`` with ``state_code`` (a Bundesland, required for that mode) and
-  ``state_ui`` (``align``, ``hide_time``). The frontend contract
-  (``@/lib/labelConfig/examLayout``) adds ``ExamChrome`` /
+  ``state_ui`` (``align``, ``hide_time``, ``theme``, ``spellcheck``). The
+  frontend contract (``@/lib/labelConfig/examLayout``) adds ``ExamChrome`` /
   ``HostExamChrome``: in state mode ``useModernExamLayout`` reports
   ``state: true``, hosts hide their own header and pass ``examChrome``
-  (``renderTimer(variant)``, ``onLeave``, ``extra``) to
+  (``renderTimer(variant)``, ``onLeave``, ``extra``, ``title``) to
   ``DynamicAnnotationInterface``, which drops its action bar and hands the
   ModernExamLayout slot ``chrome`` incl. ``onSubmit``. The TimerIntegration
   slot receives ``variant: "default" | "state"``.

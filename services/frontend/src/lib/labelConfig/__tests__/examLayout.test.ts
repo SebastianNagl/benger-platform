@@ -144,13 +144,23 @@ describe('resolveExamLayoutPrefs: state mode', () => {
       resolveExamLayoutPrefs({
         mode: 'state',
         state_code: 'BW',
-        state_ui: { align: 'justify', hide_time: true },
+        state_ui: {
+          align: 'justify',
+          hide_time: true,
+          theme: 'contrast',
+          spellcheck: false,
+        },
       }),
     ).toEqual({
       ...CLASSIC_LAYOUT,
       mode: 'state',
       state_code: 'BW',
-      state_ui: { align: 'justify', hide_time: true },
+      state_ui: {
+        align: 'justify',
+        hide_time: true,
+        theme: 'contrast',
+        spellcheck: false,
+      },
     })
   })
 
@@ -166,7 +176,12 @@ describe('resolveExamLayoutPrefs: state mode', () => {
       resolveExamLayoutPrefs({
         mode: 'state',
         state_code: 'BW',
-        state_ui: { align: 'sideways', hide_time: false },
+        state_ui: {
+          align: 'sideways',
+          hide_time: false,
+          theme: 'neon',
+          spellcheck: 'yes',
+        },
       }).state_ui,
     ).toEqual({ hide_time: false })
     const resolved = resolveExamLayoutPrefs({
