@@ -394,6 +394,7 @@ WORKER_ATTR_GATING: Dict[str, str] = {
     "get_notification_brand_host_fn": "gated",
     "get_falloesung_compute_fn": "gated",
     "get_falloesung_bulk_compute_fn": "gated",
+    "get_inline_judge": "gated",
 }
 
 

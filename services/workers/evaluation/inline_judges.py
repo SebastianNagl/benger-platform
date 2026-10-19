@@ -5,7 +5,10 @@ whose result is something else (e.g. the extended edition's feedback-only
 ``llm_judge_feedback``, which returns written feedback and no score) plugs
 in here instead. An overlay exposes::
 
-    benger_extended.workers.get_inline_judge(metric) -> InlineJudge | None
+    <package>.workers.get_inline_judge(metric) -> InlineJudge | None
+
+(looked up through ``extension_registry``, gating class gated, so it only
+answers while the package is active for the task)
 
 where an ``InlineJudge`` provides
 
@@ -33,9 +36,13 @@ def resolve_inline_judge(metric: str) -> Optional[Any]:
     """The overlay's inline judge for ``metric``, or None (generic path)."""
     if not metric or metric == "llm_judge_falloesung":
         return None
-    try:
-        from benger_extended.workers import get_inline_judge
-    except ImportError:
+    import extension_registry
+
+    # Through the registry so the judge follows the package's runtime switch
+    # (WORKER_ATTR_GATING: gated): while the owning package is off for the
+    # task, the metric falls back to the generic path.
+    get_inline_judge = extension_registry.first_worker_attr("get_inline_judge")
+    if get_inline_judge is None:
         return None
     try:
         return get_inline_judge(metric)
