@@ -575,11 +575,19 @@ whenever one is added, renamed or removed):
   ``DynamicAnnotationInterface``, which drops its action bar and hands the
   ModernExamLayout slot ``chrome`` incl. ``onSubmit``. The TimerIntegration
   slot receives ``variant: "default" | "state"``.
+
+2.40 (2026-10-19): Korrektur reservations. New table
+  ``korrektur_reservations`` (migration 119, model
+  ``project_models.KorrekturReservation``): one row per (user, metric,
+  target) while a grader has that annotation or generation open in the
+  grading modal, with a heartbeat-refreshed ``last_seen_at``. Written by the
+  overlay to keep a second grader away from the last free slot of a target
+  with a grader cap; the platform only owns the schema.
 """
 
 import os
 
-CORE_API_VERSION = "2.39"
+CORE_API_VERSION = "2.40"
 
 
 def extended_required() -> bool:
