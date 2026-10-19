@@ -56,6 +56,13 @@ for _ext in _extension_registry.load_all():
         if _register_metric_handlers is not None:
             _register_metric_handlers(metric_registry)
 
+# Master flags ``extension.<EXTENSION_ID>`` of the loaded packages (core
+# 2.41): the worker evaluates them per task (extension_activation), so the
+# definitions (default state) must exist in this process too.
+import extension_activation as _extension_activation  # noqa: E402
+
+_extension_activation.register_master_flags(_extension_registry.loaded())
+
 __all__ = [
     "BaseEvaluator",
     "EvaluationConfig",

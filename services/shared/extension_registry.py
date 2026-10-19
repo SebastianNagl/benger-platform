@@ -212,7 +212,10 @@ def _check_dependencies(name: str, module: Any) -> Optional[str]:
 
 def _load_one(name: str) -> Optional[LoadedExtension]:
     try:
-        module = importlib.import_module(name)
+        # Import-time registrations (metrics, flags, ...) are attributed to
+        # the package (core 2.41), so registries can gate them by owner.
+        with owner(name):
+            module = importlib.import_module(name)
     except ImportError as exc:
         source = requirement_source(name)
         if source is not None:
@@ -378,14 +381,47 @@ def worker_module(name: str, *, strict: bool = False) -> Any:
         return None
 
 
+#: Gating class (``extension_activation``) of each worker getter (core
+#: 2.41). Billing, settlement and privacy getters are ALWAYS: switching a
+#: package off must never skip a billing block or unmask a name. Getters not
+#: listed here are GATED (active only for the task's caller/project).
+WORKER_ATTR_GATING: Dict[str, str] = {
+    "get_grading_dispatch_policy_fn": "always",
+    "get_batch_evaluation_policy_fn": "always",
+    "get_grading_finalize_fn": "always",
+    "get_grading_block_fn": "always",
+    "get_name_visibility_fns": "always",
+    "get_notification_brand_host_fn": "gated",
+    "get_falloesung_compute_fn": "gated",
+    "get_falloesung_bulk_compute_fn": "gated",
+}
+
+
+def worker_attr_gating(attr: str) -> str:
+    return WORKER_ATTR_GATING.get(attr, "gated")
+
+
+def _package_active(name: str, gating: str) -> bool:
+    if gating == "always":
+        return True
+    try:
+        import extension_activation
+    except ImportError:  # pragma: no cover - /shared always ships it
+        return True
+    return extension_activation.package_active(name, gating)
+
+
 def worker_attrs(attr: str) -> List[Tuple[str, Any]]:
     """``[(package_name, value)]`` of ``<package>.workers.<attr>`` for every
     configured package that has it, in configured order.
 
     Resolved on every call, so a package injected into ``sys.modules`` after
     :func:`load_all` is found and one removed is not; packages the handshake
-    or the dependency check refused are skipped.
+    or the dependency check refused are skipped, and so are packages that
+    are not active for the attribute's gating class
+    (:data:`WORKER_ATTR_GATING`) in the current task context.
     """
+    gating = worker_attr_gating(attr)
     found: List[Tuple[str, Any]] = []
     for name in configured_names():
         if _skipped_lazily(name):
@@ -394,8 +430,11 @@ def worker_attrs(attr: str) -> List[Tuple[str, Any]]:
         if workers is None:
             continue
         value = getattr(workers, attr, None)
-        if value is not None:
-            found.append((name, value))
+        if value is None:
+            continue
+        if not _package_active(name, gating):
+            continue
+        found.append((name, value))
     return found
 
 
@@ -464,6 +503,8 @@ __all__ = [
     "requirement_source",
     "reset",
     "short_name",
+    "WORKER_ATTR_GATING",
+    "worker_attr_gating",
     "worker_attrs",
     "worker_module",
 ]

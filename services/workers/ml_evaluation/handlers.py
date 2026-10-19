@@ -123,6 +123,35 @@ class MetricRegistry:
     def get(self, metric_name: str) -> Optional[MetricHandler]:
         return self._handlers.get(metric_name)
 
+    def owner_active(self, metric_name: str) -> bool:
+        """Whether the package that registered ``metric_name`` is active in
+        the current task context (platform handlers always are; core 2.41)."""
+        owner = self._owners.get(metric_name)
+        if not owner:
+            return True
+        try:
+            import extension_activation
+        except ImportError:  # pragma: no cover - /shared not on sys.path
+            return True
+        return extension_activation.package_active(owner)
+
+    def disabled_result(self, metric_name: str) -> Optional[Dict[str, Any]]:
+        """None when the handler may run, else the ``feature_disabled``
+        result to record instead of computing."""
+        if self.owner_active(metric_name):
+            return None
+        import extension_activation
+
+        return extension_activation.feature_disabled_result(self._owners[metric_name])
+
+    def ensure_owner_active(self, metric_name: str) -> None:
+        """Raise ``ExtensionInactive`` when the owning package is inactive."""
+        if self.owner_active(metric_name):
+            return
+        import extension_activation
+
+        raise extension_activation.ExtensionInactive(self._owners[metric_name])
+
     def names(self) -> list[str]:
         return sorted(self._handlers.keys())
 

@@ -288,9 +288,13 @@ def persist_annotation_submission(
 
     db.refresh(db_annotation)
 
-    # Notify extended features (e.g. timer session completion)
+    # Notify extended features (e.g. timer session completion). The
+    # project's organizations decide which packages are active for it.
+    from extension_activation import use_context
     from extensions import on_annotation_created
-    on_annotation_created(db, task_id, user_id, db_annotation.id, task.project_id)
+
+    with use_context(project_id=task.project_id):
+        on_annotation_created(db, task_id, user_id, db_annotation.id, task.project_id)
 
     # Mark task assignment as completed in manual/auto mode. Delegates to the
     # shared helper so the same status-flip semantics apply across annotation

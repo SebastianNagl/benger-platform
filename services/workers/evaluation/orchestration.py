@@ -59,6 +59,11 @@ def _run_immediate_config_job_impl(
             # Phase 5: delegate to the extended-registered Falllösung compute.
             # Community edition (no benger_extended) raises an informative
             # error rather than crashing.
+            # Core 2.41: an inactive benger_extended (master flag off for
+            # this task's caller/project) refuses instead of grading.
+            import extension_activation
+
+            extension_activation.ensure_active("benger_extended")
             try:
                 from benger_extended.workers import get_falloesung_compute_fn
             except ImportError as exc:

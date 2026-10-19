@@ -125,3 +125,42 @@ else:
 
 app.conf.broker_url = os.getenv("CELERY_BROKER_URL", broker_url)
 app.conf.result_backend = os.getenv("CELERY_RESULT_BACKEND", result_backend)
+
+
+# Extension activation context per task (core 2.41). The API (and any task
+# that dispatches further tasks) adds the header ``benger_ext_ctx`` =
+# ``{user_id, project_id}`` on publish; prerun turns it, or the task's own
+# ``user_id`` / ``project_id`` kwargs, into the ExtContext the master flags
+# of the extension packages are evaluated against (system context without
+# either), and postrun resets it so the next task on this worker process
+# starts clean.
+from celery.signals import task_postrun, task_prerun  # noqa: E402
+
+import extension_activation  # noqa: E402  (/shared)
+
+extension_activation.install_publish_signal()
+
+_ext_context_tokens = {}
+
+
+@task_prerun.connect(weak=False)
+def _set_extension_context(task_id=None, task=None, args=None, kwargs=None, **_):
+    try:
+        ctx = extension_activation.context_from_task(
+            getattr(task, "request", None), kwargs
+        )
+        _ext_context_tokens[task_id] = extension_activation.set_context(ctx)
+    except Exception:  # pragma: no cover - never block a task
+        pass
+
+
+@task_postrun.connect(weak=False)
+def _reset_extension_context(task_id=None, **_):
+    token = _ext_context_tokens.pop(task_id, None)
+    if token is None:
+        return
+    try:
+        extension_activation.reset_context(token)
+    except ValueError:
+        # Reset from another context (eager/thread pools): just clear it.
+        extension_activation.set_context(None)

@@ -620,6 +620,9 @@ def evaluate_generation_cell_impl(
                                 )
 
                                 if metric == "llm_judge_falloesung":
+                                    import extension_activation
+
+                                    extension_activation.ensure_active("benger_extended")
                                     try:
                                         from benger_extended.workers import (
                                             get_falloesung_bulk_compute_fn,
@@ -1245,6 +1248,9 @@ def evaluate_annotation_cell_impl(
                                     )
 
                                     if metric == "llm_judge_falloesung":
+                                        import extension_activation
+
+                                        extension_activation.ensure_active("benger_extended")
                                         try:
                                             from benger_extended.workers import (
                                                 get_falloesung_bulk_compute_fn,
