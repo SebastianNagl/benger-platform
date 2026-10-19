@@ -23,10 +23,12 @@ export interface FeatureFlagTarget {
 export interface FeatureFlagAdminRow {
   name: string
   description: string
-  /** Who registered the flag: `platform` or an extension package id. */
-  owner: string
+  /** Who registered the flag: `platform` or an extension package id; null
+   * for a row no loaded package registers. */
+  owner: string | null
   state: FeatureFlagState
-  default_state: FeatureFlagState
+  /** null for a row no loaded package registers */
+  default_state: FeatureFlagState | null
   updated_at: string | null
   targets: FeatureFlagTarget[]
   /** False for a stored row no loaded package registers any more. */

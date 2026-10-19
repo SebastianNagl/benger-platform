@@ -4654,6 +4654,7 @@
       "pickOrg": "Organisation wählen",
       "groupPlatform": "Plattform",
       "groupPackage": "Erweiterungspaket „{owner}“",
+      "groupUnregistered": "Nicht registriert",
       "masterBadge": "Paketschalter",
       "unregistered": "Nicht registriert",
       "unregisteredHint": "Kein geladenes Paket registriert dieses Flag mehr. Die gespeicherte Einstellung wirkt nicht; du kannst sie löschen.",

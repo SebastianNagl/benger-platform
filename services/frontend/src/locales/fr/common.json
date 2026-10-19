@@ -4654,6 +4654,7 @@
       "pickOrg": "Choisissez une organisation",
       "groupPlatform": "Plateforme",
       "groupPackage": "Paquet d'extension « {owner} »",
+      "groupUnregistered": "Non enregistrés",
       "masterBadge": "Interrupteur de paquet",
       "unregistered": "Non enregistré",
       "unregisteredHint": "Aucun paquet chargé n'enregistre plus ce flag. Le réglage stocké n'a aucun effet ; vous pouvez le supprimer.",

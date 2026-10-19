@@ -4654,6 +4654,7 @@
       "pickOrg": "Choose an organization",
       "groupPlatform": "Platform",
       "groupPackage": "Extension package \"{owner}\"",
+      "groupUnregistered": "Not registered",
       "masterBadge": "Package switch",
       "unregistered": "Not registered",
       "unregisteredHint": "No loaded package registers this flag any more. The stored setting has no effect; you can delete it.",

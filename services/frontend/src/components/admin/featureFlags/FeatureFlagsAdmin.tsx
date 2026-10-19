@@ -41,6 +41,9 @@ const K = 'admin.featureFlagsConsole'
 const STATES: FeatureFlagState[] = ['off', 'everyone', 'allowlist']
 
 const PLATFORM_OWNER = 'platform'
+// Rows no loaded package registers carry no owner; they get their own group
+// at the end instead of landing under the platform.
+const UNREGISTERED_GROUP = 'unregistered'
 
 const USER_SEARCH_DEBOUNCE_MS = 300
 const USER_SEARCH_LIMIT = 8
@@ -68,24 +71,26 @@ export interface FlagGroup {
 }
 
 /**
- * Rows grouped by owner: platform first, then the packages by name. Within a
- * group the master flag leads, registered flags follow by name and rows no
- * package registers any more come last.
+ * Rows grouped by owner: platform first, then the packages by name, then the
+ * rows no loaded package registers any more. Within a group the master flag
+ * leads and the others follow by name.
  */
 export function groupFlags(rows: FeatureFlagAdminRow[]): FlagGroup[] {
   const byOwner = new Map<string, FeatureFlagAdminRow[]>()
   for (const row of rows) {
-    const owner = row.owner || PLATFORM_OWNER
+    const owner =
+      row.registered === false
+        ? UNREGISTERED_GROUP
+        : row.owner || PLATFORM_OWNER
     const list = byOwner.get(owner) ?? []
     list.push(row)
     byOwner.set(owner, list)
   }
-  const rank = (row: FeatureFlagAdminRow) =>
-    row.is_master ? 0 : row.registered === false ? 2 : 1
+  const rank = (row: FeatureFlagAdminRow) => (row.is_master ? 0 : 1)
+  const order = (owner: string) =>
+    owner === PLATFORM_OWNER ? 0 : owner === UNREGISTERED_GROUP ? 2 : 1
   return [...byOwner.entries()]
-    .sort(([a], [b]) =>
-      a === PLATFORM_OWNER ? -1 : b === PLATFORM_OWNER ? 1 : a.localeCompare(b),
-    )
+    .sort(([a], [b]) => order(a) - order(b) || a.localeCompare(b))
     .map(([owner, list]) => ({
       owner,
       rows: [...list].sort(
@@ -314,7 +319,9 @@ export function FeatureFlagsAdmin() {
               <h2 className="text-sm font-semibold tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
                 {group.owner === PLATFORM_OWNER
                   ? t(`${K}.groupPlatform`)
-                  : t(`${K}.groupPackage`, { owner: group.owner })}
+                  : group.owner === UNREGISTERED_GROUP
+                    ? t(`${K}.groupUnregistered`)
+                    : t(`${K}.groupPackage`, { owner: group.owner })}
               </h2>
               {group.rows.map((row) => (
                 <FlagCard
@@ -426,10 +433,15 @@ function FlagCard({
             </p>
           )}
           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
-            {t(`${K}.default`, {
-              state: t(`${K}.state.${row.default_state}`),
-            })}
-            {updatedAt && ` · ${t(`${K}.updatedAt`, { date: updatedAt })}`}
+            {[
+              row.default_state &&
+                t(`${K}.default`, {
+                  state: t(`${K}.state.${row.default_state}`),
+                }),
+              updatedAt && t(`${K}.updatedAt`, { date: updatedAt }),
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </p>
         </div>
         {unregistered ? (

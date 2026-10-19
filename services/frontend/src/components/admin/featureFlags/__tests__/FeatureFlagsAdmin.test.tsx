@@ -132,7 +132,12 @@ function row(
 function rows(): FeatureFlagAdminRow[] {
   return [
     row('rubric_generation', { owner: 'extended' }),
-    row('stale_flag', { owner: 'extended', registered: false }),
+    // What the API sends for a row no loaded package registers.
+    row('stale_flag', {
+      owner: null,
+      default_state: null,
+      registered: false,
+    }),
     row('extension.extended', { owner: 'extended', is_master: true }),
     row('extension.compliance', {
       owner: 'compliance',
@@ -161,18 +166,32 @@ beforeEach(() => {
 })
 
 describe('groupFlags', () => {
-  it('puts platform first, packages by name, master first, unregistered last', () => {
+  it('puts platform first, packages by name, unregistered rows last', () => {
     const groups = groupFlags(rows())
     expect(groups.map((g) => g.owner)).toEqual([
       'platform',
       'compliance',
       'extended',
+      'unregistered',
     ])
     expect(groups[2].rows.map((r) => r.name)).toEqual([
       'extension.extended',
       'rubric_generation',
-      'stale_flag',
     ])
+    expect(groups[3].rows.map((r) => r.name)).toEqual(['stale_flag'])
+  })
+
+  it('keeps an unregistered master flag out of the platform group', () => {
+    const groups = groupFlags([
+      row('public_api'),
+      row('extension.extended', {
+        owner: null,
+        default_state: null,
+        registered: false,
+        is_master: true,
+      }),
+    ])
+    expect(groups.map((g) => g.owner)).toEqual(['platform', 'unregistered'])
   })
 
   it('treats a missing owner as platform', () => {
@@ -191,6 +210,7 @@ describe('FeatureFlagsAdmin', () => {
       'ff-group-platform',
       'ff-group-compliance',
       'ff-group-extended',
+      'ff-group-unregistered',
     ])
     const extended = screen.getByTestId('ff-group-extended')
     const names = within(extended)
@@ -199,8 +219,18 @@ describe('FeatureFlagsAdmin', () => {
     expect(names).toEqual([
       'ff-row-extension.extended',
       'ff-row-rubric_generation',
-      'ff-row-stale_flag',
     ])
+    expect(
+      within(screen.getByTestId('ff-group-unregistered')).getByText(
+        'admin.featureFlagsConsole.groupUnregistered',
+      ),
+    ).toBeInTheDocument()
+    // No default for a row nobody registers (was the raw key `state.null`).
+    const stale = screen.getByTestId('ff-row-stale_flag')
+    expect(
+      within(stale).queryByText(/featureFlagsConsole\.default/),
+    ).not.toBeInTheDocument()
+    expect(stale.textContent).not.toMatch(/state\.null/)
     expect(
       screen.getByTestId('ff-master-extension.extended'),
     ).toBeInTheDocument()
