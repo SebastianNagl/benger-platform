@@ -102,7 +102,7 @@ class TestInvitationEmailTask:
         mock_class = MagicMock(return_value=mock_client)
 
         with patch('sendgrid_client.SendGridClient', mock_class):
-            with pytest.raises(RuntimeError, match="SendGrid error: Invalid API key"):
+            with pytest.raises(RuntimeError, match="Mail provider error: Invalid API key"):
                 send_invitation_email_task(
                     "inv-1", "fail@example.com", "Jane", "Org", "http://example.com/invite", "member"
                 )
@@ -156,7 +156,7 @@ class TestInvitationEmailTask:
         mock_class = MagicMock(return_value=mock_client)
 
         with patch('sendgrid_client.SendGridClient', mock_class):
-            with pytest.raises(RuntimeError, match="SendGrid error"):
+            with pytest.raises(RuntimeError, match="Mail provider error"):
                 send_invitation_email_task(
                     "inv-429", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
                 )
@@ -172,7 +172,7 @@ class TestInvitationEmailTask:
         mock_class = MagicMock(return_value=mock_client)
 
         with patch('sendgrid_client.SendGridClient', mock_class):
-            with pytest.raises(RuntimeError, match="SendGrid error"):
+            with pytest.raises(RuntimeError, match="Mail provider error"):
                 send_invitation_email_task(
                     "inv-5xx", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
                 )
@@ -189,7 +189,7 @@ class TestInvitationEmailTask:
         mock_class = MagicMock(return_value=mock_client)
 
         with patch('sendgrid_client.SendGridClient', mock_class):
-            with pytest.raises(RuntimeError, match="SendGrid error"):
+            with pytest.raises(RuntimeError, match="Mail provider error"):
                 send_invitation_email_task(
                     "inv-net", "x@example.com", "Jane", "Org", "http://example.com/invite", "member"
                 )
@@ -622,16 +622,16 @@ class TestInvitationEmailKeepsTheAddressOutOfTheLog:
         assert result["recipient_hint"] == "er…@uni-x.de"
         assert self.ADDRESS not in repr(result)
         assert self.ADDRESS not in caplog.text
-        assert "Permanent SendGrid 400 for invitation inv-log-1" in caplog.text
+        assert "Permanent mail provider 400 for invitation inv-log-1" in caplog.text
 
     def test_retryable_failure_log_names_the_invitation(self, caplog):
-        with pytest.raises(RuntimeError, match="SendGrid error"):
+        with pytest.raises(RuntimeError, match="Mail provider error"):
             self._send(
                 {"status": "error", "status_code": 503, "error": "SendGrid API error: 503"}, caplog
             )
 
         assert self.ADDRESS not in caplog.text
-        assert "Retryable SendGrid failure for invitation inv-log-1" in caplog.text
+        assert "Retryable mail provider failure for invitation inv-log-1" in caplog.text
 
     def test_bulk_fan_out_result_and_log_name_invitations_only(self, caplog):
         queued = MagicMock()

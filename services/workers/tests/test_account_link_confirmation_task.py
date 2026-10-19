@@ -233,7 +233,7 @@ class TestFailureClassification:
             {"status": "error", "status_code": status_code, "error": "boom"}
         )
 
-        with pytest.raises(RuntimeError, match="SendGrid error"):
+        with pytest.raises(RuntimeError, match="Mail provider error"):
             _run(_fake_db(_user()), sendgrid_class=cls)
 
     def test_unexpected_exception_propagates_for_retry_without_the_token(self, caplog):

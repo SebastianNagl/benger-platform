@@ -21,6 +21,7 @@ directly as ``from mailer.sendgrid_client import SendGridClient`` (``/shared``
 is on ``sys.path`` in both containers).
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -47,6 +48,8 @@ def mask_addresses(text: Optional[str]) -> str:
 
 class SendGridClient:
     """SendGrid API client for email delivery"""
+
+    provider = "sendgrid"
 
     def __init__(self):
         """Initialize SendGrid client with API key from environment"""
@@ -181,6 +184,21 @@ class SendGridClient:
             logger.error(f"Failed to send email via SendGrid: {error}")
             # status_code=None signals a network/transport failure (retryable).
             return {"status": "error", "status_code": None, "error": error, "recipients": to}
+
+    def _check_key(self) -> bool:
+        # /v3/scopes answers for any valid key, including a send-only one.
+        response = requests.get(
+            "https://api.sendgrid.com/v3/scopes",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=(5, 15),
+        )
+        return response.status_code == 200
+
+    async def test_connection(self) -> bool:
+        """True when the API key is accepted by SendGrid."""
+        if not self.api_key:
+            return False
+        return await asyncio.to_thread(self._check_key)
 
     async def verify_webhook_signature(self, signature: str, payload: bytes) -> bool:
         """Verify SendGrid webhook signature if needed"""

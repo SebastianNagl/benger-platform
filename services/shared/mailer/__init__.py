@@ -13,6 +13,9 @@ Consolidated here:
   plus the workers copy's ``status_code`` keys in the return dicts (the
   workers use ``status_code`` for Celery retry decisions; the api ignores
   the extra key).
+* ``cloudflare_client`` + ``mail_client`` — the Cloudflare Email Sending
+  client and the ``EMAIL_PROVIDER`` switch that routes mail between it and
+  SendGrid (``build_mail_client``).
 * ``email_service`` — the ``EmailService`` + module-level helpers. Unified as
   a superset of the api and worker copies: construction never queries the
   database (mail is enabled unless a caller sets ``mail_enabled = False``); the

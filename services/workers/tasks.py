@@ -1197,13 +1197,13 @@ def _record_invitation_email(
 
     Never raises. Bookkeeping is strictly secondary to the mail: an exception
     here would be caught by the task's ``autoretry_for=(Exception,)`` and
-    resend a message SendGrid already accepted.
+    resend a message the mail provider already accepted.
 
     Args:
         invitation_id: row to stamp.
         attempt: this call starts a send attempt (bumps the counter and the
             last-attempt clock).
-        sent: SendGrid accepted the message (stamps ``email_sent_at`` and
+        sent: the mail provider accepted the message (stamps ``email_sent_at`` and
             clears the last error).
         error: failure reason to store. Ignored when ``sent`` is true.
     """
@@ -1297,9 +1297,10 @@ def send_invitation_email_task(
 
     try:
         from email_service import email_service
+        from mailer.mail_client import build_mail_client
         from sendgrid_client import SendGridClient
 
-        client = SendGridClient()
+        client = build_mail_client(SendGridClient)
 
         from mailer.branding import resolve_email_brand
 
@@ -1335,21 +1336,21 @@ def send_invitation_email_task(
                 "message_id": result.get("message_id", "unknown"),
             }
 
-        # Differentiate retryable vs permanent SendGrid failures. Without
+        # Differentiate retryable vs permanent mail provider failures. Without
         # this every 400 (malformed recipient), 401 (bad API key), 403
         # (suspended account), etc. burned three full 60s-spaced retries
         # via autoretry_for=(Exception,) + max_retries=3, occupying the
         # rate-limited (30/m) emails queue. 429 stays retryable — that's
-        # SendGrid asking us to back off.
+        # the provider asking us to back off.
         status_code = result.get("status_code")
-        error_msg = result.get("error", "Unknown SendGrid error")
+        error_msg = result.get("error", "Unknown mail provider error")
         if status_code is not None and 400 <= status_code < 500 and status_code != 429:
             logger.error(
-                f"Permanent SendGrid {status_code} for invitation {invitation_id}; "
+                f"Permanent mail provider {status_code} for invitation {invitation_id}; "
                 f"not retrying: {error_msg}"
             )
             _record_invitation_email(
-                invitation_id, error=f"SendGrid {status_code}: {error_msg}"
+                invitation_id, error=f"Mail provider {status_code}: {error_msg}"
             )
             return {
                 "status": "failed_permanent",
@@ -1360,13 +1361,13 @@ def send_invitation_email_task(
             }
 
         logger.error(
-            f"Retryable SendGrid failure for invitation {invitation_id} "
+            f"Retryable mail provider failure for invitation {invitation_id} "
             f"(status_code={status_code}): {error_msg}"
         )
         _record_invitation_email(
-            invitation_id, error=f"SendGrid {status_code}: {error_msg} (retrying)"
+            invitation_id, error=f"Mail provider {status_code}: {error_msg} (retrying)"
         )
-        raise RuntimeError(f"SendGrid error: {error_msg}")
+        raise RuntimeError(f"Mail provider error: {error_msg}")
 
     except RuntimeError:
         # Already classified as retryable above — the error is recorded there.
@@ -1417,6 +1418,7 @@ def send_account_activation_task(
     )
     from email_service import email_service
     from mailer.branding import resolve_email_brand
+    from mailer.mail_client import build_mail_client
     from models import User as DBUser
     from sendgrid_client import SendGridClient
 
@@ -1469,7 +1471,7 @@ def send_account_activation_task(
             expiry_days=ACTIVATION_TOKEN_EXPIRY.days,
         )
 
-        result = SendGridClient().send_message(
+        result = build_mail_client(SendGridClient).send_message(
             to=[recipient],
             subject=subject,
             html_body=html_body,
@@ -1490,10 +1492,10 @@ def send_account_activation_task(
         # Same permanent-vs-retryable split as the invitation task: 4xx
         # (except 429) must not burn three retries on the rate-limited queue.
         status_code = result.get("status_code")
-        error_msg = result.get("error", "Unknown SendGrid error")
+        error_msg = result.get("error", "Unknown mail provider error")
         if status_code is not None and 400 <= status_code < 500 and status_code != 429:
             logger.error(
-                f"Permanent SendGrid {status_code} for activation mail to "
+                f"Permanent mail provider {status_code} for activation mail to "
                 f"{recipient_hint} (user {user_id}); not retrying: {error_msg}"
             )
             return {
@@ -1505,10 +1507,10 @@ def send_account_activation_task(
             }
 
         logger.error(
-            f"Retryable SendGrid failure for activation mail to {recipient_hint} "
+            f"Retryable mail provider failure for activation mail to {recipient_hint} "
             f"(user {user_id}, status_code={status_code}): {error_msg}"
         )
-        raise RuntimeError(f"SendGrid error: {error_msg}")
+        raise RuntimeError(f"Mail provider error: {error_msg}")
     except RuntimeError:
         raise
     except Exception as e:
@@ -1560,6 +1562,7 @@ def send_account_link_confirmation_task(
     )
     from email_service import email_service
     from mailer.branding import resolve_email_brand
+    from mailer.mail_client import build_mail_client
     from models import User as DBUser
     from sendgrid_client import SendGridClient
 
@@ -1595,7 +1598,7 @@ def send_account_link_confirmation_task(
             expiry_hours=int(ACCOUNT_LINK_TOKEN_EXPIRY.total_seconds() // 3600),
         )
 
-        result = SendGridClient().send_message(
+        result = build_mail_client(SendGridClient).send_message(
             to=[recipient],
             subject=subject,
             html_body=html_body,
@@ -1622,10 +1625,10 @@ def send_account_link_confirmation_task(
     # Same permanent-vs-retryable split as the activation task: 4xx (except
     # 429) must not burn three retries on the rate-limited queue.
     status_code = result.get("status_code")
-    error_msg = result.get("error", "Unknown SendGrid error")
+    error_msg = result.get("error", "Unknown mail provider error")
     if status_code is not None and 400 <= status_code < 500 and status_code != 429:
         logger.error(
-            f"Permanent SendGrid {status_code} for account link mail to "
+            f"Permanent mail provider {status_code} for account link mail to "
             f"{recipient_hint} (user {user_id}); not retrying: {error_msg}"
         )
         return {
@@ -1637,10 +1640,10 @@ def send_account_link_confirmation_task(
         }
 
     logger.error(
-        f"Retryable SendGrid failure for account link mail to {recipient_hint} "
+        f"Retryable mail provider failure for account link mail to {recipient_hint} "
         f"(user {user_id}, status_code={status_code}): {error_msg}"
     )
-    raise RuntimeError(f"SendGrid error: {error_msg}")
+    raise RuntimeError(f"Mail provider error: {error_msg}")
 
 
 @app.task(name="emails.send_bulk_invitations", **_MAIL_DELIVERY_GUARANTEES)
