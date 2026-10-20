@@ -30,7 +30,7 @@ requirements:
     impl: "substantive review, not adoption of a score as given"
     gap: "what counts as substantive review is unsettled"
   - id: L6
-    req: "AI that evaluates learning outcomes is high-risk; deployers owe competent oversight, logs and candidate information, public bodies also a fundamental-rights assessment (duties from 2 Dec 2027)"
+    req: "AI that evaluates learning outcomes is high-risk; providers owe accuracy, robustness and logging, deployers competent oversight, logs and candidate information, public bodies also a fundamental-rights assessment (duties from 2 Dec 2027)"
     src: "\\cite{aiact2024}, Annex III, point 3(b), Arts.~9 to 15, 26, 27, 86; \\cite{omnibus2026}"
     impl: "documented validation, logging, examiner oversight with authority to override, probes against manipulation"
     gap: "scope of Arts.~2(6) and 6(3) for prototypes"
