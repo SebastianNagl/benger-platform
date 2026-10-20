@@ -47,7 +47,9 @@ cp references.bib "$STAGE/"
 cp "$("$KPSE" acmart.cls)" "$("$KPSE" ACM-Reference-Format.bst)" "$STAGE/"
 
 # Everything manuscript.tex references via \input{...} or \includegraphics.
-mapfile -t refs < <(
+# while-read instead of mapfile: macOS ships bash 3.2.
+refs=()
+while IFS= read -r line; do refs+=("$line"); done < <(
     { grep -oE '\\input\{[^}]+\}' manuscript.tex \
         | sed -E 's/\\input\{([^}]+)\}/\1/';
       grep -oE '\\includegraphics(\[[^]]*\])?\{[^}]+\}' manuscript.tex \
