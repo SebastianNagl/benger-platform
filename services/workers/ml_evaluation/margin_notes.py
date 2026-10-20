@@ -97,15 +97,20 @@ def margin_notes_rules(unit: str, ref_hint: str, reason_field: str) -> str:
     point deduction without a passage to quote is explained instead.
     """
     return f"""RANDBEMERKUNGEN (Feld "annotations"):
-Setze wie ein Korrektor Randbemerkungen an konkrete Stellen der Bearbeitung. Der Bearbeiter soll sehen, was gelungen ist und vor allem, was fehlerhaft oder unvollständig ist und wie er es besser macht.
-- "ref": {ref_hint}, zu dem die Bemerkung gehört, oder "{MARGIN_NOTE_GENERAL_REF}" für eine Bemerkung, die keinem {unit} zugeordnet ist (zum Beispiel Stil oder Gliederung).
-- "kind": "mangel" für einen Fehler, eine Ungenauigkeit oder eine Lücke an dieser Stelle; "positiv" für eine besonders gelungene Stelle; "hinweis" für einen Verbesserungsvorschlag ohne Fehler.
+Setze wie ein Korrektor Randbemerkungen an konkrete Stellen der Bearbeitung. Der Bearbeiter soll sehen, was gelungen ist, was fehlerhaft oder unvollständig ist und wie er es besser macht. Sprich ihn mit "du" an.
+- "ref": {ref_hint}, zu dem die Bemerkung gehört, oder "{MARGIN_NOTE_GENERAL_REF}" für eine Bemerkung zur Bearbeitung als Ganzes (zum Beispiel Stil oder Gliederung).
+- "kind" richtet sich danach, was an der zitierten Stelle steht, nicht nach der vergebenen Punktzahl:
+  "mangel": an dieser Stelle steht ein Fehler, also eine falsche Aussage, eine falsche Norm, eine fehlerhafte Subsumtion, ein falsches Ergebnis, ein Prüfungsschritt, der hier falsch oder lückenhaft durchgeführt ist, oder eine bloße Behauptung, wo das Gutachten eine Begründung oder Subsumtion verlangt.
+  "hinweis": die Stelle ist richtig und begründet, lässt sich aber verbessern (Begründung oder Definition ausbaufähig, Gewichtung, Formulierung, Zitierweise).
+  "positiv": die Stelle ist gelungen (treffend, sauber begründet, gut gewichtet).
+  Ist eine Stelle richtig begründet, aber knapper als ideal, ist das ein "hinweis", kein "mangel".
+  Eine Bemerkung hat genau eine Art: ein "positiv" lobt nur. Fehlt an einer gelungenen Stelle noch etwas, setze dafür eine eigene Bemerkung "hinweis".
 - "quote": ein kurzes, wörtliches Zitat aus der Bearbeitung (ein Satz oder Halbsatz), an dem die Bemerkung steht. Es gelten dieselben Regeln wie für Zitate: zeichengenau, keine Umformulierung, nie aus Musterlösung, Bewertungsbogen oder Sachverhalt.
 - "comment": ein bis drei Sätze, sachlich und konkret: was hier gut ist, oder was fehlt oder falsch ist und wie es richtig oder besser wäre.
-- Gehe dafür deine Punktvergabe {unit} für {unit} durch. Jeder {unit}, bei dem du Punkte abziehst und zu dem die Bearbeitung etwas schreibt, erhält mindestens eine Bemerkung "mangel" an der Stelle, die den Abzug begründet. Das gilt immer, wenn du Teilpunkte gibst (mehr als 0, aber weniger als die Höchstpunktzahl), und ebenso, wenn die Bearbeitung den {unit} falsch oder unvollständig behandelt.
+- Gehe dafür deine Punktvergabe {unit} für {unit} durch. Für jeden Abzug, zu dem die Bearbeitung etwas schreibt, setzt du mindestens eine Bemerkung an die Stelle, die ihn begründet: "mangel", wenn dort ein Fehler steht, sonst "hinweis".
 - Fehlt der Punkt in der Bearbeitung ganz, gibt es nichts zu zitieren: dann keine Randbemerkung, das gehört in "{reason_field}".
-- Jede Bemerkung muss zu deiner Punktvergabe passen. Lobe nichts, wofür du keine Punkte gibst.
-- Höchstens {MARGIN_NOTES_MAX} Randbemerkungen. Reicht das nicht, gehen die Bemerkungen "mangel" zu den größten Abzügen vor; "positiv" und "hinweis" nur, soweit dann noch Platz ist."""
+- Halte auch fest, was gelungen ist: gelungene Stellen erhalten eine Bemerkung "positiv", auch dort, wo du insgesamt Punkte abziehst. Jede Bemerkung muss zu deiner Punktvergabe passen. Lobe nichts, wofür du keine Punkte gibst.
+- Höchstens {MARGIN_NOTES_MAX} Randbemerkungen. Reicht das nicht, gehen die Bemerkungen "mangel" zu den größten Abzügen vor, dann "hinweis", dann "positiv"."""
 
 
 def _longest_fragment(quote: str) -> List[str]:
