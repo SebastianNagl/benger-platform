@@ -5513,6 +5513,8 @@
       "modelsOnlyHint": "Sans annotateur sélectionné, seules les réponses des modèles sont notées.",
       "answersOnlyHint": "Sans modèle sélectionné, seules les réponses soumises sont notées.",
       "scopeLoading": "Chargement des modèles et annotateurs disponibles…",
+      "scopeLoadFailed": "Impossible de charger les modèles et les annotateurs. Le serveur redémarre peut-être.",
+      "scopeRetry": "Réessayer",
       "noEvaluatedModels": "Aucun modèle évalué dans ce projet pour l'instant",
       "noAnnotators": "Aucun annotateur dans ce projet pour l'instant",
       "runDisabledNoStructures": "Sélectionner au moins une structure de prompt",

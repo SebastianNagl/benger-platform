@@ -5513,6 +5513,8 @@
       "modelsOnlyHint": "Ohne Annotator:in werden nur Modellantworten bewertet.",
       "answersOnlyHint": "Ohne Modell werden nur eingereichte Antworten bewertet.",
       "scopeLoading": "Lade verfügbare Modelle und Annotator:innen…",
+      "scopeLoadFailed": "Modelle und Annotator:innen konnten nicht geladen werden. Der Server startet möglicherweise neu.",
+      "scopeRetry": "Erneut versuchen",
       "noEvaluatedModels": "Keine bewerteten Modelle in diesem Projekt",
       "noAnnotators": "Keine Annotator:innen in diesem Projekt",
       "runDisabledNoStructures": "Mindestens eine Prompt-Struktur auswählen",

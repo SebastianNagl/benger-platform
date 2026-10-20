@@ -5513,6 +5513,8 @@
       "modelsOnlyHint": "With no annotator selected, only model answers are graded.",
       "answersOnlyHint": "With no model selected, only submitted answers are graded.",
       "scopeLoading": "Loading available models and annotators…",
+      "scopeLoadFailed": "Could not load the models and annotators. The server may be restarting.",
+      "scopeRetry": "Retry",
       "noEvaluatedModels": "No evaluated models on this project yet",
       "noAnnotators": "No annotators on this project yet",
       "runDisabledNoStructures": "Select at least one prompt structure",
