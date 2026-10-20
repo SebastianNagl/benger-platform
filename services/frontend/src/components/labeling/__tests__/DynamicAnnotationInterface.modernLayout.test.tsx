@@ -29,6 +29,10 @@ jest.mock('@/lib/extensions/slots', () => ({
     mockSlots[name] = component
   },
 }))
+// Runtime master flag extension.extended: on (lib/featureFlags).
+jest.mock('@/lib/featureFlags', () => ({
+  useExtensionActive: () => true,
+}))
 jest.mock('@/contexts/AuthContext', () => ({
   useOptionalAuth: () => ({ user: mockUser }),
 }))

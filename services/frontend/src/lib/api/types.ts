@@ -176,6 +176,8 @@ export interface Organization {
   role?: OrganizationRole // User's role in this organization
   // Groups of this org the current user belongs to (from /auth/me/contexts).
   groups?: OrganizationGroupMembershipSummary[]
+  // 'DE' | 'FR' (from /auth/me/contexts, see '@/lib/jurisdiction').
+  jurisdiction?: string
 }
 
 export interface OrganizationCreate {

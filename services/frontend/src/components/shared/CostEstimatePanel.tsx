@@ -96,7 +96,7 @@ interface CostEstimateResponse {
   encoding?: string
   input_basis?: 'task_data' | 'generation_outputs' | 'rendered_judge_prompt'
   output_utilization_percent?: number | null
-  output_basis?: 'utilization' | 'judge_steps'
+  output_basis?: 'utilization' | 'judge_steps' | 'judge_profile'
   missing_only?: boolean
   per_judge_cells?: boolean
 }
@@ -127,11 +127,14 @@ function estimateNote(estimate: CostEstimateResponse, t: Translate): string {
     String(basis),
     estimate.mode === 'evaluation' && estimate.output_basis === 'judge_steps'
       ? String(t('costEstimate.note.outputJudgeSteps'))
-      : estimate.mode === 'evaluation'
-        ? fill(t('costEstimate.note.outputJudge'), {
-            percent: estimate.output_utilization_percent ?? 15,
-          })
-        : String(t('costEstimate.note.outputGeneration')),
+      : estimate.mode === 'evaluation' &&
+          estimate.output_basis === 'judge_profile'
+        ? String(t('costEstimate.note.outputJudgeProfile'))
+        : estimate.mode === 'evaluation'
+          ? fill(t('costEstimate.note.outputJudge'), {
+              percent: estimate.output_utilization_percent ?? 15,
+            })
+          : String(t('costEstimate.note.outputGeneration')),
     fill(t('costEstimate.note.encoding'), { encoding }),
   ]
   if (estimate.missing_only) {

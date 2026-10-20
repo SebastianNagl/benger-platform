@@ -33,6 +33,12 @@ jest.mock('@/lib/utils/subdomain', () => ({
   isStudentLockedHost: () => false,
 }))
 
+// Runtime master flag extension.extended: on, and known (lib/featureFlags).
+jest.mock('@/lib/featureFlags', () => ({
+  useExtensionActive: (id: string) => id === 'extended',
+  useActiveExtensionsReady: () => true,
+}))
+
 import { StudentModeRedirect } from '../StudentModeRedirect'
 
 afterAll(() => {

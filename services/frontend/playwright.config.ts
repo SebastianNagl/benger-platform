@@ -181,16 +181,26 @@ export default defineConfig({
       workers: isIsolatedE2E ? 1 : 2,
     },
     {
-      // Moodle LTI launch + registrations admin. Gated behind LTI_E2E=1
-      // (needs the live dev stack with the lti-dev Moodle harness — see
-      // e2e/lti/moodle-helpers.ts); skipped everywhere else. The student
-      // host is the launch surface, hence the vertretbar default. One
-      // worker: the specs drive one shared Moodle + dev DB.
+      // LTI: registrations admin (any stack) + Moodle launch (needs the
+      // Moodle harness, LTI_E2E=1). See e2e/lti/lti-helpers.ts for the env.
+      // The student host is the launch surface, hence the vertretbar
+      // default. One worker: the specs share one Moodle + one database.
+      // LTI_E2E_HOST_RESOLVER_RULES (e.g. "MAP moodle 127.0.0.1") lets
+      // Chromium reach the harness host without an /etc/hosts entry.
       name: 'lti',
       use: {
         ...devices['Desktop Chrome'],
         baseURL:
           process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost',
+        ...(process.env.LTI_E2E_HOST_RESOLVER_RULES
+          ? {
+              launchOptions: {
+                args: [
+                  `--host-resolver-rules=${process.env.LTI_E2E_HOST_RESOLVER_RULES}`,
+                ],
+              },
+            }
+          : {}),
       },
       testMatch: ['**/lti/*.spec.ts'],
       workers: 1,

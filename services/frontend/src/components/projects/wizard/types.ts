@@ -74,6 +74,9 @@ export interface WizardData {
   description: string
   // Project type — locked after creation (maps to the write-once `kind`).
   projectKind: WizardProjectKind
+  // The picked project-type option: a base kind or the id of a registered
+  // project type (registerWizardProjectType), which is created as its kind.
+  projectTypeId?: string
   // Emoji shown in lists / headers; empty = kind-derived fallback.
   icon: string
   features: WizardFeatures

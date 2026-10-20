@@ -198,13 +198,29 @@ from metric_filters import (  # noqa: E402
 
 # Extension point: extended package can register additional metrics per answer type
 _extended_metrics: dict[str, list[str]] = {}
+# (answer_type, metric) -> the package that registered it (None: unknown,
+# e.g. registered outside a package import). Core 2.42.
+_extended_metric_owners: dict[tuple, Optional[str]] = {}
 
 
-def register_extended_metrics(answer_type: str, metrics: list[str]):
+def _registration_owner() -> Optional[str]:
+    try:
+        from extension_registry import current_owner
+    except ImportError:  # pragma: no cover - /shared not on sys.path
+        return None
+    return current_owner()
+
+
+def register_extended_metrics(answer_type: str, metrics: list[str], owner: Optional[str] = None):
     """Register additional metrics for an answer type (called by extension
     packages at import time). Additive and idempotent: a metric already
     registered for the answer type (by any package, or shipped by the
-    platform itself) is not listed twice."""
+    platform itself) is not listed twice.
+
+    ``owner`` defaults to the package whose import is running
+    (``extension_registry.owner``); :func:`get_metrics_for_answer_type`
+    lists a metric only while its owner is active for the caller."""
+    owner = owner or _registration_owner()
     known = _extended_metrics.setdefault(answer_type, [])
     try:
         base = ANSWER_TYPE_TO_METRICS.get(AnswerType(answer_type), [])
@@ -213,12 +229,32 @@ def register_extended_metrics(answer_type: str, metrics: list[str]):
     for metric in metrics:
         if metric not in known and metric not in base:
             known.append(metric)
+            _extended_metric_owners[(answer_type, metric)] = owner
+
+
+def extended_metric_owner(answer_type: str, metric: str) -> Optional[str]:
+    return _extended_metric_owners.get((answer_type, metric))
+
+
+def _owner_active(owner: Optional[str]) -> bool:
+    if not owner:
+        return True
+    try:
+        import extension_activation
+    except ImportError:  # pragma: no cover
+        return True
+    return extension_activation.package_active(owner)
 
 
 def get_metrics_for_answer_type(answer_type: AnswerType) -> list[str]:
-    """Get all metrics for an answer type, including extended metrics."""
+    """Get all metrics for an answer type, including the extended metrics of
+    packages active in the current request context."""
     base = ANSWER_TYPE_TO_METRICS.get(answer_type, [])
-    extended = _extended_metrics.get(answer_type.value, [])
+    extended = [
+        metric
+        for metric in _extended_metrics.get(answer_type.value, [])
+        if _owner_active(_extended_metric_owners.get((answer_type.value, metric)))
+    ]
     return base + extended
 
 

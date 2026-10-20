@@ -4109,7 +4109,6 @@
     "userManagement": "User Management",
     "defaultConfiguration": "Default Configuration",
     "featureFlags": "Feature Flags",
-    "featureFlagsNotAvailable": "Feature flags are not available in this edition.",
     "orgManagement": "Organization Management",
     "createOrg": "Create Organization",
     "inviteUser": "Invite User",
@@ -4542,7 +4541,17 @@
         "added_to_group": "added to the group",
         "already_in_group": "already in the group"
       },
-      "accessKeys": "API access"
+      "accessKeys": "API access",
+      "jurisdiction": {
+        "label": "Jurisdiction",
+        "help": "Decides which country-specific project types the project wizard offers (e.g. French exam types).",
+        "saved": "Jurisdiction saved",
+        "failed": "The jurisdiction could not be saved",
+        "options": {
+          "DE": "Germany",
+          "FR": "France"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {
@@ -4634,6 +4643,41 @@
     },
     "lti": {
       "extendedRequired": "LTI administration requires the extended edition."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature Flags",
+      "intro": "Every change applies at once. \"Allowlist\" turns something on only for the listed users and for members of the listed organizations; superadmins are not included automatically. A package switch (extension.…) turns a whole extension package on or off, without a redeploy.",
+      "loadFailed": "Could not load the feature flags.",
+      "saveFailed": "Saving failed.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} added",
+      "targetRemoved": "{target} removed",
+      "deleted": "{flag} deleted",
+      "default": "Default: {state}",
+      "updatedAt": "Last changed: {date}",
+      "allowlistEmpty": "The list is empty, so it is on for nobody.",
+      "kindUser": "User",
+      "kindOrg": "Organization",
+      "addUser": "Add user",
+      "userSearch": "Name, email or pseudonym",
+      "addOrg": "Add organization",
+      "pickOrg": "Choose an organization",
+      "groupPlatform": "Platform",
+      "groupPackage": "Extension package \"{owner}\"",
+      "groupUnregistered": "Not registered",
+      "masterBadge": "Package switch",
+      "unregistered": "Not registered",
+      "unregisteredHint": "No loaded package registers this flag any more. The stored setting has no effect; you can delete it.",
+      "deleteTitle": "Delete {flag}?",
+      "deleteMessage": "The stored setting and its allowlist are deleted. If a package registers the flag again later, it starts from its default.",
+      "masterOffTitle": "Switch off the package \"{owner}\"?",
+      "masterOffMessage": "Every feature of this package disappears at once for everyone it currently reaches. Stored data is kept and still shown. Exams that are running keep their time limit: they are still handed in automatically when the time is up.",
+      "masterOffConfirm": "Switch off",
+      "state": {
+        "off": "Off",
+        "everyone": "Everyone",
+        "allowlist": "Allowlist"
+      }
     }
   },
   "taskCreate": {
@@ -5469,6 +5513,8 @@
       "modelsOnlyHint": "With no annotator selected, only model answers are graded.",
       "answersOnlyHint": "With no model selected, only submitted answers are graded.",
       "scopeLoading": "Loading available models and annotators…",
+      "scopeLoadFailed": "Could not load the models and annotators. The server may be restarting.",
+      "scopeRetry": "Retry",
       "noEvaluatedModels": "No evaluated models on this project yet",
       "noAnnotators": "No annotators on this project yet",
       "runDisabledNoStructures": "Select at least one prompt structure",
@@ -9151,6 +9197,7 @@
       "basisRenderedJudgePrompt": "Input is the full judge prompt: template, case facts, reference, grading sheet and a sample answer, plus system prompt and response schema.",
       "outputJudge": "Output is assumed at {percent} % of max_tokens because judges only return scores and a short rationale.",
       "outputJudgeSteps": "Output grows with the grading sheet: a score, reason and quoted evidence per scored step plus an overall assessment. Reasoning tokens are not included.",
+      "outputJudgeProfile": "The prompt and expected answer length of this judge come from the package that provides it (e.g. written feedback). Reasoning tokens are not included.",
       "outputGeneration": "Output is assumed at 90 % of max_tokens for reasoning models and 60 % otherwise.",
       "encoding": "Tokens counted with {encoding}; for other providers' models this is an approximation.",
       "countingMissing": "Only cells that would actually run are counted.",
@@ -9177,27 +9224,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "Saving failed.",
-      "stateSaved": "{flag}: {state}",
-      "targetAdded": "{target} added",
-      "targetRemoved": "{target} removed",
-      "intro": "Every change applies at once, on benger and vertretbar. \"Allowlist\" enables the feature only for the listed users and for members of the listed organizations. Superadmins are not enabled automatically.",
-      "loadFailed": "Could not load the feature flags.",
-      "default": "Default: {state}",
-      "allowlistEmpty": "The list is empty, so the feature is on for nobody.",
-      "kindUser": "User",
-      "kindOrg": "Organization",
-      "addUser": "Add user",
-      "userSearch": "Name, email or pseudonym",
-      "addOrg": "Add organization",
-      "pickOrg": "Choose an organization",
-      "menu": "Feature Flags",
-      "state": {
-        "off": "Off",
-        "everyone": "Everyone",
-        "allowlist": "Allowlist"
-      },
-      "title": "Feature Flags",
       "rubricAiDisabled": "AI help for rubrics is currently unavailable."
     },
     "lti": {

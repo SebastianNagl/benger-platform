@@ -16,6 +16,7 @@ is invoked via the ``tasks._run_immediate_config_job`` wrapper.
 from typing import Any, Dict, Optional
 
 import tasks
+from evaluation.inline_judges import resolve_inline_judge
 
 
 def _run_immediate_config_job_impl(
@@ -59,6 +60,11 @@ def _run_immediate_config_job_impl(
             # Phase 5: delegate to the extended-registered Falllösung compute.
             # Community edition (no benger_extended) raises an informative
             # error rather than crashing.
+            # Core 2.42: an inactive benger_extended (master flag off for
+            # this task's caller/project) refuses instead of grading.
+            import extension_activation
+
+            extension_activation.ensure_active("benger_extended")
             try:
                 from benger_extended.workers import get_falloesung_compute_fn
             except ImportError as exc:
@@ -92,6 +98,34 @@ def _run_immediate_config_job_impl(
                 task_data=task_data,
                 metric_params=metric_params,
                 organization_id=organization_id,
+                **extra,
+            )
+
+        elif (inline_judge := resolve_inline_judge(metric_type)) is not None:
+            # Overlay judge without a score (see evaluation/inline_judges.py):
+            # it persists its own row, like the Falllösung helper above.
+            fn_params = set(
+                _inspect.signature(inline_judge.evaluate_single).parameters.keys()
+            )
+            extra = {}
+            if "org_billing_authorized" in fn_params:
+                extra["org_billing_authorized"] = org_billing_authorized
+            return inline_judge.evaluate_single(
+                db=db,
+                record_id=record_id,
+                immediate_eval_id=dispatch_eval_id,
+                project_id=project_id,
+                task_id=task_id,
+                annotation_id=annotation_id,
+                user_id=user_id,
+                field_name=field_name,
+                prediction=str(prediction_value),
+                task_data=task_data,
+                metric_params=metric_params,
+                organization_id=organization_id,
+                judge_run_id=judge_run_id,
+                evaluation_config_id=evaluation_config_id,
+                metric=metric_type,
                 **extra,
             )
 

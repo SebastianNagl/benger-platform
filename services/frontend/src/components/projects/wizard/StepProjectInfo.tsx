@@ -14,6 +14,7 @@ import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { defaultIconForKind } from '@/lib/projectKind'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
+import { wizardDataJurisdictions } from './jurisdictions'
 import { IconPickerModal, ProjectTypeSelector } from './ProjectTypeAndIcon'
 import {
   WizardData,
@@ -72,7 +73,9 @@ export function StepProjectInfo({
 }: StepProjectInfoProps) {
   const { t } = useI18n()
   // Optional: the step also renders without an AuthProvider (tests).
-  const isSuperadmin = Boolean(useOptionalAuth()?.user?.is_superadmin)
+  const auth = useOptionalAuth()
+  const isSuperadmin = Boolean(auth?.user?.is_superadmin)
+  const jurisdictions = wizardDataJurisdictions(auth?.organizations ?? [], data)
   const [iconPickerOpen, setIconPickerOpen] = useState(false)
   const [orgs, setOrgs] = useState<
     Array<{
@@ -307,6 +310,8 @@ export function StepProjectInfo({
 
         <ProjectTypeSelector
           projectKind={data.projectKind}
+          projectTypeId={data.projectTypeId}
+          jurisdictions={jurisdictions}
           onChange={onChange}
         />
       </div>

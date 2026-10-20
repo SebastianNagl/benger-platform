@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useHydration } from '@/hooks/useHydration'
 import { isExtendedEdition, useResolvedUiMode } from '@/hooks/useResolvedUiMode'
 import { useSlot } from '@/lib/extensions/slots'
+import { useActiveExtensionsReady } from '@/lib/featureFlags'
 import { sebNavigationTarget } from '@/lib/seb'
 import { isExpertOnlyRoute } from '@/lib/utils/routeSurface'
 import { useUIStore } from '@/stores'
@@ -32,6 +33,9 @@ export function Layout({
   const [isInitialRender, setIsInitialRender] = useState(true)
   const { isLoading } = useAuth()
   const resolvedUiMode = useResolvedUiMode()
+  // Whether the runtime switch of the extended overlay is known for this
+  // viewer (server answer or the last known value of this browser).
+  const extensionsReady = useActiveExtensionsReady()
   const StudentShell = useSlot('StudentShell')
   // First-visit setup modal + role tour (extended). Mounted in both shells;
   // the slot decides itself whether there is anything to show.
@@ -65,8 +69,9 @@ export function Layout({
   if (isExtendedEdition()) {
     // Until hydration completes or auth resolves, the resolved mode is not yet
     // trustworthy. Render a neutral skeleton rather than flashing the expert
-    // layout to a student on first paint.
-    if (!isHydrated || isLoading) {
+    // layout to a student on first paint. The same holds until this viewer's
+    // runtime extension switch is known (lib/featureFlags).
+    if (!isHydrated || isLoading || !extensionsReady) {
       return (
         <div
           className="flex h-full w-full items-center justify-center"

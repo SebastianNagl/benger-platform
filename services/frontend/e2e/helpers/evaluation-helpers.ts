@@ -635,13 +635,38 @@ export class EvaluationHelpers {
   }
 
   /**
-   * Get all options from the Answer Type dropdown (HeadlessUI Listbox)
+   * Get all options from the Answer Type dropdown (HeadlessUI Listbox) as
+   * display labels in the current UI language (de by default, en, fr).
    */
   async getAnswerTypeOptions(): Promise<string[]> {
+    return (await this.getAnswerTypeOptionEntries()).map((o) => o.label)
+  }
+
+  /**
+   * Get the option values (`data-value`, e.g. "text", "span_selection") of
+   * the Answer Type dropdown. Labels are localized, values are not, so
+   * assertions belong on the values.
+   */
+  async getAnswerTypeOptionValues(): Promise<string[]> {
+    return (await this.getAnswerTypeOptionEntries()).map((o) => o.value)
+  }
+
+  /**
+   * Open the Answer Type dropdown once and read every option's value and
+   * label, then close it again.
+   */
+  async getAnswerTypeOptionEntries(): Promise<
+    { value: string; label: string }[]
+  > {
     // Try native <select> first (backwards compat), then HeadlessUI Listbox
     const nativeSelect = this.page.locator('select').first()
     if (await nativeSelect.isVisible({ timeout: 2000 }).catch(() => false)) {
-      return await nativeSelect.locator('option').allTextContents()
+      return await nativeSelect.locator('option').evaluateAll((els) =>
+        els.map((el) => ({
+          value: (el as HTMLOptionElement).value,
+          label: (el.textContent ?? '').trim(),
+        })),
+      )
     }
 
     // HeadlessUI: use the shared button locator
@@ -661,11 +686,16 @@ export class EvaluationHelpers {
       return []
     }
 
-    const options = await listbox.getByRole('option').allTextContents()
+    const options = await listbox.getByRole('option').evaluateAll((els) =>
+      els.map((el) => ({
+        value: el.getAttribute('data-value') ?? '',
+        label: (el.textContent ?? '').trim(),
+      })),
+    )
     await this.page.keyboard.press('Escape')
     await this.page.waitForTimeout(200)
 
-    return options.map((o) => o.trim())
+    return options
   }
 
   /**
@@ -737,17 +767,31 @@ export class EvaluationHelpers {
   }
 
   /**
+   * Get the selected answer type's value key (e.g. "text", "rating"). The
+   * trigger button carries it as data-value, so unlike
+   * getSelectedAnswerType() this does not depend on the UI language.
+   */
+  async getSelectedAnswerTypeValue(): Promise<string> {
+    const nativeSelect = this.page.locator('select').first()
+    if (await nativeSelect.isVisible({ timeout: 1000 }).catch(() => false)) {
+      return await nativeSelect.inputValue()
+    }
+
+    const button = this.answerTypeButton()
+    await expect(button).toBeVisible({ timeout: 5000 })
+    return (await button.getAttribute('data-value')) ?? ''
+  }
+
+  /**
    * Locator for the answer type HeadlessUI button. Scoped to the wizard
-   * body so a stray button elsewhere on the page (e.g. a "Classification"
-   * filter in a sibling card) can't shadow the real dropdown.
+   * body so a stray button elsewhere on the page can't shadow the real
+   * dropdown. The trigger carries data-testid="answer-type-select"; its
+   * label is localized (de/en/fr), so text is not used for the lookup.
    */
   private answerTypeButton() {
     return this.page
-      .locator('[data-testid="evaluation-wizard-body"] button')
-      .filter({
-        hasText:
-          /Free.form|Short Text|Long Text|NER|Named Entity|Span|Freitext|Kurztext|Langtext|Rating|Binary|Choice|Classification/i,
-      })
+      .locator('[data-testid="evaluation-wizard-body"]')
+      .getByTestId('answer-type-select')
       .first()
   }
 

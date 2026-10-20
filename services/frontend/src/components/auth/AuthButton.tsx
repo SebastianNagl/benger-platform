@@ -1,5 +1,6 @@
 'use client'
 
+import { FeatureFlagsMenuEntry } from '@/components/admin/featureFlags/FeatureFlagsMenuEntry'
 import { LoginModal } from '@/components/auth/LoginModal'
 import { SignupModal } from '@/components/auth/SignupModal'
 import { Button } from '@/components/shared/Button'
@@ -96,6 +97,11 @@ export function AuthButton() {
                   <AuthMenuExtended onNavigate={() => setDropdownOpen(false)} />
                 </div>
               )}
+
+              {/* Superadmins: the feature flag console. */}
+              <FeatureFlagsMenuEntry
+                onNavigate={() => setDropdownOpen(false)}
+              />
 
               {/* Settings Section */}
               <Link

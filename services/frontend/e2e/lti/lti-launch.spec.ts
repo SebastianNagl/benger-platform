@@ -1,23 +1,28 @@
 /**
- * E2E: Moodle LTI 1.3 launch flows against the LIVE local dev stack
- * (issue #61). Requires the lti-dev harness (local Moodle 4.5 on
- * http://moodle:8081 with the seeded `lti-dev-moodle` registration), so the
- * whole file is gated behind LTI_E2E=1 and skips silently everywhere else.
+ * E2E: Moodle LTI 1.3 launch flows (issue #61) against a real Moodle 4.5.
  *
- * Run:
- *   LTI_E2E=1 PLAYWRIGHT_BASE_URL=http://vertretbar.localhost \
- *     npx playwright test e2e/lti --reporter=line
+ * Needs the Moodle harness from benger-extended/infra/lti-dev next to the
+ * stack, with the BenGER registration for its tool, so the file is gated
+ * behind LTI_E2E=1. The nightly extended e2e shard brings the harness up on
+ * the test stack and sets the env; locally:
+ *
+ *   # test stack (benger-extended): make moodle-test && make test-e2e-lti
+ *   # dev stack:  make moodle-dev + register_benger.py (lti-dev README), then
+ *   LTI_E2E=1 LTI_E2E_HOST_RESOLVER_RULES="MAP moodle 127.0.0.1" \
+ *     PLAYWRIGHT_BASE_URL=http://vertretbar.localhost \
+ *     npx playwright test e2e/lti/lti-launch.spec.ts --project=lti
  *
  * The five steps ride one fresh Moodle activity + one fresh Moodle student
  * per run (unique run-id suffix), so re-runs never collide with earlier
  * state:
- *   a. instructor launch → consent (when this teacher has no current
- *      consent on the connection) → LtiLinkPicker → link a fresh exam → exam
- *   b. student first launch → public consent page (no session yet; both
- *      the processing and the research consent are required) → one-time
+ *   a. instructor launch -> consent (when this teacher has no current
+ *      consent on the connection) -> LtiLinkPicker -> link a fresh exam ->
+ *      the exam page
+ *   b. student first launch -> public consent page (no session yet; both
+ *      the processing and the research consent are required) -> one-time
  *      address prompt (the test account's address cannot receive mail),
- *      skipped → exam
- *   c. returning student launch → straight into the exam (no consent)
+ *      skipped -> exam
+ *   c. returning student launch -> straight into the exam (no consent)
  *   d. two-tabs guard: ?lti_u mismatch hard-blocks the exam page
  *   e. /lti/error?code=not_linked renders the German explanation
  *
@@ -31,6 +36,8 @@ import {
   createLtiActivity,
   createMoodleStudent,
   currentUserId,
+  disableAutoLogin,
+  germanCopy,
   gotoWithRetry,
   launchActivity,
   MOODLE_TEACHER,
@@ -38,14 +45,16 @@ import {
   warmAppRoutes,
 } from './moodle-helpers'
 
-// Steps build on each other (activity → link → consent → relaunch), so run
+// Steps build on each other (activity -> link -> consent -> relaunch), so run
 // them serially and let a failed step skip the dependent rest.
 test.describe.configure({ mode: 'serial' })
 
 test.describe('LTI Moodle launch flows @extended', () => {
   test.skip(
     !process.env.LTI_E2E,
-    'needs the lti-dev Moodle harness (LTI_E2E=1)',
+    'needs the Moodle harness: benger-extended `make moodle-test` (test stack) ' +
+      'or `make moodle-dev` (dev stack), then LTI_E2E=1, see ' +
+      'benger-extended/infra/lti-dev/README.md',
   )
 
   // Unique per run: the Moodle activity, the exam, and the student are
@@ -116,19 +125,13 @@ test.describe('LTI Moodle launch flows @extended', () => {
 
   /**
    * App-side browser context: pin the suite's `e2e_test_mode` flag before
-   * any app script runs — the dev stack's auto-login (layout.tsx) would
+   * any app script runs: the dev stack's auto-login (layout.tsx) would
    * otherwise log the context in as `admin` and yank it to /dashboard,
    * clobbering the LTI-provisioned session under test.
    */
   async function newAppContext(browser: Browser): Promise<BrowserContext> {
     const context = await browser.newContext({ baseURL: APP_BASE })
-    await context.addInitScript(() => {
-      try {
-        sessionStorage.setItem('e2e_test_mode', 'true')
-      } catch {
-        /* opaque origins (about:blank) — ignore */
-      }
-    })
+    await disableAutoLogin(context)
     return context
   }
 
@@ -171,15 +174,16 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await launchActivity(teacherPage, cmid)
     await passConsentIfAsked(teacherPage)
 
-    // Unlinked activity + Instructor role → the link picker host route.
+    // Unlinked activity + Instructor role -> the link picker host route.
     await expect(teacherPage).toHaveURL(/\/lti\/link\?rl=[0-9a-f-]+/)
 
-    // German picker UI, titled after the Moodle activity; the submit stays
+    // The picker is titled after the Moodle activity; the submit stays
     // disabled while nothing is selected.
-    await expect(
-      teacherPage.getByRole('heading', { name: activityName }),
-    ).toBeVisible({ timeout: 20_000 })
-    await expect(teacherPage.getByText('Wähle die Klausur')).toBeVisible()
+    await expect(teacherPage.getByTestId('lti-picker-heading')).toHaveText(
+      activityName,
+      { timeout: 20_000 },
+    )
+    await expect(teacherPage.getByTestId('lti-exam-picker-form')).toBeVisible()
     await expect(teacherPage.getByTestId('lti-link-submit')).toBeDisabled()
 
     // The instructor needs an exam they own: create it through the
@@ -210,15 +214,15 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await expect(submit).toBeEnabled()
     await submit.click()
 
-    // Linking opens the activity overview of the linked exam (the teacher
-    // view), bound to this session.
-    await teacherPage.waitForURL(/\/lti\/activity\?rl=[0-9a-f-]+/, {
-      timeout: 30_000,
-    })
-    await expect(teacherPage.getByTestId('lti-activity-exam')).toContainText(
-      examTitle,
-      { timeout: 20_000 },
+    // After linking, the teacher continues on the exam page of their
+    // interface (the student UI on the student host).
+    await teacherPage.waitForURL(
+      (url) => url.pathname === `/student/exams/${examId}`,
+      { timeout: 30_000 },
     )
+    await expect(
+      teacherPage.getByRole('heading', { name: examTitle }),
+    ).toBeVisible({ timeout: 20_000 })
   })
 
   test('b. student first launch requires both consents before opening the exam', async ({
@@ -231,7 +235,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
     await moodleLogin(studentPage, studentUsername, studentPassword)
     await launchActivity(studentPage, cmid)
 
-    // Linked activity + first-time student → the launch is parked and the
+    // Linked activity + first-time student -> the launch is parked and the
     // public consent page opens with the parked launch's handle.
     await expect(studentPage).toHaveURL(
       /\/lti\/consent\?rl=[0-9a-f-]+&p=[\w-]+/,
@@ -292,7 +296,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
   test('c. returning student launch goes straight into the exam', async () => {
     await launchActivity(studentPage, cmid)
 
-    // No consent gate on the way in — direct exam landing, carrying the
+    // No consent gate on the way in: direct exam landing, carrying the
     // two-tabs guard's expected-user parameter.
     await studentPage.waitForURL(
       new RegExp(`/student/exams/${examId}\\?.*lti_u=`),
@@ -313,7 +317,7 @@ test.describe('LTI Moodle launch flows @extended', () => {
   test('d. two-tabs guard blocks the exam when lti_u mismatches the session', async () => {
     const userId = await currentUserId(studentPage)
 
-    // Wrong expected user (someone else's launch URL) → hard-block overlay.
+    // Wrong expected user (someone else's launch URL) -> hard-block overlay.
     await gotoWithRetry(
       studentPage,
       `${APP_BASE}/student/exams/${examId}?lti_u=e2e-someone-else`,
@@ -321,9 +325,11 @@ test.describe('LTI Moodle launch flows @extended', () => {
     const overlay = studentPage.getByTestId('lti-session-mismatch')
     await expect(overlay).toBeVisible({ timeout: 20_000 })
     await expect(overlay).toHaveAttribute('role', 'alertdialog')
-    await expect(overlay).toContainText('Andere Moodle-Sitzung aktiv')
+    await expect(overlay).toContainText(
+      germanCopy('extended.lti.sessionMismatch.title'),
+    )
 
-    // Matching expected user → no overlay, exam usable.
+    // Matching expected user -> no overlay, exam usable.
     await gotoWithRetry(
       studentPage,
       `${APP_BASE}/student/exams/${examId}?lti_u=${userId}`,
@@ -339,24 +345,27 @@ test.describe('LTI Moodle launch flows @extended', () => {
     // standalone, so it renders with or without a session.
     await gotoWithRetry(studentPage, `${APP_BASE}/lti/error?code=not_linked`)
 
+    const errorPage = studentPage.getByTestId('lti-launch-error')
+    await expect(errorPage).toBeVisible({ timeout: 20_000 })
     await expect(
       studentPage.getByRole('heading', {
-        name: 'Start aus der Lernplattform fehlgeschlagen',
+        level: 1,
+        name: germanCopy('extended.lti.error.title'),
       }),
-    ).toBeVisible({ timeout: 20_000 })
-    await expect(
-      studentPage.getByText(
-        'Diese Aktivität ist noch mit keiner Klausur verknüpft.',
-      ),
     ).toBeVisible()
+    // The code-specific explanation, not the generic fallback.
+    await expect(
+      studentPage.getByTestId('lti-launch-error-message'),
+    ).toHaveText(germanCopy('extended.lti.error.not_linked'))
     // The page says what to do and who can do it.
-    await expect(studentPage.getByText('So geht es weiter')).toBeVisible()
-    await expect(
-      studentPage.getByText(/Bitte deine Lehrenden, die Aktivität/),
-    ).toBeVisible()
-    await expect(studentPage.getByText('Fehlercode')).toBeVisible()
-    await expect(
-      studentPage.getByText('not_linked', { exact: true }),
-    ).toBeVisible()
+    await expect(errorPage).toContainText(
+      germanCopy('extended.lti.error.helpTitle'),
+    )
+    await expect(studentPage.getByTestId('lti-launch-error-help')).toHaveText(
+      germanCopy('extended.lti.error.help.not_linked'),
+    )
+    await expect(studentPage.getByTestId('lti-launch-error-code')).toHaveText(
+      'not_linked',
+    )
   })
 })

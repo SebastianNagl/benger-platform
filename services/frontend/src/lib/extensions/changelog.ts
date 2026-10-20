@@ -9,6 +9,9 @@
 
 import { useEffect, useState } from 'react'
 
+import { isOwnerActive, subscribeActiveExtensions } from './active'
+import { currentOwnerLabel } from './owner'
+
 export type ChangelogAudience = 'benger' | 'vertretbar' | 'both'
 
 export interface ChangelogEntry {
@@ -40,7 +43,7 @@ export function filterAvailableChangelogEntries(
   )
 }
 
-const buckets: Record<string, ChangelogEntry[]> = {}
+const buckets: Record<string, { owner: string; entries: ChangelogEntry[] }> = {}
 const listeners: Set<() => void> = new Set()
 
 function notifyListeners() {
@@ -50,27 +53,32 @@ function notifyListeners() {
 /**
  * Register changelog entries under a named source.
  * Re-registering the same source replaces its entries (idempotent).
+ * The source remembers the registering owner; its entries are listed only
+ * while that owner is active (./active.ts).
  * Notifies all useChangelogEntries() hooks to re-render.
  */
 export function registerChangelogEntries(
   source: string,
   entries: ChangelogEntry[],
 ) {
-  buckets[source] = entries
+  buckets[source] = { owner: currentOwnerLabel(), entries }
   notifyListeners()
 }
 
 /**
- * All registered entries, flattened across sources. Unsorted --
- * the changelog page owns ordering and grouping.
+ * The registered entries of active owners, flattened across sources.
+ * Unsorted -- the changelog page owns ordering and grouping.
  */
 export function getChangelogEntries(): ChangelogEntry[] {
-  return Object.values(buckets).flat()
+  return Object.values(buckets)
+    .filter((bucket) => isOwnerActive(bucket.owner))
+    .flatMap((bucket) => bucket.entries)
 }
 
 /**
- * React hook returning all registered entries.
- * Re-renders when entries are registered (handles async loadExtended).
+ * React hook returning the registered entries of active owners.
+ * Re-renders when entries are registered (handles async loadExtended) and
+ * when the active overlays change.
  */
 export function useChangelogEntries(): ChangelogEntry[] {
   const [, setTick] = useState(0)
@@ -78,8 +86,10 @@ export function useChangelogEntries(): ChangelogEntry[] {
   useEffect(() => {
     const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
+    const unsubscribeActive = subscribeActiveExtensions(listener)
     return () => {
       listeners.delete(listener)
+      unsubscribeActive()
     }
   }, [])
 

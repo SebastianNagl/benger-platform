@@ -1424,22 +1424,22 @@ class TestNotificationEndpoints:
         assert "period_days" in body
 
 
-class TestFeatureFlagRouterRemoved:
-    """The flag admin API moved to the extended edition (core 2.27).
+class TestFeatureFlagRouterMounted:
+    """The flag admin API is back in the platform (core 2.42; extended
+    owned it from 2.27 to 2.41): /api/feature-flags plus the legacy
+    /api/ext/feature-flags for one release."""
 
-    The community edition no longer mounts /api/feature-flags; extended
-    serves its own router under /api/ext/feature-flags.
-    """
-
-    def test_feature_flags_routes_not_mounted(self):
+    def test_feature_flags_routes_are_mounted(self):
         from main import app
 
         paths = set(app.openapi()["paths"])
-        assert not any(p.startswith("/api/feature-flags") for p in paths)
+        assert "/api/feature-flags/me" in paths
+        assert "/api/feature-flags" in paths
+        assert "/api/ext/feature-flags/me" in paths
 
-    def test_feature_flags_list_returns_404(self, client, test_db, test_users, auth_headers):
-        resp = client.get("/api/feature-flags", headers=auth_headers["admin"])
-        assert resp.status_code == 404
+    def test_feature_flags_list_needs_a_superadmin(self, client, test_db, test_users, auth_headers):
+        resp = client.get("/api/feature-flags", headers=auth_headers["annotator"])
+        assert resp.status_code == 403
 
 
 class TestDashboardEndpoints:

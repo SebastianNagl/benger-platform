@@ -1,12 +1,12 @@
 /**
- * Helpers for the LTI Moodle-launch E2E specs (issue #61).
+ * Moodle helpers for the LTI launch spec (issue #61).
  *
- * These specs run exclusively against the LIVE local dev stack brought up
- * with the lti-dev harness (`benger-extended/infra/lti-dev/`): a throwaway
- * Moodle 4.5 at http://moodle:8081 wired to the dev tool registration
- * `lti-dev-moodle` (client `bengerspike001`, course id 2). They are gated
- * behind the LTI_E2E env var, so a normal CI run without the harness skips
- * them entirely.
+ * The spec drives a throwaway Moodle 4.5 from the harness in
+ * `benger-extended/infra/lti-dev/` (dev stack: http://moodle:8081, container
+ * `benger-moodle-1`; test stack: http://moodle:8083, container
+ * `benger-test-moodle-1`), wired to a BenGER registration for the tool
+ * `bengerspike001`. LTI_E2E_MOODLE_URL / _CONTAINER / _COURSE_ID /
+ * _TOOL_TYPE_ID select the instance (the harness scripts print them).
  *
  * Moodle-side seeding happens through `docker exec` into the Moodle
  * container: moosh for object creation plus direct PHP for the fixes moosh
@@ -15,34 +15,32 @@
  * defaults and ignores `typeid`; `moosh course-enrol` explodes in this
  * image's bootstrap, so enrolment goes through `enrol_try_internal_enrol`).
  */
-import { execFileSync } from 'node:child_process'
-
 import { expect, Page } from '@playwright/test'
 
-export const APP_BASE =
-  process.env.PLAYWRIGHT_BASE_URL || 'http://vertretbar.localhost'
+import { APP_BASE, dockerExec } from './lti-helpers'
+
+export {
+  APP_BASE,
+  disableAutoLogin,
+  germanCopy,
+  gotoWithRetry,
+  warmAppRoutes,
+} from './lti-helpers'
+
+/** Moodle wwwroot; the issuer of the BenGER registration. */
 export const MOODLE_BASE =
   process.env.LTI_E2E_MOODLE_URL || 'http://moodle:8081'
 export const MOODLE_HOST = new URL(MOODLE_BASE).host
 
 const MOODLE_CONTAINER =
   process.env.LTI_E2E_MOODLE_CONTAINER || 'benger-moodle-1'
-const DB_CONTAINER = process.env.LTI_E2E_DB_CONTAINER || 'benger-db-1'
-const MOODLE_COURSE_ID = 2
-/** Moodle tool type id of the seeded BenGER external tool (lti-dev harness). */
-const MOODLE_TOOL_TYPE_ID = 1
+const MOODLE_COURSE_ID = Number(process.env.LTI_E2E_MOODLE_COURSE_ID || 2)
+/** Moodle tool type id of the BenGER external tool (setup_moodle.sh). */
+const MOODLE_TOOL_TYPE_ID = Number(process.env.LTI_E2E_MOODLE_TOOL_TYPE_ID || 1)
 
 export const MOODLE_TEACHER = {
   username: 'teacher1',
   password: 'Spike-Teacher-1',
-}
-
-function dockerExec(args: string[], input?: string): string {
-  return execFileSync('docker', ['exec', ...args], {
-    ...(input === undefined ? {} : { input }),
-    encoding: 'utf8',
-    stdio: ['pipe', 'pipe', 'pipe'], // silence moosh/Moodle debug chatter on stderr
-  })
 }
 
 /** Run a PHP snippet inside the Moodle container with Moodle bootstrapped. */
@@ -53,7 +51,7 @@ function moodlePhp(script: string): string {
   )
 }
 
-/** moosh with `-n` (no interaction). Long-form flags only — moosh's global
+/** moosh with `-n` (no interaction). Long-form flags only: moosh's global
  *  short flags shadow command flags (lti-dev README). */
 function moosh(args: string[]): string {
   return dockerExec([
@@ -66,54 +64,38 @@ function moosh(args: string[]): string {
   ])
 }
 
-/** Run a SQL statement against the dev benger database. */
-export function bengerDbSql(sql: string): string {
-  return dockerExec([
-    DB_CONTAINER,
-    'psql',
-    '-U',
-    'postgres',
-    '-d',
-    'benger',
-    '-c',
-    sql,
-  ])
-}
-
 /**
  * Create a fresh LTI activity in course 2 bound to the BenGER tool and
  * return its course-module id (cmid).
  *
- * moosh's `activity-add` prints the new lti instance id but leaves the row
- * pointing at the legacy consumer-key flow (`resourcekey=12345`,
- * `password=secret`, `typeid=0`) which would override the tool client_id as
- * the id_token `aud` — clear both and pin the tool type, then rebuild the
+ * moosh's `activity-add` leaves the new lti row pointing at the legacy
+ * consumer-key flow (`resourcekey=12345`, `password=secret`, `typeid=0`),
+ * which would override the tool client_id as
+ * the id_token `aud`: clear both and pin the tool type, then rebuild the
  * course cache so the activity actually launches.
  */
 export function createLtiActivity(name: string): number {
-  const out = moosh([
-    'activity-add',
-    `--name=${name}`,
-    'lti',
-    String(MOODLE_COURSE_ID),
-  ])
-  const instanceId = Number((out.match(/\d+/) || [])[0])
-  if (!Number.isInteger(instanceId) || instanceId <= 0) {
-    throw new Error(`moosh activity-add did not return an instance id: ${out}`)
-  }
+  // The names are unique per run (run-id suffix), so the instance is looked
+  // up by name: moosh's stdout can carry PHP warnings with line numbers on
+  // a fresh Moodle, which made "the first number" the wrong id.
+  moosh(['activity-add', `--name=${name}`, 'lti', String(MOODLE_COURSE_ID)])
   const fixed = moodlePhp(`
-    $DB->set_field('lti', 'typeid', ${MOODLE_TOOL_TYPE_ID}, ['id' => ${instanceId}]);
-    $DB->set_field('lti', 'resourcekey', '', ['id' => ${instanceId}]);
-    $DB->set_field('lti', 'password', '', ['id' => ${instanceId}]);
+    $instanceid = (int) $DB->get_field_sql(
+      'SELECT MAX(id) FROM {lti} WHERE course = ? AND name = ?',
+      [${MOODLE_COURSE_ID}, ${JSON.stringify(name)}]);
+    if (!$instanceid) { echo "NO_INSTANCE"; exit(1); }
+    $DB->set_field('lti', 'typeid', ${MOODLE_TOOL_TYPE_ID}, ['id' => $instanceid]);
+    $DB->set_field('lti', 'resourcekey', '', ['id' => $instanceid]);
+    $DB->set_field('lti', 'password', '', ['id' => $instanceid]);
     rebuild_course_cache(${MOODLE_COURSE_ID}, true);
     $moduleid = $DB->get_field('modules', 'id', ['name' => 'lti']);
-    $cmid = $DB->get_field('course_modules', 'id', ['course' => ${MOODLE_COURSE_ID}, 'module' => $moduleid, 'instance' => ${instanceId}]);
+    $cmid = $DB->get_field('course_modules', 'id', ['course' => ${MOODLE_COURSE_ID}, 'module' => $moduleid, 'instance' => $instanceid]);
     echo "CMID=$cmid";
   `)
   const cmid = Number((fixed.match(/CMID=(\d+)/) || [])[1])
   if (!Number.isInteger(cmid) || cmid <= 0) {
     throw new Error(
-      `could not resolve cmid for lti instance ${instanceId}: ${fixed}`,
+      `could not resolve the cmid of lti activity ${name}: ${fixed}`,
     )
   }
   return cmid
@@ -123,7 +105,7 @@ export function createLtiActivity(name: string): number {
  * Create a fresh Moodle user and enrol them as a student in course 2.
  * `moosh course-enrol` reliably crashes in this image (welcome-message hook
  * under moosh's bootstrap), so the enrolment goes through Moodle's
- * `enrol_try_internal_enrol` API instead — which also assigns the role.
+ * `enrol_try_internal_enrol` API instead: which also assigns the role.
  */
 export function createMoodleStudent(username: string, password: string): void {
   moosh([
@@ -148,28 +130,41 @@ export function createMoodleStudent(username: string, password: string): void {
   }
 }
 
-/** Log into Moodle through its login form. */
+/**
+ * Log into Moodle through its login form.
+ *
+ * A fresh Moodle occasionally answers the first form post with "Your
+ * session has timed out" (the session the login page opened is not found
+ * yet) and shows the form again; the next attempt then goes through. So the
+ * login is retried a few times before it counts as failed.
+ */
 export async function moodleLogin(
   page: Page,
   username: string,
   password: string,
+  attempts = 3,
 ): Promise<void> {
-  await page.goto(`${MOODLE_BASE}/login/index.php`, {
-    waitUntil: 'domcontentloaded',
-  })
-  await page.fill('#username', username)
-  await page.fill('#password', password)
-  await page.click('#loginbtn')
-  await page.waitForURL(
-    (url) => url.host === MOODLE_HOST && !url.pathname.startsWith('/login'),
-    { timeout: 30_000 },
-  )
+  const loggedIn = (url: URL) =>
+    url.host === MOODLE_HOST && !url.pathname.startsWith('/login')
+  for (let attempt = 1; ; attempt++) {
+    await page.goto(`${MOODLE_BASE}/login/index.php`, { waitUntil: 'load' })
+    if (loggedIn(new URL(page.url()))) return
+    await page.fill('#username', username)
+    await page.fill('#password', password)
+    await page.click('#loginbtn')
+    try {
+      await page.waitForURL(loggedIn, { timeout: 20_000 })
+      return
+    } catch (error) {
+      if (attempt >= attempts) throw error
+    }
+  }
 }
 
 /**
  * Open a Moodle LTI activity and ride the full OIDC launch chain
- * (launch.php → tool /api/lti/login → Moodle auth.php → tool
- * /api/lti/launch → app page). Every hop is an auto-submitted form or a
+ * (launch.php -> tool /api/lti/login -> Moodle auth.php -> tool
+ * /api/lti/launch -> app page). Every hop is an auto-submitted form or a
  * redirect, so we just wait until the browser settles on a non-API page of
  * the tool. Returns once the app page has committed.
  */
@@ -186,60 +181,6 @@ export async function launchActivity(page: Page, cmid: number): Promise<void> {
     { timeout: 45_000 },
   )
   await page.waitForLoadState('domcontentloaded')
-}
-
-/**
- * Navigation with retries: the traefik + Next-dev combo intermittently
- * answers 404/502/503 while routes compile (same flakiness the suite's
- * TestHelpers.login guards against).
- */
-export async function gotoWithRetry(
-  page: Page,
-  url: string,
-  attempts = 5,
-): Promise<void> {
-  let lastStatus: number | undefined
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      const response = await page.goto(url, {
-        waitUntil: 'domcontentloaded',
-        timeout: 20_000,
-      })
-      lastStatus = response?.status()
-      if (!response || response.status() < 400) return
-    } catch (error) {
-      if (attempt === attempts) throw error
-    }
-    await page.waitForTimeout(500 * attempt)
-  }
-  throw new Error(
-    `navigation to ${url} kept failing (last status ${lastStatus})`,
-  )
-}
-
-/**
- * Warm the Next dev server's on-demand compilation for the routes a spec is
- * about to exercise, so the launch redirect chain doesn't hit a
- * mid-compilation 502. Waits until each route answers < 500.
- */
-export async function warmAppRoutes(
-  page: Page,
-  base: string,
-  paths: string[],
-): Promise<void> {
-  for (const path of paths) {
-    await expect
-      .poll(
-        async () => {
-          const response = await page.request
-            .get(`${base}${path}`, { timeout: 20_000 })
-            .catch(() => null)
-          return response ? response.status() : 0
-        },
-        { timeout: 60_000, message: `warm-up of ${base}${path}` },
-      )
-      .toBeLessThan(500)
-  }
 }
 
 /** The authenticated user of this page's session, via the cookie-authed API. */

@@ -9,18 +9,19 @@ import { TestHelpers } from '../helpers/test-helpers'
 
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://benger.localhost'
 
-// Expected answer type options
-const EXPECTED_ANSWER_TYPES = [
-  'Free-form Text',
-  'Short Text',
-  'Long Text',
-  'Classification (Single Choice)',
-  'Single Choice',
-  'Binary Choice',
-  'Multiple Choice (Multi-select)',
-  'Named Entity Recognition (NER)',
-  'Rating Scale',
-  'Numeric Value',
+// Expected answer type option values (keys of LLM_JUDGE_TEMPLATES). The
+// displayed labels are localized, so tests assert on the values.
+const EXPECTED_ANSWER_TYPE_VALUES = [
+  'text',
+  'short_text',
+  'long_text',
+  'choices',
+  'single_choice',
+  'binary',
+  'multiple_choice',
+  'span_selection',
+  'rating',
+  'numeric',
 ]
 
 // Expected criteria for each type (must match getDimensionDisplayName output)
@@ -79,24 +80,20 @@ test.describe('LLM Judge Answer Type Detection', () => {
     await evalHelpers.navigateToParametersStep()
 
     // Get all options from Answer Type dropdown
-    const options = await evalHelpers.getAnswerTypeOptions()
+    const options = await evalHelpers.getAnswerTypeOptionEntries()
     console.log('Found answer type options:', options)
 
     // Verify we have at least 10 options (the main types)
     expect(options.length).toBeGreaterThanOrEqual(10)
 
-    // Check for key options
-    const hasText = options.some((o) => o.includes('Text'))
-    const hasNER = options.some(
-      (o) => o.includes('NER') || o.includes('Entity'),
-    )
-    const hasChoices = options.some(
-      (o) => o.includes('Choice') || o.includes('Classification'),
-    )
-
-    expect(hasText).toBe(true)
-    expect(hasNER).toBe(true)
-    expect(hasChoices).toBe(true)
+    // Every template key is offered, and every option has a visible label
+    const values = options.map((o) => o.value)
+    for (const expected of EXPECTED_ANSWER_TYPE_VALUES) {
+      expect(values).toContain(expected)
+    }
+    for (const option of options) {
+      expect(option.label.length).toBeGreaterThan(0)
+    }
 
     console.log(`Verified ${options.length} answer type options`)
 
@@ -187,25 +184,25 @@ test.describe('LLM Judge Answer Type Detection', () => {
     await evalHelpers.navigateToParametersStep()
 
     // Get current answer type
-    const initialValue = await evalHelpers.getSelectedAnswerType()
+    const initialValue = await evalHelpers.getSelectedAnswerTypeValue()
     console.log('Initial answer type:', initialValue)
 
     // Change to a different type
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(500)
 
-    const newValue = await evalHelpers.getSelectedAnswerType()
+    const newValue = await evalHelpers.getSelectedAnswerTypeValue()
     console.log('New answer type:', newValue)
 
-    // Verify it changed (button shows display name, not value key)
-    expect(newValue).toMatch(/Named Entity|NER|Span/i)
+    // Verify it changed (the trigger carries the value key as data-value)
+    expect(newValue).toBe('span_selection')
 
     // Change again to verify flexibility
     await evalHelpers.selectAnswerType('text')
     await page.waitForTimeout(500)
 
-    const finalValue = await evalHelpers.getSelectedAnswerType()
-    expect(finalValue).toMatch(/Free.form|Freitext/i)
+    const finalValue = await evalHelpers.getSelectedAnswerTypeValue()
+    expect(finalValue).toBe('text')
 
     console.log('Successfully overrode answer type multiple times')
 
@@ -225,14 +222,18 @@ test.describe('LLM Judge Answer Type Detection', () => {
     await page.waitForTimeout(500)
     const textValue = await evalHelpers.getSelectedAnswerType()
     console.log('Text type selected:', textValue)
+    expect(await evalHelpers.getSelectedAnswerTypeValue()).toBe('text')
 
     // Change to span_selection
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(500)
     const spanValue = await evalHelpers.getSelectedAnswerType()
     console.log('Span type selected:', spanValue)
+    expect(await evalHelpers.getSelectedAnswerTypeValue()).toBe(
+      'span_selection',
+    )
 
-    // Verify the displayed type actually changed
+    // Verify the displayed label actually changed
     expect(textValue).not.toBe(spanValue)
     console.log(`Template updated: "${textValue}" → "${spanValue}"`)
 

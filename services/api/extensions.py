@@ -19,6 +19,14 @@ What an API-side package may provide (all optional):
   for the public ``/api/v1`` surface (collected by :func:`get_api_scopes_all`
   and :func:`get_v1_routers_all`).
 
+Runtime switch (core 2.42): every loaded package gets a master feature flag
+``extension.<EXTENSION_ID>`` (default: the optional package attribute
+``DEFAULT_RUNTIME_STATE``, else ``everyone`` for benger_extended and ``off``
+for the others). Hooks run per their class in :data:`HOOK_GATING`, package
+routers answer 404 ``feature_disabled`` while the package is inactive for
+the caller, except the ``(METHOD, path template)`` pairs in the optional
+package attribute ``UNGATED_ROUTES`` (see ``extension_activation``).
+
 ``_extended`` stays the alias of the loaded ``benger_extended`` module
 (``None`` when it is not loaded); tests monkeypatch it with stand-ins.
 """
@@ -28,6 +36,7 @@ import inspect
 import logging
 import os
 
+import extension_activation as activation
 import extension_registry as registry
 from core_version import CORE_API_VERSION, extended_required  # noqa: F401  (re-exported)
 
@@ -80,6 +89,45 @@ HOOK_SPECS = {
     "external_run_policy": SINGLE_OWNER,
 }
 
+# --------------------------------------------------------------------------- #
+# Hook gating classes (core 2.42). Every key in HOOK_SPECS has one; the check
+# runs at import time (:func:`_validate_hook_gating`). See extension_activation:
+# ALWAYS runs whenever the package is loaded (privacy, billing, LMS grade
+# sync, monitoring, exam timer integrity), POLICY_GLOBAL while its master flag
+# is not ``off``,
+# GATED only when the package is active for the caller of the current
+# request/task context. Moving a privacy or billing hook to GATED needs a
+# test change (tests/unit/test_extension_runtime_gating.py pins the map).
+# --------------------------------------------------------------------------- #
+HOOK_GATING = {
+    # Timer integrity: these close the open exam timer session on submit and
+    # mirror drafts into it. The auto-submit task keeps running while the
+    # package is off, so skipping them could hand in a stale draft over the
+    # real submission.
+    "on_annotation_created": activation.ALWAYS,
+    "on_draft_saved": activation.ALWAYS,
+    "after_eval_config_save": activation.ALWAYS,
+    "validate_signup": activation.POLICY_GLOBAL,
+    "after_user_signup": activation.POLICY_GLOBAL,
+    "after_user_login": activation.GATED,
+    "on_ops_event": activation.ALWAYS,
+    "tasks_with_feedback_for_user": activation.GATED,
+    "tasks_with_evaluation_for_user": activation.GATED,
+    "privacy_protected_member_ids": activation.ALWAYS,
+    "lti_protected_org_ids": activation.ALWAYS,
+    "task_grade_summaries_for_user": activation.GATED,
+    "dispatch_lti_grade_sync": activation.ALWAYS,
+    "resend_all_lti_grades": activation.ALWAYS,
+    "project_real_name_viewer": activation.ALWAYS,
+    "project_real_name_user_ids": activation.ALWAYS,
+    "projects_real_name_user_ids": activation.ALWAYS,
+    "lti_anonymization_policy": activation.ALWAYS,
+    "public_api_enabled": activation.ALWAYS,
+    "on_submission_finalized": activation.GATED,
+    "assessment_transition": activation.GATED,
+    "external_run_policy": activation.GATED,
+}
+
 #: Keys in :data:`HOOK_SPECS` without a platform caller yet. An overlay's
 #: handshake test should expect every other key to be implemented.
 PENDING_HOOK_KEYS = frozenset(
@@ -107,7 +155,10 @@ def load_extended():
     than shipping with its features silently missing.
     """
     global _extended
+    from feature_flags import registry as flag_registry
+
     registry.reset()
+    flag_registry.reset_master_flags()
     _extended = None
     loaded = registry.load_all()
     _extended = registry.module("benger_extended")
@@ -115,6 +166,7 @@ def load_extended():
         logger.info("BenGER community edition (no extension package loaded)")
         return False
 
+    _register_master_flags(loaded)
     _register_extension_field_types()
     _validate_hook_ownership()
     _register_extension_scopes()
@@ -125,6 +177,27 @@ def load_extended():
         CORE_API_VERSION,
     )
     return True
+
+
+def _validate_hook_gating():
+    """Every hook key needs a gating class (and only known classes)."""
+    missing = sorted(set(HOOK_SPECS) - set(HOOK_GATING))
+    extra = sorted(set(HOOK_GATING) - set(HOOK_SPECS))
+    bad = sorted(k for k, v in HOOK_GATING.items() if v not in activation.GATING_CLASSES)
+    if missing or extra or bad:
+        raise RuntimeError(
+            f"HOOK_GATING out of sync with HOOK_SPECS: missing {missing}, "
+            f"unknown {extra}, invalid classes {bad}"
+        )
+
+
+_validate_hook_gating()
+
+
+def _register_master_flags(loaded):
+    """Register ``extension.<EXTENSION_ID>`` for every loaded package
+    (``extension_activation.register_master_flags``)."""
+    activation.register_master_flags(loaded)
 
 
 def is_loaded(name):
@@ -157,12 +230,17 @@ def _hook_impls(key):
 
     Each package's ``get_hooks()`` runs on every call (as the single-package
     loader did); an exception from it propagates to the wrapper, whose
-    try/except shell decides what that means for the caller.
+    try/except shell decides what that means for the caller. Packages that
+    are not active for the hook's gating class (:data:`HOOK_GATING`) in the
+    current context are skipped (core 2.42).
     """
+    gating = HOOK_GATING.get(key, activation.GATED)
     impls = []
     for name, package in _packages():
         get_hooks = getattr(package, "get_hooks", None)
         if get_hooks is None:
+            continue
+        if not activation.package_active(name, gating):
             continue
         hook = (get_hooks() or {}).get(key)
         if hook:
@@ -369,6 +447,31 @@ def _check_route_prefix(name, short, kwargs, required):
     return False
 
 
+def ungated_routes(package):
+    """The package's ``UNGATED_ROUTES`` as ``{(METHOD, path template)}``."""
+    out = set()
+    for entry in getattr(package, "UNGATED_ROUTES", None) or ():
+        method, path = entry
+        out.add((str(method).upper(), str(path)))
+    return out
+
+
+def _check_ungated_routes(name, ungated, signatures, required):
+    """Every ``UNGATED_ROUTES`` entry must name a route the package mounts:
+    a typo would silently gate a webhook. Unknown entries fail startup for a
+    required package and are logged otherwise."""
+    unknown = sorted(ungated - signatures)
+    if not unknown:
+        return
+    message = (
+        f"Extension package {name} lists UNGATED_ROUTES it does not mount: "
+        f"{unknown[:10]}."
+    )
+    if required:
+        raise RuntimeError(f"{message} Refusing to start.")
+    logger.error(message)
+
+
 def include_extension_routers(app):
     """Mount every loaded package's routers on ``app``.
 
@@ -379,7 +482,17 @@ def include_extension_routers(app):
     ``error`` (the default), else it is logged (FastAPI keeps the first
     route, so the later one would be dead). A path a package shares with the
     platform itself is logged as well.
+
+    Every router gets ``Depends(require_extension_active(package))`` (core
+    2.42): 404 ``feature_disabled`` while the package's master flag is off
+    for the caller, except the routes the package lists in
+    ``UNGATED_ROUTES`` (``(METHOD, full path template)``; webhooks, LMS
+    launches and other routes that authenticate on their own).
     """
+    from fastapi import Depends
+
+    from feature_flags.deps import require_extension_active
+
     policy = (os.getenv(ROUTE_POLICY_ENV) or "error").strip().lower()
     platform_signatures = _route_signatures(getattr(app, "routes", []))
     claimed = {}
@@ -387,6 +500,8 @@ def include_extension_routers(app):
     for name, package in _packages():
         short = registry.short_name(name, package)
         required = registry.is_required(name)
+        ungated = ungated_routes(package)
+        package_signatures = set()
         for router, kwargs in _routers_of(package):
             kwargs = dict(kwargs or {})
             if not _check_route_prefix(name, short, kwargs, required):
@@ -415,8 +530,14 @@ def include_extension_routers(app):
                 logger.warning("%s The earlier package's routes win.", message)
             for sig in signatures:
                 claimed.setdefault(sig, name)
+            package_signatures |= signatures
+            kwargs["dependencies"] = [
+                Depends(require_extension_active(name, ungated)),
+                *(kwargs.get("dependencies") or ()),
+            ]
             app.include_router(router, **kwargs)
             mounted += 1
+        _check_ungated_routes(name, ungated, package_signatures, required)
     if mounted:
         logger.info("Mounted %d extension routers", mounted)
     return mounted
@@ -466,13 +587,27 @@ def _register_extension_scopes():
 
 
 def get_v1_routers_all():
-    """Concatenation of every package's ``get_v1_routers()``, in hook order."""
+    """Concatenation of every package's ``get_v1_routers()``, in hook order.
+
+    Each router's kwargs carry ``Depends(require_extension_active_v1(pkg))``
+    (core 2.42): the package's master flag, evaluated for the access key's
+    organization (org keys) or the caller."""
+    from fastapi import Depends
+
+    from feature_flags.deps import require_extension_active_v1
+
     routers = []
-    for _name, package in _packages():
+    for name, package in _packages():
         getter = getattr(package, "get_v1_routers", None)
         if getter is None:
             continue
-        routers.extend(list(getter() or []))
+        for router, kwargs in list(getter() or []):
+            kwargs = dict(kwargs or {})
+            kwargs["dependencies"] = [
+                Depends(require_extension_active_v1(name)),
+                *(kwargs.get("dependencies") or ()),
+            ]
+            routers.append((router, kwargs))
     return routers
 
 
@@ -938,8 +1073,10 @@ async def public_api_enabled(db, user, *, organization_id=None):
     ``db`` is an ``AsyncSession``; ``user`` may be ``None`` (anonymous) or
     the service account behind an organization key, in which case
     ``organization_id`` names the key's organization. The hook may be sync
-    or async. Without an implementation the ``PUBLIC_API_ENABLED`` setting
-    decides (default off); if the hook fails the feature counts as off.
+    or async and overrides the platform. Without an implementation the
+    platform's ``public_api`` feature flag decides (core 2.42; its default
+    follows ``PUBLIC_API_ENABLED``); if the hook or the evaluation fails the
+    feature counts as off.
     """
     try:
         hook = _single_hook("public_api_enabled")
@@ -951,9 +1088,15 @@ async def public_api_enabled(db, user, *, organization_id=None):
     except Exception:
         logger.exception("public_api_enabled hook failed")
         return False
-    from app.core.config import get_settings
+    try:
+        from feature_flags import service as flag_service
 
-    return bool(get_settings().public_api_enabled)
+        return await flag_service.public_api_enabled(
+            db, user, organization_id=organization_id
+        )
+    except Exception:
+        logger.exception("public_api flag evaluation failed")
+        return False
 
 
 def _protected_org_ids(db):

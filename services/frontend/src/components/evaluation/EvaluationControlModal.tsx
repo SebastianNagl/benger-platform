@@ -15,7 +15,7 @@ import { apiClient } from '@/lib/api/client'
 import { metricDisplayLabel } from '@/lib/evaluation/runDisplay'
 import { Dialog, Transition } from '@headlessui/react'
 import { PlayIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 
 interface EvaluationConfigInput {
   id: string
@@ -133,6 +133,19 @@ export function EvaluationControlModal({
   const [selectedAnnotators, setSelectedAnnotators] = useState<string[]>([])
   const [selectedStructures, setSelectedStructures] = useState<string[]>([])
   const [scopeLoading, setScopeLoading] = useState(false)
+  // The scope request failed (e.g. the API is restarting). The picker then
+  // shows an error with a Retry button instead of "no models / no
+  // annotators", and nothing else is requested until the user retries.
+  const [scopeError, setScopeError] = useState(false)
+  // The scope load of this opening finished successfully. The cost estimate
+  // waits for it: it is priced on the scope, and while the API is down it
+  // would only add failing requests and error toasts.
+  const [scopeSettled, setScopeSettled] = useState(false)
+  // Each load gets a number; a response for an older load (modal closed,
+  // project switched, a newer retry) is dropped.
+  const scopeRequestRef = useRef(0)
+  // A failing scope load is logged once per opening, not once per retry.
+  const scopeErrorLoggedRef = useRef(false)
 
   const allConfigs = evaluationConfigs ?? []
   const enabledConfigs = useMemo(
@@ -191,80 +204,99 @@ export function EvaluationControlModal({
     setSelectedAnnotators([])
     setSelectedStructures([])
 
-    if (!projectId) return
+    setScopeError(false)
+    scopeErrorLoggedRef.current = false
 
-    let cancelled = false
-    setScopeLoading(true)
-    // Wrap in async IIFE so a missing client method (or any other sync
-    // error in the chain) is funneled through the same fallback path as
-    // a network failure — keeps test mocks that only stub runEvaluation
-    // working and degrades gracefully in prod.
-    ;(async () => {
-      try {
-        const rows = await apiClient.evaluations.getEvaluatedModels(
-          projectId,
-          false,
-        )
-        if (cancelled) return
-        const models: ScopeModel[] = []
-        const annotators: ScopeAnnotator[] = []
-        for (const row of rows) {
-          if (row.provider === 'Annotator') {
-            // Skip pre-existing annotator rows that pre-date the user_id
-            // surfacing (issue #69) — without an id we can't dispatch a
-            // scoped run. Backwards-compat: they just won't appear.
-            if (!row.user_id) continue
-            annotators.push({
-              user_id: row.user_id,
-              display_name: row.model_name,
-            })
-          } else {
-            models.push({
-              model_id: row.model_id,
-              model_name: row.model_name,
-              provider: row.provider,
-            })
-          }
-        }
-        setAvailableModels(models)
-        setAvailableAnnotators(annotators)
-        setSelectedModels(models.map((m) => m.model_id))
-        setSelectedAnnotators(annotators.map((a) => a.user_id))
-      } catch (err) {
-        if (cancelled) return
-        console.error('Failed to load evaluated models for scope picker:', err)
-        setAvailableModels([])
-        setAvailableAnnotators([])
-        setSelectedModels([])
-        setSelectedAnnotators([])
-      } finally {
-        if (!cancelled) setScopeLoading(false)
-      }
-      // Prompt-structure scope: fetched separately so a failure here (e.g.
-      // no generation config on the project) degrades to "no structure
-      // section" without touching the model/annotator pickers above.
-      try {
-        const structuresData: Record<string, { name?: string }> | null =
-          await apiClient.get(
-            `/projects/${projectId}/generation-config/structures`,
-          )
-        if (cancelled) return
-        const structures: ScopeStructure[] = Object.entries(
-          structuresData || {},
-        ).map(([key, s]) => ({ key, name: s?.name || key }))
-        setAvailableStructures(structures)
-        setSelectedStructures(structures.map((s) => s.key))
-      } catch {
-        if (cancelled) return
-        setAvailableStructures([])
-        setSelectedStructures([])
-      }
-    })()
+    if (!projectId) return
+    loadScope(projectId)
     return () => {
-      cancelled = true
+      // Invalidate the in-flight load so a late response after closing (or
+      // switching project) does not touch state.
+      scopeRequestRef.current += 1
+      setScopeSettled(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, projectId])
+
+  // Fetch the project's evaluated models/annotators and prompt structures
+  // for the scope picker. Runs once per opening and again only when the user
+  // clicks Retry: a failure never schedules another request by itself.
+  async function loadScope(pid: string) {
+    const request = ++scopeRequestRef.current
+    const stale = () => request !== scopeRequestRef.current
+    setScopeLoading(true)
+    setScopeError(false)
+    setScopeSettled(false)
+    try {
+      // Inside the try so a missing client method (or any other sync error
+      // in the chain) takes the same path as a network failure, which
+      // keeps test mocks that only stub runEvaluation working.
+      const rows = await apiClient.evaluations.getEvaluatedModels(pid, false)
+      if (stale()) return
+      const models: ScopeModel[] = []
+      const annotators: ScopeAnnotator[] = []
+      for (const row of rows) {
+        if (row.provider === 'Annotator') {
+          // Skip pre-existing annotator rows that pre-date the user_id
+          // surfacing (issue #69): without an id we can't dispatch a
+          // scoped run. Backwards-compat: they just won't appear.
+          if (!row.user_id) continue
+          annotators.push({
+            user_id: row.user_id,
+            display_name: row.model_name,
+          })
+        } else {
+          models.push({
+            model_id: row.model_id,
+            model_name: row.model_name,
+            provider: row.provider,
+          })
+        }
+      }
+      setAvailableModels(models)
+      setAvailableAnnotators(annotators)
+      setSelectedModels(models.map((m) => m.model_id))
+      setSelectedAnnotators(annotators.map((a) => a.user_id))
+    } catch (err) {
+      if (stale()) return
+      if (!scopeErrorLoggedRef.current) {
+        scopeErrorLoggedRef.current = true
+        console.error('Failed to load evaluated models for scope picker:', err)
+      }
+      setAvailableModels([])
+      setAvailableAnnotators([])
+      setSelectedModels([])
+      setSelectedAnnotators([])
+      setAvailableStructures([])
+      setSelectedStructures([])
+      setScopeError(true)
+      setScopeLoading(false)
+      // The structures come from the same API: skip them until a retry.
+      return
+    }
+    // Prompt-structure scope: fetched separately so a failure here (e.g.
+    // no generation config on the project) degrades to "no structure
+    // section" without touching the model/annotator pickers above.
+    try {
+      const structuresData: Record<string, { name?: string }> | null =
+        await apiClient.get(`/projects/${pid}/generation-config/structures`)
+      if (stale()) return
+      const structures: ScopeStructure[] = Object.entries(
+        structuresData || {},
+      ).map(([key, s]) => ({ key, name: s?.name || key }))
+      setAvailableStructures(structures)
+      setSelectedStructures(structures.map((s) => s.key))
+    } catch {
+      if (stale()) return
+      setAvailableStructures([])
+      setSelectedStructures([])
+    } finally {
+      if (!stale()) {
+        setScopeLoading(false)
+        setScopeSettled(true)
+      }
+    }
+  }
 
   const toggleMetric = (id: string) =>
     setSelectedMetrics((prev) =>
@@ -749,7 +781,27 @@ export function EvaluationControlModal({
                   {/* C2: empty-state placeholders surface AFTER a fetch
                       settles with no rows, so the user can tell apart
                       "loading" from "project genuinely has none". */}
+                  {scopeError && !scopeLoading && projectId && (
+                    <Alert variant="error" className="p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p
+                          role="alert"
+                          className="text-sm text-red-700 dark:text-red-300"
+                        >
+                          {t('evaluation.controlModal.scopeLoadFailed')}
+                        </p>
+                        <Button
+                          variant="outline"
+                          onClick={() => loadScope(projectId)}
+                          data-testid="scope-retry"
+                        >
+                          {t('evaluation.controlModal.scopeRetry')}
+                        </Button>
+                      </div>
+                    </Alert>
+                  )}
                   {!scopeLoading &&
+                    !scopeError &&
                     projectId &&
                     availableModels.length === 0 && (
                       <div className={R.emptyState}>
@@ -757,6 +809,7 @@ export function EvaluationControlModal({
                       </div>
                     )}
                   {!scopeLoading &&
+                    !scopeError &&
                     projectId &&
                     availableAnnotators.length === 0 && (
                       <div className={R.emptyState}>
@@ -793,7 +846,7 @@ export function EvaluationControlModal({
                       mode="evaluation"
                       judgeModels={judgeModelIds}
                       runsPerCall={costRunsPerCall}
-                      enabled={isOpen}
+                      enabled={isOpen && scopeSettled}
                       modelIds={
                         availableModels.length > 0 ? selectedModels : undefined
                       }

@@ -505,7 +505,19 @@ class TestPackageSurfaces:
             scopes = extensions.get_api_scopes_all()
         assert scopes == {"a:read": {"description": "a"}, "c:read": {"description": "c"}}
         assert "a:read" in caplog.text
-        assert extensions.get_v1_routers_all() == [("r1", {}), ("r2", {"prefix": "/x"})]
+        collected = extensions.get_v1_routers_all()
+        # Core 2.42: each overlay v1 router also carries the package's
+        # runtime gate (require_extension_active_v1).
+        assert [
+            (router, {k: v for k, v in kwargs.items() if k != "dependencies"})
+            for router, kwargs in collected
+        ] == [("r1", {}), ("r2", {"prefix": "/x"})]
+        assert [
+            kwargs["dependencies"][0].dependency.__name__ for _router, kwargs in collected
+        ] == [
+            "require_extension_active_v1_benger_extended",
+            "require_extension_active_v1_benger_comp",
+        ]
 
     def test_community_edition_has_no_scopes_or_v1_routers(self):
         assert extensions.get_api_scopes_all() == {}

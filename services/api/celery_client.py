@@ -41,6 +41,13 @@ def _create_celery_app() -> Celery:
     # queue= at all).
     app.conf.task_routes = (celery_queues.route_task,)
     app.conf.task_queues = celery_queues.celery_queue_defs()
+    # Every published task carries the extension activation context
+    # (header ``benger_ext_ctx``: the request's user and the task's
+    # project_id kwarg), so the worker evaluates master flags for the same
+    # caller (core 2.42).
+    import extension_activation
+
+    extension_activation.install_publish_signal()
     return app
 
 
@@ -58,7 +65,10 @@ def send_task_safe(task_name: str, **kwargs):
     """Send a Celery task with automatic reconnection on failure.
 
     If send_task fails (e.g. dead Redis connection), recreates the Celery
-    app and retries once.
+    app and retries once. The ``benger_ext_ctx`` header (user of the current
+    request, ``project_id`` from the task kwargs) is added by the publish
+    signal installed in :func:`_create_celery_app`, so it also reaches tasks
+    sent through ``get_celery_app().send_task`` directly.
     """
     global _celery_app
     app = get_celery_app()

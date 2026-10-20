@@ -16,6 +16,8 @@ unchanged.
 """
 from typing import Any, Dict, List, Optional  # noqa: F401  (used by the bodies)
 
+from evaluation.inline_judges import inline_judge_row, resolve_inline_judge
+
 
 def _resolve_task_rubric(db, task, metric_parameters):
     """Resolve the Bewertungsbogen row for an ``llm_judge_rubric`` cell.
@@ -614,12 +616,39 @@ def evaluate_generation_cell_impl(
                                 if task_rubric is not None:
                                     jr_evaluator.bind_task_rubric(task_rubric)
 
+                                inline_judge = resolve_inline_judge(metric)
+                                if inline_judge is not None:
+                                    per_judge_results.append(inline_judge_row(
+                                        inline_judge,
+                                        evaluator=jr_evaluator,
+                                        task_data=task.data,
+                                        prediction=prediction,
+                                        metric_params=config.get("metric_parameters"),
+                                        row={
+                                            "id": str(_gen_uuid.uuid4()),
+                                            "evaluation_id": evaluation_id,
+                                            "judge_run_id": jr_id,
+                                            "task_id": task.id,
+                                            "generation_id": gen.id,
+                                            "annotation_id": None,
+                                            "field_name": field_key,
+                                            "evaluation_config_id": config_id,
+                                            "answer_type": "text",
+                                            "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                            "prediction": str(prediction)[:1000] if prediction else "",
+                                        },
+                                    ))
+                                    continue
+
                                 multidim_mode = (
                                     metric != "llm_judge_falloesung"
                                     and jr_evaluator.is_multidim_mode()
                                 )
 
                                 if metric == "llm_judge_falloesung":
+                                    import extension_activation
+
+                                    extension_activation.ensure_active("benger_extended")
                                     try:
                                         from benger_extended.workers import (
                                             get_falloesung_bulk_compute_fn,
@@ -1239,12 +1268,39 @@ def evaluate_annotation_cell_impl(
                                     if task_rubric is not None:
                                         jr_evaluator.bind_task_rubric(task_rubric)
 
+                                    inline_judge = resolve_inline_judge(metric)
+                                    if inline_judge is not None:
+                                        per_judge_results.append(inline_judge_row(
+                                            inline_judge,
+                                            evaluator=jr_evaluator,
+                                            task_data=task.data,
+                                            prediction=prediction,
+                                            metric_params=config.get("metric_parameters"),
+                                            row={
+                                                "id": str(_ann_uuid.uuid4()),
+                                                "evaluation_id": evaluation_id,
+                                                "judge_run_id": jr_id,
+                                                "task_id": task.id,
+                                                "generation_id": None,
+                                                "annotation_id": annotation.id,
+                                                "field_name": field_key,
+                                                "evaluation_config_id": config_id,
+                                                "answer_type": "text",
+                                                "ground_truth": str(ground_truth)[:1000] if ground_truth else "",
+                                                "prediction": str(prediction)[:1000] if prediction else "",
+                                            },
+                                        ))
+                                        continue
+
                                     multidim_mode = (
                                         metric != "llm_judge_falloesung"
                                         and jr_evaluator.is_multidim_mode()
                                     )
 
                                     if metric == "llm_judge_falloesung":
+                                        import extension_activation
+
+                                        extension_activation.ensure_active("benger_extended")
                                         try:
                                             from benger_extended.workers import (
                                                 get_falloesung_bulk_compute_fn,

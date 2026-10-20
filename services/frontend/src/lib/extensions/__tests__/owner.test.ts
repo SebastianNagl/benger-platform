@@ -8,6 +8,7 @@
 
 import { registerMetric } from '@/lib/api/evaluation-types'
 import { getComponent, registerComponent } from '@/lib/labelConfig/registry'
+import { _resetActiveExtensionsForTests, setActiveExtensions } from '../active'
 import { getMetricEditor, registerMetricEditor } from '../metricEditors'
 import {
   PLATFORM_OWNER,
@@ -30,11 +31,13 @@ let warn: jest.SpyInstance
 
 beforeEach(() => {
   setRegistrationOwner(null)
+  setActiveExtensions(['extended', 'compliance'])
   warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
 })
 
 afterEach(() => {
   setRegistrationOwner(null)
+  _resetActiveExtensionsForTests()
   warn.mockRestore()
 })
 

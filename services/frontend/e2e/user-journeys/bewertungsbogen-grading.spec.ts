@@ -240,9 +240,19 @@ async function chooseMetricExpectingAnswerFields(
     `[data-testid="wizard-metric-config-${metric}-0"]`,
   )
   await expect(config).toBeVisible()
+  // Assert on the selected values (data-value on the trigger); the "(data)"
+  // suffix of a data column is localized ("Daten" in de, "données" in fr).
   const fieldSelects = config.getByRole('button')
+  await expect(fieldSelects.nth(0)).toHaveAttribute(
+    'data-value',
+    'human:loesung',
+  )
   await expect(fieldSelects.nth(0)).toHaveText('loesung (Loesung)')
-  await expect(fieldSelects.nth(1)).toHaveText('musterloesung (data)')
+  await expect(fieldSelects.nth(1)).toHaveAttribute(
+    'data-value',
+    'musterloesung',
+  )
+  await expect(fieldSelects.nth(1)).toHaveText(/^musterloesung \(.+\)$/)
 }
 
 /**

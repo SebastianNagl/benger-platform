@@ -49,3 +49,57 @@ export function recordRegistration(
   }
   owners.set(key, owner)
 }
+
+/** Owner label of a registration made right now (platform when no overlay loads). */
+export function currentOwnerLabel(): string {
+  return currentOwner ?? PLATFORM_OWNER
+}
+
+/** One registration of a key, with the owner that made it. */
+export interface OwnedRegistration<T> {
+  owner: string
+  value: T
+}
+
+/**
+ * Per-key registration stacks of one registry, oldest first. Every owner
+ * keeps at most one entry per key: a repeated registration by the same owner
+ * replaces its value in place, a registration by another owner goes on top.
+ * Which entry counts is decided at read time (`resolveRegistration`), so an
+ * overlay switched off at runtime falls back to the registration below it.
+ */
+export type RegistrationStacks<T> = Map<string, OwnedRegistration<T>[]>
+
+/** Push `value` for `key` under the current owner (see RegistrationStacks). */
+export function pushRegistration<T>(
+  stacks: RegistrationStacks<T>,
+  key: string,
+  value: T,
+): void {
+  const owner = currentOwnerLabel()
+  const stack = stacks.get(key) ?? []
+  const own = stack.find((entry) => entry.owner === owner)
+  if (own) {
+    own.value = value
+  } else {
+    stack.push({ owner, value })
+  }
+  stacks.set(key, stack)
+}
+
+/**
+ * The newest registration of `key` whose owner `isActive` accepts, or
+ * undefined. Registries pass `isOwnerActive` from ./active.
+ */
+export function resolveRegistration<T>(
+  stacks: RegistrationStacks<T>,
+  key: string,
+  isActive: (owner: string) => boolean,
+): T | undefined {
+  const stack = stacks.get(key)
+  if (!stack) return undefined
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (isActive(stack[i].owner)) return stack[i].value
+  }
+  return undefined
+}

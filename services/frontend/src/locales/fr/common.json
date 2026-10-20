@@ -4109,7 +4109,6 @@
     "userManagement": "Gestion des utilisateurs",
     "defaultConfiguration": "Configuration par défaut",
     "featureFlags": "Feature flags",
-    "featureFlagsNotAvailable": "Les feature flags ne sont pas disponibles dans cette édition.",
     "orgManagement": "Gestion des organisations",
     "createOrg": "Créer une organisation",
     "inviteUser": "Inviter un utilisateur",
@@ -4542,7 +4541,17 @@
         "added_to_group": "ajouté au groupe",
         "already_in_group": "fait déjà partie du groupe"
       },
-      "accessKeys": "Accès API"
+      "accessKeys": "Accès API",
+      "jurisdiction": {
+        "label": "Système juridique",
+        "help": "Détermine les types de projet propres à un pays que l'assistant de création propose (par ex. les exercices juridiques français).",
+        "saved": "Système juridique enregistré",
+        "failed": "Le système juridique n'a pas pu être enregistré",
+        "options": {
+          "DE": "Allemagne",
+          "FR": "France"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {
@@ -4634,6 +4643,41 @@
     },
     "lti": {
       "extendedRequired": "L'administration LTI nécessite l'édition Extended."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature flags",
+      "intro": "Chaque modification s'applique immédiatement. « Liste d'autorisation » n'active une fonction que pour les personnes inscrites et pour les membres des organisations inscrites ; les superadministrateurs ne sont pas inclus automatiquement. Un interrupteur de paquet (extension.…) active ou désactive tout un paquet d'extension, sans nouveau déploiement.",
+      "loadFailed": "Impossible de charger les feature flags.",
+      "saveFailed": "L'enregistrement a échoué.",
+      "stateSaved": "{flag} : {state}",
+      "targetAdded": "{target} ajouté",
+      "targetRemoved": "{target} retiré",
+      "deleted": "{flag} supprimé",
+      "default": "Par défaut : {state}",
+      "updatedAt": "Dernière modification : {date}",
+      "allowlistEmpty": "La liste est vide, la fonction n'est donc activée pour personne.",
+      "kindUser": "Utilisateur",
+      "kindOrg": "Organisation",
+      "addUser": "Ajouter un utilisateur",
+      "userSearch": "Nom, e-mail ou pseudonyme",
+      "addOrg": "Ajouter une organisation",
+      "pickOrg": "Choisissez une organisation",
+      "groupPlatform": "Plateforme",
+      "groupPackage": "Paquet d'extension « {owner} »",
+      "groupUnregistered": "Non enregistrés",
+      "masterBadge": "Interrupteur de paquet",
+      "unregistered": "Non enregistré",
+      "unregisteredHint": "Aucun paquet chargé n'enregistre plus ce flag. Le réglage stocké n'a aucun effet ; vous pouvez le supprimer.",
+      "deleteTitle": "Supprimer {flag} ?",
+      "deleteMessage": "Le réglage stocké et sa liste d'autorisation sont supprimés. Si un paquet enregistre de nouveau ce flag plus tard, il repart de sa valeur par défaut.",
+      "masterOffTitle": "Désactiver le paquet « {owner} » ?",
+      "masterOffMessage": "Toutes les fonctions de ce paquet disparaissent immédiatement pour toutes les personnes qu'il atteint actuellement. Les données enregistrées sont conservées et restent affichées. Les examens en cours gardent leur limite de temps : ils sont toujours remis automatiquement à la fin du temps imparti.",
+      "masterOffConfirm": "Désactiver",
+      "state": {
+        "off": "Désactivé",
+        "everyone": "Tout le monde",
+        "allowlist": "Liste d'autorisation"
+      }
     }
   },
   "taskCreate": {
@@ -5469,6 +5513,8 @@
       "modelsOnlyHint": "Sans annotateur sélectionné, seules les réponses des modèles sont notées.",
       "answersOnlyHint": "Sans modèle sélectionné, seules les réponses soumises sont notées.",
       "scopeLoading": "Chargement des modèles et annotateurs disponibles…",
+      "scopeLoadFailed": "Impossible de charger les modèles et les annotateurs. Le serveur redémarre peut-être.",
+      "scopeRetry": "Réessayer",
       "noEvaluatedModels": "Aucun modèle évalué dans ce projet pour l'instant",
       "noAnnotators": "Aucun annotateur dans ce projet pour l'instant",
       "runDisabledNoStructures": "Sélectionner au moins une structure de prompt",
@@ -9151,6 +9197,7 @@
       "basisRenderedJudgePrompt": "L'entrée est le prompt complet du juge : gabarit, énoncé des faits, référence, grille d'évaluation et une réponse exemple, plus le prompt système et le schéma de réponse.",
       "outputJudge": "La sortie est estimée à {percent} % de max_tokens, car les juges ne renvoient que des points et une courte justification.",
       "outputJudgeSteps": "La sortie croît avec la grille d'évaluation : pour chaque étape notée, des points, une justification et une citation, plus une appréciation globale. Les tokens de raisonnement ne sont pas inclus.",
+      "outputJudgeProfile": "Le prompt et la longueur de réponse attendue de ce juge sont fournis par le module qui le propose (par ex. un retour écrit). Les tokens de raisonnement ne sont pas inclus.",
       "outputGeneration": "La sortie est estimée à 90 % de max_tokens pour les modèles de raisonnement, 60 % sinon.",
       "encoding": "Tokens comptés avec {encoding} ; pour les modèles d'autres fournisseurs, il s'agit d'une approximation.",
       "countingMissing": "Seules les cellules qui seraient effectivement exécutées sont comptées.",
@@ -9177,27 +9224,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "L'enregistrement a échoué.",
-      "stateSaved": "{flag} : {state}",
-      "targetAdded": "{target} autorisé",
-      "targetRemoved": "{target} retiré",
-      "intro": "Chaque modification s'applique immédiatement, sur benger et sur vertretbar. « Liste d'autorisation » n'active la fonction que pour les utilisateurs inscrits et pour les membres des organisations inscrites. Les superadministrateurs ne sont pas autorisés automatiquement.",
-      "loadFailed": "Impossible de charger les feature flags.",
-      "default": "Par défaut : {state}",
-      "allowlistEmpty": "La liste est vide, la fonction n'est donc activée pour personne.",
-      "kindUser": "Utilisateur",
-      "kindOrg": "Organisation",
-      "addUser": "Ajouter un utilisateur",
-      "userSearch": "Nom, e-mail ou pseudonyme",
-      "addOrg": "Ajouter une organisation",
-      "pickOrg": "Choisir une organisation",
-      "menu": "Feature flags",
-      "state": {
-        "off": "Désactivé",
-        "everyone": "Tous",
-        "allowlist": "Liste d'autorisation"
-      },
-      "title": "Feature flags",
       "rubricAiDisabled": "L'aide IA pour les grilles d'évaluation est actuellement indisponible."
     },
     "lti": {

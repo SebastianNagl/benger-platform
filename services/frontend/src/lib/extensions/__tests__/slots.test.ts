@@ -1,3 +1,4 @@
+import { _resetActiveExtensionsForTests, setActiveExtensions } from '../active'
 import { setRegistrationOwner } from '../owner'
 import { getSlot, hasSlot, registerSlot } from '../slots'
 
@@ -28,11 +29,13 @@ describe('Extension Slots owner attribution', () => {
 
   beforeEach(() => {
     setRegistrationOwner(null)
+    setActiveExtensions(['extended', 'compliance'])
     warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
   })
 
   afterEach(() => {
     setRegistrationOwner(null)
+    _resetActiveExtensionsForTests()
     warn.mockRestore()
   })
 

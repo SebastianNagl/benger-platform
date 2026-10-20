@@ -4109,7 +4109,6 @@
     "userManagement": "Benutzerverwaltung",
     "defaultConfiguration": "Standard-Konfiguration",
     "featureFlags": "Feature Flags",
-    "featureFlagsNotAvailable": "Feature-Flags sind in dieser Edition nicht verfügbar.",
     "orgManagement": "Organisationsverwaltung",
     "createOrg": "Organisation erstellen",
     "inviteUser": "Benutzer einladen",
@@ -4542,7 +4541,17 @@
         "added_to_group": "zur Gruppe hinzugefügt",
         "already_in_group": "bereits in der Gruppe"
       },
-      "accessKeys": "API-Zugänge"
+      "accessKeys": "API-Zugänge",
+      "jurisdiction": {
+        "label": "Rechtsordnung",
+        "help": "Bestimmt, welche landesspezifischen Projekttypen der Projekt-Assistent anbietet (z. B. französische Klausurtypen).",
+        "saved": "Rechtsordnung gespeichert",
+        "failed": "Die Rechtsordnung konnte nicht gespeichert werden",
+        "options": {
+          "DE": "Deutschland",
+          "FR": "Frankreich"
+        }
+      }
     },
     "usersPage": {
       "breadcrumb": {
@@ -4634,6 +4643,41 @@
     },
     "lti": {
       "extendedRequired": "Die LTI-Verwaltung erfordert die Extended Edition."
+    },
+    "featureFlagsConsole": {
+      "menu": "Feature Flags",
+      "intro": "Jede Änderung gilt sofort. „Freigabeliste“ schaltet etwas nur für die eingetragenen Personen und für Mitglieder der eingetragenen Organisationen ein; Superadmins sind nicht automatisch dabei. Ein Paketschalter (extension.…) schaltet ein ganzes Erweiterungspaket ein oder aus, ohne neues Deployment.",
+      "loadFailed": "Die Feature-Flags konnten nicht geladen werden.",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "stateSaved": "{flag}: {state}",
+      "targetAdded": "{target} hinzugefügt",
+      "targetRemoved": "{target} entfernt",
+      "deleted": "{flag} gelöscht",
+      "default": "Standard: {state}",
+      "updatedAt": "Zuletzt geändert: {date}",
+      "allowlistEmpty": "Die Liste ist leer, also ist es für niemanden eingeschaltet.",
+      "kindUser": "Person",
+      "kindOrg": "Organisation",
+      "addUser": "Person hinzufügen",
+      "userSearch": "Name, E-Mail oder Pseudonym",
+      "addOrg": "Organisation hinzufügen",
+      "pickOrg": "Organisation wählen",
+      "groupPlatform": "Plattform",
+      "groupPackage": "Erweiterungspaket „{owner}“",
+      "groupUnregistered": "Nicht registriert",
+      "masterBadge": "Paketschalter",
+      "unregistered": "Nicht registriert",
+      "unregisteredHint": "Kein geladenes Paket registriert dieses Flag mehr. Die gespeicherte Einstellung wirkt nicht; du kannst sie löschen.",
+      "deleteTitle": "{flag} löschen?",
+      "deleteMessage": "Die gespeicherte Einstellung und ihre Freigabeliste werden gelöscht. Registriert ein Paket das Flag später wieder, startet es mit seinem Standard.",
+      "masterOffTitle": "Paket „{owner}“ ausschalten?",
+      "masterOffMessage": "Damit verschwinden alle Funktionen dieses Pakets sofort für alle, die es gerade erreicht. Gespeicherte Daten bleiben erhalten und werden weiter angezeigt. Laufende Klausuren behalten ihre Zeitbegrenzung: Sie werden bei Ablauf der Zeit weiterhin automatisch abgegeben.",
+      "masterOffConfirm": "Ausschalten",
+      "state": {
+        "off": "Aus",
+        "everyone": "Alle",
+        "allowlist": "Freigabeliste"
+      }
     }
   },
   "taskCreate": {
@@ -5469,6 +5513,8 @@
       "modelsOnlyHint": "Ohne Annotator:in werden nur Modellantworten bewertet.",
       "answersOnlyHint": "Ohne Modell werden nur eingereichte Antworten bewertet.",
       "scopeLoading": "Lade verfügbare Modelle und Annotator:innen…",
+      "scopeLoadFailed": "Modelle und Annotator:innen konnten nicht geladen werden. Der Server startet möglicherweise neu.",
+      "scopeRetry": "Erneut versuchen",
       "noEvaluatedModels": "Keine bewerteten Modelle in diesem Projekt",
       "noAnnotators": "Keine Annotator:innen in diesem Projekt",
       "runDisabledNoStructures": "Mindestens eine Prompt-Struktur auswählen",
@@ -9151,6 +9197,7 @@
       "basisRenderedJudgePrompt": "Der Input ist der vollständige Judge-Prompt: Vorlage, Sachverhalt, Referenz, Bewertungsbogen und eine Beispielantwort, dazu Systemprompt und Antwortschema.",
       "outputJudge": "Als Output werden {percent} % von max_tokens angenommen, weil Judges nur Punkte und eine kurze Begründung ausgeben.",
       "outputJudgeSteps": "Der Output wächst mit dem Bewertungsbogen: je bewertetem Schritt Punkte, Begründung und Beleg, dazu eine Gesamtwürdigung. Reasoning-Tokens sind nicht eingerechnet.",
+      "outputJudgeProfile": "Prompt und erwartete Antwortlänge dieses Judges liefert das Paket, das ihn bereitstellt (z. B. schriftliches Feedback). Reasoning-Tokens sind nicht eingerechnet.",
       "outputGeneration": "Als Output werden bei Reasoning-Modellen 90 % von max_tokens angenommen, sonst 60 %.",
       "encoding": "Tokens gezählt mit {encoding}; für Modelle anderer Anbieter ist das eine Näherung.",
       "countingMissing": "Gezählt werden nur Zellen, die tatsächlich ausgeführt würden.",
@@ -9177,27 +9224,6 @@
   },
   "extended": {
     "featureFlags": {
-      "saveFailed": "Speichern fehlgeschlagen.",
-      "stateSaved": "{flag}: {state}",
-      "targetAdded": "{target} freigegeben",
-      "targetRemoved": "{target} entfernt",
-      "intro": "Jede Änderung gilt sofort, auf benger und vertretbar. \"Freigabeliste\" schaltet die Funktion nur für die eingetragenen Nutzer und für Mitglieder der eingetragenen Organisationen frei. Superadmins sind nicht automatisch freigeschaltet.",
-      "loadFailed": "Feature-Flags konnten nicht geladen werden.",
-      "default": "Standard: {state}",
-      "allowlistEmpty": "Die Liste ist leer, die Funktion ist damit für niemanden frei.",
-      "kindUser": "Nutzer",
-      "kindOrg": "Organisation",
-      "addUser": "Nutzer hinzufügen",
-      "userSearch": "Name, E-Mail oder Pseudonym",
-      "addOrg": "Organisation hinzufügen",
-      "pickOrg": "Organisation wählen",
-      "menu": "Feature Flags",
-      "state": {
-        "off": "Aus",
-        "everyone": "Alle",
-        "allowlist": "Freigabeliste"
-      },
-      "title": "Feature Flags",
       "rubricAiDisabled": "Die KI-Hilfe für Bewertungsbögen ist derzeit nicht verfügbar."
     },
     "lti": {

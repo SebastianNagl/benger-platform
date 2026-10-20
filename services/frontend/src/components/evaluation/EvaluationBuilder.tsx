@@ -782,7 +782,7 @@ export function EvaluationBuilder({
                       return nameKey ? t(nameKey) : undefined
                     })()}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="answer-type-select">
                       <SelectValue
                         placeholder={t(
                           'evaluationBuilder.placeholders.answerType',

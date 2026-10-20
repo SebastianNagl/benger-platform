@@ -33,6 +33,13 @@ jest.mock('@/lib/utils/subdomain', () => ({
   isStudentLockedHost: () => mockLockedHost,
 }))
 
+// Runtime master flag extension.extended: on, and known (lib/featureFlags).
+let mockExtensionsReady = true
+jest.mock('@/lib/featureFlags', () => ({
+  useExtensionActive: (id: string) => id === 'extended',
+  useActiveExtensionsReady: () => mockExtensionsReady,
+}))
+
 import { StudentModeRedirect } from '../StudentModeRedirect'
 
 registerSlot('StudentShell', () => null)
@@ -54,6 +61,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   process.env[EDITION_KEY] = 'extended'
   mockLockedHost = false
+  mockExtensionsReady = true
   mockAuth = { user: null, isLoading: false }
   useUIStore.setState({ uiMode: null, isHydrated: true })
   visit('/')
@@ -83,6 +91,14 @@ describe('StudentModeRedirect', () => {
     })
 
     it('leaves logged-out visitors alone', () => {
+      visit('/student/exams/p1')
+      render(<StudentModeRedirect />)
+      expect(mockReplace).not.toHaveBeenCalled()
+    })
+
+    it('waits until the runtime extension switch is known', () => {
+      signIn('expert')
+      mockExtensionsReady = false
       visit('/student/exams/p1')
       render(<StudentModeRedirect />)
       expect(mockReplace).not.toHaveBeenCalled()

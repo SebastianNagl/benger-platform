@@ -3,6 +3,7 @@
 import { useAuth } from '@/contexts/AuthContext'
 import { isExtensionEnabled } from '@/lib/extensions/enabled'
 import { hasSlot, useSlot } from '@/lib/extensions/slots'
+import { useExtensionActive } from '@/lib/featureFlags'
 import { isStudentLockedHost } from '@/lib/utils/subdomain'
 import { useUIStore } from '@/stores'
 
@@ -24,13 +25,25 @@ export function isExtendedEdition(): boolean {
 }
 
 /**
+ * Whether the extended overlay is built in AND active for the current viewer
+ * (platform master flag `extension.extended`, decided at runtime; see
+ * lib/featureFlags and lib/extensions/active.ts). User-facing gates use this;
+ * the build check stays the precondition.
+ */
+export function useExtendedActive(): boolean {
+  const active = useExtensionActive('extended')
+  return isExtendedEdition() && active
+}
+
+/**
  * Resolve the EFFECTIVE UI mode (the single source of truth for which shell
  * renders).
  *
  * Precedence:
  *
- *   1. Community edition (extended overlay not enabled) → 'expert'.
- *      There is no student experience to render.
+ *   1. Community edition (extended overlay not enabled), or the extended
+ *      overlay switched off for this viewer at runtime → 'expert'. There is
+ *      no student experience to render.
  *   2. Extended edition but the StudentShell slot is not registered yet (the
  *      extended package hasn't loaded, or this build doesn't ship it) →
  *      'expert'. Never show a broken/empty student shell.
@@ -57,8 +70,9 @@ export function useResolvedUiMode(): UiMode {
   const studentShell = useSlot('StudentShell')
   const { user } = useAuth()
   const localMode = useUIStore((s) => s.uiMode)
+  const extendedActive = useExtendedActive()
 
-  if (!isExtendedEdition()) return 'expert'
+  if (!extendedActive) return 'expert'
   if (!studentShell && !hasSlot('StudentShell')) return 'expert'
 
   const hostDefault: UiMode = isStudentLockedHost() ? 'student' : 'expert'

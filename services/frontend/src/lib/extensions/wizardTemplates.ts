@@ -6,10 +6,22 @@
  * Stores i18n keys, not resolved strings: extended packages register at module
  * load (outside any React/i18n context), so the wizard resolves `nameKey` /
  * `descriptionKey` through `t()` at composition time.
+ *
+ * Every registration remembers its owner; the getters only return entries
+ * of active owners (see ./active.ts), so an overlay switched off at runtime
+ * drops out of the wizard.
  */
 
 import type { LabelingTemplate } from '@/components/projects/wizard/types'
-import { type RegistrationOwners, recordRegistration } from './owner'
+import { isOwnerActive } from './active'
+import {
+  currentOwnerLabel,
+  pushRegistration,
+  recordRegistration,
+  resolveRegistration,
+  type RegistrationOwners,
+  type RegistrationStacks,
+} from './owner'
 
 export interface RegisteredWizardTemplate extends Omit<
   LabelingTemplate,
@@ -17,17 +29,33 @@ export interface RegisteredWizardTemplate extends Omit<
 > {
   nameKey: string
   descriptionKey: string
+  /**
+   * Offered only to projects created for these jurisdictions ('DE' | 'FR',
+   * see '@/lib/jurisdiction'). Omitted = offered everywhere.
+   */
+  jurisdictions?: string[]
 }
 
-const registry: RegisteredWizardTemplate[] = []
+const registry: { owner: string; template: RegisteredWizardTemplate }[] = []
 
 export function registerWizardTemplate(template: RegisteredWizardTemplate) {
-  if (registry.some((r) => r.id === template.id)) return
-  registry.push(template)
+  const owner = currentOwnerLabel()
+  if (registry.some((r) => r.template.id === template.id && r.owner === owner))
+    return
+  registry.push({ owner, template })
 }
 
+/**
+ * Templates of active owners in registration order. When several owners
+ * register the same id, the newest active one counts (at the position of the
+ * first registration).
+ */
 export function getRegisteredWizardTemplates(): RegisteredWizardTemplate[] {
-  return [...registry]
+  const byId = new Map<string, RegisteredWizardTemplate>()
+  for (const { owner, template } of registry) {
+    if (isOwnerActive(owner)) byId.set(template.id, template)
+  }
+  return [...byId.values()]
 }
 
 /**
@@ -42,14 +70,17 @@ export type WizardPostCreateHook = (ctx: {
   wizardData: Record<string, any>
 }) => Promise<void> | void
 
-const postCreateHooks: WizardPostCreateHook[] = []
+const postCreateHooks: { owner: string; hook: WizardPostCreateHook }[] = []
 
 export function registerWizardPostCreateHook(hook: WizardPostCreateHook) {
-  if (!postCreateHooks.includes(hook)) postCreateHooks.push(hook)
+  if (postCreateHooks.some((h) => h.hook === hook)) return
+  postCreateHooks.push({ owner: currentOwnerLabel(), hook })
 }
 
 export function getWizardPostCreateHooks(): WizardPostCreateHook[] {
-  return [...postCreateHooks]
+  return postCreateHooks
+    .filter((h) => isOwnerActive(h.owner))
+    .map((h) => h.hook)
 }
 
 /** Test helper. */
@@ -64,15 +95,15 @@ export function _resetWizardPostCreateHooks() {
  * exam settings so a wizard-made project works on both the benger and the
  * vertretbar surface without manual setup. The preset receives the wizard
  * state AFTER the template/annotation defaults and returns a partial to
- * merge (nested objects must be returned whole). One preset per kind; the
- * last registration wins and a different owner replacing it logs a warning
- * (see ./owner.ts).
+ * merge (nested objects must be returned whole). Each owner keeps one preset
+ * per kind; the newest one whose owner is active counts, and a different
+ * owner registering a kind logs a warning (see ./owner.ts).
  */
 export type WizardKindPreset = (
   data: Record<string, any>,
 ) => Record<string, any>
 
-const kindPresets: Record<string, WizardKindPreset> = {}
+const kindPresets: RegistrationStacks<WizardKindPreset> = new Map()
 const kindPresetOwners: RegistrationOwners = new Map()
 
 export function registerWizardKindPreset(
@@ -80,17 +111,55 @@ export function registerWizardKindPreset(
   preset: WizardKindPreset,
 ) {
   recordRegistration(kindPresetOwners, 'wizard kind preset', kind)
-  kindPresets[kind] = preset
+  pushRegistration(kindPresets, kind, preset)
 }
 
 export function getWizardKindPreset(
   kind: string,
 ): WizardKindPreset | undefined {
-  return kindPresets[kind]
+  return resolveRegistration(kindPresets, kind, isOwnerActive)
 }
 
 /** Test helper. */
 export function _resetWizardKindPresets() {
-  for (const k of Object.keys(kindPresets)) delete kindPresets[k]
+  kindPresets.clear()
   kindPresetOwners.clear()
+}
+
+/**
+ * Project types — extra options for the wizard's project-type picker next
+ * to the three built-in ones (Generisch / Klausur / Kartenstapel, always
+ * shown). A registered type is a flavour of a base kind: the project is
+ * created with `kind`, the wizard selects `templateId` as the labeling
+ * template, applies the base kind's preset and then the type's own
+ * `preset` (same contract as a kind preset). `jurisdictions` limits the
+ * type to projects created for those jurisdictions, e.g. the French exam
+ * types the extended edition registers for 'FR'. A duplicate `id` is
+ * ignored, like a duplicate template.
+ */
+export interface RegisteredWizardProjectType {
+  id: string
+  kind: 'generic' | 'exam' | 'flashcard_collection'
+  icon: string
+  nameKey: string
+  descriptionKey: string
+  templateId?: string
+  jurisdictions?: string[]
+  preset?: WizardKindPreset
+}
+
+const projectTypes: RegisteredWizardProjectType[] = []
+
+export function registerWizardProjectType(type: RegisteredWizardProjectType) {
+  if (projectTypes.some((r) => r.id === type.id)) return
+  projectTypes.push(type)
+}
+
+export function getRegisteredWizardProjectTypes(): RegisteredWizardProjectType[] {
+  return [...projectTypes]
+}
+
+/** Test helper. */
+export function _resetWizardProjectTypes() {
+  projectTypes.length = 0
 }

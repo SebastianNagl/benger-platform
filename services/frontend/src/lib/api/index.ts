@@ -327,6 +327,10 @@ export class ApiClient {
       this.organizationsClient,
       'updateOrganization',
     )
+    this.updateOrganizationJurisdiction = safeBind(
+      this.organizationsClient,
+      'updateOrganizationJurisdiction',
+    )
     this.deleteOrganization = safeBind(
       this.organizationsClient,
       'deleteOrganization',
@@ -599,6 +603,7 @@ export class ApiClient {
   createOrganization: any
   getOrganization: any
   updateOrganization: any
+  updateOrganizationJurisdiction: any
   deleteOrganization: any
   getOrganizationMembers: any
   updateMemberRole: any

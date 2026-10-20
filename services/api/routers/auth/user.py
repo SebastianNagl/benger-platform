@@ -235,6 +235,8 @@ async def get_user_contexts(
     """
     from sqlalchemy import func
 
+    from org_jurisdiction import org_jurisdiction
+
     from models import (
         Organization,
         OrganizationGroup,
@@ -336,6 +338,8 @@ async def get_user_contexts(
                 "role": user_roles[org.id].value if org.id in user_roles else None,
                 "member_count": member_counts.get(org.id, 0),
                 "groups": groups_by_org.get(org.id, []),
+                # Picks the wizard's jurisdiction-specific project types.
+                "jurisdiction": org_jurisdiction(org.settings),
             }
             for org in organizations
         ]
@@ -386,6 +390,8 @@ async def get_user_contexts(
                 "role": role.value if role else None,
                 "member_count": member_counts.get(org.id, 0),
                 "groups": groups_by_org.get(org.id, []),
+                # Picks the wizard's jurisdiction-specific project types.
+                "jurisdiction": org_jurisdiction(org.settings),
             }
             for org, role in user_orgs_with_roles
         ]

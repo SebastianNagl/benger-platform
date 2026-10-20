@@ -10,11 +10,19 @@
  * A reporter must never throw into the writing page; failures are swallowed
  * by the caller anyway.
  *
- * There is one reporter; the last registration wins and a different owner
- * replacing it logs a warning (see ./owner.ts).
+ * Each owner keeps one registration (null = no reporter); the newest one
+ * whose owner is active counts (see ./active.ts), and a different owner
+ * registering one logs a warning (see ./owner.ts).
  */
 
-import { type RegistrationOwners, recordRegistration } from './owner'
+import { isOwnerActive } from './active'
+import {
+  type RegistrationOwners,
+  type RegistrationStacks,
+  pushRegistration,
+  recordRegistration,
+  resolveRegistration,
+} from './owner'
 
 export type WritingPresenceReporter = (
   projectId: string,
@@ -22,16 +30,17 @@ export type WritingPresenceReporter = (
   visible: boolean,
 ) => void | Promise<void>
 
-let reporter: WritingPresenceReporter | null = null
+const KEY = 'default'
+const reporters: RegistrationStacks<WritingPresenceReporter | null> = new Map()
 const owners: RegistrationOwners = new Map()
 
 export function registerWritingPresenceReporter(
   fn: WritingPresenceReporter | null,
 ) {
-  recordRegistration(owners, 'writing presence reporter', 'default')
-  reporter = fn
+  recordRegistration(owners, 'writing presence reporter', KEY)
+  pushRegistration(reporters, KEY, fn)
 }
 
 export function getWritingPresenceReporter(): WritingPresenceReporter | null {
-  return reporter
+  return resolveRegistration(reporters, KEY, isOwnerActive) ?? null
 }

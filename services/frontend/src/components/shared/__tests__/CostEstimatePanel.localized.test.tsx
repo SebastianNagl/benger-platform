@@ -114,6 +114,25 @@ describe('CostEstimatePanel localized note', () => {
     expect(note).not.toHaveTextContent('von max_tokens')
   })
 
+  it('credits the providing package for a self-sized judge', async () => {
+    mockPost.mockResolvedValue({
+      ...baseEstimate,
+      accuracy_percent: 20,
+      encoding: 'o200k_base',
+      input_basis: 'rendered_judge_prompt',
+      output_utilization_percent: 15,
+      output_basis: 'judge_profile',
+      missing_only: false,
+      per_judge_cells: false,
+    })
+    renderPanel()
+
+    const note = await screen.findByText(/Genauigkeit der Schätzung/)
+    expect(note).toHaveTextContent('liefert das Paket')
+    expect(note).not.toHaveTextContent('von max_tokens')
+    expect(note).not.toHaveTextContent('je bewertetem Schritt')
+  })
+
   it('names the generation basis and utilization for generation estimates', async () => {
     mockPost.mockResolvedValue({
       ...baseEstimate,
@@ -157,6 +176,7 @@ describe('CostEstimatePanel localized note', () => {
       'basisRenderedJudgePrompt',
       'outputJudge',
       'outputJudgeSteps',
+      'outputJudgeProfile',
       'outputGeneration',
       'encoding',
       'countingMissing',

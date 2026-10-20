@@ -22,22 +22,43 @@ def _settings(enabled: bool):
     return SimpleNamespace(public_api_enabled=enabled)
 
 
+def _snapshot(state, orgs=(), users=()):
+    async def _load(db, **_kwargs):
+        return {"public_api": {"state": state, "users": list(users), "orgs": list(orgs)}}
+
+    return patch("feature_flags.service.load_snapshot", _load)
+
+
 class TestHookWrapper:
+    """Without a hook the platform's ``public_api`` flag decides (core
+    2.42; before, the PUBLIC_API_ENABLED setting did)."""
+
     @pytest.mark.asyncio
     async def test_off_without_hook_by_default(self):
-        with (
-            patch.object(extensions, "_single_hook", return_value=None),
-            patch("app.core.config.get_settings", return_value=_settings(False)),
-        ):
+        with patch.object(extensions, "_single_hook", return_value=None), _snapshot("off"):
             assert await extensions.public_api_enabled(None, None) is False
 
     @pytest.mark.asyncio
-    async def test_setting_opens_it_without_hook(self):
-        with (
-            patch.object(extensions, "_single_hook", return_value=None),
-            patch("app.core.config.get_settings", return_value=_settings(True)),
-        ):
+    async def test_flag_opens_it_without_hook(self):
+        with patch.object(extensions, "_single_hook", return_value=None), _snapshot("everyone"):
             assert await extensions.public_api_enabled(None, None) is True
+
+    @pytest.mark.asyncio
+    async def test_allowlisted_org_key_passes(self):
+        with patch.object(extensions, "_single_hook", return_value=None), _snapshot(
+            "allowlist", orgs=["org-1"]
+        ):
+            assert await extensions.public_api_enabled(None, None, organization_id="org-1") is True
+            assert await extensions.public_api_enabled(None, None, organization_id="org-2") is False
+
+    def test_setting_sets_the_flag_default(self):
+        from feature_flags import registry
+
+        with patch("app.core.config.get_settings", return_value=_settings(True)):
+            assert registry.platform_flags()[0].default_state == "everyone"
+        with patch("app.core.config.get_settings", return_value=_settings(False)):
+            assert registry.platform_flags()[0].default_state == "off"
+        assert registry.flag_owner("public_api") == registry.PLATFORM_OWNER
 
     @pytest.mark.asyncio
     async def test_async_hook_decides_and_gets_the_org(self):

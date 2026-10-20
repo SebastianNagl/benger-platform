@@ -3097,7 +3097,10 @@ def _notify_batch_grading_received(db, evaluation) -> None:
     gets EVALUATION_COMPLETED and is left out. When anyone is left, the
     ``annotators_notified`` marker is committed before sending, so a
     redelivered or re-finalized run cannot notify twice; a run with nobody to
-    tell (generation-only benchmarks) stays unmarked. Never raises.
+    tell (generation-only benchmarks) stays unmarked. Score-less feedback
+    rows (``details.feedback_only``, core 2.41) are a draft for the teacher,
+    who releases them later (the overlay notifies then), so they tell nobody
+    here. Never raises.
     """
     try:
         meta = evaluation.eval_metadata or {}
@@ -3116,6 +3119,14 @@ def _notify_batch_grading_received(db, evaluation) -> None:
                 FROM task_evaluations te
                 JOIN annotations a ON a.id = te.annotation_id
                 WHERE te.evaluation_id = :eid AND a.completed_by IS NOT NULL
+                  AND NOT COALESCE(
+                    CASE WHEN jsonb_typeof(te.metrics) = 'object' THEN EXISTS (
+                      SELECT 1 FROM jsonb_each(te.metrics) m
+                      WHERE jsonb_typeof(m.value) = 'object'
+                        AND m.value -> 'details' ->> 'feedback_only' = 'true'
+                    ) END,
+                    false
+                  )
                 """
             ),
             {"eid": evaluation.id},
@@ -3782,6 +3793,12 @@ for _ext in _extension_registry.load_all():
     # replace the handler with itself and emit a noisy warning.
 if not _extension_registry.loaded():
     logger.info("Worker: community edition (no extension package loaded)")
+else:
+    # Master flags extension.<EXTENSION_ID> (core 2.42; idempotent, the
+    # ml_evaluation import registers them too).
+    import extension_activation as _extension_activation  # noqa: E402
+
+    _extension_activation.register_master_flags(_extension_registry.loaded())
 
 
 # =============================================================================

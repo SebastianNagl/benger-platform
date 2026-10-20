@@ -537,10 +537,12 @@ describe('AuthButton', () => {
       await user.click(screen.getByRole('button'))
 
       expect(screen.getByText(/users & organizations/i)).toBeInTheDocument()
-      expect(screen.queryByText(/feature flags/i)).not.toBeInTheDocument()
+      expect(
+        document.querySelector('a[href="/admin/feature-flags"]'),
+      ).toBeInTheDocument()
 
       expect(screen.getByTestId('users-icon')).toBeInTheDocument()
-      expect(screen.queryByTestId('beaker-icon')).not.toBeInTheDocument()
+      expect(screen.getByTestId('beaker-icon')).toBeInTheDocument()
     })
 
     it('shows organizations link for superadmin', async () => {
@@ -882,7 +884,7 @@ describe('AuthButton', () => {
       expect(usersLink).toHaveAttribute('href', '/users-organizations')
     })
 
-    it('has no platform feature flags link for superadmins', async () => {
+    it('links superadmins to the platform feature flags console', async () => {
       const user = userEvent.setup()
       mockUseAuth.mockReturnValue({
         user: {
@@ -902,11 +904,10 @@ describe('AuthButton', () => {
 
       await user.click(screen.getByRole('button'))
 
-      // The link moved to the extended AuthMenuExtended slot.
-      expect(screen.queryByText(/feature flags/i)).not.toBeInTheDocument()
+      // The console is platform code again (CORE 2.42).
       expect(
         document.querySelector('a[href="/admin/feature-flags"]'),
-      ).not.toBeInTheDocument()
+      ).toBeInTheDocument()
     })
 
     it('closes dropdown when admin link is clicked', async () => {

@@ -1,51 +1,54 @@
 /**
- * E2E: per-organization Moodle/LTI panel on the organizations page (the
- * OrgLtiPanel slot) against the LIVE local dev stack. Gated behind
- * LTI_E2E=1 like the other lti specs — it needs the extended edition and
- * cleans up through the dev database container.
+ * E2E: per-organization LMS panel on the organizations page (the
+ * OrgLtiPanel slot).
  *
- * Run:
- *   LTI_E2E=1 npx playwright test e2e/lti/org-lti-admin.spec.ts --reporter=line
+ * Self-contained: it creates its own organization and removes it and its
+ * registrations afterwards. No LMS is involved (fake `.invalid` issuer).
+ * Runs against the dev stack or the test stack, see lti-helpers.ts:
+ *
+ *   npx playwright test e2e/lti/org-lti-admin.spec.ts --project=lti   # dev
+ *   make test-e2e GREP=@extended                                      # test stack
  *
  * Entry point: the organizations toolbar mounts the slot with `hideTrigger`
- * and opens it from its "Mehr" menu (`org-more-button` → `org-lti-button`).
- * The slot's own trigger and status badge (`lti-org-open`,
- * `lti-org-status`) therefore never render on this page; the connection
- * state is read from the panel itself (empty state, the per-registration
- * switch's `aria-checked`) and cross-checked through the admin API.
+ * and opens it from its "Mehr" menu (`org-more-button` -> `org-lti-button`).
+ * "Connect" (`lti-org-new`) opens the connect wizard; Moodle there means a
+ * self-registration invite link, so the manual form is reached through the
+ * "other" choice (`lti-connect-other`), which is the path this spec drives.
  *
- * Journey (serial): open the org page as superadmin → the panel shows the
- * empty state for a fresh org → create a registration through the panel (no
- * org field — it is pinned to the selected org) → its switch is on and the
- * API reports "active" → disable via the fail-closed toggle (confirm step) →
- * switch off, API "disabled" → re-enable. The panel only deletes
- * switched-off connections, so afterAll removes the E2E rows via psql
- * (cascade covers deployments), which also works after a failed step.
+ * Journey (serial): the panel shows the empty state for a fresh org ->
+ * create a registration through the wizard's manual form (no org field, it
+ * is pinned to the selected org) -> its switch is on and the API reports
+ * "active" -> disable via the fail-closed toggle (confirm step) -> switch
+ * off, API "disabled" -> re-enable. The panel only deletes switched-off
+ * connections, so afterAll removes the E2E rows directly (cascade covers
+ * deployments), which also works after a failed step.
  */
 import { BrowserContext, expect, Page, test } from '@playwright/test'
 
 import { TestHelpers } from '../helpers/test-helpers'
-import { bengerDbSql, gotoWithRetry, warmAppRoutes } from './moodle-helpers'
-
-/** The organizations page lives on the admin host, not the student host. */
-const ADMIN_BASE = process.env.LTI_E2E_ADMIN_URL || 'http://benger.localhost'
+import {
+  ADMIN_BASE,
+  cleanupLtiFixtures,
+  createE2eOrganization,
+  disableAutoLogin,
+  gotoWithRetry,
+  warmAppRoutes,
+} from './lti-helpers'
 
 const E2E_ISSUER = 'https://moodle.org-panel.e2e.invalid'
 
 test.describe.configure({ mode: 'serial' })
 
 test.describe('Org LTI panel @extended', () => {
-  test.skip(!process.env.LTI_E2E, 'needs the lti-dev stack (LTI_E2E=1)')
-
-  // issuer+client_id is globally unique — a per-run client id keeps the
+  // issuer+client_id is globally unique: a per-run client id keeps the
   // spec re-runnable even when an aborted earlier run left its row behind.
   const runId = Date.now().toString(36)
   const clientId = `e2e-org-client-${runId}`
-  const registrationName = 'E2E Org-Panel Uni'
+  const registrationName = `E2E Org-Panel Uni ${runId}`
 
   let context: BrowserContext | undefined
   let page: Page
-  let organizationId: string
+  let organizationId: string | undefined
   let registrationId: string
 
   /** Open the organizations tab with our org selected via the ?org= param. */
@@ -62,7 +65,7 @@ test.describe('Org LTI panel @extended', () => {
   }
 
   /** Open the panel through the toolbar's "Mehr" menu and wait for its
-   *  registrations to load (the "new" button renders only after loading). */
+   *  registrations to load (the connect button renders only after loading). */
   const openPanel = async () => {
     await gotoOrgTab()
     const more = page.getByTestId('org-more-button')
@@ -79,79 +82,62 @@ test.describe('Org LTI panel @extended', () => {
   const registrationSwitch = () =>
     page.getByTestId(`lti-org-toggle-${registrationId}`)
 
-  /** The registration's status as the admin API reports it. */
-  const apiStatus = async () => {
-    const rows = await (
-      await page.request.get(
-        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
-      )
-    ).json()
-    return rows.find((r: { id: string }) => r.id === registrationId)?.status
+  /** The org's registrations as the admin API reports them. */
+  const apiRegistrations = async () => {
+    const response = await page.request.get(
+      `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
+    )
+    expect(response.ok(), await response.text()).toBe(true)
+    return (await response.json()) as Array<{
+      id: string
+      client_id: string
+      organization_id: string
+      status: string
+    }>
   }
+
+  const apiStatus = async () =>
+    (await apiRegistrations()).find((r) => r.id === registrationId)?.status
 
   test.beforeAll(async ({ browser }) => {
     context = await browser.newContext({ baseURL: ADMIN_BASE })
-    // Keep the dev auto-login out of the way (suite convention) — we log in
-    // explicitly through the form as the superadmin.
-    await context.addInitScript(() => {
-      try {
-        sessionStorage.setItem('e2e_test_mode', 'true')
-      } catch {
-        /* ignore */
-      }
-    })
+    await disableAutoLogin(context)
     page = await context.newPage()
     await warmAppRoutes(page, ADMIN_BASE, ['/login', '/users-organizations'])
 
-    const helpers = new TestHelpers(page)
-    await helpers.login('admin', 'admin')
-
-    // A dedicated org keeps the badge assertions deterministic (the seeded
-    // orgs may carry registrations from the harness or earlier runs).
-    const created = await page.request.post(`${ADMIN_BASE}/api/organizations`, {
-      data: {
-        name: `E2E LTI Org ${runId}`,
-        display_name: `E2E LTI Org ${runId}`,
-        slug: `e2e-lti-org-${runId}`,
-        description: 'Org-LTI-panel e2e — safe to delete',
-      },
-    })
-    expect(created.ok(), await created.text()).toBe(true)
-    organizationId = (await created.json()).id
-    expect(organizationId).toBeTruthy()
+    await new TestHelpers(page).login('admin', 'admin')
+    // A dedicated org keeps the assertions deterministic (seeded orgs may
+    // carry registrations from the dev harness or earlier runs).
+    organizationId = await createE2eOrganization(page.request, runId, 'org')
   })
 
   test.afterAll(async () => {
-    // The panel deletes only switched-off connections; tidy the dev DB
-    // directly so a failed step still cleans up. ON DELETE CASCADE removes
-    // the deployments. The fixed fake issuer also sweeps strays left by
-    // earlier aborted runs.
-    bengerDbSql(
-      `DELETE FROM lti_platform_registrations WHERE issuer = '${E2E_ISSUER}'`,
-    )
-    if (organizationId) {
-      await page.request
-        .delete(`${ADMIN_BASE}/api/organizations/${organizationId}`)
-        .catch(() => undefined)
-    }
+    // The fixed fake issuer also sweeps strays left by earlier aborted runs.
+    await cleanupLtiFixtures(page?.request, E2E_ISSUER, organizationId)
     await context?.close()
   })
 
   test('shows the empty state for an org without registrations', async () => {
     await openPanel()
 
-    await expect(page.getByRole('dialog')).toContainText(
-      /noch mit keiner Lernplattform verbunden|not connected to any learning platform/,
-    )
+    await expect(page.getByTestId('lti-org-empty')).toBeVisible()
     await expect(page.locator('[data-testid^="lti-org-reg-"]')).toHaveCount(0)
+    expect(await apiRegistrations()).toHaveLength(0)
   })
 
   test('creates a registration pinned to the selected org (no org field)', async () => {
     await openPanel()
 
+    // Connect opens the wizard on the LMS choice.
     await page.getByTestId('lti-org-new').click()
+    await expect(page.getByTestId('lti-connect')).toBeVisible()
+    await expect(page.getByTestId('lti-connect-moodle')).toBeVisible()
+    await expect(page.getByTestId('lti-connect-ilias')).toBeVisible()
+    await page.getByTestId('lti-connect-other').click()
 
-    // The org is pinned by the panel — the free-text org field of the
+    const form = page.getByTestId('lti-form-create')
+    await expect(form).toBeVisible()
+    // The org is pinned by the panel: the free-text org field of the
     // global console must not render here.
     await expect(page.getByTestId('lti-form-organization_id')).toHaveCount(0)
 
@@ -159,37 +145,30 @@ test.describe('Org LTI panel @extended', () => {
     await page.getByTestId('lti-form-issuer').fill(E2E_ISSUER)
     await page.getByTestId('lti-form-client_id').fill(clientId)
 
-    // The prefill helper derives Moodle's three endpoints from the issuer.
+    // The prefill helper derives Moodle's endpoints from the issuer.
+    await expect(page.getByTestId('lti-form-lms_family')).toHaveValue('moodle')
     await page.getByTestId('lti-form-moodle-defaults').click()
     await expect(page.getByTestId('lti-form-auth_login_url')).toHaveValue(
       `${E2E_ISSUER}/mod/lti/auth.php`,
     )
 
     await page.getByTestId('lti-form-submit').click()
+    await expect(form).toBeHidden({ timeout: 20_000 })
 
-    // The new registration appears as a card in the panel...
-    await expect(
-      page
-        .locator('[data-testid^="lti-org-reg-"]')
-        .filter({ hasText: clientId }),
-    ).toBeVisible({ timeout: 20_000 })
-
-    // ...bound to OUR org (API cross-check) and active right away.
-    const registrations = await (
-      await page.request.get(
-        `${ADMIN_BASE}/api/admin/lti/registrations?organization_id=${organizationId}`,
-      )
-    ).json()
-    const mine = registrations.find(
-      (registration: { client_id: string }) =>
-        registration.client_id === clientId,
+    // Bound to OUR org (API cross-check) and active right away.
+    const mine = (await apiRegistrations()).find(
+      (registration) => registration.client_id === clientId,
     )
     expect(mine, 'registration listed under the panel org').toBeTruthy()
-    expect(mine.organization_id).toBe(organizationId)
-    expect(mine.status).toBe('active')
-    registrationId = mine.id
+    expect(mine!.organization_id).toBe(organizationId)
+    expect(mine!.status).toBe('active')
+    registrationId = mine!.id
 
-    // The card's switch reflects the active connection.
+    // The new registration appears as a card in the panel, switch on.
+    await expect(
+      page.getByTestId(`lti-org-reg-${registrationId}`),
+    ).toContainText(clientId, { timeout: 20_000 })
+    await expect(page.getByTestId('lti-org-empty')).toHaveCount(0)
     await expect(registrationSwitch()).toHaveAttribute('aria-checked', 'true')
   })
 
@@ -211,7 +190,10 @@ test.describe('Org LTI panel @extended', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'false', {
       timeout: 10_000,
     })
-    expect(await apiStatus()).toBe('disabled')
+    await expect(
+      page.getByTestId(`lti-org-reg-off-${registrationId}`),
+    ).toBeVisible()
+    await expect.poll(apiStatus).toBe('disabled')
   })
 
   test('re-enable restores the connection', async () => {
@@ -221,6 +203,6 @@ test.describe('Org LTI panel @extended', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'true', {
       timeout: 10_000,
     })
-    expect(await apiStatus()).toBe('active')
+    await expect.poll(apiStatus).toBe('active')
   })
 })

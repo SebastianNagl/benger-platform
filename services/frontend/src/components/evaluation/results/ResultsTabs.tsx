@@ -14,6 +14,7 @@
 
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { useI18n } from '@/contexts/I18nContext'
+import { isFeedbackOnlyResult } from '@/lib/evaluation/feedbackOnly'
 import { getMetricDetail } from '@/lib/extensions/metricRenderers'
 import { formatDecimal, intlTag } from '@/lib/i18n/locales'
 
@@ -363,21 +364,24 @@ export function ResultsTabs({
                   {/* Result Header */}
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          result.passed === null
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+                      {/* A score-less (feedback-only) result has no verdict. */}
+                      {!isFeedbackOnlyResult(result.metrics) && (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            result.passed === null
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
+                              : result.passed
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          }`}
+                        >
+                          {result.passed === null
+                            ? t('evaluation.multiFieldResults.error')
                             : result.passed
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        }`}
-                      >
-                        {result.passed === null
-                          ? t('evaluation.multiFieldResults.error')
-                          : result.passed
-                            ? t('evaluation.multiFieldResults.passed')
-                            : t('evaluation.multiFieldResults.failed')}
-                      </span>
+                              ? t('evaluation.multiFieldResults.passed')
+                              : t('evaluation.multiFieldResults.failed')}
+                        </span>
+                      )}
                       <span className="text-sm font-medium text-zinc-900 dark:text-white">
                         {t('evaluation.multiFieldResults.field')}:{' '}
                         {result.field_name}

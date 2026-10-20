@@ -9,6 +9,7 @@ import { I18nProvider } from '@/contexts/I18nContext'
 import { ProgressProvider } from '@/contexts/ProgressContext'
 import { DialogProvider } from '@/hooks/useDialogs'
 import { loadExtensions } from '@/lib/extensions'
+import { FeatureFlagsSync } from '@/lib/featureFlags'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from 'next-themes'
 import { useEffect, useState } from 'react'
@@ -49,6 +50,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <SessionValidator />
+              <FeatureFlagsSync />
               <I18nProvider>
                 <ToastProvider>
                   <ProgressProvider>
