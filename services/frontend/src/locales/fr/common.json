@@ -9195,6 +9195,7 @@
       "basisRenderedJudgePrompt": "L'entrée est le prompt complet du juge : gabarit, énoncé des faits, référence, grille d'évaluation et une réponse exemple, plus le prompt système et le schéma de réponse.",
       "outputJudge": "La sortie est estimée à {percent} % de max_tokens, car les juges ne renvoient que des points et une courte justification.",
       "outputJudgeSteps": "La sortie croît avec la grille d'évaluation : pour chaque étape notée, des points, une justification et une citation, plus une appréciation globale. Les tokens de raisonnement ne sont pas inclus.",
+      "outputJudgeProfile": "Le prompt et la longueur de réponse attendue de ce juge sont fournis par le module qui le propose (par ex. un retour écrit). Les tokens de raisonnement ne sont pas inclus.",
       "outputGeneration": "La sortie est estimée à 90 % de max_tokens pour les modèles de raisonnement, 60 % sinon.",
       "encoding": "Tokens comptés avec {encoding} ; pour les modèles d'autres fournisseurs, il s'agit d'une approximation.",
       "countingMissing": "Seules les cellules qui seraient effectivement exécutées sont comptées.",

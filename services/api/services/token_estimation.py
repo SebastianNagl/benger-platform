@@ -21,6 +21,8 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from judge_cost_profiles import has_judge_cost_profile, judge_cost_profile
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -311,6 +313,16 @@ JUDGE_SCHEMA_TOKENS_PER_STEP = 40
 JUDGE_OUTPUT_FIXED_TOKENS = 300
 JUDGE_OUTPUT_TOKENS_PER_STEP = 75
 
+#: Share of a judge call's ``max_tokens`` assumed as visible output for a
+#: single-score judge: a structured score plus a short rationale, typically
+#: 500 to 2000 tokens regardless of how high ``max_tokens`` is set.
+JUDGE_OUTPUT_UTILIZATION = 0.15
+
+#: How a judge sample's output tokens were sized (see :func:`sample_judge_calls`).
+OUTPUT_BASIS_UTILIZATION = "utilization"
+OUTPUT_BASIS_JUDGE_STEPS = "judge_steps"
+OUTPUT_BASIS_JUDGE_PROFILE = "judge_profile"
+
 _JUDGE_PLACEHOLDER_RE = re.compile(r"\{\{\s*(\w+)\s*\}\}|\{(\w+)\}")
 _MUSTER_METRICS = ("llm_judge_falloesung", "llm_judge_rubric")
 
@@ -347,13 +359,16 @@ def renders_judge_prompt(config: Dict[str, Any]) -> bool:
     """Whether :func:`sample_judge_prompts` can size this judge config.
 
     True for the Bewertungsbogen judge, for any config with its own prompt
-    template, and for configs that grade human answers (whose text the legacy
+    template, for a metric whose package registered a judge cost profile
+    (``judge_cost_profiles``), and for configs that grade human answers (whose text the legacy
     generation-output sample never contains). Model-side configs on the
     built-in prompts keep the generation-output sample.
     """
     metric = config.get("metric") or ""
     params = config.get("metric_parameters") or {}
     if metric == "llm_judge_rubric" or params.get("custom_prompt_template"):
+        return True
+    if has_judge_cost_profile(metric):
         return True
     return any(not _is_model_field(pf) for pf in config.get("prediction_fields") or [])
 
@@ -546,7 +561,7 @@ def sample_judge_prompts(
     :func:`sample_judge_calls`."""
     return [
         (text, overhead)
-        for text, overhead, _ in sample_judge_calls(
+        for text, overhead, _, _ in sample_judge_calls(
             db=db, project_id=project_id, configs=configs, sample_size=sample_size, seed=seed
         )
     ]
@@ -559,11 +574,12 @@ def sample_judge_calls(
     configs: List[Dict[str, Any]],
     sample_size: int = 10,
     seed: Optional[int] = None,
-) -> List[Tuple[str, float, Optional[float]]]:
+) -> List[Tuple[str, float, Optional[float], str]]:
     """Render the prompt an LLM judge call would send, per config and sampled
     task, without calling a model.
 
-    Each sample is ``(rendered_text, overhead_tokens, output_tokens)``. The text mirrors the
+    Each sample is ``(rendered_text, overhead_tokens, output_tokens,
+    output_basis)``. The text mirrors the
     workers' binding: ``{context}`` (case text plus Bearbeitervermerk,
     Zusatzmaterial and Korrekturhinweise blocks), ``{ground_truth}`` (the
     Musterlösung for Falllösung / Bewertungsbogen judges, else the reference
@@ -573,8 +589,17 @@ def sample_judge_calls(
     the task's rubric row. A config without a template is sized as those parts
     joined. ``overhead_tokens`` covers the system prompt, the fixed rule block
     and the strict per-step response schema. ``output_tokens`` is the expected
-    answer of a multi-step judge (fixed part plus a share per scored step) and
-    None for a single-score judge, which keeps the caller's heuristic.
+    answer of a multi-step judge (fixed part plus a share per scored step,
+    basis ``judge_steps``); for a single-score judge it is
+    :data:`JUDGE_OUTPUT_UTILIZATION` of the config's own
+    ``metric_parameters.max_tokens`` (the budget the worker sends), or None
+    without one, which keeps the caller's heuristic (basis ``utilization``).
+
+    A metric whose package registered a judge cost profile
+    (``judge_cost_profiles.register_judge_cost_profile``) is sized by that
+    profile instead: its rendered prompt, its overhead (default the fixed
+    judge overhead) and its expected output (default as above), basis
+    ``judge_profile``.
 
     ``configs`` are dicts with ``metric``, ``prediction_fields``,
     ``metric_parameters`` and optionally ``reference_fields``.
@@ -586,15 +611,31 @@ def sample_judge_calls(
         return []
     answers = _AnswerPool(db, project_id, [t.id for t in tasks])
 
-    samples: List[Tuple[str, float, Optional[float]]] = []
+    samples: List[Tuple[str, float, Optional[float], str]] = []
     for config in configs:
         metric = config.get("metric") or ""
         params = config.get("metric_parameters") or {}
         template = params.get("custom_prompt_template")
         pred_fields = list(config.get("prediction_fields") or []) or ["__all_model__"]
+        budget_output = _budget_output_tokens(params)
         for task in tasks:
             data = task.data if isinstance(task.data, dict) else {}
             answer, outputs = answers.answer(task.id, pred_fields[0])
+            profile = judge_cost_profile(
+                metric, task_data=data, prediction=answer, metric_parameters=params
+            )
+            if profile is not None:
+                samples.append((
+                    profile.prompt,
+                    float(
+                        JUDGE_FIXED_OVERHEAD_TOKENS
+                        if profile.overhead_tokens is None
+                        else profile.overhead_tokens
+                    ),
+                    budget_output if profile.output_tokens is None else profile.output_tokens,
+                    OUTPUT_BASIS_JUDGE_PROFILE,
+                ))
+                continue
             sheet = ""
             steps = _scored_steps(params.get("custom_criteria"))
             if metric == "llm_judge_rubric":
@@ -622,11 +663,23 @@ def sample_judge_calls(
             else:
                 text = "\n\n".join(part for part in (context, reference, sheet, answer) if part)
             overhead = JUDGE_FIXED_OVERHEAD_TOKENS + JUDGE_SCHEMA_TOKENS_PER_STEP * steps
-            output = (
-                float(JUDGE_OUTPUT_FIXED_TOKENS + JUDGE_OUTPUT_TOKENS_PER_STEP * steps)
-                if steps
-                else None
-            )
-            samples.append((text, float(overhead), output))
+            if steps:
+                output: Optional[float] = float(
+                    JUDGE_OUTPUT_FIXED_TOKENS + JUDGE_OUTPUT_TOKENS_PER_STEP * steps
+                )
+                basis = OUTPUT_BASIS_JUDGE_STEPS
+            else:
+                output, basis = budget_output, OUTPUT_BASIS_UTILIZATION
+            samples.append((text, float(overhead), output, basis))
     return samples
+
+
+def _budget_output_tokens(params: Dict[str, Any]) -> Optional[float]:
+    """:data:`JUDGE_OUTPUT_UTILIZATION` of the config's own ``max_tokens``, or
+    None when the config sets none (the caller's budget applies)."""
+    try:
+        budget = int((params or {}).get("max_tokens") or 0)
+    except (TypeError, ValueError):
+        return None
+    return float(budget) * JUDGE_OUTPUT_UTILIZATION if budget > 0 else None
 

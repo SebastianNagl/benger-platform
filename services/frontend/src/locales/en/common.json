@@ -9195,6 +9195,7 @@
       "basisRenderedJudgePrompt": "Input is the full judge prompt: template, case facts, reference, grading sheet and a sample answer, plus system prompt and response schema.",
       "outputJudge": "Output is assumed at {percent} % of max_tokens because judges only return scores and a short rationale.",
       "outputJudgeSteps": "Output grows with the grading sheet: a score, reason and quoted evidence per scored step plus an overall assessment. Reasoning tokens are not included.",
+      "outputJudgeProfile": "The prompt and expected answer length of this judge come from the package that provides it (e.g. written feedback). Reasoning tokens are not included.",
       "outputGeneration": "Output is assumed at 90 % of max_tokens for reasoning models and 60 % otherwise.",
       "encoding": "Tokens counted with {encoding}; for other providers' models this is an approximation.",
       "countingMissing": "Only cells that would actually run are counted.",

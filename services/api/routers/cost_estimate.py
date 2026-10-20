@@ -37,6 +37,9 @@ from services.token_estimation import (
     ESTIMATE_ACCURACY_PERCENT,
     JUDGE_OUTPUT_FIXED_TOKENS,
     JUDGE_OUTPUT_TOKENS_PER_STEP,
+    JUDGE_OUTPUT_UTILIZATION,
+    OUTPUT_BASIS_JUDGE_PROFILE,
+    OUTPUT_BASIS_JUDGE_STEPS,
     estimate_tokens_for_calls,
     renders_judge_prompt,
     sample_judge_calls,
@@ -154,10 +157,11 @@ class CostEstimateResponse(BaseModel):
     # Share of max_tokens assumed as output; None when it varies per model
     # (generation: 90 for reasoning-tier models, 60 otherwise).
     output_utilization_percent: Optional[int] = None
-    # How output tokens were estimated: a share of max_tokens, or (for
+    # How output tokens were estimated: a share of max_tokens, (for
     # multi-step judges such as a Bewertungsbogen) a fixed part plus a share
-    # per scored step.
-    output_basis: Literal["utilization", "judge_steps"] = "utilization"
+    # per scored step, or (for a judge an extension package sizes itself,
+    # judge_cost_profiles) that package's expected answer length.
+    output_basis: Literal["utilization", "judge_steps", "judge_profile"] = "utilization"
     missing_only: bool = False
     per_judge_cells: bool = False
 
@@ -281,7 +285,7 @@ _DEFAULT_OUTPUT_UTILIZATION = 0.6
 # bill by ~5× for a judge call. We pick 0.15 because typical judge
 # `max_tokens` is 8K-16K and 0.15 × that = 1.2K-2.4K, the realistic band
 # for a GPT-5-family judge producing JSON-shaped scoring + rationale.
-_EVAL_OUTPUT_UTILIZATION = 0.15
+_EVAL_OUTPUT_UTILIZATION = JUDGE_OUTPUT_UTILIZATION
 
 
 def _run_eval_configs(project, request: "CostEstimateRequest") -> List[Dict[str, Any]]:
@@ -576,6 +580,7 @@ def _compute_cost_estimate_impl(
         model_overhead: Optional[List[float]] = None
         model_outputs: Optional[List[Optional[float]]] = None
         model_basis = default_basis
+        model_output_bases: set = set()
         if request.mode == "evaluation":
             judge_cfgs = _judge_configs(run_configs, model_id)
             rendered_cfgs = [c for c in judge_cfgs if renders_judge_prompt(c)]
@@ -591,9 +596,10 @@ def _compute_cost_estimate_impl(
                 else []
             )
             if rendered:
-                model_samples = [text for text, _, _ in rendered]
-                model_overhead = [extra for _, extra, _ in rendered]
-                model_outputs = [output for _, _, output in rendered]
+                model_samples = [text for text, _, _, _ in rendered]
+                model_overhead = [extra for _, extra, _, _ in rendered]
+                model_outputs = [output for _, _, output, _ in rendered]
+                model_output_bases = {basis for _, _, _, basis in rendered}
                 if len(rendered_cfgs) < len(judge_cfgs):
                     model_samples = model_samples + list(sample_texts)
                     model_overhead = model_overhead + [0.0] * len(sample_texts)
@@ -609,8 +615,10 @@ def _compute_cost_estimate_impl(
             overhead_tokens=model_overhead,
             output_tokens=model_outputs,
         )
-        if model_outputs and any(o is not None for o in model_outputs):
-            output_basis = "judge_steps"
+        if OUTPUT_BASIS_JUDGE_PROFILE in model_output_bases:
+            output_basis = OUTPUT_BASIS_JUDGE_PROFILE
+        elif OUTPUT_BASIS_JUDGE_STEPS in model_output_bases and output_basis != OUTPUT_BASIS_JUDGE_PROFILE:
+            output_basis = OUTPUT_BASIS_JUDGE_STEPS
         if token_breakdown is None:
             input_basis = model_basis
             reported_sample_size = len(model_samples)
@@ -671,7 +679,14 @@ def _compute_cost_estimate_impl(
         if request.generation_mode == "missing"
         else " Counting every (task × structure) cell"
     )
-    if request.mode == "evaluation" and output_basis == "judge_steps":
+    if request.mode == "evaluation" and output_basis == OUTPUT_BASIS_JUDGE_PROFILE:
+        utilization_note = (
+            " For evaluation, input is the rendered judge prompt plus system "
+            "prompt overhead; for judges an extension package sizes itself "
+            "(e.g. written feedback) the prompt and the expected answer length "
+            "come from that package, reasoning tokens not included."
+        )
+    elif request.mode == "evaluation" and output_basis == "judge_steps":
         utilization_note = (
             " For evaluation, input is the rendered judge prompt (template, "
             "case context, reference, Bewertungsbogen and a sampled answer) "
