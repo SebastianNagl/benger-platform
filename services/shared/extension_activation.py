@@ -313,17 +313,51 @@ def package_active(package: Optional[str], gating: str = GATED) -> bool:
     if gating == POLICY_GLOBAL:
         result = service.entry_on_globally(entry)
     else:
-        user_id = ctx.user_id
+        result = _entry_allows_context(ctx, entry)
+    ctx.memo[key] = result
+    return result
 
-        def _orgs():
-            override = _context_org_ids(ctx)
-            if override is not None:
-                return set(override)
-            if not user_id:
-                return set()
-            return set(_membership_org_ids(ctx, user_id))
 
-        result = service.entry_allows(entry, user_id, _orgs)
+def _entry_allows_context(ctx: ExtContext, entry: Optional[Dict]) -> bool:
+    """Whether a flag entry lets the context through: its user, and the
+    organizations of its project when it has one, else the user's own."""
+    from feature_flags import service
+
+    user_id = ctx.user_id
+
+    def _orgs():
+        override = _context_org_ids(ctx)
+        if override is not None:
+            return set(override)
+        if not user_id:
+            return set()
+        return set(_membership_org_ids(ctx, user_id))
+
+    return service.entry_allows(entry, user_id, _orgs)
+
+
+def flag_active(name: str) -> bool:
+    """Whether the feature flag ``name`` is on in the current context.
+
+    The same rule as a package's master flag: a listed user, or a listed
+    organization of the context's project (else of the user's memberships);
+    a system context without user or project passes only ``everyone``. An
+    unregistered name is off. A flag owned by a package is also off while
+    that package is inactive here.
+    """
+    from feature_flags import registry, service
+
+    if registry.flag(name) is None:
+        return False
+    ctx = current_context()
+    org_override = ctx.org_ids if ctx.org_ids is not None else None
+    key = ("flag", name, ctx.user_id, org_override, ctx.project_id)
+    cached = ctx.memo.get(key)
+    if cached is not None:
+        return cached
+    result = package_active(registry.flag_owner(name)) and _entry_allows_context(
+        ctx, service.entry_of(_snapshot(ctx), name)
+    )
     ctx.memo[key] = result
     return result
 
@@ -509,6 +543,7 @@ __all__ = [
     "context_from_task",
     "current_context",
     "extension_active",
+    "flag_active",
     "install_publish_signal",
     "master_state",
     "new_context",

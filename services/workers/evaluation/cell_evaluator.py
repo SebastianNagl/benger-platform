@@ -236,6 +236,34 @@ def _multidim_row_passed(metrics_dict, metric, normalized) -> bool:
     return (normalized or 0.0) >= 0.5
 
 
+def _falloesung_margin_notes_kwargs(fn, metric_parameters) -> Dict[str, Any]:
+    """``{"margin_notes": bool}`` when the extended Falllösung compute accepts it.
+
+    Probed like :func:`_falloesung_grade_scale_kwargs`: older extended
+    packages have no ``margin_notes`` parameter.
+    """
+    import inspect as _inspect
+
+    try:
+        params = _inspect.signature(fn).parameters
+    except (TypeError, ValueError):  # pragma: no cover - builtins/C callables
+        return {}
+    if "margin_notes" not in params:
+        return {}
+    return {"margin_notes": _margin_notes_enabled(metric_parameters)}
+
+
+def _margin_notes_enabled(metric_parameters) -> bool:
+    """Whether the judge config wants margin notes (on unless switched off).
+
+    Imported here, not at module level, like every ml_evaluation use in
+    these bodies.
+    """
+    from ml_evaluation.margin_notes import margin_notes_enabled
+
+    return margin_notes_enabled(metric_parameters)
+
+
 def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
     """Filter (name, value) pairs down to kwargs ``fn`` actually accepts.
 
@@ -614,7 +642,10 @@ def evaluate_generation_cell_impl(
                                     continue
 
                                 if task_rubric is not None:
-                                    jr_evaluator.bind_task_rubric(task_rubric)
+                                    jr_evaluator.bind_task_rubric(
+                                        task_rubric,
+                                        margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
+                                    )
 
                                 inline_judge = resolve_inline_judge(metric)
                                 if inline_judge is not None:
@@ -683,6 +714,9 @@ def evaluate_generation_cell_impl(
                                         thinking_budget=jr_evaluator.thinking_budget,
                                         reasoning_effort=jr_evaluator.reasoning_effort,
                                         **_falloesung_extra,
+                                        **_falloesung_margin_notes_kwargs(
+                                            falloesung_bulk_fn, config.get("metric_parameters")
+                                        ),
                                         **_falloesung_grade_scale_kwargs(
                                             falloesung_bulk_fn, db, project_id
                                         ),
@@ -1266,7 +1300,10 @@ def evaluate_annotation_cell_impl(
                                         continue
 
                                     if task_rubric is not None:
-                                        jr_evaluator.bind_task_rubric(task_rubric)
+                                        jr_evaluator.bind_task_rubric(
+                                            task_rubric,
+                                            margin_notes=_margin_notes_enabled(config.get("metric_parameters")),
+                                        )
 
                                     inline_judge = resolve_inline_judge(metric)
                                     if inline_judge is not None:
@@ -1326,6 +1363,9 @@ def evaluate_annotation_cell_impl(
                                             prediction=str(prediction) if prediction else "",
                                             thinking_budget=jr_evaluator.thinking_budget,
                                             reasoning_effort=jr_evaluator.reasoning_effort,
+                                            **_falloesung_margin_notes_kwargs(
+                                                falloesung_bulk_fn, config.get("metric_parameters")
+                                            ),
                                             **_falloesung_grade_scale_kwargs(
                                                 falloesung_bulk_fn, db, project_id
                                             ),

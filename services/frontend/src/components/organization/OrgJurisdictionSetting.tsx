@@ -2,6 +2,13 @@
 
 import { useState } from 'react'
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { organizationsAPI } from '@/lib/api/organizations'
@@ -61,20 +68,30 @@ export function OrgJurisdictionSetting({
         {t('admin.organizations.jurisdiction.label')}
       </label>
       {canManage ? (
-        <select
-          id={`org-jurisdiction-${organization.id}`}
-          value={current}
-          disabled={saving}
-          onChange={(e) => void save(e.target.value as Jurisdiction)}
-          className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
-          data-testid="org-jurisdiction-select"
-        >
-          {JURISDICTIONS.map((j) => (
-            <option key={j} value={j}>
-              {t(`admin.organizations.jurisdiction.options.${j}`)}
-            </option>
-          ))}
-        </select>
+        <div className="w-44">
+          <Select
+            value={current}
+            disabled={saving}
+            onValueChange={(v) => void save(v as Jurisdiction)}
+            displayValue={t(
+              `admin.organizations.jurisdiction.options.${current}`,
+            )}
+          >
+            <SelectTrigger
+              id={`org-jurisdiction-${organization.id}`}
+              data-testid="org-jurisdiction-select"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {JURISDICTIONS.map((j) => (
+                <SelectItem key={j} value={j}>
+                  {t(`admin.organizations.jurisdiction.options.${j}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       ) : (
         <span className="text-zinc-900 dark:text-zinc-100">
           {t(`admin.organizations.jurisdiction.options.${current}`)}

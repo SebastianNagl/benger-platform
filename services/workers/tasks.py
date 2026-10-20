@@ -264,6 +264,10 @@ def _build_multidim_judge_row_metrics(
         "call_metadata": multidim.get("_call_metadata", {}),
         "raw_output": _strip_control_chars(multidim.get("_raw_output", "")),
     }
+    # The rubric judge's margin notes (ml_evaluation.margin_notes), anchored
+    # to passages of the answer.
+    if multidim.get("annotations") is not None:
+        details["annotations"] = _scrub_control_chars(multidim["annotations"])
     # llm_judge_rubric provenance: which task_rubrics row produced the
     # criteria this row was scored against.
     if multidim.get("rubric_id"):

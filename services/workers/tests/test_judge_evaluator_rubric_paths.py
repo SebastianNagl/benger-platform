@@ -46,9 +46,10 @@ def _judge_factory_mock():
 
     # The real bind_task_rubric sets both attributes; the mock mirrors that
     # so the tests can assert what the lane bound.
-    def _bind(rubric):
+    def _bind(rubric, margin_notes=True):
         judge.custom_criteria = rubric.criteria
         judge.rubric_mode = True
+        judge.margin_notes = margin_notes
 
     judge.bind_task_rubric.side_effect = _bind
     return judge
@@ -103,14 +104,14 @@ def test_rubric_multidim_path_binds_rendering_and_stamps_provenance():
         return_value=judge,
     ), patch(
         "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
-    ):
+    ), patch("extension_activation.flag_active", return_value=True):
         result = _evaluate_llm_judge_single_impl(**_impl_kwargs(db))
 
     assert result["status"] == "completed"
     assert result["score"] == pytest.approx(0.8)
     # criteria were injected from the rubric, not from config, through the
     # evaluator's own binding (shared with the bulk cell paths)
-    judge.bind_task_rubric.assert_called_once_with(rubric)
+    judge.bind_task_rubric.assert_called_once_with(rubric, margin_notes=True)
     assert judge.custom_criteria == rubric.criteria
     call = judge._evaluate_multidim_single_call.call_args.kwargs
     # rendered document bound for the {bewertungsbogen} placeholder

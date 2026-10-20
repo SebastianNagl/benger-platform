@@ -159,4 +159,4 @@ studies:
     rubric: "vendor rubrics by attorneys"
     ref: "attorneys' orderings"
     judge: 'GPT-5.4 $\rho$ .20 (rubric), .38 (pairwise)'
-    human: "rubric IRR .44"
+    human: 'attorneys $\rho$ .91 pairwise, .15 rubric; IRR .44'

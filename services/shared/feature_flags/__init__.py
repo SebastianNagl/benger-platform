@@ -18,6 +18,7 @@ __path__ = extend_path(__path__, __name__)
 from .registry import (  # noqa: E402,F401
     FEATURE_DISABLED,
     FEATURE_DISABLED_MESSAGE,
+    MARGIN_NOTES,
     MASTER_PREFIX,
     PLATFORM_OWNER,
     PUBLIC_API,

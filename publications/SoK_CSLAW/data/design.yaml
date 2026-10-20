@@ -7,7 +7,7 @@ dimensions:
     basis: "answer latitude (L2); experts agree almost perfectly on binary criteria"
   - dim: "Scale of a criterion"
     options: "binary; few levels; free points per step"
-    basis: "binary agrees best; agreement is not the construct"
+    basis: "binary criteria agree best with experts; coarser labels also discard information"
   - dim: "Structure"
     options: "all points on steps (absolute or as shares of the total); steps plus a bounded, reasoned component; steps plus a criteria-bound pool; steps plus a free pool"
     basis: "a free pool cannot be checked; a criteria-bound pool needs stated criteria and a fixed share"
