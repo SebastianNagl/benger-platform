@@ -104,7 +104,7 @@ def test_rubric_multidim_path_binds_rendering_and_stamps_provenance():
         return_value=judge,
     ), patch(
         "evaluation.cell_evaluator._resolve_task_rubric", return_value=rubric
-    ):
+    ), patch("extension_activation.flag_active", return_value=True):
         result = _evaluate_llm_judge_single_impl(**_impl_kwargs(db))
 
     assert result["status"] == "completed"

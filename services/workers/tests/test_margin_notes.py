@@ -8,7 +8,7 @@ import json
 import os
 import sys
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -166,7 +166,22 @@ class TestSchemaAndFlag:
         [(None, True), ({}, True), ({"margin_notes": True}, True), ({"margin_notes": False}, False)],
     )
     def test_enabled_unless_switched_off(self, params, expected):
-        assert margin_notes_enabled(params) is expected
+        with patch("extension_activation.flag_active", return_value=True):
+            assert margin_notes_enabled(params) is expected
+
+    def test_off_while_the_feature_flag_is_off(self):
+        with patch("extension_activation.flag_active", return_value=False) as flag_active:
+            assert margin_notes_enabled({"margin_notes": True}) is False
+        flag_active.assert_called_once_with("margin_notes")
+
+    def test_off_when_the_flag_cannot_be_read(self):
+        with patch("extension_activation.flag_active", side_effect=RuntimeError("redis down")):
+            assert margin_notes_enabled({}) is False
+
+    def test_judge_switch_wins_without_reading_the_flag(self):
+        with patch("extension_activation.flag_active") as flag_active:
+            assert margin_notes_enabled({"margin_notes": False}) is False
+        flag_active.assert_not_called()
 
     def test_notes_get_token_room_on_top_of_the_budget(self):
         assert margin_notes_max_tokens(4096) == 4096 + MARGIN_NOTES_MAX_TOKENS_HEADROOM
@@ -291,6 +306,10 @@ class TestFalloesungHookKwargs:
         def old_hook(*, prediction):
             return None
 
-        assert _falloesung_margin_notes_kwargs(new_hook, None) == {"margin_notes": True}
-        assert _falloesung_margin_notes_kwargs(new_hook, {"margin_notes": False}) == {"margin_notes": False}
-        assert _falloesung_margin_notes_kwargs(old_hook, None) == {}
+        with patch("extension_activation.flag_active", return_value=True):
+            assert _falloesung_margin_notes_kwargs(new_hook, None) == {"margin_notes": True}
+            assert _falloesung_margin_notes_kwargs(new_hook, {"margin_notes": False}) == {"margin_notes": False}
+            assert _falloesung_margin_notes_kwargs(old_hook, None) == {}
+        # The feature flag off: the hook is told so, it is not left to its default.
+        with patch("extension_activation.flag_active", return_value=False):
+            assert _falloesung_margin_notes_kwargs(new_hook, None) == {"margin_notes": False}

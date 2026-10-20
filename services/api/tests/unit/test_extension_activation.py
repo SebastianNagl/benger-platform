@@ -99,6 +99,54 @@ class TestDecisions:
             activation.package_active(PKG, "sometimes")
 
 
+class TestFlagActive:
+    """``flag_active``: any registered flag in the current context."""
+
+    NOTES = registry.MARGIN_NOTES
+
+    def _snap(self, state, users=(), orgs=(), master=STATE_EVERYONE):
+        return {
+            MASTER: {"state": master, "users": [], "orgs": []},
+            self.NOTES: {"state": state, "users": list(users), "orgs": list(orgs)},
+            "fake_feature": {"state": state, "users": list(users), "orgs": list(orgs)},
+        }
+
+    def test_platform_flag_states(self):
+        with _with_snapshot(self._snap(STATE_OFF)):
+            with activation.use_context(user_id="u1"):
+                assert not activation.flag_active(self.NOTES)
+        with _with_snapshot(self._snap(STATE_EVERYONE)):
+            with activation.use_context(kind=activation.KIND_SYSTEM):
+                assert activation.flag_active(self.NOTES)
+
+    def test_allowlist_follows_the_project_orgs(self):
+        with _with_snapshot(self._snap(STATE_ALLOWLIST, orgs=["o1"])):
+            with patch.object(activation, "project_org_ids", return_value=frozenset({"o1"})):
+                with activation.use_context(user_id="teacher", project_id="p1"):
+                    assert activation.flag_active(self.NOTES)
+            with patch.object(activation, "project_org_ids", return_value=frozenset({"o2"})):
+                with activation.use_context(user_id="teacher", project_id="p2"):
+                    assert not activation.flag_active(self.NOTES)
+            # A system context without user or project passes only everyone.
+            with activation.use_context(kind=activation.KIND_SYSTEM):
+                assert not activation.flag_active(self.NOTES)
+
+    def test_unregistered_name_is_off(self):
+        with _with_snapshot({"nope": {"state": STATE_EVERYONE, "users": [], "orgs": []}}):
+            assert not activation.flag_active("nope")
+
+    def test_package_flag_is_coupled_to_its_master(self):
+        registry.register_flags(
+            PKG, [registry.FlagDefinition("fake_feature", "test", STATE_OFF)]
+        )
+        with _with_snapshot(self._snap(STATE_EVERYONE, master=STATE_OFF)):
+            with activation.use_context(user_id="u1"):
+                assert not activation.flag_active("fake_feature")
+        with _with_snapshot(self._snap(STATE_EVERYONE, master=STATE_EVERYONE)):
+            with activation.use_context(user_id="u1"):
+                assert activation.flag_active("fake_feature")
+
+
 class TestMemo:
     def test_one_snapshot_read_per_context(self):
         cache = _CountingCache(_snapshot(STATE_EVERYONE))

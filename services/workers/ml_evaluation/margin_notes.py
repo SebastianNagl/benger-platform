@@ -14,14 +14,18 @@ passage of the answer the viewer highlights. A note whose quote is not in
 the answer keeps its comment but no anchor, so a made-up quote never marks
 text the student did not write.
 
-Pure code, no IO.
+Pure code, except :func:`margin_notes_enabled`, which reads the platform
+feature flag ``margin_notes``.
 """
 
+import logging
 import re
 from difflib import SequenceMatcher
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .evidence_check import EvidenceIndex, verify_evidence
+
+logger = logging.getLogger(__name__)
 
 MARGIN_NOTE_KINDS = ("positiv", "mangel", "hinweis")
 # A note about the answer as a whole (style, structure), tied to no step.
@@ -52,8 +56,23 @@ def margin_notes_max_tokens(max_tokens: Any) -> Any:
 
 
 def margin_notes_enabled(metric_parameters: Any) -> bool:
-    """On unless the judge config sets ``margin_notes: false``."""
-    return not (isinstance(metric_parameters, dict) and metric_parameters.get("margin_notes") is False)
+    """Whether a judge writes margin notes for this grading.
+
+    The feature flag ``margin_notes`` must be on in the current context (the
+    project's organizations of the evaluation, see
+    ``extension_activation.flag_active``), and the judge config must not set
+    ``margin_notes: false``. If the flag cannot be read, the notes stay off.
+    """
+    if isinstance(metric_parameters, dict) and metric_parameters.get("margin_notes") is False:
+        return False
+    try:
+        from extension_activation import flag_active
+        from feature_flags import MARGIN_NOTES
+
+        return flag_active(MARGIN_NOTES)
+    except Exception:
+        logger.warning("margin notes: flag %r unreadable, notes off", "margin_notes", exc_info=True)
+        return False
 
 
 def margin_notes_schema(refs: Iterable[str], use_enum: bool = True) -> Dict[str, Any]:
