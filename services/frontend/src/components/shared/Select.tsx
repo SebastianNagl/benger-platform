@@ -107,6 +107,7 @@ export function SelectTrigger({
   return (
     <Listbox.Button
       {...props}
+      data-value={context.value}
       className={clsx(
         'relative h-8 w-full cursor-default rounded-full bg-white pr-8 pl-3 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition',
         'hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none',

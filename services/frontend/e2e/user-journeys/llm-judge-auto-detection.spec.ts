@@ -145,23 +145,20 @@ test.describe('LLM Judge Answer Type Configuration', () => {
     await evalHelpers.openEvaluationConfigSection()
     await evalHelpers.navigateToParametersStep()
 
-    // Get all options from Answer Type dropdown
-    const options = await evalHelpers.getAnswerTypeOptions()
+    // Get all options from Answer Type dropdown (values, not localized labels)
+    const options = await evalHelpers.getAnswerTypeOptionValues()
     console.log('Available answer types:', options)
 
     // Verify rating option exists
-    const hasRatingOption = options.some(
-      (o) => o.includes('Rating') || o.toLowerCase().includes('rating'),
-    )
-    expect(hasRatingOption).toBe(true)
+    expect(options).toContain('rating')
 
     // Select rating type
     await evalHelpers.selectAnswerType('rating')
     await page.waitForTimeout(500)
 
-    // Verify selection was applied (button shows display name)
-    const selectedValue = await evalHelpers.getSelectedAnswerType()
-    expect(selectedValue).toMatch(/Rating/i)
+    // Verify selection was applied (the trigger carries the value key)
+    const selectedValue = await evalHelpers.getSelectedAnswerTypeValue()
+    expect(selectedValue).toBe('rating')
 
     console.log('Rating type selected successfully')
 
@@ -181,20 +178,25 @@ test.describe('LLM Judge Answer Type Configuration', () => {
     await page.waitForTimeout(500)
     const textValue = await evalHelpers.getSelectedAnswerType()
     console.log('Text type selected:', textValue)
+    expect(await evalHelpers.getSelectedAnswerTypeValue()).toBe('text')
 
     // Switch to span_selection
     await evalHelpers.selectAnswerType('span_selection')
     await page.waitForTimeout(500)
     const spanValue = await evalHelpers.getSelectedAnswerType()
     console.log('Span type selected:', spanValue)
+    expect(await evalHelpers.getSelectedAnswerTypeValue()).toBe(
+      'span_selection',
+    )
 
     // Switch to choices
     await evalHelpers.selectAnswerType('choices')
     await page.waitForTimeout(500)
     const choicesValue = await evalHelpers.getSelectedAnswerType()
     console.log('Choices type selected:', choicesValue)
+    expect(await evalHelpers.getSelectedAnswerTypeValue()).toBe('choices')
 
-    // Verify the displayed template changes between types
+    // Verify the displayed label changes between types in every UI language
     expect(textValue).not.toBe(spanValue)
     expect(spanValue).not.toBe(choicesValue)
     console.log(
