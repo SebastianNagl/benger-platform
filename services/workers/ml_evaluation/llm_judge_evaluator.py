@@ -21,6 +21,12 @@ from typing import Any, Dict, List, Optional
 
 from .base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
 from .evidence_check import EvidenceIndex, verify_evidence
+from .margin_notes import (
+    finalize_margin_notes,
+    margin_notes_rules,
+    margin_notes_schema,
+    margin_notes_schema_cost,
+)
 from .llm_judge_prompts import (
     TYPE_SPECIFIC_CRITERIA,
     get_criteria_for_type,
@@ -106,6 +112,7 @@ def _half_point_enum(max_score: float) -> List[float]:
 def _build_rubric_json_schema(
     custom_criteria: Dict[str, Dict[str, Any]],
     require_evidence: bool = False,
+    margin_notes: bool = False,
 ) -> Dict[str, Any]:
     """Strict OpenAI JSON schema for single-call multi-dimension rubrics.
 
@@ -120,7 +127,9 @@ def _build_rubric_json_schema(
     With ``require_evidence`` (the ``llm_judge_rubric`` metric) every step
     also carries a required ``evidence`` string, placed first so the model
     quotes the answer before it scores. The server checks the quote against
-    the answer (see :func:`verify_evidence`).
+    the answer (see :func:`verify_evidence`). With ``margin_notes`` the body
+    also carries the judge's ``annotations`` (:func:`margin_notes_schema`),
+    their ``ref`` limited to the step keys.
 
     OpenAI strict mode requires ``additionalProperties: false`` and
     enumerating every key under ``required``, so the schema is fully
@@ -139,9 +148,14 @@ def _build_rubric_json_schema(
     # rely on the half-point snapping in the clamp loop instead.
     properties_per_step = 5 if require_evidence else 4
     enum_values = sum(int(round(float(d["max_score"]) * 2)) + 1 for _k, d in scored)
+    property_count = properties_per_step * len(scored) + 4
+    if margin_notes:
+        note_properties, note_enum_values = margin_notes_schema_cost(len(scored))
+        property_count += note_properties
+        enum_values += note_enum_values
     use_enum = (
         enum_values <= RUBRIC_SCHEMA_MAX_ENUM_VALUES
-        and properties_per_step * len(scored) + 4 <= RUBRIC_SCHEMA_MAX_PROPERTIES
+        and property_count <= RUBRIC_SCHEMA_MAX_PROPERTIES
     )
 
     score_properties: Dict[str, Any] = {}
@@ -167,19 +181,22 @@ def _build_rubric_json_schema(
         }
         score_required.append(key)
 
+    properties: Dict[str, Any] = {
+        "scores": {
+            "type": "object",
+            "properties": score_properties,
+            "required": score_required,
+            "additionalProperties": False,
+        },
+        "total_score": {"type": "number"},
+        "overall_assessment": {"type": "string"},
+    }
+    if margin_notes:
+        properties["annotations"] = margin_notes_schema(score_required, use_enum=use_enum)
     return {
         "type": "object",
-        "properties": {
-            "scores": {
-                "type": "object",
-                "properties": score_properties,
-                "required": score_required,
-                "additionalProperties": False,
-            },
-            "total_score": {"type": "number"},
-            "overall_assessment": {"type": "string"},
-        },
-        "required": ["scores", "total_score", "overall_assessment"],
+        "properties": properties,
+        "required": list(properties),
         "additionalProperties": False,
     }
 
@@ -279,6 +296,14 @@ RUBRIC_JUDGE_CLOSING_RULES = """VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelt
 - Das Zitat muss den Punkt des jeweiligen Schritts selbst behandeln und aus dem Teil der Bearbeitung stammen, der die Aufgabe dieses Schritts bearbeitet. Ein Zitat zu einem anderen Prüfungspunkt, zu einer anderen Aufgabe oder mit nur gleichem Stichwort bringt keine Punkte. Wo die Stelle innerhalb dieser Aufgabe steht, ist gleich: Behandelt eine Stelle unter einer anderen Überschrift genau den Punkt dieses Schritts, zählt sie für diesen Schritt.
 - Eine abweichende Ansicht ("a.A. vertretbar") bringt nur Punkte, wenn die Bearbeitung sie selbst vertritt und begründet.
 - Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung."""
+
+# Appended after the closing rules when the rubric judge sets margin notes
+# (see ml_evaluation.margin_notes).
+RUBRIC_JUDGE_MARGIN_NOTES_RULES = margin_notes_rules(
+    unit="Schritt",
+    ref_hint='der Schlüssel des Schritts aus dem Bewertungsbogen (wie im Feld "scores")',
+    reason_field="reason",
+)
 
 # Reasoning effort for the rubric judge when its config sets none. The
 # interactive queue gives an immediate grading 180 s (soft limit); at the
@@ -463,6 +488,27 @@ def _finalize_multidim_scores(
         ):
             total = float(model_total)
     return clamped, float(total), zeroed
+
+
+def _finalize_rubric_margin_notes(
+    parsed: Dict[str, Any],
+    clamped: Dict[str, Dict[str, Any]],
+    answer: str,
+    evidence_index: Optional[EvidenceIndex],
+) -> List[Dict[str, Any]]:
+    """The rubric judge's margin notes, checked like its evidence.
+
+    Refs are the scored step keys; a step zeroed by the evidence check
+    (``model_reason`` set by :func:`_finalize_multidim_scores`) loses its
+    praising notes.
+    """
+    return finalize_margin_notes(
+        parsed.get("annotations"),
+        answer,
+        clamped,
+        index=evidence_index,
+        zeroed_refs=[key for key, entry in clamped.items() if "model_reason" in entry],
+    )
 
 
 # Default evaluation criteria and prompts
@@ -689,6 +735,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
         # to ai_service.generate() in _evaluate_single_criterion.
         self.seed = seed
         self.rubric_mode = rubric_mode
+        # Margin notes (Randbemerkungen) of the rubric judge: set by
+        # bind_task_rubric(), never in the checklist lane.
+        self.margin_notes = False
         # Checklist scoring (research lane): set by configure_checklist().
         self.checklist: Optional[Dict[str, Any]] = None
 
@@ -711,7 +760,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         else:
             self.criteria = ["helpfulness", "correctness"]
 
-    def bind_task_rubric(self, rubric) -> None:
+    def bind_task_rubric(self, rubric, margin_notes: bool = True) -> None:
         """Grade against a task's Bewertungsbogen (``llm_judge_rubric``).
 
         The rubric's criteria replace the config's, which flips
@@ -733,6 +782,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         self.custom_criteria = {key: criteria[key] for key in ordered}
         self.all_criteria = {**DEFAULT_CRITERIA, **TYPE_SPECIFIC_CRITERIA, **self.custom_criteria}
         self.rubric_mode = True
+        self.margin_notes = margin_notes
 
     def configure_checklist(
         self,
@@ -1551,6 +1601,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
         prompt_template = _preprocess_jinja_placeholders(raw_template)
 
         rubric_mode = self.rubric_mode is True
+        margin_notes = rubric_mode and self.margin_notes is True and not self.checklist
 
         # Built-ins first. No aliases — Issue #107.
         template_vars: Dict[str, str] = {
@@ -1628,13 +1679,16 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 system_prompt = opts["system_prompt"]
             else:
                 prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
+                if margin_notes:
+                    prompt = f"{prompt}\n\n{RUBRIC_JUDGE_MARGIN_NOTES_RULES}"
                 system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
                 for value in (field_outputs or {}).values()
                 if value is not None
             ]
-            evidence_index = EvidenceIndex("\n".join(answer_parts))
+            answer_text = "\n".join(answer_parts)
+            evidence_index = EvidenceIndex(answer_text)
 
         if self.checklist:
             from . import checklist_scoring
@@ -1644,7 +1698,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             )
         else:
             json_schema = _build_rubric_json_schema(
-                self.custom_criteria, require_evidence=rubric_mode
+                self.custom_criteria, require_evidence=rubric_mode, margin_notes=margin_notes
             )
         # Sum of max_scores; used to clamp total_score and to give callers
         # a 0..1 normalisation reference.
@@ -1719,10 +1773,15 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "total_score": mock_total,
                 "overall_assessment": mock_reason,
             }
+            if margin_notes:
+                mock_body["annotations"] = [
+                    {"ref": key, "kind": "mangel", "quote": mock_evidence, "comment": mock_reason}
+                    for key in list(mock_scores)[:1]
+                ]
             finalized, finalized_total, _zeroed = _finalize_multidim_scores(
                 mock_body, self.custom_criteria, evidence_index
             )
-            return {
+            mock_result = {
                 **mock_body,
                 "scores": finalized,
                 "total_score": finalized_total,
@@ -1735,6 +1794,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "_raw_output": json.dumps(mock_body, ensure_ascii=False),
                 "_judge_prompts_used": provenance,
             }
+            if margin_notes:
+                mock_result["annotations"] = _finalize_rubric_margin_notes(
+                    mock_body, finalized, answer_text, evidence_index
+                )
+            return mock_result
 
         last_failure: Optional[Dict[str, Any]] = None
         # One entry per retry of this loop (a provider 429 / timeout, or a
@@ -1929,7 +1993,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                             f"Rubric judge ({self.judge_model}): {zeroed} step(s) set to 0 "
                             "for missing or unverified evidence"
                         )
-                    return {
+                    result = {
                         "scores": clamped,
                         "total_score": float(total),
                         "total_max": float(total_max),
@@ -1938,6 +2002,11 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
+                    if margin_notes:
+                        result["annotations"] = _finalize_rubric_margin_notes(
+                            parsed, clamped, answer_text, evidence_index
+                        )
+                    return result
 
                 base_meta = _extract_call_metadata(response)
                 if base_meta.get("truncated"):
