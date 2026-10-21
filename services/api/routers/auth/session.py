@@ -1,5 +1,6 @@
 """Auth: login / signup / registration handlers."""
 from account_activation import mask_email
+from auth_module.session_origin import clear_session_origin
 from sqlalchemy import func
 
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
@@ -143,6 +144,9 @@ async def login(
                 path="/",
                 domain=_settings.cookie_domain,
             )
+
+        # A password login is a regular session: drop any LMS-launch marker.
+        clear_session_origin(response)
 
         return token_response
     except Exception as e:

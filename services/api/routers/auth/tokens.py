@@ -1,4 +1,6 @@
 """Auth: token refresh and logout handlers."""
+from auth_module.session_origin import clear_session_origin
+
 from ._common import *  # noqa: F401,F403  (binds _common.__all__ — the shared surface)
 
 @router.post("/refresh", response_model=Token)
@@ -102,6 +104,7 @@ async def logout(
         path="/",
         domain=_settings.cookie_domain,
     )
+    clear_session_origin(response)
 
     return {"message": "Logged out successfully"}
 
@@ -134,6 +137,7 @@ async def logout_all_devices(
             path="/",
             domain=_settings.cookie_domain,
         )
+        clear_session_origin(response)
 
     return {
         "message": "Logged out from all devices successfully",

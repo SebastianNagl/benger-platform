@@ -34,6 +34,11 @@ export async function POST(request: NextRequest) {
       'Set-Cookie',
       `refresh_token=; Path=/; Max-Age=0; HttpOnly${domainAttr}`,
     )
+    // The LMS-launch marker (auth_module/session_origin.py) ends with the session.
+    response.headers.append(
+      'Set-Cookie',
+      `benger_session_origin=; Path=/; Max-Age=0${domainAttr}`,
+    )
 
     logger.debug('🍪 Cookies cleared')
 

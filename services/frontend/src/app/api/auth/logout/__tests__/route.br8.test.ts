@@ -88,12 +88,17 @@ describe('logout route br8', () => {
     const res = await POST(makeRequest('benger.localhost'))
     expect(res.status).toBe(204)
     const cookies = res.headers.getSetCookie()
-    expect(cookies.length).toBe(2)
+    expect(cookies.length).toBe(3)
     expect(cookies[0]).toContain('access_token=')
     expect(cookies[0]).toContain('Max-Age=0')
     expect(cookies[0]).toContain('.benger.localhost')
     expect(cookies[1]).toContain('refresh_token=')
     expect(cookies[1]).toContain('Max-Age=0')
+    // The LMS-launch marker is readable by the page, so no HttpOnly.
+    expect(cookies[2]).toMatch(/^benger_session_origin=;/)
+    expect(cookies[2]).toContain('Max-Age=0')
+    expect(cookies[2]).toContain('.benger.localhost')
+    expect(cookies[2]).not.toContain('HttpOnly')
   })
 
   it('clears cookies without domain for localhost (L52 empty domain)', async () => {
