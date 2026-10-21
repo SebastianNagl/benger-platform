@@ -93,11 +93,12 @@ class CloudflareEmailClient:
         bcc: Optional[List[str]] = None,
         headers: Optional[dict] = None,
         disable_tracking: bool = False,
+        essential: bool = False,
     ) -> dict:
         """Send an email via Cloudflare Email Sending.
 
-        ``disable_tracking`` is accepted for contract parity; Cloudflare does
-        not rewrite links or add open pixels. HTTP rejections additionally
+        ``disable_tracking`` and ``essential`` are accepted for contract
+        parity; Cloudflare does not rewrite links or add open pixels. HTTP rejections additionally
         carry ``provider_rejected=True``: Cloudflare answered and did not take
         the message, so ``RoutedMailClient`` may hand it to the fallback
         provider without risking a duplicate.

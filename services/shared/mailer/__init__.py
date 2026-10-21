@@ -16,6 +16,8 @@ Consolidated here:
 * ``cloudflare_client`` + ``mail_client`` — the Cloudflare Email Sending
   client and the ``EMAIL_PROVIDER`` switch that routes mail between it and
   SendGrid (``build_mail_client``).
+* ``postmark_client`` — the Postmark client, tried between Cloudflare and
+  SendGrid for account-critical mail only, within a monthly budget.
 * ``email_service`` — the ``EmailService`` + module-level helpers. Unified as
   a superset of the api and worker copies: construction never queries the
   database (mail is enabled unless a caller sets ``mail_enabled = False``); the

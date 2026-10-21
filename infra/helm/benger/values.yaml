@@ -162,6 +162,22 @@ api:
           name: benger-email-config
           key: CLOUDFLARE_EMAIL_DOMAINS
           optional: true
+    # Postmark: fallback for account-critical mail when Cloudflare rejects
+    # (mailer/postmark_client.py). Unset token = no Postmark; the monthly
+    # limit (default 100) matches the plan. Prod only: staging keeps no token
+    # so it cannot spend the shared monthly budget.
+    - name: POSTMARK_SERVER_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: POSTMARK_SERVER_TOKEN
+          optional: true
+    - name: POSTMARK_MONTHLY_LIMIT
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: POSTMARK_MONTHLY_LIMIT
+          optional: true
     - name: EMAIL_ENABLED
       value: "true"
     - name: MAIL_ENABLED
@@ -405,6 +421,22 @@ workers:
         secretKeyRef:
           name: benger-email-config
           key: CLOUDFLARE_EMAIL_DOMAINS
+          optional: true
+    # Postmark: fallback for account-critical mail when Cloudflare rejects
+    # (mailer/postmark_client.py). Unset token = no Postmark; the monthly
+    # limit (default 100) matches the plan. Prod only: staging keeps no token
+    # so it cannot spend the shared monthly budget.
+    - name: POSTMARK_SERVER_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: POSTMARK_SERVER_TOKEN
+          optional: true
+    - name: POSTMARK_MONTHLY_LIMIT
+      valueFrom:
+        secretKeyRef:
+          name: benger-email-config
+          key: POSTMARK_MONTHLY_LIMIT
           optional: true
     - name: EMAIL_ENABLED
       value: "true"

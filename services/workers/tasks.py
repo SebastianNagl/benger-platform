@@ -1327,6 +1327,7 @@ def send_invitation_email_task(
             from_address=brand.from_address,
             from_name=brand.from_name,
             disable_tracking=True,
+            essential=True,
         )
 
         if result.get("status") == "success":
@@ -1482,6 +1483,7 @@ def send_account_activation_task(
             from_address=brand.from_address,
             from_name=brand.from_name,
             disable_tracking=True,
+            essential=True,
         )
 
         if result.get("status") == "success":
@@ -1609,6 +1611,7 @@ def send_account_link_confirmation_task(
             from_address=brand.from_address,
             from_name=brand.from_name,
             disable_tracking=True,
+            essential=True,
         )
     except Exception as e:
         logger.error(

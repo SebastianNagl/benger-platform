@@ -505,7 +505,11 @@ class EmailService:
 
         try:
             result = self.mail_client.send_message(
-                to=[to_email], subject=subject, html_body=html_body, disable_tracking=True
+                to=[to_email],
+                subject=subject,
+                html_body=html_body,
+                disable_tracking=True,
+                essential=True,
             )
 
             if result.get("status") == "success":
@@ -614,6 +618,7 @@ class EmailService:
                 from_address=from_address,
                 from_name=from_name,
                 disable_tracking=True,
+                essential=True,
             )
 
             if result.get("status") == "success":
@@ -724,7 +729,11 @@ class EmailService:
 
         try:
             result = self.mail_client.send_message(
-                to=[to_email], subject=subject, html_body=html_body, disable_tracking=True
+                to=[to_email],
+                subject=subject,
+                html_body=html_body,
+                disable_tracking=True,
+                essential=True,
             )
 
             if result.get("status") == "success":
