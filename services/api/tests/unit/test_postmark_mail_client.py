@@ -180,6 +180,11 @@ class TestPostmarkEmailClient:
         assert not client.is_configured()
         assert client.send_message(to=["a@x.de"], subject="S")["provider_rejected"] is True
 
+    def test_token_whitespace_is_stripped(self):
+        # A token copied from a file keeps its newline, which breaks the header.
+        with patch.dict(os.environ, {**PM_ENV, "POSTMARK_SERVER_TOKEN": "pm-token\n"}, clear=True):
+            assert PostmarkEmailClient().api_key == "pm-token"
+
     def test_bad_limit_uses_the_default(self):
         with patch.dict(os.environ, {**PM_ENV, "POSTMARK_MONTHLY_LIMIT": "lots"}, clear=True):
             assert PostmarkEmailClient().monthly_limit == 100

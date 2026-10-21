@@ -54,7 +54,7 @@ class PostmarkEmailClient:
     provider = "postmark"
 
     def __init__(self):
-        self.api_key = os.getenv("POSTMARK_SERVER_TOKEN", "")
+        self.api_key = os.getenv("POSTMARK_SERVER_TOKEN", "").strip()
         self.message_stream = os.getenv("POSTMARK_MESSAGE_STREAM") or "outbound"
         self.from_email = os.getenv("EMAIL_FROM_ADDRESS", "noreply@what-a-benger.net")
         self.from_name = os.getenv("EMAIL_FROM_NAME", "BenGER Platform")
