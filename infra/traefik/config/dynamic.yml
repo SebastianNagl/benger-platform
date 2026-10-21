@@ -10,6 +10,16 @@ http:
         - web
       priority: 400
 
+    # LTI proxy: like prod, /api/lti goes through the Next.js LTI route so the
+    # launch's session cookies get the same Domain the auth handlers (logout,
+    # login) use. Straight to the API they were host-only and survived logout.
+    lti-proxy:
+      rule: "(Host(`benger.localhost`) || HostRegexp(`^[a-z0-9-]+\\.benger\\.localhost$`) || Host(`vertretbar.localhost`) || HostRegexp(`^[a-z0-9-]+\\.vertretbar\\.localhost$`)) && PathPrefix(`/api/lti`)"
+      service: frontend-dev-service
+      entryPoints:
+        - web
+      priority: 400
+
     # Auth proxy for production domain
     auth-proxy-prod:
       rule: "(Host(`what-a-benger.net`) || HostRegexp(`^[a-z0-9-]+\\.what-a-benger\\.net$`)) && PathPrefix(`/api/auth`)"

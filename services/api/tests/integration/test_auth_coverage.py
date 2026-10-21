@@ -816,6 +816,9 @@ class TestLogoutDeep:
             resp = await async_test_client.post("/api/auth/logout")
         assert resp.status_code == 200
         assert "message" in resp.json()
+        # The LMS-launch marker ends with the session.
+        cleared = [c for c in resp.headers.get_list("set-cookie") if c.startswith("benger_session_origin=")]
+        assert cleared and "Max-Age=0" in cleared[0]
 
     @pytest.mark.asyncio
     async def test_logout_all_devices(self, async_test_client, async_test_db):
@@ -833,6 +836,8 @@ class TestLogoutDeep:
         assert resp.status_code == 200
         data = resp.json()
         assert "revoked_sessions" in data
+        cleared = [c for c in resp.headers.get_list("set-cookie") if c.startswith("benger_session_origin=")]
+        assert cleared and "Max-Age=0" in cleared[0]
 
 
 # ===================================================================
