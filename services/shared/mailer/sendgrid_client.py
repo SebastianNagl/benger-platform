@@ -74,6 +74,7 @@ class SendGridClient:
         bcc: Optional[List[str]] = None,
         headers: Optional[dict] = None,
         disable_tracking: bool = False,
+        essential: bool = False,
     ) -> dict:
         """
         Send email via SendGrid API
