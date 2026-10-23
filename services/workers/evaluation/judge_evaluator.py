@@ -36,7 +36,7 @@ def _evaluate_llm_judge_single_impl(
             backward compatibility; older callers leave it NULL.
     """
     from ml_evaluation.llm_judge_evaluator import create_llm_judge_for_user
-    from ml_evaluation.margin_notes import margin_notes_enabled
+    from ml_evaluation.judge_notes import judge_notes_enabled
     from model_defaults import DEFAULT_JUDGE_MODEL_ID
     from models import TaskEvaluation
 
@@ -135,7 +135,7 @@ def _evaluate_llm_judge_single_impl(
             raise RuntimeError(_NO_RUBRIC_ERROR.format(task_id=task_id))
         # Criteria + rubric mode (fixed roles, tagged inputs, verified
         # evidence), exactly as the bulk cell paths bind them.
-        llm_judge.bind_task_rubric(task_rubric, margin_notes=margin_notes_enabled(params))
+        llm_judge.bind_task_rubric(task_rubric, margin_notes=judge_notes_enabled(params))
         # Grade against the Musterlösung when the task carries one — mirrors
         # the bulk cell path's ground-truth swap.
         muster = tasks._get_insensitive(

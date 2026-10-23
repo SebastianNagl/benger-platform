@@ -254,14 +254,15 @@ def _falloesung_margin_notes_kwargs(fn, metric_parameters) -> Dict[str, Any]:
 
 
 def _margin_notes_enabled(metric_parameters) -> bool:
-    """Whether the judge config wants margin notes (on unless switched off).
+    """Whether the judge writes margin notes: the overlay's notes provider
+    decides (``ml_evaluation.judge_notes``); none means no notes.
 
     Imported here, not at module level, like every ml_evaluation use in
     these bodies.
     """
-    from ml_evaluation.margin_notes import margin_notes_enabled
+    from ml_evaluation.judge_notes import judge_notes_enabled
 
-    return margin_notes_enabled(metric_parameters)
+    return judge_notes_enabled(metric_parameters)
 
 
 def _supported_extra_kwargs(fn, pairs) -> Dict[str, Any]:
