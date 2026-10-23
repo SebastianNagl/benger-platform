@@ -102,7 +102,7 @@ class TestDecisions:
 class TestFlagActive:
     """``flag_active``: any registered flag in the current context."""
 
-    NOTES = registry.MARGIN_NOTES
+    NOTES = registry.PUBLIC_API
 
     def _snap(self, state, users=(), orgs=(), master=STATE_EVERYONE):
         return {

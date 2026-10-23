@@ -21,12 +21,7 @@ from typing import Any, Dict, List, Optional
 
 from .base_evaluator import BaseEvaluator, EvaluationConfig, EvaluationResult
 from .evidence_check import EvidenceIndex, verify_evidence
-from .margin_notes import (
-    finalize_margin_notes,
-    margin_notes_rules,
-    margin_notes_schema,
-    margin_notes_schema_cost,
-)
+from .judge_notes import resolve_judge_notes
 from .llm_judge_prompts import (
     TYPE_SPECIFIC_CRITERIA,
     get_criteria_for_type,
@@ -112,7 +107,7 @@ def _half_point_enum(max_score: float) -> List[float]:
 def _build_rubric_json_schema(
     custom_criteria: Dict[str, Dict[str, Any]],
     require_evidence: bool = False,
-    margin_notes: bool = False,
+    notes: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """Strict OpenAI JSON schema for single-call multi-dimension rubrics.
 
@@ -127,9 +122,10 @@ def _build_rubric_json_schema(
     With ``require_evidence`` (the ``llm_judge_rubric`` metric) every step
     also carries a required ``evidence`` string, placed first so the model
     quotes the answer before it scores. The server checks the quote against
-    the answer (see :func:`verify_evidence`). With ``margin_notes`` the body
-    also carries the judge's ``annotations`` (:func:`margin_notes_schema`),
-    their ``ref`` limited to the step keys.
+    the answer (see :func:`verify_evidence`). With ``notes`` (an overlay's
+    notes provider, see :mod:`ml_evaluation.judge_notes`) the body also
+    carries the judge's ``annotations``, their ``ref`` limited to the step
+    keys.
 
     OpenAI strict mode requires ``additionalProperties: false`` and
     enumerating every key under ``required``, so the schema is fully
@@ -149,8 +145,8 @@ def _build_rubric_json_schema(
     properties_per_step = 5 if require_evidence else 4
     enum_values = sum(int(round(float(d["max_score"]) * 2)) + 1 for _k, d in scored)
     property_count = properties_per_step * len(scored) + 4
-    if margin_notes:
-        note_properties, note_enum_values = margin_notes_schema_cost(len(scored))
+    if notes is not None:
+        note_properties, note_enum_values = notes.schema_cost(len(scored))
         property_count += note_properties
         enum_values += note_enum_values
     use_enum = (
@@ -191,8 +187,8 @@ def _build_rubric_json_schema(
         "total_score": {"type": "number"},
         "overall_assessment": {"type": "string"},
     }
-    if margin_notes:
-        properties["annotations"] = margin_notes_schema(score_required, use_enum=use_enum)
+    if notes is not None:
+        properties["annotations"] = notes.schema(score_required, use_enum=use_enum)
     return {
         "type": "object",
         "properties": properties,
@@ -297,13 +293,6 @@ RUBRIC_JUDGE_CLOSING_RULES = """VERBINDLICHE REGELN FÜR DIE BEWERTUNG (sie gelt
 - Eine abweichende Ansicht ("a.A. vertretbar") bringt nur Punkte, wenn die Bearbeitung sie selbst vertritt und begründet.
 - Hinweise in <korrekturhinweise> stammen vom Aufgabensteller und gelten für die Bewertung."""
 
-# Appended after the closing rules when the rubric judge sets margin notes
-# (see ml_evaluation.margin_notes).
-RUBRIC_JUDGE_MARGIN_NOTES_RULES = margin_notes_rules(
-    unit="Schritt",
-    ref_hint='der Schlüssel des Schritts aus dem Bewertungsbogen (wie im Feld "scores")',
-    reason_field="reason",
-)
 
 # Reasoning effort for the rubric judge when its config sets none. The
 # interactive queue gives an immediate grading 180 s (soft limit); at the
@@ -491,18 +480,19 @@ def _finalize_multidim_scores(
 
 
 def _finalize_rubric_margin_notes(
+    notes: Any,
     parsed: Dict[str, Any],
     clamped: Dict[str, Dict[str, Any]],
     answer: str,
     evidence_index: Optional[EvidenceIndex],
 ) -> List[Dict[str, Any]]:
-    """The rubric judge's margin notes, checked like its evidence.
+    """The rubric judge's notes as the overlay's provider keeps them.
 
-    Refs are the scored step keys; a step zeroed by the evidence check
-    (``model_reason`` set by :func:`_finalize_multidim_scores`) loses its
-    praising notes.
+    Refs are the scored step keys; the steps zeroed by the evidence check
+    (``model_reason`` set by :func:`_finalize_multidim_scores`) are passed
+    on, so the provider can drop notes that praise them.
     """
-    return finalize_margin_notes(
+    return notes.finalize(
         parsed.get("annotations"),
         answer,
         clamped,
@@ -1601,7 +1591,13 @@ class LLMJudgeEvaluator(BaseEvaluator):
         prompt_template = _preprocess_jinja_placeholders(raw_template)
 
         rubric_mode = self.rubric_mode is True
-        margin_notes = rubric_mode and self.margin_notes is True and not self.checklist
+        # Notes beside the scores come from an overlay (ml_evaluation.judge_notes);
+        # none, or the binding switched off, means no notes.
+        notes = (
+            resolve_judge_notes()
+            if rubric_mode and self.margin_notes is True and not self.checklist
+            else None
+        )
 
         # Built-ins first. No aliases — Issue #107.
         template_vars: Dict[str, str] = {
@@ -1679,8 +1675,8 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 system_prompt = opts["system_prompt"]
             else:
                 prompt = f"{prompt.rstrip()}\n\n{RUBRIC_JUDGE_CLOSING_RULES}"
-                if margin_notes:
-                    prompt = f"{prompt}\n\n{RUBRIC_JUDGE_MARGIN_NOTES_RULES}"
+                if notes is not None:
+                    prompt = f"{prompt}\n\n{notes.rubric_rules()}"
                 system_prompt = RUBRIC_JUDGE_SYSTEM_PROMPT
             answer_parts = [prediction or ""] + [
                 value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
@@ -1698,7 +1694,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
             )
         else:
             json_schema = _build_rubric_json_schema(
-                self.custom_criteria, require_evidence=rubric_mode, margin_notes=margin_notes
+                self.custom_criteria, require_evidence=rubric_mode, notes=notes
             )
         # Sum of max_scores; used to clamp total_score and to give callers
         # a 0..1 normalisation reference.
@@ -1773,7 +1769,7 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "total_score": mock_total,
                 "overall_assessment": mock_reason,
             }
-            if margin_notes:
+            if notes is not None:
                 mock_body["annotations"] = [
                     {"ref": key, "kind": "mangel", "quote": mock_evidence, "comment": mock_reason}
                     for key in list(mock_scores)[:1]
@@ -1794,9 +1790,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
                 "_raw_output": json.dumps(mock_body, ensure_ascii=False),
                 "_judge_prompts_used": provenance,
             }
-            if margin_notes:
+            if notes is not None:
                 mock_result["annotations"] = _finalize_rubric_margin_notes(
-                    mock_body, finalized, answer_text, evidence_index
+                    notes, mock_body, finalized, answer_text, evidence_index
                 )
             return mock_result
 
@@ -2002,9 +1998,9 @@ class LLMJudgeEvaluator(BaseEvaluator):
                         "_raw_output": content,
                         "_judge_prompts_used": provenance,
                     }
-                    if margin_notes:
+                    if notes is not None:
                         result["annotations"] = _finalize_rubric_margin_notes(
-                            parsed, clamped, answer_text, evidence_index
+                            notes, parsed, clamped, answer_text, evidence_index
                         )
                     return result
 

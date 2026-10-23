@@ -68,7 +68,6 @@ class FlagDefinition:
 
 
 PUBLIC_API = "public_api"
-MARGIN_NOTES = "margin_notes"
 
 
 # ---------------------------------------------------------------------------
@@ -274,16 +273,6 @@ def platform_flags() -> Tuple[FlagDefinition, ...]:
             "antworten mit 404. Für Organisations-Schlüssel zählt die Freigabe "
             "der Organisation, für persönliche die der Person.",
             _public_api_default(),
-        ),
-        FlagDefinition(
-            MARGIN_NOTES,
-            "KI-Randbemerkungen: Bewertungsbogen- und Falllösungs-Judge setzen "
-            "Randbemerkungen an Stellen der Lösung, Studierende sehen sie in "
-            "Meine Korrektur, Korrigierende in der Korrektur. Aus: die Judges "
-            "schreiben keine Bemerkungen (nur Punkte wie bisher), die Ansichten "
-            "und die Einstellung im Judge sind ausgeblendet. Für Bewertungen "
-            "zählt die Organisation des Projekts.",
-            STATE_OFF,
         ),
     )
 

@@ -631,11 +631,19 @@ whenever one is added, renamed or removed):
   imports carry it as owner (``register_extended_metrics``); the API lists
   and the workers run them only while the owner is active. Celery messages
   carry the header ``benger_ext_ctx`` = ``{user_id, project_id}``.
+
+2.43 (2026-10-23): margin notes move to the extended edition. The rubric
+  judge asks the worker getter ``<package>.workers.get_judge_notes()``
+  (gating class gated, ``ml_evaluation/judge_notes.py``) for a notes
+  provider (``enabled``, ``schema``, ``schema_cost``, ``rubric_rules``,
+  ``finalize``) and writes ``annotations`` only with one; the platform no
+  longer ships ``ml_evaluation/margin_notes.py`` nor registers the
+  ``margin_notes`` flag (the overlay does, the row keeps its state).
 """
 
 import os
 
-CORE_API_VERSION = "2.42"
+CORE_API_VERSION = "2.43"
 
 
 def extended_required() -> bool:

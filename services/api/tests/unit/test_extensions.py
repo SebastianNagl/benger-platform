@@ -149,7 +149,8 @@ class TestExtensionLoader:
         # 2.41 adds jurisdictions, wizard project types and inline judges.
         # 2.42 moves the flag engine to the platform and adds the runtime
         # master flags extension.<id> with HOOK_GATING / UNGATED_ROUTES.
-        assert CORE_API_VERSION == "2.42"
+        # 2.43 moves margin notes to the overlay (get_judge_notes).
+        assert CORE_API_VERSION == "2.43"
 
     def test_tasks_with_feedback_for_user_empty_without_package(self):
         """Community edition: no human-feedback workflow -> empty set."""
