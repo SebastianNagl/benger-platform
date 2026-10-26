@@ -25,6 +25,16 @@ def _users(*ids, use_pseudonym=True):
 
 
 class TestNameVisibility:
+    @pytest.fixture(autouse=True)
+    def _no_recorded_refusal(self, monkeypatch):
+        # These tests inject a fake benger_extended into sys.modules. A
+        # refusal recorded earlier in the run (e.g. the empty namespace dir a
+        # dev-stack overlay mount leaves in services/api) is sticky and would
+        # hide the fake, so start every test without one.
+        import extension_registry
+
+        monkeypatch.setattr(extension_registry, "_rejected", {})
+
     def test_link_lookup_failure_masks_every_candidate(self):
         policy = NameVisibility(_boom, None)
         viewer = SimpleNamespace(id="v", is_superadmin=False)
