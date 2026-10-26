@@ -79,7 +79,7 @@ export function AuthPageFrame({
             {showBackLink && (
               <Link
                 href="/"
-                className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+                className="hidden text-sm whitespace-nowrap text-zinc-600 hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-white"
               >
                 {t('login.backToLanding')}
               </Link>

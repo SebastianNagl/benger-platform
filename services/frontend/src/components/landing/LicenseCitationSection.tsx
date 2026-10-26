@@ -38,7 +38,7 @@ export function LicenseCitationSection() {
         {/* Licenses */}
         <div className="mt-12 grid gap-6 md:grid-cols-2">
           {licenseItems.map((item, i) => (
-            <Card key={i} className="p-6">
+            <Card key={i} className="min-w-0 p-6">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-emerald-600">
                   <svg
@@ -81,7 +81,10 @@ export function LicenseCitationSection() {
           </p>
           <div className="mt-8 grid gap-6 md:grid-cols-2">
             {citationItems.map((item, i) => (
-              <Card key={i} className="p-6">
+              // min-w-0: a grid item defaults to min-width:auto, so the wide
+              // BibTeX block would stretch the card (and the page) instead of
+              // scrolling inside its <pre>.
+              <Card key={i} className="min-w-0 p-6">
                 <h4 className="mb-3 font-semibold text-zinc-900 dark:text-white">
                   {item.label}
                 </h4>

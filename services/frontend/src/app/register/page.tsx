@@ -1089,7 +1089,7 @@ export default function RegisterPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              className="hidden text-sm whitespace-nowrap text-zinc-600 hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-white"
             >
               {t('register.backToLanding')}
             </Link>

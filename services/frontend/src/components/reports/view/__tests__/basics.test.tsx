@@ -329,7 +329,7 @@ describe('StatusCard', () => {
     rerender(<StatusCard kind="error" t={t} />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Bitte versuchen Sie es in einem Moment erneut.',
+      'Bitte versuche es in einem Moment erneut.',
     )
   })
 

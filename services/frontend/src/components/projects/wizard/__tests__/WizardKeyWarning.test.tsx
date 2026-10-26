@@ -122,16 +122,16 @@ describe('WizardKeyWarning', () => {
     )
     expect(item).toHaveTextContent(`Bewertung mit ${DEFAULT_MODEL_ID}`)
     expect(item).toHaveTextContent(
-      'Das Projekt gehört keiner Organisation an, daher wird mit Ihrem eigenen OpenAI-Schlüssel bewertet, und Sie haben keinen hinterlegt.',
+      'Das Projekt gehört keiner Organisation an, daher wird mit deinem eigenen OpenAI-Schlüssel bewertet, und du hast keinen hinterlegt.',
     )
     expect(item).toHaveTextContent(
-      'Wählen Sie im ersten Schritt eine Organisation mit OpenAI-Schlüssel, oder hinterlegen Sie einen eigenen Schlüssel im Profil.',
+      'Wähle im ersten Schritt eine Organisation mit OpenAI-Schlüssel, oder hinterlege einen eigenen Schlüssel im Profil.',
     )
     expect(
       screen.getByTestId('wizard-key-warning-profile-link'),
     ).toHaveAttribute('href', '/profile')
     expect(screen.getByTestId('wizard-key-warning')).toHaveTextContent(
-      'Sie können das Projekt trotzdem erstellen.',
+      'Du kannst das Projekt trotzdem erstellen.',
     )
     expect(mockGetOrgAvailableModels).not.toHaveBeenCalled()
   })
@@ -212,10 +212,10 @@ describe('WizardKeyWarning', () => {
       'wizard-key-warning-evaluation-openai',
     )
     expect(item).toHaveTextContent(
-      'In LMU München steht Ihnen kein OpenAI-Schlüssel zur Verfügung.',
+      'In LMU München steht dir kein OpenAI-Schlüssel zur Verfügung.',
     )
     expect(item).toHaveTextContent(
-      'Die Organisation verlangt eigene Schlüssel. Hinterlegen Sie einen OpenAI-Schlüssel im Profil.',
+      'Die Organisation verlangt eigene Schlüssel. Hinterlege einen OpenAI-Schlüssel im Profil.',
     )
     expect(mockGetOrgApiKeySettings).toHaveBeenCalledWith('org-lmu')
   })
@@ -234,7 +234,7 @@ describe('WizardKeyWarning', () => {
     expect(
       await screen.findByTestId('wizard-key-warning-evaluation-openai'),
     ).toHaveTextContent(
-      'Bitten Sie die Administration der Organisation, einen OpenAI-Schlüssel zu hinterlegen.',
+      'Bitte die Administration der Organisation, einen OpenAI-Schlüssel zu hinterlegen.',
     )
   })
 
@@ -253,7 +253,7 @@ describe('WizardKeyWarning', () => {
     expect(
       await screen.findByTestId('wizard-key-warning-evaluation-openai'),
     ).toHaveTextContent(
-      'Bitten Sie die Administration der Organisation um einen OpenAI-Schlüssel, oder hinterlegen Sie einen eigenen im Profil, falls die Organisation eigene Schlüssel verlangt.',
+      'Bitte die Administration der Organisation um einen OpenAI-Schlüssel, oder hinterlege einen eigenen im Profil, falls die Organisation eigene Schlüssel verlangt.',
     )
   })
 
@@ -282,7 +282,7 @@ describe('WizardKeyWarning', () => {
     expect(
       await screen.findByTestId('wizard-key-warning-evaluation-openai'),
     ).toHaveTextContent(
-      'In Zett steht Ihnen kein OpenAI-Schlüssel zur Verfügung.',
+      'In Zett steht dir kein OpenAI-Schlüssel zur Verfügung.',
     )
     expect(mockGetOrgAvailableModels).toHaveBeenCalledTimes(1)
     expect(mockGetOrgAvailableModels).toHaveBeenCalledWith('org-zz')
@@ -313,7 +313,7 @@ describe('WizardKeyWarning', () => {
     expect(
       await screen.findByTestId('wizard-key-warning-evaluation-openai'),
     ).toHaveTextContent(
-      'Bitten Sie die Administration der Organisation, einen OpenAI-Schlüssel zu hinterlegen.',
+      'Bitte die Administration der Organisation, einen OpenAI-Schlüssel zu hinterlegen.',
     )
   })
 
@@ -367,7 +367,7 @@ describe('WizardKeyWarning', () => {
     expect(
       await screen.findByTestId('wizard-key-warning-evaluation-openai'),
     ).toHaveTextContent(
-      'In org-zz steht Ihnen kein OpenAI-Schlüssel zur Verfügung.',
+      'In org-zz steht dir kein OpenAI-Schlüssel zur Verfügung.',
     )
   })
 
@@ -386,10 +386,10 @@ describe('WizardKeyWarning', () => {
       'wizard-key-warning-evaluation-openai',
     )
     expect(item).toHaveTextContent(
-      'Sie sind in keiner der gewählten Organisationen Mitglied, daher wird mit Ihrem eigenen OpenAI-Schlüssel bewertet, und Sie haben keinen hinterlegt.',
+      'Du bist in keiner der gewählten Organisationen Mitglied, daher wird mit deinem eigenen OpenAI-Schlüssel bewertet, und du hast keinen hinterlegt.',
     )
     expect(item).toHaveTextContent(
-      'Wählen Sie eine Organisation, in der Sie Mitglied sind, oder hinterlegen Sie einen eigenen Schlüssel im Profil.',
+      'Wähle eine Organisation, in der du Mitglied bist, oder hinterlege einen eigenen Schlüssel im Profil.',
     )
     expect(mockGetOrgAvailableModels).not.toHaveBeenCalled()
   })
@@ -406,10 +406,10 @@ describe('WizardKeyWarning', () => {
     )
     expect(item).toHaveTextContent('Generierung mit claude-sonnet')
     expect(item).toHaveTextContent(
-      'Weder Ihre eigenen Schlüssel noch Ihre Organisationen stellen einen Anthropic-Schlüssel bereit.',
+      'Weder deine eigenen Schlüssel noch deine Organisationen stellen einen Anthropic-Schlüssel bereit.',
     )
     expect(item).toHaveTextContent(
-      'Hinterlegen Sie einen eigenen Schlüssel im Profil, oder bitten Sie die Administration Ihrer Organisation um einen Anthropic-Schlüssel.',
+      'Hinterlege einen eigenen Schlüssel im Profil, oder bitte die Administration deiner Organisation um einen Anthropic-Schlüssel.',
     )
   })
 
@@ -420,10 +420,10 @@ describe('WizardKeyWarning', () => {
       'wizard-key-warning-generation-anthropic',
     )
     expect(item).toHaveTextContent(
-      'Sie haben keinen eigenen Anthropic-Schlüssel hinterlegt und gehören keiner Organisation an.',
+      'Du hast keinen eigenen Anthropic-Schlüssel hinterlegt und gehörst keiner Organisation an.',
     )
     expect(item).toHaveTextContent(
-      'Hinterlegen Sie einen eigenen Anthropic-Schlüssel im Profil.',
+      'Hinterlege einen eigenen Anthropic-Schlüssel im Profil.',
     )
   })
 
@@ -490,7 +490,7 @@ describe('WizardKeyWarning', () => {
       'wizard-key-warning-evaluation-openai',
     )
     expect(item).toHaveTextContent(
-      'In LMU München, Org B steht Ihnen kein OpenAI-Schlüssel zur Verfügung.',
+      'In LMU München, Org B steht dir kein OpenAI-Schlüssel zur Verfügung.',
     )
     expect(
       mockGetOrgAvailableModels.mock.calls.map(([id]) => id).sort(),

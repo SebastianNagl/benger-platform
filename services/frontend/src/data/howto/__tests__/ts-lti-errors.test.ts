@@ -88,6 +88,11 @@ function allText(guide: GuideCopy, locale: 'de' | 'en'): string[] {
   ]
 }
 
+// Formal "Sie"/"Ihr…" address: capitalised, but not at a sentence start
+// (there "Sie" is the third person).
+const FORMAL_ADDRESS =
+  /(?<!(?:^|[.!?:]|\*\*)\s*)\b(Sie|Ihnen|Ihr|Ihre|Ihrem|Ihren|Ihrer|Ihres)\b/
+
 describe('ts-lti-errors guide', () => {
   it('is a troubleshooting guide of the platform', () => {
     const guide = getGuide()
@@ -132,10 +137,14 @@ describe('ts-lti-errors guide', () => {
     }
   })
 
-  it('addresses readers formally in German', () => {
-    for (const text of allText(copy(), 'de')) {
-      expect(text).not.toMatch(/\b(du|dich|dein|deine|deinen|deiner)\b/i)
+  it('addresses readers with "du" in German', () => {
+    const texts = allText(copy(), 'de')
+    for (const text of texts) {
+      expect(text).not.toMatch(FORMAL_ADDRESS)
+      expect(text).not.toMatch(/(^|\s)(Öffnen|Wenden|Prüfen|Bitten) Sie\b/)
     }
+    expect(texts.join(' ')).toMatch(/\b(dein|deine|deiner)\b/)
+    expect(texts.join(' ')).toMatch(/(^|\s)Öffne die Aktivität/)
   })
 
   it('explains how to read the error page', () => {
@@ -345,7 +354,7 @@ describe('ts-lti-errors guide', () => {
 
   it('tells who acts for each kind of problem', () => {
     const orgAdmin = {
-      de: /Admins Ihrer Organisation/,
+      de: /Admins deiner Organisation/,
       en: /admins of your organization/,
     }
     const lmsAdmin = {
@@ -353,7 +362,7 @@ describe('ts-lti-errors guide', () => {
       en: /learning platform administration/,
     }
     const reopen = {
-      de: /Öffnen Sie die Aktivität erneut/,
+      de: /Öffne die Aktivität erneut/,
       en: /Open the activity again/,
     }
     const operator = {

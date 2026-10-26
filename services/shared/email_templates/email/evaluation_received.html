@@ -1,13 +1,8 @@
 {% set data = notification.data or {} %}
 {% set source = data.source if data.source in ('human', 'immediate', 'batch') else 'human' %}
-{% set du = brand.name == 'Vertretbar' %}
-{# German like the other notification emails; wording mirrors the in-app text (notifications.content.evaluation_received_*). Vertretbar says "du", BenGER "Sie". #}
+{# German like the other notification emails; wording mirrors the in-app text (notifications.content.evaluation_received_*). Both brands address the reader with "du". #}
 {% set title = {'human': 'Neue Korrektur', 'immediate': 'KI-Korrektur fertig', 'batch': 'Neue Evaluierung'}[source] %}
-{% if du %}
 {% set lead = {'human': 'Deine Bearbeitung wurde korrigiert.', 'immediate': 'Die KI-Korrektur deiner Bearbeitung liegt vor.', 'batch': 'Ein Evaluierungslauf hat deine Bearbeitungen bewertet.'}[source] %}
-{% else %}
-{% set lead = {'human': 'Ihre Bearbeitung wurde korrigiert.', 'immediate': 'Die KI-Korrektur Ihrer Bearbeitung liegt vor.', 'batch': 'Ein Evaluierungslauf hat Ihre Bearbeitungen bewertet.'}[source] %}
-{% endif %}
 {% set source_label = {'human': 'Menschliche Korrektur', 'immediate': 'KI-Korrektur', 'batch': 'Evaluierungslauf'}[source] %}
 {% set cta = 'Ergebnisse ansehen' if source == 'batch' else 'Korrektur ansehen' %}
 {% set settings_url = brand.frontend_url.rstrip('/') ~ '/settings/notifications' %}
@@ -30,11 +25,7 @@ Subject: {{ title }}{% if data.project_title %}: {{ data.project_title }}{% endi
     {% endif %}
     <hr style="border: none; border-top: 1px solid #e4e4e7; margin: 24px 0;" />
     <p style="font-size: 12px; color: #a1a1aa;">
-      {% if du %}
       Du kannst E-Mails zu dieser Benachrichtigung in den <a href="{{ settings_url }}" style="color: #a1a1aa;">Benachrichtigungseinstellungen</a> deaktivieren.
-      {% else %}
-      Sie können E-Mails zu dieser Benachrichtigung in den <a href="{{ settings_url }}" style="color: #a1a1aa;">Benachrichtigungseinstellungen</a> deaktivieren.
-      {% endif %}
     </p>
   </body>
 </html>

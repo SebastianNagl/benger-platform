@@ -4,7 +4,7 @@
  *
  * These guides describe a feature whose UI ships with the extended edition,
  * so the tests pin what can drift silently: both languages stay parallel,
- * the copy stays brand-neutral and plain (no em dashes, formal German), every
+ * the copy stays brand-neutral and plain (no em dashes, informal German "du"), every
  * launch error code is explained, the guides link to each other, and the UI
  * labels they quote match the labels the app renders.
  */
@@ -115,6 +115,10 @@ const PUBLIC_DOC = resolve(
   __dirname,
   '../../../../../../docs/lms-integration.md',
 )
+
+/** Formal "Sie"/"Ihr…" address: capitalised, but not at a sentence start. */
+const FORMAL_ADDRESS =
+  /(?<!(?:^|[.!?:]|\*\*)\s*)\b(Sie|Ihr|Ihre|Ihrem|Ihren|Ihrer|Ihres)\b/
 
 const EM_DASH = /\u2014/
 const EN_DASH_AS_DASH = / \u2013 /
@@ -343,10 +347,18 @@ describe('LTI guides: wording', () => {
     },
   )
 
-  it.each(LTI_GUIDE_IDS)('%s addresses readers formally in German', (id) => {
-    for (const text of texts(guide(id), 'de')) {
-      expect(text).not.toMatch(/\b(du|dich|dir|dein|deine|deinen|deiner)\b/i)
+  it.each(LTI_GUIDE_IDS)('%s addresses readers with "du" in German', (id) => {
+    const all = texts(guide(id), 'de')
+    for (const text of all) {
+      // A capitalised "Sie"/"Ihr…" in mid-sentence is the formal address;
+      // at a sentence start it is the third person ("Sie heißt …").
+      expect(text).not.toMatch(FORMAL_ADDRESS)
+      expect(text).not.toMatch(/\bIhnen\b/)
     }
+    // Each guide speaks to its reader: a "du" pronoun or a du imperative.
+    expect(all.join(' ')).toMatch(
+      /\b(du|dich|dir|dein|deine|deinen|deiner|Klick|Wähle|Schalte)\b/i,
+    )
   })
 })
 
@@ -452,9 +464,7 @@ describe('LTI guides: statements users rely on', () => {
       /New teachers join the organization as annotators/,
     )
     // Deleting needs the connection switched off first.
-    expect(body('lti-manage', 'de')).toMatch(
-      /Deaktivieren Sie die Anbindung zuerst/,
-    )
+    expect(body('lti-manage', 'de')).toMatch(/Deaktiviere die Anbindung zuerst/)
     expect(body('lti-manage', 'en')).toMatch(/disable the connection first/)
   })
 
@@ -491,7 +501,7 @@ describe('LTI guides: statements users rely on', () => {
     expect(de).toMatch(/private Klausuren/)
     expect(de).toMatch(/Forschungsnutzung/)
     expect(de).toMatch(/Aktivitätsübersicht/)
-    expect(de).toMatch(/Die Auswahl trägt den Titel Ihrer Aktivität/)
+    expect(de).toMatch(/Die Auswahl trägt den Titel deiner Aktivität/)
     const en = body('lti-teacher', 'en')
     expect(en).toMatch(/several tasks/)
     expect(en).toMatch(/Private exams/)
@@ -527,7 +537,7 @@ describe('LTI guides: statements users rely on', () => {
         expect(text).toContain(MOODLE.weights[locale])
         expect(text).toContain(MOODLE.saveChanges[locale])
         expect(text).toMatch(
-          locale === 'de' ? /0 eintragen|tragen Sie 0 ein/ : /enter 0/,
+          locale === 'de' ? /0 eintragen|trag 0 ein/ : /enter 0/,
         )
       }
     }
@@ -854,9 +864,9 @@ describe('LTI guides: the ILIAS identification rule', () => {
       /ILIAS übermittelt keine E-Mail-Adresse/,
     )
     expect(body('lti-teacher', 'en')).toMatch(/ILIAS sends no email address/)
-    // Teachers are asked for their address too, with "Sie".
+    // Teachers are asked for their address too, addressed with "du".
     expect(body('lti-teacher', 'de')).toMatch(
-      /Die Seite fragt Sie dann einmal nach Ihrer E-Mail-Adresse/,
+      /Die Seite fragt dich dann einmal nach deiner E-Mail-Adresse/,
     )
     expect(body('lti-teacher', 'en')).toMatch(
       /The page then asks you once for your email address/,

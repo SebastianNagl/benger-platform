@@ -10209,6 +10209,7 @@
     "dashboard": {
       "dueToday": {
         "empty": "No cards due today. Well done!",
+        "showAll": "Show all",
         "title": "Due today"
       },
       "dueExams": {
@@ -10236,6 +10237,35 @@
         "exams": "Exams",
         "decks": "Decks",
         "avgScore": "Avg. grade points"
+      },
+      "activity": {
+        "less": "Less",
+        "more": "More",
+        "rangeHalfYear": "in the last six months",
+        "rangeYear": "in the last year",
+        "flashcards": {
+          "title": "Flashcard activity",
+          "subtitle": "Reviews per day",
+          "cell": "{date}: {count} reviews",
+          "cellOne": "{date}: 1 review",
+          "summary": "{count} reviews {range}",
+          "summaryOne": "1 review {range}",
+          "activeDays": "{count} study days",
+          "activeDaysOne": "1 study day",
+          "streak": "{count}-day streak",
+          "streakOne": "1-day streak"
+        },
+        "exams": {
+          "title": "Exam activity",
+          "subtitle": "Goal: one exam per week",
+          "cell": "Week of {date}: {count} exams",
+          "cellOne": "Week of {date}: 1 exam",
+          "summary": "{count} exams {range}",
+          "summaryOne": "1 exam {range}",
+          "weeksMet": "{count} of {total} weeks with an exam",
+          "streak": "{count} weeks in a row",
+          "streakOne": "1 week in a row"
+        }
       }
     },
     "deck": {
@@ -10584,7 +10614,7 @@
       "score": "Best score",
       "selectExam": "Select exam",
       "tabCohort": "Exam cohort",
-      "tabHuman": "Annotators",
+      "tabHuman": "All participants",
       "title": "Leaderboard",
       "you": "You"
     },

@@ -71,7 +71,9 @@ export function SiteHeader() {
           <Logo className="h-6" />
         </Link>
 
-        <div className="flex gap-1 lg:ml-16">
+        {/* The section links need tablet width; on phones the page is one
+            scroll and the header keeps only logo, switches and login. */}
+        <div className="hidden gap-1 md:flex lg:ml-16">
           {NAV_SECTIONS.map(({ id, key }) => (
             <Link
               key={id}
@@ -90,8 +92,8 @@ export function SiteHeader() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5">
-        <div className="flex gap-4">
+      <div className="flex items-center gap-3 sm:gap-5">
+        <div className="flex gap-3 sm:gap-4">
           <LanguageSwitcher />
           <ThemeToggle />
         </div>

@@ -2,7 +2,7 @@
   "howToCategories": {
     "start": {
       "title": "Erste Schritte",
-      "blurb": "Was BenGER und die Lernoberfläche sind, wie Sie sich zurechtfinden und was Sie zuerst einrichten sollten."
+      "blurb": "Was BenGER und die Lernoberfläche sind, wie du dich zurechtfindest und was du zuerst einrichten solltest."
     },
     "organizations": {
       "title": "Organisationen, Gruppen & Einladungen",
@@ -18,7 +18,7 @@
     },
     "annotation": {
       "title": "Annotationsoberfläche & XML",
-      "blurb": "Die Oberfläche, die Annotierende sehen, und wie Sie das XML dahinter anpassen."
+      "blurb": "Die Oberfläche, die Annotierende sehen, und wie du das XML dahinter anpasst."
     },
     "generation": {
       "title": "KI-Modelle & Generierung",
@@ -48,7 +48,7 @@
       "steps": [
         "**BenGER** für Lehrende, Forschende und Annotierende: Dashboard, Projekte, Daten, Generierung, Evaluation, Berichte, Bestenlisten.",
         "**Lernoberfläche** für Studierende: Lernstatistik, Klausuren, Karteikarten, Entdecken, Bestenliste. Studierende brauchen keinen eigenen API-Schlüssel. Wer die KI-Korrektur bezahlt, steht in der Anleitung zu API-Schlüsseln.",
-        "Eine Klausur, die Sie in BenGER als Projekt vom Typ *Klausur* anlegen und freigeben, erscheint bei Studierenden in der Lernoberfläche in der Klausurenliste bzw. unter *Entdecken*. Ihre Abgaben und KI-Korrekturen sehen Sie im BenGER-Projekt.",
+        "Eine Klausur, die du in BenGER als Projekt vom Typ *Klausur* anlegst und freigibst, erscheint bei Studierenden in der Lernoberfläche in der Klausurenliste bzw. unter *Entdecken*. Ihre Abgaben und KI-Korrekturen siehst du im BenGER-Projekt.",
         "Die Lernoberfläche ist auch von BenGER aus erreichbar: oben rechts im Kontomenü auf **Studierendenansicht**. Auf what-a-benger.net heißt sie dann *Lernbereich*. Zurück geht es in der Seitenleiste über **Expertenansicht**."
       ],
       "tips": [
@@ -73,8 +73,8 @@
       "title": "Was richte ich als Erstes ein?",
       "summary": "In dieser Reihenfolge: in die richtige Organisation wechseln, einen API-Schlüssel klären (eigener oder Organisation), ein Projekt anlegen, Daten hochladen, dann annotieren, generieren und auswerten.",
       "steps": [
-        "**Kontext prüfen**: Oben rechts im Kontomenü unter *Kontext wechseln* Ihre Organisation wählen. Im Kontext *Privat* sehen Sie keine Organisationsprojekte.",
-        "**API-Schlüssel**: Stellt Ihre Organisation Schlüssel bereit, müssen Sie nichts tun. Sonst hinterlegen Sie unter [Profil](/profile) → *API-Schlüssel-Verwaltung* einen Schlüssel des KI-Anbieters, den Sie nutzen wollen.",
+        "**Kontext prüfen**: Oben rechts im Kontomenü unter *Kontext wechseln* deine Organisation wählen. Im Kontext *Privat* siehst du keine Organisationsprojekte.",
+        "**API-Schlüssel**: Stellt deine Organisation Schlüssel bereit, musst du nichts tun. Sonst hinterlegst du unter [Profil](/profile) → *API-Schlüssel-Verwaltung* einen Schlüssel des KI-Anbieters, den du nutzen willst.",
         "**Projekt anlegen**: [Projekte](/projects) → *Neues Projekt*, Projekttyp und Funktionen wählen.",
         "**Daten hochladen**: im Assistenten oder später über *Projektdaten* (JSON, CSV, TSV, TXT).",
         "**Annotieren**: *Annotation starten* auf der Projektseite. **Generieren** und **Evaluieren** über die jeweilige Konfigurationskarte.",
@@ -86,10 +86,10 @@
       "title": "Wo finde ich was in der Navigation?",
       "summary": "Die Seitenleiste hat drei Gruppen. **Schnellstart**: Dashboard, Berichte, Lernstatistik, Bestenlisten. **Projekte & Daten**: Projekte, Datenverwaltung, Generierung, Evaluation. **Wissen**: Anleitungen, Modelle, Architektur. Alles Persönliche liegt oben rechts im Kontomenü.",
       "steps": [
-        "**Kontomenü** (oben rechts, Ihr Name): Profil-Einstellungen, Benachrichtigungs-Einstellungen, *Kontext wechseln* (Privat oder Organisation), Läufe, Benutzer & Organisationen, Studierendenansicht, Abmelden.",
+        "**Kontomenü** (oben rechts, dein Name): Profil-Einstellungen, Benachrichtigungs-Einstellungen, *Kontext wechseln* (Privat oder Organisation), Läufe, Benutzer & Organisationen, Studierendenansicht, Abmelden.",
         "**Suche** (Lupe in der Kopfzeile): findet Seiten, Projekte und diese Anleitungen. Deutsch und Englisch, auch bei Tippfehlern.",
         "**Läufe** zeigt alle Generierungs- und Evaluationsläufe mit Status. **Benachrichtigungen** (Glocke) informiert über abgeschlossene Läufe und Einladungen.",
-        "**Modelle** ist der Modellkatalog mit Preisen und der Stelle, an der Sie eigene Modelle registrieren."
+        "**Modelle** ist der Modellkatalog mit Preisen und der Stelle, an der du eigene Modelle registrierst."
       ],
       "keywords": [
         "Navigation",
@@ -102,11 +102,11 @@
     },
     "org-context": {
       "title": "Warum sehe ich keine Projekte? Privater Kontext vs. Organisation",
-      "summary": "Projekte gehören zu Organisationen. Im Kontext **Privat** sehen Sie nur Ihre privaten Projekte. Wechseln Sie oben rechts im Kontomenü unter **Kontext wechseln** zur Organisation.",
+      "summary": "Projekte gehören zu Organisationen. Im Kontext **Privat** siehst du nur deine privaten Projekte. Wechsle oben rechts im Kontomenü unter **Kontext wechseln** zur Organisation.",
       "steps": [
-        "Klicken Sie oben rechts auf Ihren Namen. In Klammern steht der aktuelle Kontext, z.B. *(Privat)* oder *(Lehrstuhl X)*.",
+        "Klick oben rechts auf deinen Namen. In Klammern steht der aktuelle Kontext, z.B. *(Privat)* oder *(Lehrstuhl X)*.",
         "Unter **Kontext wechseln** die Organisation anklicken. Die Seite lädt neu unter der Adresse der Organisation (`organisation.what-a-benger.net`).",
-        "Zurück zu Ihren privaten Projekten über **Privat**."
+        "Zurück zu deinen privaten Projekten über **Privat**."
       ],
       "tips": [
         "Der zuletzt gewählte Kontext wird gemerkt. Lesezeichen auf die Organisationsadresse führen direkt in den richtigen Kontext."
@@ -129,10 +129,10 @@
         "**Mitwirkender**: Alles rund um Projekte und Daten (Import, Export, Generierung, Evaluation, Berichte), aber keine Mitgliederverwaltung. Sieht und korrigiert auch private Klausuren anderer, die mit einer Lernplattform der Organisation verknüpft sind. Personen aus einer Lernplattform erscheinen in Listen unter ihrem Pseudonym, außer bei Klausuren, die der Mitwirkende bewerten darf.",
         "**Annotator**: Sieht Projekte der Organisation als Annotierende:r, keine Datenseite, keine Mitgliederliste. Bei Klausuren nur die Teilnehmer-Sicht ohne Musterlösung vor der Abgabe.",
         "**Rolle in der Organisation und Rolle in der Gruppe**: Die Rolle in der Organisation gilt für organisationsweite Projekte und für alles auf Ebene der Organisation. Auf einem Projekt einer [Gruppe](/how-to#org-groups) zählt die Rolle in dieser Gruppe; sie darf höher oder niedriger sein. Beispiel: In der Organisation Annotator, im Lehrstuhl A Annotator (dort Klausuren nur als Teilnehmer:in), im Lehrstuhl B Admin (dort Projekte anlegen und betreuen). Organisationsadmins sind in jeder Gruppe Admin.",
-        "Rollen ändern: [Benutzer & Organisationen](/users-organizations) → Tab *Organisationen* → Organisation wählen → Mitgliederliste. Admins können andere Admins nicht ändern. Rollen in einer Gruppe ändern Sie unter **Gruppen** → **Mitglieder**."
+        "Rollen ändern: [Benutzer & Organisationen](/users-organizations) → Tab *Organisationen* → Organisation wählen → Mitgliederliste. Admins können andere Admins nicht ändern. Rollen in einer Gruppe änderst du unter **Gruppen** → **Mitglieder**."
       ],
       "tips": [
-        "Neue Organisationen legt nur die Plattform-Administration (Superadmin) an. Schreiben Sie uns, wenn Sie eine brauchen."
+        "Neue Organisationen legt nur die Plattform-Administration (Superadmin) an. Schreib uns, wenn du eine brauchst."
       ],
       "keywords": [
         "Rolle",
@@ -150,7 +150,7 @@
       "summary": "Unter [Benutzer & Organisationen](/users-organizations) → *Organisationen* → **Mitglied einladen** (oder **Mehrere einladen**). Die Person erhält eine E-Mail mit einem Link, der 7 Tage gültig ist, und tritt beim Annehmen mit der gewählten Rolle bei.",
       "steps": [
         "Organisation in der linken Liste wählen, Abschnitt **Mitglieder**.",
-        "**Mitglied einladen**: E-Mail, optional **Gruppe** (sonst *Keine (ganze Organisation)*) und die **Rolle** (Admin, Mitwirkender, Annotator). Mit Gruppe wählen Sie die **Rolle in der Gruppe** und die **Rolle in der Organisation** (Vorgabe Annotator). Für mehrere Adressen **Mehrere einladen**, getrennt durch Komma, Semikolon oder Zeilenumbruch.",
+        "**Mitglied einladen**: E-Mail, optional **Gruppe** (sonst *Keine (ganze Organisation)*) und die **Rolle** (Admin, Mitwirkender, Annotator). Mit Gruppe wählst du die **Rolle in der Gruppe** und die **Rolle in der Organisation** (Vorgabe Annotator). Für mehrere Adressen **Mehrere einladen**, getrennt durch Komma, Semikolon oder Zeilenumbruch.",
         "Gruppen-Admins laden nur in ihre eigenen Gruppen ein, mit beliebiger Rolle in der Gruppe. In der Organisation werden die Eingeladenen Annotator; nur Organisationsadmins können das ändern.",
         "**Einladung senden**. Offene Einladungen stehen unter *Ausstehende Einladungen* und lassen sich dort zurückziehen.",
         "Die Person klickt den Link: Mit bestehendem Konto **Anmelden zum Annehmen**, sonst **Einladung annehmen & Konto erstellen**. Neue Konten sind sofort verifiziert."
@@ -175,8 +175,8 @@
       "steps": [
         "[Benutzer & Organisationen](/users-organizations) → *Organisationen* → Organisation wählen → Button **Gruppen**.",
         "**Neue Gruppe**: Name (z.B. *Lehrstuhl für Zivilrecht*) und Beschreibung, dann **Gruppe erstellen**. Nur Organisationsadmins können Gruppen anlegen, umbenennen, deaktivieren und löschen.",
-        "**Mitglieder** einer Gruppe: **Mitglied hinzufügen** aus den bestehenden Organisationsmitgliedern mit der **Rolle in der Gruppe** (Vorgabe Annotator). Die Rolle lässt sich je Mitglied in der Liste ändern. Neue Personen laden Sie direkt in die Gruppe ein (Einladung mit gesetzter *Gruppe* und Rolle in der Gruppe).",
-        "**Projekte auf eine Gruppe beschränken**: Beim Anlegen unter *Sichtbarkeit → Organisation* je Organisation die **Gruppe** wählen (Vorgabe *Gesamte Organisation*), später auf der Projektseite unter *Projekt-Sichtbarkeit*. Angeboten werden die Gruppen, in denen Sie Mitwirkender oder Admin sind; *Gesamte Organisation* nur mit der Rolle Mitwirkender oder Admin in der Organisation.",
+        "**Mitglieder** einer Gruppe: **Mitglied hinzufügen** aus den bestehenden Organisationsmitgliedern mit der **Rolle in der Gruppe** (Vorgabe Annotator). Die Rolle lässt sich je Mitglied in der Liste ändern. Neue Personen lädst du direkt in die Gruppe ein (Einladung mit gesetzter *Gruppe* und Rolle in der Gruppe).",
+        "**Projekte auf eine Gruppe beschränken**: Beim Anlegen unter *Sichtbarkeit → Organisation* je Organisation die **Gruppe** wählen (Vorgabe *Gesamte Organisation*), später auf der Projektseite unter *Projekt-Sichtbarkeit*. Angeboten werden die Gruppen, in denen du Mitwirkender oder Admin bist; *Gesamte Organisation* nur mit der Rolle Mitwirkender oder Admin in der Organisation.",
         "**Schlüssel je Gruppe**: Im Dialog *API-Schlüssel* der Organisation den **Geltungsbereich** auf die Gruppe stellen. Gruppenprojekte nutzen zuerst den Gruppenschlüssel, sonst den der Organisation."
       ],
       "tips": [
@@ -199,23 +199,23 @@
     },
     "create-project": {
       "title": "Wie lege ich ein neues Projekt an?",
-      "summary": "Über **Projekte → Neues Projekt** startet der Projekt-Assistent. Sie geben Name und Projekttyp an, wählen die Funktionen, die das Projekt braucht, und der Assistent zeigt nur die dazu passenden Schritte.",
+      "summary": "Über **Projekte → Neues Projekt** startet der Projekt-Assistent. Du gibst Name und Projekttyp an, wählst die Funktionen, die das Projekt braucht, und der Assistent zeigt nur die dazu passenden Schritte.",
       "steps": [
-        "Öffnen Sie [Projekte](/projects) und klicken Sie auf **Neues Projekt**.",
+        "Öffne [Projekte](/projects) und klick auf **Neues Projekt**.",
         "**Projektinformationen**: Name (Pflicht), Beschreibung, Symbol und der **Projekttyp** – *Generisch*, *Klausur* oder *Kartenstapel* (siehe „Welchen Projekttyp wähle ich?“).",
-        "Haken Sie unter **Projektfunktionen** an, was Sie brauchen: *Datenimport*, *Annotation*, *LLM-Generierung*, *Evaluation*. Jede Funktion blendet einen eigenen Schritt ein.",
-        "Wählen Sie die **Sichtbarkeit**: *Privat* (nur Sie), *Organisation* (Mitglieder einer oder mehrerer Organisationen, optional nur eine Gruppe) oder *Öffentlich*.",
-        "Gehen Sie mit **Weiter** durch die Schritte *Datenimport*, *Annotation einrichten*, *Anweisungen*, *Modelle*, *Prompts*, *Evaluation* und *Einstellungen*.",
-        "Klicken Sie im letzten Schritt auf **Projekt erstellen**. Sie landen auf der Projektseite."
+        "Hak unter **Projektfunktionen** an, was du brauchst: *Datenimport*, *Annotation*, *LLM-Generierung*, *Evaluation*. Jede Funktion blendet einen eigenen Schritt ein.",
+        "Wähle die **Sichtbarkeit**: *Privat* (nur du), *Organisation* (Mitglieder einer oder mehrerer Organisationen, optional nur eine Gruppe) oder *Öffentlich*.",
+        "Geh mit **Weiter** durch die Schritte *Datenimport*, *Annotation einrichten*, *Anweisungen*, *Modelle*, *Prompts*, *Evaluation* und *Einstellungen*.",
+        "Klick im letzten Schritt auf **Projekt erstellen**. Du landest auf der Projektseite."
       ],
       "tips": [
-        "Die Schritt-Chips oben sind klickbar. Sie können jederzeit zu einem früheren Schritt springen.",
+        "Die Schritt-Chips oben sind klickbar. Du kannst jederzeit zu einem früheren Schritt springen.",
         "Alles außer dem Namen lässt sich später auf der Projektseite ändern. Ein leerer Schritt ist kein Fehler.",
-        "Ein Klausur-Projekt bekommt automatisch die Annotationsvorlage *Klausurlösung*, die KI-Korrektur (zwei Bewertungsverfahren) und die Sofort-Evaluation. Sie müssen dafür nichts einstellen."
+        "Ein Klausur-Projekt bekommt automatisch die Annotationsvorlage *Klausurlösung*, die KI-Korrektur (zwei Bewertungsverfahren) und die Sofort-Evaluation. Du musst dafür nichts einstellen."
       ],
       "pitfalls": [
         "Nur der Projektname wird geprüft. Ein Projekt ohne Daten oder ohne Annotationsvorlage lässt sich anlegen, ist dann aber leer.",
-        "Schlägt ein Teilschritt beim Erstellen fehl (z.B. der Datenimport), existiert das Projekt trotzdem. Beheben Sie den Fehler dann auf der Projektseite statt den Assistenten erneut abzuschließen, sonst entsteht ein zweites Projekt."
+        "Schlägt ein Teilschritt beim Erstellen fehl (z.B. der Datenimport), existiert das Projekt trotzdem. Behebe den Fehler dann auf der Projektseite statt den Assistenten erneut abzuschließen, sonst entsteht ein zweites Projekt."
       ],
       "keywords": [
         "Assistent",
@@ -230,14 +230,14 @@
       "title": "Welchen Projekttyp wähle ich: Generisch, Klausur oder Kartenstapel?",
       "summary": "Der Projekttyp steuert, was das Projekt automatisch mitbringt und ob Studierende es finden können. *Klausur* für Falllösungen mit KI-Korrektur, *Kartenstapel* für Karteikarten mit Lernplan, *Generisch* für alles andere (Benchmarks, Annotationsstudien).",
       "steps": [
-        "**Generisch**: Benchmark- oder Annotationsprojekt ohne Klausur- oder Kartenlogik. Sie wählen Vorlage, Modelle und Bewertungsverfahren selbst.",
+        "**Generisch**: Benchmark- oder Annotationsprojekt ohne Klausur- oder Kartenlogik. Du wählst Vorlage, Modelle und Bewertungsverfahren selbst.",
         "**Klausur**: Sachverhalt plus Musterlösung, Annotationsvorlage *Klausurlösung* (Angabe, Notizen, Gliederung, Lösung), KI-Korrektur mit Notenpunkten, Sofort-Evaluation und Anzeige der Musterlösung nach der Abgabe. Für Studierende lösbar.",
         "**Kartenstapel**: Karten mit Vorder- und Rückseite, Lernplan mit Wiederholungen (SRS), Import und Export im Anki-Format. Für Studierende lernbar.",
         "Der Typ lässt sich später auf der Projektseite unter **Einstellungen → Projekttyp** ändern."
       ],
       "tips": [
         "Ein Typwechsel ändert nur den Typ. Vorlage, Bewertungsverfahren und Daten bleiben, wie sie sind. Die Hinweise unter dem Typ zeigen, was für Studierende noch fehlt.",
-        "Wählen Sie im Schritt *Annotation einrichten* die Vorlage *Karteikarten (leer)*, setzt der Assistent den Typ automatisch auf *Kartenstapel*."
+        "Wählst du im Schritt *Annotation einrichten* die Vorlage *Karteikarten (leer)*, setzt der Assistent den Typ automatisch auf *Kartenstapel*."
       ],
       "keywords": [
         "Projekttyp",
@@ -250,17 +250,17 @@
     },
     "exam-project-quick": {
       "title": "Wie erfasse ich eine Klausur mit Sachverhalt und Musterlösung am schnellsten?",
-      "summary": "Über den Tab **Klausur erfassen** im Schritt *Datenimport*. Sie füllen Angabe und Musterlösung als Text aus, optional Gliederung, Bewertungskriterien, Bearbeitervermerk, Zusatzmaterial und Korrekturhinweise. Kein JSON nötig.",
+      "summary": "Über den Tab **Klausur erfassen** im Schritt *Datenimport*. Du füllst Angabe und Musterlösung als Text aus, optional Gliederung, Bewertungskriterien, Bearbeitervermerk, Zusatzmaterial und Korrekturhinweise. Kein JSON nötig.",
       "steps": [
         "Projekttyp **Klausur** wählen und **Datenimport** anhaken.",
-        "Im Schritt *Datenimport* ist der Tab **Klausur erfassen** vorausgewählt. Klicken Sie auf **Angabe (Sachverhalt)** und fügen Sie den Text ein oder laden Sie eine Datei hoch.",
+        "Im Schritt *Datenimport* ist der Tab **Klausur erfassen** vorausgewählt. Klick auf **Angabe (Sachverhalt)** und füg den Text ein oder lade eine Datei hoch.",
         "Genauso **Musterlösung** ausfüllen. Sie wird erst nach der Abgabe sichtbar.",
         "Optional über **Inhalt hinzufügen**: *Gliederung / Lösungsskizze*, *Bewertungskriterien* (eigene Rubrik), *Bearbeitervermerk*, *Zusatzmaterial*, *Korrekturhinweise*.",
         "Weiter bis **Projekt erstellen**. Die Klausur wird als eine Aufgabe importiert."
       ],
       "tips": [
-        "Mit eigenen **Bewertungskriterien** bewertet die KI nach Ihrer Rubrik statt nach dem Standard-Schema mit 10 Dimensionen und Notenpunkten.",
-        "Mehrere Klausuren in einem Projekt (eine „Klausurensammlung“) legen Sie über eine JSON-Datei mit mehreren Einträgen an, siehe „Welche Felder braucht eine Klausur-Datei?“.",
+        "Mit eigenen **Bewertungskriterien** bewertet die KI nach deiner Rubrik statt nach dem Standard-Schema mit 10 Dimensionen und Notenpunkten.",
+        "Mehrere Klausuren in einem Projekt (eine „Klausurensammlung“) legst du über eine JSON-Datei mit mehreren Einträgen an, siehe „Welche Felder braucht eine Klausur-Datei?“.",
         "Der **KI-Generator** kann aus einem Vorlesungsskript synthetische Klausuren erzeugen. Er ist als hochexperimentell markiert und nur für ausgewählte Konten sichtbar."
       ],
       "keywords": [
@@ -276,7 +276,7 @@
       "title": "Wie ist die Projektseite aufgebaut und wo finde ich was?",
       "summary": "Die Projektseite besteht aus aufklappbaren Karten. Links die Konfiguration (Projektdetails, Annotationskonfiguration, Generierung, Evaluation, Einstellungen, Freigabe), rechts Schnellaktionen, Abrechnung, Statistiken und der Projektbericht. Daten, Meine Aufgaben, Korrektur und Review sind eigene Seiten.",
       "steps": [
-        "**Projektdetails**: Status, Ersteller, Projekt-ID, Organisationen. Titel und Beschreibung ändern Sie direkt im Kopf der Seite (Stift beim Überfahren).",
+        "**Projektdetails**: Status, Ersteller, Projekt-ID, Organisationen. Titel und Beschreibung änderst du direkt im Kopf der Seite (Stift beim Überfahren).",
         "**Annotationskonfiguration**: Anweisungen für Annotierende, Varianten für A/B-Tests, die Label-Konfiguration (XML) und *Annotationsablauf & -verhalten* (Zuweisungsmodus, Zeitlimit, Zugriffsfenster, Review- und Korrekturphase).",
         "**Generierungskonfiguration** und **Evaluierungskonfiguration**: Modelle, Prompts, Bewertungsverfahren, jeweils mit einem Startknopf.",
         "**Einstellungen**: Projekttyp, Sichtbarkeit der Bereiche (welche Karten es gibt) und die Projekt-Sichtbarkeit (Privat, Organisation, Öffentlich).",
@@ -285,7 +285,7 @@
       ],
       "tips": [
         "Fehlt eine Karte, ist der Bereich unter **Einstellungen → Sichtbarkeit der Bereiche** ausgeschaltet. Diese Schalter steuern auch die Fortschrittsanzeige.",
-        "Die Konfigurationskarten speichern automatisch, sobald Sie ein Feld verlassen. Ein Fehler beim Speichern lässt die Karte im Bearbeitungsmodus."
+        "Die Konfigurationskarten speichern automatisch, sobald du ein Feld verlässt. Ein Fehler beim Speichern lässt die Karte im Bearbeitungsmodus."
       ],
       "keywords": [
         "Projektseite",
@@ -297,7 +297,7 @@
     },
     "assignment-and-limits": {
       "title": "Wie verteile ich Aufgaben an Annotierende und begrenze Annotationen?",
-      "summary": "Über den **Zuweisungsmodus** in *Annotationsablauf & -verhalten*: *Offen* (alle sehen alle Aufgaben), *Manuell* (Sie weisen zu) oder *Automatisch*. Dazu *Max. Annotationen pro Aufgabe* und *Min. Annotationen für Abschluss*.",
+      "summary": "Über den **Zuweisungsmodus** in *Annotationsablauf & -verhalten*: *Offen* (alle sehen alle Aufgaben), *Manuell* (du weist zu) oder *Automatisch*. Dazu *Max. Annotationen pro Aufgabe* und *Min. Annotationen für Abschluss*.",
       "steps": [
         "Projektseite → **Annotationskonfiguration → Annotationsablauf & -verhalten**.",
         "**Zuweisungsmodus** wählen. Im Modus *Manuell* oder *Automatisch* sehen Annotierende nur Aufgaben, die ihnen zugewiesen sind.",
@@ -328,7 +328,7 @@
       ],
       "pitfalls": [
         "Das Ein- oder Ausschalten des Zeitlimits setzt den strikten Timer zurück. Reihenfolge: erst Zeitlimit, dann strikter Timer.",
-        "Eigentümer und Admins sind vom Zugriffsfenster nie eingeschränkt. Testen Sie das Fenster mit einem Annotator-Konto.",
+        "Eigentümer und Admins sind vom Zugriffsfenster nie eingeschränkt. Teste das Fenster mit einem Annotator-Konto.",
         "Bei automatischer Abgabe durch den strikten Timer wird die Bestätigung vor dem Absenden übersprungen."
       ],
       "keywords": [
@@ -361,7 +361,7 @@
         "Das Prüfungspasswort lässt sich jederzeit setzen, ändern oder entfernen, ohne dass eine neue Konfiguration entsteht."
       ],
       "pitfalls": [
-        "SEB gibt es für Windows, macOS und iPad, nicht für Linux oder Chromebooks. Halten Sie Leihgeräte bereit.",
+        "SEB gibt es für Windows, macOS und iPad, nicht für Linux oder Chromebooks. Halte Leihgeräte bereit.",
         "SEB verhindert keine Zweitgeräte wie Smartphones. Eine Aufsicht im Raum bleibt nötig.",
         "Passwort-Links aus E-Mails lassen sich in SEB nicht öffnen. Studierende brauchen ihre Zugangsdaten vor der Prüfung."
       ],
@@ -380,12 +380,12 @@
       "title": "Wie archiviere, lösche oder stelle ich ein Projekt wieder her?",
       "summary": "Archivieren geht in der Projektliste als Massenaktion. Löschen blendet das Projekt für alle aus, die Daten bleiben erhalten. Nur Superadmins können gelöschte Projekte unter **Mehr → Gelöschte Projekte** wiederherstellen oder endgültig löschen.",
       "steps": [
-        "**Archivieren**: [Projekte](/projects) → Projekte ankreuzen → **Aktionen → Ausgewählte archivieren**. Archivierte Projekte finden Sie unter **Mehr → Archiviert** und können sie dort dearchivieren.",
+        "**Archivieren**: [Projekte](/projects) → Projekte ankreuzen → **Aktionen → Ausgewählte archivieren**. Archivierte Projekte findest du unter **Mehr → Archiviert** und kannst sie dort dearchivieren.",
         "**Löschen**: Projektseite → Schnellaktionen → **Projekt löschen**. Das Projekt verschwindet für alle, Aufgaben, Abgaben und Bewertungen bleiben gespeichert.",
         "**Wiederherstellen** (Superadmin): **Mehr → Gelöschte Projekte** → *Wiederherstellen* oder *Endgültig löschen*."
       ],
       "tips": [
-        "Sichern Sie vor dem endgültigen Löschen einen Export: Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**."
+        "Sichere vor dem endgültigen Löschen einen Export: Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**."
       ],
       "keywords": [
         "archivieren",
@@ -401,18 +401,18 @@
       "steps": [
         "Projektseite → Schnellaktion **Projektdaten** → Import-Symbol (Tooltip *Importieren*). Im Assistenten: Schritt **Datenimport**.",
         "Tab **Datei hochladen** (Drag & Drop) oder **Tabelle/JSON einfügen** (Text einfügen, *Daten validieren*). Organisationen mit Speicheranbindung haben zusätzlich **Cloud-Speicher**.",
-        "Die Box **Datenanforderungen** zeigt, welche Felder die Vorlage erwartet. Erkannte Spalten Ihrer Datei erscheinen als Chips.",
-        "Fehlt ein Feld, bietet der Import **Trotzdem importieren** oder die **Feldzuordnung** an, mit der Sie Spalten auf die erwarteten Felder abbilden.",
+        "Die Box **Datenanforderungen** zeigt, welche Felder die Vorlage erwartet. Erkannte Spalten deiner Datei erscheinen als Chips.",
+        "Fehlt ein Feld, bietet der Import **Trotzdem importieren** oder die **Feldzuordnung** an, mit der du Spalten auf die erwarteten Felder abbildest.",
         "**Importieren**. Der Import läuft im Hintergrund, der Fortschritt wird angezeigt."
       ],
       "tips": [
         "**JSON**: ein Array von Objekten `[{\"sachverhalt\": \"…\", \"musterloesung\": \"…\"}, …]`. Ein Objekt mit `data` darin wird unverändert übernommen.",
         "**CSV/TSV**: erste Zeile sind die Spaltennamen. **TXT**: jede Zeile wird eine Aufgabe mit dem Feld `text`.",
         "Feldnamen werden ohne Rücksicht auf Groß-/Kleinschreibung zugeordnet. `Sachverhalt` in der Datei passt zu `$sachverhalt` in der Vorlage.",
-        "Dateien bis 2 GB. Speichern Sie Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
+        "Dateien bis 2 GB. Speichere Textdateien als **UTF-8**, sonst erscheinen Umlaute falsch."
       ],
       "pitfalls": [
-        "CSV wird einfach am Komma getrennt. **Kommas oder Zeilenumbrüche innerhalb von Zellen zerreißen die Zeile.** Nutzen Sie für Fließtexte JSON.",
+        "CSV wird einfach am Komma getrennt. **Kommas oder Zeilenumbrüche innerhalb von Zellen zerreißen die Zeile.** Nutze für Fließtexte JSON.",
         "Nur Mitwirkende und Admins dürfen importieren. Annotator:innen sehen die Datenseite nicht.",
         "Der Import legt neue Aufgaben an, er aktualisiert keine bestehenden. Ein zweiter Import derselben Datei verdoppelt die Aufgaben."
       ],
@@ -459,15 +459,15 @@
       "summary": "**Aufgaben** eines Projekts: Seite *Projektdaten* → Export-Symbol, liefert JSON. **Ganze Projekte** inklusive Konfiguration, Annotationen und Bewertungen: in der Projektliste ankreuzen → **Aktionen → Ausgewählte Projekte exportieren** (ZIP). Wieder einspielen über **Mehr → Projekt importieren**.",
       "steps": [
         "**Aufgaben exportieren**: Projektseite → *Projektdaten* → Export-Symbol. Mit aktiven Filtern oder Auswahl wird nur die Teilmenge exportiert. Der Export läuft im Hintergrund, danach erscheint der Download.",
-        "**Projekt exportieren**: [Projekte](/projects) → Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**. Sie erhalten `benger-projects-full-<Datum>.zip`.",
+        "**Projekt exportieren**: [Projekte](/projects) → Projekte ankreuzen → **Aktionen → Ausgewählte Projekte exportieren**. Du erhältst `benger-projects-full-<Datum>.zip`.",
         "**Projekt importieren**: [Projekte](/projects) → **Mehr → Projekt importieren** → `.json` oder `.zip` wählen. Nach dem Import öffnet sich das neue Projekt."
       ],
       "pitfalls": [
-        "Ein importiertes Projekt ist eine Kopie mit neuen IDs. Nutzer:innen und Organisationen werden nicht mitkopiert, die Sichtbarkeit setzen Sie neu.",
-        "Das Projekt landet in der Organisation, in der Sie gerade arbeiten. Im privaten Modus nimmt die Plattform Ihre erste Organisation.",
-        "**Projekt importieren** nimmt nur Projekt-Exporte an. Einen Aufgaben-Export aus *Projektdaten* spielen Sie auf der Seite *Projektdaten* eines bestehenden Projekts ein.",
-        "*Nicht unterstützte Dateiformatversion* heißt, die Datei stammt aus einer älteren oder fremden Version. Exportieren Sie sie erneut aus der aktuellen Plattform.",
-        "Sehr große Aufgaben-Exporte mit Filtern sind gedeckelt. Grenzen Sie enger ein oder exportieren Sie ohne Filter."
+        "Ein importiertes Projekt ist eine Kopie mit neuen IDs. Nutzer:innen und Organisationen werden nicht mitkopiert, die Sichtbarkeit setzt du neu.",
+        "Das Projekt landet in der Organisation, in der du gerade arbeitest. Im privaten Modus nimmt die Plattform deine erste Organisation.",
+        "**Projekt importieren** nimmt nur Projekt-Exporte an. Einen Aufgaben-Export aus *Projektdaten* spielst du auf der Seite *Projektdaten* eines bestehenden Projekts ein.",
+        "*Nicht unterstützte Dateiformatversion* heißt, die Datei stammt aus einer älteren oder fremden Version. Exportiere sie erneut aus der aktuellen Plattform.",
+        "Sehr große Aufgaben-Exporte mit Filtern sind gedeckelt. Grenz enger ein oder exportiere ohne Filter."
       ],
       "keywords": [
         "Export",
@@ -481,7 +481,7 @@
     },
     "labeling-templates": {
       "title": "Welche Annotationsvorlagen gibt es und wann nehme ich welche?",
-      "summary": "Im Schritt **Annotation einrichten** wählen Sie aus der Vorlagen-Galerie: *Frage-Antwort*, *Multiple-Choice*, *Span-Annotation*, *Klausurlösung*, *Karteikarten (leer)* oder *Benutzerdefiniert* (eigenes XML). Die Vorlage bestimmt, welche Felder Annotierende sehen und ausfüllen.",
+      "summary": "Im Schritt **Annotation einrichten** wählst du aus der Vorlagen-Galerie: *Frage-Antwort*, *Multiple-Choice*, *Span-Annotation*, *Klausurlösung*, *Karteikarten (leer)* oder *Benutzerdefiniert* (eigenes XML). Die Vorlage bestimmt, welche Felder Annotierende sehen und ausfüllen.",
       "steps": [
         "**Frage-Antwort**: Kontext und Frage anzeigen, Freitextantwort erfassen. Daten brauchen `context` und `question`.",
         "**Multiple-Choice**: Frage mit Optionen A bis D, optional Begründung. Daten brauchen `question` und `context`.",
@@ -491,7 +491,7 @@
         "**Benutzerdefiniert**: eigenes XML, siehe „Wie bearbeite ich das XML der Annotationsoberfläche?“."
       ],
       "tips": [
-        "Wählen Sie keine Vorlage, bekommt das Projekt eine minimale Vorlage mit einem Textfeld `text` und einer Freitextantwort."
+        "Wählst du keine Vorlage, bekommt das Projekt eine minimale Vorlage mit einem Textfeld `text` und einer Freitextantwort."
       ],
       "keywords": [
         "Vorlage",
@@ -508,11 +508,11 @@
       "title": "Wie bearbeite ich das XML der Annotationsoberfläche (Label-Konfiguration)?",
       "summary": "Projektseite → **Annotationskonfiguration → Label-Konfiguration → Konfiguration bearbeiten**. Das XML folgt dem Label-Studio-Schema: ein `<View>` als Wurzel, Anzeige-Tags wie `<Text>` mit `value=\"$feld\"`, Eingabe-Tags wie `<TextArea>` oder `<Choices>` mit `name` und `toName`.",
       "steps": [
-        "Öffnen Sie den Editor. Das Panel **Available Task Fields** darüber listet die Felder Ihrer Aufgaben. Ein Klick kopiert `$feldname`.",
+        "Öffne den Editor. Das Panel **Available Task Fields** darüber listet die Felder deiner Aufgaben. Ein Klick kopiert `$feldname`.",
         "**Anzeigen**: `<Text name=\"fall\" value=\"$sachverhalt\"/>` zeigt ein Datenfeld. `<Header value=\"Frage\"/>` ist eine Überschrift. `<Image>` zeigt Bilder.",
         "**Eingeben**: `<TextArea name=\"antwort\" toName=\"fall\" rows=\"6\"/>` (Freitext), `<Choices name=\"wahl\" toName=\"fall\"><Choice value=\"A\"/><Choice value=\"B\"/></Choices>` (Auswahl), `<Labels name=\"marken\" toName=\"fall\"><Label value=\"Norm\"/></Labels>` (Textstellen markieren), `<Rating>`, `<Likert>`, `<Number>`.",
         "Jedes Eingabe-Tag braucht ein eindeutiges `name` (wird der Schlüssel der Annotation) und ein `toName`, das auf ein Anzeige-Tag zeigt.",
-        "**Konfiguration speichern**. Prüfen Sie das Ergebnis über **Annotation starten**, eine Live-Vorschau gibt es nicht."
+        "**Konfiguration speichern**. Prüf das Ergebnis über **Annotation starten**, eine Live-Vorschau gibt es nicht."
       ],
       "tips": [
         "Klausur-Tags der erweiterten Edition: `<Angabe value=\"$sachverhalt\" bearbeitervermerk=\"$bearbeitervermerk\" zusatzmaterial=\"$zusatzmaterial\">` mit `<Label>`-Kindern als Markierungsfarben, `<Notizen>`, `<Gliederung>` und `<Loesung linkedTo=\"gliederung\">`. Die Vorlage *Klausurlösung* zeigt das vollständige Beispiel.",
@@ -520,10 +520,10 @@
         "Die Referenz aller Standard-Tags: [Label Studio Tags](https://labelstud.io/tags/)."
       ],
       "pitfalls": [
-        "Ein unbekannter Tag wird ohne Fehlermeldung einfach nicht gerendert. Fehlt ein Feld in der Oberfläche, prüfen Sie den Tag-Namen. Erscheint *Unknown component type: Gliederung*, läuft die Community-Edition ohne die Klausur-Tags.",
+        "Ein unbekannter Tag wird ohne Fehlermeldung einfach nicht gerendert. Fehlt ein Feld in der Oberfläche, prüf den Tag-Namen. Erscheint *Unknown component type: Gliederung*, läuft die Community-Edition ohne die Klausur-Tags.",
         "`required=\"true\"` prüft nur, ob das **Datenfeld** in der Aufgabe vorhanden ist. Es zwingt Annotierende nicht, etwas einzutragen.",
         "Der Editor prüft nur, ob das XML wohlgeformt ist und ein `<View>` enthält. Fehlende `name`/`toName` fallen erst beim Annotieren auf.",
-        "**Benennen Sie ein Eingabefeld nicht um, wenn schon Annotationen existieren.** Alte Annotationen und die Bewertungsverfahren (Vorhersagefeld, z.B. `loesung`) verweisen auf den alten Namen."
+        "**Benenne ein Eingabefeld nicht um, wenn schon Annotationen existieren.** Alte Annotationen und die Bewertungsverfahren (Vorhersagefeld, z.B. `loesung`) verweisen auf den alten Namen."
       ],
       "keywords": [
         "XML",
@@ -543,7 +543,7 @@
     },
     "annotation-instructions": {
       "title": "Wie gebe ich Annotierenden Anweisungen und wie funktioniert das Annotieren?",
-      "summary": "Anweisungen schreiben Sie im Assistenten (Schritt *Anweisungen*) oder auf der Projektseite unter **Annotationskonfiguration → Annotationsanweisungen**. Annotierende starten über **Annotation starten** oder **Meine Aufgaben**, bearbeiten Aufgabe für Aufgabe und geben mit *Absenden* ab.",
+      "summary": "Anweisungen schreibst du im Assistenten (Schritt *Anweisungen*) oder auf der Projektseite unter **Annotationskonfiguration → Annotationsanweisungen**. Annotierende starten über **Annotation starten** oder **Meine Aufgaben**, bearbeiten Aufgabe für Aufgabe und geben mit *Absenden* ab.",
       "steps": [
         "**Annotationsanweisungen** (Markdown) werden Annotierenden über der Aufgabe angezeigt.",
         "**Bedingte Anweisungsvarianten** für A/B-Tests: mehrere Varianten mit Gewichten in Prozent, die zusammen 100 ergeben müssen.",
@@ -564,10 +564,10 @@
     },
     "generation-run": {
       "title": "Wie lasse ich KI-Modelle Antworten generieren?",
-      "summary": "Auf der Projektseite unter **Generierungskonfiguration** Modelle auswählen und einen Prompt anlegen, dann **Generierung starten**. Im Dialog wählen Sie Modus (*Nur fehlende generieren* oder *Alle generieren*), Modelle, Prompt-Strukturen und Parameter. Den Fortschritt sehen Sie unter [Generierung](/generations) als Matrix Aufgabe × Modell.",
+      "summary": "Auf der Projektseite unter **Generierungskonfiguration** Modelle auswählen und einen Prompt anlegen, dann **Generierung starten**. Im Dialog wählst du Modus (*Nur fehlende generieren* oder *Alle generieren*), Modelle, Prompt-Strukturen und Parameter. Den Fortschritt siehst du unter [Generierung](/generations) als Matrix Aufgabe × Modell.",
       "steps": [
         "**Modellauswahl**: Modelle aus dem Katalog ankreuzen. Es erscheinen nur Anbieter, für die ein Schlüssel vorliegt. Pro Modell lassen sich Token-Limit und Denkbudget (Reasoning) setzen.",
-        "**Prompt-Strukturen**: System-Prompt (Rolle) und Instruktions-Prompt (Aufgabe). Felder der Aufgabe fügen Sie als `$feld` ein, z.B. `Sachverhalt:\n$sachverhalt`. Mehrere Strukturen sind möglich, aktive Strukturen laufen alle.",
+        "**Prompt-Strukturen**: System-Prompt (Rolle) und Instruktions-Prompt (Aufgabe). Felder der Aufgabe fügst du als `$feld` ein, z.B. `Sachverhalt:\n$sachverhalt`. Mehrere Strukturen sind möglich, aktive Strukturen laufen alle.",
         "**Generierung starten**: Modus wählen, Modelle und Strukturen bestätigen, unter *Erweiterte Einstellungen* Läufe pro Aufgabe, Temperatur, Max. Tokens und Seed. Die **Kostenschätzung** rechnet Aufgaben × Läufe × Modelle.",
         "Fortschritt und Ergebnisse: [Generierung](/generations). Klick auf eine Zelle zeigt die Antwort, den verwendeten Prompt und die Parameter. Rechtsklick: *Generieren* oder *Neu generieren*. Alle Läufe mit Status: [Läufe](/runs)."
       ],
@@ -575,7 +575,7 @@
         "Referenzfelder wie `musterloesung`, `answer`, `solution`, `ground_truth` oder `annotations` werden nie in Prompts eingesetzt. So kann das Modell die Lösung nicht sehen.",
         "Modelle der GPT-5- und o-Reihe erzwingen Temperatur 1.0, der Regler wird für sie ignoriert. Anthropic und Google unterstützen keinen Seed.",
         "*Nur fehlende generieren* überspringt Aufgaben, deren Antwort mit unverändertem Prompt schon existiert. Nach einer Prompt-Änderung werden sie neu erzeugt.",
-        "Für Studien mit mehreren Durchläufen setzen Sie *Läufe pro Aufgabe* größer als 1. Jeder Lauf wird einzeln gespeichert und ausgewertet."
+        "Für Studien mit mehreren Durchläufen setzt du *Läufe pro Aufgabe* größer als 1. Jeder Lauf wird einzeln gespeichert und ausgewertet."
       ],
       "keywords": [
         "Generierung",
@@ -614,23 +614,23 @@
     },
     "api-keys": {
       "title": "Wie richte ich einen API-Schlüssel ein und wessen Schlüssel wird benutzt?",
-      "summary": "KI-Modelle brauchen einen Schlüssel des jeweiligen Anbieters. Entweder hinterlegen Sie Ihren eigenen unter [Profil](/profile) → **API-Schlüssel-Verwaltung**, oder Ihre Organisation stellt Schlüssel bereit. Die Regel: Stellt die Organisation Schlüssel bereit, zahlt sie für ihre Projekte, sonst zahlt der eigene Schlüssel.",
+      "summary": "KI-Modelle brauchen einen Schlüssel des jeweiligen Anbieters. Entweder hinterlegst du deinen eigenen unter [Profil](/profile) → **API-Schlüssel-Verwaltung**, oder deine Organisation stellt Schlüssel bereit. Die Regel: Stellt die Organisation Schlüssel bereit, zahlt sie für ihre Projekte, sonst zahlt der eigene Schlüssel.",
       "steps": [
         "**Eigener Schlüssel**: [Profil](/profile) → *API-Schlüssel-Verwaltung* → Anbieter wählen (OpenAI, Anthropic, Google, DeepInfra, Grok/xAI, Mistral, Cohere) → Schlüssel einfügen → *Testen* → *Speichern*. Der Schlüssel wird verschlüsselt gespeichert und nie angezeigt.",
         "**Schlüssel der Organisation** (Admin): [Benutzer & Organisationen](/users-organizations) → Organisation → **API-Schlüssel** → Schalter **Organisation stellt API-Schlüssel bereit** einschalten und je Anbieter einen Schlüssel hinterlegen. Optional den **Geltungsbereich** auf eine Gruppe setzen.",
-        "**Wer zahlt**: Die Karte **Abrechnung** auf jeder Projektseite sagt es Ihnen. *Organisation übernimmt die Kosten*, wenn die Organisation Schlüssel bereitstellt; sonst *läuft über den eigenen API-Schlüssel*.",
+        "**Wer zahlt**: Die Karte **Abrechnung** auf jeder Projektseite sagt es dir. *Organisation übernimmt die Kosten*, wenn die Organisation Schlüssel bereitstellt; sonst *läuft über den eigenen API-Schlüssel*.",
         "Bei Gruppenprojekten wird zuerst der Gruppenschlüssel genutzt, dann der Organisationsschlüssel. Nie der Schlüssel einer anderen Gruppe."
       ],
       "tips": [
-        "Sie sehen nur Modelle von Anbietern, für die ein Schlüssel vorhanden ist. Fehlt ein Anbieter im Modell-Picker, fehlt der Schlüssel.",
+        "Du siehst nur Modelle von Anbietern, für die ein Schlüssel vorhanden ist. Fehlt ein Anbieter im Modell-Picker, fehlt der Schlüssel.",
         "Stellt die Organisation Schlüssel bereit, ist das Formular für eigene Schlüssel im Profil abgeschaltet. Das ist beabsichtigt.",
-        "Bei Klausuren, die Studierende in der Lernoberfläche lösen, zahlt Ihre Organisation die KI-Korrektur, wenn sie Schlüssel bereitstellt. Sonst gelten die Konditionen der Lernoberfläche. Wer dort einen eigenen Schlüssel hinterlegt, zahlt selbst.",
+        "Bei Klausuren, die Studierende in der Lernoberfläche lösen, zahlt deine Organisation die KI-Korrektur, wenn sie Schlüssel bereitstellt. Sonst gelten die Konditionen der Lernoberfläche. Wer dort einen eigenen Schlüssel hinterlegt, zahlt selbst.",
         "Ist eine Klausur mit einer Lernplattform (Moodle, ILIAS) verknüpft, zahlt die Organisation dieser Anbindung die KI-Korrektur für Studierende aus der Lernplattform (auch ohne Mitgliedschaft) und für ihr eigenes Personal, auch für deren Evaluierungsläufe. Dafür muss sie Schlüssel bereitstellen und einen Schlüssel für das Bewertungsmodell haben. Sonst läuft keine KI-Korrektur, und es gibt keinen Rückfall auf einen anderen Schlüssel. Siehe [Lernplattform-Anbindung](/how-to#lti-setup)."
       ],
       "pitfalls": [
-        "**Stellt die Organisation Schlüssel bereit, hat aber keinen für den gewählten Anbieter, gibt es keinen Rückfall auf Ihren eigenen Schlüssel.** Der Anbieter ist dann schlicht nicht verfügbar.",
+        "**Stellt die Organisation Schlüssel bereit, hat aber keinen für den gewählten Anbieter, gibt es keinen Rückfall auf deinen eigenen Schlüssel.** Der Anbieter ist dann schlicht nicht verfügbar.",
         "Wer nicht aktives Mitglied der Organisation ist, kann deren Schlüssel nicht nutzen. Dann wird still der eigene Schlüssel belastet.",
-        "„Ihr API-Schlüssel ist gültig, hat aber seine Nutzungs- oder Ratenlimits erreicht“ heißt: kein Guthaben oder Rate-Limit beim Anbieter, nicht ein Fehler in BenGER.",
+        "„Dein API-Schlüssel ist gültig, hat aber seine Nutzungs- oder Ratenlimits erreicht“ heißt: kein Guthaben oder Rate-Limit beim Anbieter, nicht ein Fehler in BenGER.",
         "Der Schlüssel muss zum Anbieter passen: `sk-…` ist OpenAI, `sk-ant-…` Anthropic, `AI…` Google, `xai-…` Grok."
       ],
       "keywords": [
@@ -650,7 +650,7 @@
     },
     "custom-models": {
       "title": "Wie binde ich ein eigenes Modell an (BYOM, OpenAI-kompatibler Endpunkt)?",
-      "summary": "Unter [Modelle](/models) → **Eigenes Modell registrieren**. Sie geben Basis-URL und Modellnamen eines OpenAI-kompatiblen Chat-Completions-Endpunkts an und hinterlegen Ihren Schlüssel dafür. Das Modell steht dann für Generierung und als LLM-Judge zur Verfügung.",
+      "summary": "Unter [Modelle](/models) → **Eigenes Modell registrieren**. Du gibst Basis-URL und Modellnamen eines OpenAI-kompatiblen Chat-Completions-Endpunkts an und hinterlegst deinen Schlüssel dafür. Das Modell steht dann für Generierung und als LLM-Judge zur Verfügung.",
       "steps": [
         "[Modelle](/models) → Abschnitt *Meine Modelle* → **Eigenes Modell registrieren**.",
         "**Anzeigename**, **Basis-URL** (z.B. `https://api.example.com/v1`), **Modellname am Endpunkt** (der Wert im Feld `model`).",
@@ -693,14 +693,14 @@
         "`.json` ist der verlustfreie Weg: Ein einmal im Editor gepflegter Bogen kann exportiert, außerhalb bearbeitet und exakt wieder eingelesen werden — Schritte, Schlüssel, Schwerpunkte und Notenschlüssel bleiben identisch.",
         "Bei `.csv` mit Komma als Trennzeichen müssen Dezimalkommas in Anführungszeichen stehen (`\"2,5\"`). Mit Semikolon — was deutsches Excel schreibt — entfällt das Problem.",
         "Passt die Datei in keines dieser Muster — Fließtext, eine Lösungsskizze, ein Bogen ohne Tabelle —, bietet der Upload **Mit KI strukturieren** an (erweiterte Edition). Ein Modell liest das Dokument und schlägt eine Gliederung vor; es erfindet dabei keine Punkte, sondern übernimmt nur, was dasteht. Das Ergebnis landet im selben Gliederungs-Editor und ist ausdrücklich ein Entwurf. Lesbare Tabellen werden weiterhin exakt eingelesen und nie an ein Modell gegeben.",
-        "Der Bogen muss nicht vollständig sein: Was der Import nicht erkennt, ergänzen Sie im Gliederungs-Editor, bevor Sie aktivieren."
+        "Der Bogen muss nicht vollständig sein: Was der Import nicht erkennt, ergänzt du im Gliederungs-Editor, bevor du aktivierst."
       ],
       "pitfalls": [
         "Gescannte PDFs und Bilder lassen sich nicht einlesen. Es braucht eine Datei mit echtem Text.",
         "Stehen Text und Punkte **in derselben Zelle** (`Sachmangel 10 BE`), findet der Import keine Punktespalte. In `.md` funktioniert genau das dagegen — dort sind Punkte am Zeilenende vorgesehen.",
-        "Word-Autonummerierung steht nicht in der Datei: Nummerierte Absätze kommen ohne Beschriftung an (Meldung `auto_numbering`). Die Ebene stimmt, die Nummer tragen Sie im Editor nach oder Sie schreiben sie im Dokument als Text.",
-        "Ohne erkennbare Punktespalte bricht der Import mit einer klaren Meldung ab, statt einen leeren Bogen anzulegen. Nutzen Sie dann **Mit KI strukturieren** oder legen Sie den Bogen von Hand an.",
-        "Meldungen wie `alignment_uncertain` oder `subtotal_mismatch` sind kein Fehler des Imports, sondern ein Hinweis, wo Sie im Editor hinschauen sollten."
+        "Word-Autonummerierung steht nicht in der Datei: Nummerierte Absätze kommen ohne Beschriftung an (Meldung `auto_numbering`). Die Ebene stimmt, die Nummer trägst du im Editor nach oder du schreibst sie im Dokument als Text.",
+        "Ohne erkennbare Punktespalte bricht der Import mit einer klaren Meldung ab, statt einen leeren Bogen anzulegen. Nutze dann **Mit KI strukturieren** oder leg den Bogen von Hand an.",
+        "Meldungen wie `alignment_uncertain` oder `subtotal_mismatch` sind kein Fehler des Imports, sondern ein Hinweis, wo du im Editor hinschauen solltest."
       ],
       "keywords": [
         "Korrekturbogen",
@@ -721,24 +721,24 @@
     },
     "evaluation-methods": {
       "title": "Welche Bewertungsverfahren gibt es und wie stelle ich sie ein?",
-      "summary": "Im Assistenten (Schritt *Evaluation*) oder auf der Projektseite unter **Evaluierungskonfiguration → Evaluierungsmethoden**. Sie wählen Verfahren an, ordnen ein **Vorhersagefeld** (was bewertet wird) und ein **Referenzfeld** (Musterlösung) zu und wählen bei LLM-Judges das Bewertungsmodell.",
+      "summary": "Im Assistenten (Schritt *Evaluation*) oder auf der Projektseite unter **Evaluierungskonfiguration → Evaluierungsmethoden**. Du wählst Verfahren an, ordnest ein **Vorhersagefeld** (was bewertet wird) und ein **Referenzfeld** (Musterlösung) zu und wählst bei LLM-Judges das Bewertungsmodell.",
       "steps": [
         "**Lexikalisch**: Exact Match, BLEU, ROUGE, METEOR, chrF. Schnell, vergleichen Wortlaut mit der Referenz.",
         "**Semantisch**: Semantic Similarity, BERTScore, MoverScore. Vergleichen Bedeutung über Embeddings, laufen nur in der Batch-Evaluation.",
         "**Klassifikation**: Accuracy, Precision, Recall, F1 für Auswahlaufgaben.",
         "**LLM-as-Judge**: *Classic* (vordefinierte Dimensionen), *Custom* (eigener Prompt und eigene Kriterien), *Falllösung* (10 juristische Dimensionen mit Notenpunkten 0 bis 18), *LLM Custom Rubric* (pro Aufgabe automatisch erzeugter Bewertungsbogen).",
-        "**Menschliche Korrektur**: *Korrektur (Classic)* mit Kommentaren und Markierungen, *Korrektur (Falllösung)* und *Korrektur (Custom Rubric)* nach demselben Schema wie der jeweilige Judge. Sie schalten die Seite **Korrektur** im Projekt frei.",
+        "**Menschliche Korrektur**: *Korrektur (Classic)* mit Kommentaren und Markierungen, *Korrektur (Falllösung)* und *Korrektur (Custom Rubric)* nach demselben Schema wie der jeweilige Judge. Du schaltest die Seite **Korrektur** im Projekt frei.",
         "Für jedes Verfahren: **Vorhersagefeld** (z.B. `loesung` oder *Alle Modellausgaben*) und **Referenzfeld** (z.B. `task.musterloesung`). Bei mehreren Referenzen zählt der beste Treffer."
       ],
       "tips": [
         "Klausur-Projekte bekommen automatisch **zwei** Falllösungs-Judges auf zwei verschiedenen Modellen (z. B. *Notenpunkte (gpt-5-mini)* und *Notenpunkte (gpt-5.4-mini)*). Bei der Sofort-Korrektur läuft genau einer davon. Die Batch-Evaluation führt beide aus. Das ist gewollt.",
-        "Erweiterte Einstellungen (Judge-Modell, Temperatur, Denkbudget, mehrere Judges als Ensemble, Läufe pro Judge) finden Sie nach dem Anlegen auf der Projektseite.",
-        "Eine eigene Rubrik geben Sie beim *Custom LLM Judge* als Kriterien mit Beschreibung und Maximalpunktzahl an. Mit Maximalpunktzahl bewertet der Judge alle Kriterien in einem Durchgang."
+        "Erweiterte Einstellungen (Judge-Modell, Temperatur, Denkbudget, mehrere Judges als Ensemble, Läufe pro Judge) findest du nach dem Anlegen auf der Projektseite.",
+        "Eine eigene Rubrik gibst du beim *Custom LLM Judge* als Kriterien mit Beschreibung und Maximalpunktzahl an. Mit Maximalpunktzahl bewertet der Judge alle Kriterien in einem Durchgang."
       ],
       "pitfalls": [
         "Ein Verfahren mit dem Badge **Nur Batch** läuft nicht in der Sofort-Evaluation, weil es ein großes Modell lädt.",
         "LLM-Judges brauchen einen API-Schlüssel für das Bewertungsmodell. Ohne Schlüssel schlägt die Bewertung fehl.",
-        "Vorhersage- und Referenzfeld müssen existieren. Nach einem Umbenennen von Feldern in der Annotationsvorlage passen Sie die Verfahren an."
+        "Vorhersage- und Referenzfeld müssen existieren. Nach einem Umbenennen von Feldern in der Annotationsvorlage passt du die Verfahren an."
       ],
       "keywords": [
         "Evaluation",
@@ -762,11 +762,11 @@
       "summary": "Ist **Sofortige Evaluation** im Projekt aktiv, wird jede Abgabe direkt nach dem Absenden mit den konfigurierten Verfahren bewertet. Annotierende sehen das Ergebnis sofort in einem Fenster. Bei Klausuren ist das die KI-Korrektur mit Notenpunkten und Begründung je Dimension.",
       "steps": [
         "Einschalten: Assistent Schritt *Evaluation* → **Sofortige Evaluation**, oder Projektseite → Evaluierungskonfiguration. Klausur-Projekte haben sie automatisch an.",
-        "Nach dem Absenden erscheint *Ihre Annotation wird evaluiert…*, dann das Ergebnis je Verfahren. Bei Klausuren: Notenpunkte, Punkte je Dimension, Gesamtbewertung, Verbesserungsbereiche.",
+        "Nach dem Absenden erscheint *Deine Annotation wird evaluiert…*, dann das Ergebnis je Verfahren. Bei Klausuren: Notenpunkte, Punkte je Dimension, Gesamtbewertung, Verbesserungsbereiche.",
         "Ergebnisse, die verloren gingen (Tab geschlossen, Netzfehler), holt ein stündlicher Hintergrundlauf nach."
       ],
       "pitfalls": [
-        "*Die konfigurierten Evaluationsmethoden laufen nur in der Batch-Evaluation*: Alle Verfahren sind entweder menschliche Korrektur oder semantische Metriken. Fügen Sie z.B. einen LLM-Judge hinzu.",
+        "*Die konfigurierten Evaluationsmethoden laufen nur in der Batch-Evaluation*: Alle Verfahren sind entweder menschliche Korrektur oder semantische Metriken. Füg z.B. einen LLM-Judge hinzu.",
         "Die Sofort-Evaluation ist Teil der erweiterten Edition."
       ],
       "keywords": [
@@ -780,7 +780,7 @@
     },
     "batch-evaluation": {
       "title": "Wie starte ich eine Batch-Evaluation und wo sehe ich die Ergebnisse?",
-      "summary": "Projektseite → **Evaluierungskonfiguration → Evaluierung starten** oder [Evaluierungen](/evaluations) → Projekt wählen. Im Dialog wählen Sie Modus, Verfahren, Modelle, Annotator:innen und Prompt-Strukturen. Ergebnisse erscheinen unter *Evaluierungen*, Läufe unter *Läufe*.",
+      "summary": "Projektseite → **Evaluierungskonfiguration → Evaluierung starten** oder [Evaluierungen](/evaluations) → Projekt wählen. Im Dialog wählst du Modus, Verfahren, Modelle, Annotator:innen und Prompt-Strukturen. Ergebnisse erscheinen unter *Evaluierungen*, Läufe unter *Läufe*.",
       "steps": [
         "**Evaluationsmodus**: *Nur fehlende/fehlgeschlagene evaluieren* (Standard) oder *Alle evaluieren* (überschreibt bestehende Ergebnisse).",
         "**Metriken**, **Modelle** (Generierungen), **Annotator:innen** (menschliche Abgaben) und **Prompt-Strukturen** an- oder abwählen. Die Kostenschätzung zeigt Zellen und Judge-Modelle.",
@@ -802,7 +802,7 @@
       "title": "Wie korrigieren Menschen Abgaben (Korrektur) und was ist der Review-Workflow?",
       "summary": "**Korrektur** ist die menschliche Bewertung von Abgaben nach dem Falllösungsschema, einer eigenen Rubrik oder mit Kommentaren. Sie wird über die Verfahren *Korrektur (…)* aktiviert und über die Schnellaktion **Korrektur** bedient. **Review** ist eine Prüfphase, in der Annotationen vor der Finalisierung geprüft werden.",
       "steps": [
-        "Korrektur aktivieren: Verfahren *Korrektur (Falllösung)*, *Korrektur (Custom Rubric)* oder *Korrektur (Classic)* auswählen. Im Verfahren stellen Sie Warteschlange (wer korrigiert was), blinde Korrektur (fremde Bewertungen verbergen) und Zeitlimit ein.",
+        "Korrektur aktivieren: Verfahren *Korrektur (Falllösung)*, *Korrektur (Custom Rubric)* oder *Korrektur (Classic)* auswählen. Im Verfahren stellst du Warteschlange (wer korrigiert was), blinde Korrektur (fremde Bewertungen verbergen) und Zeitlimit ein.",
         "Korrigieren: Projektseite → **Korrektur** → nächste Abgabe. Punkte je Dimension, Gesamtwürdigung und Verbesserungstipps, optional Randbemerkungen.",
         "Annotierende sehen ihre Korrektur unter **Meine Aufgaben** bzw. Studierende unter *Feedback* in der Klausur. Eine menschliche Note überschreibt die KI-Note in der Bestenliste und in der Lernplattform.",
         "Review: Projektseite → *Annotationsablauf & -verhalten* → **Überprüfungsphase aktivieren**, Modus *Direkte Korrektur*, *Unabhängige Überprüfung* oder *Beides*. Bedienung über die Schnellaktion **Review-Workflow**."
@@ -820,10 +820,10 @@
     },
     "reports-leaderboards": {
       "title": "Was zeigen Berichte, Bestenlisten und die Lernstatistik?",
-      "summary": "**Berichte** fassen ein Projekt zusammen (Daten, Annotationen, Generierung, Evaluationsergebnisse) und lassen sich für die Organisation veröffentlichen. **Bestenlisten** ranken LLMs, menschliche Annotator:innen und KI-Zusammenarbeit. Die **Lernstatistik** zeigt Ihre eigenen fälligen Karten, offenen Klausuren und den Notenverlauf.",
+      "summary": "**Berichte** fassen ein Projekt zusammen (Daten, Annotationen, Generierung, Evaluationsergebnisse) und lassen sich für die Organisation veröffentlichen. **Bestenlisten** ranken LLMs, menschliche Annotator:innen und KI-Zusammenarbeit. Die **Lernstatistik** zeigt deine eigenen fälligen Karten, offenen Klausuren und den Notenverlauf.",
       "steps": [
         "**Bericht**: Projektseite → Karte *Projektbericht* → **Bericht bearbeiten** (Texte, Interpretation, Metriken, Judge-Konfiguration, Diagramme) → **Veröffentlichen**, wahlweise nur für die Projektorganisationen oder **öffentlich** (auch ohne Anmeldung lesbar). Voraussetzung: Aufgaben, Generierungen und Evaluationen sind vorhanden. Die Zahlen werden beim Veröffentlichen eingefroren; **Daten aktualisieren** im Editor berechnet sie neu. Berichte stehen unter [Berichte](/reports).",
-        "**Bestenlisten** ([Bestenlisten](/leaderboards)): Tabs *Menschliche Annotatoren*, *KI-Zusammenarbeit* und *LLMs*. Metrik und Zeitraum wählbar, Vorgabe sind Notenpunkte. Die LLM-Liste blendet Modelle mit weniger als 50 Generierungen oder Evaluationen aus, bis Sie *Statistische Relevanz* ausschalten.",
+        "**Bestenlisten** ([Bestenlisten](/leaderboards)): Tabs *Menschliche Annotatoren*, *KI-Zusammenarbeit* und *LLMs*. Metrik und Zeitraum wählbar, Vorgabe sind Notenpunkte. Die LLM-Liste blendet Modelle mit weniger als 50 Generierungen oder Evaluationen aus, bis du *Statistische Relevanz* ausschaltest.",
         "Eigene Modelle erscheinen in der LLM-Bestenliste nur, wenn sie öffentlich sind.",
         "**Lernstatistik** ([Lernstatistik](/learning-stats)): heute fällige Karteikarten, offene Klausuren mit Frist, Notenverlauf (KI und Mensch) und Behaltensrate."
       ],
@@ -840,20 +840,20 @@
     },
     "lti-setup": {
       "title": "Wie verbinde ich unsere Organisation mit Moodle oder ILIAS (LTI)?",
-      "summary": "Über **LTI 1.3**. Als **Admin Ihrer Organisation** bereiten Sie hier die Anbindung vor: API-Schlüssel, Panel, Adresse. Die Schritte in der Lernplattform stehen getrennt in **Moodle anbinden** und **ILIAS anbinden**. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.",
+      "summary": "Über **LTI 1.3**. Als **Admin deiner Organisation** bereitest du hier die Anbindung vor: API-Schlüssel, Panel, Adresse. Die Schritte in der Lernplattform stehen getrennt in **Moodle anbinden** und **ILIAS anbinden**. Die Anbindung ist **sofort aktiv**. Gruppen-Admins können das für ihre Gruppen tun.",
       "steps": [
         "**API-Schlüssel vorbereiten**: [Benutzer & Organisationen](/users-organizations) → Organisation → **API-Schlüssel** → **Organisation stellt API-Schlüssel bereit** einschalten und einen Schlüssel für das Bewertungsmodell hinterlegen. Standard sind Modelle von OpenAI. Ohne Schlüssel gibt es keine KI-Korrektur und keinen Rückfall auf einen anderen Schlüssel.",
         "**Panel öffnen**: [Benutzer & Organisationen](/users-organizations) → Organisation wählen → **Mehr** → **Lernplattform (LTI)**. Oben zeigt **KI-Bewertung und API-Schlüssel**, ob die KI-Korrektur eingerichtet ist.",
-        "**Lernplattform und Adresse wählen**: Klicken Sie auf **Lernplattform verbinden** und wählen Sie **Moodle**, **ILIAS** oder **Andere**. Dann wählen Sie die **Adresse für die Lernplattform**. Mit der **Studierenden-Adresse** arbeiten alle in der Studierendenoberfläche, auch Lehrende. Nur die Korrektur öffnet sich in der Expertenoberfläche. Mit der **BenGER-Adresse** arbeiten Studierende in der Studierendenoberfläche und Lehrende in der Expertenoberfläche. Gibt es nur eine Adresse, entfällt die Auswahl. Weiter geht es in [Moodle anbinden](/how-to#lti-setup-moodle) oder [ILIAS anbinden](/how-to#lti-setup-ilias).",
-        "**Andere Lernplattform**: **Andere** öffnet das vollständige Formular. Es zeigt die drei Tool-URLs schon vor dem Speichern. Nach dem Speichern des Tools meldet die Lernplattform Client-ID und Deployment-ID. Tragen Sie sie mit den URLs der Lernplattform ein. Die Tool-URLs stehen später auch unter **Tool-Konfiguration**.",
-        "**Teststart**: Legen Sie in einem Testkurs eine Aktivität mit Bewertung an. Öffnen Sie sie zuerst als Lehrperson: Nach der Zustimmung verknüpfen Sie eine Klausur. Öffnen Sie sie danach als Studierende: Nach der Zustimmung öffnet sich die Klausur. Ist noch keine Klausur verknüpft, sehen Studierende nur den Hinweis `not_linked`."
+        "**Lernplattform und Adresse wählen**: Klick auf **Lernplattform verbinden** und wähle **Moodle**, **ILIAS** oder **Andere**. Dann wählst du die **Adresse für die Lernplattform**. Mit der **Studierenden-Adresse** arbeiten alle in der Studierendenoberfläche, auch Lehrende. Nur die Korrektur öffnet sich in der Expertenoberfläche. Mit der **BenGER-Adresse** arbeiten Studierende in der Studierendenoberfläche und Lehrende in der Expertenoberfläche. Gibt es nur eine Adresse, entfällt die Auswahl. Weiter geht es in [Moodle anbinden](/how-to#lti-setup-moodle) oder [ILIAS anbinden](/how-to#lti-setup-ilias).",
+        "**Andere Lernplattform**: **Andere** öffnet das vollständige Formular. Es zeigt die drei Tool-URLs schon vor dem Speichern. Nach dem Speichern des Tools meldet die Lernplattform Client-ID und Deployment-ID. Trag sie mit den URLs der Lernplattform ein. Die Tool-URLs stehen später auch unter **Tool-Konfiguration**.",
+        "**Teststart**: Leg in einem Testkurs eine Aktivität mit Bewertung an. Öffne sie zuerst als Lehrperson: Nach der Zustimmung verknüpfst du eine Klausur. Öffne sie danach als Studierende: Nach der Zustimmung öffnet sich die Klausur. Ist noch keine Klausur verknüpft, sehen Studierende nur den Hinweis `not_linked`."
       ],
       "tips": [
         "Gruppen-Admins erstellen Einladungen und Anbindungen nur für ihre Gruppen. **Organisation stellt API-Schlüssel bereit** kann nur ein Org-Admin einschalten."
       ],
       "pitfalls": [
-        "Die Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließen Sie den Vertrag mit uns vorher ab und erstellen Sie den Link erst danach.",
-        "Ein Einladungslink allein verbindet noch nichts. Solange die Karte **Wartet auf die Lernplattform** im Panel steht, hat die Lernplattform ihn nicht eingelöst. Einen Link, den Sie nicht mehr brauchen, entwerten Sie dort mit **Widerrufen**."
+        "Die Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließ den Vertrag mit uns vorher ab und erstell den Link erst danach.",
+        "Ein Einladungslink allein verbindet noch nichts. Solange die Karte **Wartet auf die Lernplattform** im Panel steht, hat die Lernplattform ihn nicht eingelöst. Einen Link, den du nicht mehr brauchst, entwertest du dort mit **Widerrufen**."
       ],
       "keywords": [
         "LTI",
@@ -874,26 +874,26 @@
         "Klausur mit einer Aktivität verknüpfen",
         "Datenschutz bei der Anbindung",
         "Start aus Moodle oder ILIAS schlägt fehl",
-        "Technische Referenz für Ihre IT (LTI 1.3)"
+        "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
     "lti-setup-moodle": {
       "title": "Wie binde ich Moodle an?",
-      "summary": "Mit einem **Einladungslink**: Sie erstellen ihn im Panel, die Moodle-Administration fügt ihn in Moodle ein und ändert drei Einstellungen des Tools. Danach ist die Anbindung **sofort aktiv**.",
+      "summary": "Mit einem **Einladungslink**: Du erstellst ihn im Panel, die Moodle-Administration fügt ihn in Moodle ein und ändert drei Einstellungen des Tools. Danach ist die Anbindung **sofort aktiv**.",
       "steps": [
-        "**Einladungslink erstellen**: Im Panel **Lernplattform verbinden** → **Moodle**. Adresse und bei Bedarf eine **Gruppe** wählen, dann **Einladungslink erstellen**. Kopieren Sie den Link und schicken Sie ihn an die Moodle-Administration. Er wird nur einmal angezeigt, gilt 14 Tage und funktioniert einmal. Bis Moodle ihn einlöst, steht im Panel die Karte **Wartet auf die Lernplattform**.",
+        "**Einladungslink erstellen**: Im Panel **Lernplattform verbinden** → **Moodle**. Adresse und bei Bedarf eine **Gruppe** wählen, dann **Einladungslink erstellen**. Kopier den Link und schick ihn an die Moodle-Administration. Er wird nur einmal angezeigt, gilt 14 Tage und funktioniert einmal. Bis Moodle ihn einlöst, steht im Panel die Karte **Wartet auf die Lernplattform**.",
         "**Moodle registriert das Tool**: Die Administration fügt den Link unter *Website-Administration → Plugins → Aktivitäten → Externes Tool → Tools verwalten* bei **LTI Advantage hinzufügen** ein. Fragt Moodle, ob ein vorhandenes Tool aktualisiert werden soll, wählt sie **Als neues externes Tool registrieren**, außer sie ersetzt bewusst eine frühere Anbindung. Dann aktiviert sie das Tool. Die Anbindung steht im Panel und ist **sofort aktiv**.",
         "**Tool in Moodle einstellen**: Moodle legt jedes per Link registrierte Tool eingebettet, nur als vorkonfiguriertes Tool und mit an Lehrende delegierten Bewertungen an. Das Tool kann das nicht ändern. Die Moodle-Administration öffnet deshalb die Einstellungen des Tools (Symbol *Bearbeiten* auf der Tool-Karte) und setzt *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen**, *Standard-Startcontainer* auf **Neues Fenster** und *Bewertungen aus dem Tool akzeptieren* auf **Immer**.",
         "**Fertig, wenn** die Karte **Wartet auf die Lernplattform** verschwunden ist und die Anbindung mit **Anbindung aktiv** im Panel steht. Lehrende legen dann im Kurs eine Aktivität an, siehe [Klausur mit einer Aktivität verknüpfen](/how-to#lti-teacher)."
       ],
       "tips": [
-        "Moodle muss Name und E-Mail-Adresse übermitteln. Beide müssen auf **Immer** stehen. Der Einladungslink fordert das an. Prüfen Sie die Einstellung nach der Registrierung in den Tool-Einstellungen.",
+        "Moodle muss Name und E-Mail-Adresse übermitteln. Beide müssen auf **Immer** stehen. Der Einladungslink fordert das an. Prüf die Einstellung nach der Registrierung in den Tool-Einstellungen.",
         "Für Moodle empfiehlt sich bei *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Dann erhält Moodle neben der Endnote auch eine Spalte **KI-Bewertung**. Der Einladungslink fordert das an. Lehrende nehmen diese Spalte aus der Kursgesamtbewertung heraus, siehe [Noten aus der Lernplattform](/how-to#lti-grades).",
         "Das Tool muss in einem **neuen Fenster** starten. In Moodle entscheidet das der *Standard-Startcontainer* des Tools, nicht die einzelne Aktivität."
       ],
       "pitfalls": [
-        "Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur. Nach einer Registrierung per Link ist das in Moodle voreingestellt. Stellen Sie den *Standard-Startcontainer* des Tools auf **Neues Fenster**.",
-        "Haben Moodle-Aktivitäten keine Bewertung, delegiert *Bewertungen aus dem Tool akzeptieren* noch an die Lehrenden. Stellen Sie es auf **Immer**. Sonst müssen Lehrende in jeder Aktivität den Haken *… erlauben, Bewertungen hinzuzufügen* setzen."
+        "Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur. Nach einer Registrierung per Link ist das in Moodle voreingestellt. Stell den *Standard-Startcontainer* des Tools auf **Neues Fenster**.",
+        "Haben Moodle-Aktivitäten keine Bewertung, delegiert *Bewertungen aus dem Tool akzeptieren* noch an die Lehrenden. Stell es auf **Immer**. Sonst müssen Lehrende in jeder Aktivität den Haken *… erlauben, Bewertungen hinzuzufügen* setzen."
       ],
       "keywords": [
         "Moodle",
@@ -912,14 +912,14 @@
         "Klausur mit einer Aktivität verknüpfen",
         "Noten aus der Lernplattform",
         "Start aus Moodle oder ILIAS schlägt fehl",
-        "Technische Referenz für Ihre IT (LTI 1.3)"
+        "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
     "lti-setup-ilias": {
       "title": "Wie binde ich ILIAS an?",
-      "summary": "Mit einem **globalen Provider** in ILIAS: Sie geben der ILIAS-Administration drei URLs, sie legt den Provider an und meldet Client ID und Deployment ID zurück, die Sie im Panel eintragen. Danach ist die Anbindung **sofort aktiv**.",
+      "summary": "Mit einem **globalen Provider** in ILIAS: Du gibst der ILIAS-Administration drei URLs, sie legt den Provider an und meldet Client ID und Deployment ID zurück, die du im Panel einträgst. Danach ist die Anbindung **sofort aktiv**.",
       "steps": [
-        "**URLs an ILIAS geben**: Im Panel **Lernplattform verbinden** → **ILIAS**. Adresse und bei Bedarf eine **Gruppe** wählen. Schritt 1 zeigt drei URLs. Schicken Sie sie an die ILIAS-Administration.",
+        "**URLs an ILIAS geben**: Im Panel **Lernplattform verbinden** → **ILIAS**. Adresse und bei Bedarf eine **Gruppe** wählen. Schritt 1 zeigt drei URLs. Schick sie an die ILIAS-Administration.",
         "**Globalen Provider anlegen**: In ILIAS *Administration → ILIAS erweitern → LTI →* Reiter *ILIAS als LTI-Konsument* → *Globalen Provider für alle Benutzer hinzufügen*. Dort *Verfügbarkeit* **in neuen und bestehenden Objekten** und *LTI Version* **Version 1.3** wählen, beide sind anders voreingestellt. Die drei URLs eintragen, bei *Typ des öffentlichen Schlüssels* **URL (Json Web Token)** mit der JWKS-URL, *Unterstützung für Deep Linking* aus, **Erweiterte Benotungsdienste** an.",
         "**Datenschutz im Provider**: *Identifikation der Person* auf **ID des ILIAS-Kontos …**, *Anmeldename* auf **Vollständiger Name**. Warum, steht in den Tipps.",
         "ILIAS zeigt Noten als Lernfortschritt. Die ILIAS-Administration hakt beim Provider *Provider unterstützt Outcome Service* an und setzt *Voreinstellung Mastery Score* auf **22**, bevor Lehrende Objekte anlegen. Das entspricht 4 von 18 Notenpunkten. Außerdem muss der Lernfortschritt in der ILIAS-Administration eingeschaltet sein.",
@@ -931,8 +931,8 @@
         "Nur einen ILIAS-Kurs testen? Im ILIAS-Schritt des Panels erstellt **Einladungslink erstellen** einen Link für die dynamische Registrierung eines einzelnen Objekts. In ILIAS: *LTI-Konsument* anlegen → *Eigene Tool-Einstellungen mit dynamischer Registrierung anlegen (LTI 1.3)* → Link einfügen → *Anlegen*. Vor dem Speichern dieselben Provider-Einstellungen wie oben setzen."
       ],
       "pitfalls": [
-        "Wählen Sie in ILIAS bei *Identifikation der Person* nicht *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“. Legen Sie den Modus vor dem ersten Start fest und ändern Sie ihn danach nicht mehr.",
-        "Tragen Sie bei *Typ des öffentlichen Schlüssels* die JWKS-URL ein, keinen RSA-Schlüssel. ILIAS prüft die Signaturen des Tools nur über die URL, sonst scheitert die Notenübertragung."
+        "Wähle in ILIAS bei *Identifikation der Person* nicht *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung mit „User not available“. Leg den Modus vor dem ersten Start fest und ändere ihn danach nicht mehr.",
+        "Trag bei *Typ des öffentlichen Schlüssels* die JWKS-URL ein, keinen RSA-Schlüssel. ILIAS prüft die Signaturen des Tools nur über die URL, sonst scheitert die Notenübertragung."
       ],
       "keywords": [
         "ILIAS",
@@ -951,36 +951,36 @@
         "Klausur mit einer Aktivität verknüpfen",
         "Datenschutz bei der Anbindung",
         "Start aus Moodle oder ILIAS schlägt fehl",
-        "Technische Referenz für Ihre IT (LTI 1.3)"
+        "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
     "lti-manage": {
       "title": "Wie verwalte ich eine Anbindung an Moodle oder ILIAS?",
-      "summary": "Im Panel **Lernplattform (LTI)** hat jede Anbindung eine eigene Karte. Dort schalten Sie die Anbindung und ihre Deployments ein und aus, legen die Rolle der Lehrenden fest und sehen Aktivitäten, LMS-Konten, Notenübertragungen und den Verlauf. Das Panel steht Org-Admins offen, Gruppen-Admins für die Anbindungen ihrer Gruppen.",
+      "summary": "Im Panel **Lernplattform (LTI)** hat jede Anbindung eine eigene Karte. Dort schaltest du die Anbindung und ihre Deployments ein und aus, legst die Rolle der Lehrenden fest und siehst Aktivitäten, LMS-Konten, Notenübertragungen und den Verlauf. Das Panel steht Org-Admins offen, Gruppen-Admins für die Anbindungen ihrer Gruppen.",
       "steps": [
         "**Ein- und ausschalten**: Ein Klick auf den Schalter **Anbindung aktiv** schaltet die Anbindung nach einer Rückfrage aus. Das sperrt sofort alle Starts, die Seiten der Anbindung in der App und die Notenübertragung für diese Lernplattform. Der Schalter zeigt dann **Anbindung aus**, und die Karte trägt das Zeichen **Ausgeschaltet**. Ein weiterer Klick schaltet sie nach einer Rückfrage wieder ein.",
         "**Deployments**: Deployment-IDs hinzufügen oder entfernen. Der Schalter **Deployment aktiv** neben einer ID sperrt sie einzeln und zeigt dann **Deployment aus**. Die anderen Deployments laufen weiter. In ILIAS ist die Deployment-ID die numerische Provider-ID.",
-        "**Bearbeiten**: Die **Org-Rolle für Lehrende** ist Mitwirkender (contributor), Org-Admin (org_admin) oder keine Org-Rolle (none). Bei einer Gruppen-Anbindung ist es die Rolle in der Gruppe: Mitwirkender oder Org-Admin (= Admin der Gruppe). Neue Lehrende werden in der Organisation Annotator; wer dort schon eine höhere Rolle hat, behält sie. Gruppen-Admins vergeben auf den Anbindungen ihrer Gruppe bis zu Admin der Gruppe. Hier ändern Sie auch Adresse, Gruppe, **Org-Rolle für Studierende** und **Verknüpfung mit bestehenden Konten anbieten**.",
+        "**Bearbeiten**: Die **Org-Rolle für Lehrende** ist Mitwirkender (contributor), Org-Admin (org_admin) oder keine Org-Rolle (none). Bei einer Gruppen-Anbindung ist es die Rolle in der Gruppe: Mitwirkender oder Org-Admin (= Admin der Gruppe). Neue Lehrende werden in der Organisation Annotator; wer dort schon eine höhere Rolle hat, behält sie. Gruppen-Admins vergeben auf den Anbindungen ihrer Gruppe bis zu Admin der Gruppe. Hier änderst du auch Adresse, Gruppe, **Org-Rolle für Studierende** und **Verknüpfung mit bestehenden Konten anbieten**.",
         "**Aktivitäten**: jede Aktivität mit Kurs, verknüpfter Klausur, Teilnehmenden, Stand der Übertragungen und dem Stand der Spalte **KI-Bewertung**. **Notenübersicht öffnen** führt zur Aktivitätsübersicht.",
         "**LMS-Konten**: alle Personen der Anbindung mit Name, E-Mail-Adresse, Pseudonym, Rolle, Einwilligung und letztem Start, mit Suche. **Verknüpfung lösen** trennt die Kennung der Lernplattform vom Konto. Konten, die die Lernplattform angelegt hat, lassen sich mit **Anonymisieren** anonymisieren.",
-        "**Notenübertragungen**: alle, fehlgeschlagene oder ausstehende Übertragungen mit Person, Kurs, Aktivität, Klausur und Fehlertext. Bei fehlgeschlagenen und ausstehenden Übertragungen schickt **Erneut versuchen** die Note sofort. Lehnt die Lernplattform eine Note endgültig ab (etwa mit 400, 401, 403 oder 404), ist die Übertragung sofort fehlgeschlagen. Beheben Sie dann zuerst die Ursache aus dem Fehlertext.",
-        "**Alle Noten erneut senden**: Im Abschnitt **Notenübertragungen** hat jede eingeschaltete Anbindung eine eigene Schaltfläche. Nach einer Rückfrage gehen alle aktuellen Noten aller Aktivitäten dieser Anbindung erneut an die Lernplattform, auch unveränderte. Nutzen Sie das nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel. Eine Meldung nennt danach, wie viele Noten gesendet werden und wie viele Personen und Aktivitäten übersprungen wurden. Der Verlauf hält den Vorgang mit diesen Zahlen fest.",
+        "**Notenübertragungen**: alle, fehlgeschlagene oder ausstehende Übertragungen mit Person, Kurs, Aktivität, Klausur und Fehlertext. Bei fehlgeschlagenen und ausstehenden Übertragungen schickt **Erneut versuchen** die Note sofort. Lehnt die Lernplattform eine Note endgültig ab (etwa mit 400, 401, 403 oder 404), ist die Übertragung sofort fehlgeschlagen. Behebe dann zuerst die Ursache aus dem Fehlertext.",
+        "**Alle Noten erneut senden**: Im Abschnitt **Notenübertragungen** hat jede eingeschaltete Anbindung eine eigene Schaltfläche. Nach einer Rückfrage gehen alle aktuellen Noten aller Aktivitäten dieser Anbindung erneut an die Lernplattform, auch unveränderte. Nutze das nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel. Eine Meldung nennt danach, wie viele Noten gesendet werden und wie viele Personen und Aktivitäten übersprungen wurden. Der Verlauf hält den Vorgang mit diesen Zahlen fest.",
         "**Verlauf**: jede Änderung an der Anbindung mit Zeit und handelnder Person. Ruft die Lernplattform das Tool über die andere Adresse auf, zeigt die Karte eine Warnung. Sendet ILIAS die E-Mail-Adresse als Kennung, warnt die Karte mit **Notenübertragung nach ILIAS scheitert**. **Verlauf aller Anbindungen anzeigen** unten im Panel zeigt zusätzlich Einladungslinks und gelöschte Anbindungen.",
         "**KI-Bewertung und API-Schlüssel**: Oben im Panel steht, ob die Organisation und jede Gruppe mit Anbindung die KI-Korrektur bezahlen kann und welcher Schlüssel fehlt.",
-        "**Löschen**: Deaktivieren Sie die Anbindung zuerst, sodass ihr Schalter **Anbindung aus** zeigt. **Löschen** fragt dann, ob die angelegten Konten bestehen bleiben oder anonymisiert werden. Aktivitäten, LMS-Verknüpfungen und alle Teilnahmen und Notenübertragungen samt Übertragungsstand verschwinden. Abgaben und Bewertungen bleiben erhalten. Bereits übertragene Noten bleiben in der Lernplattform. Behaltene Konten bleiben pseudonymisiert. Ihre Namen sehen danach nur noch die Admins Ihrer Organisation und die Administration der Plattform."
+        "**Löschen**: Deaktiviere die Anbindung zuerst, sodass ihr Schalter **Anbindung aus** zeigt. **Löschen** fragt dann, ob die angelegten Konten bestehen bleiben oder anonymisiert werden. Aktivitäten, LMS-Verknüpfungen und alle Teilnahmen und Notenübertragungen samt Übertragungsstand verschwinden. Abgaben und Bewertungen bleiben erhalten. Bereits übertragene Noten bleiben in der Lernplattform. Behaltene Konten bleiben pseudonymisiert. Ihre Namen sehen danach nur noch die Admins deiner Organisation und die Administration der Plattform."
       ],
       "tips": [
         "Nach **Verknüpfung lösen** bleiben Konto, Abgaben und Bewertungen bestehen. Die Teilnahme an den Aktivitäten und die Notenübertragungen dieser Anbindung werden entfernt. In der Notenübersicht erscheint die Person erst nach dem nächsten Start wieder. Beim nächsten Start fragt die Anbindung wieder nach Zustimmung. Das Konto wird dabei nur angeboten, wenn es noch die Adresse hat, die die Lernplattform sendet. Sonst, etwa bei einer Platzhalter-Adresse, entsteht ein neues, separates Konto, und die bisherigen Bewertungen bleiben beim alten Konto.",
-        "Entfernen Sie eine Person aus der Gruppe einer Anbindung, fügt ein Start sie nicht wieder hinzu. Auch eine gesenkte Rolle in der Gruppe bleibt gesenkt. Ein Start von Lehrenden hebt aber eine Annotator-Rolle wieder auf die **Org-Rolle für Lehrende** an (bei einer Gruppen-Anbindung die Rolle in der Gruppe).",
+        "Entfernst du eine Person aus der Gruppe einer Anbindung, fügt ein Start sie nicht wieder hinzu. Auch eine gesenkte Rolle in der Gruppe bleibt gesenkt. Ein Start von Lehrenden hebt aber eine Annotator-Rolle wieder auf die **Org-Rolle für Lehrende** an (bei einer Gruppen-Anbindung die Rolle in der Gruppe).",
         "**Anonymisieren** löscht Name, E-Mail-Adresse, Passwort und die Kennung der Lernplattform und sperrt die Anmeldung. Abgaben und Bewertungen bleiben unter einem neuen Pseudonym für Auswertungen erhalten. Bereits übertragene Noten bleiben in der Lernplattform. Vor dem Anonymisieren zeigt eine Vorschau, was gelöscht wird und was bleibt.",
-        "Nicht anonymisieren lassen sich Konten der Plattform-Administration, Ihr eigenes Konto, Konten, die es vor der Verknüpfung schon gab, Konten mit Bezug zu anderen Organisationen oder Gruppen und Konten mit Zahlungsdaten. Gruppen-Admins können keine Org-Admins anonymisieren.",
-        "Als Admin sehen Sie die Klarnamen der Personen Ihrer Anbindungen. Andere Mitglieder sehen in Listen das Pseudonym."
+        "Nicht anonymisieren lassen sich Konten der Plattform-Administration, dein eigenes Konto, Konten, die es vor der Verknüpfung schon gab, Konten mit Bezug zu anderen Organisationen oder Gruppen und Konten mit Zahlungsdaten. Gruppen-Admins können keine Org-Admins anonymisieren.",
+        "Als Admin siehst du die Klarnamen der Personen deiner Anbindungen. Andere Mitglieder sehen in Listen das Pseudonym."
       ],
       "pitfalls": [
         "Fehlt in Moodle die Spalte **KI-Bewertung**, erlaubt Moodle dem Tool keine eigene Spalte. Die Moodle-Administration stellt beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Danach die Aktivität erneut öffnen.",
         "Die *Identifikation der Person* in ILIAS nach dem Start nicht mehr ändern. Sie bestimmt die Kennung der Personen, ein Wechsel trennt alle Verknüpfungen. Einzige Ausnahme ist der Modus *E-Mail-Adresse*: Damit scheitert in ILIAS 10.9 jede Notenübertragung. Die ILIAS-Administration stellt dann auf **ID des ILIAS-Kontos …** um. Danach stimmt jede Person erneut zu und erhält ein neues Konto. Bisherige Abgaben bleiben beim alten Konto.",
         "Anonymisieren lässt sich nicht rückgängig machen. Startet die Person die Aktivität erneut, entsteht ein neues, leeres Konto.",
-        "Ändern Sie die Adresse einer Anbindung, passen Sie auch die Tool-URLs in der Lernplattform an. Bis dahin funktionieren die Starts weiter, und der Verlauf zeigt eine Warnung."
+        "Änderst du die Adresse einer Anbindung, pass auch die Tool-URLs in der Lernplattform an. Bis dahin funktionieren die Starts weiter, und der Verlauf zeigt eine Warnung."
       ],
       "keywords": [
         "Anbindung verwalten",
@@ -1008,16 +1008,16 @@
     },
     "lti-teacher": {
       "title": "Wie verknüpfe ich eine Moodle- oder ILIAS-Aktivität mit einer Klausur?",
-      "summary": "Legen Sie im Kurs eine Aktivität *Externes Tool* (Moodle) oder einen *LTI-Konsumenten* (ILIAS) mit Bewertung an und öffnen Sie sie. Beim **ersten Start** stimmen Sie einmal zu und wählen dann die Klausur. Danach öffnet die Aktivität die Seite der Klausur. Dort führt die Karte **Lernplattform-Aktivitäten** zur **Aktivitätsübersicht** mit allen Abgaben und Noten.",
+      "summary": "Leg im Kurs eine Aktivität *Externes Tool* (Moodle) oder einen *LTI-Konsumenten* (ILIAS) mit Bewertung an und öffne sie. Beim **ersten Start** stimmst du einmal zu und wählst dann die Klausur. Danach öffnet die Aktivität die Seite der Klausur. Dort führt die Karte **Lernplattform-Aktivitäten** zur **Aktivitätsübersicht** mit allen Abgaben und Noten.",
       "steps": [
-        "Moodle: *Aktivität anlegen* → das Tool in der Aktivitätsauswahl wählen → Bewertung aktiv lassen. Zeigt die Aktivität keine Bewertung, setzen Sie zuerst den Haken **… erlauben, Bewertungen hinzuzufügen** (vorne steht der Name des Tools). Ohne den Haken hat die Aktivität keine Bewertung. Ein Maximum von 100 ist in Ordnung, das Tool liefert 0 bis 18 Notenpunkte und Moodle rechnet um. Den Startcontainer legt in Moodle die Administration für das Tool fest. ILIAS: *LTI-Konsument* mit dem Provider anlegen und bei *Optionen für den Start* **Neues Fenster** wählen. Unter *Optionen für den Lernfortschritt* sollte der *Mastery Score* **22** sein.",
-        "Aktivität öffnen. Beim ersten Start bittet die Anbindung um Ihre Zustimmung, auch zur Forschungsnutzung. Gibt es schon ein Konto mit Ihrer E-Mail-Adresse, verknüpfen Sie es durch Anmelden oder über einen Link per E-Mail. Oder Sie wählen **Mit separatem Konto fortfahren**. ILIAS übermittelt keine E-Mail-Adresse. Dort entfällt dieser Schritt, und es entsteht immer ein eigenes Konto. Die Seite fragt Sie dann einmal nach Ihrer E-Mail-Adresse. Mit dem Link, den Sie daraufhin erhalten, legen Sie ein Passwort fest. Sie können den Schritt auch überspringen.",
-        "Die Auswahl trägt den Titel Ihrer Aktivität. Sie zeigt Ihre eigenen Klausuren (*Eigene*) und die Klausuren der Mitwirkenden und Admins Ihrer Organisation, jeweils mit Autorin oder Autor. Bei einer Gruppen-Anbindung zählen nur die Mitwirkenden der Gruppe, die Gruppen-Admins und die Org-Admins. Auch private Klausuren lassen sich verknüpfen. Unter der Liste legen Sie mit **Oder neue Klausur anlegen** eine neue an. Gibt es noch keine Klausur, heißt die Schaltfläche **Neue Klausur anlegen**.",
-        "Verknüpfbar sind Klausuren mit Falllösung und Klausuren mit aktivem Bewertungsbogen. Klausuren ohne Aufgabe oder ohne aktiven Bewertungsbogen lassen sich nicht wählen. Der Grund steht dabei. Hat die Klausur eine Aufgabe, wird die Aktivität automatisch mit ihr verknüpft. Bei einer Klausurensammlung mit mehreren Aufgaben wählen Sie eine Aufgabe oder in Moodle die ganze Sammlung, siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).",
-        "**Verknüpfen**. Damit ist die menschliche Korrektur für die Klausur eingeschaltet, und die Mitarbeitenden Ihrer Organisation können die Abgaben ansehen und korrigieren.",
+        "Moodle: *Aktivität anlegen* → das Tool in der Aktivitätsauswahl wählen → Bewertung aktiv lassen. Zeigt die Aktivität keine Bewertung, setz zuerst den Haken **… erlauben, Bewertungen hinzuzufügen** (vorne steht der Name des Tools). Ohne den Haken hat die Aktivität keine Bewertung. Ein Maximum von 100 ist in Ordnung, das Tool liefert 0 bis 18 Notenpunkte und Moodle rechnet um. Den Startcontainer legt in Moodle die Administration für das Tool fest. ILIAS: *LTI-Konsument* mit dem Provider anlegen und bei *Optionen für den Start* **Neues Fenster** wählen. Unter *Optionen für den Lernfortschritt* sollte der *Mastery Score* **22** sein.",
+        "Aktivität öffnen. Beim ersten Start bittet die Anbindung um deine Zustimmung, auch zur Forschungsnutzung. Gibt es schon ein Konto mit deiner E-Mail-Adresse, verknüpfst du es durch Anmelden oder über einen Link per E-Mail. Oder du wählst **Mit separatem Konto fortfahren**. ILIAS übermittelt keine E-Mail-Adresse. Dort entfällt dieser Schritt, und es entsteht immer ein eigenes Konto. Die Seite fragt dich dann einmal nach deiner E-Mail-Adresse. Mit dem Link, den du daraufhin erhältst, legst du ein Passwort fest. Du kannst den Schritt auch überspringen.",
+        "Die Auswahl trägt den Titel deiner Aktivität. Sie zeigt deine eigenen Klausuren (*Eigene*) und die Klausuren der Mitwirkenden und Admins deiner Organisation, jeweils mit Autorin oder Autor. Bei einer Gruppen-Anbindung zählen nur die Mitwirkenden der Gruppe, die Gruppen-Admins und die Org-Admins. Auch private Klausuren lassen sich verknüpfen. Unter der Liste legst du mit **Oder neue Klausur anlegen** eine neue an. Gibt es noch keine Klausur, heißt die Schaltfläche **Neue Klausur anlegen**.",
+        "Verknüpfbar sind Klausuren mit Falllösung und Klausuren mit aktivem Bewertungsbogen. Klausuren ohne Aufgabe oder ohne aktiven Bewertungsbogen lassen sich nicht wählen. Der Grund steht dabei. Hat die Klausur eine Aufgabe, wird die Aktivität automatisch mit ihr verknüpft. Bei einer Klausurensammlung mit mehreren Aufgaben wählst du eine Aufgabe oder in Moodle die ganze Sammlung, siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).",
+        "**Verknüpfen**. Damit ist die menschliche Korrektur für die Klausur eingeschaltet, und die Mitarbeitenden deiner Organisation können die Abgaben ansehen und korrigieren.",
         "Studierende öffnen die Aktivität, stimmen einmal zu und landen direkt in der Klausur.",
-        "Nach dem Verknüpfen und bei jedem weiteren Start landen Sie auf der Seite der Klausur: mit der BenGER-Adresse auf der Projektseite in der Expertenoberfläche, mit der Studierenden-Adresse auf der Klausurseite. Die Karte **Lernplattform-Aktivitäten** führt zur **Aktivitätsübersicht**. **Korrektur öffnen** führt immer in die Expertenoberfläche, auch mit der Studierenden-Adresse. Was die Übersicht zeigt, steht unter [Noten aus der Lernplattform](/how-to#lti-grades).",
-        "**Moodle: KI-Bewertung aus der Kursgesamtbewertung nehmen**. Moodle legt die Spalte **KI-Bewertung** als normale Bewertung an und zählt sie in *Kurs gesamt* mit. Sobald die Spalte mit der ersten KI-Note erscheint, öffnen Sie im Kurs *Bewertungen* → *Setup für Bewertungen*. Haken Sie in der Zeile KI-Bewertung das Kästchen in der Spalte *Gewichtungen* an, tragen Sie 0 ein und klicken Sie auf *Änderungen speichern*. Dann zählt nur die Aktivitätsspalte."
+        "Nach dem Verknüpfen und bei jedem weiteren Start landest du auf der Seite der Klausur: mit der BenGER-Adresse auf der Projektseite in der Expertenoberfläche, mit der Studierenden-Adresse auf der Klausurseite. Die Karte **Lernplattform-Aktivitäten** führt zur **Aktivitätsübersicht**. **Korrektur öffnen** führt immer in die Expertenoberfläche, auch mit der Studierenden-Adresse. Was die Übersicht zeigt, steht unter [Noten aus der Lernplattform](/how-to#lti-grades).",
+        "**Moodle: KI-Bewertung aus der Kursgesamtbewertung nehmen**. Moodle legt die Spalte **KI-Bewertung** als normale Bewertung an und zählt sie in *Kurs gesamt* mit. Sobald die Spalte mit der ersten KI-Note erscheint, öffnest du im Kurs *Bewertungen* → *Setup für Bewertungen*. Hak in der Zeile KI-Bewertung das Kästchen in der Spalte *Gewichtungen* an, trag 0 ein und klick auf *Änderungen speichern*. Dann zählt nur die Aktivitätsspalte."
       ],
       "tips": [
         "Die Zustimmung gilt je Anbindung. Weitere Kurse und Aktivitäten derselben Lernplattform fragen nicht erneut.",
@@ -1025,11 +1025,11 @@
         "Die KI-Korrektur bezahlt die Organisation der Anbindung. Fehlt ihr ein Schlüssel, zeigen die Auswahl und die Übersicht einen Hinweis."
       ],
       "pitfalls": [
-        "Sobald eine Note an die Lernplattform übertragen wurde, lässt sich die Verknüpfung nicht mehr ändern. Legen Sie für eine andere Klausur oder Aufgabe eine neue Aktivität an.",
-        "*Diese Aktivität kann keine Noten empfangen*: Die Notenübertragung ist nicht aktiv. Schalten Sie in Moodle die Bewertung ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*. In ILIAS schaltet die Administration beim Provider *Erweiterte Benotungsdienste* ein. Öffnen Sie die Aktivität dann neu.",
-        "Ist eine ältere Aktivität mit der ganzen Klausur als einer Note verknüpft, nimmt die Klausur keine zweite Aufgabe an, auch nicht per Import. Verknüpfen Sie die Aktivität dann mit der Aufgabe der Klausur. Das geht immer, auch nach übertragenen Noten.",
-        "Startet das Tool eingebettet (iframe), landen Sie auf der Anmeldeseite. In Moodle 4.5 ändern Sie das nicht in der Aktivität. Die Moodle-Administration stellt den *Standard-Startcontainer* des Tools auf **Neues Fenster**. In ILIAS wählen Sie beim Objekt **Neues Fenster**.",
-        "Finden Sie das Tool nicht in der Moodle-Aktivitätsauswahl, bitten Sie die Moodle-Administration, beim Tool *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen** zu stellen."
+        "Sobald eine Note an die Lernplattform übertragen wurde, lässt sich die Verknüpfung nicht mehr ändern. Leg für eine andere Klausur oder Aufgabe eine neue Aktivität an.",
+        "*Diese Aktivität kann keine Noten empfangen*: Die Notenübertragung ist nicht aktiv. Schalte in Moodle die Bewertung ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*. In ILIAS schaltet die Administration beim Provider *Erweiterte Benotungsdienste* ein. Öffne die Aktivität dann neu.",
+        "Ist eine ältere Aktivität mit der ganzen Klausur als einer Note verknüpft, nimmt die Klausur keine zweite Aufgabe an, auch nicht per Import. Verknüpfe die Aktivität dann mit der Aufgabe der Klausur. Das geht immer, auch nach übertragenen Noten.",
+        "Startet das Tool eingebettet (iframe), landest du auf der Anmeldeseite. In Moodle 4.5 änderst du das nicht in der Aktivität. Die Moodle-Administration stellt den *Standard-Startcontainer* des Tools auf **Neues Fenster**. In ILIAS wählst du beim Objekt **Neues Fenster**.",
+        "Findest du das Tool nicht in der Moodle-Aktivitätsauswahl, bitte die Moodle-Administration, beim Tool *Verwendung der Toolkonfiguration* auf **In Aktivitätsauswahl und als vorkonfiguriertes Tool anzeigen** zu stellen."
       ],
       "keywords": [
         "Aktivität verknüpfen",
@@ -1049,30 +1049,30 @@
         "Noten aus der Lernplattform",
         "Anbindung einrichten",
         "Datenschutz bei der Anbindung",
-        "Technische Referenz für Ihre IT (LTI 1.3)"
+        "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
     "lti-collection": {
       "title": "Wie verknüpfe ich eine Klausurensammlung mit mehreren Aufgaben?",
       "summary": "Es gibt zwei Wege. **Eine Aktivität je Aufgabe** geht in Moodle und ILIAS: Jede Aktivität erhält die Note ihrer Aufgabe. **Die ganze Sammlung in einer Aktivität** geht nur in Moodle: Jede Aufgabe erhält eine eigene Spalte, und die Spalte der Aktivität erhält den Mittelwert der Endnoten, sobald jede Aufgabe eine Endnote hat.",
       "steps": [
-        "**Eine Aktivität je Aufgabe (Moodle und ILIAS)**: Legen Sie für jede Aufgabe eine eigene Aktivität an, am besten mit der Aufgabe im Titel. Öffnen Sie die Aktivität, klappen Sie in der Auswahl die Sammlung auf, wählen Sie die Aufgabe und klicken Sie auf **Verknüpfen**. Wiederholen Sie das für jede Aufgabe. Jede Aktivität erhält nur die Note ihrer Aufgabe. Die Studierenden erreichen trotzdem alle Aufgaben der Sammlung.",
-        "**Die ganze Sammlung in einer Aktivität (nur Moodle)**: Legen Sie eine Aktivität an, öffnen Sie sie und wählen Sie in der Auswahl statt einer Aufgabe die ganze Sammlung. Klicken Sie auf **Verknüpfen**.",
+        "**Eine Aktivität je Aufgabe (Moodle und ILIAS)**: Leg für jede Aufgabe eine eigene Aktivität an, am besten mit der Aufgabe im Titel. Öffne die Aktivität, klapp in der Auswahl die Sammlung auf, wähle die Aufgabe und klick auf **Verknüpfen**. Wiederhole das für jede Aufgabe. Jede Aktivität erhält nur die Note ihrer Aufgabe. Die Studierenden erreichen trotzdem alle Aufgaben der Sammlung.",
+        "**Die ganze Sammlung in einer Aktivität (nur Moodle)**: Leg eine Aktivität an, öffne sie und wähle in der Auswahl statt einer Aufgabe die ganze Sammlung. Klick auf **Verknüpfen**.",
         "BenGER legt dann im Moodle-Notenbuch je Aufgabe eine Spalte *Aufgabe N: Titel der Aktivität* an. Sie erhält die Endnote der Aufgabe: die Korrektur, sonst die KI-Note, wenn die Aktivität KI-Noten überträgt. Solange KI-Noten übertragen werden, kommt je Aufgabe eine Spalte *KI-Bewertung: Aufgabe N* dazu. Die Spalten erscheinen mit der ersten Note der Aufgabe.",
         "Die Spalte der Aktivität erhält den **Mittelwert der Endnoten aller Aufgaben**. Er wird erst gesendet, wenn jede Aufgabe eine Endnote hat. Bis dahin bleibt die Spalte der Aktivität für diese Person leer.",
-        "Prüfen Sie die Kursgesamtbewertung. Moodle zählt jede Spalte in *Kurs gesamt* mit, also den Mittelwert, jede Aufgabenspalte und jede Spalte KI-Bewertung. Soll nur der Mittelwert zählen, öffnen Sie *Bewertungen* → *Setup für Bewertungen*, haken Sie bei jeder Spalte *Aufgabe N* und *KI-Bewertung* das Kästchen in der Spalte *Gewichtungen* an, tragen Sie 0 ein und klicken Sie auf *Änderungen speichern*."
+        "Prüf die Kursgesamtbewertung. Moodle zählt jede Spalte in *Kurs gesamt* mit, also den Mittelwert, jede Aufgabenspalte und jede Spalte KI-Bewertung. Soll nur der Mittelwert zählen, öffne *Bewertungen* → *Setup für Bewertungen*, hak bei jeder Spalte *Aufgabe N* und *KI-Bewertung* das Kästchen in der Spalte *Gewichtungen* an, trag 0 ein und klick auf *Änderungen speichern*."
       ],
       "tips": [
         "Eine Klausur mit einer Aufgabe verknüpft BenGER automatisch mit dieser Aufgabe. Aktivitäten, die früher mit der ganzen Klausur verknüpft wurden, sind beim Update mit der einzigen Aufgabe ihrer Klausur verknüpft worden.",
-        "Fügen Sie der Sammlung später eine Aufgabe hinzu, erhält sie bei der ganzen Sammlung ihre Spalten mit der nächsten Übertragung ihrer Noten. Bis sie bewertet ist, wartet der Mittelwert.",
+        "Fügst du der Sammlung später eine Aufgabe hinzu, erhält sie bei der ganzen Sammlung ihre Spalten mit der nächsten Übertragung ihrer Noten. Bis sie bewertet ist, wartet der Mittelwert.",
         "Importe in die Klausur sind möglich, sobald keine Aktivität mehr die ganze Klausur als eine Note erhält. Aktivitäten je Aufgabe und die ganze Sammlung blockieren keinen Import.",
         "Die ganze Sammlung braucht in Moodle beim Tool *IMS LTI Aufgaben und Bewertung* die Einstellung **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Sonst bietet die Auswahl sie nicht an."
       ],
       "pitfalls": [
         "In ILIAS gibt es nur den Weg mit einer Aktivität je Aufgabe. ILIAS lässt das Tool keine Spalten anlegen und nimmt je Objekt und Person nur einen Wert an, die Endnote.",
-        "Die Verknüpfung lässt sich ändern (andere Klausur, andere Aufgabe, Wechsel zwischen einer Aufgabe und der ganzen Sammlung), bis die erste Note der Aktivität in der Lernplattform angekommen ist. Danach lehnt BenGER die Änderung ab, weil eine Spalte sonst Noten verschiedener Aufgaben mischt. Legen Sie dann eine neue Aktivität an. Ausnahme: Eine ältere Aktivität, die die ganze Klausur verknüpft, lässt sich immer mit der einzigen Aufgabe ihrer Klausur verknüpfen.",
-        "Löschen Sie eine Aufgabenspalte in Moodle, legt BenGER sie nicht von selbst wieder an. Löschen Sie eine Aufgabe in BenGER, bleibt ihre Spalte in Moodle stehen. BenGER löscht nie eine Spalte in der Lernplattform.",
-        "Wird die Aufgabe einer Aktivität je Aufgabe gelöscht, erhält die Aktivität keine Noten mehr. Verknüpfen Sie sie mit einer anderen Aufgabe oder legen Sie eine neue Aktivität an."
+        "Die Verknüpfung lässt sich ändern (andere Klausur, andere Aufgabe, Wechsel zwischen einer Aufgabe und der ganzen Sammlung), bis die erste Note der Aktivität in der Lernplattform angekommen ist. Danach lehnt BenGER die Änderung ab, weil eine Spalte sonst Noten verschiedener Aufgaben mischt. Leg dann eine neue Aktivität an. Ausnahme: Eine ältere Aktivität, die die ganze Klausur verknüpft, lässt sich immer mit der einzigen Aufgabe ihrer Klausur verknüpfen.",
+        "Löschst du eine Aufgabenspalte in Moodle, legt BenGER sie nicht von selbst wieder an. Löschst du eine Aufgabe in BenGER, bleibt ihre Spalte in Moodle stehen. BenGER löscht nie eine Spalte in der Lernplattform.",
+        "Wird die Aufgabe einer Aktivität je Aufgabe gelöscht, erhält die Aktivität keine Noten mehr. Verknüpfe sie mit einer anderen Aufgabe oder leg eine neue Aktivität an."
       ],
       "keywords": [
         "Klausurensammlung",
@@ -1090,19 +1090,19 @@
         "Klausur mit einer Aktivität verknüpfen",
         "Noten aus der Lernplattform",
         "Sammlung lässt sich nicht verknüpfen oder Spalte bleibt leer",
-        "Technische Referenz für Ihre IT (LTI 1.3)"
+        "Technische Referenz für deine IT (LTI 1.3)"
       ]
     },
     "lti-grades": {
       "title": "Wie kommen die Noten in die Lernplattform?",
-      "summary": "Nach der Abgabe korrigiert die KI, und die Note geht sofort an die Lernplattform. Korrigieren Sie die Abgabe selbst, wird Ihre Note zur Endnote. Die KI-Note bleibt erhalten. Die **Aktivitätsübersicht** zeigt beide Noten und was die Lernplattform erhalten hat.",
+      "summary": "Nach der Abgabe korrigiert die KI, und die Note geht sofort an die Lernplattform. Korrigierst du die Abgabe selbst, wird deine Note zur Endnote. Die KI-Note bleibt erhalten. Die **Aktivitätsübersicht** zeigt beide Noten und was die Lernplattform erhalten hat.",
       "steps": [
-        "Öffnen Sie die Aktivität in der Lernplattform. Sie landen auf der Seite der Klausur; dort führt **Übersicht öffnen** bei den **Lernplattform-Aktivitäten** zur Übersicht. Im Panel der Anbindung erreichen Sie sie auch über **Notenübersicht öffnen**.",
+        "Öffne die Aktivität in der Lernplattform. Du landest auf der Seite der Klausur; dort führt **Übersicht öffnen** bei den **Lernplattform-Aktivitäten** zur Übersicht. Im Panel der Anbindung erreichst du sie auch über **Notenübersicht öffnen**.",
         "Die Tabelle **Abgaben und Noten** zeigt je Person den Namen, die Abgabe, die **KI-Note**, die **Korrektur** und was die Aktivitätsspalte und die Spalte KI-Bewertung erhalten haben. Dazu kommt der Status (*Übertragen*, *Wird übertragen*, *Noch keine Note*, *Übersprungen* oder *Fehlgeschlagen*) mit Fehlertext.",
-        "**Korrektur öffnen** führt direkt zur Abgabe in der Korrektur. Sie öffnet sich in der Expertenoberfläche, auch mit der Studierenden-Adresse. Ihre Note ersetzt in der Aktivitätsspalte die KI-Note.",
+        "**Korrektur öffnen** führt direkt zur Abgabe in der Korrektur. Sie öffnet sich in der Expertenoberfläche, auch mit der Studierenden-Adresse. Deine Note ersetzt in der Aktivitätsspalte die KI-Note.",
         "Hat eine Übertragung einen Fehler, bietet die Zeile **Erneut senden** an. Das gilt für fehlgeschlagene Übertragungen, für ausstehende nach einem Fehlversuch und für Spalten mit dem Hinweis *Weicht von der Lernplattform ab*. **Erneut senden** schickt die Note sofort noch einmal. **Fehlgeschlagene erneut senden** macht das für alle Übertragungen mit Fehler auf einmal.",
-        "**Alle Noten erneut senden** schickt nach einer Rückfrage jede aktuelle Note der Aktivität noch einmal, auch unveränderte. Nutzen Sie das nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel. Eine Meldung nennt danach, wie viele Noten gesendet werden und wie viele Personen übersprungen wurden (ohne Note, ohne Zustimmung oder mit anonymisiertem Konto). Die Noten gehen in kleinen Gruppen hinaus, in großen Kursen dauert das einige Minuten.",
-        "Unter **Spalten in der Lernplattform** sehen Sie, ob die Spalte **KI-Bewertung** aktiv ist. Wurde sie in Moodle gelöscht, legt **Spalte neu anlegen** sie wieder an."
+        "**Alle Noten erneut senden** schickt nach einer Rückfrage jede aktuelle Note der Aktivität noch einmal, auch unveränderte. Nutze das nach einem Ausfall der Lernplattform, nach geänderten Spalteneinstellungen oder nach einem neuen Notenschlüssel. Eine Meldung nennt danach, wie viele Noten gesendet werden und wie viele Personen übersprungen wurden (ohne Note, ohne Zustimmung oder mit anonymisiertem Konto). Die Noten gehen in kleinen Gruppen hinaus, in großen Kursen dauert das einige Minuten.",
+        "Unter **Spalten in der Lernplattform** siehst du, ob die Spalte **KI-Bewertung** aktiv ist. Wurde sie in Moodle gelöscht, legt **Spalte neu anlegen** sie wieder an."
       ],
       "tips": [
         "Moodle erhält zwei Spalten. Die Aktivitätsspalte hat die Endnote (die Korrektur, sonst die KI-Note), umgerechnet auf das Maximum der Aktivität. Die Spalte **KI-Bewertung** hat immer die KI-Note auf der Skala 0 bis 18. Sie heißt *KI-Bewertung: Titel der Aktivität*, so lassen sich mehrere Aktivitäten eines Kurses unterscheiden. Ältere Spalten heißen nur *KI-Bewertung*. Dafür muss beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen** stehen, sonst erhält Moodle nur die Endnote.",
@@ -1110,14 +1110,14 @@
         "Ist in Moodle eine ganze Klausurensammlung mit der Aktivität verknüpft, kommen je Aufgabe die Spalten *Aufgabe N* und *KI-Bewertung: Aufgabe N* dazu. Die Aktivitätsspalte erhält dann den Mittelwert der Endnoten, erst wenn jede Aufgabe eine Endnote hat. Siehe [Klausurensammlung verknüpfen](/how-to#lti-collection).",
         "Eine Korrektur löscht nichts. Die KI-Note bleibt in der Übersicht und in der Spalte KI-Bewertung. Bei mehreren Korrekturen gilt die zuletzt bearbeitete.",
         "Ändert sich eine Note nachträglich, etwa durch einen neuen Notenschlüssel, geht der neue Wert spätestens nach etwa einer Stunde an die Lernplattform.",
-        "Während der Korrektur ist die KI-Note standardmäßig ausgeblendet, bis Sie Ihre eigene Note abgegeben haben.",
-        "Haben Sie eine Note in Moodle im Notenbuch überschrieben oder gesperrt, ändert Moodle sie auch nach **Alle Noten erneut senden** nicht. In der Spalte **KI-Bewertung** ersetzt der gesendete Wert dagegen eine Änderung von Hand. ILIAS übernimmt immer den zuletzt gesendeten Wert.",
+        "Während der Korrektur ist die KI-Note standardmäßig ausgeblendet, bis du deine eigene Note abgegeben hast.",
+        "Hast du eine Note in Moodle im Notenbuch überschrieben oder gesperrt, ändert Moodle sie auch nach **Alle Noten erneut senden** nicht. In der Spalte **KI-Bewertung** ersetzt der gesendete Wert dagegen eine Änderung von Hand. ILIAS übernimmt immer den zuletzt gesendeten Wert.",
         "Klarnamen sehen hier die Lehrenden der Kurse, die diese Klausur verknüpfen, Mitarbeitende, die diese Klausur bewerten dürfen, die Admins der Organisation und die Administration der Plattform. Anonymisierte Konten erscheinen als *Anonymisiert*."
       ],
       "pitfalls": [
         "Stellt die Organisation keine API-Schlüssel bereit oder fehlt ein passender Schlüssel, läuft keine KI-Korrektur. Studierende sehen den Grund: Ihre Organisation bezahlt die KI-Korrektur noch nicht, oder ihr fehlt ein API-Schlüssel für das Bewertungsmodell. Die Abgabe bleibt gespeichert. Die Übersicht zeigt *Wartet auf einen API-Schlüssel der Organisation*. Sobald der Schlüssel hinterlegt ist, wird die Abgabe bei der nächsten stündlichen Prüfung korrigiert, also spätestens nach etwa einer Stunde.",
-        "Moodle legt die Spalte **KI-Bewertung** als normale Bewertung an und zählt sie in *Kurs gesamt* mit, auch wenn eine Korrektur die Endnote bestimmt. Setzen Sie ihre Gewichtung auf 0: im Kurs *Bewertungen* → *Setup für Bewertungen*, in der Zeile KI-Bewertung das Kästchen in der Spalte *Gewichtungen* anhaken, 0 eintragen und *Änderungen speichern*. Wird die Spalte neu angelegt, wiederholen Sie das.",
-        "Eine fehlgeschlagene Übertragung wird von selbst wiederholt. War die Lernplattform nicht erreichbar oder hatte sie einen Serverfehler, geht die Note nach 10, 30 und 90 Sekunden erneut hinaus. Danach wachsen die Abstände bis zu sechs Stunden. Nach zehn Versuchen gilt die Übertragung als fehlgeschlagen und wird weiter alle sechs Stunden versucht. Lehnt die Lernplattform die Note dagegen endgültig ab (etwa mit 400, 401, 403 oder 404), ist die Übertragung sofort fehlgeschlagen. Beheben Sie die Ursache aus dem Fehlertext und klicken Sie dann auf **Erneut senden**.",
+        "Moodle legt die Spalte **KI-Bewertung** als normale Bewertung an und zählt sie in *Kurs gesamt* mit, auch wenn eine Korrektur die Endnote bestimmt. Setz ihre Gewichtung auf 0: im Kurs *Bewertungen* → *Setup für Bewertungen*, in der Zeile KI-Bewertung das Kästchen in der Spalte *Gewichtungen* anhaken, 0 eintragen und *Änderungen speichern*. Wird die Spalte neu angelegt, wiederhole das.",
+        "Eine fehlgeschlagene Übertragung wird von selbst wiederholt. War die Lernplattform nicht erreichbar oder hatte sie einen Serverfehler, geht die Note nach 10, 30 und 90 Sekunden erneut hinaus. Danach wachsen die Abstände bis zu sechs Stunden. Nach zehn Versuchen gilt die Übertragung als fehlgeschlagen und wird weiter alle sechs Stunden versucht. Lehnt die Lernplattform die Note dagegen endgültig ab (etwa mit 400, 401, 403 oder 404), ist die Übertragung sofort fehlgeschlagen. Behebe die Ursache aus dem Fehlertext und klick dann auf **Erneut senden**.",
         "Scheitert jede Übertragung nach ILIAS mit „ILIAS kennt die Person nicht“ oder „User not available“, identifiziert der ILIAS-Provider die Personen per *E-Mail-Adresse*. In ILIAS 10.9 funktioniert die Notenübertragung in diesem Modus nicht. Die ILIAS-Administration stellt *Identifikation der Person* auf **ID des ILIAS-Kontos …** um. Danach stimmt jede Person erneut zu und erhält ein neues Konto. Bisherige Abgaben bleiben beim alten Konto.",
         "Ist die Anbindung deaktiviert, gehen keine Noten hinaus, und die Aktivitätsübersicht zeigt nur einen Hinweis. Übertragungen aus dieser Zeit gelten als fehlgeschlagen. Nach dem Einschalten schicken **Erneut senden** oder **Alle Noten erneut senden** sie sofort. Sonst versucht das Tool sie etwa sechs Stunden nach dem Fehlschlag von selbst erneut."
       ],
@@ -1146,27 +1146,27 @@
     },
     "lti-privacy": {
       "title": "Was muss ich zum Datenschutz der Lernplattform-Anbindung wissen?",
-      "summary": "Die Anbindung bittet **vor jedem Konto um Zustimmung**, einmal je Anbindung, bei Studierenden und Lehrenden. Konten tragen Name und E-Mail-Adresse aus der Lernplattform, aus ILIAS nur den Namen. In der App erscheint ein Pseudonym. Die KI-Korrektur läuft nur auf den Schlüsseln Ihrer Organisation. Gehostet wird in **Deutschland**. Wir sind Auftragsverarbeiter und erfüllen die Anforderungen Ihrer Datenschutzstelle. Sagen Sie uns bitte konkret, was Sie brauchen.",
+      "summary": "Die Anbindung bittet **vor jedem Konto um Zustimmung**, einmal je Anbindung, bei Studierenden und Lehrenden. Konten tragen Name und E-Mail-Adresse aus der Lernplattform, aus ILIAS nur den Namen. In der App erscheint ein Pseudonym. Die KI-Korrektur läuft nur auf den Schlüsseln deiner Organisation. Gehostet wird in **Deutschland**. Wir sind Auftragsverarbeiter und erfüllen die Anforderungen deiner Datenschutzstelle. Sag uns bitte konkret, was du brauchst.",
       "steps": [
         "**Zustimmung zuerst**: Beim ersten Start sieht die Person, was die Lernplattform übermittelt hat, und stimmt zwei Punkten zu. Das sind die Verarbeitung (Konto mit Name und E-Mail-Adresse, Pseudonym, Notenübertragung) und die Forschungsnutzung. Vorher entsteht kein Konto. Der geprüfte Start wartet höchstens 30 Minuten auf dem Server. Fordert die Person einen Bestätigungslink an, bleibt eine Kopie des Starts mit dem Link bis zu 24 Stunden gespeichert.",
-        "**Forschungsnutzung ist Pflicht**: Ohne diese Zustimmung lässt sich das Tool aus der Lernplattform nicht nutzen. Ein Zugang, der von einer Einwilligung abhängt, wirft die Frage nach Art. 7 Abs. 4 DSGVO auf. Ob das für Ihren Kurs passt, beurteilt Ihre Datenschutzstelle.",
+        "**Forschungsnutzung ist Pflicht**: Ohne diese Zustimmung lässt sich das Tool aus der Lernplattform nicht nutzen. Ein Zugang, der von einer Einwilligung abhängt, wirft die Frage nach Art. 7 Abs. 4 DSGVO auf. Ob das für deinen Kurs passt, beurteilt deine Datenschutzstelle.",
         "**Klarname und Pseudonym**: Konten tragen Name und E-Mail-Adresse aus der Lernplattform. Aus ILIAS kommt nur der Name. In der App erscheint das Pseudonym. Klarnamen sehen die Admins der Organisation, Gruppen-Admins für ihre Gruppe, die Lehrenden des Kurses, Mitarbeitende, die die verknüpfte Klausur bewerten dürfen, und die Administration der Plattform. Lehrende des Kurses sind die Lehrenden jedes Kurses der Anbindung, der die Klausur verknüpft. Bewerten dürfen standardmäßig auch die Lehrenden der Anbindung, weil sie in der Organisation Mitwirkende werden.",
-        "**Anforderungen nennen**: AVV nach Ihrer Vorlage oder unserer, TOM-Anlage, Eintrag für Ihr Verarbeitungsverzeichnis, Zuarbeit für eine DSFA, Unterauftragsverarbeiter, Löschfristen. Die vollständige Abfrageliste steht in der technischen Referenz.",
-        "**Vertrag vor dem Einladungslink**: Eine Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließen Sie den Vertrag deshalb ab, bevor Ihr Organisations-Admin den Link erstellt. Darauf zu achten, ist Aufgabe der Hochschule.",
+        "**Anforderungen nennen**: AVV nach deiner Vorlage oder unserer, TOM-Anlage, Eintrag für dein Verarbeitungsverzeichnis, Zuarbeit für eine DSFA, Unterauftragsverarbeiter, Löschfristen. Die vollständige Abfrageliste steht in der technischen Referenz.",
+        "**Vertrag vor dem Einladungslink**: Eine Anbindung ist aktiv, sobald die Lernplattform den Link einlöst. Schließ den Vertrag deshalb ab, bevor dein Organisations-Admin den Link erstellt. Darauf zu achten, ist Aufgabe der Hochschule.",
         "**Ansprechpersonen benennen**: je eine Person für die rechtliche Seite (meist Justiziariat oder Datenschutzkoordination, nicht die einzelne Lehrkraft) und für die Moodle- oder ILIAS-Administration."
       ],
       "tips": [
-        "Die KI-Korrektur verknüpfter Klausuren läuft nur auf den **API-Schlüsseln Ihrer Organisation**, nie auf einem Schlüssel von uns. Fehlt der Schlüssel, wird nicht korrigiert. Sie entscheiden also, welcher Anbieter Lösungstexte verarbeitet.",
+        "Die KI-Korrektur verknüpfter Klausuren läuft nur auf den **API-Schlüsseln deiner Organisation**, nie auf einem Schlüssel von uns. Fehlt der Schlüssel, wird nicht korrigiert. Du entscheidest also, welcher Anbieter Lösungstexte verarbeitet.",
         "Es wird kein Teilnehmerverzeichnis gelesen. Die Anbindung nutzt höchstens drei notenbezogene Berechtigungen (bei ILIAS zwei) und kein Names and Role Provisioning.",
         "Ein bestehendes Konto wird nur verknüpft, wenn sich die Person anmeldet oder einen Link per E-Mail bestätigt. Konten der Plattform-Administration werden nie verknüpft.",
         "Neue Konten mit zustellbarer Adresse erhalten nach der Zustimmung eine E-Mail zum Festlegen eines Passworts. Konten ohne zustellbare Adresse, etwa alle Konten aus ILIAS, fragt die Seite direkt nach der Zustimmung einmal nach einer E-Mail-Adresse. Der Schritt lässt sich überspringen. Die Adresse gilt erst, wenn die Person den Bestätigungslink öffnet. Dieser Link ist zugleich die E-Mail zum Festlegen des Passworts. Eine Adresse, die schon zu einem anderen Konto gehört, wird abgelehnt. Wer den Schritt überspringt, hinterlegt die Adresse später in der App.",
-        "Die Admins Ihrer Organisation anonymisieren Konten, die die Lernplattform angelegt hat. Name, E-Mail-Adresse und die Kennung der Lernplattform werden gelöscht, Abgaben und Noten bleiben ohne Personenbezug erhalten. Die vollständige Löschung eines Kontos gibt es auf Anfrage.",
+        "Die Admins deiner Organisation anonymisieren Konten, die die Lernplattform angelegt hat. Name, E-Mail-Adresse und die Kennung der Lernplattform werden gelöscht, Abgaben und Noten bleiben ohne Personenbezug erhalten. Die vollständige Löschung eines Kontos gibt es auf Anfrage.",
         "KI-Note und Korrektur stehen nebeneinander, und die Korrektur ist die Endnote. Bis zur Korrektur steht die KI-Note in der Lernplattform."
       ],
       "pitfalls": [
-        "Stellen Sie in ILIAS vor dem Start die **Identifikation der Person** auf **ID des ILIAS-Kontos …**. Beim *Anmeldename* wählen Sie **Vollständiger Name**. Der Modus *E-Mail-Adresse* ist ungeeignet, weil in ILIAS 10.9 damit jede Notenübertragung scheitert. ILIAS übermittelt deshalb den Namen, aber keine E-Mail-Adresse: keine automatische Aktivierungsmail, keine Verknüpfung mit bestehenden Konten. Nach der Zustimmung fragt die Seite einmal nach einer E-Mail-Adresse. Ändern Sie die Identifikation danach nicht mehr. Ein Wechsel ändert die Kennung jeder Person und trennt alle Verknüpfungen.",
+        "Stell in ILIAS vor dem Start die **Identifikation der Person** auf **ID des ILIAS-Kontos …**. Beim *Anmeldename* wählst du **Vollständiger Name**. Der Modus *E-Mail-Adresse* ist ungeeignet, weil in ILIAS 10.9 damit jede Notenübertragung scheitert. ILIAS übermittelt deshalb den Namen, aber keine E-Mail-Adresse: keine automatische Aktivierungsmail, keine Verknüpfung mit bestehenden Konten. Nach der Zustimmung fragt die Seite einmal nach einer E-Mail-Adresse. Ändere die Identifikation danach nicht mehr. Ein Wechsel ändert die Kennung jeder Person und trennt alle Verknüpfungen.",
         "Ob eine Datenschutz-Folgenabschätzung nötig ist und wie die KI-Note vor der Korrektur rechtlich einzuordnen ist, entscheidet die Hochschule als Verantwortliche. Wir liefern die Verarbeitungsbeschreibung als Zuarbeit.",
-        "Noten, die schon an die Lernplattform übertragen wurden, bleiben dort, auch nach einer Anonymisierung. Sie löschen sie in der Lernplattform."
+        "Noten, die schon an die Lernplattform übertragen wurden, bleiben dort, auch nach einer Anonymisierung. Du löschst sie in der Lernplattform."
       ],
       "keywords": [
         "Datenschutz",
@@ -1229,7 +1229,7 @@
     },
     "ts-no-projects": {
       "title": "„Ich sehe keine Projekte“ oder „mein Projekt ist verschwunden“",
-      "summary": "Fast immer der Kontext: oben rechts im Kontomenü unter **Kontext wechseln** die Organisation wählen. Danach: Ist das Projekt archiviert (*Mehr → Archiviert*) oder auf eine Gruppe beschränkt, der Sie nicht angehören?",
+      "summary": "Fast immer der Kontext: oben rechts im Kontomenü unter **Kontext wechseln** die Organisation wählen. Danach: Ist das Projekt archiviert (*Mehr → Archiviert*) oder auf eine Gruppe beschränkt, der du nicht angehörst?",
       "keywords": [
         "verschwunden",
         "nicht sichtbar",
@@ -1241,7 +1241,7 @@
     },
     "ts-no-models": {
       "title": "„Keine API-Schlüssel konfiguriert“ oder es fehlen Modelle in der Auswahl",
-      "summary": "Es fehlt der Schlüssel des Anbieters. Eigenen Schlüssel unter [Profil](/profile) → *API-Schlüssel-Verwaltung* hinterlegen, oder die Organisation muss *Organisation stellt API-Schlüssel bereit* einschalten und den Anbieter hinterlegen. Stellt die Organisation Schlüssel bereit, gibt es keinen Rückfall auf Ihren eigenen.",
+      "summary": "Es fehlt der Schlüssel des Anbieters. Eigenen Schlüssel unter [Profil](/profile) → *API-Schlüssel-Verwaltung* hinterlegen, oder die Organisation muss *Organisation stellt API-Schlüssel bereit* einschalten und den Anbieter hinterlegen. Stellt die Organisation Schlüssel bereit, gibt es keinen Rückfall auf deinen eigenen.",
       "keywords": [
         "Keine API-Schlüssel",
         "Modell fehlt",
@@ -1252,9 +1252,9 @@
     },
     "ts-generation-fails": {
       "title": "Generierung oder Bewertung schlägt fehl",
-      "summary": "Prüfen Sie in dieser Reihenfolge: Schlüssel gültig und mit Guthaben (*Nutzungs- oder Ratenlimit erreicht* heißt kein Guthaben beim Anbieter), Modell noch aktiv im [Modellkatalog](/models), Prompt-Struktur und Verfahren verweisen auf existierende Felder. Details zu jedem Lauf stehen unter [Läufe](/runs), fehlgeschlagene Läufe lassen sich dort erneut starten.",
+      "summary": "Prüf in dieser Reihenfolge: Schlüssel gültig und mit Guthaben (*Nutzungs- oder Ratenlimit erreicht* heißt kein Guthaben beim Anbieter), Modell noch aktiv im [Modellkatalog](/models), Prompt-Struktur und Verfahren verweisen auf existierende Felder. Details zu jedem Lauf stehen unter [Läufe](/runs), fehlgeschlagene Läufe lassen sich dort erneut starten.",
       "tips": [
-        "Bei *Erneut generieren* wird eine Aufgabe nur neu erzeugt, wenn sich der Prompt geändert hat. Mit *Alle generieren* erzwingen Sie die Neuerzeugung."
+        "Bei *Erneut generieren* wird eine Aufgabe nur neu erzeugt, wenn sich der Prompt geändert hat. Mit *Alle generieren* erzwingst du die Neuerzeugung."
       ],
       "keywords": [
         "fehlgeschlagen",
@@ -1267,7 +1267,7 @@
     },
     "ts-import-validation": {
       "title": "„Import-Validierungsfehler: These fields are not present in the data“",
-      "summary": "Ihre Datei hat andere Spaltennamen als die `$feld`-Platzhalter der Annotationsvorlage. Entweder Spalten umbenennen, die **Feldzuordnung** im Import-Dialog nutzen, oder **Trotzdem importieren** und danach unter *Feldzuordnung & Vorlage* auf der Datenseite die Vorlage aus den Daten erzeugen.",
+      "summary": "Deine Datei hat andere Spaltennamen als die `$feld`-Platzhalter der Annotationsvorlage. Entweder Spalten umbenennen, die **Feldzuordnung** im Import-Dialog nutzen, oder **Trotzdem importieren** und danach unter *Feldzuordnung & Vorlage* auf der Datenseite die Vorlage aus den Daten erzeugen.",
       "keywords": [
         "Validierungsfehler",
         "Felder fehlen",
@@ -1302,40 +1302,40 @@
     },
     "ts-lti-errors": {
       "title": "Start aus Moodle oder ILIAS schlägt fehl",
-      "summary": "Die Fehlerseite nennt einen **Fehlercode**, bei unerwarteten Serverfehlern auch eine **Referenz**. Suchen Sie den Code in der Liste unten. Jeder Eintrag nennt Ursache, Lösung und wer helfen kann. Studierende wenden sich an ihre Lehrenden, Lehrende an die Admins ihrer Organisation. Einige Fehler zeigt die Zustimmungs- oder Bestätigungsseite selbst, nur mit einer Überschrift. Die Liste nennt diese Überschriften.",
+      "summary": "Die Fehlerseite nennt einen **Fehlercode**, bei unerwarteten Serverfehlern auch eine **Referenz**. Such den Code in der Liste unten. Jeder Eintrag nennt Ursache, Lösung und wer helfen kann. Studierende wenden sich an ihre Lehrenden, Lehrende an die Admins ihrer Organisation. Einige Fehler zeigt die Zustimmungs- oder Bestätigungsseite selbst, nur mit einer Überschrift. Die Liste nennt diese Überschriften.",
       "steps": [
-        "`invalid_request`: Die Lernplattform hat eine unvollständige Startanfrage geschickt. Öffnen Sie die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen.",
-        "`registration_not_found`: Zur Lernplattform passt keine Anbindung. Meist stimmen Plattform-ID (Issuer) oder Client-ID in den Tool-Einstellungen nicht mit der Anbindung überein, oder die Anbindung wurde gelöscht. Auch zwei aktive Anbindungen, die sich nicht unterscheiden lassen, führen zu diesem Code. Die Admins Ihrer Organisation prüfen die Anbindung, die Administration der Lernplattform prüft die Tool-Einstellungen.",
-        "`registration_disabled`: Die Organisation hat die Anbindung abgeschaltet. Eine abgeschaltete Anbindung zeigt bei jedem Start diesen Code. Im Panel trägt ihre Karte das Zeichen **Ausgeschaltet**, und der Schalter zeigt **Anbindung aus**. Die Admins Ihrer Organisation schalten sie mit einem Klick auf den Schalter wieder ein.",
+        "`invalid_request`: Die Lernplattform hat eine unvollständige Startanfrage geschickt. Öffne die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen.",
+        "`registration_not_found`: Zur Lernplattform passt keine Anbindung. Meist stimmen Plattform-ID (Issuer) oder Client-ID in den Tool-Einstellungen nicht mit der Anbindung überein, oder die Anbindung wurde gelöscht. Auch zwei aktive Anbindungen, die sich nicht unterscheiden lassen, führen zu diesem Code. Die Admins deiner Organisation prüfen die Anbindung, die Administration der Lernplattform prüft die Tool-Einstellungen.",
+        "`registration_disabled`: Die Organisation hat die Anbindung abgeschaltet. Eine abgeschaltete Anbindung zeigt bei jedem Start diesen Code. Im Panel trägt ihre Karte das Zeichen **Ausgeschaltet**, und der Schalter zeigt **Anbindung aus**. Die Admins deiner Organisation schalten sie mit einem Klick auf den Schalter wieder ein.",
         "`org_inactive`: Die Organisation, der die Anbindung gehört, ist deaktiviert. Das kann nur der Betreiber der Plattform ändern. Lehrende wenden sich an ihn.",
-        "`unknown_deployment`: Die Lernplattform schickt eine Deployment-ID, die in der Anbindung nicht eingetragen ist. In ILIAS ist die Deployment-ID die Provider-ID. Die Administration der Lernplattform nennt die ID, die Admins Ihrer Organisation tragen sie in der Anbindung unter **Deployments** ein.",
-        "`deployment_disabled`: Die Deployment-ID ist in der Anbindung eingetragen, aber abgeschaltet. Neben der ID zeigt der Schalter **Deployment aus**. Die Admins Ihrer Organisation schalten sie unter **Deployments** mit einem Klick auf den Schalter wieder ein.",
+        "`unknown_deployment`: Die Lernplattform schickt eine Deployment-ID, die in der Anbindung nicht eingetragen ist. In ILIAS ist die Deployment-ID die Provider-ID. Die Administration der Lernplattform nennt die ID, die Admins deiner Organisation tragen sie in der Anbindung unter **Deployments** ein.",
+        "`deployment_disabled`: Die Deployment-ID ist in der Anbindung eingetragen, aber abgeschaltet. Neben der ID zeigt der Schalter **Deployment aus**. Die Admins deiner Organisation schalten sie unter **Deployments** mit einem Klick auf den Schalter wieder ein.",
         "`tool_not_configured`: Der Signaturschlüssel des Tools lässt sich auf dem Server nicht laden. Das behebt nur der Betreiber der Plattform. Lehrende wenden sich an ihn.",
-        "`state_unavailable`: Ein vorübergehendes Serverproblem. Der Server konnte die Anmeldung nicht speichern oder lesen. Das liegt nicht am Browser. Versuchen Sie es in ein paar Minuten erneut. Hält es an, geben Lehrende den Code an den Betreiber der Plattform weiter.",
-        "`invalid_state`: Die Anmeldung war älter als 5 Minuten oder wurde schon verwendet, etwa nach *Zurück*, nach dem Neuladen oder nach doppeltem Absenden. Öffnen Sie die Aktivität erneut in der Lernplattform.",
-        "`invalid_token`: Die Anmeldedaten der Lernplattform ließen sich nicht prüfen. Mögliche Ursachen sind eine falsche Client-ID in der Anbindung, neue Schlüssel der Lernplattform oder eine falsch gehende Serveruhr. Öffnen Sie die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen gemeinsam mit den Admins Ihrer Organisation.",
-        "`jwks_unreachable`: Die Plattform konnte die Schlüssel der Lernplattform nicht laden, mit denen sie die Anmeldung prüft. Meist lässt eine Firewall vor der Lernplattform diese Plattform nicht durch, seltener ist die Schlüssel-URL (JWKS) in der Anbindung falsch oder die Lernplattform gerade nicht erreichbar. Die Tool-Einstellungen können dabei vollständig richtig sein. Versuchen Sie es in ein paar Minuten erneut. Kommt der Fehler jedes Mal, gibt die Administration der Lernplattform die Schlüssel-URL (bei ILIAS `lticerts.php`) und die Token-URL (`ltitoken.php`, für die Notenübertragung) für diese Plattform frei.",
-        "`nonce_mismatch`: Die Antwort der Lernplattform passt nicht zur begonnenen Anmeldung. Öffnen Sie die Aktivität erneut in der Lernplattform.",
-        "`nonce_reused`: Dieselbe Anmeldung kam ein zweites Mal an. Öffnen Sie die Aktivität erneut in der Lernplattform.",
+        "`state_unavailable`: Ein vorübergehendes Serverproblem. Der Server konnte die Anmeldung nicht speichern oder lesen. Das liegt nicht am Browser. Versuch es in ein paar Minuten erneut. Hält es an, geben Lehrende den Code an den Betreiber der Plattform weiter.",
+        "`invalid_state`: Die Anmeldung war älter als 5 Minuten oder wurde schon verwendet, etwa nach *Zurück*, nach dem Neuladen oder nach doppeltem Absenden. Öffne die Aktivität erneut in der Lernplattform.",
+        "`invalid_token`: Die Anmeldedaten der Lernplattform ließen sich nicht prüfen. Mögliche Ursachen sind eine falsche Client-ID in der Anbindung, neue Schlüssel der Lernplattform oder eine falsch gehende Serveruhr. Öffne die Aktivität erneut. Kommt der Fehler jedes Mal, prüft die Administration der Lernplattform die Tool-Einstellungen gemeinsam mit den Admins deiner Organisation.",
+        "`jwks_unreachable`: Die Plattform konnte die Schlüssel der Lernplattform nicht laden, mit denen sie die Anmeldung prüft. Meist lässt eine Firewall vor der Lernplattform diese Plattform nicht durch, seltener ist die Schlüssel-URL (JWKS) in der Anbindung falsch oder die Lernplattform gerade nicht erreichbar. Die Tool-Einstellungen können dabei vollständig richtig sein. Versuch es in ein paar Minuten erneut. Kommt der Fehler jedes Mal, gibt die Administration der Lernplattform die Schlüssel-URL (bei ILIAS `lticerts.php`) und die Token-URL (`ltitoken.php`, für die Notenübertragung) für diese Plattform frei.",
+        "`nonce_mismatch`: Die Antwort der Lernplattform passt nicht zur begonnenen Anmeldung. Öffne die Aktivität erneut in der Lernplattform.",
+        "`nonce_reused`: Dieselbe Anmeldung kam ein zweites Mal an. Öffne die Aktivität erneut in der Lernplattform.",
         "`unsupported_message`: Die Lernplattform schickt eine Anfrage, die das Tool nicht unterstützt, zum Beispiel Deep Linking. Die Administration der Lernplattform schaltet Deep Linking in den Tool-Einstellungen ab.",
         "`not_linked`: Die Aktivität ist noch mit keiner Klausur verknüpft. Lehrende öffnen die Aktivität selbst in der Lernplattform und wählen eine Klausur aus. Studierende wenden sich an ihre Lehrenden.",
         "`exam_unavailable`: Die verknüpfte Klausur wurde gelöscht. Lehrende öffnen die Aktivität und verknüpfen eine andere Klausur. Wurden schon Noten übertragen, legen sie in der Lernplattform eine neue Aktivität an. Studierende wenden sich an ihre Lehrenden.",
         "`user_inactive`: Das Konto der Person ist in dieser Plattform deaktiviert. Nur der Betreiber der Plattform kann es wieder freischalten. Lehrende wenden sich an ihn. Ein anonymisiertes Konto kommt nicht zurück. Beim Anonymisieren verliert es die Verknüpfung mit der Lernplattform, deshalb entsteht beim nächsten Start nach der Zustimmung ein neues Konto.",
-        "`membership_removed`: Ein Admin hat die Person aus der Organisation oder der Gruppe der Anbindung entfernt. Ein Start aus der Lernplattform stellt die Mitgliedschaft nicht wieder her. Soll die Person wieder Zugang haben, laden die Admins Ihrer Organisation sie mit **Mitglied einladen** an die E-Mail-Adresse ihres Kontos ein. Nimmt die Person die Einladung angemeldet an, ist die Mitgliedschaft wieder aktiv. Hat das Konto noch kein Passwort, legt die Person vorher mit **Passwort vergessen?** eines fest. Hat das Konto nur eine Platzhalter-Adresse (die Lernplattform hat keine oder eine schon vergebene Adresse geschickt), kommen weder Einladung noch Passwort-Mail an. Dann stellt der Betreiber der Plattform die Mitgliedschaft mit **Bestehenden Benutzer hinzufügen** wieder her. Eine Gruppenmitgliedschaft stellen die Admins wieder her, indem sie die Person der Gruppe hinzufügen.",
-        "`launch_expired`: Auf der Zustimmungsseite und der Kontoauswahl erscheint dieser Fall ohne Code als **Anmeldung abgelaufen**. Der Start ist abgelaufen oder schon abgeschlossen. Das passiert, wenn die Zustimmungsseite oder die Kontoauswahl länger als 30 Minuten offen war, oder wenn der Start in einem anderen Tab schon abgeschlossen wurde. Öffnen Sie die Aktivität erneut in der Lernplattform.",
-        "`launch_mismatch`: Auf der Zustimmungsseite und der Kontoauswahl erscheint dieser Fall ohne Code als **Anmeldung passt nicht**. Die Seite gehört zu einem anderen Start, oder der Browser hat das Cookie dieses Starts nicht. Das passiert, wenn die Adresse in einem anderen Browser geöffnet wird oder das Tool eingebettet startet. Öffnen Sie die Aktivität erneut und schließen Sie alle Schritte im selben Browser ab.",
-        "`link_proof_failed`: Auf der Bestätigungsseite erscheint dieser Fall ohne Code als **Bestätigung fehlgeschlagen**. Der Bestätigungslink aus der E-Mail ist ungültig, älter als 24 Stunden oder schon benutzt. Öffnen Sie die Aktivität erneut und fordern Sie einen neuen Link an.",
-        "`account_not_linkable`: Dieses Konto darf nicht mit einer Lernplattform verknüpft werden, zum Beispiel ein Konto mit Administrationsrechten für die ganze Plattform. Die Admins Ihrer Organisation lösen die bestehende Verknüpfung unter **LMS-Konten** mit **Verknüpfung lösen**. Öffnen Sie die Aktivität danach erneut und stimmen Sie zu. Die Seite **Eigenes Konto** bietet dann nur **Weiter** an. Damit entsteht ein separates Konto.",
-        "`internal`: Ein unerwarteter Fehler auf dem Server. Die Fehlerseite zeigt dazu eine **Referenz**. Versuchen Sie es in ein paar Minuten erneut. Hält der Fehler an, geben Lehrende Fehlercode und Referenz an den Betreiber der Plattform weiter. Mit der Referenz findet er den Fehler im Server-Protokoll."
+        "`membership_removed`: Ein Admin hat die Person aus der Organisation oder der Gruppe der Anbindung entfernt. Ein Start aus der Lernplattform stellt die Mitgliedschaft nicht wieder her. Soll die Person wieder Zugang haben, laden die Admins deiner Organisation sie mit **Mitglied einladen** an die E-Mail-Adresse ihres Kontos ein. Nimmt die Person die Einladung angemeldet an, ist die Mitgliedschaft wieder aktiv. Hat das Konto noch kein Passwort, legt die Person vorher mit **Passwort vergessen?** eines fest. Hat das Konto nur eine Platzhalter-Adresse (die Lernplattform hat keine oder eine schon vergebene Adresse geschickt), kommen weder Einladung noch Passwort-Mail an. Dann stellt der Betreiber der Plattform die Mitgliedschaft mit **Bestehenden Benutzer hinzufügen** wieder her. Eine Gruppenmitgliedschaft stellen die Admins wieder her, indem sie die Person der Gruppe hinzufügen.",
+        "`launch_expired`: Auf der Zustimmungsseite und der Kontoauswahl erscheint dieser Fall ohne Code als **Anmeldung abgelaufen**. Der Start ist abgelaufen oder schon abgeschlossen. Das passiert, wenn die Zustimmungsseite oder die Kontoauswahl länger als 30 Minuten offen war, oder wenn der Start in einem anderen Tab schon abgeschlossen wurde. Öffne die Aktivität erneut in der Lernplattform.",
+        "`launch_mismatch`: Auf der Zustimmungsseite und der Kontoauswahl erscheint dieser Fall ohne Code als **Anmeldung passt nicht**. Die Seite gehört zu einem anderen Start, oder der Browser hat das Cookie dieses Starts nicht. Das passiert, wenn die Adresse in einem anderen Browser geöffnet wird oder das Tool eingebettet startet. Öffne die Aktivität erneut und schließ alle Schritte im selben Browser ab.",
+        "`link_proof_failed`: Auf der Bestätigungsseite erscheint dieser Fall ohne Code als **Bestätigung fehlgeschlagen**. Der Bestätigungslink aus der E-Mail ist ungültig, älter als 24 Stunden oder schon benutzt. Öffne die Aktivität erneut und fordere einen neuen Link an.",
+        "`account_not_linkable`: Dieses Konto darf nicht mit einer Lernplattform verknüpft werden, zum Beispiel ein Konto mit Administrationsrechten für die ganze Plattform. Die Admins deiner Organisation lösen die bestehende Verknüpfung unter **LMS-Konten** mit **Verknüpfung lösen**. Öffne die Aktivität danach erneut und stimm zu. Die Seite **Eigenes Konto** bietet dann nur **Weiter** an. Damit entsteht ein separates Konto.",
+        "`internal`: Ein unerwarteter Fehler auf dem Server. Die Fehlerseite zeigt dazu eine **Referenz**. Versuch es in ein paar Minuten erneut. Hält der Fehler an, geben Lehrende Fehlercode und Referenz an den Betreiber der Plattform weiter. Mit der Referenz findet er den Fehler im Server-Protokoll."
       ],
       "tips": [
-        "Die Admins Ihrer Organisation verwalten die Anbindung unter [Benutzer & Organisationen](/users-organizations) → Organisation → **Mehr** → **Lernplattform (LTI)**. Dort schalten sie Anbindung und Deployments ein und aus, tragen Deployment-IDs ein und lösen Verknüpfungen von LMS-Konten.",
+        "Die Admins deiner Organisation verwalten die Anbindung unter [Benutzer & Organisationen](/users-organizations) → Organisation → **Mehr** → **Lernplattform (LTI)**. Dort schalten sie Anbindung und Deployments ein und aus, tragen Deployment-IDs ein und lösen Verknüpfungen von LMS-Konten.",
         "Tool-Einstellungen wie Startcontainer und Annahme von Bewertungen, Deployment-ID, Datenschutz (in Moodle die Übermittlung von Name und E-Mail, in ILIAS die *Identifikation der Person*) sowie die Notenübertragung (in Moodle *IMS LTI Aufgaben und Bewertung*, in ILIAS *Erweiterte Benotungsdienste*) ändert nur die Administration der Lernplattform."
       ],
       "pitfalls": [
-        "Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Stellen Sie das Tool in der Lernplattform auf **Neues Fenster**. Moodle stellt nach einer Registrierung per Link „eingebettet“ ein. Dort ändert die Moodle-Administration den *Standard-Startcontainer* des Tools. Lehrende können das in Moodle 4.5 nicht je Aktivität ändern.",
+        "Startet das Tool eingebettet im Kurs (iframe), landen Personen auf der Anmeldeseite statt in der Klausur oder sehen **Anmeldung passt nicht** (`launch_mismatch`). Der Browser gibt die Anmelde-Cookies im eingebetteten Rahmen nicht weiter. Stell das Tool in der Lernplattform auf **Neues Fenster**. Moodle stellt nach einer Registrierung per Link „eingebettet“ ein. Dort ändert die Moodle-Administration den *Standard-Startcontainer* des Tools. Lehrende können das in Moodle 4.5 nicht je Aktivität ändern.",
         "`state_unavailable` hat nichts mit Cookies oder dem Browser zu tun. Ein anderer Browser hilft nicht, ein neuer Versuch nach einigen Minuten schon.",
-        "*Zurück*, Neuladen oder ein Lesezeichen auf eine Seite des Starts führen zu `invalid_state`. Starten Sie immer aus der Lernplattform.",
+        "*Zurück*, Neuladen oder ein Lesezeichen auf eine Seite des Starts führen zu `invalid_state`. Starte immer aus der Lernplattform.",
         "`unknown_deployment` und `deployment_disabled` sind nicht dasselbe. Im ersten Fall fehlt die ID in der Anbindung, im zweiten ist sie eingetragen und abgeschaltet."
       ],
       "keywords": [
@@ -1366,25 +1366,25 @@
     },
     "ts-lti-grades": {
       "title": "Noten kommen nicht in Moodle oder ILIAS an",
-      "summary": "Öffnen Sie die **Aktivitätsübersicht** oder im Panel der Anbindung die **Notenübertragungen**. Dort stehen Status und Fehlertext jeder Übertragung. Die häufigsten Ursachen sind eine Aktivität ohne Bewertung, eine ausgeschaltete Notenübertragung in der Lernplattform, ein fehlender API-Schlüssel und in ILIAS die *Identifikation der Person* per *E-Mail-Adresse*. Dann meldet ILIAS „User not available“.",
+      "summary": "Öffne die **Aktivitätsübersicht** oder im Panel der Anbindung die **Notenübertragungen**. Dort stehen Status und Fehlertext jeder Übertragung. Die häufigsten Ursachen sind eine Aktivität ohne Bewertung, eine ausgeschaltete Notenübertragung in der Lernplattform, ein fehlender API-Schlüssel und in ILIAS die *Identifikation der Person* per *E-Mail-Adresse*. Dann meldet ILIAS „User not available“.",
       "steps": [
         "**ILIAS: „ILIAS kennt die Person nicht“ oder „User not available“**: Der ILIAS-Provider identifiziert die Personen per *E-Mail-Adresse*. In ILIAS 10.9 scheitert in diesem Modus jede Notenübertragung. Die Karte der Anbindung warnt dann mit **Notenübertragung nach ILIAS scheitert**. Die ILIAS-Administration stellt beim Provider *Identifikation der Person* auf **ID des ILIAS-Kontos …** um. Danach ändert sich die Kennung jeder Person. Beim nächsten Start stimmt jede Person erneut zu, erhält ein neues Konto und wird einmal nach ihrer E-Mail-Adresse gefragt. Bisherige Abgaben bleiben beim alten Konto.",
-        "**ILIAS: kein Wert kommt an**: Beim Provider muss *Erweiterte Benotungsdienste* eingeschaltet sein. Öffnen Sie die Aktivität danach neu.",
-        "**ILIAS: bestandene Klausur steht auf „in Bearbeitung“**: Der *Mastery Score* des Objekts steht noch auf 80. Setzen Sie ihn unter *Optionen für den Lernfortschritt* auf **22**. Fehlt das Feld, hakt die ILIAS-Administration beim Provider *Provider unterstützt Outcome Service* an. Den Lernfortschritt zeigt ILIAS nur, wenn er in der ILIAS-Administration eingeschaltet ist.",
-        "**Moodle: die Aktivität hat keine Bewertung**: Ohne Bewertung gibt es keine Notenspalte. Schalten Sie die Bewertung in der Aktivität ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*.",
-        "**Status Fehlgeschlagen mit 400, 401, 403 oder 404**: Die Lernplattform lehnt die Note endgültig ab. Das Tool versucht es deshalb nicht sofort erneut. Beheben Sie die Ursache aus dem Fehlertext und klicken Sie dann auf **Erneut senden** oder im Panel auf **Erneut versuchen**.",
+        "**ILIAS: kein Wert kommt an**: Beim Provider muss *Erweiterte Benotungsdienste* eingeschaltet sein. Öffne die Aktivität danach neu.",
+        "**ILIAS: bestandene Klausur steht auf „in Bearbeitung“**: Der *Mastery Score* des Objekts steht noch auf 80. Setz ihn unter *Optionen für den Lernfortschritt* auf **22**. Fehlt das Feld, hakt die ILIAS-Administration beim Provider *Provider unterstützt Outcome Service* an. Den Lernfortschritt zeigt ILIAS nur, wenn er in der ILIAS-Administration eingeschaltet ist.",
+        "**Moodle: die Aktivität hat keine Bewertung**: Ohne Bewertung gibt es keine Notenspalte. Schalte die Bewertung in der Aktivität ein, bei Bedarf mit dem Haken *… erlauben, Bewertungen hinzuzufügen*.",
+        "**Status Fehlgeschlagen mit 400, 401, 403 oder 404**: Die Lernplattform lehnt die Note endgültig ab. Das Tool versucht es deshalb nicht sofort erneut. Behebe die Ursache aus dem Fehlertext und klick dann auf **Erneut senden** oder im Panel auf **Erneut versuchen**.",
         "**Status Wird übertragen oder Ausstehend mit Fehlertext**: Die Lernplattform war kurz nicht erreichbar oder hatte einen Serverfehler. Das Tool versucht es nach 10, 30 und 90 Sekunden erneut, danach in wachsenden Abständen bis zu sechs Stunden.",
         "**Noch keine Note**: Die KI-Korrektur läuft noch oder konnte nicht starten. Fehlt der Organisation ein API-Schlüssel, zeigt die Übersicht *Wartet auf einen API-Schlüssel der Organisation*.",
-        "**Anbindung ausgeschaltet**: Während der Schalter **Anbindung aus** zeigt, gehen keine Noten hinaus. Schalten Sie die Anbindung ein und klicken Sie auf **Alle Noten erneut senden** oder in der Zeile auf **Erneut senden**.",
-        "**Lernplattform war ausgefallen oder die Notenübertragung war dort aus**: Klicken Sie danach auf **Alle Noten erneut senden**. Die Aktivitätsübersicht bietet das je Aktivität an, das Panel der Anbindung unter **Notenübertragungen** für alle Aktivitäten einer Anbindung. Ohne diesen Klick gehen die Noten mit den automatischen Wiederholungen hinaus. Das kann bis zu sechs Stunden dauern."
+        "**Anbindung ausgeschaltet**: Während der Schalter **Anbindung aus** zeigt, gehen keine Noten hinaus. Schalte die Anbindung ein und klick auf **Alle Noten erneut senden** oder in der Zeile auf **Erneut senden**.",
+        "**Lernplattform war ausgefallen oder die Notenübertragung war dort aus**: Klick danach auf **Alle Noten erneut senden**. Die Aktivitätsübersicht bietet das je Aktivität an, das Panel der Anbindung unter **Notenübertragungen** für alle Aktivitäten einer Anbindung. Ohne diesen Klick gehen die Noten mit den automatischen Wiederholungen hinaus. Das kann bis zu sechs Stunden dauern."
       ],
       "tips": [
         "Ändert sich eine Note nachträglich, etwa durch eine Korrektur oder einen neuen Notenschlüssel, geht der neue Wert spätestens nach etwa einer Stunde an die Lernplattform.",
         "ILIAS erhält je Person nur die Endnote. Eine Spalte **KI-Bewertung** gibt es nur in Moodle.",
-        "Zeigt Moodle nach **Alle Noten erneut senden** weiter einen anderen Wert, wurde die Note im Moodle-Notenbuch überschrieben oder gesperrt. Moodle ändert solche Noten nicht. Heben Sie das Überschreiben in Moodle auf, dann zeigt Moodle den gesendeten Wert."
+        "Zeigt Moodle nach **Alle Noten erneut senden** weiter einen anderen Wert, wurde die Note im Moodle-Notenbuch überschrieben oder gesperrt. Moodle ändert solche Noten nicht. Heb das Überschreiben in Moodle auf, dann zeigt Moodle den gesendeten Wert."
       ],
       "pitfalls": [
-        "Ändern Sie die *Identifikation der Person* in ILIAS nur, um den Modus *E-Mail-Adresse* zu verlassen. Jeder Wechsel trennt alle bestehenden Verknüpfungen."
+        "Ändere die *Identifikation der Person* in ILIAS nur, um den Modus *E-Mail-Adresse* zu verlassen. Jeder Wechsel trennt alle bestehenden Verknüpfungen."
       ],
       "keywords": [
         "Noten kommen nicht an",
@@ -1409,14 +1409,14 @@
     },
     "ts-lti-collection": {
       "title": "Klausurensammlung lässt sich nicht verknüpfen oder die Hauptspalte bleibt leer",
-      "summary": "Eine Klausurensammlung hat mehrere Aufgaben. Wählen Sie in der Auswahl eine Aufgabe, oder in Moodle die ganze Sammlung. Die ganze Sammlung braucht in Moodle die Spaltenverwaltung. Ihre Hauptspalte, die Spalte der Aktivität, erhält den Mittelwert erst, wenn jede Aufgabe eine Endnote hat.",
+      "summary": "Eine Klausurensammlung hat mehrere Aufgaben. Wähle in der Auswahl eine Aufgabe, oder in Moodle die ganze Sammlung. Die ganze Sammlung braucht in Moodle die Spaltenverwaltung. Ihre Hauptspalte, die Spalte der Aktivität, erhält den Mittelwert erst, wenn jede Aufgabe eine Endnote hat.",
       "steps": [
-        "**Die Auswahl verlangt eine Aufgabe (`task_required`)**: Die Klausur hat mehrere Aufgaben. Klappen Sie die Sammlung auf und wählen Sie die Aufgabe, deren Note die Aktivität erhält. In Moodle können Sie stattdessen die ganze Sammlung wählen.",
-        "**Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`)**: Die Anbindung ist ILIAS, oder Moodle darf keine Spalten anlegen. In ILIAS legen Sie je Aufgabe eine eigene Aktivität an. In Moodle stellt die Administration beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Öffnen Sie die Aktivität danach neu, damit die Lernplattform die neuen Rechte mitschickt.",
-        "**Die Hauptspalte bleibt leer**: Bei der ganzen Sammlung erhält die Spalte der Aktivität den Mittelwert erst, wenn jede Aufgabe der Person eine Endnote hat. Prüfen Sie in den Spalten *Aufgabe N*, welche Aufgabe noch fehlt, und bewerten Sie sie. Überträgt die Aktivität keine KI-Noten, braucht jede Aufgabe eine Korrektur. Wurde der Sammlung eine Aufgabe hinzugefügt, wartet der Mittelwert auch auf diese Aufgabe.",
+        "**Die Auswahl verlangt eine Aufgabe (`task_required`)**: Die Klausur hat mehrere Aufgaben. Klapp die Sammlung auf und wähle die Aufgabe, deren Note die Aktivität erhält. In Moodle kannst du stattdessen die ganze Sammlung wählen.",
+        "**Die ganze Sammlung lässt sich nicht wählen (`collection_unsupported`)**: Die Anbindung ist ILIAS, oder Moodle darf keine Spalten anlegen. In ILIAS legst du je Aufgabe eine eigene Aktivität an. In Moodle stellt die Administration beim Tool *IMS LTI Aufgaben und Bewertung* auf **Service für die Synchronisation von Bewertungen und die Verwaltung der Spalten nutzen**. Öffne die Aktivität danach neu, damit die Lernplattform die neuen Rechte mitschickt.",
+        "**Die Hauptspalte bleibt leer**: Bei der ganzen Sammlung erhält die Spalte der Aktivität den Mittelwert erst, wenn jede Aufgabe der Person eine Endnote hat. Prüf in den Spalten *Aufgabe N*, welche Aufgabe noch fehlt, und bewerte sie. Überträgt die Aktivität keine KI-Noten, braucht jede Aufgabe eine Korrektur. Wurde der Sammlung eine Aufgabe hinzugefügt, wartet der Mittelwert auch auf diese Aufgabe.",
         "**Eine Aufgabenspalte fehlt in Moodle**: Die Spalte erscheint mit der ersten Note der Aufgabe. Wurde sie in Moodle gelöscht, legt BenGER sie nicht von selbst wieder an.",
-        "**Die Verknüpfung lässt sich nicht ändern (`relink_blocked`)**: Eine Note der Aktivität ist schon in der Lernplattform angekommen. Legen Sie für die andere Klausur, die andere Aufgabe oder den anderen Weg eine neue Aktivität an.",
-        "**Import abgelehnt (`multi_task_unsupported`)**: Eine ältere Aktivität erhält die ganze Klausur als eine Note. Verknüpfen Sie sie mit der Aufgabe der Klausur. Danach sind Importe möglich."
+        "**Die Verknüpfung lässt sich nicht ändern (`relink_blocked`)**: Eine Note der Aktivität ist schon in der Lernplattform angekommen. Leg für die andere Klausur, die andere Aufgabe oder den anderen Weg eine neue Aktivität an.",
+        "**Import abgelehnt (`multi_task_unsupported`)**: Eine ältere Aktivität erhält die ganze Klausur als eine Note. Verknüpfe sie mit der Aufgabe der Klausur. Danach sind Importe möglich."
       ],
       "tips": [
         "Eine Aktivität je Aufgabe funktioniert in Moodle und ILIAS. Die ganze Sammlung in einer Aktivität gibt es nur in Moodle."
