@@ -75,8 +75,8 @@ dependencies = [
     "pytest==9.1.1",
     "pytest-asyncio==1.4.0",
     # AI service dependencies
-    "openai==3.31.0",
-    "anthropic==1.15.0",
+    "openai==3.37.0",
+    "anthropic==1.17.0",
     "google-genai>=1.75.0",
     "mistralai>=1.12.4",  # Mistral AI models
     "cohere>=5.21.1",  # Cohere models
