@@ -141,21 +141,21 @@ const getEffectSizeColor = (interpretation?: string): string => {
     case 'large':
       return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
     case 'medium':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
     case 'small':
       return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
     default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
+      return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-300'
   }
 }
 
 const getCorrelationColor = (value: number | null): string => {
-  if (value === null) return 'bg-gray-100 dark:bg-gray-800'
+  if (value === null) return 'bg-zinc-100 dark:bg-zinc-800'
   const abs = Math.abs(value)
-  if (abs > 0.7) return value > 0 ? 'bg-green-500' : 'bg-red-500'
-  if (abs > 0.4) return value > 0 ? 'bg-green-300' : 'bg-red-300'
-  if (abs > 0.2) return value > 0 ? 'bg-green-100' : 'bg-red-100'
-  return 'bg-gray-100 dark:bg-gray-700'
+  if (abs > 0.7) return value > 0 ? 'bg-emerald-500' : 'bg-red-500'
+  if (abs > 0.4) return value > 0 ? 'bg-emerald-300' : 'bg-red-300'
+  if (abs > 0.2) return value > 0 ? 'bg-emerald-100' : 'bg-red-100'
+  return 'bg-zinc-100 dark:bg-zinc-700'
 }
 
 export function StatisticalResultsPanel({
@@ -184,7 +184,7 @@ export function StatisticalResultsPanel({
       <Card className={`p-6 ${className}`}>
         <div className="flex items-center justify-center py-8">
           <LoadingSpinner />
-          <span className="ml-2 text-gray-500">
+          <span className="ml-2 text-zinc-500">
             {t('evaluation.statisticalResults.computingStatistics')}
           </span>
         </div>
@@ -206,7 +206,7 @@ export function StatisticalResultsPanel({
   if (!data) {
     return (
       <Card className={`p-6 ${className}`}>
-        <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+        <div className="py-8 text-center text-zinc-500 dark:text-zinc-400">
           <InformationCircleIcon className="mx-auto mb-2 h-12 w-12" />
           <p>{t('evaluation.statisticalResults.selectMetricsPrompt')}</p>
         </div>
@@ -242,7 +242,7 @@ export function StatisticalResultsPanel({
       )}
 
       {/* Aggregation Level Indicator */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <span>{t('evaluation.statisticalResults.aggregation')}:</span>
         <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
           {data.aggregation}
@@ -256,32 +256,32 @@ export function StatisticalResultsPanel({
             {t('evaluation.statisticalResults.perModelStatistics')}
           </h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.model')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                      className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                 {Object.entries(data.by_model!).map(([modelId, modelStats]) => (
                   <tr
                     key={modelId}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {modelStats.model_name || modelId}
                     </td>
                     {metricNames.map((metric) => {
@@ -289,7 +289,7 @@ export function StatisticalResultsPanel({
                       return (
                         <td
                           key={metric}
-                          className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300"
+                          className="px-4 py-3 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300"
                         >
                           {stats ? (
                             <div
@@ -301,7 +301,7 @@ export function StatisticalResultsPanel({
                             >
                               <span>{formatValue(stats.mean, locale)}</span>
                               {showStat('se') && stats.se !== undefined && (
-                                <span className="ml-1 text-xs text-gray-400">
+                                <span className="ml-1 text-xs text-zinc-400">
                                   ±{formatDecimal(stats.se, locale, 3)}
                                 </span>
                               )}
@@ -312,7 +312,7 @@ export function StatisticalResultsPanel({
                         </td>
                       )
                     })}
-                    <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-right text-sm text-zinc-600 dark:text-zinc-400">
                       {modelStats.sample_count}
                     </td>
                   </tr>
@@ -330,34 +330,34 @@ export function StatisticalResultsPanel({
             {t('evaluation.statisticalResults.perFieldStatistics')}
           </h3>
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.field')}
                   </th>
                   {metricNames.map((metric) => (
                     <th
                       key={metric}
-                      className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase"
+                      className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase"
                     >
                       {metric}
                     </th>
                   ))}
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.n')}
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                 {Object.entries(data.by_field!).map(
                   ([fieldName, fieldStats]) => (
                     <tr
                       key={fieldName}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                     >
                       <td
-                        className="max-w-xs truncate px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100"
+                        className="max-w-xs truncate px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100"
                         title={fieldName}
                       >
                         {fieldName}
@@ -367,7 +367,7 @@ export function StatisticalResultsPanel({
                         return (
                           <td
                             key={metric}
-                            className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300"
+                            className="px-4 py-3 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300"
                           >
                             {stats ? (
                               <div
@@ -379,7 +379,7 @@ export function StatisticalResultsPanel({
                               >
                                 <span>{formatValue(stats.mean, locale)}</span>
                                 {showStat('se') && stats.se !== undefined && (
-                                  <span className="ml-1 text-xs text-gray-400">
+                                  <span className="ml-1 text-xs text-zinc-400">
                                     ±{formatDecimal(stats.se, locale, 3)}
                                   </span>
                                 )}
@@ -390,7 +390,7 @@ export function StatisticalResultsPanel({
                           </td>
                         )
                       })}
-                      <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-4 py-3 text-right text-sm text-zinc-600 dark:text-zinc-400">
                         {fieldStats.sample_count}
                       </td>
                     </tr>
@@ -410,64 +410,64 @@ export function StatisticalResultsPanel({
             : t('evaluation.statisticalResults.metricStatistics')}
         </h3>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                   {t('evaluation.statisticalResults.metric')}
                 </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                   {t('evaluation.statisticalResults.mean')}
                 </th>
                 {showStat('ci') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.ci95')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                   {t('evaluation.statisticalResults.std')}
                 </th>
                 {showStat('se') && (
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                     {t('evaluation.statisticalResults.se')}
                   </th>
                 )}
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                <th className="px-4 py-2 text-right text-xs font-medium text-zinc-500 uppercase">
                   {t('evaluation.statisticalResults.n')}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {metricNames.map((metric) => {
                 const stats = data.metrics[metric]
                 return (
                   <tr
                     key={metric}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <td className="px-4 py-3 text-sm font-medium text-zinc-900 dark:text-zinc-100">
                       {metric}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-right font-mono text-sm text-zinc-700 dark:text-zinc-300">
                       {formatValue(stats.mean, locale)}
                     </td>
                     {showStat('ci') && (
-                      <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-4 py-3 text-right font-mono text-sm text-zinc-600 dark:text-zinc-400">
                         [{formatValue(stats.ci_lower, locale)},{' '}
                         {formatValue(stats.ci_upper, locale)}]
                       </td>
                     )}
-                    <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-right font-mono text-sm text-zinc-600 dark:text-zinc-400">
                       {formatDecimal(stats.std, locale, 4)}
                     </td>
                     {showStat('se') && (
-                      <td className="px-4 py-3 text-right font-mono text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-4 py-3 text-right font-mono text-sm text-zinc-600 dark:text-zinc-400">
                         {stats.se !== undefined
                           ? formatDecimal(stats.se, locale, 4)
                           : '—'}
                       </td>
                     )}
-                    <td className="px-4 py-3 text-right text-sm text-gray-600 dark:text-gray-400">
+                    <td className="px-4 py-3 text-right text-sm text-zinc-600 dark:text-zinc-400">
                       {stats.n}
                     </td>
                   </tr>
@@ -493,7 +493,7 @@ export function StatisticalResultsPanel({
                 <div
                   className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs ${
                     data.bonferroni_correction.applied
-                      ? 'border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                      ? 'border border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300'
                       : 'border border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
                   }`}
                 >
@@ -506,7 +506,7 @@ export function StatisticalResultsPanel({
                             'evaluation.statisticalResults.bonferroniCorrected',
                           )}
                         </span>
-                        <span className="ml-1 text-gray-500 dark:text-gray-400">
+                        <span className="ml-1 text-zinc-500 dark:text-zinc-400">
                           (
                           {t('evaluation.statisticalResults.comparisonsAlpha', {
                             count: data.bonferroni_correction.num_comparisons,
@@ -526,7 +526,7 @@ export function StatisticalResultsPanel({
                             'evaluation.statisticalResults.multipleComparisons',
                           )}
                         </span>
-                        <span className="ml-1 text-gray-500 dark:text-gray-400">
+                        <span className="ml-1 text-zinc-500 dark:text-zinc-400">
                           (
                           {t(
                             'evaluation.statisticalResults.testsUncorrectedAlpha',
@@ -558,53 +558,53 @@ export function StatisticalResultsPanel({
                 )}
             </div>
 
-            <div className="mb-3 text-xs text-gray-500">
+            <div className="mb-3 text-xs text-zinc-500">
               * p&lt;0.05, ** p&lt;0.01, *** p&lt;0.001
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                       {t('evaluation.statisticalResults.modelA')}
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                       {t('evaluation.statisticalResults.modelB')}
                     </th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-3 py-2 text-left text-xs font-medium text-zinc-500 uppercase">
                       {t('evaluation.statisticalResults.metric')}
                     </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
                       {t('evaluation.statisticalResults.pValue')}
                     </th>
                     {showEffectSizes && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                      <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
                         {t('evaluation.statisticalResults.effectSize')}
                       </th>
                     )}
-                    <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-3 py-2 text-center text-xs font-medium text-zinc-500 uppercase">
                       {t('evaluation.statisticalResults.significant')}
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
                   {data.pairwise_comparisons.map((comp, idx) => (
                     <tr
                       key={idx}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                     >
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                      <td className="px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
                         {comp.model_a}
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
+                      <td className="px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100">
                         {comp.model_b}
                       </td>
-                      <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
+                      <td className="px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
                         {comp.metric}
                       </td>
                       <td className="px-3 py-2 text-center font-mono text-sm">
                         {comp.ttest_p !== undefined && (
-                          <span className="text-gray-700 dark:text-gray-300">
+                          <span className="text-zinc-700 dark:text-zinc-300">
                             {formatPValue(comp.ttest_p, locale)}
                             <sup className="ml-0.5 font-bold text-emerald-600">
                               {getSignificanceStars(comp.ttest_p)}
@@ -626,9 +626,9 @@ export function StatisticalResultsPanel({
                       )}
                       <td className="px-3 py-2 text-center">
                         {comp.significant ? (
-                          <CheckCircleIcon className="mx-auto h-5 w-5 text-green-500" />
+                          <CheckCircleIcon className="mx-auto h-5 w-5 text-emerald-500" />
                         ) : (
-                          <XCircleIcon className="mx-auto h-5 w-5 text-gray-400" />
+                          <XCircleIcon className="mx-auto h-5 w-5 text-zinc-400" />
                         )}
                       </td>
                     </tr>
@@ -651,11 +651,11 @@ export function StatisticalResultsPanel({
               <table className="min-w-full">
                 <thead>
                   <tr>
-                    <th className="px-2 py-2 text-xs font-medium text-gray-500"></th>
+                    <th className="px-2 py-2 text-xs font-medium text-zinc-500"></th>
                     {metricNames.map((metric) => (
                       <th
                         key={metric}
-                        className="px-2 py-2 text-center text-xs font-medium text-gray-500"
+                        className="px-2 py-2 text-center text-xs font-medium text-zinc-500"
                         style={{
                           writingMode: 'vertical-rl',
                           transform: 'rotate(180deg)',
@@ -669,7 +669,7 @@ export function StatisticalResultsPanel({
                 <tbody>
                   {metricNames.map((metricA) => (
                     <tr key={metricA}>
-                      <td className="px-2 py-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                      <td className="px-2 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                         {metricA}
                       </td>
                       {metricNames.map((metricB) => {
@@ -696,9 +696,9 @@ export function StatisticalResultsPanel({
                 </tbody>
               </table>
             </div>
-            <div className="mt-3 flex items-center gap-4 text-xs text-gray-500">
+            <div className="mt-3 flex items-center gap-4 text-xs text-zinc-500">
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded bg-green-500" />
+                <div className="h-3 w-3 rounded bg-emerald-500" />
                 <span>{t('evaluation.statisticalResults.strongPositive')}</span>
               </div>
               <div className="flex items-center gap-1">
@@ -706,7 +706,7 @@ export function StatisticalResultsPanel({
                 <span>{t('evaluation.statisticalResults.strongNegative')}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="h-3 w-3 rounded bg-gray-200 dark:bg-gray-700" />
+                <div className="h-3 w-3 rounded bg-zinc-200 dark:bg-zinc-700" />
                 <span>{t('evaluation.statisticalResults.weakNone')}</span>
               </div>
             </div>

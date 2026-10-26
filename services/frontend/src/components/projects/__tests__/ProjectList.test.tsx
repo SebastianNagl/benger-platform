@@ -250,13 +250,13 @@ describe('ProjectList', () => {
 
     it('should render progress bars', () => {
       const { container } = render(<ProjectList />)
-      const progressBars = container.querySelectorAll('.bg-primary')
+      const progressBars = container.querySelectorAll('.bg-emerald-600')
       expect(progressBars.length).toBeGreaterThan(0)
     })
 
     it('should set correct progress bar width', () => {
       const { container } = render(<ProjectList />)
-      const progressBars = container.querySelectorAll('.bg-primary')
+      const progressBars = container.querySelectorAll('.bg-emerald-600')
       expect(progressBars[0]).toHaveStyle('width: 45%')
     })
 

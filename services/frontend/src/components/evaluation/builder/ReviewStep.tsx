@@ -29,12 +29,12 @@ export function ReviewStep({
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         {t('evaluationBuilder.steps.review.title')}
       </h4>
-      <div className="space-y-3 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+      <div className="space-y-3 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
         <div>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-zinc-500">
             {t('evaluationBuilder.review.metric')}:
           </span>
           <p className="text-sm font-medium">
@@ -42,7 +42,7 @@ export function ReviewStep({
           </p>
         </div>
         <div>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-zinc-500">
             {t('evaluationBuilder.review.predictionFields')}:
           </span>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -54,7 +54,7 @@ export function ReviewStep({
           </div>
         </div>
         <div>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-zinc-500">
             {t('evaluationBuilder.review.referenceFields')}:
           </span>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -67,10 +67,10 @@ export function ReviewStep({
         </div>
         {Object.keys(metricParameters).length > 0 && (
           <div>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-zinc-500">
               {t('evaluationBuilder.review.parameters')}:
             </span>
-            <pre className="mt-1 overflow-x-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-700">
+            <pre className="mt-1 overflow-x-auto rounded bg-zinc-100 p-2 text-xs dark:bg-zinc-700">
               {JSON.stringify(metricParameters, null, 2)}
             </pre>
           </div>

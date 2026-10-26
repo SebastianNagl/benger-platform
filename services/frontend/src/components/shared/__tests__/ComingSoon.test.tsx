@@ -252,12 +252,8 @@ describe('ComingSoon Component', () => {
     it('renders back button with correct classes when shown', () => {
       render(<ComingSoon showBackButton={true} />)
 
-      const button = screen.getByText('Go Back')
-      expect(button).toHaveClass(
-        'bg-emerald-600',
-        'text-white',
-        'hover:bg-emerald-700',
-      )
+      const button = screen.getByText('Go Back').closest('button')
+      expect(button).toHaveAttribute('variant', 'filled')
     })
   })
 
@@ -286,7 +282,7 @@ describe('ComingSoon Component', () => {
       const user = userEvent.setup()
       render(<ComingSoon />)
 
-      const button = screen.getByText('Go Back')
+      const button = screen.getByText('Go Back').closest('button')
       button.focus()
 
       expect(button).toHaveFocus()
@@ -424,7 +420,7 @@ describe('ComingSoon Component', () => {
       const user = userEvent.setup()
       render(<ComingSoon />)
 
-      const button = screen.getByText('Go Back')
+      const button = screen.getByText('Go Back').closest('button')
       await user.click(button)
 
       expect(mockBack).toHaveBeenCalledTimes(1)
@@ -433,7 +429,7 @@ describe('ComingSoon Component', () => {
     it('calls router.back() when button is clicked with fireEvent', () => {
       render(<ComingSoon />)
 
-      const button = screen.getByText('Go Back')
+      const button = screen.getByText('Go Back').closest('button')
       fireEvent.click(button)
 
       expect(mockBack).toHaveBeenCalledTimes(1)
@@ -451,7 +447,7 @@ describe('ComingSoon Component', () => {
       const user = userEvent.setup()
       render(<ComingSoon />)
 
-      const button = screen.getByText('Go Back')
+      const button = screen.getByText('Go Back').closest('button')
       await user.click(button)
       await user.click(button)
       await user.click(button)
@@ -475,12 +471,8 @@ describe('ComingSoon Component', () => {
     it('passes props to Button component', () => {
       render(<ComingSoon />)
 
-      const button = screen.getByText('Go Back')
-      expect(button).toHaveClass(
-        'bg-emerald-600',
-        'text-white',
-        'hover:bg-emerald-700',
-      )
+      const button = screen.getByText('Go Back').closest('button')
+      expect(button).toHaveAttribute('variant', 'filled')
     })
 
     it('maintains proper component hierarchy', () => {

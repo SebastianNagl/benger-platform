@@ -377,7 +377,7 @@ describe('LabelsInput', () => {
       )
 
       const button = screen.getByText('default-bg').closest('button')
-      expect(button).toHaveStyle({ backgroundColor: '#e5e7eb' })
+      expect(button).toHaveStyle({ backgroundColor: '#e4e4e7' })
     })
 
     it('filters out non-Label children', () => {

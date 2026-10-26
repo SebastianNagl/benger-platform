@@ -182,11 +182,14 @@ export function GenerationResultModal({
 
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, string> = {
-      completed: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
-      running: 'bg-yellow-100 text-yellow-800',
-      pending: 'bg-gray-100 text-gray-800',
-      cancelled: 'bg-orange-100 text-orange-800',
+      completed:
+        'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
+      failed: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300',
+      running:
+        'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300',
+      pending: 'bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200',
+      cancelled:
+        'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300',
     }
 
     return (
@@ -220,10 +223,10 @@ export function GenerationResultModal({
     if (!promptUsed) {
       return (
         <details className="rounded-lg border p-4">
-          <summary className="cursor-pointer text-sm font-medium text-gray-700">
+          <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('generation.resultModal.viewPrompt')}
           </summary>
-          <p className="mt-2 text-sm text-gray-400 italic">
+          <p className="mt-2 text-sm text-zinc-400 italic dark:text-zinc-500">
             {t('generation.resultModal.noPromptStored')}
           </p>
         </details>
@@ -238,34 +241,34 @@ export function GenerationResultModal({
     }
     return (
       <details className="rounded-lg border p-4">
-        <summary className="cursor-pointer text-sm font-medium text-gray-700">
+        <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {t('generation.resultModal.viewPrompt')}
         </summary>
         {parsed ? (
           <div className="mt-2 space-y-3">
             {parsed.system_prompt && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">
+                <p className="text-xs font-medium text-zinc-500 uppercase dark:text-zinc-400">
                   {t('generation.resultModal.systemPrompt')}
                 </p>
-                <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
+                <pre className="mt-1 text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
                   {parsed.system_prompt}
                 </pre>
               </div>
             )}
             {parsed.instruction_prompt && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase">
+                <p className="text-xs font-medium text-zinc-500 uppercase dark:text-zinc-400">
                   {t('generation.resultModal.instructionPrompt')}
                 </p>
-                <pre className="mt-1 text-sm whitespace-pre-wrap text-gray-600">
+                <pre className="mt-1 text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
                   {parsed.instruction_prompt}
                 </pre>
               </div>
             )}
           </div>
         ) : (
-          <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-600">
+          <pre className="mt-2 text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
             {promptUsed}
           </pre>
         )}
@@ -277,11 +280,11 @@ export function GenerationResultModal({
     <>
       {result.status === 'completed' && result.result ? (
         <div>
-          <h4 className="mb-2 text-sm font-medium text-gray-700">
+          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('generation.resultModal.generatedText')}
           </h4>
-          <div className="max-h-96 overflow-y-auto rounded-lg bg-gray-50 p-4">
-            <pre className="font-mono text-sm whitespace-pre-wrap text-gray-800">
+          <div className="max-h-96 overflow-y-auto rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+            <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-200">
               {viewMode === 'raw'
                 ? JSON.stringify(result.result, null, 2)
                 : formatResult(result.result)}
@@ -289,31 +292,35 @@ export function GenerationResultModal({
           </div>
         </div>
       ) : result.status === 'failed' && result.error_message ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm font-medium text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">
             {t('generation.resultModal.error')}
           </p>
-          <p className="mt-1 text-sm text-red-600">{result.error_message}</p>
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+            {result.error_message}
+          </p>
         </div>
       ) : result.status === 'running' ? (
-        <div className="rounded-lg bg-yellow-50 p-4">
-          <p className="text-sm text-yellow-800">
+        <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
+          <p className="text-sm text-amber-800 dark:text-amber-300">
             {t('generation.resultModal.runningMessage')}
           </p>
         </div>
       ) : result.status === 'pending' ? (
-        <div className="rounded-lg bg-gray-50 p-4">
-          <p className="text-sm text-gray-600">
+        <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {t('generation.resultModal.pendingMessage')}
           </p>
         </div>
       ) : result.status === 'cancelled' && result.error_message ? (
-        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <p className="text-sm text-orange-800">{result.error_message}</p>
+        <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-900/20">
+          <p className="text-sm text-orange-800 dark:text-orange-300">
+            {result.error_message}
+          </p>
         </div>
       ) : (
-        <div className="rounded-lg bg-gray-50 p-4">
-          <p className="text-sm text-gray-600">
+        <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {t('generation.resultModal.noResultMessage')}
           </p>
         </div>
@@ -333,7 +340,7 @@ export function GenerationResultModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 transition-opacity" />
+          <div className="fixed inset-0 bg-zinc-500/75 transition-opacity dark:bg-zinc-950/80" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -347,24 +354,24 @@ export function GenerationResultModal({
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl">
-                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl dark:bg-zinc-900">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4 dark:bg-zinc-900">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <Dialog.Title
                         as="h3"
-                        className="text-lg leading-6 font-semibold text-gray-900"
+                        className="text-lg leading-6 font-semibold text-zinc-900 dark:text-white"
                       >
                         {t('generation.resultModal.title')}
                       </Dialog.Title>
                       <div className="mt-1 space-y-1">
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           <span className="font-medium">
                             {t('generation.resultModal.model')}
                           </span>{' '}
                           <span>{modelId}</span>
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400">
                           <span className="font-medium">
                             {t('generation.resultModal.task')}
                           </span>{' '}
@@ -374,7 +381,7 @@ export function GenerationResultModal({
                     </div>
                     <button
                       type="button"
-                      className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none"
+                      className="rounded-md bg-white text-zinc-400 hover:text-zinc-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-300"
                       onClick={onClose}
                     >
                       <span className="sr-only">
@@ -386,31 +393,31 @@ export function GenerationResultModal({
 
                   {loading ? (
                     <div className="flex h-64 flex-col items-center justify-center space-y-4">
-                      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                      <p className="text-sm text-gray-600">
+                      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
                         {t('generation.resultModal.loading')}
                       </p>
                     </div>
                   ) : results.length > 0 ? (
                     <>
                       {/* Current / History toggle */}
-                      <div className="mb-4 flex rounded-lg bg-gray-100 p-1">
+                      <div className="mb-4 inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                         <button
                           onClick={() => setActiveTab('current')}
-                          className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                             activeTab === 'current'
-                              ? 'bg-white text-gray-900 shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
+                              ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                              : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                           }`}
                         >
                           {t('generation.resultModal.current')}
                         </button>
                         <button
                           onClick={handleHistoryTabClick}
-                          className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                             activeTab === 'history'
-                              ? 'bg-white text-gray-900 shadow-sm'
-                              : 'text-gray-600 hover:text-gray-900'
+                              ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                              : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                           }`}
                         >
                           {t('generation.resultModal.history')}
@@ -419,16 +426,16 @@ export function GenerationResultModal({
 
                       {/* Structure Tabs (if multiple structures) */}
                       {results.length > 1 && (
-                        <div className="mb-4 border-b border-gray-200">
-                          <nav className="-mb-px flex space-x-4">
+                        <div className="mb-4">
+                          <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                             {results.map((result, index) => (
                               <button
                                 key={index}
                                 onClick={() => setSelectedStructureIndex(index)}
-                                className={`border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap ${
+                                className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                   selectedStructureIndex === index
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                    : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                 }`}
                               >
                                 {result.structure_key ||
@@ -446,19 +453,19 @@ export function GenerationResultModal({
                           return (
                             <div className="space-y-4">
                               {/* Status and metadata */}
-                              <div className="space-y-2 rounded-lg bg-gray-50 p-4">
+                              <div className="space-y-2 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-medium text-gray-700">
+                                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                     {t('generation.resultModal.status')}
                                   </span>
                                   {getStatusBadge(result.status)}
                                 </div>
                                 {result.generated_at && (
                                   <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-700">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                       {t('generation.resultModal.generatedAt')}
                                     </span>
-                                    <span className="text-sm text-gray-600">
+                                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
                                       {new Date(
                                         result.generated_at,
                                       ).toLocaleString(intlTag(locale))}
@@ -467,12 +474,12 @@ export function GenerationResultModal({
                                 )}
                                 {result.generation_time_seconds != null && (
                                   <div className="flex items-center justify-between">
-                                    <span className="text-sm font-medium text-gray-700">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                       {t(
                                         'generation.resultModal.generationTime',
                                       )}
                                     </span>
-                                    <span className="text-sm text-gray-600">
+                                    <span className="text-sm text-zinc-600 dark:text-zinc-400">
                                       {t('generation.resultModal.seconds', {
                                         value: formatDecimal(
                                           result.generation_time_seconds,
@@ -487,23 +494,23 @@ export function GenerationResultModal({
 
                               {/* View mode toggle */}
                               <div className="flex items-center justify-between">
-                                <div className="flex rounded-lg bg-gray-100 p-1">
+                                <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                                   <button
                                     onClick={() => setViewMode('formatted')}
-                                    className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                       viewMode === 'formatted'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900'
+                                        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                     }`}
                                   >
                                     {t('generation.resultModal.formatted')}
                                   </button>
                                   <button
                                     onClick={() => setViewMode('raw')}
-                                    className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                       viewMode === 'raw'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900'
+                                        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                     }`}
                                   >
                                     {t('generation.resultModal.rawJson')}
@@ -534,12 +541,12 @@ export function GenerationResultModal({
                               {result.parameters &&
                                 Object.keys(result.parameters).length > 0 && (
                                   <details className="rounded-lg border p-4">
-                                    <summary className="cursor-pointer text-sm font-medium text-gray-700">
+                                    <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                       {t(
                                         'generation.resultModal.viewParameters',
                                       )}
                                     </summary>
-                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-gray-600">
+                                    <pre className="mt-2 text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
                                       {JSON.stringify(
                                         result.parameters,
                                         null,
@@ -556,29 +563,29 @@ export function GenerationResultModal({
                         <div className="space-y-3">
                           {historyLoading ? (
                             <div className="flex h-32 items-center justify-center">
-                              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
                             </div>
                           ) : filteredHistory.length > 0 ? (
                             <>
                               {/* View mode toggle (shared with current view) */}
                               <div className="flex items-center justify-between">
-                                <div className="flex rounded-lg bg-gray-100 p-1">
+                                <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                                   <button
                                     onClick={() => setViewMode('formatted')}
-                                    className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                       viewMode === 'formatted'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900'
+                                        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                     }`}
                                   >
                                     {t('generation.resultModal.formatted')}
                                   </button>
                                   <button
                                     onClick={() => setViewMode('raw')}
-                                    className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                       viewMode === 'raw'
-                                        ? 'bg-white text-gray-900 shadow-sm'
-                                        : 'text-gray-600 hover:text-gray-900'
+                                        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                     }`}
                                   >
                                     {t('generation.resultModal.rawJson')}
@@ -592,10 +599,10 @@ export function GenerationResultModal({
                                   <Disclosure key={entry.generation_id}>
                                     {({ open }) => (
                                       <>
-                                        <Disclosure.Button className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-sm hover:bg-gray-100">
+                                        <Disclosure.Button className="flex w-full items-center justify-between rounded-lg bg-zinc-50 px-4 py-3 text-sm hover:bg-zinc-100 dark:bg-zinc-800/50 dark:hover:bg-zinc-800">
                                           <div className="flex items-center gap-3">
                                             {getStatusBadge(entry.status)}
-                                            <span className="text-gray-600">
+                                            <span className="text-zinc-600 dark:text-zinc-400">
                                               {entry.generated_at
                                                 ? new Date(
                                                     entry.generated_at,
@@ -606,7 +613,7 @@ export function GenerationResultModal({
                                             </span>
                                             {entry.generation_time_seconds !=
                                               null && (
-                                              <span className="text-gray-400">
+                                              <span className="text-zinc-400 dark:text-zinc-500">
                                                 {t(
                                                   'generation.resultModal.seconds',
                                                   {
@@ -620,7 +627,7 @@ export function GenerationResultModal({
                                               </span>
                                             )}
                                             {entry.created_by_name && (
-                                              <span className="text-gray-400">
+                                              <span className="text-zinc-400 dark:text-zinc-500">
                                                 {t(
                                                   'generation.resultModal.by',
                                                   {
@@ -630,7 +637,7 @@ export function GenerationResultModal({
                                               </span>
                                             )}
                                             {index === 0 && (
-                                              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
                                                 {t(
                                                   'generation.resultModal.currentLabel',
                                                 )}
@@ -638,7 +645,7 @@ export function GenerationResultModal({
                                             )}
                                           </div>
                                           <ChevronDownIcon
-                                            className={`h-4 w-4 text-gray-500 transition-transform ${open ? 'rotate-180' : ''}`}
+                                            className={`h-4 w-4 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`}
                                           />
                                         </Disclosure.Button>
                                         <Disclosure.Panel className="px-4 pt-2 pb-3">
@@ -653,12 +660,12 @@ export function GenerationResultModal({
                                               Object.keys(entry.parameters)
                                                 .length > 0 && (
                                                 <details className="rounded-lg border p-3">
-                                                  <summary className="cursor-pointer text-sm font-medium text-gray-700">
+                                                  <summary className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-300">
                                                     {t(
                                                       'generation.resultModal.viewParameters',
                                                     )}
                                                   </summary>
-                                                  <pre className="mt-2 max-h-48 overflow-y-auto text-sm whitespace-pre-wrap text-gray-600">
+                                                  <pre className="mt-2 max-h-48 overflow-y-auto text-sm whitespace-pre-wrap text-zinc-600 dark:text-zinc-400">
                                                     {JSON.stringify(
                                                       entry.parameters,
                                                       null,
@@ -676,7 +683,7 @@ export function GenerationResultModal({
                               </div>
                             </>
                           ) : (
-                            <p className="py-8 text-center text-sm text-gray-500">
+                            <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                               {t('generation.resultModal.noHistory')}
                             </p>
                           )}
@@ -685,7 +692,7 @@ export function GenerationResultModal({
                     </>
                   ) : (
                     <div className="py-12 text-center">
-                      <p className="text-gray-500">
+                      <p className="text-zinc-500 dark:text-zinc-400">
                         {t('generation.resultModal.noResultsFound')}
                       </p>
                       {onRegenerate && (
@@ -715,7 +722,7 @@ export function GenerationResultModal({
                   )}
                 </div>
 
-                <div className="bg-gray-50 px-4 py-3 sm:px-6">
+                <div className="bg-zinc-50 px-4 py-3 sm:px-6 dark:bg-zinc-800/50">
                   {/* Structure selection (when multiple structures available) */}
                   {onRegenerate && availableStructureKeys.length > 1 && (
                     <div className="mb-3">
@@ -723,7 +730,7 @@ export function GenerationResultModal({
                         onClick={() =>
                           setShowStructureSelection(!showStructureSelection)
                         }
-                        className="mb-2 text-xs text-gray-500 underline hover:text-gray-700"
+                        className="mb-2 text-xs text-zinc-500 underline hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                       >
                         {t('generation.resultModal.selectStructures')}
                       </button>
@@ -732,7 +739,7 @@ export function GenerationResultModal({
                           {availableStructureKeys.map((key) => (
                             <label
                               key={key}
-                              className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs shadow-sm"
+                              className="flex items-center gap-1.5 rounded-md bg-white px-2 py-1 text-xs shadow-sm dark:bg-zinc-900"
                             >
                               <input
                                 type="checkbox"
@@ -748,9 +755,11 @@ export function GenerationResultModal({
                                     return next
                                   })
                                 }}
-                                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:text-emerald-400"
                               />
-                              <span className="text-gray-700">{key}</span>
+                              <span className="text-zinc-700 dark:text-zinc-300">
+                                {key}
+                              </span>
                             </label>
                           ))}
                         </div>

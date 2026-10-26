@@ -53,15 +53,15 @@ describe('ScoreCard', () => {
     it('applies green color for high score (>=0.7)', () => {
       const { container } = render(<ScoreCard metric="test" value={0.85} />)
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('bg-green-50')
-      expect(card).toHaveClass('border-green-200')
+      expect(card).toHaveClass('bg-emerald-50')
+      expect(card).toHaveClass('border-emerald-200')
     })
 
     it('applies yellow color for medium score (0.5-0.7)', () => {
       const { container } = render(<ScoreCard metric="test" value={0.6} />)
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('bg-yellow-50')
-      expect(card).toHaveClass('border-yellow-200')
+      expect(card).toHaveClass('bg-amber-50')
+      expect(card).toHaveClass('border-amber-200')
     })
 
     it('applies red color for low score (<0.5)', () => {
@@ -77,7 +77,7 @@ describe('ScoreCard', () => {
         <ScoreCard metric="error" value={0.2} higherIsBetter={false} />,
       )
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('bg-green-50')
+      expect(card).toHaveClass('bg-emerald-50')
     })
 
     it('normalizes to custom value range', () => {
@@ -91,7 +91,7 @@ describe('ScoreCard', () => {
         />,
       )
       const card = container.firstChild as HTMLElement
-      expect(card).toHaveClass('bg-green-50')
+      expect(card).toHaveClass('bg-emerald-50')
     })
   })
 

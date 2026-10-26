@@ -126,7 +126,7 @@ export function ModelSelector({
   if (loading) {
     return (
       <Card className="p-4">
-        <div className="flex items-center justify-center py-8 text-sm text-gray-600">
+        <div className="flex items-center justify-center py-8 text-sm text-zinc-600">
           {t('evaluation.modelSelector.loading')}
         </div>
       </Card>
@@ -162,14 +162,14 @@ export function ModelSelector({
   return (
     <Card className="overflow-hidden">
       <div
-        className="flex cursor-pointer items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800"
+        className="flex cursor-pointer items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800"
         onClick={() => setIsOpen(!isOpen)}
       >
         <div>
-          <h4 className="font-medium text-gray-900 dark:text-gray-100">
+          <h4 className="font-medium text-zinc-900 dark:text-zinc-100">
             {t('evaluation.modelSelector.modelSelection')}
           </h4>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
             {t('evaluation.modelSelector.selectedCount', {
               selected: selectedCount,
               max: maxSelections,
@@ -177,14 +177,14 @@ export function ModelSelector({
           </span>
         </div>
         {isOpen ? (
-          <ChevronUpIcon className="h-5 w-5 text-gray-400" />
+          <ChevronUpIcon className="h-5 w-5 text-zinc-400" />
         ) : (
-          <ChevronDownIcon className="h-5 w-5 text-gray-400" />
+          <ChevronDownIcon className="h-5 w-5 text-zinc-400" />
         )}
       </div>
 
       {isOpen && (
-        <div className="border-t border-gray-200 p-4 dark:border-gray-700">
+        <div className="border-t border-zinc-200 p-4 dark:border-zinc-700">
           <div className="mb-4 flex items-center gap-2">
             <SearchInput
               value={searchQuery}
@@ -211,8 +211,8 @@ export function ModelSelector({
           </div>
 
           {!canSelectMore && (
-            <div className="mb-4 rounded-md bg-yellow-50 p-3 dark:bg-yellow-900/20">
-              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            <div className="mb-4 rounded-md bg-amber-50 p-3 dark:bg-amber-900/20">
+              <p className="text-sm text-amber-800 dark:text-amber-200">
                 {t('evaluation.modelSelector.maxSelectionWarning', {
                   max: maxSelections,
                 })}
@@ -222,7 +222,7 @@ export function ModelSelector({
 
           <div className="max-h-96 space-y-2 overflow-y-auto">
             {filteredModels.length === 0 ? (
-              <div className="py-8 text-center text-sm text-gray-500">
+              <div className="py-8 text-center text-sm text-zinc-500">
                 {searchQuery
                   ? t('evaluation.modelSelector.noSearchResults')
                   : t('evaluation.modelSelector.noModels')}
@@ -235,10 +235,10 @@ export function ModelSelector({
                 return (
                   <label
                     key={model.id}
-                    className={`flex items-center space-x-3 rounded-lg border border-gray-200 p-3 transition-colors dark:border-gray-700 ${
+                    className={`flex items-center space-x-3 rounded-lg border border-zinc-200 p-3 transition-colors dark:border-zinc-700 ${
                       isDisabled
                         ? 'cursor-not-allowed opacity-50'
-                        : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800'
+                        : 'cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800'
                     }`}
                   >
                     <Checkbox
@@ -248,7 +248,7 @@ export function ModelSelector({
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                        <span className="font-medium text-zinc-900 dark:text-zinc-100">
                           {model.name}
                         </span>
                         <span
@@ -261,7 +261,7 @@ export function ModelSelector({
                           {model.provider}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                         {model.description}
                       </p>
                     </div>

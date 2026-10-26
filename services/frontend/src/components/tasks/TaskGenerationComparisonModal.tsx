@@ -137,10 +137,10 @@ export function TaskGenerationComparisonModal({
 
   const getStatusBadge = (status: string) => {
     const statusColors: Record<string, string> = {
-      completed: 'bg-green-100 text-green-800',
+      completed: 'bg-emerald-100 text-emerald-800',
       failed: 'bg-red-100 text-red-800',
-      running: 'bg-yellow-100 text-yellow-800',
-      pending: 'bg-gray-100 text-gray-800',
+      running: 'bg-amber-100 text-amber-800',
+      pending: 'bg-zinc-100 text-zinc-800',
       cancelled: 'bg-orange-100 text-orange-800',
     }
     return (
@@ -157,37 +157,37 @@ export function TaskGenerationComparisonModal({
   const renderResult = (result: GenerationResult, index: number) => (
     <div
       key={result.generation_id || index}
-      className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+      className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
     >
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         {getStatusBadge(result.status)}
         {result.structure_key && (
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
             {result.structure_key}
           </span>
         )}
         {result.generated_at && (
-          <span className="text-gray-500 dark:text-gray-400">
+          <span className="text-zinc-500 dark:text-zinc-400">
             {new Date(result.generated_at).toLocaleString(intlTag(locale))}
           </span>
         )}
         {result.generation_time_seconds != null && (
-          <span className="text-gray-400">
+          <span className="text-zinc-400">
             {t('generation.resultModal.seconds', {
               value: formatDecimal(result.generation_time_seconds, locale, 2),
             })}
           </span>
         )}
         {result.created_by_name && (
-          <span className="text-gray-400">
+          <span className="text-zinc-400">
             {t('generation.resultModal.by', { user: result.created_by_name })}
           </span>
         )}
       </div>
 
       {result.status === 'completed' && result.result ? (
-        <div className="max-h-80 overflow-y-auto rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-          <pre className="font-mono text-sm whitespace-pre-wrap text-gray-800 dark:text-gray-100">
+        <div className="max-h-80 overflow-y-auto rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800">
+          <pre className="font-mono text-sm whitespace-pre-wrap text-zinc-800 dark:text-zinc-100">
             {viewMode === 'raw'
               ? JSON.stringify(result.result, null, 2)
               : formatResult(result.result)}
@@ -200,7 +200,7 @@ export function TaskGenerationComparisonModal({
           </p>
         </div>
       ) : (
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('generation.comparison.modal.noResult')}
         </p>
       )}
@@ -216,9 +216,9 @@ export function TaskGenerationComparisonModal({
       <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
         <DialogPanel className="flex max-h-[95vh] w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-900">
           {/* Header */}
-          <div className="flex items-start justify-between border-b border-gray-200 p-4 sm:items-center sm:p-6 dark:border-gray-700">
+          <div className="flex items-start justify-between border-b border-zinc-200 p-4 sm:items-center sm:p-6 dark:border-zinc-700">
             <div className="mr-2 min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-gray-900 sm:text-lg dark:text-white">
+              <DialogTitle className="truncate text-base font-semibold text-zinc-900 sm:text-lg dark:text-white">
                 {t('generation.comparison.modal.title')}
                 <span className="hidden sm:inline">
                   {' '}
@@ -226,13 +226,13 @@ export function TaskGenerationComparisonModal({
                   {t('generation.comparison.modal.taskId', { taskId: task.id })}
                 </span>
               </DialogTitle>
-              <p className="mt-1 text-xs text-gray-600 sm:text-sm dark:text-gray-400">
+              <p className="mt-1 text-xs text-zinc-600 sm:text-sm dark:text-zinc-400">
                 {t('generation.comparison.modal.description')}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:p-2 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+              className="rounded-lg p-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 sm:p-2 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
             >
               <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
@@ -242,24 +242,24 @@ export function TaskGenerationComparisonModal({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {models.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12">
-                <DocumentTextIcon className="mb-4 h-12 w-12 text-gray-400" />
-                <p className="text-gray-600 dark:text-gray-400">
+                <DocumentTextIcon className="mb-4 h-12 w-12 text-zinc-400" />
+                <p className="text-zinc-600 dark:text-zinc-400">
                   {t('generation.comparison.modal.noGenerations')}
                 </p>
               </div>
             ) : (
               <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
                 {/* Per-model tabs */}
-                <div className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                  <Tab.List className="flex scrollbar-thin space-x-1 overflow-x-auto px-4 py-2 sm:px-6">
+                <div className="border-b border-zinc-200 px-4 py-2 sm:px-6 dark:border-zinc-700">
+                  <Tab.List className="inline-flex max-w-full scrollbar-thin items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                     {models.map((modelId) => (
                       <Tab
                         key={modelId}
                         className={({ selected }) =>
-                          `flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors sm:px-4 sm:text-sm ${
+                          `flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
                             selected
-                              ? 'border-b-2 border-blue-600 bg-white text-blue-600 dark:bg-zinc-900 dark:text-blue-400'
-                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
+                              ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                              : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                           }`
                         }
                       >
@@ -278,15 +278,15 @@ export function TaskGenerationComparisonModal({
                       <Tab.Panel key={modelId} className="space-y-4 p-4 sm:p-6">
                         {/* View mode toggle */}
                         <div className="flex justify-end">
-                          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+                          <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                             {(['formatted', 'raw'] as const).map((mode) => (
                               <button
                                 key={mode}
                                 onClick={() => setViewMode(mode)}
-                                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                                   viewMode === mode
-                                    ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-900 dark:text-white'
-                                    : 'text-gray-600 hover:text-gray-900 dark:text-gray-400'
+                                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                                    : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                                 }`}
                               >
                                 {mode === 'formatted'
@@ -305,10 +305,10 @@ export function TaskGenerationComparisonModal({
                         ) : loadingModel === modelId ||
                           results === undefined ? (
                           <div className="flex items-center justify-center py-12">
-                            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500" />
                           </div>
                         ) : results.length === 0 ? (
-                          <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                          <p className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
                             {t('generation.comparison.modal.noResult')}
                           </p>
                         ) : (

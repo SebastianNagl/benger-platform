@@ -285,21 +285,21 @@ export function EvaluationHeatmap({
         <div className="flex gap-2">
           <button
             onClick={exportToCSV}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+            className="flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <ArrowDownTrayIcon className="h-4 w-4" />
             {t('evaluation.charts.heatmap.exportCsv')}
           </button>
           <button
             onClick={exportToLaTeX}
-            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+            className="flex items-center gap-2 rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <ClipboardDocumentIcon className="h-4 w-4" />
             {t('evaluation.charts.heatmap.exportLatex')}
           </button>
         </div>
         {exportStatus && (
-          <div className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-800">
+          <div className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300">
             {exportStatus}
           </div>
         )}
@@ -316,13 +316,13 @@ export function EvaluationHeatmap({
       </div>
 
       {/* Legend */}
-      <div className="rounded-lg border bg-gray-50 p-4">
+      <div className="rounded-lg border bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
         <h4 className="mb-3 font-medium">
           {t('evaluation.charts.heatmap.legend')}
         </h4>
         <div className="space-y-3">
           <div>
-            <h5 className="mb-2 text-sm font-medium text-gray-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.charts.heatmap.colorScale')}
             </h5>
             <div className="space-y-1 text-sm">
@@ -350,15 +350,15 @@ export function EvaluationHeatmap({
             </div>
           </div>
 
-          <div className="rounded border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">
-            <p className="text-gray-700">
+          <div className="rounded border-l-4 border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
+            <p className="text-zinc-700 dark:text-zinc-300">
               <strong>{t('evaluation.charts.heatmap.noteLabel')}:</strong>{' '}
               {t('evaluation.charts.heatmap.noteText', { metric })}
             </p>
           </div>
 
           <div>
-            <h5 className="mb-2 text-sm font-medium text-gray-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.charts.heatmap.scoreRange')}
             </h5>
             <div className="space-y-1 text-sm">

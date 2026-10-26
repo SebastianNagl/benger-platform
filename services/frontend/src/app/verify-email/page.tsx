@@ -203,9 +203,9 @@ export default function VerifyEmailPage() {
 
           {status === 'info' && (
             <div className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/20">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
                 <svg
-                  className="h-6 w-6 text-blue-600 dark:text-blue-400"
+                  className="h-6 w-6 text-zinc-500 dark:text-zinc-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   strokeWidth="1.5"
@@ -263,7 +263,7 @@ export default function VerifyEmailPage() {
                 {email && (
                   <Button
                     onClick={handleResendVerification}
-                    className="w-full bg-emerald-600 px-4 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
+                    className="w-full rounded-full bg-zinc-900 px-4 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
                   >
                     {t('emailVerification.resend')}
                   </Button>

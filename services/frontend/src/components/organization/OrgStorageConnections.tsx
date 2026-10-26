@@ -472,7 +472,7 @@ export function OrgStorageConnections({
                                   variant="outline"
                                   onClick={() => handleTestSaved(conn.id)}
                                   disabled={isTestLoading}
-                                  className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                                  className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                                 >
                                   {isTestLoading
                                     ? t(
@@ -673,7 +673,7 @@ export function OrgStorageConnections({
                         variant="outline"
                         onClick={handleTestForm}
                         disabled={!canTestForm || !!testLoading.form || saving}
-                        className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                        className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                       >
                         {testLoading.form
                           ? t('organizations.storageConnections.testing')
@@ -716,7 +716,7 @@ export function OrgStorageConnections({
           <div className="flex items-center justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.done')}
             </button>

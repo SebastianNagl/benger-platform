@@ -825,17 +825,19 @@ export function EvaluationResults({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
-        return <CheckCircleIcon className="h-5 w-5 text-green-500" />
+        return <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
       case 'running':
-        return <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
+        return (
+          <ArrowPathIcon className="h-5 w-5 animate-spin text-emerald-500" />
+        )
       case 'pending':
-        return <ClockIcon className="h-5 w-5 text-yellow-500" />
+        return <ClockIcon className="h-5 w-5 text-amber-500" />
       case 'paused':
         return <PauseCircleIcon className="h-5 w-5 text-amber-500" />
       case 'failed':
         return <XCircleIcon className="h-5 w-5 text-red-500" />
       default:
-        return <ExclamationCircleIcon className="h-5 w-5 text-gray-400" />
+        return <ExclamationCircleIcon className="h-5 w-5 text-zinc-400" />
     }
   }
 
@@ -1041,17 +1043,17 @@ export function EvaluationResults({
     return (
       <div className="rounded-lg border border-dashed border-emerald-300 p-8 text-center dark:border-emerald-700">
         <PlayIcon className="mx-auto h-12 w-12 text-emerald-500" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
           {t('evaluation.multiFieldResults.noResultsYet')}
         </h3>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           {t('evaluation.multiFieldResults.noResultsYetDesc')}
         </p>
         {onRunEvaluation && (
           <button
             onClick={onRunEvaluation}
             disabled={isRunningEvaluation}
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {isRunningEvaluation ? (
               <>
@@ -1090,7 +1092,7 @@ export function EvaluationResults({
       {/* Header with metric selector, controls, and action buttons */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+          <h3 className="text-lg font-medium text-zinc-900 dark:text-white">
             {t('evaluation.multiFieldResults.title')}
           </h3>
           {/* Metric selector dropdown */}
@@ -1139,12 +1141,12 @@ export function EvaluationResults({
               )
             })()}
           {/* Include history toggle */}
-          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
             <input
               type="checkbox"
               checked={showHistory}
               onChange={(e) => setShowHistory(e.target.checked)}
-              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+              className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
             />
             {t('evaluation.multiFieldResults.includeHistory')}
           </label>
@@ -1152,12 +1154,12 @@ export function EvaluationResults({
               meaningful when statisticsData has per_run_means_by_model_metric
               data; hidden otherwise so the toggle isn't a no-op. */}
           {(statisticsData as any)?.per_run_means_by_model_metric && (
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
               <input
                 type="checkbox"
                 checked={byRunChart}
                 onChange={(e) => setByRunChart(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
               />
               {t('evaluation.multiFieldResults.byRunChart')}
             </label>
@@ -1271,11 +1273,11 @@ export function EvaluationResults({
                     {t('common.export')}
                   </Button>
                   {exportDropdownOpen && (
-                    <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                    <div className="absolute right-0 z-50 mt-1 w-32 rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
                       <button
                         type="button"
                         onClick={() => doExport('json')}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-700"
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                         JSON
@@ -1283,7 +1285,7 @@ export function EvaluationResults({
                       <button
                         type="button"
                         onClick={() => doExport('csv')}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-700"
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                         CSV
@@ -1336,11 +1338,11 @@ export function EvaluationResults({
 
           return (
             <Card className="overflow-hidden">
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-                <h4 className="font-medium text-gray-900 dark:text-white">
+              <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800">
+                <h4 className="font-medium text-zinc-900 dark:text-white">
                   {t('evaluation.multiFieldResults.perTaskResults')}
                 </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {taskModelData.tasks.length} {t('common.tasks')} •{' '}
                   {displayModels.length}{' '}
                   {displayModels.length !== 1
@@ -1360,8 +1362,8 @@ export function EvaluationResults({
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-                        <th className="sticky left-0 min-w-[200px] bg-gray-50 px-4 py-2 text-left font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-300">
+                      <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <th className="sticky left-0 min-w-[200px] bg-zinc-50 px-4 py-2 text-left font-medium text-zinc-600 dark:bg-zinc-800/50 dark:text-zinc-300">
                           {t('evaluation.multiFieldResults.task')}
                         </th>
                         {displayModels.map((modelId) => {
@@ -1375,14 +1377,14 @@ export function EvaluationResults({
                           return (
                             <th
                               key={modelId}
-                              className="min-w-[100px] px-4 py-2 text-right font-medium text-gray-600 dark:text-gray-300"
+                              className="min-w-[100px] px-4 py-2 text-right font-medium text-zinc-600 dark:text-zinc-300"
                             >
                               <div className="flex flex-col items-end">
                                 <span
                                   className={`rounded px-2 py-0.5 text-xs ${
                                     isAnnotator
                                       ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
-                                      : 'bg-gray-200 dark:bg-gray-700'
+                                      : 'bg-zinc-200 dark:bg-zinc-700'
                                   }`}
                                 >
                                   {displayName}
@@ -1407,11 +1409,11 @@ export function EvaluationResults({
                         return (
                           <tr
                             key={task.task_id}
-                            className={`border-b border-gray-100 dark:border-gray-700 ${idx % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-gray-800/30'}`}
+                            className={`border-b border-zinc-100 dark:border-zinc-700 ${idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-zinc-50 dark:bg-zinc-800/30'}`}
                           >
-                            <td className="sticky left-0 bg-inherit px-4 py-2 text-gray-700 dark:text-gray-300">
+                            <td className="sticky left-0 bg-inherit px-4 py-2 text-zinc-700 dark:text-zinc-300">
                               <div
-                                className="max-w-[250px] cursor-pointer truncate hover:text-blue-600 hover:underline dark:hover:text-blue-400"
+                                className="max-w-[250px] cursor-pointer truncate hover:text-emerald-600 hover:underline dark:hover:text-emerald-400"
                                 title={`${task.task_preview} - ${t('evaluation.multiFieldResults.clickToViewTaskData')}`}
                                 onClick={() => handleTaskClick(task.task_id)}
                               >
@@ -1446,7 +1448,7 @@ export function EvaluationResults({
                                 >
                                   {hasScore ? (
                                     <span
-                                      className={`cursor-pointer font-mono font-medium hover:underline ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
+                                      className={`cursor-pointer font-mono font-medium hover:underline ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}
                                       title={t(
                                         'evaluation.multiFieldResults.clickToViewResponse',
                                       )}
@@ -1458,7 +1460,7 @@ export function EvaluationResults({
                                     </span>
                                   ) : hasClickableData ? (
                                     <span
-                                      className="cursor-pointer text-blue-600 underline dark:text-blue-400"
+                                      className="cursor-pointer text-emerald-600 underline hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                                       onClick={() =>
                                         handleScoreClick(task.task_id, modelId)
                                       }
@@ -1466,7 +1468,7 @@ export function EvaluationResults({
                                       n/a
                                     </span>
                                   ) : (
-                                    <span className="text-gray-400 dark:text-gray-500">
+                                    <span className="text-zinc-400 dark:text-zinc-500">
                                       n/a
                                     </span>
                                   )}
@@ -1477,8 +1479,8 @@ export function EvaluationResults({
                         )
                       })}
                       {/* Summary row */}
-                      <tr className="border-t-2 border-gray-300 bg-gray-100 font-medium dark:border-gray-600 dark:bg-gray-800">
-                        <td className="sticky left-0 bg-gray-100 px-4 py-2 text-gray-900 dark:bg-gray-800 dark:text-white">
+                      <tr className="border-t-2 border-zinc-300 bg-zinc-100 font-medium dark:border-zinc-600 dark:bg-zinc-800">
+                        <td className="sticky left-0 bg-zinc-100 px-4 py-2 text-zinc-900 dark:bg-zinc-800 dark:text-white">
                           {t('evaluation.multiFieldResults.average')}
                         </td>
                         {displayModels.map((modelId) => {
@@ -1516,18 +1518,18 @@ export function EvaluationResults({
                               {hasAvg ? (
                                 <div className="flex flex-col items-end">
                                   <span
-                                    className={`font-mono font-semibold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-white'}`}
+                                    className={`font-mono font-semibold ${isBest ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-900 dark:text-white'}`}
                                   >
                                     {formatScore(summary.avg)}
                                   </span>
                                   {inlineStats && (
-                                    <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
+                                    <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
                                       {inlineStats}
                                     </span>
                                   )}
                                   {runsLine && (
                                     <span
-                                      className="text-xs font-normal text-blue-600 dark:text-blue-400"
+                                      className="text-xs font-normal text-zinc-500 dark:text-zinc-400"
                                       title={t(
                                         'evaluation.multiFieldResults.runsAggregateTooltip',
                                       )}
@@ -1537,7 +1539,7 @@ export function EvaluationResults({
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-gray-400 dark:text-gray-500">
+                                <span className="text-zinc-400 dark:text-zinc-500">
                                   n/a
                                 </span>
                               )}
@@ -1558,12 +1560,12 @@ export function EvaluationResults({
         displayEvaluations.map((evaluation) => (
           <Card key={evaluation.evaluation_id} className="overflow-hidden">
             {/* Evaluation header */}
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800">
               <div className="flex items-center gap-3">
                 {getStatusIcon(evaluation.status)}
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="font-medium text-zinc-900 dark:text-white">
                       {t('evaluation.multiFieldResults.evaluation')}
                     </span>
                     <Badge
@@ -1573,12 +1575,12 @@ export function EvaluationResults({
                     </Badge>
                     {evaluation.model_id &&
                       evaluation.model_id !== 'unknown' && (
-                        <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                        <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400">
                           {evaluation.model_id}
                         </span>
                       )}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {evaluation.completed_at
                       ? t('evaluation.multiFieldResults.completedAgo', {
                           time: formatTimeAgo(evaluation.completed_at),
@@ -1590,13 +1592,13 @@ export function EvaluationResults({
                 </div>
               </div>
               <div className="text-right text-sm">
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-zinc-600 dark:text-zinc-300">
                   {t('evaluation.multiFieldResults.samplesEvaluated', {
                     count: evaluation.samples_evaluated,
                   })}
                 </p>
                 {evaluation.status === 'running' && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400">
                     {t('evaluation.multiFieldResults.processing')}
                   </p>
                 )}
@@ -1606,9 +1608,9 @@ export function EvaluationResults({
             {/* Progress bar for running evaluations */}
             {evaluation.status === 'running' && (
               <div className="px-4 py-2">
-                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                   <div
-                    className="h-2 rounded-full bg-blue-500 transition-all duration-500"
+                    className="h-2 rounded-full bg-emerald-500 transition-all duration-500"
                     style={{
                       // Calculate actual progress from passed + failed samples
                       width:
@@ -1618,7 +1620,7 @@ export function EvaluationResults({
                     }}
                   />
                 </div>
-                <p className="mt-1 text-center text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-center text-xs text-zinc-500 dark:text-zinc-400">
                   {t('evaluation.multiFieldResults.samplesProcessed', {
                     processed:
                       evaluation.progress.samples_passed +
@@ -1639,14 +1641,14 @@ export function EvaluationResults({
             )}
 
             {/* Results by config */}
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
               {evaluation.evaluation_configs.map((config) => {
                 const configResults = evaluation.results_by_config[config.id]
 
                 return (
                   <div key={config.id} className="p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <h4 className="font-medium text-gray-900 dark:text-white">
+                      <h4 className="font-medium text-zinc-900 dark:text-white">
                         {getMetricDisplayName(
                           config.id,
                           evaluation.evaluation_configs,
@@ -1665,10 +1667,10 @@ export function EvaluationResults({
                         {configResults.field_results.map((fieldResult) => (
                           <div
                             key={fieldResult.combo_key}
-                            className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800"
+                            className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800"
                           >
                             <div className="mb-2 flex items-center justify-between text-sm">
-                              <span className="text-gray-600 dark:text-gray-300">
+                              <span className="text-zinc-600 dark:text-zinc-300">
                                 <span className="font-medium">
                                   {fieldResult.prediction_field}
                                 </span>{' '}
@@ -1686,11 +1688,11 @@ export function EvaluationResults({
                                     key={scoreName}
                                     className="flex items-center gap-2"
                                   >
-                                    <span className="w-20 text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="w-20 text-xs text-zinc-500 dark:text-zinc-400">
                                       {scoreName}
                                     </span>
                                     <div className="flex-1">
-                                      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                                      <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                                         <div
                                           className="h-2 rounded-full bg-emerald-500 transition-all"
                                           style={{
@@ -1699,7 +1701,7 @@ export function EvaluationResults({
                                         />
                                       </div>
                                     </div>
-                                    <span className="w-16 text-right text-xs font-medium text-gray-700 dark:text-gray-300">
+                                    <span className="w-16 text-right text-xs font-medium text-zinc-700 dark:text-zinc-300">
                                       {formatScore(scoreValue)}
                                     </span>
                                   </div>
@@ -1710,11 +1712,11 @@ export function EvaluationResults({
                         ))}
                       </div>
                     ) : evaluation.status === 'completed' ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {t('evaluation.multiFieldResults.noResultsForConfig')}
                       </p>
                     ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400">
                         {t('evaluation.multiFieldResults.waitingForResults')}
                       </p>
                     )}
@@ -1724,7 +1726,7 @@ export function EvaluationResults({
 
               {evaluation.evaluation_configs.length === 0 && (
                 <div className="p-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
                     {t('evaluation.multiFieldResults.noConfigsFound')}
                   </p>
                 </div>
@@ -1733,9 +1735,9 @@ export function EvaluationResults({
 
             {/* Footer with statistics */}
             {evaluation.status === 'completed' && (
-              <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs dark:border-gray-700 dark:bg-gray-800">
+              <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-4 py-2 text-xs dark:border-zinc-700 dark:bg-zinc-800">
                 <div className="flex items-center gap-4">
-                  <span className="text-green-600 dark:text-green-400">
+                  <span className="text-emerald-600 dark:text-emerald-400">
                     {t('evaluation.multiFieldResults.passedCount', {
                       count: evaluation.progress.samples_passed,
                     })}
@@ -1746,14 +1748,14 @@ export function EvaluationResults({
                     })}
                   </span>
                   {evaluation.progress.samples_skipped > 0 && (
-                    <span className="text-gray-500 dark:text-gray-400">
+                    <span className="text-zinc-500 dark:text-zinc-400">
                       {t('evaluation.multiFieldResults.skippedCount', {
                         count: evaluation.progress.samples_skipped,
                       })}
                     </span>
                   )}
                 </div>
-                <span className="text-gray-500 dark:text-gray-400">
+                <span className="text-zinc-500 dark:text-zinc-400">
                   ID: {evaluation.evaluation_id.slice(0, 8)}...
                 </span>
               </div>

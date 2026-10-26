@@ -3,6 +3,16 @@
  * Issue #220: Smart field mapping for flexible data import
  */
 
+import { Alert } from '@/components/shared/Alert'
+import { Badge } from '@/components/shared/Badge'
+import { Button } from '@/components/shared/Button'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/shared/Card'
+import { ProgressIndicator } from '@/components/shared/ProgressIndicator'
 import {
   Select,
   SelectContent,
@@ -10,11 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import {
   Table,
   TableBody,
@@ -22,8 +27,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+} from '@/components/shared/Table'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/shared/Tabs'
 import { useI18n } from '@/contexts/I18nContext'
 import { formatDecimal } from '@/lib/i18n/locales'
 import {
@@ -179,8 +189,8 @@ export function ImportPreviewWithMapping({
       <Card className={className}>
         <CardContent className="py-12">
           <div className="flex flex-col items-center space-y-4">
-            <ArrowPathIcon className="h-8 w-8 animate-spin text-gray-400" />
-            <p className="text-sm text-gray-500">
+            <ArrowPathIcon className="h-8 w-8 animate-spin text-zinc-400" />
+            <p className="text-sm text-zinc-500">
               {t('tasks.import.processingFile')}
             </p>
           </div>
@@ -193,9 +203,8 @@ export function ImportPreviewWithMapping({
     return (
       <Card className={className}>
         <CardContent className="py-6">
-          <Alert variant="destructive">
-            <ExclamationTriangleIcon className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+          <Alert variant="error">
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
           </Alert>
           <div className="mt-4 flex justify-end">
             <Button variant="outline" onClick={onCancel}>
@@ -230,7 +239,7 @@ export function ImportPreviewWithMapping({
             <TabsTrigger value="preview">
               {t('tasks.import.dataPreview')}
               {importResult.errors && (
-                <ExclamationTriangleIcon className="ml-2 h-4 w-4 text-yellow-500" />
+                <ExclamationTriangleIcon className="ml-2 h-4 w-4 text-amber-500" />
               )}
             </TabsTrigger>
             <TabsTrigger value="mapping" disabled={templateFields.length === 0}>
@@ -240,9 +249,9 @@ export function ImportPreviewWithMapping({
                   variant="outline"
                   className={`ml-2 ${
                     mappingSuggestion.quality === 'high'
-                      ? 'text-green-600'
+                      ? 'text-emerald-600'
                       : mappingSuggestion.quality === 'medium'
-                        ? 'text-yellow-600'
+                        ? 'text-amber-600'
                         : 'text-red-600'
                   }`}
                 >
@@ -256,13 +265,13 @@ export function ImportPreviewWithMapping({
             {/* Import summary */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-gray-500">
+                <p className="text-sm font-medium text-zinc-500">
                   {t('tasks.import.file')}
                 </p>
                 <p className="text-sm">{file?.name}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
+                <p className="text-sm font-medium text-zinc-500">
                   {t('tasks.import.size')}
                 </p>
                 <p className="text-sm">
@@ -273,9 +282,8 @@ export function ImportPreviewWithMapping({
 
             {/* Errors */}
             {importResult.errors && importResult.errors.length > 0 && (
-              <Alert>
-                <ExclamationTriangleIcon className="h-4 w-4" />
-                <AlertDescription>
+              <Alert variant="warning">
+                <div className="text-sm text-amber-800 dark:text-amber-200">
                   <p className="font-medium">
                     {t('tasks.import.importWarnings')}
                   </p>
@@ -293,7 +301,7 @@ export function ImportPreviewWithMapping({
                       </li>
                     )}
                   </ul>
-                </AlertDescription>
+                </div>
               </Alert>
             )}
 
@@ -327,7 +335,7 @@ export function ImportPreviewWithMapping({
                 </TableBody>
               </Table>
               {importResult.data.length > 5 && (
-                <div className="bg-gray-50 p-2 text-center text-sm text-gray-500">
+                <div className="bg-zinc-50 p-2 text-center text-sm text-zinc-500">
                   {t('tasks.import.andMoreRows', {
                     count: importResult.data.length - 5,
                   })}
@@ -345,20 +353,20 @@ export function ImportPreviewWithMapping({
                     <span className="text-sm font-medium">
                       {t('tasks.import.mappingQuality')}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-zinc-500">
                       {t('tasks.import.fieldsMapped', {
                         mapped: finalMappings.length,
                         total: importResult.headers?.length || 0,
                       })}
                     </span>
                   </div>
-                  <Progress
-                    value={
+                  <ProgressIndicator
+                    progress={
                       (finalMappings.length /
                         (importResult.headers?.length || 1)) *
                       100
                     }
-                    className="h-2"
+                    showPercentage={false}
                   />
                 </div>
 
@@ -384,7 +392,7 @@ export function ImportPreviewWithMapping({
                       return (
                         <div
                           key={sourceField}
-                          className="flex items-center gap-3 rounded-lg bg-gray-50 p-2"
+                          className="flex items-center gap-3 rounded-lg bg-zinc-50 p-2"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -396,10 +404,10 @@ export function ImportPreviewWithMapping({
                                   variant="outline"
                                   className={`text-xs ${
                                     confidence > 0.9
-                                      ? 'text-green-600'
+                                      ? 'text-emerald-600'
                                       : confidence > 0.7
-                                        ? 'text-yellow-600'
-                                        : 'text-gray-600'
+                                        ? 'text-amber-600'
+                                        : 'text-zinc-600'
                                   }`}
                                 >
                                   {mapping.type}
@@ -408,7 +416,7 @@ export function ImportPreviewWithMapping({
                             </div>
                           </div>
 
-                          <ArrowRightIcon className="h-4 w-4 text-gray-400" />
+                          <ArrowRightIcon className="h-4 w-4 text-zinc-400" />
 
                           <Select
                             value={customMappings.get(sourceField) || 'none'}
@@ -419,7 +427,7 @@ export function ImportPreviewWithMapping({
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">
-                                <span className="text-gray-500">
+                                <span className="text-zinc-500">
                                   {t('tasks.import.skipField')}
                                 </span>
                               </SelectItem>
@@ -441,16 +449,15 @@ export function ImportPreviewWithMapping({
 
                 {/* Unmapped fields warning */}
                 {mappingSuggestion.unmappedSource.length > 0 && (
-                  <Alert>
-                    <ExclamationTriangleIcon className="h-4 w-4" />
-                    <AlertDescription>
+                  <Alert variant="warning">
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
                       <p className="font-medium">
                         {t('tasks.import.unmappedSourceFields')}
                       </p>
                       <p className="mt-1 text-sm">
                         {mappingSuggestion.unmappedSource.join(', ')}
                       </p>
-                    </AlertDescription>
+                    </div>
                   </Alert>
                 )}
               </>
@@ -474,7 +481,7 @@ export function ImportPreviewWithMapping({
                 {t('tasks.import.configureMapping')}
               </Button>
             )}
-            <Button onClick={handleImport}>
+            <Button variant="filled" onClick={handleImport}>
               <CheckCircleIcon className="mr-2 h-4 w-4" />
               {t('tasks.import.importItems', {
                 count: importResult.data.length,

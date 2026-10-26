@@ -54,10 +54,7 @@ export function ComingSoon({
 
         {/* Back button */}
         {showBackButton && (
-          <Button
-            onClick={() => router.back()}
-            className="bg-emerald-600 text-white hover:bg-emerald-700"
-          >
+          <Button onClick={() => router.back()} variant="filled">
             {t('common.goBack')}
           </Button>
         )}

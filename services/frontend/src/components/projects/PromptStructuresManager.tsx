@@ -8,13 +8,13 @@
 'use client'
 
 import { GenerationStructureEditor } from '@/components/projects/GenerationStructureEditor'
+import { Alert } from '@/components/shared/Alert'
 import { Button } from '@/components/shared/Button'
+import { Card } from '@/components/shared/Card'
+import { Input } from '@/components/shared/Input'
+import { Label } from '@/components/shared/Label'
 import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { apiClient } from '@/lib/api/client'
 import { logger } from '@/lib/utils/logger'
@@ -358,9 +358,8 @@ export function PromptStructuresManager({
       {expanded && (
         <>
           {error && (
-            <Alert variant="destructive">
-              <XMarkIcon className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="error">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
             </Alert>
           )}
 
@@ -437,7 +436,7 @@ export function PromptStructuresManager({
                       <div className="flex shrink-0 items-start gap-2">
                         <button
                           onClick={() => openEditModal(key, structure)}
-                          className="flex h-9 w-9 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                           title={t('projects.promptStructures.editTooltip')}
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -573,9 +572,10 @@ export function PromptStructuresManager({
               </div>
 
               {modalError && (
-                <Alert variant="destructive">
-                  <XMarkIcon className="h-4 w-4" />
-                  <AlertDescription>{modalError}</AlertDescription>
+                <Alert variant="error">
+                  <p className="text-sm text-red-800 dark:text-red-200">
+                    {modalError}
+                  </p>
                 </Alert>
               )}
 

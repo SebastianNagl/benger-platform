@@ -195,7 +195,7 @@ export default function MyTasksPage() {
     } else if (priority >= 2) {
       return <FlagIcon className="h-4 w-4 text-orange-500" />
     } else if (priority >= 1) {
-      return <FlagIcon className="h-4 w-4 text-yellow-500" />
+      return <FlagIcon className="h-4 w-4 text-amber-500" />
     }
     return null
   }
@@ -342,7 +342,7 @@ export default function MyTasksPage() {
                       </Badge>
                     )}
                     {task.has_feedback && (
-                      <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                      <Badge className="bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
                         <ChatBubbleLeftRightIcon className="mr-1 h-3 w-3" />
                         {t('tasks.myTasks.feedbackAvailable')}
                       </Badge>

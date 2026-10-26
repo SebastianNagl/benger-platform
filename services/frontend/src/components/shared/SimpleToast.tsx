@@ -58,19 +58,19 @@ export function SimpleToastProvider({
             key={toast.id}
             className={`max-w-sm rounded-lg p-4 text-white shadow-lg ${
               toast.type === 'success'
-                ? 'bg-green-500'
+                ? 'bg-emerald-500'
                 : toast.type === 'error'
                   ? 'bg-red-500'
                   : toast.type === 'warning'
-                    ? 'bg-yellow-500'
-                    : 'bg-blue-500'
+                    ? 'bg-amber-500'
+                    : 'bg-zinc-800 dark:bg-zinc-700'
             }`}
           >
             <div className="flex items-center justify-between">
               <span>{toast.message}</span>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="ml-4 text-white hover:text-gray-200"
+                className="ml-4 text-white hover:text-zinc-200"
               >
                 ×
               </button>

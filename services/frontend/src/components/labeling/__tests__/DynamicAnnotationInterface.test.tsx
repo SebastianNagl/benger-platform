@@ -284,7 +284,7 @@ describe('DynamicAnnotationInterface', () => {
         name: /submit/i,
       })
       const submitButton = allSubmitButtons.find((btn) =>
-        btn.classList.contains('bg-emerald-600'),
+        btn.classList.contains('bg-zinc-900'),
       )
 
       // Fill in some text
@@ -324,7 +324,7 @@ describe('DynamicAnnotationInterface', () => {
 
       const submitButton = screen
         .getAllByRole('button', { name: /submit/i })
-        .find((btn) => btn.classList.contains('bg-emerald-600'))
+        .find((btn) => btn.classList.contains('bg-zinc-900'))
 
       // componentValues is non-empty, so the main submit is enabled.
       expect(submitButton).not.toBeDisabled()
@@ -348,7 +348,7 @@ describe('DynamicAnnotationInterface', () => {
         name: /submit/i,
       })
       const submitButton = allSubmitButtons.find((btn) =>
-        btn.classList.contains('bg-emerald-600'),
+        btn.classList.contains('bg-zinc-900'),
       )
 
       // Try to submit without any annotations

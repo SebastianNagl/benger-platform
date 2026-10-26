@@ -38,15 +38,15 @@ export function RichTextField({
           rows={6}
           className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm ${
             readonly
-              ? 'cursor-not-allowed bg-gray-50 dark:bg-gray-800'
-              : 'bg-white dark:bg-gray-900'
+              ? 'cursor-not-allowed bg-zinc-50 dark:bg-zinc-800'
+              : 'bg-white dark:bg-zinc-900'
           } ${
             errors.length > 0
               ? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-600'
-              : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600'
+              : 'border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-zinc-600'
           } resize-vertical focus:ring-2 focus:outline-none dark:text-white`}
         />
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {t('fields.richTextPlaceholder')}
         </p>
       </div>

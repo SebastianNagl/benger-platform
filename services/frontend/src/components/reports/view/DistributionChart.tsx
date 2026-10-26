@@ -115,7 +115,7 @@ export function DistributionChart({
         <div
           role="radiogroup"
           aria-label={t('reports.view.displayMode')}
-          className="inline-flex overflow-hidden rounded-md border border-zinc-300 text-xs dark:border-zinc-700"
+          className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 text-xs dark:bg-zinc-800"
         >
           {(['count', 'share'] as DistributionMode[]).map((m) => (
             <button
@@ -125,10 +125,10 @@ export function DistributionChart({
               aria-checked={mode === m}
               onClick={() => setMode(m)}
               className={clsx(
-                'px-3 py-1 transition',
+                'rounded-full px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 mode === m
-                  ? 'bg-zinc-800 font-medium text-white dark:bg-zinc-200 dark:text-zinc-900'
-                  : 'bg-white text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800',
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
               )}
             >
               {m === 'count'

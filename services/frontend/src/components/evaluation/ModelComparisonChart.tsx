@@ -144,7 +144,7 @@ export function ModelComparisonChart({
     return (
       <div className="space-y-2">
         {title && (
-          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+          <h3 className="text-lg font-medium text-zinc-900">{title}</h3>
         )}
         {/* eslint-disable-next-line react-hooks/static-components */}
         <MissingDataWarning />
@@ -188,7 +188,7 @@ export function ModelComparisonChart({
   return (
     <div className="space-y-2">
       {title && (
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
           {title}
         </h3>
       )}
@@ -196,27 +196,27 @@ export function ModelComparisonChart({
       <MissingDataWarning />
       <ResponsiveContainer width="100%" height={height}>
         <BarChart data={barData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
           <XAxis
             dataKey="model"
-            tick={{ fontSize: 12, fill: '#6b7280' }}
-            stroke="#9ca3af"
+            tick={{ fontSize: 12, fill: '#71717a' }}
+            stroke="#a1a1aa"
           />
           <YAxis
             domain={[0, 1]}
-            tick={{ fontSize: 10, fill: '#6b7280' }}
-            stroke="#9ca3af"
+            tick={{ fontSize: 10, fill: '#71717a' }}
+            stroke="#a1a1aa"
             label={{
               value: t('evaluation.modelComparison.score'),
               angle: -90,
               position: 'insideLeft',
-              style: { fontSize: 12, fill: '#6b7280' },
+              style: { fontSize: 12, fill: '#71717a' },
             }}
           />
           <Tooltip
             contentStyle={{
               backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              border: '1px solid #d4d4d8',
               borderRadius: '6px',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             }}
@@ -242,7 +242,7 @@ export function ModelComparisonChart({
                   dataKey={`${metric}_error`}
                   width={4}
                   strokeWidth={2}
-                  stroke="#374151"
+                  stroke="#3f3f46"
                 />
               )}
             </Bar>
@@ -251,27 +251,27 @@ export function ModelComparisonChart({
       </ResponsiveContainer>
 
       {/* Model performance summary table */}
-      <div className="mt-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+      <div className="mt-4 overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-zinc-50 dark:bg-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">
+              <th className="px-4 py-3 text-left font-semibold text-zinc-700 dark:text-zinc-300">
                 {t('evaluation.modelComparison.model')}
               </th>
               {metrics.map((metric) => (
                 <th
                   key={metric}
-                  className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300"
+                  className="px-4 py-3 text-right font-semibold text-zinc-700 dark:text-zinc-300"
                 >
                   {metric}
                 </th>
               ))}
-              <th className="px-4 py-3 text-right font-semibold text-gray-700 dark:text-gray-300">
+              <th className="px-4 py-3 text-right font-semibold text-zinc-700 dark:text-zinc-300">
                 {t('evaluation.modelComparison.average')}
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+          <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
             {models.map((model, index) => {
               const metricValues = metrics.map((m) =>
                 getMetricValue(model.metrics[m] || 0),
@@ -282,7 +282,7 @@ export function ModelComparisonChart({
               return (
                 <tr
                   key={model.model_id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -292,7 +292,7 @@ export function ModelComparisonChart({
                           backgroundColor: COLORS[index % COLORS.length],
                         }}
                       />
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
                         {model.model_id}
                       </span>
                     </div>
@@ -310,11 +310,11 @@ export function ModelComparisonChart({
                         className="px-4 py-3 text-right tabular-nums"
                       >
                         <div className="flex flex-col items-end">
-                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
                             {formatDecimal(value, locale, 3)}
                           </span>
                           {showConfidenceIntervals && hasCI && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
                               [
                               {formatDecimal(
                                 (metricData as MetricValue).confidenceInterval!
@@ -336,7 +336,7 @@ export function ModelComparisonChart({
                       </td>
                     )
                   })}
-                  <td className="px-4 py-3 text-right font-bold text-gray-900 tabular-nums dark:text-gray-100">
+                  <td className="px-4 py-3 text-right font-bold text-zinc-900 tabular-nums dark:text-zinc-100">
                     {formatDecimal(avg, locale, 3)}
                   </td>
                 </tr>

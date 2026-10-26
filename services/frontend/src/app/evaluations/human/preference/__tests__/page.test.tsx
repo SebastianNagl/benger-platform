@@ -378,7 +378,7 @@ describe('PreferenceEvaluation', () => {
         expect(progressText).toBeInTheDocument()
         const progressBar =
           progressText.parentElement?.nextElementSibling?.querySelector(
-            '.bg-blue-600',
+            '.bg-emerald-600',
           )
         expect(progressBar).toBeInTheDocument()
       })

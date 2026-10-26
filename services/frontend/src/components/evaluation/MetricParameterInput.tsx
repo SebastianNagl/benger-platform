@@ -100,11 +100,11 @@ export function MetricParameterInput({
   }
 
   return (
-    <div className="mt-2 border-t border-gray-200 pt-2">
+    <div className="mt-2 border-t border-zinc-200 pt-2">
       <Button
         variant="text"
         onClick={() => setShowAdvanced(!showAdvanced)}
-        className="flex items-center gap-1 p-0 text-xs text-blue-600 hover:text-blue-700"
+        className="flex items-center gap-1 p-0 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
       >
         <AdjustmentsHorizontalIcon className="h-3 w-3" />
         {showAdvanced
@@ -114,9 +114,9 @@ export function MetricParameterInput({
       </Button>
 
       {showAdvanced && (
-        <div className="mt-3 space-y-3 rounded-md bg-gray-50 p-3">
+        <div className="mt-3 space-y-3 rounded-md bg-zinc-50 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-zinc-700">
               {t('evaluation.metricParams.configure', {
                 metric: metric.toUpperCase(),
               })}
@@ -124,7 +124,7 @@ export function MetricParameterInput({
             <Button
               variant="text"
               onClick={resetToDefaults}
-              className="p-0 text-xs text-gray-600 hover:text-gray-700"
+              className="p-0 text-xs text-zinc-600 hover:text-zinc-700"
             >
               {t('evaluation.metricParams.resetToDefaults')}
             </Button>
@@ -143,7 +143,7 @@ export function MetricParameterInput({
                       'evaluation.metricParams.bleu.maxNgramOrderHelp',
                     )}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select
@@ -185,7 +185,7 @@ export function MetricParameterInput({
                       'evaluation.metricParams.bleu.smoothingMethodHelp',
                     )}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select
@@ -227,7 +227,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.rouge.variantHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select
@@ -264,7 +264,7 @@ export function MetricParameterInput({
                     onChange={(e) =>
                       handleParameterChange('use_stemmer', e.target.checked)
                     }
-                    className="rounded border-gray-300"
+                    className="rounded border-zinc-300"
                   />
                   <span className="text-xs">
                     {t('evaluation.metricParams.rouge.enableStemming')}
@@ -274,7 +274,7 @@ export function MetricParameterInput({
                       'evaluation.metricParams.rouge.enableStemmingHelp',
                     )}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </label>
               </div>
@@ -292,7 +292,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.meteor.alphaHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Input
@@ -317,7 +317,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.meteor.betaHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Input
@@ -341,7 +341,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.meteor.gammaHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Input
@@ -370,7 +370,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.chrf.charOrderHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select
@@ -407,7 +407,7 @@ export function MetricParameterInput({
                   <Tooltip
                     content={t('evaluation.metricParams.chrf.wordOrderHelp')}
                   >
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select
@@ -443,7 +443,7 @@ export function MetricParameterInput({
                     {t('evaluation.metricParams.chrf.beta')}
                   </Label>
                   <Tooltip content={t('evaluation.metricParams.chrf.betaHelp')}>
-                    <InformationCircleIcon className="h-3 w-3 text-gray-400" />
+                    <InformationCircleIcon className="h-3 w-3 text-zinc-400" />
                   </Tooltip>
                 </div>
                 <Select

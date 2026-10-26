@@ -122,18 +122,18 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+        <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
           {t('evaluationBuilder.parameters.dimensions')}
         </label>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-xs text-zinc-500 dark:text-zinc-400">
           {t('evaluationBuilder.parameters.totalMax')}:{' '}
           <span
             className={clsx(
               'font-mono',
               totalMax === 100
-                ? 'text-green-600 dark:text-green-400'
+                ? 'text-emerald-600 dark:text-emerald-400'
                 : totalMax === 0
-                  ? 'text-gray-400'
+                  ? 'text-zinc-400'
                   : 'text-amber-600 dark:text-amber-400',
             )}
           >
@@ -142,7 +142,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
         </div>
       </div>
 
-      <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-800 dark:border-blue-800/40 dark:bg-blue-900/20 dark:text-blue-200">
+      <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300">
         <div className="flex items-start gap-2">
           <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <div>{t('evaluationBuilder.parameters.dimensionsHint')}</div>
@@ -150,7 +150,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
       </div>
 
       {rows.length === 0 && (
-        <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+        <div className="rounded-md border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           {t('evaluationBuilder.parameters.noDimensions')}
         </div>
       )}
@@ -159,11 +159,11 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
         {rows.map((row) => (
           <div
             key={row.rowId}
-            className="rounded-md border border-gray-200 p-3 dark:border-gray-700"
+            className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
           >
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-4">
-                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionKey')}
                 </label>
                 <input
@@ -173,11 +173,11 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { key: e.target.value.trim() })
                   }
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 font-mono text-xs dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-zinc-300 px-2 py-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800"
                 />
               </div>
               <div className="col-span-5">
-                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionName')}
                 </label>
                 <input
@@ -189,11 +189,11 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { name: e.target.value })
                   }
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
                 />
               </div>
               <div className="col-span-2">
-                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionMax')}
                 </label>
                 <input
@@ -207,14 +207,14 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                       max_score: Number(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
                 />
               </div>
               <div className="col-span-1 flex items-end justify-end">
                 <button
                   type="button"
                   onClick={() => removeRow(row.rowId)}
-                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                  className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
                   title={t('common.remove')}
                   aria-label={t('common.remove')}
                 >
@@ -223,7 +223,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
               </div>
 
               <div className="col-span-12">
-                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionDescription')}
                 </label>
                 <input
@@ -235,12 +235,12 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { description: e.target.value })
                   }
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
                 />
               </div>
 
               <div className="col-span-12">
-                <label className="mb-1 block text-[10px] tracking-wider text-gray-500 uppercase dark:text-gray-400">
+                <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionRubric')}
                 </label>
                 <textarea
@@ -252,7 +252,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { rubric: e.target.value })
                   }
-                  className="w-full rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800"
+                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
                 />
               </div>
             </div>
@@ -263,7 +263,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
       <button
         type="button"
         onClick={addRow}
-        className="flex items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+        className="flex items-center gap-1.5 rounded-full border border-dashed border-zinc-300 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
       >
         <PlusIcon className="h-3.5 w-3.5" />
         {t('evaluationBuilder.parameters.addDimension')}

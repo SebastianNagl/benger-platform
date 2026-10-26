@@ -111,14 +111,14 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 type="button"
                 onClick={handleClose}
                 disabled={isLoading}
-                className="flex-1 rounded-md border border-zinc-300 px-4 py-2 text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="flex-1 rounded-full border border-zinc-300 px-4 py-2 text-zinc-700 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 {t('loginModal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isLoading || !username || !password}
-                className="flex-1 rounded-md bg-emerald-500 px-4 py-2 text-white transition-colors hover:bg-emerald-600 disabled:bg-emerald-300"
+                className="flex-1 rounded-full bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-700 disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {isLoading ? t('loginModal.signingIn') : t('loginModal.signIn')}
               </button>

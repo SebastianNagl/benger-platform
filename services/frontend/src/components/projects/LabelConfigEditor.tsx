@@ -12,19 +12,18 @@
  *     parent's `Promise.all([...])` short-circuits with a useful message.
  */
 
-import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/shared/Alert'
+import { Button } from '@/components/shared/Button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
+} from '@/components/shared/Card'
+import { TaskFieldReferencePanel } from '@/components/shared/TaskFieldReferencePanel'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
-import { CheckIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { forwardRef, useImperativeHandle, useMemo, useState } from 'react'
 
 interface LabelConfigEditorProps {
@@ -133,18 +132,16 @@ export const LabelConfigEditor = forwardRef<
           />
 
           {error && (
-            <Alert variant="destructive">
-              <XMarkIcon className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="error">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
             </Alert>
           )}
 
           {!error && config && (
-            <Alert>
-              <CheckIcon className="h-4 w-4" />
-              <AlertDescription>
+            <Alert variant="success">
+              <p className="text-sm text-emerald-800 dark:text-emerald-200">
                 {t('projects.labelConfig.valid')}
-              </AlertDescription>
+              </p>
             </Alert>
           )}
 
@@ -156,6 +153,7 @@ export const LabelConfigEditor = forwardRef<
                 </Button>
               )}
               <Button
+                variant="filled"
                 onClick={() => {
                   void handleSave().catch(() => {
                     /* error already surfaced by the inline alert */

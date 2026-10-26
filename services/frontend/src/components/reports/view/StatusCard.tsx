@@ -29,7 +29,7 @@ export function StatusCard({
   const backLink = (
     <Link
       href="/reports"
-      className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+      className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
     >
       {t('reports.view.backToReports')}
     </Link>
@@ -62,7 +62,7 @@ export function StatusCard({
         <div className="mt-5 flex flex-wrap gap-3">
           <Link
             href={loginHref}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-zinc-950 dark:hover:bg-emerald-400"
+            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {t('reports.view.signIn')}
           </Link>
@@ -89,7 +89,7 @@ export function StatusCard({
           <button
             type="button"
             onClick={onRetry}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:text-zinc-950 dark:hover:bg-emerald-400"
+            className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {t('reports.view.reload')}
           </button>

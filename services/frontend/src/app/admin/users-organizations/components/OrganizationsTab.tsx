@@ -1288,7 +1288,7 @@ export function OrganizationsTab() {
                         )
                         setIsEditingOrg(true)
                       }}
-                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
@@ -1609,7 +1609,7 @@ export function OrganizationsTab() {
                           disabled={resendingInvitations.includes(
                             invitation.id,
                           )}
-                          className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+                          className="text-sm text-emerald-600 hover:text-emerald-700 disabled:opacity-50 dark:text-emerald-400 dark:hover:text-emerald-300"
                         >
                           {resendingInvitations.includes(invitation.id)
                             ? t('admin.invitationDelivery.resending')

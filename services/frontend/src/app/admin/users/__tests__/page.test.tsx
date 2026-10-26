@@ -894,7 +894,7 @@ describe('AdminUsersPage', () => {
       await user.click(orgTab)
 
       await waitFor(() => {
-        expect(orgTab).toHaveClass('border-indigo-500')
+        expect(orgTab).toHaveClass('bg-white')
       })
     })
 

@@ -517,7 +517,7 @@ describe('Reset Password Page', () => {
     it('applies correct button styling', () => {
       render(<ResetPasswordPage />)
       const button = screen.getByTestId('submit-button')
-      expect(button).toHaveClass('bg-emerald-600')
+      expect(button).toHaveClass('bg-zinc-900')
     })
 
     it('centers main content', () => {

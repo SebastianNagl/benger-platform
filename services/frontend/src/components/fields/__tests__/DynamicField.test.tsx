@@ -137,7 +137,7 @@ describe('DynamicField', () => {
       const { container } = render(<DynamicField field={field} value="test" />)
       const pre = container.querySelector('pre')
       expect(pre).toBeInTheDocument()
-      expect(pre).toHaveClass('bg-muted')
+      expect(pre).toHaveClass('bg-zinc-100')
       const code = container.querySelector('code')
       expect(code).toBeInTheDocument()
     })

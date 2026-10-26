@@ -442,8 +442,8 @@ export function GlobalUsersTab() {
       <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-900 dark:ring-white/10">
         {/* Bulk actions bar */}
         {selectedUsers.length > 0 && (
-          <div className="flex items-center justify-between bg-indigo-50 px-6 py-3 dark:bg-indigo-900/20">
-            <span className="text-sm text-indigo-700 dark:text-indigo-300">
+          <div className="flex items-center justify-between bg-emerald-50 px-6 py-3 dark:bg-emerald-900/20">
+            <span className="text-sm text-emerald-700 dark:text-emerald-400">
               {selectedUsers.length > 1
                 ? t('admin.users.usersSelected', {
                     count: selectedUsers.length,
@@ -455,13 +455,13 @@ export function GlobalUsersTab() {
             <div className="flex gap-2">
               <button
                 onClick={handleBulkVerifyEmails}
-                className="rounded-md bg-green-600 px-3 py-1 text-sm font-medium text-white hover:bg-green-700"
+                className="rounded-full bg-zinc-900 px-3 py-1 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {t('admin.users.bulkVerifyEmails')}
               </button>
               <button
                 onClick={() => setSelectedUsers([])}
-                className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+                className="rounded-full border border-zinc-300 bg-white px-3 py-1 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
               >
                 {t('admin.users.clearSelection')}
               </button>
@@ -492,7 +492,7 @@ export function GlobalUsersTab() {
                           setSelectedUsers([])
                         }
                       }}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                      className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                     />
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
@@ -538,7 +538,7 @@ export function GlobalUsersTab() {
                             )
                           }
                         }}
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -565,8 +565,8 @@ export function GlobalUsersTab() {
                       <div className="flex items-center gap-2">
                         {user.email_verified ? (
                           <div className="flex items-center gap-1">
-                            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                            <span className="text-sm text-green-600 dark:text-green-400">
+                            <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
+                            <span className="text-sm text-emerald-600 dark:text-emerald-400">
                               {t('admin.users.verified')}
                               {user.email_verification_method === 'admin' && (
                                 <span className="ml-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -594,7 +594,7 @@ export function GlobalUsersTab() {
                                 action: 'verify',
                               })
                             }}
-                            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                            className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
                             title={t('admin.users.verifyEmail')}
                           >
                             <CheckIcon className="h-4 w-4" />

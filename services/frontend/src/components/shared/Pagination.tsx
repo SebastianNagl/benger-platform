@@ -127,7 +127,7 @@ export function Pagination({
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
             className={cn(
-              'inline-flex items-center rounded-md px-2 py-2 text-sm font-medium',
+              'inline-flex items-center rounded-full px-2 py-2 text-sm font-medium',
               currentPage === 1
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
                 : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
@@ -158,9 +158,9 @@ export function Pagination({
                 key={pageNumber}
                 onClick={() => onPageChange(pageNumber)}
                 className={cn(
-                  'inline-flex items-center rounded-md px-3 py-2 text-sm font-medium',
+                  'inline-flex items-center rounded-full px-3 py-2 text-sm font-medium',
                   isActive
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-zinc-900 text-white dark:bg-emerald-500'
                     : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',
                 )}
                 aria-label={t('shared.pagination.goToPage', {
@@ -178,7 +178,7 @@ export function Pagination({
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
             className={cn(
-              'inline-flex items-center rounded-md px-2 py-2 text-sm font-medium',
+              'inline-flex items-center rounded-full px-2 py-2 text-sm font-medium',
               currentPage === totalPages
                 ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-600'
                 : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800',

@@ -67,14 +67,14 @@ export function QuestionCard({
 
   if (taskType === 'qa') {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
         <div className="p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600">
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600">
                 <span className="text-xs font-bold text-white">Q</span>
               </div>
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {t('tasks.questionCard.questionId', { id: question.id })}
               </span>
             </div>
@@ -103,20 +103,20 @@ export function QuestionCard({
           {isEditing ? (
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.caseOptional')}
                 </label>
                 <textarea
                   value={localQuestion.case || ''}
                   onChange={(e) => handleFieldChange('case', e.target.value)}
                   rows={3}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderCase')}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.question')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
@@ -126,13 +126,13 @@ export function QuestionCard({
                     handleFieldChange('question', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderQuestion')}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.referenceAnswer')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
@@ -142,7 +142,7 @@ export function QuestionCard({
                     handleFieldChange('reference_answer', e.target.value)
                   }
                   rows={4}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t(
                     'tasks.questionCard.placeholderExpectedAnswer',
                   )}
@@ -161,7 +161,8 @@ export function QuestionCard({
                 <Button
                   type="button"
                   onClick={handleSave}
-                  className="bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+                  variant="filled"
+                  className="px-3 py-1 text-sm"
                 >
                   {t('tasks.questionCard.save')}
                 </Button>
@@ -171,29 +172,29 @@ export function QuestionCard({
             <div className="space-y-3">
               {question.case && (
                 <div>
-                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.questionCard.caseLabel')}
                   </p>
-                  <p className="rounded bg-gray-50 p-2 text-sm text-gray-600 italic dark:bg-gray-700 dark:text-gray-400">
+                  <p className="rounded bg-zinc-50 p-2 text-sm text-zinc-600 italic dark:bg-zinc-700 dark:text-zinc-400">
                     {question.case}
                   </p>
                 </div>
               )}
 
               <div>
-                <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.questionLabel')}
                 </p>
-                <p className="rounded bg-gray-50 p-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                <p className="rounded bg-zinc-50 p-2 text-sm text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100">
                   {question.question || t('tasks.questionCard.noQuestionText')}
                 </p>
               </div>
 
               <div>
-                <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.referenceAnswerLabel')}
                 </p>
-                <p className="rounded bg-gray-50 p-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                <p className="rounded bg-zinc-50 p-2 text-sm text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100">
                   {question.reference_answer ||
                     t('tasks.questionCard.noReferenceAnswer')}
                 </p>
@@ -244,7 +245,7 @@ export function QuestionCard({
           {isEditing ? (
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.question')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
@@ -254,33 +255,33 @@ export function QuestionCard({
                     handleFieldChange('question', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderMcq')}
                 />
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.contextOptional')}
                 </label>
                 <textarea
                   value={localQuestion.case || ''}
                   onChange={(e) => handleFieldChange('case', e.target.value)}
                   rows={2}
-                  className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderContext')}
                 />
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.questionCard.answerOptions')}{' '}
                     <span className="text-red-500">*</span>
                   </label>
                   <div className="group relative">
                     <svg
-                      className="h-4 w-4 cursor-help text-gray-400 hover:text-gray-600"
+                      className="h-4 w-4 cursor-help text-zinc-400 hover:text-zinc-600"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -293,10 +294,10 @@ export function QuestionCard({
                       />
                     </svg>
                     <div className="absolute bottom-full left-1/2 z-10 mb-2 hidden -translate-x-1/2 transform group-hover:block">
-                      <div className="rounded bg-gray-900 px-3 py-2 text-xs whitespace-nowrap text-white">
+                      <div className="rounded bg-zinc-900 px-3 py-2 text-xs whitespace-nowrap text-white">
                         {t('tasks.questionCard.selectCorrectTooltip')}
                       </div>
-                      <div className="absolute top-full left-1/2 -translate-x-1/2 transform border-4 border-transparent border-t-gray-900"></div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 transform border-4 border-transparent border-t-zinc-900"></div>
                     </div>
                   </div>
                 </div>
@@ -304,7 +305,7 @@ export function QuestionCard({
                 {(['a', 'b', 'c', 'd'] as const).map((option) => (
                   <div
                     key={option}
-                    className="flex items-center space-x-3 rounded-md border border-gray-200 p-3 dark:border-gray-600"
+                    className="flex items-center space-x-3 rounded-md border border-zinc-200 p-3 dark:border-zinc-600"
                   >
                     <div className="flex items-center">
                       <input
@@ -315,11 +316,11 @@ export function QuestionCard({
                         onChange={() =>
                           handleFieldChange('correct_answer', option)
                         }
-                        className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-500"
+                        className="h-4 w-4 border-zinc-300 text-orange-600 focus:ring-orange-500"
                       />
                       <label
                         htmlFor={`correct-${question.id}-${option}`}
-                        className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300"
+                        className="ml-2 text-sm font-medium text-zinc-700 dark:text-zinc-300"
                       >
                         {option.toUpperCase()}
                       </label>
@@ -335,7 +336,7 @@ export function QuestionCard({
                         onChange={(e) =>
                           handleFieldChange(`choice_${option}`, e.target.value)
                         }
-                        className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
+                        className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         placeholder={t('tasks.questionCard.optionPlaceholder', {
                           option: option.toUpperCase(),
                         })}
@@ -366,27 +367,27 @@ export function QuestionCard({
           ) : (
             <div className="space-y-3">
               <div>
-                <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.questionLabel')}
                 </p>
-                <p className="rounded bg-gray-50 p-2 text-sm text-gray-900 dark:bg-gray-700 dark:text-gray-100">
+                <p className="rounded bg-zinc-50 p-2 text-sm text-zinc-900 dark:bg-zinc-700 dark:text-zinc-100">
                   {question.question || t('tasks.questionCard.noQuestionText')}
                 </p>
               </div>
 
               {localQuestion.case && (
                 <div>
-                  <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <p className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.questionCard.contextLabel')}
                   </p>
-                  <p className="rounded bg-gray-50 p-2 text-sm text-gray-600 italic dark:bg-gray-700 dark:text-gray-400">
+                  <p className="rounded bg-zinc-50 p-2 text-sm text-zinc-600 italic dark:bg-zinc-700 dark:text-zinc-400">
                     {localQuestion.case}
                   </p>
                 </div>
               )}
 
               <div>
-                <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <p className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.optionsLabel')}
                 </p>
                 <div className="space-y-2">
@@ -395,14 +396,14 @@ export function QuestionCard({
                       key={option}
                       className={`flex items-center space-x-2 rounded p-2 text-sm ${
                         localQuestion.correct_answer === option
-                          ? 'border border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/20'
-                          : 'bg-gray-50 dark:bg-gray-700'
+                          ? 'border border-emerald-200 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20'
+                          : 'bg-zinc-50 dark:bg-zinc-700'
                       }`}
                     >
                       <span className="font-medium">
                         {option.toUpperCase()}:
                       </span>
-                      <span className="text-gray-900 dark:text-gray-100">
+                      <span className="text-zinc-900 dark:text-zinc-100">
                         {String(
                           localQuestion[
                             `choice_${option}` as keyof QuestionData
@@ -413,7 +414,7 @@ export function QuestionCard({
                         )}
                       </span>
                       {localQuestion.correct_answer === option && (
-                        <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                           {t('tasks.questionCard.correct')}
                         </span>
                       )}
@@ -553,7 +554,7 @@ export function QuestionCard({
               <Button
                 type="button"
                 onClick={handleSave}
-                className="bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700"
+                className="rounded-full bg-zinc-900 px-3 py-1 text-sm text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               >
                 {t('tasks.questionCard.save')}
               </Button>

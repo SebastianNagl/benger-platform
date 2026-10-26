@@ -365,8 +365,8 @@ describe('MetricDistributionChart', () => {
       )
 
       const q1Marker = container.querySelector('.bg-red-600')
-      const medianMarker = container.querySelector('.bg-yellow-600')
-      const q3Marker = container.querySelector('.bg-green-600')
+      const medianMarker = container.querySelector('.bg-amber-600')
+      const q3Marker = container.querySelector('.bg-emerald-600')
 
       expect(q1Marker).toBeInTheDocument()
       expect(medianMarker).toBeInTheDocument()
@@ -648,7 +648,7 @@ describe('MetricDistributionChart', () => {
       )
 
       const quartileBar = container.querySelector(
-        '.bg-linear-to-r.from-red-200.via-yellow-200.to-green-200',
+        '.bg-linear-to-r.from-red-200.via-amber-200.to-emerald-200',
       )
       expect(quartileBar).toBeInTheDocument()
       expect(quartileBar).toHaveClass('relative', 'h-8', 'w-full', 'rounded')

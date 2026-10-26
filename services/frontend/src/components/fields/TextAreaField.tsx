@@ -42,7 +42,7 @@ export function TextAreaField({
         maxLength={field.validation?.find((v) => v.type === 'maxLength')?.value}
       />
       {field.validation?.find((v) => v.type === 'maxLength') && (
-        <div className="mt-1 text-right text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-1 text-right text-xs text-zinc-500 dark:text-zinc-400">
           {value?.length || 0} /{' '}
           {field.validation.find((v) => v.type === 'maxLength')?.value}
         </div>

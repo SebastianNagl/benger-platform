@@ -12,7 +12,7 @@ export function Separator({
   return (
     <div
       className={clsx(
-        'bg-gray-200 dark:bg-gray-700',
+        'bg-zinc-200 dark:bg-zinc-700',
         orientation === 'horizontal' ? 'h-px w-full' : 'h-full w-px',
         className,
       )}

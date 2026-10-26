@@ -209,7 +209,7 @@ export function TextHighlightField({
         >
           {segment.text}
           {segment.highlights.length > 1 && (
-            <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-gray-600 text-xs text-white">
+            <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-zinc-600 text-xs text-white">
               {segment.highlights.length}
             </span>
           )}
@@ -251,7 +251,7 @@ export function TextHighlightField({
         {!readonly && (
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-zinc-600 dark:text-zinc-400">
                 {t('labeling.textHighlight.highlightWith')}:
               </span>
               <div className="flex items-center space-x-1">
@@ -262,7 +262,7 @@ export function TextHighlightField({
                     className={`rounded-md px-3 py-1 text-sm transition-colors ${
                       selectedLabel.id === label.id
                         ? 'text-white'
-                        : 'text-gray-700 hover:opacity-80 dark:text-gray-300'
+                        : 'text-zinc-700 hover:opacity-80 dark:text-zinc-300'
                     }`}
                     style={{
                       backgroundColor:
@@ -282,7 +282,7 @@ export function TextHighlightField({
                 ))}
               </div>
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-500">
+            <div className="text-xs text-zinc-500 dark:text-zinc-500">
               {highlights.length}{' '}
               {highlights.length !== 1
                 ? t('labeling.textHighlight.highlightsPlural')
@@ -294,7 +294,7 @@ export function TextHighlightField({
         {/* Text display area */}
         <div
           ref={textRef}
-          className={`text-display-area rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800 ${
+          className={`text-display-area rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800 ${
             readonly ? 'cursor-default' : 'cursor-text'
           }`}
           onMouseUp={handleTextSelection}
@@ -310,7 +310,7 @@ export function TextHighlightField({
         {/* Highlights list */}
         {highlights.length > 0 && (
           <div className="mt-3 space-y-2">
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('labeling.textHighlight.highlightsTitle')}
             </h4>
             <div className="max-h-48 space-y-1 overflow-y-auto">
@@ -319,8 +319,8 @@ export function TextHighlightField({
                   key={highlight.id}
                   className={`flex cursor-pointer items-start space-x-2 rounded-md p-2 transition-colors ${
                     selectedHighlight === highlight.id
-                      ? 'bg-gray-100 dark:bg-gray-700'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                      ? 'bg-zinc-100 dark:bg-zinc-700'
+                      : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
                   }`}
                   onClick={() => setSelectedHighlight(highlight.id)}
                 >
@@ -330,18 +330,18 @@ export function TextHighlightField({
                   />
                   <div className="flex-1 text-sm">
                     <div className="flex items-center space-x-2">
-                      <span className="font-medium text-gray-700 dark:text-gray-300">
+                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
                         {highlight.label}
                       </span>
-                      <span className="text-gray-500 dark:text-gray-500">
+                      <span className="text-zinc-500 dark:text-zinc-500">
                         ({highlight.start}-{highlight.end})
                       </span>
                     </div>
-                    <p className="text-gray-600 italic dark:text-gray-400">
+                    <p className="text-zinc-600 italic dark:text-zinc-400">
                       "{highlight.text}"
                     </p>
                     {highlight.comment && (
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-500">
                         <ChatBubbleLeftIcon className="mr-1 inline h-3 w-3" />
                         {highlight.comment}
                       </p>
@@ -367,7 +367,7 @@ export function TextHighlightField({
 
         {/* Instructions */}
         {!readonly && (
-          <div className="mt-3 text-xs text-gray-500 dark:text-gray-500">
+          <div className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
             <strong>{t('labeling.textHighlight.instructionsLabel')}:</strong>{' '}
             {t('labeling.textHighlight.instructionsText', {
               max: String(labels.length),

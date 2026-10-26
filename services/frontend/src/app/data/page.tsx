@@ -63,17 +63,17 @@ export default function DataManagementPage() {
               />
             </svg>
           </div>
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
             {t('dataManagement.accessDenied')}
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {t('dataManagement.accessDeniedDescription')}
           </p>
           <div className="mt-6">
             <button
               type="button"
               onClick={() => router.push('/projects')}
-              className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+              className="inline-flex items-center rounded-full bg-zinc-900 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.backToProjects')}
             </button>

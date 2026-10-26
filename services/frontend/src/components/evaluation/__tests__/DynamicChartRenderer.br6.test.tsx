@@ -146,7 +146,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
   })
 
   describe('ScoreHeatmap default color scheme branches', () => {
-    it('shows yellow-400 for scores 0.5-0.7 in default scheme', () => {
+    it('shows amber-400 for scores 0.5-0.7 in default scheme', () => {
       const models = [
         { model_id: 'a', model_name: 'A', metrics: { score: 0.55 } },
         { model_id: 'b', model_name: 'B', metrics: { score: 0.6 } },
@@ -159,7 +159,7 @@ describe('DynamicChartRenderer br6 - uncovered branches', () => {
           colorScheme="default"
         />,
       )
-      expect(container.querySelector('.bg-yellow-400')).toBeInTheDocument()
+      expect(container.querySelector('.bg-amber-400')).toBeInTheDocument()
     })
 
     it('shows orange-400 for scores 0.3-0.5 in default scheme', () => {

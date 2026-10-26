@@ -549,16 +549,16 @@ describe('GenerationTaskList', () => {
         expect(screen.getByText('Test')).toBeInTheDocument()
       })
 
-      const checkIcons = document.querySelectorAll('.text-green-600')
+      const checkIcons = document.querySelectorAll('.text-emerald-600')
       expect(checkIcons.length).toBeGreaterThan(0)
 
       const failIcons = document.querySelectorAll('.text-red-600')
       expect(failIcons.length).toBeGreaterThan(0)
 
-      const runningIcons = document.querySelectorAll('.text-yellow-600')
+      const runningIcons = document.querySelectorAll('.text-amber-600')
       expect(runningIcons.length).toBeGreaterThan(0)
 
-      const grayIcons = document.querySelectorAll('.text-gray-400')
+      const grayIcons = document.querySelectorAll('.text-zinc-400')
       expect(grayIcons.length).toBeGreaterThan(0)
     })
   })

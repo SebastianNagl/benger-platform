@@ -800,7 +800,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       if (editButton) {
@@ -826,7 +826,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       if (editButton) {
@@ -877,7 +877,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
       expect(editButton).toBeDefined()
       await user.click(editButton!)
@@ -916,7 +916,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       if (editButton) {
@@ -1689,7 +1689,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       expect(editButton).toBeUndefined()
@@ -1877,7 +1877,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       if (editButton) {
@@ -2272,7 +2272,7 @@ describe('OrganizationsTab', () => {
       const editButton = editButtons.find(
         (btn) =>
           btn.querySelector('svg')?.classList.contains('h-4') &&
-          btn.className.includes('text-indigo-600'),
+          btn.className.includes('text-emerald-600'),
       )
 
       if (editButton) {

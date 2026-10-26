@@ -163,19 +163,19 @@ export function HistoricalTrendChart({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">
           {metric} - {t('evaluation.charts.trend.historicalTrend')}
         </h3>
 
-        <div className="flex gap-1 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800">
+        <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
           {dateRangeButtons.map((button) => (
             <button
               key={button.value}
               onClick={() => setSelectedDateRange(button.value)}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 selectedDateRange === button.value
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               {button.label}
@@ -186,32 +186,32 @@ export function HistoricalTrendChart({
 
       <ResponsiveContainer width="100%" height={height}>
         <LineChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
 
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 11, fill: '#6b7280' }}
-            stroke="#9ca3af"
+            tick={{ fontSize: 11, fill: '#71717a' }}
+            stroke="#a1a1aa"
             tickFormatter={(value) => formatDate(value, dateRange, locale)}
           />
 
           <YAxis
-            tick={{ fontSize: 10, fill: '#6b7280' }}
-            stroke="#9ca3af"
+            tick={{ fontSize: 10, fill: '#71717a' }}
+            stroke="#a1a1aa"
             domain={isPercentage ? [0, 1] : ['auto', 'auto']}
             tickFormatter={(value) => formatValue(value, locale)}
             label={{
               value: metric,
               angle: -90,
               position: 'insideLeft',
-              style: { fontSize: 12, fill: '#6b7280' },
+              style: { fontSize: 12, fill: '#71717a' },
             }}
           />
 
           <Tooltip
             contentStyle={{
               backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              border: '1px solid #d4d4d8',
               borderRadius: '6px',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
             }}
@@ -276,7 +276,7 @@ export function HistoricalTrendChart({
       </ResponsiveContainer>
 
       {chartData.length === 0 && (
-        <div className="flex h-48 items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="flex h-48 items-center justify-center text-zinc-500 dark:text-zinc-400">
           {t('evaluation.charts.trend.noDataForRange')}
         </div>
       )}

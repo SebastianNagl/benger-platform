@@ -258,7 +258,7 @@ describe('AnnotatorBadges', () => {
         <AnnotatorBadges assignments={assignments} showStatus={true} />,
       )
 
-      const statusIndicator = container.querySelector('.bg-yellow-500')
+      const statusIndicator = container.querySelector('.bg-amber-500')
       expect(statusIndicator).toBeInTheDocument()
     })
 
@@ -306,7 +306,7 @@ describe('AnnotatorBadges', () => {
       )
 
       const statusIndicators = container.querySelectorAll(
-        '.bg-emerald-500, .bg-yellow-500, .bg-zinc-400',
+        '.bg-emerald-500, .bg-amber-500, .bg-zinc-400',
       )
       expect(statusIndicators).toHaveLength(0)
     })

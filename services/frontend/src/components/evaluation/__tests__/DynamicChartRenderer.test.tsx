@@ -308,7 +308,7 @@ describe('DynamicChartRenderer', () => {
         />,
       )
       // High score (0.85) should use green with default scheme
-      expect(container.querySelector('.bg-green-500')).toBeInTheDocument()
+      expect(container.querySelector('.bg-emerald-500')).toBeInTheDocument()
     })
 
     it('renders with accessible color scheme', () => {

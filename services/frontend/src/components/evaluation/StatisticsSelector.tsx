@@ -192,9 +192,9 @@ export function StatisticsSelector({
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-64 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="absolute z-50 mt-1 w-64 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
           {/* Select all / Clear all options */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-700">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-700">
             <button
               type="button"
               onClick={selectAll}
@@ -205,7 +205,7 @@ export function StatisticsSelector({
             <button
               type="button"
               onClick={() => onChange([])}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               {t('evaluation.statistics.clearAll')}
             </button>
@@ -222,9 +222,9 @@ export function StatisticsSelector({
               return (
                 <div key={category.id}>
                   {/* Category header */}
-                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 dark:bg-gray-900/50">
-                    <Icon className="h-3.5 w-3.5 text-gray-400" />
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 dark:bg-zinc-900/50">
+                    <Icon className="h-3.5 w-3.5 text-zinc-400" />
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                       {category.label}
                     </span>
                   </div>
@@ -238,7 +238,7 @@ export function StatisticsSelector({
                         key={method.id}
                         type="button"
                         onClick={() => toggleMethod(method.id)}
-                        className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                        className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
                           isSelected
                             ? 'bg-emerald-50 dark:bg-emerald-900/20'
                             : ''
@@ -249,7 +249,7 @@ export function StatisticsSelector({
                           className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                             isSelected
                               ? 'border-emerald-500 bg-emerald-500'
-                              : 'border-gray-300 dark:border-gray-600'
+                              : 'border-zinc-300 dark:border-zinc-600'
                           }`}
                         >
                           {isSelected && (
@@ -262,7 +262,7 @@ export function StatisticsSelector({
                           className={`text-sm ${
                             isSelected
                               ? 'font-medium text-emerald-700 dark:text-emerald-300'
-                              : 'text-gray-700 dark:text-gray-300'
+                              : 'text-zinc-700 dark:text-zinc-300'
                           }`}
                         >
                           {method.label}
@@ -276,7 +276,7 @@ export function StatisticsSelector({
           </div>
 
           {/* Selected count */}
-          <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             {t('evaluation.statistics.selectedCount', {
               selected: selectedMethods.length,
               total: STATISTICAL_METHODS.length,

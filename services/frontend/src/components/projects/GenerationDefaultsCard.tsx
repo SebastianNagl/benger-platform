@@ -173,7 +173,7 @@ export function GenerationDefaultsCard({
                             genRecConsensus.temperature.value,
                           )
                         }
-                        className="ml-2 text-blue-600 hover:underline"
+                        className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
                       >
                         {t('generation.controlModal.resetToRecommended')}
                       </button>
@@ -236,7 +236,7 @@ export function GenerationDefaultsCard({
                             genRecConsensus.max_tokens.value,
                           )
                         }
-                        className="ml-2 text-blue-600 hover:underline"
+                        className="ml-2 text-emerald-600 hover:underline dark:text-emerald-400"
                       >
                         {t('generation.controlModal.resetToRecommended')}
                       </button>

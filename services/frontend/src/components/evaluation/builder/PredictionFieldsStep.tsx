@@ -47,16 +47,16 @@ export function PredictionFieldsStep({
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         {t('evaluationBuilder.steps.predictionFields.title')}
       </h4>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-zinc-500">
         {t('evaluationBuilder.steps.predictionFields.description')}
       </p>
       <div className="space-y-2">
         {/* Special selectors */}
-        <div className="mb-3 border-b pb-3 dark:border-gray-700">
-          <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+        <div className="mb-3 border-b pb-3 dark:border-zinc-700">
+          <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             {t('evaluationBuilder.fields.bulkSelection')}
           </p>
           {allPredictionOptions
@@ -64,7 +64,7 @@ export function PredictionFieldsStep({
             .map((opt) => (
               <label
                 key={opt.value}
-                className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
                 <Checkbox
                   checked={selectedFields.includes(opt.value)}
@@ -80,7 +80,7 @@ export function PredictionFieldsStep({
         {/* Model response fields */}
         {availableFields.model_response_fields.length > 0 && (
           <div className="mb-3">
-            <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               {t('evaluationBuilder.fields.modelResponseFields')}
             </p>
             {availableFields.model_response_fields.map((field) => {
@@ -88,7 +88,7 @@ export function PredictionFieldsStep({
               return (
                 <label
                   key={prefixed}
-                  className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   <Checkbox
                     checked={selectedFields.includes(prefixed)}
@@ -109,7 +109,7 @@ export function PredictionFieldsStep({
         {/* Human annotation fields */}
         {availableFields.human_annotation_fields.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            <p className="mb-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
               {t('evaluationBuilder.fields.humanAnnotationFields')}
             </p>
             {availableFields.human_annotation_fields.map((field) => {
@@ -117,7 +117,7 @@ export function PredictionFieldsStep({
               return (
                 <label
                   key={prefixed}
-                  className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   <Checkbox
                     checked={selectedFields.includes(prefixed)}
@@ -136,7 +136,7 @@ export function PredictionFieldsStep({
         )}
 
         {allPredictionOptions.length === 2 && (
-          <p className="py-4 text-xs text-gray-500 italic">
+          <p className="py-4 text-xs text-zinc-500 italic">
             {t('evaluationBuilder.fields.noFieldsDetected')}
           </p>
         )}

@@ -149,7 +149,7 @@ export function FieldMappingEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('fieldMapping.title')}
           </h4>
           {loading && <LoadingSpinner size="small" />}
@@ -157,27 +157,27 @@ export function FieldMappingEditor({
         <button
           type="button"
           onClick={addRow}
-          className="flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
+          className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:hover:bg-emerald-900/40"
         >
           <PlusIcon className="h-4 w-4" />
           {t('fieldMapping.addMapping')}
         </button>
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-gray-400">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         {t('fieldMapping.helpText')}
       </p>
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center dark:border-gray-600">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="rounded-lg border border-dashed border-zinc-300 p-4 text-center dark:border-zinc-600">
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
             {t('fieldMapping.noMappings')}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {/* Header row */}
-          <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
             <div>{t('fieldMapping.variableName')}</div>
             <div></div>
             <div>{t('fieldMapping.taskField')}</div>
@@ -199,7 +199,7 @@ export function FieldMappingEditor({
                     ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20'
                     : hasWarning
                       ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20'
-                      : 'border-gray-200 dark:border-gray-700',
+                      : 'border-zinc-200 dark:border-zinc-700',
                 )}
               >
                 {/* Variable name input */}
@@ -220,7 +220,7 @@ export function FieldMappingEditor({
                       'w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none',
                       hasError
                         ? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700'
-                        : 'border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-gray-600 dark:bg-gray-800',
+                        : 'border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800',
                     )}
                   />
                   {row.variableName && (
@@ -229,7 +229,7 @@ export function FieldMappingEditor({
                         'text-xs',
                         hasError
                           ? 'text-red-600 dark:text-red-400'
-                          : 'text-gray-500 dark:text-gray-400',
+                          : 'text-zinc-500 dark:text-zinc-400',
                       )}
                     >
                       {hasError
@@ -240,7 +240,7 @@ export function FieldMappingEditor({
                 </div>
 
                 {/* Arrow */}
-                <div className="px-2 text-gray-400">
+                <div className="px-2 text-zinc-400">
                   <span className="text-lg">&rarr;</span>
                 </div>
 
@@ -257,7 +257,7 @@ export function FieldMappingEditor({
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
-                  className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800 dark:hover:text-red-400"
+                  className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800 dark:hover:text-red-400"
                   title={t('common.delete')}
                 >
                   <TrashIcon className="h-4 w-4" />
@@ -270,8 +270,8 @@ export function FieldMappingEditor({
 
       {/* Available fields reference */}
       {fields.length > 0 && (
-        <div className="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
-          <div className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+        <div className="rounded-lg bg-zinc-50 p-3 dark:bg-zinc-800/50">
+          <div className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
             <InformationCircleIcon className="h-4 w-4" />
             {t('fieldMapping.availableFields')}
           </div>
@@ -279,14 +279,14 @@ export function FieldMappingEditor({
             {fields.slice(0, 10).map((field) => (
               <code
                 key={field.path}
-                className="rounded bg-gray-200 px-1.5 py-0.5 text-xs dark:bg-gray-700"
+                className="rounded bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-700"
                 title={field.sample_value}
               >
                 {field.path}
               </code>
             ))}
             {fields.length > 10 && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-zinc-500">
                 {t('evaluation.filters.moreCount', {
                   count: fields.length - 10,
                 })}

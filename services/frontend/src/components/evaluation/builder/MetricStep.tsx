@@ -32,22 +32,22 @@ export function MetricStep({
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         {t('evaluationBuilder.steps.metric.title')}
       </h4>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-zinc-500">
         {t('evaluationBuilder.steps.metric.description')}
       </p>
       <div className="max-h-[400px] space-y-3 overflow-y-auto">
         {getGroupedMetrics().map((group) => (
           <div
             key={group.name}
-            className="rounded-lg border p-3 dark:border-gray-700"
+            className="rounded-lg border p-3 dark:border-zinc-700"
           >
-            <h5 className="mb-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+            <h5 className="mb-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
               {metricGroupLabel(group, t)}
             </h5>
-            <p className="mb-2 text-xs text-gray-500">
+            <p className="mb-2 text-xs text-zinc-500">
               {metricGroupDescription(group, t)}
             </p>
             <div className="space-y-1">
@@ -64,7 +64,7 @@ export function MetricStep({
                     className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left transition-colors ${
                       isSelected
                         ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100'
-                        : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
                     }`}
                   >
                     <span className="text-sm" title={metricDescription(def, t)}>

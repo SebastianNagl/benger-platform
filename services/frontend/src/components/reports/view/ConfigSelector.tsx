@@ -46,7 +46,7 @@ export function ConfigSelector({
       <div
         role="radiogroup"
         aria-label={t('reports.view.judge')}
-        className="inline-flex flex-wrap overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700"
+        className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800"
       >
         {options.map((option) => {
           const active = option.id === value
@@ -59,10 +59,10 @@ export function ConfigSelector({
               onClick={() => onChange(option.id)}
               title={option.name ? `${option.name} (n=${option.n})` : undefined}
               className={clsx(
-                'px-3 py-1.5 text-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
+                'rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
                 active
-                  ? 'bg-emerald-600 font-medium text-white dark:bg-emerald-500 dark:text-zinc-950'
-                  : 'bg-white text-zinc-700 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800',
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
               )}
             >
               {configOptionLabel(option, options)}

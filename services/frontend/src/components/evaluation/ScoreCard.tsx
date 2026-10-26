@@ -73,19 +73,19 @@ const getScoreColor = (
 
   if (score >= 0.7) {
     return {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      border: 'border-green-200 dark:border-green-800',
-      text: 'text-green-700 dark:text-green-300',
-      value: 'text-green-900 dark:text-green-100',
-      indicator: 'bg-green-500',
+      bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+      border: 'border-emerald-200 dark:border-emerald-800',
+      text: 'text-emerald-700 dark:text-emerald-300',
+      value: 'text-emerald-900 dark:text-emerald-100',
+      indicator: 'bg-emerald-500',
     }
   } else if (score >= 0.5) {
     return {
-      bg: 'bg-yellow-50 dark:bg-yellow-900/20',
-      border: 'border-yellow-200 dark:border-yellow-800',
-      text: 'text-yellow-700 dark:text-yellow-300',
-      value: 'text-yellow-900 dark:text-yellow-100',
-      indicator: 'bg-yellow-500',
+      bg: 'bg-amber-50 dark:bg-amber-900/20',
+      border: 'border-amber-200 dark:border-amber-800',
+      text: 'text-amber-700 dark:text-amber-300',
+      value: 'text-amber-900 dark:text-amber-100',
+      indicator: 'bg-amber-500',
     }
   } else {
     return {
@@ -168,10 +168,10 @@ export function ScoreCard({
             </button>
 
             {showTooltip && (
-              <div className="absolute top-6 right-0 z-50 w-64 rounded-lg bg-gray-900 p-3 text-xs text-white shadow-xl dark:bg-gray-700">
+              <div className="absolute top-6 right-0 z-50 w-64 rounded-lg bg-zinc-900 p-3 text-xs text-white shadow-xl dark:bg-zinc-700">
                 <div className="relative">
                   {description}
-                  <div className="absolute -top-1 right-4 h-2 w-2 rotate-45 bg-gray-900 dark:bg-gray-700" />
+                  <div className="absolute -top-1 right-4 h-2 w-2 rotate-45 bg-zinc-900 dark:bg-zinc-700" />
                 </div>
               </div>
             )}
@@ -193,7 +193,7 @@ export function ScoreCard({
               n: formatSampleSize(sampleSize),
             })}
             {clusterCount !== undefined && (
-              <span className="text-gray-500 dark:text-gray-400">
+              <span className="text-zinc-500 dark:text-zinc-400">
                 {' '}
                 (
                 {t('evaluation.scoreCard.clusters', {
@@ -209,7 +209,7 @@ export function ScoreCard({
         {runsAggregate && runsAggregate.runs > 1 && (
           <div className={`mt-1 text-xs ${colors.text}`}>
             ± {formatValue(runsAggregate.stdAcrossRuns, formatAs, locale)}{' '}
-            <span className="text-gray-500 dark:text-gray-400">
+            <span className="text-zinc-500 dark:text-zinc-400">
               (
               {t('evaluation.scoreCard.acrossRuns', {
                 n: runsAggregate.runs,
@@ -232,7 +232,7 @@ export function ScoreCard({
           </div>
 
           {/* Visual CI Bar */}
-          <div className="relative h-2 rounded-full bg-gray-200 dark:bg-gray-700">
+          <div className="relative h-2 rounded-full bg-zinc-200 dark:bg-zinc-700">
             {/* CI Range */}
             <div
               className={`absolute h-full rounded-full ${colors.indicator} opacity-30`}

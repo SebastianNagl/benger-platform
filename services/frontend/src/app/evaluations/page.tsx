@@ -933,7 +933,7 @@ export default function EvaluationDashboard() {
   ) : !canAccessProjectData(user, { isPrivateMode, organizations }) ? (
     <div className="flex min-h-[50vh] items-center justify-center">
       <div className="text-center">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
           {t('evaluation.accessDenied')}
         </h3>
         <Button onClick={() => router.push('/projects')} className="mt-4">
@@ -1142,7 +1142,7 @@ export default function EvaluationDashboard() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold">{t('evaluation.viewer.title')}</h1>
         {!selectedProject && (
-          <p className="mt-1 text-gray-600 dark:text-gray-400">
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
             {t('evaluation.viewer.selectProjectDescription')}
           </p>
         )}
@@ -1153,7 +1153,7 @@ export default function EvaluationDashboard() {
         <div className="flex flex-wrap items-end gap-3">
           {/* Project Dropdown */}
           <div className="relative" ref={projectDropdownRef}>
-            <label className="mb-1 block text-xs font-medium text-gray-500">
+            <label className="mb-1 block text-xs font-medium text-zinc-500">
               {t('evaluation.viewer.filters.project')}
             </label>
             <Button
@@ -1170,7 +1170,7 @@ export default function EvaluationDashboard() {
               />
             </Button>
             {projectDropdownOpen && (
-              <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
                 {projects.map((project) => (
                   <button
                     key={project.id}
@@ -1178,14 +1178,14 @@ export default function EvaluationDashboard() {
                       setSelectedProject(project)
                       setProjectDropdownOpen(false)
                     }}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
                       selectedProject?.id === project.id
                         ? 'bg-emerald-50 dark:bg-emerald-900/20'
                         : ''
                     }`}
                   >
                     <div className="font-medium">{project.title}</div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-zinc-500">
                       {project.task_count || 0}{' '}
                       {t('evaluation.viewer.filters.tasks')}
                     </div>
@@ -1198,7 +1198,7 @@ export default function EvaluationDashboard() {
           {/* Models Dropdown */}
           {selectedProject && evaluatedModels.length > 0 && (
             <div className="relative" ref={modelsDropdownRef}>
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.models')}
               </label>
               <Button
@@ -1218,7 +1218,7 @@ export default function EvaluationDashboard() {
                 />
               </Button>
               {modelsDropdownOpen && (
-                <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <div className="absolute z-50 mt-1 max-h-60 w-64 overflow-auto rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
                   <button
                     type="button"
                     onClick={() =>
@@ -1235,7 +1235,7 @@ export default function EvaluationDashboard() {
                   <button
                     type="button"
                     onClick={() => setSelectedModels([])}
-                    className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
                   >
                     {t('evaluation.viewer.filters.clearAll')}
                   </button>
@@ -1244,7 +1244,7 @@ export default function EvaluationDashboard() {
                       key={model.model_id}
                       className={`flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 ${
                         model.has_results !== false
-                          ? 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                          ? 'hover:bg-zinc-50 dark:hover:bg-zinc-700'
                           : 'opacity-50'
                       }`}
                     >
@@ -1252,7 +1252,7 @@ export default function EvaluationDashboard() {
                         type="checkbox"
                         checked={selectedModels.includes(model.model_id)}
                         onChange={() => toggleModel(model.model_id)}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                       <span
                         className={`flex-1 truncate text-sm ${model.model_id.startsWith('annotator:') ? 'text-blue-700 dark:text-blue-300' : ''}`}
@@ -1268,7 +1268,7 @@ export default function EvaluationDashboard() {
                         </span>
                       )}
                       {model.is_configured && !model.has_generations && (
-                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-gray-400">
+                        <span className="flex items-center gap-0.5 text-xs whitespace-nowrap text-zinc-400">
                           <ExclamationTriangleIcon className="h-3 w-3" />
                           {t('evaluation.viewer.filters.notRun')}
                         </span>
@@ -1285,7 +1285,7 @@ export default function EvaluationDashboard() {
                 but distinct `display_name`s are independently selectable. */}
           {selectedProject && metricsWithStatus.length > 0 && (
             <div className="relative" ref={metricsDropdownRef}>
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.metrics')}
               </label>
               <Button
@@ -1305,7 +1305,7 @@ export default function EvaluationDashboard() {
                 />
               </Button>
               {metricsDropdownOpen && (
-                <div className="absolute z-50 mt-1 max-h-60 w-56 overflow-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <div className="absolute z-50 mt-1 max-h-60 w-56 overflow-auto rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
                   <button
                     type="button"
                     onClick={() =>
@@ -1318,14 +1318,14 @@ export default function EvaluationDashboard() {
                   <button
                     type="button"
                     onClick={() => setSelectedConfigIds([])}
-                    className="mb-2 w-full px-2 py-1 text-left text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                    className="mb-2 w-full px-2 py-1 text-left text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
                   >
                     {t('evaluation.viewer.filters.clearAll')}
                   </button>
                   {metricsWithStatus.map((metric) => (
                     <label
                       key={metric.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700"
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-700"
                     >
                       <input
                         type="checkbox"
@@ -1342,7 +1342,7 @@ export default function EvaluationDashboard() {
                             ])
                           }
                         }}
-                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="flex-1 truncate text-sm">
                         {metric.label}
@@ -1362,7 +1362,7 @@ export default function EvaluationDashboard() {
           {/* Aggregation Dropdown */}
           {selectedProject && (
             <div className="w-36">
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.aggregation')}
               </label>
               <AggregationSelector
@@ -1375,7 +1375,7 @@ export default function EvaluationDashboard() {
           {/* Statistics Methods */}
           {selectedProject && (
             <div className="w-32">
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.statistics')}
               </label>
               <StatisticsSelector
@@ -1388,7 +1388,7 @@ export default function EvaluationDashboard() {
           {/* View Type Selector - inline with dropdowns */}
           {selectedProject && (
             <div className="flex flex-col">
-              <label className="mb-1 block text-xs font-medium text-gray-500">
+              <label className="mb-1 block text-xs font-medium text-zinc-500">
                 {t('evaluation.viewer.filters.view')}
               </label>
               <ChartTypeSelector
@@ -1586,7 +1586,7 @@ export default function EvaluationDashboard() {
                     <div
                       key={`${s.metric}|${s.evaluation_config_id ?? 'none'}`}
                     >
-                      <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {s.display_name}
                       </h4>
                       <HistoricalTrendChart
@@ -1627,7 +1627,7 @@ export default function EvaluationDashboard() {
                   height={500}
                 />
               ) : !significanceError ? (
-                <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                <div className="py-8 text-center text-zinc-500 dark:text-zinc-400">
                   {t('evaluation.viewer.results.noSignificanceData')}
                 </div>
               ) : null}
@@ -1670,11 +1670,11 @@ export default function EvaluationDashboard() {
             !hasEvaluationResults &&
             !hasAnyConfiguration && (
               <Card className="p-12 text-center">
-                <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+                <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
+                <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-white">
                   {t('evaluation.viewer.emptyStates.notConfigured.title')}
                 </h3>
-                <p className="mt-2 text-gray-500 dark:text-gray-400">
+                <p className="mt-2 text-zinc-500 dark:text-zinc-400">
                   {t('evaluation.viewer.emptyStates.notConfigured.description')}
                 </p>
                 <Button
@@ -1694,11 +1694,11 @@ export default function EvaluationDashboard() {
       {/* No Project Selected */}
       {!selectedProject && !loading && (
         <Card className="p-12 text-center">
-          <ChartBarIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">
+          <ChartBarIcon className="mx-auto h-12 w-12 text-zinc-400" />
+          <h3 className="mt-4 text-lg font-medium text-zinc-900 dark:text-white">
             {t('evaluation.viewer.emptyStates.selectProject.title')}
           </h3>
-          <p className="mt-2 text-gray-500 dark:text-gray-400">
+          <p className="mt-2 text-zinc-500 dark:text-zinc-400">
             {t('evaluation.viewer.emptyStates.selectProject.description')}
           </p>
         </Card>

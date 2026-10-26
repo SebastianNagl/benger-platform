@@ -221,10 +221,10 @@ export function MetricSelector({
         {/* Header with selection count */}
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               {t('evaluation.metricSelector.selectMetrics')}
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               {t('evaluation.metricSelector.selectedCount', {
                 selected: selectedMetrics.length,
                 total: availableMetrics.length,
@@ -238,19 +238,19 @@ export function MetricSelector({
 
         {/* Search Input */}
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
           <input
             type="text"
             placeholder={t('evaluation.metricSelector.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white py-2 pr-4 pl-10 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500"
+            className="w-full rounded-md border border-zinc-300 bg-white py-2 pr-4 pl-10 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
           />
         </div>
 
         {/* Preset Selections */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('evaluation.metricSelector.quickPresets')}
           </label>
           <div className="flex flex-wrap gap-2">
@@ -279,24 +279,24 @@ export function MetricSelector({
               return (
                 <div
                   key={category.name}
-                  className="rounded-lg border border-gray-200 dark:border-gray-700"
+                  className="rounded-lg border border-zinc-200 dark:border-zinc-700"
                 >
                   {/* Category Header */}
                   <div
-                    className="dark:hover:bg-gray-750 flex cursor-pointer items-center justify-between bg-gray-50 px-4 py-3 hover:bg-gray-100 dark:bg-gray-800"
+                    className="flex cursor-pointer items-center justify-between bg-zinc-50 px-4 py-3 hover:bg-zinc-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
                     onClick={() => toggleCategory(category.name)}
                   >
                     <div className="flex items-center space-x-2">
                       {isExpanded ? (
-                        <ChevronDownIcon className="h-4 w-4 text-gray-500" />
+                        <ChevronDownIcon className="h-4 w-4 text-zinc-500" />
                       ) : (
-                        <ChevronRightIcon className="h-4 w-4 text-gray-500" />
+                        <ChevronRightIcon className="h-4 w-4 text-zinc-500" />
                       )}
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                           {metricGroupLabel(category, t)}
                         </h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           {metricGroupDescription(category, t)}
                         </p>
                       </div>
@@ -314,13 +314,13 @@ export function MetricSelector({
                         return (
                           <label
                             key={metric}
-                            className="flex cursor-pointer items-center space-x-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="flex cursor-pointer items-center space-x-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                           >
                             <Checkbox
                               checked={isSelected}
                               onChange={() => toggleMetric(metric)}
                             />
-                            <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <span className="flex-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                               {metric}
                             </span>
                           </label>
@@ -340,13 +340,13 @@ export function MetricSelector({
               return (
                 <label
                   key={metric}
-                  className="flex cursor-pointer items-center space-x-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex cursor-pointer items-center space-x-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                 >
                   <Checkbox
                     checked={isSelected}
                     onChange={() => toggleMetric(metric)}
                   />
-                  <span className="flex-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <span className="flex-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {metric}
                   </span>
                 </label>
@@ -357,7 +357,7 @@ export function MetricSelector({
 
         {/* No Results Message */}
         {allFilteredMetrics.length === 0 && (
-          <div className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
             {t('evaluation.metricSelector.noResults')}
           </div>
         )}

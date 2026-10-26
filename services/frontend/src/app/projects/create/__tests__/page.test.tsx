@@ -541,7 +541,7 @@ describe('Create Project Page', () => {
       render(<CreateProjectPage />)
 
       const button = screen.getByText('Back to Projects')
-      expect(button).toHaveClass('bg-emerald-600')
+      expect(button).toHaveClass('bg-zinc-900')
     })
 
     it('applies red color to error icon', () => {
@@ -564,7 +564,7 @@ describe('Create Project Page', () => {
       ;(canCreateProjects as jest.Mock).mockReturnValue(false)
 
       const { container } = render(<CreateProjectPage />)
-      const text = container.querySelector('.dark\\:text-gray-100')
+      const text = container.querySelector('.dark\\:text-zinc-100')
       expect(text).toBeInTheDocument()
     })
   })

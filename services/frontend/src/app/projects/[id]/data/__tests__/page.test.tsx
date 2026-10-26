@@ -233,7 +233,7 @@ describe('ProjectDataPage', () => {
       await waitFor(() => {
         const button = screen.getByText('projects.data.backToOverview')
         expect(button).toBeInTheDocument()
-        expect(button).toHaveClass('bg-emerald-600')
+        expect(button).toHaveClass('bg-zinc-900')
       })
     })
 

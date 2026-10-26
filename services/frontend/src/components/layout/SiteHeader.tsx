@@ -80,7 +80,7 @@ export function SiteHeader() {
               href={`/#${id}`}
               onClick={handleSectionClick(id)}
               className={clsx(
-                'rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                'rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
                 isHome && activeSection === id
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
                   : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white',

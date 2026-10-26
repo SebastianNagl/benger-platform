@@ -31,8 +31,8 @@ describe('JsonViewer Component', () => {
         'max-h-[600px]',
         'overflow-auto',
         'rounded-lg',
-        'bg-gray-50',
-        'dark:bg-gray-900',
+        'bg-zinc-50',
+        'dark:bg-zinc-900',
       )
     })
 
@@ -58,7 +58,7 @@ describe('JsonViewer Component', () => {
 
       const undefinedValue = screen.getByText('undefined')
       expect(undefinedValue).toBeInTheDocument()
-      expect(undefinedValue).toHaveClass('text-gray-500')
+      expect(undefinedValue).toHaveClass('text-zinc-500')
     })
   })
 
@@ -73,7 +73,7 @@ describe('JsonViewer Component', () => {
       render(<JsonViewer data="test" />)
 
       const stringValue = screen.getByText('"test"')
-      expect(stringValue).toHaveClass('text-green-600')
+      expect(stringValue).toHaveClass('text-emerald-600')
     })
 
     it('handles empty string', () => {

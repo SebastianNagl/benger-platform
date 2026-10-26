@@ -31,10 +31,10 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
 
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+      <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluationBuilder.parameters.temperature')}
         {constraints.temperature.fixed && (
-          <span className="ml-2 rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+          <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">
             {t('evaluationBuilder.validation.fixed', {
               value: constraints.temperature.fixedValue,
             })}
@@ -54,13 +54,13 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
         }
         className={`w-full rounded-md border px-3 py-2 text-sm ${
           constraints.temperature.fixed
-            ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700'
+            ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700'
             : ''
         } ${
           tempValidation.type === 'error'
             ? 'border-red-500 dark:border-red-400'
-            : 'border-gray-300 dark:border-gray-600'
-        } dark:bg-gray-800`}
+            : 'border-zinc-300 dark:border-zinc-600'
+        } dark:bg-zinc-800`}
       />
       {tempValidation.type && (
         <p
@@ -74,7 +74,7 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
         </p>
       )}
       {!tempValidation.type && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {constraints.temperature.fixed
             ? t('evaluationBuilder.validation.temperatureFixedDescription')
             : t('evaluationBuilder.parameters.temperatureRange', {
@@ -92,7 +92,7 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
                 <button
                   type="button"
                   onClick={() => onChange(recNumber)}
-                  className="ml-2 text-blue-600 hover:underline"
+                  className="ml-2 text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
                 >
                   {t('evaluationBuilder.parameters.resetToRecommended')}
                 </button>

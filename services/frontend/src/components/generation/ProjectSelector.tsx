@@ -220,7 +220,7 @@ export function ProjectSelector({
                             e.stopPropagation()
                             handleStatusPillNavigation(project.id)
                           }}
-                          className="inline-flex cursor-pointer items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 transition-colors hover:bg-blue-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none dark:bg-blue-900/50 dark:text-blue-200 dark:hover:bg-blue-900/70"
+                          className="inline-flex cursor-pointer items-center rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800 transition-colors hover:bg-zinc-200 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1 focus:outline-none dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                           aria-label={t(
                             'generation.projectSelector.openSettings',
                             {

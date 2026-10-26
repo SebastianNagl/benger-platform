@@ -1178,7 +1178,7 @@ describe('MetricParameterInput', () => {
         />,
       )
 
-      const wrapper = container.querySelector('.border-t.border-gray-200')
+      const wrapper = container.querySelector('.border-t.border-zinc-200')
       expect(wrapper).toBeInTheDocument()
     })
 
@@ -1192,7 +1192,7 @@ describe('MetricParameterInput', () => {
       )
 
       const button = screen.getByText('Show Advanced Parameters')
-      expect(button).toHaveClass('text-blue-600')
+      expect(button).toHaveClass('text-emerald-600')
     })
 
     it('should apply parameter section styling', async () => {
@@ -1207,7 +1207,7 @@ describe('MetricParameterInput', () => {
 
       await user.click(screen.getByText('Show Advanced Parameters'))
 
-      const section = container.querySelector('.rounded-md.bg-gray-50')
+      const section = container.querySelector('.rounded-md.bg-zinc-50')
       expect(section).toBeInTheDocument()
     })
 

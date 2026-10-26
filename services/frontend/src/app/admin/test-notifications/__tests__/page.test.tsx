@@ -667,7 +667,7 @@ describe('TestNotificationsPage', () => {
       const { container } = render(<TestNotificationsPage />)
 
       expect(container.querySelector('.text-blue-600')).toBeInTheDocument()
-      expect(container.querySelector('.text-green-600')).toBeInTheDocument()
+      expect(container.querySelector('.text-emerald-600')).toBeInTheDocument()
       expect(container.querySelector('.text-red-600')).toBeInTheDocument()
     })
   })

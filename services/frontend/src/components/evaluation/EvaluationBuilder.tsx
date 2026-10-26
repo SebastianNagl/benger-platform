@@ -185,7 +185,7 @@ export function EvaluationBuilder({
   const renderJudgeModelOptions = () => (
     <>
       {customJudges.length > 0 && officialJudges.length > 0 && (
-        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-gray-400 uppercase">
+        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
           {t('customModels.picker.officialSection')}
         </div>
       )}
@@ -195,7 +195,7 @@ export function EvaluationBuilder({
         </SelectItem>
       ))}
       {customJudges.length > 0 && (
-        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-gray-400 uppercase">
+        <div className="px-3 py-1 text-xs font-semibold tracking-wider text-zinc-400 uppercase">
           {t('customModels.picker.customSection')}
         </div>
       )}
@@ -691,10 +691,10 @@ export function EvaluationBuilder({
         const metricDef = getMetricDefinitions()[newEvaluation.metric]
         return (
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+            <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {t('evaluationBuilder.steps.parameters.title')}
             </h4>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-zinc-500">
               {t('evaluationBuilder.steps.parameters.descriptionWithMetric', {
                 metric: metricDef?.display_name || newEvaluation.metric,
               })}
@@ -744,10 +744,10 @@ export function EvaluationBuilder({
 
                 {/* Answer Type Override */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.answerType')}{' '}
                     {detectedAnswerType && (
-                      <span className="text-gray-400">
+                      <span className="text-zinc-400">
                         ({t('evaluationBuilder.parameters.autoDetected')})
                       </span>
                     )}
@@ -803,7 +803,7 @@ export function EvaluationBuilder({
 
                 {/* Judge Model Selection */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.judgeModel')}
                   </label>
                   <Select
@@ -871,7 +871,7 @@ export function EvaluationBuilder({
                     DEFAULT_MODEL_ID,
                 )?.type === 'budget' && (
                   <div>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.thinkingBudget')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                         {t('project.modelSelection.thinking')}
@@ -901,9 +901,9 @@ export function EvaluationBuilder({
                           },
                         }))
                       }
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'evaluationBuilder.parameters.thinkingBudgetDescription',
                       )}
@@ -917,7 +917,7 @@ export function EvaluationBuilder({
                     DEFAULT_MODEL_ID,
                 )?.type === 'effort' && (
                   <div>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.reasoningLevel')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                         {t('project.modelSelection.thinking')}
@@ -957,7 +957,7 @@ export function EvaluationBuilder({
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'evaluationBuilder.parameters.reasoningLevelDescription',
                       )}
@@ -1005,7 +1005,7 @@ export function EvaluationBuilder({
 
                 {/* Judge Model Selection */}
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.judgeModel')}
                   </label>
                   <Select
@@ -1073,7 +1073,7 @@ export function EvaluationBuilder({
                     DEFAULT_MODEL_ID,
                 )?.type === 'budget' && (
                   <div>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.thinkingBudget')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                         {t('project.modelSelection.thinking')}
@@ -1103,9 +1103,9 @@ export function EvaluationBuilder({
                           },
                         }))
                       }
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                     />
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'evaluationBuilder.parameters.thinkingBudgetDescription',
                       )}
@@ -1119,7 +1119,7 @@ export function EvaluationBuilder({
                     DEFAULT_MODEL_ID,
                 )?.type === 'effort' && (
                   <div>
-                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.reasoningLevel')}
                       <span className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
                         {t('project.modelSelection.thinking')}
@@ -1159,7 +1159,7 @@ export function EvaluationBuilder({
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
                         'evaluationBuilder.parameters.reasoningLevelDescription',
                       )}
@@ -1250,7 +1250,7 @@ export function EvaluationBuilder({
                     Record<string, CustomCriteriaDefinition> | undefined) || {},
                 ).some((d) => typeof d?.max_score === 'number') && (
                   <div>
-                    <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                    <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                       {t('evaluationBuilder.parameters.scoreScale')}
                     </label>
                     <Select
@@ -1288,7 +1288,7 @@ export function EvaluationBuilder({
                         </SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t('evaluationBuilder.parameters.scoreScaleDescription')}
                     </p>
                   </div>
@@ -1320,7 +1320,7 @@ export function EvaluationBuilder({
             ) : newEvaluation.metric === 'bleu' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.bleu.maxOrder')}
                   </label>
                   <Select
@@ -1361,7 +1361,7 @@ export function EvaluationBuilder({
                   </Select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.bleu.smoothing')}
                   </label>
                   <Select
@@ -1405,7 +1405,7 @@ export function EvaluationBuilder({
             ) : newEvaluation.metric === 'rouge' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.rouge.variant')}
                   </label>
                   <Select
@@ -1458,7 +1458,7 @@ export function EvaluationBuilder({
                       }))
                     }
                   />
-                  <label className="text-xs text-gray-700 dark:text-gray-300">
+                  <label className="text-xs text-zinc-700 dark:text-zinc-300">
                     {t('evaluationBuilder.parameters.rouge.useStemmer')}
                   </label>
                 </div>
@@ -1466,7 +1466,7 @@ export function EvaluationBuilder({
             ) : newEvaluation.metric === 'meteor' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.meteor.alpha')}:{' '}
                     {newEvaluation.metric_parameters.alpha || 0.9}
                   </label>
@@ -1489,7 +1489,7 @@ export function EvaluationBuilder({
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.meteor.beta')}:{' '}
                     {newEvaluation.metric_parameters.beta || 3.0}
                   </label>
@@ -1512,7 +1512,7 @@ export function EvaluationBuilder({
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.meteor.gamma')}:{' '}
                     {newEvaluation.metric_parameters.gamma || 0.5}
                   </label>
@@ -1538,7 +1538,7 @@ export function EvaluationBuilder({
             ) : newEvaluation.metric === 'chrf' ? (
               <div className="space-y-4">
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.chrf.charOrder')}
                   </label>
                   <Select
@@ -1572,7 +1572,7 @@ export function EvaluationBuilder({
                   </Select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.chrf.wordOrder')}
                   </label>
                   <Select
@@ -1616,7 +1616,7 @@ export function EvaluationBuilder({
                   </Select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                     {t('evaluation.metricParams.chrf.beta')}:{' '}
                     {newEvaluation.metric_parameters.beta || 2}
                   </label>
@@ -1641,7 +1641,7 @@ export function EvaluationBuilder({
               </div>
             ) : newEvaluation.metric === 'factcc' ? (
               <div>
-                <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   {t('evaluationBuilder.parameters.factcc.method')}
                 </label>
                 <Select
@@ -1702,7 +1702,7 @@ export function EvaluationBuilder({
                   )
                 }
                 return (
-                  <p className="py-4 text-xs text-gray-500 italic">
+                  <p className="py-4 text-xs text-zinc-500 italic">
                     {t('evaluationBuilder.parameters.defaultParameters')}
                   </p>
                 )
@@ -1723,7 +1723,7 @@ export function EvaluationBuilder({
             {/* Optional custom name. Placeholder shows the computed default so
                 the user sees exactly what they'll get if they leave it blank. */}
             <div>
-              <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+              <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {t('evaluationBuilder.name.label')}
               </label>
               <input
@@ -1738,10 +1738,10 @@ export function EvaluationBuilder({
                     display_name: e.target.value,
                   }))
                 }
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                 data-testid="evaluation-name-input"
               />
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {t('evaluationBuilder.name.hint')}
               </p>
             </div>
@@ -1779,7 +1779,7 @@ export function EvaluationBuilder({
 
       {/* Add New Wizard */}
       {isAddingNew && (
-        <div className="overflow-hidden rounded-lg border dark:border-gray-700">
+        <div className="overflow-hidden rounded-lg border dark:border-zinc-700">
           {/* Wizard Header */}
           <div
             className="flex items-center justify-between bg-emerald-50 px-4 py-3 dark:bg-emerald-900/30"
@@ -1816,7 +1816,7 @@ export function EvaluationBuilder({
 
           {/* Wizard Footer — Cancel on the far left, then Back; the
               primary forward action (Next / Add) sits on the right. */}
-          <div className="flex justify-between bg-gray-50 px-4 py-3 dark:bg-gray-800">
+          <div className="flex justify-between bg-zinc-50 px-4 py-3 dark:bg-zinc-800">
             <div className="flex gap-2">
               <Button
                 onClick={resetWizard}
@@ -1864,14 +1864,14 @@ export function EvaluationBuilder({
             return (
               <div
                 key={evaluation.id}
-                className={`rounded-lg border p-4 dark:border-gray-700 ${
+                className={`rounded-lg border p-4 dark:border-zinc-700 ${
                   !evaluation.enabled ? 'opacity-50' : ''
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex items-center gap-2">
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                      <span className="font-medium text-zinc-900 dark:text-zinc-100">
                         {evaluation.display_name ||
                           metricDef?.display_name ||
                           evaluation.metric}
@@ -1882,7 +1882,7 @@ export function EvaluationBuilder({
                         </Badge>
                       )}
                     </div>
-                    <div className="space-y-1 text-xs wrap-break-word text-gray-500">
+                    <div className="space-y-1 text-xs wrap-break-word text-zinc-500">
                       <div>
                         <span className="font-medium">
                           {t('evaluationBuilder.list.predictions')}
@@ -1914,7 +1914,7 @@ export function EvaluationBuilder({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleToggleEnabled(evaluation.id)}
-                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                       title={
                         evaluation.enabled
                           ? t('common.disable')
@@ -1928,14 +1928,14 @@ export function EvaluationBuilder({
                     </button>
                     <button
                       onClick={() => handleEditEvaluation(evaluation)}
-                      className="text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                      className="text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400"
                       title={t('common.edit')}
                     >
                       <PencilIcon className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleRemoveEvaluation(evaluation.id)}
-                      className="text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      className="text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
                       title={t('common.remove')}
                     >
                       <TrashIcon className="h-4 w-4" />
@@ -1947,7 +1947,7 @@ export function EvaluationBuilder({
           })}
         </div>
       ) : !isAddingNew ? (
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-8 text-center text-zinc-500">
           <p className="text-sm">{t('evaluationBuilder.emptyState.title')}</p>
           <p className="mt-1 text-xs">
             {t('evaluationBuilder.emptyState.description')}

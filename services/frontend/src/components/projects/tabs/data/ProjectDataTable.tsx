@@ -425,7 +425,7 @@ export function ProjectDataTable({
                               <span
                                 className={`text-sm ${
                                   task.total_generations > 0
-                                    ? 'cursor-pointer font-medium text-blue-600 hover:underline dark:text-blue-400'
+                                    ? 'cursor-pointer font-medium text-emerald-600 hover:underline dark:text-emerald-400'
                                     : 'text-zinc-500 dark:text-zinc-400'
                                 }`}
                                 title={

@@ -39,12 +39,12 @@ export function JsonViewer({
       return <span className="text-orange-600">null</span>
     }
     if (value === undefined) {
-      return <span className="text-gray-500">undefined</span>
+      return <span className="text-zinc-500">undefined</span>
     }
 
     // Handle primitives
     if (typeof value === 'string') {
-      return <span className="text-green-600">"{value}"</span>
+      return <span className="text-emerald-600">"{value}"</span>
     }
     if (typeof value === 'number') {
       return <span className="text-blue-600">{value}</span>
@@ -58,13 +58,13 @@ export function JsonViewer({
       const isExpanded = expandedNodes.has(path) || (expanded && depth < 2)
 
       if (value.length === 0) {
-        return <span className="text-gray-600">[]</span>
+        return <span className="text-zinc-600">[]</span>
       }
 
       // Simple array of primitives - inline display
       if (value.every((item) => typeof item !== 'object' || item === null)) {
         return (
-          <span className="text-gray-600">
+          <span className="text-zinc-600">
             [
             {value.map((item, i) => (
               <span key={i}>
@@ -82,7 +82,7 @@ export function JsonViewer({
         <span>
           <button
             onClick={() => toggleNode(path)}
-            className="text-gray-600 hover:text-gray-800 focus:outline-none"
+            className="text-zinc-600 hover:text-zinc-800 focus:outline-none"
           >
             {isExpanded ? (
               <ChevronDownIcon className="inline h-3 w-3" />
@@ -95,7 +95,7 @@ export function JsonViewer({
             <div className="mt-1 ml-4">
               {value.map((item, i) => (
                 <div key={i} className="my-1">
-                  <span className="mr-2 text-gray-500">{i}:</span>
+                  <span className="mr-2 text-zinc-500">{i}:</span>
                   {renderValue(item, `${path}[${i}]`)}
                 </div>
               ))}
@@ -111,14 +111,14 @@ export function JsonViewer({
       const isExpanded = expandedNodes.has(path) || (expanded && depth < 2)
 
       if (keys.length === 0) {
-        return <span className="text-gray-600">{'{}'}</span>
+        return <span className="text-zinc-600">{'{}'}</span>
       }
 
       return (
         <span>
           <button
             onClick={() => toggleNode(path)}
-            className="text-gray-600 hover:text-gray-800 focus:outline-none"
+            className="text-zinc-600 hover:text-zinc-800 focus:outline-none"
           >
             {isExpanded ? (
               <ChevronDownIcon className="inline h-3 w-3" />
@@ -131,7 +131,7 @@ export function JsonViewer({
             <div className="mt-1 ml-4">
               {keys.map((key) => (
                 <div key={key} className="my-1">
-                  <span className="font-medium text-gray-700">{key}:</span>{' '}
+                  <span className="font-medium text-zinc-700">{key}:</span>{' '}
                   {renderValue(value[key], `${path}.${key}`)}
                 </div>
               ))}
@@ -142,11 +142,11 @@ export function JsonViewer({
     }
 
     // Fallback for unknown types
-    return <span className="text-gray-500">{String(value)}</span>
+    return <span className="text-zinc-500">{String(value)}</span>
   }
 
   return (
-    <div className="max-h-[600px] overflow-auto rounded-lg bg-gray-50 p-4 font-mono text-sm dark:bg-gray-900">
+    <div className="max-h-[600px] overflow-auto rounded-lg bg-zinc-50 p-4 font-mono text-sm dark:bg-zinc-900">
       {renderValue(data)}
     </div>
   )

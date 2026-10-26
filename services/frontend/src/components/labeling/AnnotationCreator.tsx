@@ -80,13 +80,13 @@ export function AnnotationCreator({
   return (
     <div className="annotation-creator">
       {/* Status Bar */}
-      <div className="mb-4 flex items-center justify-between rounded-lg bg-gray-50 px-4 py-2 text-sm dark:bg-gray-800">
+      <div className="mb-4 flex items-center justify-between rounded-lg bg-zinc-50 px-4 py-2 text-sm dark:bg-zinc-800">
         <div className="flex items-center gap-4">
-          <span className="text-gray-600 dark:text-gray-400">
+          <span className="text-zinc-600 dark:text-zinc-400">
             {t('labeling.annotationCreator.taskLabel')} #{task.id}
           </span>
           {isSaving && (
-            <span className="text-gray-500">
+            <span className="text-zinc-500">
               {t('labeling.annotationCreator.saving')}
             </span>
           )}
@@ -113,7 +113,7 @@ export function AnnotationCreator({
       </div>
 
       {/* Info text */}
-      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">
         <p>{t('labeling.annotationCreator.autoSaveInfo')}</p>
       </div>
     </div>

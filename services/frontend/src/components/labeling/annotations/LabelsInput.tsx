@@ -30,7 +30,7 @@ export default function LabelsInput({
     .filter((child) => child.type === 'Label')
     .map((child) => ({
       value: child.props.value || child.props.content || '',
-      background: child.props.background || '#e5e7eb',
+      background: child.props.background || '#e4e4e7',
       selected: child.props.selected === 'true',
     }))
 

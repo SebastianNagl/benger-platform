@@ -81,7 +81,7 @@ describe('Label Component', () => {
       render(<Label>Colored Label</Label>)
 
       const label = screen.getByText('Colored Label')
-      expect(label).toHaveClass('text-gray-700')
+      expect(label).toHaveClass('text-zinc-700')
     })
 
     it('applies custom className', () => {
@@ -472,22 +472,22 @@ describe('Label Component', () => {
       render(<Label>Dark Mode Label</Label>)
 
       const label = screen.getByText('Dark Mode Label')
-      expect(label).toHaveClass('dark:text-gray-300')
+      expect(label).toHaveClass('dark:text-zinc-300')
     })
 
     it('applies both light and dark mode classes', () => {
       render(<Label>Dual Mode Label</Label>)
 
       const label = screen.getByText('Dual Mode Label')
-      expect(label).toHaveClass('text-gray-700')
-      expect(label).toHaveClass('dark:text-gray-300')
+      expect(label).toHaveClass('text-zinc-700')
+      expect(label).toHaveClass('dark:text-zinc-300')
     })
 
     it('preserves dark mode classes with custom className', () => {
       render(<Label className="custom-class">Custom Dark</Label>)
 
       const label = screen.getByText('Custom Dark')
-      expect(label).toHaveClass('dark:text-gray-300')
+      expect(label).toHaveClass('dark:text-zinc-300')
       expect(label).toHaveClass('custom-class')
     })
 

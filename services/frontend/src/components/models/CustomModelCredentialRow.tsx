@@ -217,7 +217,7 @@ export function CustomModelCredentialRow({
       {!requiresApiKey ? (
         <div className="space-y-3">
           <div
-            className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-400"
+            className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
             data-testid="credential-no-key-required"
           >
             {t('customModels.credential.noKeyRequired')}
@@ -230,7 +230,7 @@ export function CustomModelCredentialRow({
               variant="outline"
               onClick={testConnection}
               disabled={testLoading}
-              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+              className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
               data-testid="credential-test-button"
             >
               {testLoading
@@ -248,7 +248,7 @@ export function CustomModelCredentialRow({
               variant="outline"
               onClick={testConnection}
               disabled={testLoading || loading}
-              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+              className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
               data-testid="credential-test-button"
             >
               {testLoading
@@ -312,7 +312,7 @@ export function CustomModelCredentialRow({
               variant="outline"
               onClick={testConnection}
               disabled={testLoading || loading || !newApiKey.trim()}
-              className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+              className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
               data-testid="credential-test-button"
             >
               {testLoading

@@ -151,7 +151,7 @@ describe('HeroSection', () => {
       render(<HeroSection />)
 
       const ctaButton = screen.getByText('Get Started')
-      expect(ctaButton).toHaveClass('bg-emerald-600')
+      expect(ctaButton).toHaveClass('bg-zinc-900')
       expect(ctaButton).toHaveClass('px-12', 'py-4', 'sm:px-16', 'sm:py-5')
       expect(ctaButton).toHaveClass('text-xl', 'sm:text-2xl')
     })

@@ -188,7 +188,7 @@ function FieldBadge({ field, copied, onCopy }: FieldBadgeProps) {
     <button
       onClick={onCopy}
       className={clsx(
-        'group relative inline-flex items-center gap-1 rounded-md border px-2 py-1 font-mono text-xs transition-colors',
+        'group relative inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-xs transition-colors',
         copied
           ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:border-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400'
           : 'border-zinc-300 bg-white text-zinc-700 hover:border-emerald-400 hover:bg-emerald-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/20',

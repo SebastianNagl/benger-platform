@@ -1,6 +1,6 @@
 'use client'
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '@/components/shared/Badge'
 import { useI18n } from '@/contexts/I18nContext'
 import type { InvitationDetails } from '@/lib/api/invitations'
 import { intlTag } from '@/lib/i18n/locales'

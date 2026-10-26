@@ -67,7 +67,7 @@ export default function UsersOrganizationsPage() {
     return (
       <ResponsiveContainer>
         <div className="flex h-64 items-center justify-center">
-          <div className="text-gray-500">{t('auth.guard.loading')}</div>
+          <div className="text-zinc-500">{t('auth.guard.loading')}</div>
         </div>
       </ResponsiveContainer>
     )
@@ -130,32 +130,32 @@ export default function UsersOrganizationsPage() {
               router.push(`/users-organizations?${params.toString()}`)
             }}
           >
-            <div className="border-b border-zinc-200 dark:border-zinc-700">
-              <TabList className="-mb-px flex space-x-8">
+            <div>
+              <TabList className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                 {canAccessGlobalUsers && (
                   <Tab
                     className={({ selected }) =>
-                      `flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition ${
+                      `flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         selected
-                          ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                          : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                          ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                       }`
                     }
                   >
-                    <UserGroupIcon className="h-5 w-5" />
+                    <UserGroupIcon className="h-4 w-4" />
                     {t('admin.globalUsers')}
                   </Tab>
                 )}
                 <Tab
                   className={({ selected }) =>
-                    `flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition ${
+                    `flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                       selected
-                        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                        : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                     }`
                   }
                 >
-                  <BuildingOfficeIcon className="h-5 w-5" />
+                  <BuildingOfficeIcon className="h-4 w-4" />
                   {t('admin.organizations.tabLabel')}
                 </Tab>
               </TabList>

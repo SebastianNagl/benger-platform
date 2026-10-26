@@ -737,7 +737,7 @@ export default function EvaluationDashboard({
           onValueChange={(value) => setActiveTab(value as TabId)}
           className="mb-6"
         >
-          <TabsList className="h-auto flex-wrap justify-start">
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             {tabs
               .filter((tab) => !tab.hidden)
               .map((tab) => (

@@ -57,7 +57,7 @@ export const providerColors: Record<string, string> = {
   Google: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   DeepInfra:
     'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  Grok: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+  Grok: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200',
   Mistral:
     'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   Cohere: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
@@ -217,7 +217,7 @@ export function ModelSelectionSection({
                                 )}
                                 {model.is_official === false && <CustomBadge />}
                                 <span
-                                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${providerColors[model.provider] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}
+                                  className={`inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium ${providerColors[model.provider] || 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200'}`}
                                 >
                                   {model.provider}
                                 </span>

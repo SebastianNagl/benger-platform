@@ -84,7 +84,7 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
     const lockedCb = entryCheckbox(/Locked Llama/)
     expect(lockedCb).toBeDisabled()
     expect(lockedCb).not.toBeChecked()
-    expect(screen.getByText(/Locked Llama/)).toHaveClass('text-gray-400')
+    expect(screen.getByText(/Locked Llama/)).toHaveClass('text-zinc-400')
 
     // Amber hint below the locked entry, linking to the key settings page.
     expect(
@@ -98,7 +98,7 @@ describe('JudgeEnsembleControl — BYOM credential gating', () => {
     // Official (non-primary) and credentialed custom stay enabled…
     expect(entryCheckbox(/Claude Sonnet 4/)).not.toBeDisabled()
     expect(entryCheckbox(/Keyed Llama/)).not.toBeDisabled()
-    expect(screen.getByText(/Keyed Llama/)).not.toHaveClass('text-gray-400')
+    expect(screen.getByText(/Keyed Llama/)).not.toHaveClass('text-zinc-400')
 
     // …and the primary judge is not offered as an additional judge.
     expect(screen.queryByText(/GPT-4o/)).not.toBeInTheDocument()

@@ -183,7 +183,7 @@ describe('DateField Component', () => {
       render(<DateField {...defaultProps} readonly={true} />)
 
       const input = screen.getByDisplayValue('')
-      expect(input).toHaveClass('bg-gray-50', 'dark:bg-gray-800')
+      expect(input).toHaveClass('bg-zinc-50', 'dark:bg-zinc-800')
     })
   })
 

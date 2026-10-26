@@ -370,7 +370,7 @@ describe('GenerationResultModal Component', () => {
       )
 
       const statusBadge = screen.getByText('completed')
-      expect(statusBadge).toHaveClass('bg-green-100', 'text-green-800')
+      expect(statusBadge).toHaveClass('bg-emerald-100', 'text-emerald-800')
     })
 
     it('displays failed status with red badge', () => {
@@ -400,7 +400,7 @@ describe('GenerationResultModal Component', () => {
       )
 
       const statusBadge = screen.getByText('running')
-      expect(statusBadge).toHaveClass('bg-yellow-100', 'text-yellow-800')
+      expect(statusBadge).toHaveClass('bg-amber-100', 'text-amber-800')
     })
 
     it('displays pending status with gray badge', () => {
@@ -415,7 +415,7 @@ describe('GenerationResultModal Component', () => {
       )
 
       const statusBadge = screen.getByText('pending')
-      expect(statusBadge).toHaveClass('bg-gray-100', 'text-gray-800')
+      expect(statusBadge).toHaveClass('bg-zinc-100', 'text-zinc-800')
     })
   })
 
@@ -957,7 +957,7 @@ describe('GenerationResultModal Component', () => {
       )
 
       const runningText = screen.getByText(/Generation is currently running/)
-      expect(runningText.closest('div')).toHaveClass('bg-yellow-50')
+      expect(runningText.closest('div')).toHaveClass('bg-amber-50')
     })
   })
 
@@ -988,7 +988,7 @@ describe('GenerationResultModal Component', () => {
       )
 
       const pendingText = screen.getByText(/Generation is queued/)
-      expect(pendingText.closest('div')).toHaveClass('bg-gray-50')
+      expect(pendingText.closest('div')).toHaveClass('bg-zinc-50')
     })
   })
 

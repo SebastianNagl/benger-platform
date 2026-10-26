@@ -177,7 +177,7 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} value={highlights} />)
 
       const highlightedText = screen.getByText('This')
-      expect(highlightedText).toHaveClass('bg-yellow-200')
+      expect(highlightedText).toHaveClass('bg-amber-200')
     })
 
     it('displays multiple highlights', () => {
@@ -188,7 +188,7 @@ describe('HighlightField', () => {
 
       render(<HighlightField {...defaultProps} value={highlights} />)
 
-      const highlightElements = document.querySelectorAll('.bg-yellow-200')
+      const highlightElements = document.querySelectorAll('.bg-amber-200')
       expect(highlightElements).toHaveLength(2)
     })
 
@@ -200,7 +200,7 @@ describe('HighlightField', () => {
 
       render(<HighlightField {...defaultProps} value={highlights} />)
 
-      const highlightElements = document.querySelectorAll('.bg-yellow-200')
+      const highlightElements = document.querySelectorAll('.bg-amber-200')
       // Text content includes any child elements like remove buttons
       expect(highlightElements[0].textContent).toContain('This')
       expect(highlightElements[1].textContent).toContain('sample')
@@ -332,14 +332,14 @@ describe('HighlightField', () => {
       render(<HighlightField {...defaultProps} readonly={true} />)
 
       const container = document.getElementById('highlight-highlights')
-      expect(container).toHaveClass('bg-gray-50', 'dark:bg-gray-800')
+      expect(container).toHaveClass('bg-zinc-50', 'dark:bg-zinc-800')
     })
 
     it('applies editable styles', () => {
       render(<HighlightField {...defaultProps} readonly={false} />)
 
       const container = document.getElementById('highlight-highlights')
-      expect(container).toHaveClass('bg-white', 'dark:bg-gray-700')
+      expect(container).toHaveClass('bg-white', 'dark:bg-zinc-700')
     })
 
     it('shows hover tooltip on highlighted text', () => {
@@ -431,7 +431,7 @@ describe('HighlightField', () => {
 
       render(<HighlightField {...defaultProps} value={highlights} />)
 
-      const highlightElements = document.querySelectorAll('.bg-yellow-200')
+      const highlightElements = document.querySelectorAll('.bg-amber-200')
       expect(highlightElements.length).toBeGreaterThanOrEqual(1)
     })
 
@@ -442,7 +442,7 @@ describe('HighlightField', () => {
 
       render(<HighlightField {...defaultProps} value={highlights} />)
 
-      expect(screen.getByText('purposes.')).toHaveClass('bg-yellow-200')
+      expect(screen.getByText('purposes.')).toHaveClass('bg-amber-200')
     })
 
     it('handles highlight at start of text', () => {
@@ -452,7 +452,7 @@ describe('HighlightField', () => {
 
       render(<HighlightField {...defaultProps} value={highlights} />)
 
-      const highlightElements = document.querySelectorAll('.bg-yellow-200')
+      const highlightElements = document.querySelectorAll('.bg-amber-200')
       // Text content includes any child elements like remove buttons
       expect(highlightElements[0].textContent).toContain('This')
     })

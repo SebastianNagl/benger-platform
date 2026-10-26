@@ -33,7 +33,7 @@ export function CheckboxField({
   if (choices.length === 0) {
     return (
       <FieldWrapper field={field} errors={errors} className={className}>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('fields.noChoices')}
         </div>
       </FieldWrapper>
@@ -50,12 +50,12 @@ export function CheckboxField({
           >
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600"
+              className="h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
               checked={selectedValues.includes(choice)}
               onChange={(e) => handleChange(choice, e.target.checked)}
               disabled={readonly}
             />
-            <span className="ml-3 text-sm text-gray-700 dark:text-gray-300">
+            <span className="ml-3 text-sm text-zinc-700 dark:text-zinc-300">
               {choice}
             </span>
           </label>

@@ -12,7 +12,7 @@ export function Label({ htmlFor, children, className }: LabelProps) {
     <label
       htmlFor={htmlFor}
       className={clsx(
-        'mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300',
+        'mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300',
         className,
       )}
     >

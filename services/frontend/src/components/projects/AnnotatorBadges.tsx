@@ -31,7 +31,7 @@ function getUserColor(userId: string): string {
   const colors = [
     'bg-purple-200 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300',
     'bg-blue-200 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300',
-    'bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300',
+    'bg-emerald-200 text-emerald-800 dark:bg-emerald-800/30 dark:text-emerald-300',
     'bg-pink-200 text-pink-800 dark:bg-pink-800/30 dark:text-pink-300',
     'bg-amber-200 text-amber-800 dark:bg-amber-800/30 dark:text-amber-300',
     'bg-indigo-200 text-indigo-800 dark:bg-indigo-800/30 dark:text-indigo-300',
@@ -82,7 +82,7 @@ function getStatusIndicator(status?: string) {
     case 'in_progress':
       return (
         <div className="absolute -right-0.5 -bottom-0.5 flex h-3 w-3 items-center justify-center rounded-full bg-white dark:bg-zinc-900">
-          <div className="h-2 w-2 animate-pulse rounded-full bg-yellow-500" />
+          <div className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
         </div>
       )
     case 'skipped':

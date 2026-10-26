@@ -106,8 +106,8 @@ describe('CheckboxField Component', () => {
       expect(description).toBeInTheDocument()
       expect(description).toHaveClass(
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
 
@@ -144,8 +144,8 @@ describe('CheckboxField Component', () => {
       expect(noChoicesMessage).toBeInTheDocument()
       expect(noChoicesMessage).toHaveClass(
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
 
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
@@ -453,11 +453,11 @@ describe('CheckboxField Component', () => {
         expect(checkbox).toHaveClass(
           'h-4',
           'w-4',
-          'text-blue-600',
-          'border-gray-300',
-          'dark:border-gray-600',
+          'text-emerald-600',
+          'border-zinc-300',
+          'dark:border-zinc-600',
           'rounded',
-          'focus:ring-blue-500',
+          'focus:ring-emerald-500',
         )
       })
     })
@@ -469,8 +469,8 @@ describe('CheckboxField Component', () => {
       expect(firstChoiceSpan).toHaveClass(
         'ml-3',
         'text-sm',
-        'text-gray-700',
-        'dark:text-gray-300',
+        'text-zinc-700',
+        'dark:text-zinc-300',
       )
     })
 

@@ -141,9 +141,9 @@ export function AggregationSelector({
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
           {/* Select all / Reset options */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-700">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-700">
             <button
               type="button"
               onClick={selectAll}
@@ -154,7 +154,7 @@ export function AggregationSelector({
             <button
               type="button"
               onClick={() => onChange(['model'])}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300"
             >
               {t('evaluation.aggregation.reset')}
             </button>
@@ -171,7 +171,7 @@ export function AggregationSelector({
                   key={option.id}
                   type="button"
                   onClick={() => toggleLevel(option.id)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                  className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 ${
                     isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''
                   }`}
                 >
@@ -180,7 +180,7 @@ export function AggregationSelector({
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-500'
-                        : 'border-gray-300 dark:border-gray-600'
+                        : 'border-zinc-300 dark:border-zinc-600'
                     }`}
                   >
                     {isSelected && <CheckIcon className="h-3 w-3 text-white" />}
@@ -191,7 +191,7 @@ export function AggregationSelector({
                     className={`h-5 w-5 shrink-0 ${
                       isSelected
                         ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-gray-400 dark:text-gray-500'
+                        : 'text-zinc-400 dark:text-zinc-500'
                     }`}
                   />
 
@@ -201,12 +201,12 @@ export function AggregationSelector({
                       className={`text-sm font-medium ${
                         isSelected
                           ? 'text-emerald-700 dark:text-emerald-300'
-                          : 'text-gray-700 dark:text-gray-300'
+                          : 'text-zinc-700 dark:text-zinc-300'
                       }`}
                     >
                       {option.label}
                     </div>
-                    <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    <div className="truncate text-xs text-zinc-500 dark:text-zinc-400">
                       {option.description}
                     </div>
                   </div>
@@ -216,7 +216,7 @@ export function AggregationSelector({
           </div>
 
           {/* Selected count */}
-          <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             {t('evaluation.aggregation.selectedCount', {
               selected: levels.length,
               total: options.length,

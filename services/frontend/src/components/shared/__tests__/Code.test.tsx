@@ -1184,7 +1184,7 @@ line3`}</Code>
       expect(title).toHaveClass('mr-auto', 'pt-3', 'text-xs')
     })
 
-    it('applies responsive gap classes to tab list', () => {
+    it('renders the tab list as a pill-shaped segmented track', () => {
       const { container } = render(
         <CodeGroup title="">
           <Pre language="js">
@@ -1197,7 +1197,7 @@ line3`}</Code>
       )
 
       const tabList = container.querySelector('[role="tablist"]')
-      expect(tabList).toHaveClass('gap-4')
+      expect(tabList).toHaveClass('rounded-full', 'gap-0.5')
     })
   })
 

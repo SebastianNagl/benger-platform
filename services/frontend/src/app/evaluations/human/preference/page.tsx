@@ -244,11 +244,11 @@ export default function PreferenceEvaluation() {
       <>
         <div className="container mx-auto max-w-4xl px-4 py-8">
           <Card className="p-8 text-center">
-            <CheckCircleIcon className="mx-auto mb-4 h-16 w-16 text-green-500" />
+            <CheckCircleIcon className="mx-auto mb-4 h-16 w-16 text-emerald-500" />
             <h2 className="mb-2 text-2xl font-bold">
               {t('evaluation.human.preference.complete')}
             </h2>
-            <p className="mb-6 text-gray-600">
+            <p className="mb-6 text-zinc-600 dark:text-zinc-400">
               {t('evaluation.human.preference.completionDescription')}
             </p>
             <div className="mb-6 space-y-2">
@@ -284,7 +284,7 @@ export default function PreferenceEvaluation() {
               <h1 className="text-2xl font-bold">
                 {t('evaluation.human.preference.title')}
               </h1>
-              <div className="mt-1 flex items-center text-sm text-gray-600">
+              <div className="mt-1 flex items-center text-sm text-zinc-600 dark:text-zinc-400">
                 <EyeSlashIcon className="mr-1 h-4 w-4" />
                 <span>{t('evaluation.human.preference.description')}</span>
               </div>
@@ -299,16 +299,16 @@ export default function PreferenceEvaluation() {
           </div>
           {session && (
             <div>
-              <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+              <div className="mb-2 flex items-center justify-between text-sm text-zinc-600 dark:text-zinc-400">
                 <span>{session.project_name}</span>
                 <span>
                   {t('evaluation.human.preference.progress')}:{' '}
                   {session.evaluated_items + 1} / {session.total_items}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
+              <div className="h-2 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
                 <div
-                  className="h-2 rounded-full bg-blue-600 transition-all"
+                  className="h-2 rounded-full bg-emerald-600 transition-all"
                   style={{
                     width: `${((session.evaluated_items + 1) / session.total_items) * 100}%`,
                   }}
@@ -323,7 +323,7 @@ export default function PreferenceEvaluation() {
           <h3 className="mb-3 font-medium">
             {t('evaluations.human.preference.task')}
           </h3>
-          <div className="rounded-lg bg-gray-50 p-4">
+          <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
             <pre className="text-sm whitespace-pre-wrap">
               {currentItem && JSON.stringify(currentItem.task_data, null, 2)}
             </pre>
@@ -337,9 +337,9 @@ export default function PreferenceEvaluation() {
               key={response.id}
               className={`cursor-pointer p-6 transition-all ${
                 selectedWinner === response.id
-                  ? 'bg-green-50 ring-2 ring-green-500'
+                  ? 'bg-emerald-50 ring-2 ring-emerald-500 dark:bg-emerald-900/20'
                   : isTie
-                    ? 'bg-blue-50 ring-2 ring-blue-500'
+                    ? 'bg-emerald-50 ring-2 ring-emerald-500 dark:bg-emerald-900/20'
                     : 'hover:shadow-lg'
               }`}
               onClick={() => !isTie && selectWinner(response.id)}
@@ -349,11 +349,11 @@ export default function PreferenceEvaluation() {
                   {response.anonymized_id}
                 </Badge>
                 {selectedWinner === response.id && (
-                  <TrophyIcon className="h-6 w-6 text-green-500" />
+                  <TrophyIcon className="h-6 w-6 text-emerald-500" />
                 )}
-                {isTie && <EqualsIcon className="h-6 w-6 text-blue-500" />}
+                {isTie && <EqualsIcon className="h-6 w-6 text-emerald-500" />}
               </div>
-              <div className="rounded-lg border bg-white p-4">
+              <div className="rounded-lg border bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
                 <p className="text-sm whitespace-pre-wrap">
                   {response.content}
                 </p>
@@ -380,7 +380,7 @@ export default function PreferenceEvaluation() {
           </div>
 
           {selectedWinner && !isTie && (
-            <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-zinc-700 dark:bg-emerald-900/20">
               <p className="text-sm">
                 <span className="font-medium">
                   {t('evaluation.human.preference.prefer')}:
@@ -394,7 +394,7 @@ export default function PreferenceEvaluation() {
           )}
 
           {isTie && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-sm">
                 {t('evaluation.human.preference.equalDescription')}
               </p>
@@ -402,8 +402,8 @@ export default function PreferenceEvaluation() {
           )}
 
           {!selectedWinner && !isTie && (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm text-gray-600">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                 {t('evaluation.human.preference.instructions')}
               </p>
             </div>
@@ -440,11 +440,11 @@ export default function PreferenceEvaluation() {
         </div>
 
         {/* Instructions */}
-        <Card className="border-yellow-200 bg-yellow-50 p-4">
+        <Card className="border-amber-200 bg-amber-50 p-4 dark:bg-amber-900/20">
           <h4 className="mb-2 text-sm font-medium">
             {t('evaluations.human.preference.guidelines')}
           </h4>
-          <ul className="space-y-1 text-xs text-gray-600">
+          <ul className="space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
             <li>• {t('evaluations.human.preference.guidelineAnonymized')}</li>
             <li>• {t('evaluations.human.preference.guidelineClick')}</li>
             <li>• {t('evaluations.human.preference.guidelineConsider')}</li>
@@ -455,7 +455,7 @@ export default function PreferenceEvaluation() {
 
         {/* Model Identity Reveal (if enabled) */}
         {revealIdentities && currentItem && (
-          <Card className="mt-4 border-purple-200 bg-purple-50 p-4">
+          <Card className="mt-4 border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
             <h4 className="mb-2 text-sm font-medium">
               {t('evaluations.human.preference.modelIdentities')}
             </h4>

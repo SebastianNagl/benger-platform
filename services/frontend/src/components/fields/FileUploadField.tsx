@@ -68,13 +68,13 @@ export function FileUploadField({
   return (
     <FieldWrapper field={field} errors={errors} className={className}>
       {!currentFile ? (
-        <div className="flex justify-center rounded-md border-2 border-dashed border-gray-300 px-6 pt-5 pb-6 dark:border-gray-600">
+        <div className="flex justify-center rounded-md border-2 border-dashed border-zinc-300 px-6 pt-5 pb-6 dark:border-zinc-600">
           <div className="space-y-1 text-center">
-            <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <div className="flex text-sm text-gray-600 dark:text-gray-400">
+            <CloudArrowUpIcon className="mx-auto h-12 w-12 text-zinc-400" />
+            <div className="flex text-sm text-zinc-600 dark:text-zinc-400">
               <label
                 htmlFor={field.name}
-                className={`relative cursor-pointer rounded-md font-medium text-blue-600 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 focus-within:outline-none hover:text-blue-500 ${
+                className={`relative cursor-pointer rounded-md font-medium text-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2 focus-within:outline-none hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 ${
                   readonly ? 'cursor-not-allowed opacity-50' : ''
                 }`}
               >
@@ -92,20 +92,20 @@ export function FileUploadField({
               </label>
               <p className="pl-1">{t('labeling.fileUpload.orDragAndDrop')}</p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
               {field.metadata?.accept || t('labeling.fileUpload.anyFileType')}
             </p>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between rounded-md border border-gray-300 p-4 dark:border-gray-600">
+        <div className="flex items-center justify-between rounded-md border border-zinc-300 p-4 dark:border-zinc-600">
           <div className="flex items-center space-x-3">
-            <DocumentIcon className="h-8 w-8 text-gray-400" />
+            <DocumentIcon className="h-8 w-8 text-zinc-400" />
             <div>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {currentFile.name}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {formatFileSize(currentFile.size)}
               </p>
             </div>

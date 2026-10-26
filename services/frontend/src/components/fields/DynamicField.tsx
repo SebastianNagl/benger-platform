@@ -3,8 +3,8 @@
  * Issue #220: Support flexible data display without hardcoded field names
  */
 
-import { Badge } from '@/components/ui/badge'
-import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/shared/Badge'
+import { Card } from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { cn } from '@/lib/utils'
 import { formatValue } from '@/lib/utils/fieldPath'
@@ -51,7 +51,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
       return (
         <div className={cn('flex items-center gap-2', className)}>
           {field.label && (
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
               {field.label}:
             </span>
           )}
@@ -65,7 +65,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
       return (
         <div className={cn('space-y-1', className)}>
           {field.label && <p className="text-sm font-medium">{field.label}</p>}
-          <pre className="bg-muted overflow-x-auto rounded-md p-3 text-sm">
+          <pre className="overflow-x-auto rounded-md bg-zinc-100 p-3 text-sm dark:bg-zinc-800">
             <code>{displayValue}</code>
           </pre>
         </div>
@@ -75,7 +75,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
       return (
         <div className={cn('flex items-center gap-2', className)}>
           {field.label && (
-            <span className="text-muted-foreground text-sm">
+            <span className="text-sm text-zinc-500 dark:text-zinc-400">
               {field.label}:
             </span>
           )}
@@ -127,7 +127,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
             {field.label && (
               <p className="text-sm font-medium">{field.label}</p>
             )}
-            <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+            <p className="text-sm whitespace-pre-wrap text-zinc-500 dark:text-zinc-400">
               {displayValue}
             </p>
           </div>
@@ -138,7 +138,7 @@ export function DynamicField({ field, value, className }: DynamicFieldProps) {
       return (
         <div className={cn('flex items-baseline gap-2', className)}>
           {field.label && (
-            <span className="text-muted-foreground text-sm font-medium">
+            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
               {field.label}:
             </span>
           )}

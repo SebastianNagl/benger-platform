@@ -485,9 +485,9 @@ export default function SpanLabelsInput({
                     <span
                       className="rounded-full px-2.5 py-0.5 text-xs font-medium"
                       style={{
-                        backgroundColor: labelConfig?.background || '#e5e7eb',
+                        backgroundColor: labelConfig?.background || '#e4e4e7',
                         color: getContrastColor(
-                          labelConfig?.background || '#e5e7eb',
+                          labelConfig?.background || '#e4e4e7',
                         ),
                       }}
                     >

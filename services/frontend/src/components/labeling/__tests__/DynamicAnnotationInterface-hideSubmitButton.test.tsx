@@ -216,7 +216,7 @@ describe('DynamicAnnotationInterface hideSubmitButton Integration', () => {
     expect(submitButtons.length).toBe(1)
 
     // The main interface submit button should have emerald styling
-    expect(submitButtons[0]).toHaveClass('bg-emerald-600')
+    expect(submitButtons[0]).toHaveClass('bg-zinc-900')
 
     // Component submit button should NOT be present
     const componentSubmitButton = screen.queryByTestId(

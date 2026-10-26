@@ -74,7 +74,7 @@ export function ProjectList() {
   if (loading && projects.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
       </div>
     )
   }
@@ -86,7 +86,7 @@ export function ProjectList() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">{t('projects.list.title')}</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="mt-1 text-zinc-500 dark:text-zinc-400">
               {t('projects.list.subtitle')}
             </p>
           </div>
@@ -124,7 +124,7 @@ export function ProjectList() {
           {filteredProjects.filter((p) => !p.is_archived).length === 0 ? (
             <Card className="p-12 text-center">
               <div>
-                <FolderIcon className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+                <FolderIcon className="mx-auto mb-4 h-12 w-12 text-zinc-500 dark:text-zinc-400" />
                 <h3 className="mb-2 text-lg font-medium">
                   {searchQuery
                     ? t('projects.list.noProjectsFound')
@@ -132,7 +132,7 @@ export function ProjectList() {
                       ? t('projects.list.noActiveProjects')
                       : t('projects.list.noArchivedProjects')}
                 </h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="mb-4 text-zinc-500 dark:text-zinc-400">
                   {searchQuery
                     ? t('projects.list.tryAdjusting')
                     : t('projects.list.createFirst')}
@@ -173,7 +173,7 @@ export function ProjectList() {
                         {/* Statistics */}
                         <div className="mb-4 grid grid-cols-2 gap-4">
                           <div>
-                            <div className="text-muted-foreground flex items-center text-sm">
+                            <div className="flex items-center text-sm text-zinc-500 dark:text-zinc-400">
                               <DocumentTextIcon className="mr-1 h-4 w-4" />
                               {t('projects.list.tasks')}
                             </div>
@@ -182,7 +182,7 @@ export function ProjectList() {
                             </p>
                           </div>
                           <div>
-                            <div className="text-muted-foreground flex items-center text-sm">
+                            <div className="flex items-center text-sm text-zinc-500 dark:text-zinc-400">
                               <ChartBarIcon className="mr-1 h-4 w-4" />
                               {t('projects.list.progress')}
                             </div>
@@ -193,9 +193,9 @@ export function ProjectList() {
                         </div>
 
                         {/* Progress Bar */}
-                        <div className="bg-secondary mb-4 h-2 w-full rounded-full">
+                        <div className="mb-4 h-2 w-full rounded-full bg-zinc-200 dark:bg-zinc-700">
                           <div
-                            className="bg-primary h-2 rounded-full transition-all"
+                            className="h-2 rounded-full bg-emerald-600 transition-all dark:bg-emerald-500"
                             style={{
                               width: `${Math.min(100, completionRate)}%`,
                             }}
@@ -206,7 +206,7 @@ export function ProjectList() {
                         {project.llm_model_ids &&
                           project.llm_model_ids.length > 0 && (
                             <div className="mb-3 flex items-center gap-2">
-                              <SparklesIcon className="text-muted-foreground h-4 w-4" />
+                              <SparklesIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
                               <div className="flex flex-wrap gap-1">
                                 {project.llm_model_ids.map(
                                   (modelId: string) => (
@@ -224,7 +224,7 @@ export function ProjectList() {
                           )}
 
                         {/* Footer */}
-                        <div className="text-muted-foreground flex items-center justify-between text-sm">
+                        <div className="flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
                           <span>
                             {t('projects.list.annotations', {
                               count: project.annotation_count,
@@ -249,11 +249,11 @@ export function ProjectList() {
           {filteredProjects.filter((p) => p.is_archived).length === 0 ? (
             <Card className="p-12 text-center">
               <div>
-                <ArchiveBoxIcon className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+                <ArchiveBoxIcon className="mx-auto mb-4 h-12 w-12 text-zinc-500 dark:text-zinc-400" />
                 <h3 className="mb-2 text-lg font-medium">
                   {t('projects.list.noArchivedProjects')}
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-zinc-500 dark:text-zinc-400">
                   {t('projects.list.archivedAppear')}
                 </p>
               </div>
@@ -269,7 +269,7 @@ export function ProjectList() {
                         <h3 className="mb-2 text-lg font-semibold">
                           {project.title}
                         </h3>
-                        <p className="text-muted-foreground mb-4 line-clamp-2 text-sm">
+                        <p className="mb-4 line-clamp-2 text-sm text-zinc-500 dark:text-zinc-400">
                           {project.description ||
                             t('projects.list.noDescription')}
                         </p>

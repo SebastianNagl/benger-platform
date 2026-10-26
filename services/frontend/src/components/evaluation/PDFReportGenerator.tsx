@@ -207,14 +207,14 @@ export function PDFReportGenerator({
     <div className="space-y-6">
       {/* Options Panel */}
       <Card className="p-6">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           {t('evaluation.pdfReport.configTitle')}
         </h3>
 
         <div className="space-y-6">
           {/* Format Selection */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.pdfReport.reportFormat')}
             </label>
             <Select
@@ -238,7 +238,7 @@ export function PDFReportGenerator({
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {options.format === 'academic'
                 ? t('evaluation.pdfReport.academicDescription')
                 : t('evaluation.pdfReport.businessDescription')}
@@ -247,7 +247,7 @@ export function PDFReportGenerator({
 
           {/* Content Sections */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.pdfReport.includeSections')}
             </label>
             <div className="space-y-2">
@@ -289,10 +289,10 @@ export function PDFReportGenerator({
 
           {/* Model Selection */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.pdfReport.selectModels')}
             </label>
-            <div className="max-h-32 space-y-2 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
+            <div className="max-h-32 space-y-2 overflow-y-auto rounded border border-zinc-200 p-3 dark:border-zinc-700">
               {availableModels.map((model) => (
                 <Checkbox
                   key={model.id}
@@ -307,10 +307,10 @@ export function PDFReportGenerator({
 
           {/* Metric Selection */}
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {t('evaluation.pdfReport.selectMetrics')}
             </label>
-            <div className="max-h-32 space-y-2 overflow-y-auto rounded border border-gray-200 p-3 dark:border-gray-700">
+            <div className="max-h-32 space-y-2 overflow-y-auto rounded border border-zinc-200 p-3 dark:border-zinc-700">
               {availableMetrics.map((metric) => (
                 <Checkbox
                   key={metric}
@@ -324,8 +324,8 @@ export function PDFReportGenerator({
           </div>
 
           {/* Generate Button */}
-          <div className="flex items-center justify-between border-t pt-4 dark:border-gray-700">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex items-center justify-between border-t pt-4 dark:border-zinc-700">
+            <div className="text-sm text-zinc-600 dark:text-zinc-400">
               {t('evaluation.pdfReport.selectionSummary', {
                 models: options.selectedModels.length,
                 metrics: options.selectedMetrics.length,
@@ -350,21 +350,21 @@ export function PDFReportGenerator({
       </Card>
 
       {/* Preview Section */}
-      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800">
+        <h3 className="mb-4 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {t('evaluation.pdfReport.previewTitle')}
         </h3>
         <div
           ref={previewRef}
-          className="mx-auto max-w-4xl rounded-lg bg-white p-8 shadow-sm dark:bg-gray-900"
+          className="mx-auto max-w-4xl rounded-lg bg-white p-8 shadow-sm dark:bg-zinc-900"
           style={{ minHeight: '400px' }}
         >
           {/* Header */}
-          <div className="mb-8 border-b pb-6 dark:border-gray-700">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="mb-8 border-b pb-6 dark:border-zinc-700">
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
               {t('evaluation.pdfReport.reportTitle', { project: projectName })}
             </h1>
-            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               {t('evaluation.pdfReport.generatedOn')}{' '}
               {new Date().toLocaleDateString(intlTag(locale), {
                 year: 'numeric',
@@ -372,7 +372,7 @@ export function PDFReportGenerator({
                 day: 'numeric',
               })}
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               {t('evaluation.pdfReport.format')}{' '}
               {options.format === 'academic'
                 ? t('evaluation.pdfReport.academicFormat')
@@ -382,29 +382,29 @@ export function PDFReportGenerator({
 
           {/* Executive Summary */}
           <div className="mb-8">
-            <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+            <h2 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
               {t('evaluation.pdfReport.executiveSummary')}
             </h2>
-            <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+            <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
               <p>
                 {t('evaluation.pdfReport.summaryIntro', {
                   models: filteredModels.length,
                   metrics: filteredMetrics.length,
                 })}
               </p>
-              <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                <h3 className="mb-2 font-semibold text-blue-900 dark:text-blue-100">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <h3 className="mb-2 font-semibold text-zinc-900 dark:text-white">
                   {t('evaluation.pdfReport.topPerformingModel')}
                 </h3>
                 {rankedModels.length > 0 && (
                   <div>
-                    <p className="text-blue-800 dark:text-blue-200">
+                    <p className="text-zinc-700 dark:text-zinc-300">
                       <span className="font-bold">
                         {rankedModels[0].model.model_name}
                       </span>{' '}
                       ({rankedModels[0].model.provider})
                     </p>
-                    <p className="mt-1 text-sm text-blue-700 dark:text-blue-300">
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                       {t('evaluation.pdfReport.averageScore')}{' '}
                       {formatMetricValue(rankedModels[0].avgScore)}
                     </p>
@@ -417,12 +417,12 @@ export function PDFReportGenerator({
           {/* Methodology (Academic Format Only) */}
           {options.format === 'academic' && (
             <div className="mb-8">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 {t('evaluation.pdfReport.methodology')}
               </h2>
-              <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+              <div className="space-y-3 text-sm text-zinc-700 dark:text-zinc-300">
                 <div>
-                  <h3 className="mb-2 font-semibold text-gray-800 dark:text-gray-200">
+                  <h3 className="mb-2 font-semibold text-zinc-800 dark:text-zinc-200">
                     {t('evaluation.pdfReport.evaluationMetrics')}
                   </h3>
                   <p className="mb-2">
@@ -433,7 +433,7 @@ export function PDFReportGenerator({
                       <li key={metric}>
                         <span className="font-medium">{metric}</span>
                         {METRIC_CITATIONS[metric] && (
-                          <span className="ml-1 text-xs text-gray-600 dark:text-gray-400">
+                          <span className="ml-1 text-xs text-zinc-600 dark:text-zinc-400">
                             ({METRIC_CITATIONS[metric]})
                           </span>
                         )}
@@ -442,7 +442,7 @@ export function PDFReportGenerator({
                   </ul>
                 </div>
                 <div>
-                  <h3 className="mb-2 font-semibold text-gray-800 dark:text-gray-200">
+                  <h3 className="mb-2 font-semibold text-zinc-800 dark:text-zinc-200">
                     {t('evaluation.pdfReport.statisticalAnalysisSection')}
                   </h3>
                   <p>{t('evaluation.pdfReport.statisticalMethodology')}</p>
@@ -454,28 +454,28 @@ export function PDFReportGenerator({
           {/* Results Table */}
           {options.includeTables && (
             <div className="mb-8">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 {t('evaluation.pdfReport.results')}
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="border-b-2 border-gray-300 dark:border-gray-600">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-800 dark:text-gray-200">
+                    <tr className="border-b-2 border-zinc-300 dark:border-zinc-600">
+                      <th className="px-4 py-3 text-left font-semibold text-zinc-800 dark:text-zinc-200">
                         {t('evaluation.pdfReport.rank')}
                       </th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-800 dark:text-gray-200">
+                      <th className="px-4 py-3 text-left font-semibold text-zinc-800 dark:text-zinc-200">
                         {t('evaluation.pdfReport.model')}
                       </th>
                       {filteredMetrics.map((metric) => (
                         <th
                           key={metric}
-                          className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-gray-200"
+                          className="px-4 py-3 text-center font-semibold text-zinc-800 dark:text-zinc-200"
                         >
                           {metric}
                         </th>
                       ))}
-                      <th className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-gray-200">
+                      <th className="px-4 py-3 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                         {t('evaluation.pdfReport.average')}
                       </th>
                     </tr>
@@ -485,18 +485,18 @@ export function PDFReportGenerator({
                       <tr
                         key={item.model.model_id}
                         className={cn(
-                          'border-b border-gray-200 dark:border-gray-700',
+                          'border-b border-zinc-200 dark:border-zinc-700',
                           idx % 2 === 0
-                            ? 'bg-gray-50 dark:bg-gray-800'
-                            : 'bg-white dark:bg-gray-900',
+                            ? 'bg-zinc-50 dark:bg-zinc-800'
+                            : 'bg-white dark:bg-zinc-900',
                         )}
                       >
-                        <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
                           #{idx + 1}
                         </td>
-                        <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                        <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
                           <div>{item.model.model_name}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-xs text-zinc-500 dark:text-zinc-400">
                             {item.model.provider}
                           </div>
                         </td>
@@ -505,7 +505,7 @@ export function PDFReportGenerator({
                           return (
                             <td
                               key={metric}
-                              className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300"
+                              className="px-4 py-3 text-center text-zinc-700 tabular-nums dark:text-zinc-300"
                             >
                               {value !== undefined
                                 ? formatMetricValue(value)
@@ -513,7 +513,7 @@ export function PDFReportGenerator({
                             </td>
                           )
                         })}
-                        <td className="px-4 py-3 text-center font-bold text-gray-900 tabular-nums dark:text-gray-100">
+                        <td className="px-4 py-3 text-center font-bold text-zinc-900 tabular-nums dark:text-zinc-100">
                           {formatMetricValue(item.avgScore)}
                         </td>
                       </tr>
@@ -529,23 +529,23 @@ export function PDFReportGenerator({
             evaluationData.significanceTests &&
             evaluationData.significanceTests.length > 0 && (
               <div className="mb-8">
-                <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+                <h2 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
                   {t('evaluation.pdfReport.statisticalSignificance')}
                 </h2>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b-2 border-gray-300 dark:border-gray-600">
-                        <th className="px-4 py-3 text-left font-semibold text-gray-800 dark:text-gray-200">
+                      <tr className="border-b-2 border-zinc-300 dark:border-zinc-600">
+                        <th className="px-4 py-3 text-left font-semibold text-zinc-800 dark:text-zinc-200">
                           {t('evaluation.pdfReport.comparison')}
                         </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-gray-200">
+                        <th className="px-4 py-3 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                           {t('evaluation.pdfReport.pValue')}
                         </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-gray-200">
+                        <th className="px-4 py-3 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                           {t('evaluation.pdfReport.significant')}
                         </th>
-                        <th className="px-4 py-3 text-center font-semibold text-gray-800 dark:text-gray-200">
+                        <th className="px-4 py-3 text-center font-semibold text-zinc-800 dark:text-zinc-200">
                           {t('evaluation.pdfReport.effectSize')}
                         </th>
                       </tr>
@@ -555,19 +555,19 @@ export function PDFReportGenerator({
                         <tr
                           key={idx}
                           className={cn(
-                            'border-b border-gray-200 dark:border-gray-700',
+                            'border-b border-zinc-200 dark:border-zinc-700',
                             idx % 2 === 0
-                              ? 'bg-gray-50 dark:bg-gray-800'
-                              : 'bg-white dark:bg-gray-900',
+                              ? 'bg-zinc-50 dark:bg-zinc-800'
+                              : 'bg-white dark:bg-zinc-900',
                           )}
                         >
-                          <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                          <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
                             {t('evaluation.pdfReport.versus', {
                               a: test.model_a,
                               b: test.model_b,
                             })}
                           </td>
-                          <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
+                          <td className="px-4 py-3 text-center text-zinc-700 tabular-nums dark:text-zinc-300">
                             {formatDecimal(test.p_value, locale, 4)}
                           </td>
                           <td className="px-4 py-3 text-center">
@@ -575,8 +575,8 @@ export function PDFReportGenerator({
                               className={cn(
                                 'inline-flex rounded-full px-2 py-1 text-xs font-medium',
                                 test.significant
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-                                  : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                                  : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200',
                               )}
                             >
                               {test.significant
@@ -584,7 +584,7 @@ export function PDFReportGenerator({
                                 : t('common.no')}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-center text-gray-700 tabular-nums dark:text-gray-300">
+                          <td className="px-4 py-3 text-center text-zinc-700 tabular-nums dark:text-zinc-300">
                             {formatDecimal(test.effect_size, locale, 3)}
                           </td>
                         </tr>
@@ -598,38 +598,38 @@ export function PDFReportGenerator({
           {/* Model Performance Summary */}
           {options.includeCharts && (
             <div className="mb-8">
-              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-gray-100">
+              <h2 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
                 {t('evaluation.pdfReport.performanceSummary')}
               </h2>
               <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {filteredModels.length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('evaluation.pdfReport.modelsEvaluated')}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {filteredMetrics.length}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('evaluation.pdfReport.metricsComputed')}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {rankedModels.length > 0
                       ? formatMetricValue(rankedModels[0].avgScore)
                       : 'N/A'}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('evaluation.pdfReport.bestScore')}
                   </div>
                 </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-800">
-                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-800">
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {rankedModels.length > 0
                       ? formatMetricValue(
                           rankedModels.reduce(
@@ -639,7 +639,7 @@ export function PDFReportGenerator({
                         )
                       : 'N/A'}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
                     {t('evaluation.pdfReport.averageScore')}
                   </div>
                 </div>
@@ -648,7 +648,7 @@ export function PDFReportGenerator({
           )}
 
           {/* Footer */}
-          <div className="border-t pt-6 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="border-t pt-6 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             <p>
               {t('evaluation.pdfReport.footerGenerated')}{' '}
               {new Date().toLocaleString(intlTag(locale))}
