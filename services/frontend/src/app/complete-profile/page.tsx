@@ -1,6 +1,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { api } from '@/lib/api'
@@ -189,7 +190,7 @@ export default function CompleteProfilePage() {
                   {t('completeProfile.username')}
                 </label>
                 <div className="mt-1">
-                  <input
+                  <Input
                     id="username"
                     name="username"
                     type="text"
@@ -197,7 +198,6 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.username}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.usernamePlaceholder')}
                   />
                 </div>
@@ -211,14 +211,13 @@ export default function CompleteProfilePage() {
                   {t('completeProfile.displayName')}
                 </label>
                 <div className="mt-1">
-                  <input
+                  <Input
                     id="name"
                     name="name"
                     type="text"
                     autoComplete="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.displayNamePlaceholder')}
                   />
                 </div>
@@ -232,7 +231,7 @@ export default function CompleteProfilePage() {
                   {t('completeProfile.password')}
                 </label>
                 <div className="mt-1">
-                  <input
+                  <Input
                     id="password"
                     name="password"
                     type="password"
@@ -240,7 +239,6 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t('completeProfile.passwordPlaceholder')}
                   />
                 </div>
@@ -254,7 +252,7 @@ export default function CompleteProfilePage() {
                   {t('completeProfile.confirmPassword')}
                 </label>
                 <div className="mt-1">
-                  <input
+                  <Input
                     id="confirmPassword"
                     name="confirmPassword"
                     type="password"
@@ -262,7 +260,6 @@ export default function CompleteProfilePage() {
                     required
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="block w-full rounded-md border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:border-zinc-600 dark:bg-zinc-700 dark:text-white"
                     placeholder={t(
                       'completeProfile.confirmPasswordPlaceholder',
                     )}

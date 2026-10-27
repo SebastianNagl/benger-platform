@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { Dialog, DialogBackdrop, DialogPanel } from '@headlessui/react'
@@ -97,7 +98,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
               >
                 {t('signupModal.fullName')}
               </label>
-              <input
+              <Input
                 id="name"
                 type="text"
                 value={name}
@@ -105,7 +106,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="name"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
                 placeholder={t('signupModal.fullNamePlaceholder')}
               />
             </div>
@@ -117,7 +118,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
               >
                 {t('signupModal.emailAddress')}
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={email}
@@ -125,7 +126,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="email"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
                 placeholder={t('signupModal.emailPlaceholder')}
               />
             </div>
@@ -137,7 +138,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
               >
                 {t('signupModal.username')}
               </label>
-              <input
+              <Input
                 id="username"
                 type="text"
                 value={username}
@@ -145,7 +146,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="username"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
                 placeholder={t('signupModal.usernamePlaceholder')}
               />
             </div>
@@ -157,7 +158,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
               >
                 {t('signupModal.password')}
               </label>
-              <input
+              <Input
                 id="password"
                 type="password"
                 value={password}
@@ -165,7 +166,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="new-password"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
                 placeholder={t('signupModal.passwordPlaceholder')}
               />
             </div>
@@ -177,7 +178,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
               >
                 {t('signupModal.confirmPassword')}
               </label>
-              <input
+              <Input
                 id="confirmPassword"
                 type="password"
                 value={confirmPassword}
@@ -185,7 +186,7 @@ export function SignupModal({ isOpen, onClose }: SignupModalProps) {
                 required
                 disabled={isLoading}
                 autoComplete="new-password"
-                className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 placeholder-zinc-400 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
                 placeholder={t('signupModal.confirmPasswordPlaceholder')}
               />
             </div>

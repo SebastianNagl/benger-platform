@@ -1,6 +1,14 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
@@ -81,6 +89,9 @@ const providers: Provider[] = [
     validation: /^[a-zA-Z0-9]{20,}$/,
   },
 ]
+
+// The Select treats an empty value as unset, so org-wide gets a sentinel.
+const ORG_WIDE_SCOPE = '__org_wide__'
 
 export function OrgApiKeys({
   organizationId,
@@ -601,27 +612,35 @@ export function OrgApiKeys({
                   >
                     {t('organization.apiKeys.scopeLabel')}
                   </label>
-                  <select
-                    id="org-api-keys-scope"
-                    value={scopeGroupId ?? ''}
-                    onChange={(e) => handleScopeChange(e.target.value)}
-                    data-testid="org-api-keys-scope-select"
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                  <Select
+                    value={scopeGroupId ?? ORG_WIDE_SCOPE}
+                    onValueChange={(v) =>
+                      handleScopeChange(v === ORG_WIDE_SCOPE ? '' : v)
+                    }
                   >
-                    {isAdmin && (
-                      <option value="">
-                        {t('organization.apiKeys.scopeOrgWide')}
-                      </option>
-                    )}
-                    {manageableGroups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                        {group.is_active
-                          ? ''
-                          : t('organization.apiKeys.scopeInactiveSuffix')}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      id="org-api-keys-scope"
+                      data-testid="org-api-keys-scope-select"
+                      className="mt-2"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {isAdmin && (
+                        <SelectItem value={ORG_WIDE_SCOPE}>
+                          {t('organization.apiKeys.scopeOrgWide')}
+                        </SelectItem>
+                      )}
+                      {manageableGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
+                          {group.is_active
+                            ? ''
+                            : t('organization.apiKeys.scopeInactiveSuffix')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {scopeGroupId && (
                     <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                       {t('organization.apiKeys.scopeGroupHint')}
@@ -640,8 +659,7 @@ export function OrgApiKeys({
                   >
                     {t('organization.apiKeys.groupPaysLabel')}
                   </label>
-                  <select
-                    id="org-api-keys-group-pays"
+                  <Select
                     value={
                       groupRequirePrivateKeys === null
                         ? 'inherit'
@@ -649,29 +667,34 @@ export function OrgApiKeys({
                           ? 'members'
                           : 'org'
                     }
-                    onChange={(e) =>
+                    onValueChange={(v) =>
                       updateGroupRequirePrivateKeys(
-                        e.target.value === 'inherit'
-                          ? null
-                          : e.target.value === 'members',
+                        v === 'inherit' ? null : v === 'members',
                       )
                     }
                     disabled={settingsLoading}
-                    data-testid="org-api-keys-group-pays-select"
-                    className="mt-2 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   >
-                    <option value="inherit">
-                      {orgRequirePrivateKeys
-                        ? t('organization.apiKeys.groupPaysInheritMembers')
-                        : t('organization.apiKeys.groupPaysInheritOrg')}
-                    </option>
-                    <option value="org">
-                      {t('organization.apiKeys.groupPaysOrg')}
-                    </option>
-                    <option value="members">
-                      {t('organization.apiKeys.groupPaysMembers')}
-                    </option>
-                  </select>
+                    <SelectTrigger
+                      id="org-api-keys-group-pays"
+                      data-testid="org-api-keys-group-pays-select"
+                      className="mt-2"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inherit">
+                        {orgRequirePrivateKeys
+                          ? t('organization.apiKeys.groupPaysInheritMembers')
+                          : t('organization.apiKeys.groupPaysInheritOrg')}
+                      </SelectItem>
+                      <SelectItem value="org">
+                        {t('organization.apiKeys.groupPaysOrg')}
+                      </SelectItem>
+                      <SelectItem value="members">
+                        {t('organization.apiKeys.groupPaysMembers')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                     {t('organization.apiKeys.groupPaysHint')}
                   </p>
@@ -841,7 +864,7 @@ export function OrgApiKeys({
                           ) : (
                             <div className="space-y-3">
                               <div className="relative">
-                                <input
+                                <Input
                                   type={showKey ? 'text' : 'password'}
                                   placeholder={
                                     provider.placeholder ||
@@ -856,7 +879,7 @@ export function OrgApiKeys({
                                       [provider.id]: e.target.value,
                                     }))
                                   }
-                                  className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                                  className="pr-10"
                                 />
                                 <button
                                   type="button"
@@ -1034,7 +1057,7 @@ export function OrgApiKeys({
                                 ) : (
                                   <div className="space-y-3">
                                     <div className="relative">
-                                      <input
+                                      <Input
                                         type={showKey ? 'text' : 'password'}
                                         placeholder={t(
                                           'organization.customModelKeys.keyPlaceholder',
@@ -1046,7 +1069,7 @@ export function OrgApiKeys({
                                             [model.id]: e.target.value,
                                           }))
                                         }
-                                        className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+                                        className="pr-10"
                                       />
                                       <button
                                         type="button"

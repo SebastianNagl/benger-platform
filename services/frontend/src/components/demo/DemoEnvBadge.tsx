@@ -34,11 +34,11 @@ export function DemoEnvBadge() {
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 rounded-full border border-sky-300 bg-sky-100 px-3 py-1.5 text-xs font-medium text-sky-800 shadow-sm transition-colors duration-200 hover:bg-sky-200 dark:border-sky-700 dark:bg-sky-900/80 dark:text-sky-200 dark:hover:bg-sky-800"
+          className="flex items-center gap-2 rounded-full border border-zinc-300 bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors duration-200 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
           title={body}
           aria-expanded={open}
         >
-          <span className="h-2 w-2 rounded-full bg-sky-500 dark:bg-sky-400" />
+          <span className="h-2 w-2 rounded-full bg-zinc-500 dark:bg-zinc-400" />
           {label}
         </button>
       </div>

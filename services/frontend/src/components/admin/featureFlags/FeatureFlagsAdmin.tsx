@@ -22,6 +22,14 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Card } from '@/components/shared/Card'
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
+import { SearchInput } from '@/components/shared/SearchInput'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
@@ -47,9 +55,6 @@ const UNREGISTERED_GROUP = 'unregistered'
 
 const USER_SEARCH_DEBOUNCE_MS = 300
 const USER_SEARCH_LIMIT = 8
-
-const selectClassFull =
-  'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100'
 
 interface UserOption {
   id: string
@@ -600,13 +605,12 @@ function AllowlistEditor({
           >
             {t(`${K}.addUser`)}
           </label>
-          <input
+          <SearchInput
             id={`ff-user-search-${row.name}`}
-            type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={setQuery}
             placeholder={t(`${K}.userSearch`)}
-            className={`mt-1 ${selectClassFull}`}
+            className="mt-1"
             data-testid={`ff-user-search-${row.name}`}
           />
           {results.length > 0 && (
@@ -650,20 +654,23 @@ function AllowlistEditor({
             {t(`${K}.addOrg`)}
           </label>
           <div className="mt-1 flex gap-2">
-            <select
-              id={`ff-org-select-${row.name}`}
-              value={orgId}
-              onChange={(e) => setOrgId(e.target.value)}
-              className={selectClassFull}
-              data-testid={`ff-org-select-${row.name}`}
-            >
-              <option value="">{t(`${K}.pickOrg`)}</option>
-              {freeOrgs.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.display_name || org.name}
-                </option>
-              ))}
-            </select>
+            <div className="min-w-0 flex-1">
+              <Select value={orgId} onValueChange={setOrgId}>
+                <SelectTrigger
+                  id={`ff-org-select-${row.name}`}
+                  data-testid={`ff-org-select-${row.name}`}
+                >
+                  <SelectValue placeholder={t(`${K}.pickOrg`)} />
+                </SelectTrigger>
+                <SelectContent>
+                  {freeOrgs.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.display_name || org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <button
               type="button"
               disabled={busy || !orgId}

@@ -170,7 +170,7 @@ export default function ReportsPage() {
                     data-testid="report-visibility"
                     className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                       isPublic
-                        ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300'
+                        ? 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
                         : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300'
                     }`}
                   >

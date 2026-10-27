@@ -15,6 +15,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { FilterToolbar } from '@/components/shared/FilterToolbar'
+import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -22,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -1207,19 +1209,17 @@ export function OrganizationsTab() {
                   <div className="flex-1">
                     {isEditingOrg ? (
                       <div className="space-y-3">
-                        <input
+                        <Input
                           type="text"
                           value={editOrgName}
                           onChange={(e) => setEditOrgName(e.target.value)}
-                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         />
-                        <textarea
+                        <Textarea
                           value={editOrgDescription}
                           onChange={(e) =>
                             setEditOrgDescription(e.target.value)
                           }
                           rows={2}
-                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         />
                         <div className="flex space-x-2">
                           <Button
@@ -1696,11 +1696,10 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.name')}
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newOrgName}
                     onChange={(e) => setNewOrgName(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>
@@ -1708,11 +1707,10 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.slug')}
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newOrgSlug}
                     onChange={(e) => setNewOrgSlug(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>
@@ -1720,11 +1718,10 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.description')}
                   </label>
-                  <textarea
+                  <Textarea
                     value={newOrgDescription}
                     onChange={(e) => setNewOrgDescription(e.target.value)}
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   />
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -1760,12 +1757,11 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.searchUsers')}
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
                     placeholder={t('admin.organizations.searchByNameOrEmail')}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   />
                 </div>
                 <div className="mb-4">
@@ -1929,11 +1925,10 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.email')}
                   </label>
-                  <input
+                  <Input
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>
@@ -1983,12 +1978,11 @@ export function OrganizationsTab() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.organizations.bulkEmailsLabel')}
                   </label>
-                  <textarea
+                  <Textarea
                     value={bulkEmails}
                     onChange={(e) => setBulkEmails(e.target.value)}
                     rows={5}
                     placeholder={t('admin.organizations.bulkEmailsPlaceholder')}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

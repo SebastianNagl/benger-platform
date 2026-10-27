@@ -34,7 +34,7 @@ export function LmsMemberBadge({
           ? t(PSEUDONYM_TITLE)
           : t('admin.organizations.memberPrivacy.lmsBadgeTitle')
       }
-      className="ml-2 inline-flex items-center rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+      className="ml-2 inline-flex items-center rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
     >
       {t('admin.organizations.memberPrivacy.lmsBadge')}
     </span>

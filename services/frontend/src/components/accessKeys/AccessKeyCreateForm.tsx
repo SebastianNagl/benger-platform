@@ -8,6 +8,14 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import type {
   AccessKeyCreate,
@@ -55,12 +63,12 @@ interface AccessKeyCreateFormProps {
   onCancel: () => void
 }
 
-const inputClass =
-  'mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100'
 const labelClass = 'block text-sm font-medium text-zinc-900 dark:text-zinc-100'
 const hintClass = 'mt-1 text-xs text-zinc-500 dark:text-zinc-400'
 
 const FIRST_PRESET = 'benchmark_read'
+// The Select treats an empty value as unset, so org-wide gets a sentinel.
+const ORG_WIDE = '__org_wide__'
 
 export function AccessKeyCreateForm({
   mode,
@@ -201,14 +209,14 @@ export function AccessKeyCreateForm({
         <label htmlFor="access-key-name" className={labelClass}>
           {t('accessKeys.form.name')}
         </label>
-        <input
+        <Input
           id="access-key-name"
           type="text"
           value={name}
           maxLength={120}
           onChange={(e) => setName(e.target.value)}
           placeholder={t('accessKeys.form.namePlaceholder')}
-          className={inputClass}
+          className="mt-1"
           data-testid="access-key-name"
         />
       </div>
@@ -217,40 +225,41 @@ export function AccessKeyCreateForm({
         <legend className={labelClass}>
           {t('accessKeys.form.presetLabel')}
         </legend>
-        <div className="mt-2 space-y-2">
-          {[...presets, 'custom'].map((id) => (
-            <label
-              key={id}
-              className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${
-                selectedPreset === id
-                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
-                  : 'border-zinc-200 dark:border-zinc-700'
-              }`}
-            >
-              <input
-                type="radio"
-                name="access-key-preset"
+        <div
+          className="mt-2 flex flex-wrap gap-2"
+          role="radiogroup"
+          aria-label={t('accessKeys.form.presetLabel')}
+        >
+          {[...presets, 'custom'].map((id) => {
+            const isSelected = selectedPreset === id
+            return (
+              <Button
+                key={id}
+                variant={isSelected ? 'filled' : 'outline'}
+                role="radio"
+                aria-checked={isSelected}
                 value={id}
-                checked={selectedPreset === id}
-                onChange={() => choosePreset(id)}
-                className="mt-1"
-                data-testid={`access-key-preset-${id}`}
-              />
-              <span>
-                <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  {id === 'custom'
-                    ? t('accessKeys.form.custom')
-                    : presetLabel(id)}
-                </span>
-                <span className="block text-xs text-zinc-500 dark:text-zinc-400">
-                  {id === 'custom'
+                title={
+                  id === 'custom'
                     ? t('accessKeys.form.customDescription')
-                    : presetDescription(id)}
-                </span>
-              </span>
-            </label>
-          ))}
+                    : presetDescription(id)
+                }
+                onClick={() => choosePreset(id)}
+                className="px-4 py-2"
+                data-testid={`access-key-preset-${id}`}
+              >
+                {id === 'custom'
+                  ? t('accessKeys.form.custom')
+                  : presetLabel(id)}
+              </Button>
+            )
+          })}
         </div>
+        <p className={hintClass} data-testid="access-key-preset-description">
+          {selectedPreset === 'custom'
+            ? t('accessKeys.form.customDescription')
+            : presetDescription(selectedPreset)}
+        </p>
         {roleNotice && (
           <p
             className="mt-2 text-xs text-amber-700 dark:text-amber-400"
@@ -329,20 +338,26 @@ export function AccessKeyCreateForm({
             <label htmlFor="access-key-role" className={labelClass}>
               {t('accessKeys.form.roleLabel')}
             </label>
-            <select
-              id="access-key-role"
+            <Select
               value={role}
-              onChange={(e) => changeRole(e.target.value as AccessKeyOrgRole)}
-              className={inputClass}
-              data-testid="access-key-role"
+              onValueChange={(v) => changeRole(v as AccessKeyOrgRole)}
             >
-              <option value="ANNOTATOR">
-                {t('admin.organizations.roleAnnotator')}
-              </option>
-              <option value="CONTRIBUTOR">
-                {t('admin.organizations.roleContributor')}
-              </option>
-            </select>
+              <SelectTrigger
+                id="access-key-role"
+                className="mt-1"
+                data-testid="access-key-role"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ANNOTATOR">
+                  {t('admin.organizations.roleAnnotator')}
+                </SelectItem>
+                <SelectItem value="CONTRIBUTOR">
+                  {t('admin.organizations.roleContributor')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
             <p className={hintClass}>{t('accessKeys.form.roleHint')}</p>
           </div>
           {(isOrgAdmin ? groups.length > 0 : true) && (
@@ -350,22 +365,30 @@ export function AccessKeyCreateForm({
               <label htmlFor="access-key-group" className={labelClass}>
                 {t('accessKeys.form.groupLabel')}
               </label>
-              <select
-                id="access-key-group"
-                value={groupId}
-                onChange={(e) => setGroupId(e.target.value)}
-                className={inputClass}
-                data-testid="access-key-group"
+              <Select
+                value={groupId || ORG_WIDE}
+                onValueChange={(v) => setGroupId(v === ORG_WIDE ? '' : v)}
               >
-                {isOrgAdmin && (
-                  <option value="">{t('accessKeys.orgWide')}</option>
-                )}
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger
+                  id="access-key-group"
+                  className="mt-1"
+                  data-testid="access-key-group"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {isOrgAdmin && (
+                    <SelectItem value={ORG_WIDE}>
+                      {t('accessKeys.orgWide')}
+                    </SelectItem>
+                  )}
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={g.id}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <p className={hintClass}>
                 {isOrgAdmin
                   ? t('accessKeys.form.groupHint')
@@ -411,23 +434,29 @@ export function AccessKeyCreateForm({
         <label htmlFor="access-key-expiry" className={labelClass}>
           {t('accessKeys.form.expiryLabel')}
         </label>
-        <select
-          id="access-key-expiry"
+        <Select
           value={expiry}
-          onChange={(e) => setExpiry(e.target.value as ExpiryChoice)}
-          className={inputClass}
-          data-testid="access-key-expiry"
+          onValueChange={(v) => setExpiry(v as ExpiryChoice)}
         >
-          {EXPIRY_CHOICES.map((choice) => (
-            <option key={choice} value={choice}>
-              {t(
-                choice === 'never'
-                  ? 'accessKeys.form.expiryNever'
-                  : `accessKeys.form.expiry${choice}`,
-              )}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            id="access-key-expiry"
+            className="mt-1"
+            data-testid="access-key-expiry"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EXPIRY_CHOICES.map((choice) => (
+              <SelectItem key={choice} value={choice}>
+                {t(
+                  choice === 'never'
+                    ? 'accessKeys.form.expiryNever'
+                    : `accessKeys.form.expiry${choice}`,
+                )}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -451,13 +480,13 @@ export function AccessKeyCreateForm({
               <label htmlFor="access-key-rpm" className={labelClass}>
                 {t('accessKeys.form.perMinute')}
               </label>
-              <input
+              <Input
                 id="access-key-rpm"
                 type="number"
                 min={1}
                 value={perMinute}
                 onChange={(e) => setPerMinute(e.target.value)}
-                className={inputClass}
+                className="mt-1"
                 data-testid="access-key-rpm"
               />
             </div>
@@ -465,13 +494,13 @@ export function AccessKeyCreateForm({
               <label htmlFor="access-key-rpd" className={labelClass}>
                 {t('accessKeys.form.perDay')}
               </label>
-              <input
+              <Input
                 id="access-key-rpd"
                 type="number"
                 min={1}
                 value={perDay}
                 onChange={(e) => setPerDay(e.target.value)}
-                className={inputClass}
+                className="mt-1"
                 data-testid="access-key-rpd"
               />
             </div>

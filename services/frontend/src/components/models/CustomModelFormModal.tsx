@@ -13,6 +13,15 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
+import { Textarea } from '@/components/shared/Textarea'
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
 import { useI18n } from '@/contexts/I18nContext'
 import { customModelsAPI } from '@/lib/api/customModels'
@@ -431,9 +440,6 @@ export function CustomModelFormModal({
     }
   }
 
-  const inputClass =
-    'w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-900 dark:text-white'
-
   const fieldError = (key: keyof FormState) =>
     errors[key] && (
       <p
@@ -544,13 +550,12 @@ export function CustomModelFormModal({
                       *
                     </span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     maxLength={100}
                     value={form.name}
                     onChange={(e) => setField('name', e.target.value)}
                     placeholder={t('customModels.form.namePlaceholder')}
-                    className={inputClass}
                     data-testid="custom-model-name-input"
                   />
                   {fieldError('name')}
@@ -561,12 +566,11 @@ export function CustomModelFormModal({
                   <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('customModels.form.description')}
                   </label>
-                  <textarea
+                  <Textarea
                     rows={2}
                     value={form.description}
                     onChange={(e) => setField('description', e.target.value)}
                     placeholder={t('customModels.form.descriptionPlaceholder')}
-                    className={inputClass}
                     data-testid="custom-model-description-input"
                   />
                 </div>
@@ -579,12 +583,11 @@ export function CustomModelFormModal({
                       *
                     </span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={form.base_url}
                     onChange={(e) => setField('base_url', e.target.value)}
                     placeholder="https://api.example.com/v1"
-                    className={inputClass}
                     data-testid="custom-model-base-url-input"
                   />
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -617,7 +620,7 @@ export function CustomModelFormModal({
                       *
                     </span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={form.endpoint_model_name}
                     onChange={(e) =>
@@ -625,7 +628,6 @@ export function CustomModelFormModal({
                     }
                     placeholder="llama-3.3-70b-instruct"
                     maxLength={255}
-                    className={inputClass}
                     data-testid="custom-model-endpoint-name-input"
                   />
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -659,23 +661,24 @@ export function CustomModelFormModal({
                   <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('customModels.form.reasoningParam')}
                   </label>
-                  <select
+                  <Select
                     value={form.reasoning_param}
-                    onChange={(e) =>
-                      setField('reasoning_param', e.target.value)
-                    }
-                    className={inputClass}
-                    data-testid="custom-model-reasoning-select"
+                    onValueChange={(v) => setField('reasoning_param', v)}
                   >
-                    <option value="none">
-                      {t('customModels.form.reasoningParamNone')}
-                    </option>
-                    {REASONING_PARAM_OPTIONS.map((param) => (
-                      <option key={param} value={param}>
-                        {param}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger data-testid="custom-model-reasoning-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        {t('customModels.form.reasoningParamNone')}
+                      </SelectItem>
+                      {REASONING_PARAM_OPTIONS.map((param) => (
+                        <SelectItem key={param} value={param}>
+                          {param}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                     {t('customModels.form.reasoningParamHelp')}
                   </p>
@@ -688,12 +691,12 @@ export function CustomModelFormModal({
                       {t('customModels.form.apiKey')}
                     </label>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showApiKey ? 'text' : 'password'}
                         value={form.api_key}
                         onChange={(e) => setField('api_key', e.target.value)}
                         placeholder={t('customModels.form.apiKeyPlaceholder')}
-                        className={`${inputClass} pr-10`}
+                        className="pr-10"
                         data-testid="custom-model-api-key-input"
                       />
                       <button
@@ -721,19 +724,18 @@ export function CustomModelFormModal({
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <input
+                      <Input
                         type="number"
                         min={0}
                         step="0.01"
                         value={form.input_cost}
                         onChange={(e) => setField('input_cost', e.target.value)}
                         placeholder={t('customModels.form.inputCost')}
-                        className={inputClass}
                         data-testid="custom-model-input-cost-input"
                       />
                     </div>
                     <div>
-                      <input
+                      <Input
                         type="number"
                         min={0}
                         step="0.01"
@@ -742,7 +744,6 @@ export function CustomModelFormModal({
                           setField('output_cost', e.target.value)
                         }
                         placeholder={t('customModels.form.outputCost')}
-                        className={inputClass}
                         data-testid="custom-model-output-cost-input"
                       />
                     </div>

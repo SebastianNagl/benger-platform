@@ -3,6 +3,7 @@
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { LikertScale } from '@/components/shared/LikertScale'
 import {
   Select,
@@ -379,9 +380,6 @@ export default function RegisterPage() {
     }
   }
 
-  const inputClassName =
-    'block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:outline-none focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400'
-
   const labelClassName =
     'block text-sm font-medium text-zinc-900 dark:text-white'
 
@@ -406,7 +404,7 @@ export default function RegisterPage() {
           {t('register.name')} *
         </label>
         <div className="mt-1">
-          <input
+          <Input
             id="name"
             name="name"
             type="text"
@@ -414,7 +412,6 @@ export default function RegisterPage() {
             required
             value={formData.name}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.namePlaceholder')}
             data-testid="auth-register-name-input"
           />
@@ -426,7 +423,7 @@ export default function RegisterPage() {
           {t('register.username')} *
         </label>
         <div className="mt-1">
-          <input
+          <Input
             id="username"
             name="username"
             type="text"
@@ -434,7 +431,6 @@ export default function RegisterPage() {
             required
             value={formData.username}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.usernamePlaceholder')}
             data-testid="auth-register-username-input"
           />
@@ -446,7 +442,7 @@ export default function RegisterPage() {
           {t('register.email')} *
         </label>
         <div className="mt-1">
-          <input
+          <Input
             id="email"
             name="email"
             type="email"
@@ -455,7 +451,6 @@ export default function RegisterPage() {
             value={formData.email}
             onChange={handleChange}
             disabled={isInvitedUser}
-            className={`${inputClassName} ${isInvitedUser ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700' : ''}`}
             placeholder={t('register.emailPlaceholder')}
             data-testid="auth-register-email-input"
           />
@@ -467,7 +462,7 @@ export default function RegisterPage() {
           {t('register.password')} *
         </label>
         <div className="mt-1">
-          <input
+          <Input
             id="password"
             name="password"
             type="password"
@@ -475,7 +470,6 @@ export default function RegisterPage() {
             required
             value={formData.password}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.passwordPlaceholder')}
             data-testid="auth-register-password-input"
           />
@@ -487,7 +481,7 @@ export default function RegisterPage() {
           {t('register.confirmPassword')} *
         </label>
         <div className="mt-1">
-          <input
+          <Input
             id="confirmPassword"
             name="confirmPassword"
             type="password"
@@ -495,7 +489,6 @@ export default function RegisterPage() {
             required
             value={formData.confirmPassword}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.confirmPasswordPlaceholder')}
             data-testid="auth-register-confirm-password-input"
           />
@@ -641,7 +634,7 @@ export default function RegisterPage() {
             {t('register.currentSemester')}
           </label>
           <div className="mt-1">
-            <input
+            <Input
               type="number"
               id="currentSemester"
               name="currentSemester"
@@ -649,7 +642,6 @@ export default function RegisterPage() {
               max="20"
               value={formData.currentSemester}
               onChange={handleChange}
-              className={inputClassName}
               placeholder={t('register.currentSemesterPlaceholder')}
               data-testid="auth-register-semester-input"
             />
@@ -701,7 +693,7 @@ export default function RegisterPage() {
           {t('register.ageLabel')}
         </label>
         <div className="mt-1">
-          <input
+          <Input
             type="number"
             id="age"
             name="age"
@@ -709,7 +701,6 @@ export default function RegisterPage() {
             max="150"
             value={formData.age}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.agePlaceholder')}
             data-testid="register-age-input"
           />
@@ -721,13 +712,12 @@ export default function RegisterPage() {
           {t('register.jobLabel')}
         </label>
         <div className="mt-1">
-          <input
+          <Input
             type="text"
             id="job"
             name="job"
             value={formData.job}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.jobPlaceholder')}
             data-testid="register-job-input"
           />
@@ -739,7 +729,7 @@ export default function RegisterPage() {
           {t('register.yearsOfExperienceLabel')}
         </label>
         <div className="mt-1">
-          <input
+          <Input
             type="number"
             id="yearsOfExperience"
             name="yearsOfExperience"
@@ -747,7 +737,6 @@ export default function RegisterPage() {
             max="100"
             value={formData.yearsOfExperience}
             onChange={handleChange}
-            className={inputClassName}
             placeholder={t('register.yearsOfExperiencePlaceholder')}
             data-testid="register-years-of-experience-input"
           />
@@ -813,14 +802,13 @@ export default function RegisterPage() {
                 {t('register.grades.zwischenpruefung')}
               </label>
               <div className="mt-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   id="gradeZwischenpruefung"
                   name="gradeZwischenpruefung"
                   value={formData.gradeZwischenpruefung}
                   onChange={handleChange}
-                  className={inputClassName}
                   placeholder="0,00 - 18,00"
                   data-testid="register-grade-zwischenpruefung"
                 />
@@ -837,14 +825,13 @@ export default function RegisterPage() {
                 {t('register.grades.vorgeruecktenubung')}
               </label>
               <div className="mt-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   id="gradeVorgeruecktenubung"
                   name="gradeVorgeruecktenubung"
                   value={formData.gradeVorgeruecktenubung}
                   onChange={handleChange}
-                  className={inputClassName}
                   placeholder="0,00 - 18,00"
                   data-testid="register-grade-vorgeruecktenubung"
                 />
@@ -861,14 +848,13 @@ export default function RegisterPage() {
                 {t('register.grades.firstStaatsexamen')}
               </label>
               <div className="mt-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   id="gradeFirstStaatsexamen"
                   name="gradeFirstStaatsexamen"
                   value={formData.gradeFirstStaatsexamen}
                   onChange={handleChange}
-                  className={inputClassName}
                   placeholder="0,00 - 18,00"
                   data-testid="register-grade-first-staatsexamen"
                 />
@@ -885,14 +871,13 @@ export default function RegisterPage() {
                 {t('register.grades.secondStaatsexamen')}
               </label>
               <div className="mt-1">
-                <input
+                <Input
                   type="text"
                   inputMode="decimal"
                   id="gradeSecondStaatsexamen"
                   name="gradeSecondStaatsexamen"
                   value={formData.gradeSecondStaatsexamen}
                   onChange={handleChange}
-                  className={inputClassName}
                   placeholder="0,00 - 18,00"
                   data-testid="register-grade-second-staatsexamen"
                 />

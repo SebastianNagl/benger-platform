@@ -2,6 +2,7 @@
 
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
@@ -143,7 +144,7 @@ export default function ActivateAccountPage() {
                     {t('accountActivation.newPassword')}
                   </label>
                   <div className="mt-1">
-                    <input
+                    <Input
                       id="new-password"
                       name="new-password"
                       type="password"
@@ -152,7 +153,6 @@ export default function ActivateAccountPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       data-testid="activate-password"
-                      className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
                       placeholder={t('accountActivation.newPassword')}
                     />
                   </div>
@@ -166,7 +166,7 @@ export default function ActivateAccountPage() {
                     {t('accountActivation.confirmPassword')}
                   </label>
                   <div className="mt-1">
-                    <input
+                    <Input
                       id="confirm-password"
                       name="confirm-password"
                       type="password"
@@ -175,7 +175,6 @@ export default function ActivateAccountPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       data-testid="activate-password-confirm"
-                      className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
                       placeholder={t('accountActivation.confirmPassword')}
                     />
                   </div>

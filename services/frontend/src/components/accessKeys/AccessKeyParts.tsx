@@ -8,6 +8,7 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { accessKeysAPI } from '@/lib/api/accessKeys'
 import type {
@@ -117,14 +118,14 @@ export function RevokeKeyPanel({
         >
           {t('accessKeys.revoke.reasonLabel')}
         </label>
-        <textarea
+        <Textarea
           id="access-key-revoke-reason"
           value={reason}
           maxLength={500}
           rows={2}
           onChange={(e) => setReason(e.target.value)}
           placeholder={t('accessKeys.revoke.reasonPlaceholder')}
-          className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+          className="mt-1"
           data-testid="access-key-revoke-reason"
         />
       </div>

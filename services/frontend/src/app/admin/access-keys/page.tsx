@@ -18,6 +18,13 @@ import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
@@ -31,8 +38,9 @@ import type {
 } from '@/lib/api/types'
 import { useCallback, useEffect, useState } from 'react'
 
-const selectClass =
-  'mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100'
+// The Select treats an empty value as unset, so "all" gets a sentinel.
+const ALL = '__all__'
+const fromSelect = (v: string) => (v === ALL ? '' : v)
 
 export default function AdminAccessKeysPage() {
   const { user } = useAuth()
@@ -172,57 +180,96 @@ export default function AdminAccessKeysPage() {
       ) : (
         <>
           <div className="mb-4 grid gap-4 sm:grid-cols-3">
-            <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {t('accessKeys.admin.filterOrg')}
-              <select
-                value={orgFilter}
-                onChange={(e) => setOrgFilter(e.target.value)}
-                className={selectClass}
-                data-testid="admin-access-keys-org"
+            <div>
+              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {t('accessKeys.admin.filterOrg')}
+              </span>
+              <Select
+                value={orgFilter || ALL}
+                onValueChange={(v) => setOrgFilter(fromSelect(v))}
               >
-                <option value="">{t('accessKeys.admin.allOrgs')}</option>
-                {organizations.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {t('accessKeys.admin.filterOwner')}
-              <select
-                value={ownerFilter}
-                onChange={(e) =>
-                  setOwnerFilter(e.target.value as AccessKeyOwnerType | '')
+                <SelectTrigger
+                  className="mt-1"
+                  aria-label={t('accessKeys.admin.filterOrg')}
+                  data-testid="admin-access-keys-org"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>
+                    {t('accessKeys.admin.allOrgs')}
+                  </SelectItem>
+                  {organizations.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {t('accessKeys.admin.filterOwner')}
+              </span>
+              <Select
+                value={ownerFilter || ALL}
+                onValueChange={(v) =>
+                  setOwnerFilter(fromSelect(v) as AccessKeyOwnerType | '')
                 }
-                className={selectClass}
-                data-testid="admin-access-keys-owner"
               >
-                <option value="">{t('accessKeys.admin.all')}</option>
-                <option value="org">{t('accessKeys.ownerOrg')}</option>
-                <option value="user">{t('accessKeys.ownerUser')}</option>
-              </select>
-            </label>
-            <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {t('accessKeys.admin.filterStatus')}
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as AccessKeyStatus | '')
+                <SelectTrigger
+                  className="mt-1"
+                  aria-label={t('accessKeys.admin.filterOwner')}
+                  data-testid="admin-access-keys-owner"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>
+                    {t('accessKeys.admin.all')}
+                  </SelectItem>
+                  <SelectItem value="org">
+                    {t('accessKeys.ownerOrg')}
+                  </SelectItem>
+                  <SelectItem value="user">
+                    {t('accessKeys.ownerUser')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {t('accessKeys.admin.filterStatus')}
+              </span>
+              <Select
+                value={statusFilter || ALL}
+                onValueChange={(v) =>
+                  setStatusFilter(fromSelect(v) as AccessKeyStatus | '')
                 }
-                className={selectClass}
-                data-testid="admin-access-keys-status"
               >
-                <option value="">{t('accessKeys.admin.all')}</option>
-                <option value="active">{t('accessKeys.status.active')}</option>
-                <option value="expired">
-                  {t('accessKeys.status.expired')}
-                </option>
-                <option value="revoked">
-                  {t('accessKeys.status.revoked')}
-                </option>
-              </select>
-            </label>
+                <SelectTrigger
+                  className="mt-1"
+                  aria-label={t('accessKeys.admin.filterStatus')}
+                  data-testid="admin-access-keys-status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>
+                    {t('accessKeys.admin.all')}
+                  </SelectItem>
+                  <SelectItem value="active">
+                    {t('accessKeys.status.active')}
+                  </SelectItem>
+                  <SelectItem value="expired">
+                    {t('accessKeys.status.expired')}
+                  </SelectItem>
+                  <SelectItem value="revoked">
+                    {t('accessKeys.status.revoked')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {notice && (

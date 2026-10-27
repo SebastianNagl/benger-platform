@@ -3,6 +3,7 @@
 import { EmailVerificationModal } from '@/components/admin/EmailVerificationModal'
 import { InvitationDeliveryBadge } from '@/components/admin/InvitationDeliveryBadge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { Input } from '@/components/shared/Input'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import {
   Select,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { Textarea } from '@/components/shared/Textarea'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDeleteConfirm, useErrorAlert } from '@/hooks/useDialogs'
@@ -930,19 +932,17 @@ export default function AdminUsersPage() {
                     <div className="flex-1">
                       {isEditingOrg ? (
                         <div className="space-y-3">
-                          <input
+                          <Input
                             type="text"
                             value={editOrgName}
                             onChange={(e) => setEditOrgName(e.target.value)}
-                            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                           />
-                          <textarea
+                          <Textarea
                             value={editOrgDescription}
                             onChange={(e) =>
                               setEditOrgDescription(e.target.value)
                             }
                             rows={2}
-                            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                           />
                           <div className="flex space-x-2">
                             <button
@@ -1268,11 +1268,10 @@ export default function AdminUsersPage() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.usersPage.organizationName')}
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newOrgName}
                     onChange={(e) => setNewOrgName(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>
@@ -1280,7 +1279,7 @@ export default function AdminUsersPage() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.usersPage.urlSlug')}
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newOrgSlug}
                     onChange={(e) =>
@@ -1290,7 +1289,6 @@ export default function AdminUsersPage() {
                           .replace(/[^a-z0-9-]/g, '-'),
                       )
                     }
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>
@@ -1298,11 +1296,10 @@ export default function AdminUsersPage() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.usersPage.descriptionOptional')}
                   </label>
-                  <textarea
+                  <Textarea
                     value={newOrgDescription}
                     onChange={(e) => setNewOrgDescription(e.target.value)}
                     rows={3}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   />
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -1339,11 +1336,10 @@ export default function AdminUsersPage() {
                   <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('admin.usersPage.emailAddress')}
                   </label>
-                  <input
+                  <Input
                     type="email"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
-                    className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                     required
                   />
                 </div>

@@ -97,24 +97,31 @@ test.describe('Multi-run inventory + detail pages', () => {
     // Pick the second option in the project filter (first is "Alle Projekte"
     // / "All projects"). The dropdown is populated by a SEPARATE async projects
     // fetch (runs/page.tsx useEffect), independent of the rows above, so its
-    // <option> list lags the table — reading it mid-flight used to see only the
-    // placeholder and silently skip. The seed always provides multiple
+    // option list lags the table; reading it mid-flight used to see only the
+    // "all" entry and silently skip. The seed always provides multiple
     // projects, so wait for the list to settle and treat a still-empty dropdown
-    // as a real failure rather than a skip.
-    const projectSelect = page.locator('select').first()
+    // as a real failure rather than a skip. The filter is the shared Select
+    // (a listbox): open it, then click the option.
+    const projectTrigger = page.getByTestId('runs-project-filter')
+    const options = page.getByRole('option')
     await expect
-      .poll(() => projectSelect.locator('option').count(), { timeout: 15000 })
+      .poll(
+        async () => {
+          if (!(await page.getByRole('listbox').isVisible())) {
+            await projectTrigger.click()
+          }
+          return options.count()
+        },
+        { timeout: 15000 },
+      )
       .toBeGreaterThanOrEqual(2)
 
-    const targetValue = await projectSelect
-      .locator('option')
-      .nth(1)
-      .getAttribute('value')
+    const targetValue = await options.nth(1).getAttribute('data-value')
     expect(
       targetValue,
       'second project option should carry a project id',
     ).toBeTruthy()
-    await projectSelect.selectOption(targetValue!)
+    await options.nth(1).click()
 
     await expect(page).toHaveURL(/project_id=/, { timeout: 10000 })
     // After narrowing to one project the row count should be ≤ the unfiltered

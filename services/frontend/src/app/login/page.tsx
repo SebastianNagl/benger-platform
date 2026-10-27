@@ -2,6 +2,7 @@
 
 import { AuthPageFrame } from '@/components/layout/AuthPageFrame'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { getHostBrandName } from '@/lib/utils/subdomain'
@@ -116,7 +117,7 @@ export default function LoginPage() {
             {t('login.username')}
           </label>
           <div className="mt-1">
-            <input
+            <Input
               id="username"
               name="username"
               type="text"
@@ -124,7 +125,6 @@ export default function LoginPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
               placeholder={t('login.usernamePlaceholder')}
               data-testid="auth-login-email-input"
             />
@@ -139,7 +139,7 @@ export default function LoginPage() {
             {t('login.password')}
           </label>
           <div className="mt-1">
-            <input
+            <Input
               id="password"
               name="password"
               type="password"
@@ -147,7 +147,6 @@ export default function LoginPage() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
               placeholder={t('login.passwordPlaceholder')}
               data-testid="auth-login-password-input"
             />
