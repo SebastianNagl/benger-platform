@@ -366,7 +366,9 @@ export function AccessKeyCreateForm({
                 {t('accessKeys.form.groupLabel')}
               </label>
               <Select
-                value={groupId || ORG_WIDE}
+                // Group admins get no org-wide option: until a group is
+                // picked, show the placeholder rather than the sentinel.
+                value={groupId || (isOrgAdmin ? ORG_WIDE : '')}
                 onValueChange={(v) => setGroupId(v === ORG_WIDE ? '' : v)}
               >
                 <SelectTrigger
@@ -374,7 +376,7 @@ export function AccessKeyCreateForm({
                   className="mt-1"
                   data-testid="access-key-group"
                 >
-                  <SelectValue />
+                  <SelectValue placeholder={t('accessKeys.form.groupLabel')} />
                 </SelectTrigger>
                 <SelectContent>
                   {isOrgAdmin && (

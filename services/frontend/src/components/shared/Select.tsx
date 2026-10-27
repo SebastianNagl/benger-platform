@@ -71,7 +71,15 @@ export function Select({
         childrenForLookup: children,
       }}
     >
-      <Listbox value={value} onChange={onValueChange} disabled={disabled}>
+      {/* Like a native <select>, re-picking the current option is no change:
+          HeadlessUI calls onChange on every option click. */}
+      <Listbox
+        value={value}
+        onChange={(next: string) => {
+          if (next !== value) onValueChange(next)
+        }}
+        disabled={disabled}
+      >
         <div className="relative">{children}</div>
       </Listbox>
     </SelectContext.Provider>

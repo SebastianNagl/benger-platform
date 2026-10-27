@@ -153,8 +153,6 @@ describe('Textarea Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('prevents input when disabled', async () => {
@@ -193,11 +191,6 @@ describe('Textarea Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies focus styling classes', () => {
@@ -205,15 +198,12 @@ describe('Textarea Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies dark mode styling classes', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
       expect(textarea).toHaveClass('ui-textarea')
     })
 
@@ -244,14 +234,12 @@ describe('Textarea Component', () => {
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass('custom-textarea')
       expect(textarea).toHaveClass('ui-textarea')
-      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies padding classes', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('ui-textarea')
       expect(textarea).toHaveClass('ui-textarea')
     })
   })

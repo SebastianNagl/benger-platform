@@ -1636,7 +1636,6 @@ describe('UserApiKeys Component', () => {
 
       const input = screen.getByPlaceholderText('sk-...')
       expect(input).toHaveClass('ui-input')
-      expect(input).toHaveClass('ui-input')
 
       const darkModeElements = container.querySelectorAll(
         '[class*="dark:bg"], [class*="dark:text"], [class*="dark:border"]',

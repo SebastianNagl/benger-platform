@@ -49,7 +49,6 @@ describe('Input Component', () => {
     const input = screen.getByRole('textbox')
     expect(input).toBeDisabled()
     expect(input).toHaveClass('ui-input')
-    expect(input).toHaveClass('ui-input')
   })
 
   it('supports different input types', () => {
@@ -122,9 +121,6 @@ describe('Input Component', () => {
     render(<Input {...defaultProps} />)
 
     const input = screen.getByRole('textbox')
-    expect(input).toHaveClass('ui-input')
-    expect(input).toHaveClass('ui-input')
-    expect(input).toHaveClass('ui-input')
     expect(input).toHaveClass('ui-input')
   })
 

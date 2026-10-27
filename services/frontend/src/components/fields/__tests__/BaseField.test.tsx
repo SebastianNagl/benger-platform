@@ -293,11 +293,6 @@ describe('BaseField Utilities', () => {
       const classes = getInputClasses(false, false)
 
       expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
     })
 
     it('returns error classes when hasError is true', () => {
@@ -313,9 +308,6 @@ describe('BaseField Utilities', () => {
       const classes = getInputClasses(false, false)
 
       expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
-      expect(classes).toContain('ui-input')
     })
 
     it('returns readonly classes when readonly is true', () => {
@@ -329,7 +321,6 @@ describe('BaseField Utilities', () => {
     it('returns normal background classes when readonly is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('ui-input')
       expect(classes).toContain('ui-input')
     })
 

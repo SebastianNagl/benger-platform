@@ -123,31 +123,34 @@ export function ProjectTypeSelector({
         {t('projects.creation.wizard.step1.kind.title')}{' '}
         <span className="text-red-600 dark:text-red-400">*</span>
       </Label>
-      <div
-        className="mt-2 flex flex-wrap items-center gap-2"
-        role="radiogroup"
-        aria-label={t('projects.creation.wizard.step1.kind.title')}
-      >
-        {options.map((opt) => {
-          const isSelected = selectedId === opt.id
-          return (
-            <Button
-              key={opt.id}
-              variant={isSelected ? 'filled' : 'outline'}
-              role="radio"
-              aria-checked={isSelected}
-              title={t(opt.descriptionKey)}
-              onClick={() =>
-                onChange({ projectKind: opt.kind, projectTypeId: opt.id })
-              }
-              data-testid={`project-kind-${opt.id}`}
-              className="px-4 py-2"
-            >
-              <span aria-hidden>{opt.icon}</span>
-              {t(opt.nameKey)}
-            </Button>
-          )
-        })}
+      {/* The toggle sits next to the options but outside the radiogroup. */}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div
+          className="flex flex-wrap items-center gap-2"
+          role="radiogroup"
+          aria-label={t('projects.creation.wizard.step1.kind.title')}
+        >
+          {options.map((opt) => {
+            const isSelected = selectedId === opt.id
+            return (
+              <Button
+                key={opt.id}
+                variant={isSelected ? 'filled' : 'outline'}
+                role="radio"
+                aria-checked={isSelected}
+                title={t(opt.descriptionKey)}
+                onClick={() =>
+                  onChange({ projectKind: opt.kind, projectTypeId: opt.id })
+                }
+                data-testid={`project-kind-${opt.id}`}
+                className="px-4 py-2"
+              >
+                <span aria-hidden>{opt.icon}</span>
+                {t(opt.nameKey)}
+              </Button>
+            )
+          })}
+        </div>
         {others.length > 0 && (
           <Button
             variant="text"

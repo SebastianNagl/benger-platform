@@ -468,8 +468,10 @@ export function OrgGroups({
                         </p>
                       )}
                       <div className="mt-3 flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                          {t('admin.organizations.groups.groupRoleLabel')}
+                        <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                          <span id="group-add-member-role-label">
+                            {t('admin.organizations.groups.groupRoleLabel')}
+                          </span>
                           <Select
                             value={addRole}
                             onValueChange={(v) =>
@@ -477,6 +479,7 @@ export function OrgGroups({
                             }
                           >
                             <SelectTrigger
+                              aria-labelledby="group-add-member-role-label"
                               data-testid="group-add-member-role-select"
                               className="w-40"
                             >
@@ -490,7 +493,7 @@ export function OrgGroups({
                               ))}
                             </SelectContent>
                           </Select>
-                        </label>
+                        </div>
                         <Button
                           type="submit"
                           variant="filled"

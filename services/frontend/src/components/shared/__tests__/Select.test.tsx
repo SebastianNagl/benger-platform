@@ -146,6 +146,16 @@ describe('Select Component', () => {
       expect(mockOnValueChange).toHaveBeenCalledWith('option2')
     })
 
+    it('does not call onValueChange when the current option is picked again', async () => {
+      const user = userEvent.setup()
+      render(<DefaultSelect value="option1" />)
+
+      await user.click(screen.getByRole('button'))
+      await user.click(screen.getByRole('option', { name: 'Option 1' }))
+
+      expect(mockOnValueChange).not.toHaveBeenCalled()
+    })
+
     it('closes dropdown after selection', async () => {
       const user = userEvent.setup()
       render(<DefaultSelect />)
@@ -228,7 +238,6 @@ describe('Select Component', () => {
       render(<DefaultSelect disabled={true} />)
 
       const button = screen.getByRole('button')
-      expect(button).toHaveClass('ui-select-trigger')
       expect(button).toHaveClass('ui-select-trigger')
     })
 
@@ -662,7 +671,7 @@ describe('Select Component', () => {
     it('handles empty option value', async () => {
       const user = userEvent.setup()
       render(
-        <Select value="" onValueChange={mockOnValueChange}>
+        <Select value="option1" onValueChange={mockOnValueChange}>
           <SelectTrigger>
             <SelectValue placeholder="Select" />
           </SelectTrigger>

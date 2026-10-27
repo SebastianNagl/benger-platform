@@ -613,7 +613,9 @@ export function OrgApiKeys({
                     {t('organization.apiKeys.scopeLabel')}
                   </label>
                   <Select
-                    value={scopeGroupId ?? ORG_WIDE_SCOPE}
+                    // Non-admins get no org-wide option: show the
+                    // placeholder until the first group is pinned.
+                    value={scopeGroupId ?? (isAdmin ? ORG_WIDE_SCOPE : '')}
                     onValueChange={(v) =>
                       handleScopeChange(v === ORG_WIDE_SCOPE ? '' : v)
                     }
@@ -623,7 +625,9 @@ export function OrgApiKeys({
                       data-testid="org-api-keys-scope-select"
                       className="mt-2"
                     >
-                      <SelectValue />
+                      <SelectValue
+                        placeholder={t('organization.apiKeys.scopeLabel')}
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {isAdmin && (
