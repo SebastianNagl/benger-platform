@@ -346,7 +346,9 @@
             "exam": "Klausur",
             "examDescription": "Falllösung mit Angabe, Musterlösung und KI-Korrektur; für Studierende lösbar",
             "deck": "Kartenstapel",
-            "deckDescription": "Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)"
+            "deckDescription": "Karteikarten mit Vorder-/Rückseite und Lernplan (SRS)",
+            "showAll": "Alle Projekttypen anzeigen (+{count})",
+            "showLess": "Weniger Projekttypen anzeigen"
           },
           "icon": {
             "title": "Symbol",

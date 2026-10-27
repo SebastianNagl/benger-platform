@@ -346,7 +346,9 @@
             "exam": "Exam",
             "examDescription": "Case solution with facts, model solution and AI grading; solvable by students",
             "deck": "Flashcard deck",
-            "deckDescription": "Front/back cards with a spaced-repetition study plan"
+            "deckDescription": "Front/back cards with a spaced-repetition study plan",
+            "showAll": "Show all project types (+{count})",
+            "showLess": "Show fewer project types"
           },
           "icon": {
             "title": "Icon",

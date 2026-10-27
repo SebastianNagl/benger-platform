@@ -346,7 +346,9 @@
             "exam": "Examen",
             "examDescription": "Résolution de cas avec énoncé, corrigé type et correction par IA ; peut être traitée par les étudiants",
             "deck": "Paquet de fiches",
-            "deckDescription": "Fiches recto/verso avec plan de révision espacée (SRS)"
+            "deckDescription": "Fiches recto/verso avec plan de révision espacée (SRS)",
+            "showAll": "Afficher tous les types de projet (+{count})",
+            "showLess": "Afficher moins de types de projet"
           },
           "icon": {
             "title": "Icône",
