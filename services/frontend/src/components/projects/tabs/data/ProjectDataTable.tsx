@@ -8,7 +8,7 @@
  * keeps all of that.
  *
  * Bespoke (not the shared `@/components/shared/DataTable`) on purpose: this
- * table renders dynamic `meta_`/`data_` columns with their own amber/blue
+ * table renders dynamic `meta_`/`data_` columns with their own amber/zinc
  * cell backgrounds, uses `TableCheckbox` + `data-testid="header-checkbox"`,
  * and embeds AnnotatorBadges / UserAvatar cells. Swapping in the generic
  * primitive would change the rendered DOM, classNames, and test-ids — which
@@ -164,7 +164,7 @@ export function ProjectDataTable({
                           : ''
                       } ${
                         column.type === 'metadata'
-                          ? 'bg-blue-50/50 dark:bg-blue-900/10'
+                          ? 'bg-zinc-50 dark:bg-zinc-800/40'
                           : column.type === 'data'
                             ? 'bg-amber-50/50 dark:bg-amber-900/10'
                             : ''
@@ -257,7 +257,7 @@ export function ProjectDataTable({
                           return (
                             <td
                               key={column.id}
-                              className="min-w-[120px] cursor-pointer border-r border-zinc-200 bg-blue-50/30 px-3 py-2 whitespace-nowrap hover:bg-blue-100/30 dark:border-zinc-700 dark:bg-blue-900/5 dark:hover:bg-blue-800/10"
+                              className="min-w-[120px] cursor-pointer border-r border-zinc-200 bg-zinc-50/60 px-3 py-2 whitespace-nowrap hover:bg-zinc-100/60 dark:border-zinc-700 dark:bg-zinc-800/20 dark:hover:bg-zinc-800/40"
                               onClick={(e) => {
                                 e.stopPropagation()
                                 onViewTaskMetadata(task)

@@ -6,6 +6,14 @@ import {
   memberOptionLabel,
 } from '@/components/organization/MemberIdentity'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
@@ -53,9 +61,6 @@ const GROUP_ROLES: OrganizationRole[] = [
   'CONTRIBUTOR',
   'ORG_ADMIN',
 ]
-
-const inputClassName =
-  'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100'
 
 export function OrgGroups({
   organizationId,
@@ -435,47 +440,60 @@ export function OrgGroups({
                       <label className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {t('admin.organizations.groups.addMemberLabel')}
                       </label>
-                      <select
-                        value={addUserId}
-                        onChange={(e) => setAddUserId(e.target.value)}
-                        data-testid="group-add-member-select"
-                        className={inputClassName}
-                      >
-                        <option value="">
-                          {t('admin.organizations.groups.addMemberPlaceholder')}
-                        </option>
-                        {addableMembers.map((member) => (
-                          <option key={member.user_id} value={member.user_id}>
-                            {memberOptionLabel(
-                              member.user_name,
-                              member.user_email,
+                      <Select value={addUserId} onValueChange={setAddUserId}>
+                        <SelectTrigger data-testid="group-add-member-select">
+                          <SelectValue
+                            placeholder={t(
+                              'admin.organizations.groups.addMemberPlaceholder',
                             )}
-                          </option>
-                        ))}
-                      </select>
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {addableMembers.map((member) => (
+                            <SelectItem
+                              key={member.user_id}
+                              value={member.user_id}
+                            >
+                              {memberOptionLabel(
+                                member.user_name,
+                                member.user_email,
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       {addableMembers.length === 0 && (
                         <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
                           {t('admin.organizations.groups.noAvailableMembers')}
                         </p>
                       )}
                       <div className="mt-3 flex items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                          {t('admin.organizations.groups.groupRoleLabel')}
-                          <select
+                        <div className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                          <span id="group-add-member-role-label">
+                            {t('admin.organizations.groups.groupRoleLabel')}
+                          </span>
+                          <Select
                             value={addRole}
-                            onChange={(e) =>
-                              setAddRole(e.target.value as OrganizationRole)
+                            onValueChange={(v) =>
+                              setAddRole(v as OrganizationRole)
                             }
-                            data-testid="group-add-member-role-select"
-                            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                           >
-                            {GROUP_ROLES.map((role) => (
-                              <option key={role} value={role}>
-                                {roleLabel(role)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
+                            <SelectTrigger
+                              aria-labelledby="group-add-member-role-label"
+                              data-testid="group-add-member-role-select"
+                              className="w-40"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GROUP_ROLES.map((role) => (
+                                <SelectItem key={role} value={role}>
+                                  {roleLabel(role)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                         <Button
                           type="submit"
                           variant="filled"
@@ -545,28 +563,34 @@ export function OrgGroups({
                             </div>
                             {canManageMembersOf(selectedGroup) && (
                               <div className="flex items-center gap-3">
-                                <select
+                                <Select
                                   value={member.role}
-                                  onChange={(e) =>
+                                  onValueChange={(v) =>
                                     handleChangeMemberRole(
                                       member,
-                                      e.target.value as OrganizationRole,
+                                      v as OrganizationRole,
                                     )
                                   }
                                   disabled={isBusy}
-                                  aria-label={t(
-                                    'admin.organizations.groups.memberRoleAria',
-                                    { name: member.user_name },
-                                  )}
-                                  data-testid={`group-member-role-select-${member.user_id}`}
-                                  className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                                 >
-                                  {GROUP_ROLES.map((role) => (
-                                    <option key={role} value={role}>
-                                      {roleLabel(role)}
-                                    </option>
-                                  ))}
-                                </select>
+                                  <SelectTrigger
+                                    aria-label={t(
+                                      'admin.organizations.groups.memberRoleAria',
+                                      { name: member.user_name },
+                                    )}
+                                    data-testid={`group-member-role-select-${member.user_id}`}
+                                    className="w-36"
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {GROUP_ROLES.map((role) => (
+                                      <SelectItem key={role} value={role}>
+                                        {roleLabel(role)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveMember(member)}
@@ -599,7 +623,7 @@ export function OrgGroups({
                         {t('admin.organizations.groups.createTitle')}
                       </h3>
                       <div className="space-y-3">
-                        <input
+                        <Input
                           type="text"
                           value={newName}
                           onChange={(e) => setNewName(e.target.value)}
@@ -607,9 +631,8 @@ export function OrgGroups({
                             'admin.organizations.groups.namePlaceholder',
                           )}
                           data-testid="group-create-name"
-                          className={inputClassName}
                         />
-                        <input
+                        <Input
                           type="text"
                           value={newDescription}
                           onChange={(e) => setNewDescription(e.target.value)}
@@ -617,7 +640,6 @@ export function OrgGroups({
                             'admin.organizations.groups.descriptionPlaceholder',
                           )}
                           data-testid="group-create-description"
-                          className={inputClassName}
                         />
                         <div className="flex justify-end">
                           <Button
@@ -659,14 +681,13 @@ export function OrgGroups({
                           >
                             {isEditing ? (
                               <div className="space-y-3">
-                                <input
+                                <Input
                                   type="text"
                                   value={editName}
                                   onChange={(e) => setEditName(e.target.value)}
                                   data-testid={`group-edit-name-${group.id}`}
-                                  className={inputClassName}
                                 />
-                                <input
+                                <Input
                                   type="text"
                                   value={editDescription}
                                   onChange={(e) =>
@@ -676,7 +697,6 @@ export function OrgGroups({
                                     'admin.organizations.groups.descriptionPlaceholder',
                                   )}
                                   data-testid={`group-edit-description-${group.id}`}
-                                  className={inputClassName}
                                 />
                                 <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
                                   <input

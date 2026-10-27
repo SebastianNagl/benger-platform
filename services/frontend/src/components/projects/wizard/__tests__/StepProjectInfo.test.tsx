@@ -374,7 +374,7 @@ describe('StepProjectInfo', () => {
       const optionValues = Array.from(
         (select as HTMLSelectElement).options,
       ).map((o) => o.value)
-      expect(optionValues).toEqual(['', 'grp-1', 'grp-2'])
+      expect(optionValues).toEqual(['__org__', 'grp-1', 'grp-2'])
 
       fireEvent.change(select, { target: { value: 'grp-2' } })
       expect(onChange).toHaveBeenCalledWith({
@@ -548,7 +548,7 @@ describe('StepProjectInfo', () => {
         'wizard-organization-group-select-org-1',
       )) as HTMLSelectElement
       expect(Array.from(select.options).map((o) => o.value)).toEqual([
-        '',
+        '__org__',
         'grp-2',
       ])
     })

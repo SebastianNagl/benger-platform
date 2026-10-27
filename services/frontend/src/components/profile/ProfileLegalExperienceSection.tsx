@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
 import { GradeInput } from '@/components/shared/GradeInput'
@@ -273,7 +274,7 @@ export function ProfileLegalExperienceSection({
                       >
                         {t('profile.currentSemester')}
                       </label>
-                      <input
+                      <Input
                         type="number"
                         id="current_semester"
                         name="current_semester"
@@ -291,7 +292,6 @@ export function ProfileLegalExperienceSection({
                           }))
                         }}
                         placeholder={t('profile.currentSemesterPlaceholder')}
-                        className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                       />
                     </div>
                   )}
@@ -309,7 +309,7 @@ export function ProfileLegalExperienceSection({
                           >
                             {t('profile.job')}
                           </label>
-                          <input
+                          <Input
                             type="text"
                             id="job"
                             name="job"
@@ -320,7 +320,6 @@ export function ProfileLegalExperienceSection({
                                 job: e.target.value,
                               })
                             }
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
 
@@ -331,7 +330,7 @@ export function ProfileLegalExperienceSection({
                           >
                             {t('profile.yearsOfExperience')}
                           </label>
-                          <input
+                          <Input
                             type="number"
                             id="years_of_experience"
                             name="years_of_experience"
@@ -348,7 +347,6 @@ export function ProfileLegalExperienceSection({
                             }}
                             min="0"
                             max="100"
-                            className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                           />
                         </div>
                       </>

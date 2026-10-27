@@ -348,7 +348,7 @@ describe('NumberField Component', () => {
       expect(input).toBeDisabled()
       expect(input).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -369,7 +369,7 @@ describe('NumberField Component', () => {
       const input = screen.getByRole('spinbutton')
       expect(input).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -417,7 +417,7 @@ describe('NumberField Component', () => {
       render(<NumberField {...defaultProps} errors={errors} />)
 
       const input = screen.getByRole('spinbutton')
-      expect(input).toHaveClass('border-red-300', 'dark:border-red-600')
+      expect(input).toHaveClass('ring-red-300', 'dark:ring-red-600')
     })
 
     it('does not show errors when errors array is empty', () => {
@@ -432,26 +432,14 @@ describe('NumberField Component', () => {
       render(<NumberField {...defaultProps} />)
 
       const input = screen.getByRole('spinbutton')
-      expect(input).toHaveClass(
-        'block',
-        'w-full',
-        'rounded-md',
-        'shadow-sm',
-        'sm:text-sm',
-        'transition-colors',
-      )
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies normal state classes when no errors', () => {
       render(<NumberField {...defaultProps} />)
 
       const input = screen.getByRole('spinbutton')
-      expect(input).toHaveClass(
-        'border-zinc-300',
-        'dark:border-zinc-600',
-        'bg-white',
-        'dark:bg-zinc-700',
-      )
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies custom className to wrapper', () => {
@@ -469,10 +457,7 @@ describe('NumberField Component', () => {
       await user.click(input)
 
       expect(input).toHaveFocus()
-      expect(input).toHaveClass(
-        'focus:border-emerald-500',
-        'focus:ring-emerald-500',
-      )
+      expect(input).toHaveClass('ui-input')
     })
   })
 

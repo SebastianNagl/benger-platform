@@ -583,7 +583,7 @@ describe('SignupModal Component', () => {
       render(<SignupModal isOpen={true} onClose={mockOnClose} />)
 
       const nameInput = screen.getByLabelText('Full Name')
-      expect(nameInput).toHaveClass('dark:bg-zinc-800', 'dark:text-white')
+      expect(nameInput).toHaveClass('ui-input')
     })
 
     it('applies dark mode classes to error message', async () => {

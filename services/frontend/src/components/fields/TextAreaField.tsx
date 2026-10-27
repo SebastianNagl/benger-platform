@@ -23,7 +23,7 @@ export function TextAreaField({
   }
 
   const hasError = errors.length > 0
-  const inputClasses = getInputClasses(hasError, readonly)
+  const inputClasses = getInputClasses(hasError, readonly, true)
 
   // Calculate rows based on context
   const rows = context === 'annotation' ? 6 : 4

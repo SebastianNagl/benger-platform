@@ -2565,7 +2565,7 @@ describe('ProjectListTable', () => {
         'project-import-target-group-select',
       )) as HTMLSelectElement
       expect(Array.from(groupSelect.options).map((o) => o.value)).toEqual([
-        '',
+        '__org__',
         'grp-b',
       ])
       fireEvent.change(groupSelect, { target: { value: 'grp-b' } })

@@ -71,7 +71,15 @@ export function Select({
         childrenForLookup: children,
       }}
     >
-      <Listbox value={value} onChange={onValueChange} disabled={disabled}>
+      {/* Like a native <select>, re-picking the current option is no change:
+          HeadlessUI calls onChange on every option click. */}
+      <Listbox
+        value={value}
+        onChange={(next: string) => {
+          if (next !== value) onValueChange(next)
+        }}
+        disabled={disabled}
+      >
         <div className="relative">{children}</div>
       </Listbox>
     </SelectContext.Provider>
@@ -108,13 +116,7 @@ export function SelectTrigger({
     <Listbox.Button
       {...props}
       data-value={context.value}
-      className={clsx(
-        'relative h-8 w-full cursor-default rounded-full bg-white pr-8 pl-3 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition',
-        'hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none',
-        'dark:bg-white/5 dark:text-zinc-100 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 dark:focus:ring-emerald-400',
-        'disabled:cursor-not-allowed disabled:opacity-50',
-        className,
-      )}
+      className={clsx('ui-select-trigger', className)}
     >
       {children}
       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5">
@@ -126,9 +128,12 @@ export function SelectTrigger({
 
 export function SelectContent({ children, className }: SelectContentProps) {
   return (
+    // Anchored: rendered in a portal and flipped upward when there is no room
+    // below, so dialogs and scroll containers never clip the list.
     <Listbox.Options
+      anchor="bottom start"
       className={clsx(
-        'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
+        'z-60 max-h-60 w-(--button-width) overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in [--anchor-gap:4px] focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
         className,
       )}
     >

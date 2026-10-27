@@ -18,7 +18,15 @@
 
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch'
@@ -264,8 +272,9 @@ const checkboxLabelClass =
   'flex items-center gap-2 rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
 const checkboxClass =
   'h-4 w-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500'
-const selectClass =
-  'mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white sm:w-96'
+const selectClass = 'mt-1 sm:w-96'
+// Select item standing for "no primary metric" (state value '').
+const NO_PRIMARY_METRIC = '__none__'
 
 export default function ReportEditorPage({ params }: ReportEditorPageProps) {
   const router = useRouter()
@@ -629,13 +638,13 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               <Label htmlFor="customTitle">
                 {t('project.report.editor.projectInfo.customTitle')}
               </Label>
-              <input
+              <Input
                 id="customTitle"
                 type="text"
                 value={state.customTitle}
                 onChange={(e) => update({ customTitle: e.target.value })}
                 placeholder={report.project_title}
-                className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                className="mt-1"
               />
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                 {t('project.report.editor.projectInfo.useDefaultTitle', {
@@ -815,21 +824,28 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                       {t('reports.editor.primaryMetricHint')}
                     </p>
-                    <select
-                      id="primaryMetric"
-                      value={state.primaryMetric ?? ''}
-                      onChange={(e) =>
-                        handlePrimaryMetricChange(e.target.value)
+                    <Select
+                      value={state.primaryMetric || NO_PRIMARY_METRIC}
+                      onValueChange={(v) =>
+                        handlePrimaryMetricChange(
+                          v === NO_PRIMARY_METRIC ? '' : v,
+                        )
                       }
-                      className={selectClass}
                     >
-                      <option value="">{t('reports.editor.none')}</option>
-                      {primaryMetricOptions.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {metricDisplayName(m)}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="primaryMetric" className={selectClass}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={NO_PRIMARY_METRIC}>
+                          {t('reports.editor.none')}
+                        </SelectItem>
+                        {primaryMetricOptions.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>
+                            {metricDisplayName(m)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Primary config */}
@@ -845,20 +861,26 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
                         {t('reports.editor.noConfigsForMetric')}
                       </p>
                     ) : (
-                      <select
-                        id="primaryConfig"
+                      <Select
                         value={state.primaryConfigId ?? ''}
-                        onChange={(e) =>
-                          update({ primaryConfigId: e.target.value || null })
+                        onValueChange={(v) =>
+                          update({ primaryConfigId: v || null })
                         }
-                        className={selectClass}
                       >
-                        {configsForPrimary.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {configLabel(c)}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger
+                          id="primaryConfig"
+                          className={selectClass}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {configsForPrimary.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {configLabel(c)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
 

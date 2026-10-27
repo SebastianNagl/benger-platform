@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { GuideCard } from '@/components/howto'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
+import { Button } from '@/components/shared/Button'
 import { ResponsiveContainer } from '@/components/shared/ResponsiveContainer'
 import { useI18n } from '@/contexts/I18nContext'
 import { usePublicApiEnabled } from '@/hooks/usePublicApiEnabled'
@@ -194,26 +195,22 @@ function Chip({
   onClick: () => void
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant={active ? 'filled' : 'outline'}
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
-        active
-          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:border-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300'
-          : 'border-zinc-200 text-zinc-700 hover:border-emerald-400 hover:text-emerald-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-emerald-600 dark:hover:text-emerald-400'
-      }`}
+      className="gap-1.5 text-xs"
     >
       {label}
       <span
         className={
           active
-            ? 'text-emerald-600 dark:text-emerald-400'
+            ? 'text-zinc-300 dark:text-emerald-100'
             : 'text-zinc-400 dark:text-zinc-500'
         }
       >
         {count}
       </span>
-    </button>
+    </Button>
   )
 }

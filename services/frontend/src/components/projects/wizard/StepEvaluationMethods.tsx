@@ -2,6 +2,7 @@
 
 import { Alert } from '@/components/shared/Alert'
 import { Badge } from '@/components/shared/Badge'
+import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
 import {
   Select,
@@ -360,7 +361,7 @@ export function StepEvaluationMethods({
                             <Label className="text-xs">
                               {t('projects.creation.wizard.step7.name')}
                             </Label>
-                            <input
+                            <Input
                               type="text"
                               value={config.display_name || ''}
                               placeholder={
@@ -380,7 +381,7 @@ export function StepEvaluationMethods({
                                   e.target.value,
                                 )
                               }
-                              className="mt-1 w-full rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                              className="mt-1 h-8"
                               data-testid={
                                 configIndex === 0
                                   ? `wizard-metric-name-${metricKey}`
@@ -546,7 +547,7 @@ export function StepEvaluationMethods({
                   }}
                   className="h-8 w-8 cursor-pointer rounded border border-zinc-300 dark:border-zinc-600"
                 />
-                <input
+                <Input
                   type="text"
                   value={label.value}
                   onChange={(e) => {
@@ -560,7 +561,7 @@ export function StepEvaluationMethods({
                   placeholder={t(
                     'projects.creation.wizard.korrekturLabels.namePlaceholder',
                   )}
-                  className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                  className="h-8 flex-1"
                 />
                 <button
                   type="button"

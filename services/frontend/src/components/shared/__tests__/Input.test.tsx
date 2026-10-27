@@ -48,8 +48,7 @@ describe('Input Component', () => {
 
     const input = screen.getByRole('textbox')
     expect(input).toBeDisabled()
-    expect(input).toHaveClass('disabled:cursor-not-allowed')
-    expect(input).toHaveClass('disabled:bg-zinc-50')
+    expect(input).toHaveClass('ui-input')
   })
 
   it('supports different input types', () => {
@@ -122,10 +121,7 @@ describe('Input Component', () => {
     render(<Input {...defaultProps} />)
 
     const input = screen.getByRole('textbox')
-    expect(input).toHaveClass('block')
-    expect(input).toHaveClass('w-full')
-    expect(input).toHaveClass('rounded-md')
-    expect(input).toHaveClass('border-zinc-300')
+    expect(input).toHaveClass('ui-input')
   })
 
   it('blurs a number input on wheel so scrolling never changes the value', () => {

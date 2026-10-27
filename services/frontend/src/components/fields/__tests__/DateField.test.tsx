@@ -183,7 +183,7 @@ describe('DateField Component', () => {
       render(<DateField {...defaultProps} readonly={true} />)
 
       const input = screen.getByDisplayValue('')
-      expect(input).toHaveClass('bg-zinc-50', 'dark:bg-zinc-800')
+      expect(input).toHaveClass('bg-zinc-50', 'dark:bg-white/2.5')
     })
   })
 
@@ -200,7 +200,7 @@ describe('DateField Component', () => {
       render(<DateField {...defaultProps} errors={errors} />)
 
       const input = screen.getByDisplayValue('')
-      expect(input).toHaveClass('border-red-300', 'dark:border-red-600')
+      expect(input).toHaveClass('ring-red-300', 'dark:ring-red-600')
     })
 
     it('displays multiple errors', () => {
@@ -240,7 +240,7 @@ describe('DateField Component', () => {
       render(<DateField {...defaultProps} />)
 
       const input = screen.getByDisplayValue('')
-      expect(input).toHaveClass('block', 'w-full', 'rounded-md')
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies custom className to wrapper', () => {

@@ -125,7 +125,7 @@ describe('TextAreaField Component', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('resize-y')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -270,7 +270,7 @@ describe('TextAreaField Component', () => {
       expect(textarea).toBeDisabled()
       expect(textarea).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -291,7 +291,7 @@ describe('TextAreaField Component', () => {
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -331,7 +331,7 @@ describe('TextAreaField Component', () => {
       render(<TextAreaField {...defaultProps} errors={errors} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('border-red-300', 'dark:border-red-600')
+      expect(textarea).toHaveClass('ring-red-300', 'dark:ring-red-600')
     })
 
     it('does not show errors when errors array is empty', () => {
@@ -469,27 +469,14 @@ describe('TextAreaField Component', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'block',
-        'w-full',
-        'rounded-md',
-        'shadow-sm',
-        'sm:text-sm',
-        'transition-colors',
-        'resize-y',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies normal state classes when no errors', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'border-zinc-300',
-        'dark:border-zinc-600',
-        'bg-white',
-        'dark:bg-zinc-700',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies custom className to wrapper', () => {
@@ -509,10 +496,7 @@ describe('TextAreaField Component', () => {
       await user.click(textarea)
 
       expect(textarea).toHaveFocus()
-      expect(textarea).toHaveClass(
-        'focus:border-emerald-500',
-        'focus:ring-emerald-500',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 

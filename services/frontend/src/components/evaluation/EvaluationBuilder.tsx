@@ -20,6 +20,7 @@
 import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Checkbox } from '@/components/shared/Checkbox'
+import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -877,7 +878,7 @@ export function EvaluationBuilder({
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min={1024}
                       max={128000}
@@ -901,7 +902,6 @@ export function EvaluationBuilder({
                           },
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                     />
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
@@ -1079,7 +1079,7 @@ export function EvaluationBuilder({
                         {t('project.modelSelection.thinking')}
                       </span>
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min={1024}
                       max={128000}
@@ -1103,7 +1103,6 @@ export function EvaluationBuilder({
                           },
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                     />
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                       {t(
@@ -1726,7 +1725,7 @@ export function EvaluationBuilder({
               <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                 {t('evaluationBuilder.name.label')}
               </label>
-              <input
+              <Input
                 type="text"
                 value={newEvaluation.display_name || ''}
                 placeholder={
@@ -1738,7 +1737,6 @@ export function EvaluationBuilder({
                     display_name: e.target.value,
                   }))
                 }
-                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
                 data-testid="evaluation-name-input"
               />
               <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">

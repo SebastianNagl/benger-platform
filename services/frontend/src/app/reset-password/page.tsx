@@ -3,6 +3,7 @@
 import { VertretbarMarkIcon } from '@/components/brand/VertretbarMark'
 import { LanguageSwitcher, ThemeToggle } from '@/components/layout'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { getHostBrandName, isStudentLockedHost } from '@/lib/utils/subdomain'
 import Link from 'next/link'
@@ -118,7 +119,7 @@ export default function ResetPasswordPage() {
                     {t('passwordReset.emailLabel')}
                   </label>
                   <div className="mt-1">
-                    <input
+                    <Input
                       id="email"
                       name="email"
                       type="email"
@@ -126,7 +127,6 @@ export default function ResetPasswordPage() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="block w-full rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400 dark:focus:ring-emerald-400"
                       placeholder={t('passwordReset.emailPlaceholder')}
                     />
                   </div>

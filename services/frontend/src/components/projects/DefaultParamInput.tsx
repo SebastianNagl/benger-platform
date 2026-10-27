@@ -1,3 +1,4 @@
+import { Input } from '@/components/shared/Input'
 import React from 'react'
 
 interface DefaultParamInputProps {
@@ -29,7 +30,7 @@ export function DefaultParamInput({
   onChange,
 }: DefaultParamInputProps) {
   return (
-    <input
+    <Input
       type="number"
       min={min}
       max={max}
@@ -38,9 +39,7 @@ export function DefaultParamInput({
       placeholder={placeholder}
       disabled={disabled}
       onChange={onChange}
-      className={`mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 ${
-        disabled ? 'cursor-not-allowed opacity-50' : ''
-      }`}
+      className="mt-1 h-8"
     />
   )
 }

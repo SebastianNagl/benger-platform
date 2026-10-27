@@ -7,6 +7,8 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { logger } from '@/lib/utils/logger'
 import { Dialog, Transition } from '@headlessui/react'
@@ -183,7 +185,7 @@ export function QuestionEditModal({
                     >
                       {t('tasks.questions.questionLabel')}
                     </label>
-                    <textarea
+                    <Textarea
                       id="question"
                       name="question"
                       rows={3}
@@ -194,7 +196,6 @@ export function QuestionEditModal({
                           question: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.questionPlaceholder')}
                       data-testid="question-input"
                     />
@@ -213,7 +214,7 @@ export function QuestionEditModal({
                     >
                       {t('tasks.questions.contextLabel')}
                     </label>
-                    <textarea
+                    <Textarea
                       id="context"
                       rows={2}
                       value={formData.context}
@@ -223,7 +224,6 @@ export function QuestionEditModal({
                           context: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.contextPlaceholder')}
                     />
                   </div>
@@ -246,14 +246,14 @@ export function QuestionEditModal({
                     <div className="space-y-2">
                       {formData.reference_answers.map((answer, index) => (
                         <div key={index} className="flex gap-2">
-                          <input
+                          <Input
                             type="text"
                             name={`reference_answers.${index}`}
                             value={answer}
                             onChange={(e) =>
                               updateReferenceAnswer(index, e.target.value)
                             }
-                            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                            className="flex-1"
                             placeholder={t(
                               'tasks.questions.referenceAnswerPlaceholder',
                               { number: index + 1 },

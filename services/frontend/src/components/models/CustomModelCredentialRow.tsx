@@ -11,6 +11,7 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { customModelsAPI } from '@/lib/api/customModels'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
@@ -271,7 +272,7 @@ export function CustomModelCredentialRow({
       ) : (
         <div className="space-y-3">
           <div className="relative">
-            <input
+            <Input
               type={showApiKey ? 'text' : 'password'}
               placeholder={t('customModels.credential.placeholder')}
               value={newApiKey}
@@ -279,7 +280,7 @@ export function CustomModelCredentialRow({
                 setNewApiKey(e.target.value)
                 if (validationError) setValidationError('')
               }}
-              className="w-full rounded-full bg-white px-4 py-2 pr-10 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
+              className="pr-10"
               data-testid="credential-key-input"
             />
             <button

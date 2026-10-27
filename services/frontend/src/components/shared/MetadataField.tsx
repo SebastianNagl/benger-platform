@@ -5,6 +5,7 @@
  * Replaces the complex TagManager with direct, simple editing
  */
 
+import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -144,7 +145,7 @@ export function MetadataField({
     // For arrays (like tags), show a comma-separated input
     if (Array.isArray(value)) {
       return (
-        <input
+        <Input
           ref={inputRef}
           type="text"
           value={Array.isArray(editValue) ? editValue.join(', ') : ''}
@@ -156,7 +157,7 @@ export function MetadataField({
             setEditValue(newValue)
           }}
           onKeyDown={handleKeyDown}
-          className="rounded-md border px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
+          className="h-7 w-auto"
           placeholder={t('shared.metadata.enterCommaSeparated', {
             field: fieldName,
           })}
@@ -184,13 +185,13 @@ export function MetadataField({
       )
     } else {
       return (
-        <input
+        <Input
           ref={inputRef}
           type="text"
           value={editValue || ''}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="rounded-md border px-2 py-1 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
+          className="h-7 w-auto"
           placeholder={t('shared.metadata.enterField', { field: fieldName })}
           disabled={isLoading}
         />
@@ -328,7 +329,7 @@ export function BulkMetadataEditor({
           <label className="w-24 text-sm font-medium">
             {t('shared.metadata.labelTags')}
           </label>
-          <input
+          <Input
             type="text"
             placeholder={t('shared.metadata.tagsPlaceholder')}
             onChange={(e) => {
@@ -342,7 +343,7 @@ export function BulkMetadataEditor({
                 removeField('tags')
               }
             }}
-            className="flex-1 rounded-md border px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
+            className="h-8 flex-1"
           />
         </div>
 

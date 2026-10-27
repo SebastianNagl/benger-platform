@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { ChevronDownIcon } from '@heroicons/react/24/outline'
 
 import { useI18n } from '@/contexts/I18nContext'
@@ -56,13 +57,12 @@ export function ProfilePrivacySection({
             >
               {t('profile.yourPseudonym')}
             </label>
-            <input
+            <Input
               type="text"
               id="pseudonym"
               name="pseudonym"
               value={profile?.pseudonym || ''}
               disabled
-              className="w-full rounded-full bg-zinc-100 px-4 py-2 text-sm text-zinc-500 ring-1 ring-zinc-900/5 dark:bg-white/5 dark:text-zinc-400 dark:ring-white/5 dark:ring-inset"
             />
             <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {t('profile.pseudonymNote')}

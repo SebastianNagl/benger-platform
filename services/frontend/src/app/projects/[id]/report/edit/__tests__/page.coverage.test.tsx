@@ -376,7 +376,7 @@ describe('ReportEditorPage - branch coverage', () => {
 
       await user.selectOptions(
         screen.getByLabelText('reports.editor.primaryMetric'),
-        '',
+        '__none__',
       )
       expect(
         screen.getByText('reports.editor.noConfigsForMetric'),

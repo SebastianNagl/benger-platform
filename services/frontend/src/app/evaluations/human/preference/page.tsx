@@ -336,11 +336,9 @@ export default function PreferenceEvaluation() {
             <Card
               key={response.id}
               className={`cursor-pointer p-6 transition-all ${
-                selectedWinner === response.id
-                  ? 'bg-emerald-50 ring-2 ring-emerald-500 dark:bg-emerald-900/20'
-                  : isTie
-                    ? 'bg-emerald-50 ring-2 ring-emerald-500 dark:bg-emerald-900/20'
-                    : 'hover:shadow-lg'
+                selectedWinner === response.id || isTie
+                  ? 'ring-2 ring-emerald-500'
+                  : 'hover:shadow-lg'
               }`}
               onClick={() => !isTie && selectWinner(response.id)}
             >

@@ -41,7 +41,7 @@ export function RadioField({
               key={choice}
               value={choice}
               className={({ active, checked }) =>
-                `${active ? 'ring-2 ring-emerald-500 ring-offset-2' : ''} ${checked ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-900/20' : 'bg-white dark:bg-zinc-700'} ${readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} relative rounded-lg border px-4 py-3 shadow-sm focus:outline-none`
+                `${checked ? 'ring-2 ring-emerald-500' : active ? 'ring-2 ring-emerald-500/40' : ''} ${readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} relative rounded-lg border border-zinc-200 bg-white px-4 py-3 shadow-sm focus:outline-none dark:border-zinc-700 dark:bg-zinc-800`
               }
             >
               {({ checked }) => (

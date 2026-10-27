@@ -292,57 +292,48 @@ describe('BaseField Utilities', () => {
     it('returns base classes for normal state', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('block')
-      expect(classes).toContain('w-full')
-      expect(classes).toContain('rounded-md')
-      expect(classes).toContain('shadow-sm')
-      expect(classes).toContain('sm:text-sm')
-      expect(classes).toContain('transition-colors')
+      expect(classes).toContain('ui-input')
     })
 
     it('returns error classes when hasError is true', () => {
       const classes = getInputClasses(true, false)
 
-      expect(classes).toContain('border-red-300')
-      expect(classes).toContain('dark:border-red-600')
-      expect(classes).toContain('focus:border-red-500')
+      expect(classes).toContain('ring-red-300')
+      expect(classes).toContain('dark:ring-red-600')
+      expect(classes).toContain('ui-input')
       expect(classes).toContain('focus:ring-red-500')
     })
 
     it('returns normal classes when hasError is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('border-zinc-300')
-      expect(classes).toContain('dark:border-zinc-600')
-      expect(classes).toContain('focus:border-emerald-500')
-      expect(classes).toContain('focus:ring-emerald-500')
+      expect(classes).toContain('ui-input')
     })
 
     it('returns readonly classes when readonly is true', () => {
       const classes = getInputClasses(false, true)
 
       expect(classes).toContain('bg-zinc-50')
-      expect(classes).toContain('dark:bg-zinc-800')
+      expect(classes).toContain('dark:bg-white/2.5')
       expect(classes).toContain('cursor-not-allowed')
     })
 
     it('returns normal background classes when readonly is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('bg-white')
-      expect(classes).toContain('dark:bg-zinc-700')
+      expect(classes).toContain('ui-input')
     })
 
     it('combines error and readonly classes', () => {
       const classes = getInputClasses(true, true)
 
       // Should have error classes
-      expect(classes).toContain('border-red-300')
-      expect(classes).toContain('dark:border-red-600')
+      expect(classes).toContain('ring-red-300')
+      expect(classes).toContain('dark:ring-red-600')
 
       // Should have readonly classes
       expect(classes).toContain('bg-zinc-50')
-      expect(classes).toContain('dark:bg-zinc-800')
+      expect(classes).toContain('dark:bg-white/2.5')
       expect(classes).toContain('cursor-not-allowed')
     })
 
@@ -352,14 +343,7 @@ describe('BaseField Utilities', () => {
       const readonlyClasses = getInputClasses(false, true)
       const bothClasses = getInputClasses(true, true)
 
-      const baseClassesList = [
-        'block',
-        'w-full',
-        'rounded-md',
-        'shadow-sm',
-        'sm:text-sm',
-        'transition-colors',
-      ]
+      const baseClassesList = ['ui-input']
 
       for (const baseClass of baseClassesList) {
         expect(normalClasses).toContain(baseClass)
@@ -372,8 +356,8 @@ describe('BaseField Utilities', () => {
     it('does not include error classes in normal state', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).not.toContain('border-red-300')
-      expect(classes).not.toContain('dark:border-red-600')
+      expect(classes).not.toContain('ring-red-300')
+      expect(classes).not.toContain('dark:ring-red-600')
     })
 
     it('does not include readonly classes in editable state', () => {

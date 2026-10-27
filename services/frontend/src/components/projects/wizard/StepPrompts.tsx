@@ -134,8 +134,7 @@ export function StepPrompts({
               key={template.id}
               className={cn(
                 'cursor-pointer p-3 transition-colors hover:border-emerald-600',
-                promptTemplate === template.id &&
-                  'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20',
+                promptTemplate === template.id && 'ring-2 ring-emerald-500',
               )}
               onClick={() => selectTemplate(template)}
               data-testid={`wizard-prompt-template-${template.id}`}

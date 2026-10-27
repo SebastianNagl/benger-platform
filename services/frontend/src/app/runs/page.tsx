@@ -3,6 +3,13 @@
 import { Badge } from '@/components/shared/Badge'
 import { Breadcrumb } from '@/components/shared/Breadcrumb'
 import { Button } from '@/components/shared/Button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import apiClient from '@/lib/api'
 import { projectsAPI } from '@/lib/api/projects'
@@ -96,6 +103,9 @@ function formatDuration(start?: string | null, end?: string | null) {
     return '—'
   }
 }
+
+// The Select treats an empty value as unset, so "all" gets a sentinel.
+const ALL = '__all__'
 
 export default function RunsPage() {
   const { t, locale } = useI18n()
@@ -245,43 +255,59 @@ export default function RunsPage() {
         <label className="text-xs text-zinc-500">
           {t('runs.filterProject')}
         </label>
-        <select
-          value={projectFilter}
-          onChange={(e) => handleProjectChange(e.target.value)}
-          className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        <Select
+          value={projectFilter || ALL}
+          onValueChange={(v) => handleProjectChange(v === ALL ? '' : v)}
         >
-          <option value="">{t('runs.allProjects')}</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger
+            className="w-56"
+            aria-label={t('runs.filterProject')}
+            data-testid="runs-project-filter"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('runs.allProjects')}</SelectItem>
+            {projects.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <label className="text-xs text-zinc-500">
           {t('runs.filterStatus')}
         </label>
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value)
+        <Select
+          value={statusFilter || ALL}
+          onValueChange={(v) => {
+            setStatusFilter(v === ALL ? '' : v)
             setPage(1)
           }}
-          className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
         >
-          <option value="">{t('runs.allStatuses')}</option>
-          <option value="pending">
-            {t('evaluations.detail.statusLabels.pending')}
-          </option>
-          <option value="running">
-            {t('evaluations.detail.statusLabels.running')}
-          </option>
-          <option value="completed">
-            {t('evaluations.detail.statusLabels.completed')}
-          </option>
-          <option value="failed">
-            {t('evaluations.detail.statusLabels.failed')}
-          </option>
-        </select>
+          <SelectTrigger
+            className="w-40"
+            aria-label={t('runs.filterStatus')}
+            data-testid="runs-status-filter"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL}>{t('runs.allStatuses')}</SelectItem>
+            <SelectItem value="pending">
+              {t('evaluations.detail.statusLabels.pending')}
+            </SelectItem>
+            <SelectItem value="running">
+              {t('evaluations.detail.statusLabels.running')}
+            </SelectItem>
+            <SelectItem value="completed">
+              {t('evaluations.detail.statusLabels.completed')}
+            </SelectItem>
+            <SelectItem value="failed">
+              {t('evaluations.detail.statusLabels.failed')}
+            </SelectItem>
+          </SelectContent>
+        </Select>
         <span className="ml-auto text-xs text-zinc-500">
           {data ? t('runs.totalCount', { count: data.total }) : ''}
         </span>

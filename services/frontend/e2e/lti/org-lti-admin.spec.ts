@@ -146,7 +146,10 @@ test.describe('Org LTI panel @extended', () => {
     await page.getByTestId('lti-form-client_id').fill(clientId)
 
     // The prefill helper derives Moodle's endpoints from the issuer.
-    await expect(page.getByTestId('lti-form-lms_family')).toHaveValue('moodle')
+    await expect(page.getByTestId('lti-form-lms_family')).toHaveAttribute(
+      'data-value',
+      'moodle',
+    )
     await page.getByTestId('lti-form-moodle-defaults').click()
     await expect(page.getByTestId('lti-form-auth_login_url')).toHaveValue(
       `${E2E_ISSUER}/mod/lti/auth.php`,

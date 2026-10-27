@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { Listbox } from '@headlessui/react'
@@ -113,7 +114,7 @@ export function TaskFieldSelector({
   if (allowManualEntry && isManualMode) {
     return (
       <div className={clsx('flex gap-2', className)}>
-        <input
+        <Input
           type="text"
           value={manualValue}
           onChange={(e) => setManualValue(e.target.value)}
@@ -126,7 +127,7 @@ export function TaskFieldSelector({
             }
           }}
           placeholder={t('taskFields.manualPlaceholder')}
-          className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800"
+          className="flex-1"
           autoFocus
         />
         <button

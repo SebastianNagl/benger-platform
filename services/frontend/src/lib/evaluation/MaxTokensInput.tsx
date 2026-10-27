@@ -6,6 +6,7 @@
  * with a "Zurücksetzen auf Empfohlen" link when the user has deviated.
  */
 
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { getRecommendedParam, hasRecommendations } from '@/lib/modelConstraints'
@@ -40,13 +41,12 @@ export function MaxTokensInput({
       <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluationBuilder.parameters.maxTokens')}
       </label>
-      <input
+      <Input
         type="number"
         min={min}
         max={max}
         value={current}
         onChange={(e) => onChange(parseInt(e.target.value) || fallback)}
-        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
       />
       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         {t('evaluationBuilder.parameters.maxTokensRange', { min, max })}

@@ -6,9 +6,11 @@
  * extended metric editor that calls the same helpers.
  */
 
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import { useModels } from '@/hooks/useModels'
 import { getRecommendedParam, hasRecommendations } from '@/lib/modelConstraints'
+import clsx from 'clsx'
 import { useJudgeModelHelpers } from './judgeModelHelpers'
 
 interface Props {
@@ -41,7 +43,7 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
           </span>
         )}
       </label>
-      <input
+      <Input
         type="number"
         min={constraints.temperature.min}
         max={constraints.temperature.max}
@@ -52,15 +54,9 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
         onChange={(e) =>
           onChange(e.target.value ? parseFloat(e.target.value) : undefined)
         }
-        className={`w-full rounded-md border px-3 py-2 text-sm ${
-          constraints.temperature.fixed
-            ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-700'
-            : ''
-        } ${
-          tempValidation.type === 'error'
-            ? 'border-red-500 dark:border-red-400'
-            : 'border-zinc-300 dark:border-zinc-600'
-        } dark:bg-zinc-800`}
+        className={clsx(
+          tempValidation.type === 'error' && 'ring-red-500 dark:ring-red-400',
+        )}
       />
       {tempValidation.type && (
         <p

@@ -1,5 +1,7 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import type { CustomCriteriaDefinition } from '@/lib/api/evaluation-types'
 import {
@@ -166,21 +168,21 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                 <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionKey')}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={row.key}
                   placeholder="result_correctness"
                   onChange={(e) =>
                     updateRow(row.rowId, { key: e.target.value.trim() })
                   }
-                  className="w-full rounded-md border border-zinc-300 px-2 py-1 font-mono text-xs dark:border-zinc-600 dark:bg-zinc-800"
+                  className="h-8 font-mono text-xs sm:text-xs"
                 />
               </div>
               <div className="col-span-5">
                 <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionName')}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={row.name}
                   placeholder={t(
@@ -189,14 +191,14 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { name: e.target.value })
                   }
-                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
+                  className="h-8 text-xs sm:text-xs"
                 />
               </div>
               <div className="col-span-2">
                 <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionMax')}
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   max={1000}
@@ -207,7 +209,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                       max_score: Number(e.target.value) || 0,
                     })
                   }
-                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
+                  className="h-8 text-xs sm:text-xs"
                 />
               </div>
               <div className="col-span-1 flex items-end justify-end">
@@ -226,7 +228,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                 <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionDescription')}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={row.description}
                   placeholder={t(
@@ -235,7 +237,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { description: e.target.value })
                   }
-                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
+                  className="h-8 text-xs sm:text-xs"
                 />
               </div>
 
@@ -243,7 +245,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                 <label className="mb-1 block text-[10px] tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
                   {t('evaluationBuilder.parameters.dimensionRubric')}
                 </label>
-                <textarea
+                <Textarea
                   value={row.rubric}
                   placeholder={t(
                     'evaluationBuilder.parameters.dimensionRubricPlaceholder',
@@ -252,7 +254,7 @@ export function DimensionsEditor({ value, onChange }: DimensionsEditorProps) {
                   onChange={(e) =>
                     updateRow(row.rowId, { rubric: e.target.value })
                   }
-                  className="w-full rounded-md border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
+                  className="text-xs sm:text-xs"
                 />
               </div>
             </div>

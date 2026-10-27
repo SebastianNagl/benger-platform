@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { Dialog } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
@@ -104,7 +105,7 @@ export function ChangePasswordModal({
                 >
                   {t('profile.currentPassword')}
                 </label>
-                <input
+                <Input
                   type="password"
                   id="current_password"
                   name="current_password"
@@ -116,7 +117,6 @@ export function ChangePasswordModal({
                     })
                   }
                   autoComplete="current-password"
-                  className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                   required
                 />
               </div>
@@ -128,7 +128,7 @@ export function ChangePasswordModal({
                 >
                   {t('profile.newPassword')}
                 </label>
-                <input
+                <Input
                   type="password"
                   id="new_password"
                   name="new_password"
@@ -140,7 +140,6 @@ export function ChangePasswordModal({
                     })
                   }
                   autoComplete="new-password"
-                  className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                   minLength={6}
                   required
                 />
@@ -156,7 +155,7 @@ export function ChangePasswordModal({
                 >
                   {t('profile.confirmNewPassword')}
                 </label>
-                <input
+                <Input
                   type="password"
                   id="confirm_password"
                   name="confirm_password"
@@ -168,7 +167,6 @@ export function ChangePasswordModal({
                     })
                   }
                   autoComplete="new-password"
-                  className="w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400"
                   minLength={6}
                   required
                 />

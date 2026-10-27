@@ -1,5 +1,6 @@
 'use client'
 
+import { Input } from '@/components/shared/Input'
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner'
 import {
   TaskFieldInfo,
@@ -204,7 +205,7 @@ export function FieldMappingEditor({
               >
                 {/* Variable name input */}
                 <div className="flex flex-col gap-1">
-                  <input
+                  <Input
                     type="text"
                     value={row.variableName}
                     onChange={(e) => {
@@ -217,10 +218,8 @@ export function FieldMappingEditor({
                     }}
                     placeholder={t('fieldMapping.variablePlaceholder')}
                     className={clsx(
-                      'w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none',
-                      hasError
-                        ? 'border-red-300 focus:border-red-500 focus:ring-red-500 dark:border-red-700'
-                        : 'border-zinc-300 focus:border-emerald-500 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800',
+                      hasError &&
+                        'ring-red-300 focus:ring-red-500 dark:ring-red-700',
                     )}
                   />
                   {row.variableName && (

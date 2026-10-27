@@ -82,19 +82,24 @@ export function FieldWrapper({
 /**
  * Get common input classes based on state
  */
-export function getInputClasses(hasError: boolean, readonly: boolean): string {
-  const baseClasses =
-    'block w-full rounded-md shadow-sm sm:text-sm transition-colors'
+export function getInputClasses(
+  hasError: boolean,
+  readonly: boolean,
+  multiline = false,
+): string {
+  // Same field style as the shared Input (ui-input / ui-textarea in
+  // styles/tailwind.css); the utilities below override it.
+  const shapeClasses = multiline ? 'ui-textarea' : 'ui-input'
 
   const stateClasses = hasError
-    ? 'border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-500'
-    : 'border-zinc-300 dark:border-zinc-600 focus:border-emerald-500 focus:ring-emerald-500'
+    ? 'ring-red-300 focus:ring-red-500 dark:ring-red-600'
+    : ''
 
   const readonlyClasses = readonly
-    ? 'bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed'
-    : 'bg-white dark:bg-zinc-700'
+    ? 'bg-zinc-50 dark:bg-white/2.5 cursor-not-allowed'
+    : ''
 
-  return `${baseClasses} ${stateClasses} ${readonlyClasses}`
+  return [shapeClasses, stateClasses, readonlyClasses].filter(Boolean).join(' ')
 }
 
 /**

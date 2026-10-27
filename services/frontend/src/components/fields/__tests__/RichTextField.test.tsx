@@ -177,14 +177,14 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('resize-vertical')
+      expect(textarea).toHaveClass('resize-y')
     })
 
     it('has full width styling', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('w-full')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -220,7 +220,7 @@ describe('RichTextField Component', () => {
       expect(textarea).toHaveClass(
         'cursor-not-allowed',
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
       )
     })
 
@@ -258,10 +258,9 @@ describe('RichTextField Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
-        'border-red-300',
-        'focus:border-red-500',
+        'ring-red-300',
         'focus:ring-red-500',
-        'dark:border-red-600',
+        'dark:ring-red-600',
       )
     })
 
@@ -277,12 +276,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} errors={[]} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'border-zinc-300',
-        'focus:border-emerald-500',
-        'focus:ring-emerald-500',
-        'dark:border-zinc-600',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -291,7 +285,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('rounded-md', 'border', 'shadow-sm')
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies custom className to wrapper', () => {
@@ -305,7 +299,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('focus:outline-none', 'focus:ring-2')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 

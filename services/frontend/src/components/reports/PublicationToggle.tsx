@@ -18,6 +18,7 @@
 'use client'
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import {
@@ -167,7 +168,7 @@ export function PublicationToggle({
     ? {
         label: t('reports.publication.statusPublic'),
         className:
-          'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
+          'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
       }
     : isPublished
       ? {
@@ -213,13 +214,13 @@ export function PublicationToggle({
               {t('reports.publication.publicLink')}
             </label>
             <div className="flex gap-2">
-              <input
+              <Input
                 id={`public-link-${projectId}`}
                 type="text"
                 readOnly
                 value={publicUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-200"
+                className="h-8 min-w-0 flex-1 px-3 py-1"
               />
               <Button
                 onClick={handleCopy}

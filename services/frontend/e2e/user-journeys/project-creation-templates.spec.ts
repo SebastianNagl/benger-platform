@@ -205,16 +205,16 @@ test.describe('Project Creation Templates - Full Workflow Tests', () => {
 
     // Verify German descriptions
     await expect(
-      page.locator('text=Beantworten Sie Fragen basierend auf gegebenem Text'),
+      page.locator('text=Beantworte Fragen basierend auf gegebenem Text'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Wählen Sie aus vordefinierten Antwortoptionen'),
+      page.locator('text=Wähle aus vordefinierten Antwortoptionen'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Markieren und beschriften Sie Textabschnitte'),
+      page.locator('text=Markiere und beschrifte Textabschnitte'),
     ).toBeVisible()
     await expect(
-      page.locator('text=Definieren Sie Ihre eigene Label Studio XML'),
+      page.locator('text=Definiere deine eigene Label Studio XML'),
     ).toBeVisible()
 
     console.log(

@@ -2,9 +2,9 @@
 
 import { SubSection } from '@/components/projects/SubSection'
 import { PROJECT_KIND_OPTIONS } from '@/components/projects/wizard/ProjectTypeAndIcon'
+import { Button } from '@/components/shared/Button'
 import { useI18n } from '@/contexts/I18nContext'
 import { useSlot } from '@/lib/extensions/slots'
-import { cn } from '@/lib/utils'
 import type { Project } from '@/types/labelStudio'
 
 interface ProjectKindSectionProps {
@@ -41,7 +41,7 @@ export function ProjectKindSection({
         {t('projects.creation.wizard.step1.kind.editableHint')}
       </p>
       <div
-        className="grid grid-cols-3 gap-2"
+        className="flex flex-wrap items-center gap-2"
         role="radiogroup"
         aria-label={t('projects.creation.wizard.step1.kind.title')}
         data-testid="project-kind-section"
@@ -49,9 +49,9 @@ export function ProjectKindSection({
         {PROJECT_KIND_OPTIONS.map((opt) => {
           const isSelected = currentKindId === opt.id
           return (
-            <button
+            <Button
               key={opt.id}
-              type="button"
+              variant={isSelected ? 'filled' : 'outline'}
               role="radio"
               aria-checked={isSelected}
               title={t(opt.descriptionKey)}
@@ -60,18 +60,11 @@ export function ProjectKindSection({
                 onKindChange(opt.id === 'generic' ? null : opt.id)
               }}
               data-testid={`project-kind-${opt.id}`}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                isSelected
-                  ? 'border-emerald-500 bg-emerald-50 text-zinc-900 ring-1 ring-emerald-500 dark:bg-emerald-900/20 dark:text-white'
-                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600',
-              )}
+              className="px-4 py-2"
             >
-              <span className="text-lg" aria-hidden>
-                {opt.icon}
-              </span>
+              <span aria-hidden>{opt.icon}</span>
               {t(opt.nameKey)}
-            </button>
+            </Button>
           )
         })}
       </div>

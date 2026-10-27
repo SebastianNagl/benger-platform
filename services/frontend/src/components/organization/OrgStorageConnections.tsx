@@ -9,6 +9,7 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
@@ -53,9 +54,6 @@ const EMPTY_FORM: ConnectionForm = {
   access_key: '',
   secret_key: '',
 }
-
-const inputClass =
-  'w-full rounded-full bg-white px-4 py-2 text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:outline-none focus:ring-2 focus:ring-emerald-500 dark:bg-white/5 dark:text-white dark:ring-inset dark:ring-white/10 dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400'
 
 export function OrgStorageConnections({
   organizationId,
@@ -517,63 +515,58 @@ export function OrgStorageConnections({
                       : t('organizations.storageConnections.editTitle')}
                   </h3>
                   <div className="space-y-3">
-                    <input
+                    <Input
                       type="text"
                       placeholder={t(
                         'organizations.storageConnections.namePlaceholder',
                       )}
                       value={form.name}
                       onChange={(e) => setField('name', e.target.value)}
-                      className={inputClass}
                       aria-label={t('organizations.storageConnections.name')}
                     />
-                    <input
+                    <Input
                       type="text"
                       placeholder={t(
                         'organizations.storageConnections.endpointPlaceholder',
                       )}
                       value={form.endpoint_url}
                       onChange={(e) => setField('endpoint_url', e.target.value)}
-                      className={inputClass}
                       aria-label={t(
                         'organizations.storageConnections.endpoint',
                       )}
                     />
                     <div className="grid grid-cols-2 gap-3">
-                      <input
+                      <Input
                         type="text"
                         placeholder={t(
                           'organizations.storageConnections.bucketPlaceholder',
                         )}
                         value={form.bucket}
                         onChange={(e) => setField('bucket', e.target.value)}
-                        className={inputClass}
                         aria-label={t(
                           'organizations.storageConnections.bucket',
                         )}
                       />
-                      <input
+                      <Input
                         type="text"
                         placeholder={t(
                           'organizations.storageConnections.prefixPlaceholder',
                         )}
                         value={form.prefix}
                         onChange={(e) => setField('prefix', e.target.value)}
-                        className={inputClass}
                         aria-label={t(
                           'organizations.storageConnections.prefix',
                         )}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <input
+                      <Input
                         type="text"
                         placeholder={t(
                           'organizations.storageConnections.regionPlaceholder',
                         )}
                         value={form.region}
                         onChange={(e) => setField('region', e.target.value)}
-                        className={inputClass}
                         aria-label={t(
                           'organizations.storageConnections.region',
                         )}
@@ -591,7 +584,7 @@ export function OrgStorageConnections({
                       </label>
                     </div>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showAccessKey ? 'text' : 'password'}
                         placeholder={
                           isCreate
@@ -604,7 +597,7 @@ export function OrgStorageConnections({
                         }
                         value={form.access_key}
                         onChange={(e) => setField('access_key', e.target.value)}
-                        className={`${inputClass} pr-10`}
+                        className="pr-10"
                         aria-label={t(
                           'organizations.storageConnections.accessKey',
                         )}
@@ -625,7 +618,7 @@ export function OrgStorageConnections({
                       </button>
                     </div>
                     <div className="relative">
-                      <input
+                      <Input
                         type={showSecretKey ? 'text' : 'password'}
                         placeholder={
                           isCreate
@@ -638,7 +631,7 @@ export function OrgStorageConnections({
                         }
                         value={form.secret_key}
                         onChange={(e) => setField('secret_key', e.target.value)}
-                        className={`${inputClass} pr-10`}
+                        className="pr-10"
                         aria-label={t(
                           'organizations.storageConnections.secretKey',
                         )}

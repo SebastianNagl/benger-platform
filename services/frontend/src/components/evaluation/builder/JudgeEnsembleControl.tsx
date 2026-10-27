@@ -15,6 +15,7 @@
 'use client'
 
 import { CustomBadge } from '@/components/models/ModelBadges'
+import { Input } from '@/components/shared/Input'
 import { useI18n } from '@/contexts/I18nContext'
 import type { Model } from '@/hooks/useModels'
 import { DEFAULT_MODEL_ID } from '@/lib/modelDefaults'
@@ -90,7 +91,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
         <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
           {t('evaluationBuilder.parameters.runsPerJudge')}
         </label>
-        <input
+        <Input
           type="number"
           min={1}
           max={25}
@@ -99,7 +100,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
             const r = Math.max(1, Math.min(25, parseInt(e.target.value) || 1))
             writeJudges(additionalJudges, r)
           }}
-          className="h-8 w-24 rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
+          className="h-8 w-24"
         />
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {t('evaluationBuilder.parameters.runsPerJudgeHelp')}
