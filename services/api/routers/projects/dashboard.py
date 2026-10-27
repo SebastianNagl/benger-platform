@@ -6,14 +6,18 @@ widgets render:
   own student exam projects), feeding the ScoreOverTime chart.
 - retention: flashcard "true retention" over time from the append-only
   ``flashcard_reviews`` log, feeding the RetentionChart.
+- activity: flashcard reviews per day and submitted exams per day over the
+  last year, feeding the two activity heatmaps.
 
 Mounted at ``/api/student`` in ``main.py``. No proprietary logic — the extended
 widgets own presentation; this only shapes the data.
 """
 
+from datetime import datetime, timedelta, timezone
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,3 +157,68 @@ async def retention(
             }
         )
     return out
+
+
+@router.get("/activity")
+async def activity(
+    current_user=Depends(require_user),
+    db: AsyncSession = Depends(get_async_db),
+    days: int = Query(371, ge=1, le=731),
+    tz: str = Query(
+        "UTC",
+        max_length=64,
+        description="IANA time zone the calendar days are cut in (the viewer's).",
+    ),
+):
+    """The current user's learning activity per calendar day, last ``days`` days.
+
+    - ``flashcards``: one row per day with at least one review in the
+      append-only ``flashcard_reviews`` log, ``{day, reviews}``.
+    - ``exams``: one row per (day, exam project) the user submitted an
+      annotation to (non-cancelled, ``kind='exam'``, not soft-deleted),
+      ``{day, project_id}``. The project id lets the client count an exam once
+      per week even when its tasks were submitted on different days.
+
+    Days are cut in ``tz`` so a late-evening session lands on the viewer's
+    day, not the UTC one. Both lists ascend by day.
+    """
+    try:
+        ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(status_code=422, detail="Unknown time zone")
+    uid = str(current_user.id)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    review_day = func.date(func.timezone(tz, FlashcardReview.reviewed_at))
+    review_rows = (
+        await db.execute(
+            select(review_day.label("day"), func.count(FlashcardReview.id).label("reviews"))
+            .where(FlashcardReview.user_id == uid, FlashcardReview.reviewed_at >= since)
+            .group_by(review_day)
+            .order_by(review_day.asc())
+        )
+    ).all()
+
+    exam_day = func.date(func.timezone(tz, Annotation.created_at))
+    exam_rows = (
+        await db.execute(
+            select(exam_day.label("day"), Project.id.label("project_id"))
+            .select_from(Annotation)
+            .join(Task, Task.id == Annotation.task_id)
+            .join(Project, Project.id == Task.project_id)
+            .where(
+                Annotation.completed_by == uid,
+                Annotation.was_cancelled.is_(False),
+                Annotation.created_at >= since,
+                Project.kind == "exam",
+                Project.deleted_at.is_(None),
+            )
+            .group_by(exam_day, Project.id)
+            .order_by(exam_day.asc(), Project.id.asc())
+        )
+    ).all()
+
+    return {
+        "flashcards": [{"day": r.day.isoformat(), "reviews": r.reviews} for r in review_rows],
+        "exams": [{"day": r.day.isoformat(), "project_id": r.project_id} for r in exam_rows],
+    }

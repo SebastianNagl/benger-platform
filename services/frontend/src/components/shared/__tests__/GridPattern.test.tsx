@@ -518,12 +518,12 @@ describe('GridPattern', () => {
       const { container } = render(
         <GridPattern
           {...defaultProps}
-          className="stroke-gray-500 dark:stroke-gray-700"
+          className="stroke-zinc-500 dark:stroke-zinc-700"
         />,
       )
       const svg = container.querySelector('svg')
-      expect(svg).toHaveClass('stroke-gray-500')
-      expect(svg).toHaveClass('dark:stroke-gray-700')
+      expect(svg).toHaveClass('stroke-zinc-500')
+      expect(svg).toHaveClass('dark:stroke-zinc-700')
     })
 
     it('supports fill color classes for squares', () => {
@@ -552,13 +552,13 @@ describe('GridPattern', () => {
 
     it('combines multiple dark mode classes', () => {
       const darkModeClasses =
-        'stroke-gray-500 dark:stroke-gray-700 opacity-50 dark:opacity-25'
+        'stroke-zinc-500 dark:stroke-zinc-700 opacity-50 dark:opacity-25'
       const { container } = render(
         <GridPattern {...defaultProps} className={darkModeClasses} />,
       )
       const svg = container.querySelector('svg')
-      expect(svg).toHaveClass('stroke-gray-500')
-      expect(svg).toHaveClass('dark:stroke-gray-700')
+      expect(svg).toHaveClass('stroke-zinc-500')
+      expect(svg).toHaveClass('dark:stroke-zinc-700')
       expect(svg).toHaveClass('opacity-50')
       expect(svg).toHaveClass('dark:opacity-25')
     })

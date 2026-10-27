@@ -194,7 +194,7 @@ export function QuestionEditModal({
                           question: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.questionPlaceholder')}
                       data-testid="question-input"
                     />
@@ -223,7 +223,7 @@ export function QuestionEditModal({
                           context: e.target.value,
                         }))
                       }
-                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                       placeholder={t('tasks.questions.contextPlaceholder')}
                     />
                   </div>
@@ -236,7 +236,7 @@ export function QuestionEditModal({
                       </label>
                       <button
                         onClick={addReferenceAnswer}
-                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                        className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                       >
                         <PlusIcon className="h-4 w-4" />
                         {t('tasks.questions.addAnswer')}
@@ -253,7 +253,7 @@ export function QuestionEditModal({
                             onChange={(e) =>
                               updateReferenceAnswer(index, e.target.value)
                             }
-                            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                            className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                             placeholder={t(
                               'tasks.questions.referenceAnswerPlaceholder',
                               { number: index + 1 },
@@ -292,7 +292,7 @@ export function QuestionEditModal({
                       logger.debug('Button onClick triggered')
                       handleSave()
                     }}
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    variant="filled"
                     data-testid="save-question-button"
                   >
                     {t('common.saveChanges')}

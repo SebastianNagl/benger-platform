@@ -367,7 +367,7 @@ export function GlobalDataTab() {
                   setShowActionsDropdown(false)
                 }}
               >
-                <CheckIcon className="mr-3 h-4 w-4 text-green-600" />
+                <CheckIcon className="mr-3 h-4 w-4 text-emerald-600" />
                 {t('data.management.markComplete')}
               </button>
 
@@ -378,7 +378,7 @@ export function GlobalDataTab() {
                   setShowActionsDropdown(false)
                 }}
               >
-                <MagnifyingGlassIcon className="mr-3 h-4 w-4 text-yellow-600" />
+                <MagnifyingGlassIcon className="mr-3 h-4 w-4 text-amber-600" />
                 {t('data.management.markIncomplete')}
               </button>
 
@@ -705,12 +705,12 @@ export function GlobalDataTab() {
                 {visibleColumns.status && (
                   <td className="px-6 py-4">
                     {task.is_labeled ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-800">
                         <CheckIcon className="mr-1 h-3 w-3" />
                         {t('data.management.complete')}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
                         {t('data.management.incomplete')}
                       </span>
                     )}

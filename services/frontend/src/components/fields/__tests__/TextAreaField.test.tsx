@@ -108,8 +108,8 @@ describe('TextAreaField Component', () => {
       expect(description).toBeInTheDocument()
       expect(description).toHaveClass(
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
 
@@ -269,8 +269,8 @@ describe('TextAreaField Component', () => {
       const textarea = screen.getByRole('textbox')
       expect(textarea).toBeDisabled()
       expect(textarea).toHaveClass(
-        'bg-gray-50',
-        'dark:bg-gray-800',
+        'bg-zinc-50',
+        'dark:bg-zinc-800',
         'cursor-not-allowed',
       )
     })
@@ -290,8 +290,8 @@ describe('TextAreaField Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
-        'bg-gray-50',
-        'dark:bg-gray-800',
+        'bg-zinc-50',
+        'dark:bg-zinc-800',
         'cursor-not-allowed',
       )
     })
@@ -359,8 +359,8 @@ describe('TextAreaField Component', () => {
       expect(counter).toBeInTheDocument()
       expect(counter).toHaveClass(
         'text-xs',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
         'text-right',
       )
     })
@@ -485,10 +485,10 @@ describe('TextAreaField Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
-        'border-gray-300',
-        'dark:border-gray-600',
+        'border-zinc-300',
+        'dark:border-zinc-600',
         'bg-white',
-        'dark:bg-gray-700',
+        'dark:bg-zinc-700',
       )
     })
 
@@ -510,8 +510,8 @@ describe('TextAreaField Component', () => {
 
       expect(textarea).toHaveFocus()
       expect(textarea).toHaveClass(
-        'focus:border-blue-500',
-        'focus:ring-blue-500',
+        'focus:border-emerald-500',
+        'focus:ring-emerald-500',
       )
     })
   })

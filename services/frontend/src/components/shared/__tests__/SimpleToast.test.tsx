@@ -82,7 +82,7 @@ describe('SimpleToast', () => {
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-blue-500'),
+        screen.getByText('Test message').closest('.bg-zinc-800'),
       ).toBeInTheDocument()
     })
 
@@ -99,7 +99,7 @@ describe('SimpleToast', () => {
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-green-500'),
+        screen.getByText('Test message').closest('.bg-emerald-500'),
       ).toBeInTheDocument()
     })
 
@@ -133,7 +133,7 @@ describe('SimpleToast', () => {
 
       expect(screen.getByText('Test message')).toBeInTheDocument()
       expect(
-        screen.getByText('Test message').closest('.bg-yellow-500'),
+        screen.getByText('Test message').closest('.bg-amber-500'),
       ).toBeInTheDocument()
     })
 
@@ -223,7 +223,7 @@ describe('SimpleToast', () => {
       expect(screen.getByText('First message')).toBeInTheDocument()
       expect(screen.getByText('Second message')).toBeInTheDocument()
       expect(
-        screen.getByText('First message').closest('.bg-green-500'),
+        screen.getByText('First message').closest('.bg-emerald-500'),
       ).toBeInTheDocument()
       expect(
         screen.getByText('Second message').closest('.bg-red-500'),
@@ -263,7 +263,7 @@ describe('SimpleToast', () => {
       expect(closeButton).toHaveClass(
         'ml-4',
         'text-white',
-        'hover:text-gray-200',
+        'hover:text-zinc-200',
       )
     })
   })

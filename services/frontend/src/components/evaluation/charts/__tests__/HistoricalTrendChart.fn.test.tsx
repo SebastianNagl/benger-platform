@@ -110,7 +110,7 @@ describe('HistoricalTrendChart', () => {
     fireEvent.click(btn7d)
 
     // Active button should have different styling
-    expect(btn7d.className).toContain('bg-blue-600')
+    expect(btn7d.className).toContain('bg-white')
   })
 
   it('renders with custom height', () => {

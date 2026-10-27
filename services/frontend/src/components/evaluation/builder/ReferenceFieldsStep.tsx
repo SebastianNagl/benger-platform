@@ -39,10 +39,10 @@ export function ReferenceFieldsStep({
 
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
         {t('evaluationBuilder.steps.referenceFields.title')}
       </h4>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-zinc-500">
         {t('evaluationBuilder.steps.referenceFields.description')}
       </p>
       <div className="space-y-2">
@@ -50,7 +50,7 @@ export function ReferenceFieldsStep({
           referenceOptions.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800"
             >
               <Checkbox
                 checked={selectedFields.includes(opt.value)}
@@ -63,7 +63,7 @@ export function ReferenceFieldsStep({
             </label>
           ))
         ) : (
-          <p className="py-4 text-xs text-gray-500 italic">
+          <p className="py-4 text-xs text-zinc-500 italic">
             {t('evaluationBuilder.fields.noReferenceFields')}
           </p>
         )}

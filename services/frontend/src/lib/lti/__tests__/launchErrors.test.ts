@@ -11,6 +11,11 @@ import {
 import deCommon from '@/locales/de/common.json'
 import enCommon from '@/locales/en/common.json'
 
+// Formal "Sie"/"Ihr…" address: capitalised, but not at a sentence start
+// (there "Sie" is the third person).
+const FORMAL_ADDRESS =
+  /(?<!(?:^|[.!?:]|\*\*)\s*)\b(Sie|Ihnen|Ihr|Ihre|Ihrem|Ihren|Ihrer|Ihres)\b/
+
 describe('LTI launch error registry', () => {
   it('lists every code once, in snake_case', () => {
     expect(new Set(LTI_LAUNCH_ERROR_CODES).size).toBe(
@@ -138,13 +143,18 @@ describe('error page copy (lti.error)', () => {
     }
   })
 
-  it('addresses readers formally in German', () => {
+  it('addresses readers with "du" in German', () => {
     const copy = deCommon.lti.error
-    for (const text of [
+    const texts = [
+      copy.actionsTitle,
       ...Object.values(copy.codes),
       ...Object.values(copy.actions),
-    ]) {
-      expect(text).not.toMatch(/\b(du|dich|dein|deine|deinen|deiner)\b/i)
+    ]
+    for (const text of texts) {
+      expect(text).not.toMatch(FORMAL_ADDRESS)
     }
+    expect(copy.actionsTitle).toBe('Was du tun kannst')
+    expect(copy.codes.user_inactive).toMatch(/^Dein Konto/)
+    expect(copy.actions.reopen).toMatch(/^Öffne die Aktivität erneut/)
   })
 })

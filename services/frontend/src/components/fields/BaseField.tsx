@@ -48,14 +48,14 @@ export function FieldWrapper({
   return (
     <div className={`field-wrapper ${className}`}>
       {displayLabel && (
-        <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+        <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {displayLabel}
           {field.required && <span className="ml-1 text-red-500">*</span>}
         </label>
       )}
 
       {field.description && (
-        <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">
           {field.description}
         </p>
       )}
@@ -88,11 +88,11 @@ export function getInputClasses(hasError: boolean, readonly: boolean): string {
 
   const stateClasses = hasError
     ? 'border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-500'
-    : 'border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500'
+    : 'border-zinc-300 dark:border-zinc-600 focus:border-emerald-500 focus:ring-emerald-500'
 
   const readonlyClasses = readonly
-    ? 'bg-gray-50 dark:bg-gray-800 cursor-not-allowed'
-    : 'bg-white dark:bg-gray-700'
+    ? 'bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed'
+    : 'bg-white dark:bg-zinc-700'
 
   return `${baseClasses} ${stateClasses} ${readonlyClasses}`
 }

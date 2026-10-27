@@ -658,8 +658,10 @@ describe('VerifyTokenPage', () => {
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
-        const alert = screen.getByText('Verified').closest('div')
-        expect(alert).toHaveClass('border-green-200', 'bg-green-50')
+        // The shared Alert wraps its text in icon/content divs; the
+        // bordered container is the alert itself.
+        const alert = screen.getByText('Verified').closest('div.border')
+        expect(alert).toHaveClass('border-emerald-200', 'bg-emerald-50')
       })
     })
 
@@ -674,7 +676,9 @@ describe('VerifyTokenPage', () => {
       render(<VerifyTokenPage params={mockParams('test-token')} />)
 
       await waitFor(() => {
-        const alert = screen.getByText('Invalid').closest('div')
+        // The shared Alert wraps its text in icon/content divs; the
+        // bordered container is the alert itself.
+        const alert = screen.getByText('Invalid').closest('div.border')
         expect(alert).toHaveClass('border-red-200', 'bg-red-50')
       })
     })

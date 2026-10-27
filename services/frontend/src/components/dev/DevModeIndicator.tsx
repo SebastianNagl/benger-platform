@@ -47,23 +47,23 @@ export function DevModeIndicator() {
       {/* Details popup (only when clicked) */}
       {showDetails && (
         <div className="fixed right-4 bottom-16 z-50 transition-opacity duration-200">
-          <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="max-w-sm rounded-lg border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mb-2 flex items-start justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {t('dev.modeIndicator.title')}
               </h3>
               <button
                 onClick={() => setShowDetails(false)}
-                className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+                className="text-zinc-400 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-400"
                 aria-label={t('common.close')}
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+            <div className="space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
               <p>
                 {t('dev.modeIndicator.authenticatedAs')}{' '}
-                <strong className="text-gray-800 dark:text-gray-200">
+                <strong className="text-zinc-800 dark:text-zinc-200">
                   {user?.username}
                 </strong>
               </p>

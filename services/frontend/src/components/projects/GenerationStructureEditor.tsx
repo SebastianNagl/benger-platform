@@ -5,18 +5,18 @@
  * Issue #519: Support for system/instruction prompts with {{placeholder}} syntax
  */
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/shared/Alert'
+import { Button } from '@/components/shared/Button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
+} from '@/components/shared/Card'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
-import { CheckIcon, EyeIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { EyeIcon } from '@heroicons/react/24/outline'
 import { useMemo, useState } from 'react'
 
 interface GenerationStructureEditorProps {
@@ -313,7 +313,7 @@ export function GenerationStructureEditor({
                 {usedFields.map((field, i) => (
                   <span
                     key={i}
-                    className="rounded bg-blue-100 px-2 py-1 text-xs dark:bg-blue-900"
+                    className="rounded bg-zinc-100 px-2 py-1 text-xs text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
                   >
                     {field}
                   </span>
@@ -359,7 +359,7 @@ export function GenerationStructureEditor({
         <CardContent>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
             <Button
-              variant={selectedTemplate === 'simple_qa' ? 'default' : 'outline'}
+              variant={selectedTemplate === 'simple_qa' ? 'filled' : 'outline'}
               onClick={() => handleTemplateSelect('simple_qa')}
               className="justify-start text-left"
             >
@@ -372,7 +372,7 @@ export function GenerationStructureEditor({
             </Button>
             <Button
               variant={
-                selectedTemplate === 'template_qa' ? 'default' : 'outline'
+                selectedTemplate === 'template_qa' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('template_qa')}
               className="justify-start text-left"
@@ -388,7 +388,7 @@ export function GenerationStructureEditor({
             </Button>
             <Button
               variant={
-                selectedTemplate === 'legal_analysis' ? 'default' : 'outline'
+                selectedTemplate === 'legal_analysis' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('legal_analysis')}
               className="justify-start text-left"
@@ -404,7 +404,7 @@ export function GenerationStructureEditor({
             </Button>
             <Button
               variant={
-                selectedTemplate === 'classification' ? 'default' : 'outline'
+                selectedTemplate === 'classification' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('classification')}
               className="justify-start text-left"
@@ -420,7 +420,7 @@ export function GenerationStructureEditor({
             </Button>
             <Button
               variant={
-                selectedTemplate === 'nested_data' ? 'default' : 'outline'
+                selectedTemplate === 'nested_data' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('nested_data')}
               className="justify-start text-left"
@@ -436,7 +436,7 @@ export function GenerationStructureEditor({
             </Button>
             <Button
               variant={
-                selectedTemplate === 'multi_field_combo' ? 'default' : 'outline'
+                selectedTemplate === 'multi_field_combo' ? 'filled' : 'outline'
               }
               onClick={() => handleTemplateSelect('multi_field_combo')}
               className="justify-start text-left"
@@ -471,7 +471,7 @@ export function GenerationStructureEditor({
             </span>
             <Button
               variant="outline"
-              size="sm"
+              className="text-xs"
               onClick={() => setShowPreview(!showPreview)}
             >
               <EyeIcon className="mr-2 h-4 w-4" />
@@ -496,18 +496,16 @@ export function GenerationStructureEditor({
           />
 
           {error && (
-            <Alert variant="destructive">
-              <XMarkIcon className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="error">
+              <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
             </Alert>
           )}
 
           {!error && config && (
-            <Alert>
-              <CheckIcon className="h-4 w-4" />
-              <AlertDescription>
+            <Alert variant="success">
+              <p className="text-sm text-emerald-800 dark:text-emerald-200">
                 {t('projects.generationStructure.valid')}
-              </AlertDescription>
+              </p>
             </Alert>
           )}
 
@@ -520,7 +518,11 @@ export function GenerationStructureEditor({
                   {t('common.cancel')}
                 </Button>
               )}
-              <Button onClick={handleSave} disabled={!config || !!error}>
+              <Button
+                variant="filled"
+                onClick={handleSave}
+                disabled={!config || !!error}
+              >
                 {t('projects.generationStructure.saveButton')}
               </Button>
             </div>

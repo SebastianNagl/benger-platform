@@ -17,7 +17,7 @@ export function LoadingSpinner({
 
   return (
     <div
-      className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]} ${className}`}
+      className={`animate-spin rounded-full border-2 border-zinc-300 border-t-emerald-500 dark:border-zinc-600 dark:border-t-emerald-400 ${sizeClasses[size]} ${className}`}
     />
   )
 }
@@ -34,23 +34,23 @@ export const TaskDataSkeleton: React.FC<TaskDataSkeletonProps> = ({
     <div className="space-y-4">
       {/* Header skeleton */}
       <div className="grid grid-cols-6 gap-4 border-b p-4">
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
-        <div className="h-4 animate-pulse rounded bg-gray-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
+        <div className="h-4 animate-pulse rounded bg-zinc-200" />
       </div>
 
       {/* Row skeletons */}
       {Array.from({ length: rows }).map((_, index) => (
         <div key={index} className="grid grid-cols-6 gap-4 border-b p-4">
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
-          <div className="h-6 animate-pulse rounded bg-gray-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
+          <div className="h-6 animate-pulse rounded bg-zinc-200" />
         </div>
       ))}
     </div>
@@ -67,7 +67,7 @@ export const PageLoading: React.FC<PageLoadingProps> = ({
   return (
     <div className="flex min-h-[400px] flex-col items-center justify-center space-y-4">
       <LoadingSpinner size="large" />
-      <p className="text-gray-600">{message}</p>
+      <p className="text-zinc-600">{message}</p>
     </div>
   )
 }

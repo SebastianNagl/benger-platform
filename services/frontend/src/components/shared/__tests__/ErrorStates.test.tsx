@@ -666,7 +666,7 @@ describe('ErrorState Component', () => {
         message: 'No API keys',
       }
       const { container } = render(<ErrorState error={error} />)
-      const iconContainer = container.querySelector('.bg-blue-100')
+      const iconContainer = container.querySelector('.bg-zinc-100')
       expect(iconContainer).toBeInTheDocument()
     })
 
@@ -696,7 +696,7 @@ describe('ErrorState Component', () => {
         message: 'Network error',
       }
       const { container } = render(<ErrorState error={error} />)
-      const iconContainer = container.querySelector('.bg-yellow-100')
+      const iconContainer = container.querySelector('.bg-amber-100')
       expect(iconContainer).toBeInTheDocument()
     })
 
@@ -907,8 +907,8 @@ describe('ErrorState Component', () => {
       }
       const { container } = render(<ErrorState error={error} />)
       const openAIBadge = screen.getByText('OpenAI')
-      expect(openAIBadge).toHaveClass('bg-blue-100')
-      expect(openAIBadge).toHaveClass('text-blue-700')
+      expect(openAIBadge).toHaveClass('bg-emerald-100')
+      expect(openAIBadge).toHaveClass('text-emerald-700')
     })
 
     it('handles CONFIG_ERROR with empty message and details', () => {

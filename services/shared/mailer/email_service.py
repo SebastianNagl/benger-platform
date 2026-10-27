@@ -570,21 +570,21 @@ class EmailService:
             </html>
             """
         elif language == "de":
-            subject = f"Bestätigen Sie Ihre E-Mail-Adresse für {brand_name}"
+            subject = f"Bestätige deine E-Mail-Adresse für {brand_name}"
             html_body = f"""
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Willkommen bei {brand_name}, {user_name}!</h2>
-                <p>Bitte bestätigen Sie Ihre E-Mail-Adresse, um Ihr Konto zu aktivieren.</p>
+                <p>Bitte bestätige deine E-Mail-Adresse, um dein Konto zu aktivieren.</p>
                 <p style="margin: 30px 0;">
                     <a href="{verification_link}" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         E-Mail-Adresse bestätigen
                     </a>
                 </p>
-                <p>Oder kopieren Sie diesen Link in Ihren Browser:</p>
+                <p>Oder kopiere diesen Link in deinen Browser:</p>
                 <p style="color: #007bff;">{verification_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    Dieser Link ist 24 Stunden gültig. Falls Sie diese E-Mail nicht angefordert haben, können Sie sie ignorieren.
+                    Dieser Link ist 24 Stunden gültig. Falls du diese E-Mail nicht angefordert hast, kannst du sie ignorieren.
                 </p>
             </body>
             </html>
@@ -692,16 +692,16 @@ class EmailService:
             <html>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Hallo {user_name},</h2>
-                <p>Sie haben angefordert, Ihr Passwort zurückzusetzen.</p>
+                <p>Du hast angefordert, dein Passwort zurückzusetzen.</p>
                 <p style="margin: 30px 0;">
                     <a href="{reset_link}" style="background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
                         Passwort zurücksetzen
                     </a>
                 </p>
-                <p>Oder kopieren Sie diesen Link in Ihren Browser:</p>
+                <p>Oder kopiere diesen Link in deinen Browser:</p>
                 <p style="color: #007bff;">{reset_link}</p>
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                    Dieser Link ist {labels["de"]} gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.
+                    Dieser Link ist {labels["de"]} gültig. Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.
                 </p>
             </body>
             </html>

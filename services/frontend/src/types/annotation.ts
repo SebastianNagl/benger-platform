@@ -120,7 +120,7 @@ export const LEGAL_ANNOTATION_PRESETS = {
           name: 'question',
           properties: {
             label: 'Rechtsfrage',
-            placeholder: 'Geben Sie die rechtliche Frage ein...',
+            placeholder: 'Gib die rechtliche Frage ein...',
           },
         },
         {
@@ -130,7 +130,7 @@ export const LEGAL_ANNOTATION_PRESETS = {
           properties: {
             label: 'Antwort',
             rows: 10,
-            placeholder: 'Ihre rechtliche Einschätzung...',
+            placeholder: 'Deine rechtliche Einschätzung...',
           },
         },
         {

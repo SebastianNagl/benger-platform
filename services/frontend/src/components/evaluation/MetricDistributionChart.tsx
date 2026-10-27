@@ -158,7 +158,7 @@ export function MetricDistributionChart({
           <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('evaluation.metricDistribution.quartiles')}
           </h4>
-          <div className="relative h-8 w-full rounded bg-linear-to-r from-red-200 via-yellow-200 to-green-200">
+          <div className="relative h-8 w-full rounded bg-linear-to-r from-red-200 via-amber-200 to-emerald-200">
             {/* Q1 Marker */}
             <div
               className="absolute top-0 h-full w-0.5 bg-red-600"
@@ -173,7 +173,7 @@ export function MetricDistributionChart({
             </div>
             {/* Median (Q2) Marker */}
             <div
-              className="absolute top-0 h-full w-0.5 bg-yellow-600"
+              className="absolute top-0 h-full w-0.5 bg-amber-600"
               style={{
                 left: `${((data.quartiles.q2 - data.min) / (data.max - data.min)) * 100}%`,
               }}
@@ -185,7 +185,7 @@ export function MetricDistributionChart({
             </div>
             {/* Q3 Marker */}
             <div
-              className="absolute top-0 h-full w-0.5 bg-green-600"
+              className="absolute top-0 h-full w-0.5 bg-emerald-600"
               style={{
                 left: `${((data.quartiles.q3 - data.min) / (data.max - data.min)) * 100}%`,
               }}

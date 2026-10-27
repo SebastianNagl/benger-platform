@@ -77,7 +77,7 @@ export function PromptTemplateEditor({
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-medium text-gray-700 dark:text-gray-300">
+      <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluationBuilder.parameters.customPromptTemplate')}
       </label>
 
@@ -91,11 +91,11 @@ export function PromptTemplateEditor({
         }
         rows={14}
         spellCheck={false}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 font-mono text-xs leading-relaxed dark:border-gray-600 dark:bg-gray-800"
+        className="w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-xs leading-relaxed dark:border-zinc-600 dark:bg-zinc-800"
       />
 
       <div className="flex flex-wrap gap-2">
-        <span className="text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {t('evaluationBuilder.parameters.insertVariable')}:
         </span>
         {knownVariables.map((name) => {
@@ -108,8 +108,8 @@ export function PromptTemplateEditor({
               className={clsx(
                 'rounded-full border px-2 py-0.5 text-xs transition-colors',
                 used
-                  ? 'border-green-300 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300',
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
+                  : 'border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
               )}
               title={
                 used

@@ -354,7 +354,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         const rateElement = screen.getByText('95%')
-        expect(rateElement).toHaveClass('text-green-600')
+        expect(rateElement).toHaveClass('text-emerald-600')
       })
     })
 
@@ -379,7 +379,7 @@ describe('EmailVerificationManagement', () => {
 
       await waitFor(() => {
         const rateElement = screen.getByText('80%')
-        expect(rateElement).toHaveClass('text-yellow-600')
+        expect(rateElement).toHaveClass('text-amber-600')
       })
     })
 

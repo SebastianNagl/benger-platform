@@ -37,8 +37,8 @@ const variantStyles = {
   },
   info: {
     icon: InformationCircleIcon,
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+    iconColor: 'text-zinc-500 dark:text-zinc-400',
+    iconBg: 'bg-zinc-100 dark:bg-zinc-800',
   },
   success: {
     icon: CheckCircleIcon,

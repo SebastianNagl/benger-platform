@@ -82,11 +82,11 @@ export function TaskDescriptionModal({
                 />
               </div>
 
-              <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
                 <div className="flex">
                   <div className="shrink-0">
                     <svg
-                      className="h-5 w-5 text-blue-400"
+                      className="h-5 w-5 text-zinc-500 dark:text-zinc-400"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -98,10 +98,10 @@ export function TaskDescriptionModal({
                     </svg>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <p className="text-sm text-zinc-900 dark:text-white">
                       <strong>{t('modals.taskDescription.tipsTitle')}</strong>
                     </p>
-                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-blue-700 dark:text-blue-300">
+                    <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-zinc-700 dark:text-zinc-300">
                       <li>{t('modals.taskDescription.tipItem1')}</li>
                       <li>{t('modals.taskDescription.tipItem2')}</li>
                       <li>{t('modals.taskDescription.tipItem3')}</li>
@@ -117,13 +117,13 @@ export function TaskDescriptionModal({
           <div className="flex items-center justify-end gap-3 border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={handleCancel}
-              className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
+              className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-600"
             >
               {t('modals.taskDescription.cancel')}
             </button>
             <button
               onClick={handleSave}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('modals.taskDescription.save')}
             </button>

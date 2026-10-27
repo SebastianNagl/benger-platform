@@ -71,14 +71,16 @@ export function SiteHeader() {
           <Logo className="h-6" />
         </Link>
 
-        <div className="flex gap-1 lg:ml-16">
+        {/* The section links need tablet width; on phones the page is one
+            scroll and the header keeps only logo, switches and login. */}
+        <div className="hidden gap-1 md:flex lg:ml-16">
           {NAV_SECTIONS.map(({ id, key }) => (
             <Link
               key={id}
               href={`/#${id}`}
               onClick={handleSectionClick(id)}
               className={clsx(
-                'rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
+                'rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors',
                 isHome && activeSection === id
                   ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400'
                   : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white',
@@ -90,8 +92,8 @@ export function SiteHeader() {
         </div>
       </div>
 
-      <div className="flex items-center gap-5">
-        <div className="flex gap-4">
+      <div className="flex items-center gap-3 sm:gap-5">
+        <div className="flex gap-3 sm:gap-4">
           <LanguageSwitcher />
           <ThemeToggle />
         </div>

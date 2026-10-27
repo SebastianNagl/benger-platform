@@ -147,7 +147,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} currentPage={5} />)
 
       const currentPageButton = screen.getByLabelText('Go to page 5')
-      expect(currentPageButton).toHaveClass('bg-emerald-600', 'text-white')
+      expect(currentPageButton).toHaveClass('bg-zinc-900', 'text-white')
       expect(currentPageButton).toHaveAttribute('aria-current', 'page')
     })
 
@@ -264,7 +264,7 @@ describe('Pagination', () => {
       render(<Pagination {...defaultProps} currentPage={5} />)
 
       const currentPage = screen.getByLabelText('Go to page 5')
-      expect(currentPage).toHaveClass('bg-emerald-600', 'text-white')
+      expect(currentPage).toHaveClass('bg-zinc-900', 'text-white')
 
       const otherPage = screen.getByLabelText('Go to page 1')
       expect(otherPage).toHaveClass('text-zinc-700', 'hover:bg-zinc-100')

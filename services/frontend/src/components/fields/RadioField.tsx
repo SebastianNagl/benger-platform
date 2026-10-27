@@ -25,7 +25,7 @@ export function RadioField({
   if (choices.length === 0) {
     return (
       <FieldWrapper field={field} errors={errors} className={className}>
-        <div className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-sm text-zinc-500 dark:text-zinc-400">
           {t('fields.noChoices')}
         </div>
       </FieldWrapper>
@@ -41,7 +41,7 @@ export function RadioField({
               key={choice}
               value={choice}
               className={({ active, checked }) =>
-                `${active ? 'ring-2 ring-blue-500 ring-offset-2' : ''} ${checked ? 'border-blue-200 bg-blue-100 dark:border-blue-700 dark:bg-blue-900' : 'bg-white dark:bg-gray-700'} ${readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} relative rounded-lg border px-4 py-3 shadow-sm focus:outline-none`
+                `${active ? 'ring-2 ring-emerald-500 ring-offset-2' : ''} ${checked ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-500 dark:bg-emerald-900/20' : 'bg-white dark:bg-zinc-700'} ${readonly ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} relative rounded-lg border px-4 py-3 shadow-sm focus:outline-none`
               }
             >
               {({ checked }) => (
@@ -49,11 +49,11 @@ export function RadioField({
                   <div className="flex items-center">
                     <input
                       type="radio"
-                      className="h-4 w-4 border-gray-300 text-blue-600 dark:border-gray-600"
+                      className="h-4 w-4 border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                       checked={checked}
                       readOnly
                     />
-                    <label className="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    <label className="ml-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                       {choice}
                     </label>
                   </div>

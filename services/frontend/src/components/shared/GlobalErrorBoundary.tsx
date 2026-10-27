@@ -66,7 +66,7 @@ function GlobalErrorContent({ error }: { error?: Error }) {
         </details>
         <button
           onClick={() => window.location.reload()}
-          className="w-full rounded-md bg-emerald-600 px-4 py-2 text-white transition-colors hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none"
+          className="w-full rounded-full bg-zinc-900 px-4 py-2 text-white transition-colors hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400"
         >
           {t('errors.global.reloadPage')}
         </button>

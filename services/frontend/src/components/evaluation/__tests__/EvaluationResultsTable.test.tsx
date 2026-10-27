@@ -96,14 +96,14 @@ describe('EvaluationResultsTable', () => {
       const results = [{ modelId: 'high', metrics: { score: 0.85 } }]
       render(<EvaluationResultsTable results={results} />)
       const scoreEl = screen.getByText('85,0%')
-      expect(scoreEl).toHaveClass('bg-green-100')
+      expect(scoreEl).toHaveClass('bg-emerald-100')
     })
 
     it('applies yellow class for medium scores (0.5-0.7)', () => {
       const results = [{ modelId: 'medium', metrics: { score: 0.6 } }]
       render(<EvaluationResultsTable results={results} />)
       const scoreEl = screen.getByText('60,0%')
-      expect(scoreEl).toHaveClass('bg-yellow-100')
+      expect(scoreEl).toHaveClass('bg-amber-100')
     })
 
     it('applies red class for low scores (<0.5)', () => {
@@ -187,8 +187,8 @@ describe('EvaluationResultsTable', () => {
         { modelId: 'b', metrics: { f1: 0.8 }, rank: 2 },
       ]
       render(<EvaluationResultsTable results={results} />)
-      // Missing metric cells render <span className="text-gray-400">-</span>
-      const dashSpans = document.querySelectorAll('span.text-gray-400')
+      // Missing metric cells render <span className="text-zinc-400">-</span>
+      const dashSpans = document.querySelectorAll('span.text-zinc-400')
       const metricDashes = Array.from(dashSpans).filter(
         (span) => span.textContent === '-',
       )
@@ -293,7 +293,7 @@ describe('EvaluationResultsTable', () => {
       )
       // 0.2 with higherIsBetter=false means score = 1-0.2 = 0.8, which is green
       const scoreEl = screen.getByText('20,0%')
-      expect(scoreEl).toHaveClass('bg-green-100')
+      expect(scoreEl).toHaveClass('bg-emerald-100')
     })
   })
 

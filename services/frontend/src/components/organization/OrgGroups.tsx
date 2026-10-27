@@ -775,7 +775,7 @@ export function OrgGroups({
                                         aria-label={t(
                                           'admin.organizations.groups.edit',
                                         )}
-                                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300"
+                                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                                       >
                                         <PencilIcon className="h-4 w-4" />
                                       </button>
@@ -810,7 +810,7 @@ export function OrgGroups({
           <div className="flex items-center justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={() => onOpenChange(false)}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.done')}
             </button>

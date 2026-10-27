@@ -93,12 +93,12 @@ export function HighlightField({
       elements.push(
         <span
           key={`highlight-${index}`}
-          className="group relative cursor-pointer rounded bg-yellow-200 px-1 dark:bg-yellow-800"
+          className="group relative cursor-pointer rounded bg-amber-200 px-1 dark:bg-amber-800"
           onClick={() => removeHighlight(index)}
         >
           {highlight.text}
           {!readonly && (
-            <span className="absolute -top-6 left-0 hidden rounded bg-gray-800 px-2 py-1 text-xs text-white group-hover:block">
+            <span className="absolute -top-6 left-0 hidden rounded bg-zinc-800 px-2 py-1 text-xs text-white group-hover:block">
               {t('fields.clickToRemove')}
             </span>
           )}
@@ -122,8 +122,8 @@ export function HighlightField({
     <FieldWrapper field={field} errors={errors} className={className}>
       <div
         id={`highlight-${field.name}`}
-        className={`rounded-md border border-gray-300 p-4 dark:border-gray-600 ${
-          readonly ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'
+        className={`rounded-md border border-zinc-300 p-4 dark:border-zinc-600 ${
+          readonly ? 'bg-zinc-50 dark:bg-zinc-800' : 'bg-white dark:bg-zinc-700'
         }`}
         onMouseUp={handleTextSelection}
       >
@@ -133,20 +133,20 @@ export function HighlightField({
       </div>
 
       {!readonly && (
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
           {t('fields.highlightInstructions')}
         </p>
       )}
 
       {highlights.length > 0 && (
         <div className="mt-3">
-          <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          <h4 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
             {t('fields.highlightsCount', { count: highlights.length })}
           </h4>
           <ul className="space-y-1 text-sm">
             {highlights.map((highlight, index) => (
               <li key={index} className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">
+                <span className="text-zinc-600 dark:text-zinc-400">
                   "{highlight.text}"
                 </span>
                 {!readonly && (

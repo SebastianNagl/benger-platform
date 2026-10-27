@@ -89,7 +89,7 @@ export default function TestNotificationsPage() {
       ),
       icon: CheckCircleIcon,
       color:
-        'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+        'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
       category: t('admin.testNotifications.types.projectCompleted.category'),
     },
     {
@@ -101,7 +101,7 @@ export default function TestNotificationsPage() {
       ),
       icon: CheckCircleIcon,
       color:
-        'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+        'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
       category: t('admin.testNotifications.types.generationCompleted.category'),
     },
     {
@@ -113,7 +113,7 @@ export default function TestNotificationsPage() {
       ),
       icon: CheckCircleIcon,
       color:
-        'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+        'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
       category: t('admin.testNotifications.types.evaluationCompleted.category'),
     },
     {
@@ -136,7 +136,7 @@ export default function TestNotificationsPage() {
       ),
       icon: CheckCircleIcon,
       color:
-        'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+        'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
       category: t('admin.testNotifications.types.annotationCompleted.category'),
     },
     {
@@ -156,7 +156,7 @@ export default function TestNotificationsPage() {
       description: t('admin.testNotifications.types.systemAlert.description'),
       icon: ExclamationTriangleIcon,
       color:
-        'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900',
+        'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
       category: t('admin.testNotifications.types.systemAlert.category'),
     },
     {
@@ -404,22 +404,22 @@ export default function TestNotificationsPage() {
       </div>
 
       {/* Implementation Status */}
-      <div className="mt-8 rounded-lg bg-blue-50 p-6 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:ring-blue-700">
-        <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+      <div className="mt-8 rounded-lg bg-zinc-50 p-6 ring-1 ring-zinc-200 dark:bg-zinc-800/50 dark:ring-zinc-700">
+        <h3 className="text-sm font-medium text-zinc-900 dark:text-white">
           {t('admin.testNotifications.status.title')}
         </h3>
-        <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+        <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
           <p className="mb-2">
             {t('admin.testNotifications.status.description')}
           </p>
           <ul className="list-inside list-disc space-y-1">
-            <li className="text-green-600 dark:text-green-400">
+            <li className="text-emerald-600 dark:text-emerald-400">
               {t('admin.testNotifications.status.item1')}
             </li>
-            <li className="text-green-600 dark:text-green-400">
+            <li className="text-emerald-600 dark:text-emerald-400">
               {t('admin.testNotifications.status.item2')}
             </li>
-            <li className="text-green-600 dark:text-green-400">
+            <li className="text-emerald-600 dark:text-emerald-400">
               {t('admin.testNotifications.status.item3')}
             </li>
             <li>{t('admin.testNotifications.status.item4')}</li>

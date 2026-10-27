@@ -214,9 +214,9 @@ describe('Toast Component', () => {
       await user.click(screen.getByText('Add Toast'))
 
       const toast = screen.getByTestId('toast-item')
-      expect(toast).toHaveClass('bg-blue-50')
-      expect(toast).toHaveClass('border-blue-200')
-      expect(toast).toHaveClass('text-blue-800')
+      expect(toast).toHaveClass('bg-zinc-50')
+      expect(toast).toHaveClass('border-zinc-200')
+      expect(toast).toHaveClass('text-zinc-700')
     })
 
     it('renders success icon correctly', async () => {

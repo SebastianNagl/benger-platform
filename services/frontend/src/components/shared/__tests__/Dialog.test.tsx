@@ -337,7 +337,7 @@ describe('Dialog Component', () => {
 
       const dialog = screen.getByRole('dialog')
       expect(dialog.className).toContain('bg-white')
-      expect(dialog.className).toContain('dark:bg-gray-800')
+      expect(dialog.className).toContain('dark:bg-zinc-800')
       expect(dialog.className).toContain('rounded-2xl')
     })
 
@@ -374,7 +374,7 @@ describe('Dialog Component', () => {
       const heading = screen.getByRole('heading', { level: 3 })
       expect(heading.className).toContain('text-lg')
       expect(heading.className).toContain('font-medium')
-      expect(heading.className).toContain('text-gray-900')
+      expect(heading.className).toContain('text-zinc-900')
       expect(heading.className).toContain('dark:text-white')
     })
 
@@ -386,8 +386,8 @@ describe('Dialog Component', () => {
       )
 
       const closeButton = screen.getByRole('button')
-      expect(closeButton.className).toContain('text-gray-400')
-      expect(closeButton.className).toContain('hover:text-gray-600')
+      expect(closeButton.className).toContain('text-zinc-400')
+      expect(closeButton.className).toContain('hover:text-zinc-600')
       expect(closeButton.className).toContain('absolute')
     })
   })
@@ -616,7 +616,7 @@ describe('Dialog Component', () => {
 
       const dialog = screen.getByRole('dialog')
       expect(dialog.className).toContain('bg-white')
-      expect(dialog.className).toContain('dark:bg-gray-800')
+      expect(dialog.className).toContain('dark:bg-zinc-800')
     })
 
     it('should apply custom className to DialogContent', () => {
@@ -686,7 +686,7 @@ describe('Dialog Component', () => {
       const heading = screen.getByRole('heading', { level: 3 })
       expect(heading.className).toContain('text-lg')
       expect(heading.className).toContain('font-medium')
-      expect(heading.className).toContain('text-gray-900')
+      expect(heading.className).toContain('text-zinc-900')
       expect(heading.className).toContain('dark:text-white')
     })
 

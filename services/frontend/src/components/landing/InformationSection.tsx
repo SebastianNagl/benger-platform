@@ -20,22 +20,24 @@ export function InformationSection() {
         </h2>
 
         <Tabs defaultValue="whatIsIt" className="mt-12">
-          <TabsList className="mx-auto flex h-auto! w-full max-w-2xl justify-center overflow-hidden rounded-lg p-0!">
+          {/* Labels wrap on phones: three nowrap labels overflow a centred
+              row and clip the first tab off-screen. */}
+          <TabsList className="mx-auto flex w-full max-w-2xl justify-center">
             <TabsTrigger
               value="whatIsIt"
-              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 px-2 py-2 text-sm leading-tight max-sm:whitespace-normal sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.whatIsIt')}
             </TabsTrigger>
             <TabsTrigger
               value="howItWorks"
-              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 px-2 py-2 text-sm leading-tight max-sm:whitespace-normal sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.howItWorks')}
             </TabsTrigger>
             <TabsTrigger
               value="whyNeeded"
-              className="flex-1 rounded-none! px-4 py-2.5 text-sm sm:px-6 sm:text-base"
+              className="flex-1 px-2 py-2 text-sm leading-tight max-sm:whitespace-normal sm:px-6 sm:text-base"
             >
               {t('landing.information.tabs.whyNeeded')}
             </TabsTrigger>

@@ -1,15 +1,15 @@
 'use client'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/shared/Alert'
+import { Badge } from '@/components/shared/Badge'
+import { Button } from '@/components/shared/Button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from '@/components/shared/Card'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
 import { intlTag } from '@/lib/i18n/locales'
@@ -288,8 +288,8 @@ export default function EmailVerificationManagement() {
   }
 
   const getVerificationRateColor = (rate: number) => {
-    if (rate >= 90) return 'text-green-600'
-    if (rate >= 75) return 'text-yellow-600'
+    if (rate >= 90) return 'text-emerald-600'
+    if (rate >= 75) return 'text-amber-600'
     return 'text-red-600'
   }
 
@@ -307,7 +307,7 @@ export default function EmailVerificationManagement() {
           <div className="text-2xl font-bold">
             {statistics?.total_users || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.registeredUsers')}
           </p>
         </CardContent>
@@ -316,15 +316,15 @@ export default function EmailVerificationManagement() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center text-sm font-medium">
-            <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+            <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" />
             {t('emailVerification.admin.metrics.verifiedUsers')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">
+          <div className="text-2xl font-bold text-emerald-600">
             {statistics?.verified_users || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.emailVerified')}
           </p>
         </CardContent>
@@ -341,7 +341,7 @@ export default function EmailVerificationManagement() {
           <div className="text-2xl font-bold text-red-600">
             {statistics?.unverified_users || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.needVerification')}
           </p>
         </CardContent>
@@ -360,7 +360,7 @@ export default function EmailVerificationManagement() {
           >
             {statistics?.verification_rate_percent || 0}%
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.overallRate')}
           </p>
         </CardContent>
@@ -370,15 +370,15 @@ export default function EmailVerificationManagement() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center text-sm font-medium">
-            <Clock className="mr-2 h-4 w-4 text-yellow-600" />
+            <Clock className="mr-2 h-4 w-4 text-amber-600" />
             {t('emailVerification.admin.metrics.pendingVerification')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-yellow-600">
+          <div className="text-2xl font-bold text-amber-600">
             {statistics?.pending_verification || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.awaitingClick')}
           </p>
         </CardContent>
@@ -395,7 +395,7 @@ export default function EmailVerificationManagement() {
           <div className="text-2xl font-bold text-orange-600">
             {statistics?.expired_tokens || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.needCleanup')}
           </p>
         </CardContent>
@@ -404,15 +404,15 @@ export default function EmailVerificationManagement() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center text-sm font-medium">
-            <Users className="mr-2 h-4 w-4 text-blue-600" />
+            <Users className="mr-2 h-4 w-4 text-zinc-500 dark:text-zinc-400" />
             {t('emailVerification.admin.metrics.recentUnverified')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-zinc-900 dark:text-white">
             {statistics?.recent_unverified || 0}
           </div>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             {t('emailVerification.admin.metrics.lastSevenDays')}
           </p>
         </CardContent>
@@ -423,7 +423,7 @@ export default function EmailVerificationManagement() {
         <Card className="md:col-span-2 lg:col-span-4">
           <CardHeader>
             <CardTitle className="flex items-center text-lg">
-              <AlertTriangle className="mr-2 h-5 w-5 text-yellow-600" />
+              <AlertTriangle className="mr-2 h-5 w-5 text-amber-600" />
               {t('emailVerification.admin.alerts.systemAlerts')}
             </CardTitle>
           </CardHeader>
@@ -431,9 +431,9 @@ export default function EmailVerificationManagement() {
             {statisticsReport.alerts.map((alert, index) => (
               <Alert
                 key={index}
-                variant={alert.level === 'warning' ? 'destructive' : 'default'}
+                variant={alert.level === 'warning' ? 'warning' : 'info'}
               >
-                <AlertDescription>{alert.message}</AlertDescription>
+                <p className="text-sm">{alert.message}</p>
               </Alert>
             ))}
           </CardContent>
@@ -458,8 +458,8 @@ export default function EmailVerificationManagement() {
         </CardHeader>
         <CardContent>
           {unverifiedUsers.length === 0 ? (
-            <div className="text-muted-foreground py-8 text-center">
-              <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
+            <div className="py-8 text-center text-zinc-500 dark:text-zinc-400">
+              <CheckCircle className="mx-auto mb-4 h-12 w-12 text-emerald-600" />
               <p>{t('emailVerification.admin.users.allVerified')}</p>
             </div>
           ) : (
@@ -482,10 +482,10 @@ export default function EmailVerificationManagement() {
                           : t('emailVerification.admin.users.noToken')}
                       </Badge>
                     </div>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">
                       {user.email}
                     </p>
-                    <div className="text-muted-foreground mt-2 flex items-center space-x-4 text-xs">
+                    <div className="mt-2 flex items-center space-x-4 text-xs text-zinc-500 dark:text-zinc-400">
                       <span>
                         {t('emailVerification.admin.users.registered', {
                           date: formatDate(user.created_at),
@@ -535,18 +535,18 @@ export default function EmailVerificationManagement() {
           <CardContent>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white">
                   {statisticsReport.trends.weekly_verification_rate}%
                 </div>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {t('emailVerification.admin.analytics.weeklyRate')}
                 </p>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-emerald-600">
                   {statisticsReport.trends.monthly_verification_rate}%
                 </div>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {t('emailVerification.admin.analytics.monthlyRate')}
                 </p>
               </div>
@@ -563,7 +563,7 @@ export default function EmailVerificationManagement() {
                     ? `↗️ ${t('emailVerification.admin.analytics.improving')}`
                     : `↘️ ${t('emailVerification.admin.analytics.declining')}`}
                 </Badge>
-                <p className="text-muted-foreground mt-1 text-sm">
+                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                   {t('emailVerification.admin.analytics.trend')}
                 </p>
               </div>
@@ -592,7 +592,7 @@ export default function EmailVerificationManagement() {
               <h3 className="font-medium">
                 {t('emailVerification.admin.maintenance.cleanupExpired')}
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t('emailVerification.admin.maintenance.cleanupDesc')}
               </p>
             </div>
@@ -611,7 +611,7 @@ export default function EmailVerificationManagement() {
               <h3 className="font-medium">
                 {t('emailVerification.admin.maintenance.sendReminders')}
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t('emailVerification.admin.maintenance.remindersDesc')}
               </p>
             </div>
@@ -630,7 +630,7 @@ export default function EmailVerificationManagement() {
               <h3 className="font-medium">
                 {t('emailVerification.admin.maintenance.refreshData')}
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t('emailVerification.admin.maintenance.refreshDesc')}
               </p>
             </div>
@@ -649,35 +649,35 @@ export default function EmailVerificationManagement() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-zinc-50 p-6">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-zinc-900">
             {t('emailVerification.admin.title')}
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-zinc-600">
             {t('emailVerification.admin.description')}
           </p>
         </div>
 
         {/* Status Messages */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
+          <Alert variant="error" className="mb-6">
+            <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
           </Alert>
         )}
 
         {success && (
-          <Alert className="mb-6">
-            <CheckCircle className="h-4 w-4" />
-            <AlertDescription>{success}</AlertDescription>
+          <Alert variant="success" className="mb-6">
+            <p className="text-sm text-emerald-800 dark:text-emerald-200">
+              {success}
+            </p>
           </Alert>
         )}
 
         {/* Tab Navigation */}
-        <div className="mb-6 flex space-x-1 rounded-lg bg-gray-100 p-1">
+        <div className="mb-6 inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
           {[
             {
               key: 'overview',
@@ -703,10 +703,10 @@ export default function EmailVerificationManagement() {
             <button
               key={key}
               onClick={() => setActiveTab(key as any)}
-              className={`flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex items-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 activeTab === key
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               <Icon className="mr-2 h-4 w-4" />

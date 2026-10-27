@@ -167,7 +167,7 @@ describe('Checkbox Component', () => {
       render(<Checkbox />)
 
       const checkbox = screen.getByRole('checkbox')
-      expect(checkbox).toHaveClass('h-4', 'w-4', 'rounded', 'border-gray-300')
+      expect(checkbox).toHaveClass('h-4', 'w-4', 'rounded', 'border-zinc-300')
     })
 
     it('applies focus ring classes', () => {
@@ -176,7 +176,7 @@ describe('Checkbox Component', () => {
       const checkbox = screen.getByRole('checkbox')
       expect(checkbox).toHaveClass(
         'focus:ring-2',
-        'focus:ring-blue-500',
+        'focus:ring-emerald-500',
         'focus:ring-offset-0',
       )
     })
@@ -200,14 +200,14 @@ describe('Checkbox Component', () => {
       render(<Checkbox />)
 
       const checkbox = screen.getByRole('checkbox')
-      expect(checkbox).toHaveClass('text-blue-600')
+      expect(checkbox).toHaveClass('text-emerald-600')
     })
 
     it('applies label styling', () => {
       render(<Checkbox label="Test label" id="test" />)
 
       const label = screen.getByText('Test label')
-      expect(label).toHaveClass('ml-2', 'text-sm', 'text-gray-700')
+      expect(label).toHaveClass('ml-2', 'text-sm', 'text-zinc-700')
     })
   })
 

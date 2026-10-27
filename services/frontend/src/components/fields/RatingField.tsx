@@ -36,7 +36,7 @@ export function RatingField({
 
   return (
     <FieldWrapper field={field} errors={errors} className={className}>
-      <div className="inline-flex items-center space-x-1 rounded-lg bg-gray-50 p-2 dark:bg-gray-800/50">
+      <div className="inline-flex items-center space-x-1 rounded-lg bg-zinc-50 p-2 dark:bg-zinc-800/50">
         {Array.from({ length: max - min + 1 }, (_, i) => i + min).map(
           (rating) => {
             const isFilled = rating <= currentValue
@@ -53,7 +53,7 @@ export function RatingField({
                     ? 'cursor-not-allowed'
                     : 'cursor-pointer hover:scale-110'
                 } rounded p-1 transition-all duration-200 ${
-                  isFilled ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''
+                  isFilled ? 'bg-amber-100 dark:bg-amber-900/30' : ''
                 }`}
                 title={
                   labels[rating - min] || t('fields.stars', { count: rating })
@@ -62,8 +62,8 @@ export function RatingField({
                 <Icon
                   className={`h-8 w-8 ${
                     isFilled
-                      ? 'text-yellow-400 drop-shadow-sm'
-                      : 'text-gray-300 hover:text-gray-400 dark:text-gray-600 dark:hover:text-gray-500'
+                      ? 'text-amber-400 drop-shadow-sm'
+                      : 'text-zinc-300 hover:text-zinc-400 dark:text-zinc-600 dark:hover:text-zinc-500'
                   }`}
                 />
               </button>
@@ -73,7 +73,7 @@ export function RatingField({
       </div>
 
       {currentValue > 0 && (
-        <div className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+        <div className="mt-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
           {showLabels && labels.length > 0
             ? labels[currentValue - min] ||
               t('fields.selectedRating', { count: currentValue })

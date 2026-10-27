@@ -445,7 +445,7 @@ class TestSendVerificationEmail:
         )
         assert result is True
         call_args = email_svc.mail_client.send_message.call_args[1]
-        assert "Bestätigen" in call_args["subject"]
+        assert "Bestätige deine E-Mail-Adresse" in call_args["subject"]
 
     @pytest.mark.asyncio
     async def test_exception_during_send(self, email_svc):

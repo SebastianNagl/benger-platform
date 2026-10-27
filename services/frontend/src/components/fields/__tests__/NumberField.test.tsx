@@ -106,8 +106,8 @@ describe('NumberField Component', () => {
       expect(description).toBeInTheDocument()
       expect(description).toHaveClass(
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
 
@@ -347,8 +347,8 @@ describe('NumberField Component', () => {
       const input = screen.getByRole('spinbutton')
       expect(input).toBeDisabled()
       expect(input).toHaveClass(
-        'bg-gray-50',
-        'dark:bg-gray-800',
+        'bg-zinc-50',
+        'dark:bg-zinc-800',
         'cursor-not-allowed',
       )
     })
@@ -368,8 +368,8 @@ describe('NumberField Component', () => {
 
       const input = screen.getByRole('spinbutton')
       expect(input).toHaveClass(
-        'bg-gray-50',
-        'dark:bg-gray-800',
+        'bg-zinc-50',
+        'dark:bg-zinc-800',
         'cursor-not-allowed',
       )
     })
@@ -447,10 +447,10 @@ describe('NumberField Component', () => {
 
       const input = screen.getByRole('spinbutton')
       expect(input).toHaveClass(
-        'border-gray-300',
-        'dark:border-gray-600',
+        'border-zinc-300',
+        'dark:border-zinc-600',
         'bg-white',
-        'dark:bg-gray-700',
+        'dark:bg-zinc-700',
       )
     })
 
@@ -469,7 +469,10 @@ describe('NumberField Component', () => {
       await user.click(input)
 
       expect(input).toHaveFocus()
-      expect(input).toHaveClass('focus:border-blue-500', 'focus:ring-blue-500')
+      expect(input).toHaveClass(
+        'focus:border-emerald-500',
+        'focus:ring-emerald-500',
+      )
     })
   })
 

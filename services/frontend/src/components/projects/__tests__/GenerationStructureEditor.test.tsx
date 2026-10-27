@@ -336,13 +336,15 @@ describe('GenerationStructureEditor', () => {
 
       const simpleQaButton = screen.getByText('Simple Q&A').closest('button')!
 
-      expect(simpleQaButton.className).not.toContain('bg-zinc-900')
+      expect(simpleQaButton).not.toHaveClass('bg-zinc-900')
 
       await userEvent.click(simpleQaButton)
 
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalled()
       })
+      // Selected template renders as the filled (primary) button.
+      expect(simpleQaButton).toHaveClass('bg-zinc-900')
     })
 
     it('should switch between templates', async () => {

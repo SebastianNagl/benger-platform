@@ -299,7 +299,7 @@ describe('AlertDialog', () => {
     it('applies correct color classes for info variant', () => {
       render(<AlertDialog {...defaultProps} variant="info" />)
       const icon = screen.getByTestId('information-circle-icon')
-      expect(icon).toHaveClass('text-blue-600', 'dark:text-blue-400')
+      expect(icon).toHaveClass('text-zinc-500', 'dark:text-zinc-400')
     })
   })
 

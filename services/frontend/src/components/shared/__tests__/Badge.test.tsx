@@ -360,7 +360,7 @@ describe('Badge', () => {
         'focus:outline-none',
         'focus:ring-2',
         'focus:ring-offset-1',
-        'focus:ring-blue-500',
+        'focus:ring-emerald-500',
       )
     })
 
@@ -434,6 +434,21 @@ describe('Badge', () => {
         'hover:opacity-80',
         'transition-opacity',
       )
+    })
+  })
+
+  describe('HTML attribute passthrough', () => {
+    it('forwards title and data attributes to the rendered element', () => {
+      render(
+        <Badge title={'line one\nline two'} data-testid="delivery-badge">
+          Sent
+        </Badge>,
+      )
+
+      const badge = screen.getByTestId('delivery-badge')
+      expect(badge.tagName).toBe('SPAN')
+      expect(badge).toHaveAttribute('title', 'line one\nline two')
+      expect(badge).toHaveTextContent('Sent')
     })
   })
 })

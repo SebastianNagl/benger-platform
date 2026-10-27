@@ -449,7 +449,7 @@ function FlagCard({
             type="button"
             disabled={busy}
             onClick={onDelete}
-            className="shrink-0 rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+            className="shrink-0 rounded-full border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
             data-testid={`ff-delete-${row.name}`}
           >
             {t('common.delete')}
@@ -458,7 +458,7 @@ function FlagCard({
           <div
             role="radiogroup"
             aria-label={row.name}
-            className="inline-flex shrink-0 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700"
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800"
           >
             {STATES.map((state) => {
               const active = row.state === state
@@ -471,10 +471,10 @@ function FlagCard({
                   disabled={busy}
                   onClick={() => onState(state)}
                   data-testid={`ff-state-${row.name}-${state}`}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:cursor-not-allowed ${
                     active
-                      ? 'bg-emerald-600 text-white dark:bg-emerald-500'
-                      : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                      : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                   }`}
                 >
                   {t(`${K}.state.${state}`)}
@@ -671,7 +671,7 @@ function AllowlistEditor({
                 onAdd({ organization_id: orgId })
                 setOrgId('')
               }}
-              className="shrink-0 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+              className="shrink-0 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
               data-testid={`ff-org-add-${row.name}`}
             >
               {t('common.add')}

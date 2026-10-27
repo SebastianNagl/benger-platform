@@ -180,7 +180,7 @@ export function ChartTypeSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute left-0 z-50 mt-1 w-56 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="absolute left-0 z-50 mt-1 w-56 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
           <div className="py-1">
             {filteredTypes.map((chartType) => {
               const Icon = chartType.icon
@@ -198,8 +198,8 @@ export function ChartTypeSelector({
                     isSelected
                       ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400'
                       : isDisabled
-                        ? 'cursor-not-allowed text-gray-400 dark:text-gray-500'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700'
+                        ? 'cursor-not-allowed text-zinc-400 dark:text-zinc-500'
+                        : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-700'
                   }`}
                   title={
                     isDisabled && disabledReason ? disabledReason : undefined
@@ -208,7 +208,7 @@ export function ChartTypeSelector({
                   <Icon className={`${iconSize} mt-0.5 shrink-0`} />
                   <div className="flex-1">
                     <div className="font-medium">{chartType.label}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
                       {chartType.description}
                     </div>
                   </div>

@@ -453,7 +453,7 @@ describe('ReportViewerPage', () => {
     mockGetReportData.mockRejectedValueOnce('nope')
     await renderPage()
     expect(screen.getByTestId('report-error')).toHaveTextContent(
-      'Bitte versuchen Sie es in einem Moment erneut.',
+      'Bitte versuche es in einem Moment erneut.',
     )
   })
 
@@ -475,7 +475,7 @@ describe('ReportViewerPage', () => {
       await renderPage()
       const card = screen.getByTestId('report-forbidden')
       expect(card).toHaveTextContent('Dieser Bericht ist nicht öffentlich.')
-      expect(card).toHaveTextContent('Melden Sie sich an')
+      expect(card).toHaveTextContent('Melde dich an')
       expect(
         within(card).getByRole('link', { name: 'Anmelden' }),
       ).toHaveAttribute('href', '/login?next=%2Freports%2Freport-1')

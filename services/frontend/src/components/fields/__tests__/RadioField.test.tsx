@@ -168,8 +168,8 @@ describe('RadioField Component', () => {
       const noChoicesText = screen.getByText('No choices available')
       expect(noChoicesText).toHaveClass(
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
   })

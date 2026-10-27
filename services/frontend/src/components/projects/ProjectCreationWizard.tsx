@@ -213,15 +213,21 @@ export function ProjectCreationWizard() {
       ],
       [t],
     )
-  // The templates the labeling step offers for this project's jurisdictions.
+  // The templates the labeling step offers for this project's jurisdictions,
+  // plus the selected one (a project type of another jurisdiction picked
+  // via "show all" brings its template along).
   const jurisdictionKey = wizardDataJurisdictions(
     organizations,
     wizardData,
   ).join(',')
+  const selectedTemplateId = wizardData.labelingConfig?.id
   const nlpTemplates: LabelingTemplate[] = useMemo(() => {
     const active = jurisdictionKey.split(',') as Jurisdiction[]
-    return allTemplates.filter((tpl) => offeredFor(tpl.jurisdictions, active))
-  }, [allTemplates, jurisdictionKey])
+    return allTemplates.filter(
+      (tpl) =>
+        offeredFor(tpl.jurisdictions, active) || tpl.id === selectedTemplateId,
+    )
+  }, [allTemplates, jurisdictionKey, selectedTemplateId])
 
   // Extended-edition step body for the experimental KI-Generator feature
   // (checkbox row = ProjectWizardSyntheticEntry slot in StepProjectInfo).

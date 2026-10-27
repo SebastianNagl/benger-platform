@@ -243,17 +243,17 @@ export function EvaluationDashboard({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
           {t('evaluation.dashboard.title')}
         </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
           {t('evaluation.dashboard.description')}
         </p>
       </div>
 
       {/* Project Selector */}
       <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+        <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
           {t('evaluation.dashboard.selectProject')}
         </h2>
         <ProjectSelector
@@ -332,7 +332,7 @@ export function EvaluationDashboard({
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Leaderboard Table */}
                 <Card className="p-6 lg:col-span-2">
-                  <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                     {t('evaluation.dashboard.modelLeaderboard')}
                   </h2>
                   <EvaluationResultsTable results={leaderboardData} />
@@ -385,66 +385,66 @@ export function EvaluationDashboard({
               {/* Significance Heatmap */}
               {significanceData.length > 0 && selectedModels.length > 1 && (
                 <Card className="p-6">
-                  <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  <h2 className="mb-4 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
                     {t('evaluation.dashboard.statisticalSignificance')}
                   </h2>
-                  <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                  <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
                     {t('evaluation.dashboard.significanceDescription')}
                   </p>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                      <thead className="bg-gray-50 dark:bg-gray-800">
+                    <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-700">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.modelA')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.modelB')}
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.metric')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.pValue')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.significance')}
                           </th>
-                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-700 uppercase dark:text-gray-300">
+                          <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-zinc-700 uppercase dark:text-zinc-300">
                             {t('evaluation.dashboard.effectSize')}
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-900">
+                      <tbody className="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-900">
                         {significanceData.map((test, idx) => (
                           <tr
                             key={idx}
-                            className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                            className="hover:bg-zinc-50 dark:hover:bg-zinc-800"
                           >
-                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                               {test.model_a}
                             </td>
-                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-900 dark:text-gray-100">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-900 dark:text-zinc-100">
                               {test.model_b}
                             </td>
-                            <td className="px-4 py-3 text-sm whitespace-nowrap text-gray-500 dark:text-gray-400">
+                            <td className="px-4 py-3 text-sm whitespace-nowrap text-zinc-500 dark:text-zinc-400">
                               {test.metric}
                             </td>
-                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-zinc-900 tabular-nums dark:text-zinc-100">
                               {formatDecimal(test.p_value, locale, 4)}
                             </td>
                             <td className="px-4 py-3 text-center whitespace-nowrap">
                               <span
                                 className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
                                   test.significant
-                                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200'
-                                    : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200'
+                                    : 'bg-zinc-100 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200'
                                 }`}
                               >
                                 {test.stars || 'ns'}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-gray-900 tabular-nums dark:text-gray-100">
+                            <td className="px-4 py-3 text-center text-sm whitespace-nowrap text-zinc-900 tabular-nums dark:text-zinc-100">
                               {formatDecimal(test.effect_size, locale, 3)}
                             </td>
                           </tr>
@@ -461,7 +461,7 @@ export function EvaluationDashboard({
 
       {!selectedProject && (
         <Card className="p-8 text-center">
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-zinc-500 dark:text-zinc-400">
             {t('evaluation.dashboard.selectProjectPrompt')}
           </p>
         </Card>

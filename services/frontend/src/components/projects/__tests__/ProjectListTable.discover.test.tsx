@@ -152,7 +152,7 @@ describe('ProjectListTable — discover + participant', () => {
     const badge = screen.getByTestId('project-participant-badge-a1')
     expect(badge).toHaveTextContent('Frühere Abgabe')
     expect(badge).not.toHaveTextContent('Teilnehmer')
-    expect(badge).toHaveAttribute('title', 'Zugang über Ihre Abgabe')
+    expect(badge).toHaveAttribute('title', 'Zugang über deine Abgabe')
     expect(
       screen.queryByTestId('projects-table-checkbox-a1'),
     ).not.toBeInTheDocument()

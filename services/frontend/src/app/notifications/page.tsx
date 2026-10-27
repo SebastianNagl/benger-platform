@@ -56,19 +56,19 @@ const notificationIcons = {
 const notificationColors = {
   task_created: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
   task_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   llm_generation_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   annotation_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   member_joined:
     'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
   evaluation_received_human:
     'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
   evaluation_received_immediate:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   system_alert:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',

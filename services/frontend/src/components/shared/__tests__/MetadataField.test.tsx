@@ -191,10 +191,10 @@ describe('MetadataField', () => {
 
         const badge = screen.getByText('Yes')
         expect(badge).toHaveClass(
-          'bg-green-100',
-          'text-green-700',
-          'dark:bg-green-900/20',
-          'dark:text-green-400',
+          'bg-emerald-100',
+          'text-emerald-700',
+          'dark:bg-emerald-900/20',
+          'dark:text-emerald-400',
         )
       })
 
@@ -1115,11 +1115,11 @@ describe('MetadataField', () => {
       const saveButton = screen.getByTitle('Save')
       expect(saveButton).toHaveClass(
         'p-1',
-        'text-green-600',
-        'hover:text-green-700',
+        'text-emerald-600',
+        'hover:text-emerald-700',
         'disabled:opacity-50',
-        'dark:text-green-400',
-        'dark:hover:text-green-300',
+        'dark:text-emerald-400',
+        'dark:hover:text-emerald-300',
       )
     })
 

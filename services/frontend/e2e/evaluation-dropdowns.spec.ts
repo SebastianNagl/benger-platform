@@ -141,7 +141,7 @@ test.describe('Evaluation Page Dropdowns', () => {
           (el) =>
             el.classList.contains('cursor-not-allowed') ||
             el.hasAttribute('disabled') ||
-            el.classList.contains('text-gray-400'),
+            el.classList.contains('text-zinc-400'),
         )
 
         // If disabled, verify the title attribute has the correct message

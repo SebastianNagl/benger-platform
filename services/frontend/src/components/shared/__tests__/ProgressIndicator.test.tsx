@@ -183,7 +183,7 @@ describe('ProgressIndicator', () => {
         <ProgressIndicator progress={100} status="success" />,
       )
 
-      const progressBar = container.querySelector('.bg-green-500')
+      const progressBar = container.querySelector('.bg-emerald-500')
       expect(progressBar).toBeInTheDocument()
     })
 

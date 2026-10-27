@@ -71,7 +71,7 @@ export function ProgressIndicator({
   const getStatusColor = () => {
     switch (status) {
       case 'success':
-        return 'bg-green-500'
+        return 'bg-emerald-500'
       case 'error':
         return 'bg-red-500'
       case 'idle':
@@ -109,7 +109,7 @@ export function ProgressIndicator({
                 {Math.round(animatedProgress)}%
               </span>
               {status === 'success' && (
-                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
               )}
               {status === 'error' && (
                 <XCircleIcon className="h-5 w-5 text-red-500" />

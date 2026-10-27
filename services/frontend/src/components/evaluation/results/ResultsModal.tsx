@@ -176,9 +176,9 @@ export function ResultDetailsModal({
                       ? !generationData
                       : !evaluationData
                 }
-                className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
                   copySuccess
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                     : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
                 } disabled:opacity-50`}
               >
@@ -199,53 +199,44 @@ export function ResultDetailsModal({
           </div>
 
           {/* Tab Navigation - show only relevant tabs per cell type */}
-          <div className="border-b border-zinc-200 dark:border-zinc-700">
+          <div className="border-b border-zinc-200 px-6 py-2 dark:border-zinc-700">
             <nav
-              className="flex px-6"
+              className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800"
               aria-label={t('evaluation.multiFieldResults.tabsLabel')}
             >
               {isAnnotatorCell && (
                 <button
                   onClick={() => setActiveTab('annotation')}
-                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                     activeTab === 'annotation'
-                      ? 'text-emerald-600 dark:text-emerald-400'
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                   }`}
                 >
                   {t('evaluation.multiFieldResults.annotationResult')}
-                  {activeTab === 'annotation' && (
-                    <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                  )}
                 </button>
               )}
               {!isAnnotatorCell && (
                 <button
                   onClick={() => setActiveTab('generation')}
-                  className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                     activeTab === 'generation'
-                      ? 'text-emerald-600 dark:text-emerald-400'
+                      ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                       : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                   }`}
                 >
                   {t('evaluation.multiFieldResults.generationResults')}
-                  {activeTab === 'generation' && (
-                    <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                  )}
                 </button>
               )}
               <button
                 onClick={() => setActiveTab('evaluation')}
-                className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+                className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                   activeTab === 'evaluation'
-                    ? 'text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                     : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                 }`}
               >
                 {t('evaluation.multiFieldResults.evaluationResults')}
-                {activeTab === 'evaluation' && (
-                  <span className="absolute right-0 bottom-0 left-0 h-0.5 bg-emerald-600 dark:bg-emerald-400" />
-                )}
               </button>
             </nav>
           </div>
@@ -297,7 +288,7 @@ export function ResultDetailsModal({
                                     return next
                                   })
                                 }}
-                                className="h-3.5 w-3.5 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600"
+                                className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600"
                               />
                               <span className="text-zinc-700 dark:text-zinc-300">
                                 {config.display_name ||
@@ -327,7 +318,7 @@ export function ResultDetailsModal({
                           onClose()
                         }}
                         disabled={selectedEvalConfigIds.size === 0}
-                        className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        className="flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                       >
                         <ArrowPathIcon className="h-4 w-4" />
                         {t('evaluation.multiFieldResults.reEvaluate')}
@@ -338,7 +329,7 @@ export function ResultDetailsModal({
             </div>
             <button
               onClick={onClose}
-              className="rounded-md bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="rounded-full bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
             >
               {t('evaluation.multiFieldResults.close')}
             </button>

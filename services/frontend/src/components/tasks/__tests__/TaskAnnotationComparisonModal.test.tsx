@@ -279,7 +279,7 @@ describe('TaskAnnotationComparisonModal', () => {
       await waitFor(() => {
         const addButton = screen.getByText('Add My Annotation')
         expect(addButton).toBeInTheDocument()
-        expect(addButton.closest('button')).toHaveClass('bg-blue-600')
+        expect(addButton.closest('button')).toHaveClass('bg-zinc-900')
       })
     })
 

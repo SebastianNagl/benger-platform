@@ -547,7 +547,7 @@ describe('TextHighlightField Component', () => {
       const selectedHighlight = within(highlightList!)
         .getByText('"sample"')
         .closest('div')?.parentElement
-      expect(selectedHighlight).toHaveClass('bg-gray-100')
+      expect(selectedHighlight).toHaveClass('bg-zinc-100')
     })
 
     it('selects highlight when clicked in list', async () => {
@@ -562,7 +562,7 @@ describe('TextHighlightField Component', () => {
         .closest('div')?.parentElement
       await user.click(highlightItem!)
 
-      expect(highlightItem).toHaveClass('bg-gray-100')
+      expect(highlightItem).toHaveClass('bg-zinc-100')
     })
   })
 

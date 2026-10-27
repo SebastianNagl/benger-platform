@@ -266,8 +266,8 @@ describe('BaseField Utilities', () => {
         'block',
         'text-sm',
         'font-medium',
-        'text-gray-700',
-        'dark:text-gray-300',
+        'text-zinc-700',
+        'dark:text-zinc-300',
       )
     })
 
@@ -282,8 +282,8 @@ describe('BaseField Utilities', () => {
       expect(description).toHaveClass(
         'mb-2',
         'text-sm',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
   })
@@ -312,17 +312,17 @@ describe('BaseField Utilities', () => {
     it('returns normal classes when hasError is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('border-gray-300')
-      expect(classes).toContain('dark:border-gray-600')
-      expect(classes).toContain('focus:border-blue-500')
-      expect(classes).toContain('focus:ring-blue-500')
+      expect(classes).toContain('border-zinc-300')
+      expect(classes).toContain('dark:border-zinc-600')
+      expect(classes).toContain('focus:border-emerald-500')
+      expect(classes).toContain('focus:ring-emerald-500')
     })
 
     it('returns readonly classes when readonly is true', () => {
       const classes = getInputClasses(false, true)
 
-      expect(classes).toContain('bg-gray-50')
-      expect(classes).toContain('dark:bg-gray-800')
+      expect(classes).toContain('bg-zinc-50')
+      expect(classes).toContain('dark:bg-zinc-800')
       expect(classes).toContain('cursor-not-allowed')
     })
 
@@ -330,7 +330,7 @@ describe('BaseField Utilities', () => {
       const classes = getInputClasses(false, false)
 
       expect(classes).toContain('bg-white')
-      expect(classes).toContain('dark:bg-gray-700')
+      expect(classes).toContain('dark:bg-zinc-700')
     })
 
     it('combines error and readonly classes', () => {
@@ -341,8 +341,8 @@ describe('BaseField Utilities', () => {
       expect(classes).toContain('dark:border-red-600')
 
       // Should have readonly classes
-      expect(classes).toContain('bg-gray-50')
-      expect(classes).toContain('dark:bg-gray-800')
+      expect(classes).toContain('bg-zinc-50')
+      expect(classes).toContain('dark:bg-zinc-800')
       expect(classes).toContain('cursor-not-allowed')
     })
 
@@ -379,7 +379,7 @@ describe('BaseField Utilities', () => {
     it('does not include readonly classes in editable state', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).not.toContain('bg-gray-50')
+      expect(classes).not.toContain('bg-zinc-50')
       expect(classes).not.toContain('cursor-not-allowed')
     })
 

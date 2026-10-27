@@ -33,10 +33,10 @@ function NetworkErrorContent({
 
   return (
     <div className="flex min-h-[400px] items-center justify-center p-4">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-lg dark:bg-zinc-800">
         <div className="mb-4 flex items-center">
           <ExclamationTriangleIcon className="mr-3 h-8 w-8 text-red-500" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
             {isNetworkError
               ? t('errors.network.title')
               : t('errors.global.title')}
@@ -44,14 +44,14 @@ function NetworkErrorContent({
         </div>
 
         <div className="mb-6">
-          <p className="mb-2 text-gray-600 dark:text-gray-300">
+          <p className="mb-2 text-zinc-600 dark:text-zinc-300">
             {isNetworkError
               ? t('errors.network.connectionTrouble')
               : t('errors.global.description')}
           </p>
 
           {isNetworkError && (
-            <ul className="list-inside list-disc space-y-1 text-sm text-gray-500 dark:text-gray-400">
+            <ul className="list-inside list-disc space-y-1 text-sm text-zinc-500 dark:text-zinc-400">
               <li>{t('errors.network.networkIssue')}</li>
               <li>{t('errors.network.serverLoad')}</li>
               <li>{t('errors.network.tooManyRequests')}</li>
@@ -60,10 +60,10 @@ function NetworkErrorContent({
 
           {process.env.NODE_ENV === 'development' && (
             <details className="mt-4">
-              <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+              <summary className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-700">
                 {t('errors.global.technicalDetails')}
               </summary>
-              <pre className="mt-2 overflow-auto rounded bg-gray-100 p-2 text-xs dark:bg-gray-900">
+              <pre className="mt-2 overflow-auto rounded bg-zinc-100 p-2 text-xs dark:bg-zinc-900">
                 {error.stack || error.message}
               </pre>
             </details>
@@ -73,7 +73,7 @@ function NetworkErrorContent({
         <div className="flex gap-3">
           <button
             onClick={onRetry}
-            className="inline-flex flex-1 items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
+            className="inline-flex flex-1 items-center justify-center rounded-full border border-transparent bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             <ArrowPathIcon className="mr-2 h-4 w-4" />
             {t('errors.global.tryAgain')}
@@ -82,7 +82,7 @@ function NetworkErrorContent({
 
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+            className="inline-flex flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
           >
             {t('errors.global.reloadPage')}
           </button>

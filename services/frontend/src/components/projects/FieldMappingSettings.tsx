@@ -7,11 +7,16 @@
 
 'use client'
 
+import { Alert } from '@/components/shared/Alert'
+import { Badge } from '@/components/shared/Badge'
+import { Button } from '@/components/shared/Button'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/shared/Card'
 import { useToast } from '@/components/shared/Toast'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import {
@@ -162,29 +167,28 @@ export function FieldMappingSettings({
 
         {/* Validation status */}
         {!validation.valid && (
-          <Alert>
-            <ExclamationTriangleIcon className="h-4 w-4" />
-            <AlertDescription>
+          <Alert variant="warning">
+            <p className="text-sm text-amber-800 dark:text-amber-200">
               <strong>{t('projects.fieldMapping.validationError')}</strong>{' '}
               {validation.missingFields.join(', ')}
               <br />
               <span className="text-xs">
                 {t('projects.fieldMapping.validationErrorHint')}
               </span>
-            </AlertDescription>
+            </p>
           </Alert>
         )}
 
         {validation.unusedFields.length > 0 && (
-          <Alert>
-            <AlertDescription>
+          <Alert variant="info">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
               <strong>{t('projects.fieldMapping.unusedFields')}</strong>{' '}
               {validation.unusedFields.join(', ')}
               <br />
               <span className="text-xs">
                 {t('projects.fieldMapping.unusedFieldsHint')}
               </span>
-            </AlertDescription>
+            </p>
           </Alert>
         )}
 
@@ -196,7 +200,7 @@ export function FieldMappingSettings({
                 {t('projects.fieldMapping.labelingConfiguration')}
               </h4>
               <Button
-                variant="ghost"
+                variant="secondary"
                 onClick={() => setNewTemplate(generateSuggestedTemplate())}
                 className="text-xs"
               >
@@ -214,7 +218,12 @@ export function FieldMappingSettings({
               <Button variant="outline" onClick={() => setIsEditing(false)}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={handleTemplateUpdate} loading={loading}>
+              <Button
+                variant="filled"
+                onClick={handleTemplateUpdate}
+                disabled={loading}
+              >
+                {loading && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
                 {t('projects.fieldMapping.updateTemplate')}
               </Button>
             </div>
@@ -224,7 +233,7 @@ export function FieldMappingSettings({
         {/* Quick actions */}
         <div className="flex gap-2 border-t pt-2">
           <Button
-            variant="ghost"
+            variant="secondary"
             onClick={() => setNewTemplate(generateSuggestedTemplate())}
             disabled={availableFields.length === 0}
           >

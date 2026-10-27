@@ -80,7 +80,7 @@ export function Dialog({
                 className={clsx(
                   // relative: the close button below is absolutely positioned
                   // and must anchor to the panel, not to the viewport.
-                  'relative w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800',
+                  'relative w-full transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800',
                   // Default width unless the caller sets its own max-w-* (clsx
                   // cannot resolve the Tailwind conflict, so guard it here).
                   !/(^|\s)([a-z]+:)?max-w-/.test(className ?? '') && 'max-w-md',
@@ -91,13 +91,13 @@ export function Dialog({
                   <div className="mb-4">
                     <HeadlessDialog.Title
                       as="h3"
-                      className="text-lg leading-6 font-medium text-gray-900 dark:text-white"
+                      className="text-lg leading-6 font-medium text-zinc-900 dark:text-white"
                     >
                       {title}
                     </HeadlessDialog.Title>
                     <button
                       onClick={handleClose}
-                      className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
                     >
                       <XMarkIcon className="h-5 w-5" />
                     </button>
@@ -117,7 +117,7 @@ export function DialogContent({ children, className }: DialogContentProps) {
   return (
     <HeadlessDialog.Panel
       className={clsx(
-        'w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-gray-800',
+        'w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all dark:bg-zinc-800',
         className,
       )}
     >
@@ -135,7 +135,7 @@ export function DialogTitle({ children, className }: DialogTitleProps) {
     <HeadlessDialog.Title
       as="h3"
       className={clsx(
-        'text-lg leading-6 font-medium text-gray-900 dark:text-white',
+        'text-lg leading-6 font-medium text-zinc-900 dark:text-white',
         className,
       )}
     >

@@ -369,7 +369,7 @@ describe('NotificationDropdown', () => {
       )
 
       const iconContainer = container.querySelector(
-        '.text-green-600.bg-green-100.dark\\:text-green-400.dark\\:bg-green-900',
+        '.text-emerald-600.bg-emerald-100.dark\\:text-emerald-400.dark\\:bg-emerald-900',
       )
       expect(iconContainer).toBeInTheDocument()
     })
@@ -940,8 +940,8 @@ describe('NotificationDropdown', () => {
 
       const viewAllButton = screen.getByText('View all notifications')
       expect(viewAllButton).toHaveClass(
-        'dark:text-blue-400',
-        'dark:hover:text-blue-300',
+        'dark:text-emerald-400',
+        'dark:hover:text-emerald-300',
       )
     })
   })

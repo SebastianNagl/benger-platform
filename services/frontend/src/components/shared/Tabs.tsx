@@ -106,7 +106,7 @@ export function TabsList({ children, className }: TabsListProps) {
   return (
     <div
       className={clsx(
-        'inline-flex h-10 items-center justify-center rounded-md bg-zinc-100 p-1 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
+        'inline-flex items-center justify-center gap-0.5 rounded-full bg-zinc-100 p-0.5 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',
         className,
       )}
     >
@@ -131,8 +131,8 @@ export function TabsTrigger({
         type="button"
         disabled
         className={clsx(
-          'inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm font-medium whitespace-nowrap ring-offset-white transition-all focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
-          'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
+          'inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
+          'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
           className,
         )}
         {...rest}
@@ -150,10 +150,10 @@ export function TabsTrigger({
       type="button"
       onClick={() => setActiveTab(value)}
       className={clsx(
-        'inline-flex items-center justify-center rounded-sm px-3 py-1.5 text-sm font-medium whitespace-nowrap ring-offset-white transition-all focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 disabled:pointer-events-none disabled:opacity-50',
         isActive
           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
-          : 'hover:bg-zinc-200 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-white',
+          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white',
         className,
       )}
       {...rest}

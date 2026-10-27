@@ -95,7 +95,7 @@ export function APIKeysModal({ isOpen, onClose }: APIKeysModalProps) {
           <div className="flex items-center justify-end border-t border-zinc-200 px-6 py-4 dark:border-zinc-700">
             <button
               onClick={onClose}
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600"
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('common.done')}
             </button>

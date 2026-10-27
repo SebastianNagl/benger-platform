@@ -792,7 +792,7 @@ export function AdvancedSettingsCard({
   <Likert name="difficulty" toName="difficulty" min="1" max="7" required="true" label="Es fiel mir leicht die Aufgabe zu lösen."/>
   <Likert name="responsibility" toName="responsibility" min="1" max="7" required="true" label="Ich fühle mich verantwortlich für das von mir eingereichte Ergebnis."/>
 
-  <Header value="Fragen zur KI-Unterstützung (nur beantworten, wenn Sie in der KI-Gruppe waren)" level="4"/>
+  <Header value="Fragen zur KI-Unterstützung (nur beantworten, wenn du in der KI-Gruppe warst)" level="4"/>
   <Likert name="ai_adequate" toName="ai_adequate" min="1" max="7" label="Der Output der KI war auf Anhieb adäquat."/>
   <Likert name="ai_reviewed" toName="ai_reviewed" min="1" max="7" label="Ich habe den Output der KI überprüft."/>
   <Likert name="utaut_pe" toName="utaut_pe" min="1" max="7" label="Ich würde die KI in meiner Arbeit/meinem Studium als nützlich empfinden."/>
@@ -801,11 +801,11 @@ export function AdvancedSettingsCard({
   <Likert name="utaut_att2" toName="utaut_att2" min="1" max="7" label="Die Arbeit mit der KI macht Spaß."/>
   <Likert name="utaut_att3" toName="utaut_att3" min="1" max="7" label="Ich arbeite gerne mit der KI."/>
 
-  <Header value="Anteil an der Fallbearbeitung (nur beantworten, wenn Sie in der KI-Gruppe waren)" level="4"/>
+  <Header value="Anteil an der Fallbearbeitung (nur beantworten, wenn du in der KI-Gruppe warst)" level="4"/>
   <Number name="human_share" toName="human_share" min="0" max="100" label="x Prozent der Fallbearbeitung gehen auf mich zurück." hint="Wert zwischen 0 und 100"/>
   <Number name="ai_share" toName="ai_share" min="0" max="100" label="y Prozent der Fallbearbeitung gehen auf die KI zurück." hint="Wert zwischen 0 und 100"/>
 
-  <Header value="Frage ohne KI (nur beantworten, wenn Sie NICHT in der KI-Gruppe waren)" level="4"/>
+  <Header value="Frage ohne KI (nur beantworten, wenn du NICHT in der KI-Gruppe warst)" level="4"/>
   <Likert name="desired_ai" toName="desired_ai" min="1" max="7" label="Ich hätte mir die KI für die Bearbeitung dieser Aufgabe gewünscht."/>
 </View>`,
                           }

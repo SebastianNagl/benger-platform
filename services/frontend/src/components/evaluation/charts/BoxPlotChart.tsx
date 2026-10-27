@@ -63,44 +63,44 @@ function CustomTooltip({ active, payload, t, locale }: any) {
     v === null || v === undefined ? undefined : formatDecimal(v, locale, 3)
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-800">
-      <p className="mb-2 font-semibold text-gray-900 dark:text-gray-100">
+    <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+      <p className="mb-2 font-semibold text-zinc-900 dark:text-zinc-100">
         {item.name}
       </p>
       <div className="space-y-1 text-sm">
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">
+          <span className="text-zinc-500">
             {t('evaluation.charts.boxPlot.max')}:
           </span>
           <span className="font-mono">{fmt(item.max)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">
+          <span className="text-zinc-500">
             {t('evaluation.charts.boxPlot.q3')}:
           </span>
           <span className="font-mono">{fmt(item.q3)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="font-medium text-gray-500">
+          <span className="font-medium text-zinc-500">
             {t('evaluation.charts.boxPlot.median')}:
           </span>
           <span className="font-mono font-medium">{fmt(item.median)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">
+          <span className="text-zinc-500">
             {t('evaluation.charts.boxPlot.q1')}:
           </span>
           <span className="font-mono">{fmt(item.q1)}</span>
         </div>
         <div className="flex justify-between gap-4">
-          <span className="text-gray-500">
+          <span className="text-zinc-500">
             {t('evaluation.charts.boxPlot.min')}:
           </span>
           <span className="font-mono">{fmt(item.min)}</span>
         </div>
         {item.mean !== undefined && (
-          <div className="mt-1 flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
-            <span className="text-gray-500">
+          <div className="mt-1 flex justify-between gap-4 border-t border-zinc-200 pt-1 dark:border-zinc-700">
+            <span className="text-zinc-500">
               {t('evaluation.charts.boxPlot.mean')}:
             </span>
             <span className="font-mono">{fmt(item.mean)}</span>
@@ -108,7 +108,7 @@ function CustomTooltip({ active, payload, t, locale }: any) {
         )}
         {item.count !== undefined && (
           <div className="flex justify-between gap-4">
-            <span className="text-gray-500">
+            <span className="text-zinc-500">
               {t('evaluation.charts.boxPlot.n')}:
             </span>
             <span className="font-mono">
@@ -117,8 +117,8 @@ function CustomTooltip({ active, payload, t, locale }: any) {
           </div>
         )}
         {item.runIndex !== undefined && (
-          <div className="flex justify-between gap-4 border-t border-gray-200 pt-1 dark:border-gray-700">
-            <span className="text-gray-500">
+          <div className="flex justify-between gap-4 border-t border-zinc-200 pt-1 dark:border-zinc-700">
+            <span className="text-zinc-500">
               {t('evaluation.charts.boxPlot.run')}:
             </span>
             <span className="font-mono">#{item.runIndex}</span>
@@ -194,7 +194,7 @@ const BoxPlotShape = (props: any) => {
         y1={maxY}
         x2={centerX}
         y2={minY}
-        stroke="#374151"
+        stroke="#3f3f46"
         strokeWidth={1.5}
       />
 
@@ -204,7 +204,7 @@ const BoxPlotShape = (props: any) => {
         y1={maxY}
         x2={centerX + boxWidth / 3}
         y2={maxY}
-        stroke="#374151"
+        stroke="#3f3f46"
         strokeWidth={2}
       />
 
@@ -214,7 +214,7 @@ const BoxPlotShape = (props: any) => {
         y1={minY}
         x2={centerX + boxWidth / 3}
         y2={minY}
-        stroke="#374151"
+        stroke="#3f3f46"
         strokeWidth={2}
       />
 
@@ -286,7 +286,7 @@ export function BoxPlotChart({
           data={chartData}
           margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
 
           <XAxis
             dataKey="name"
@@ -339,9 +339,9 @@ export function BoxPlotChart({
       </ResponsiveContainer>
 
       {/* Legend for box plot elements */}
-      <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-2 flex flex-wrap justify-center gap-4 text-xs text-zinc-500 dark:text-zinc-400">
         <div className="flex items-center gap-1.5">
-          <div className="h-px w-4 bg-gray-600" />
+          <div className="h-px w-4 bg-zinc-600" />
           <span>{t('evaluation.charts.boxPlot.whiskers')}</span>
         </div>
         <div className="flex items-center gap-1.5">

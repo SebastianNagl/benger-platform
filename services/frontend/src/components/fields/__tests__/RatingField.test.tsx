@@ -422,12 +422,12 @@ describe('RatingField Component', () => {
 
       const stars = screen.getAllByRole('button')
       // First 3 stars should have background
-      expect(stars[0]).toHaveClass('bg-yellow-100')
-      expect(stars[1]).toHaveClass('bg-yellow-100')
-      expect(stars[2]).toHaveClass('bg-yellow-100')
+      expect(stars[0]).toHaveClass('bg-amber-100')
+      expect(stars[1]).toHaveClass('bg-amber-100')
+      expect(stars[2]).toHaveClass('bg-amber-100')
       // Last 2 should not
-      expect(stars[3]).not.toHaveClass('bg-yellow-100')
-      expect(stars[4]).not.toHaveClass('bg-yellow-100')
+      expect(stars[3]).not.toHaveClass('bg-amber-100')
+      expect(stars[4]).not.toHaveClass('bg-amber-100')
     })
 
     it('applies custom className to wrapper', () => {

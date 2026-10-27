@@ -56,8 +56,8 @@ describe('LoadingSpinner Component', () => {
     const spinner = container.querySelector('.animate-spin')
     expect(spinner).toHaveClass(
       'border-2',
-      'border-gray-300',
-      'border-t-blue-600',
+      'border-zinc-300',
+      'border-t-emerald-500',
     )
   })
 

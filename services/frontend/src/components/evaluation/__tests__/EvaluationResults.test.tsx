@@ -542,7 +542,7 @@ describe('EvaluationResults', () => {
       })
 
       // The component conditionally renders model chip: model_id && model_id !== 'unknown'
-      const chips = document.querySelectorAll('.bg-gray-100')
+      const chips = document.querySelectorAll('.bg-zinc-100')
       const unknownChip = Array.from(chips).find(
         (el) => el.textContent === 'unknown',
       )
@@ -688,7 +688,7 @@ describe('EvaluationResults', () => {
         expect(screen.getByText('40/100 processed')).toBeInTheDocument()
       })
 
-      const progressBar = document.querySelector('.bg-blue-500')
+      const progressBar = document.querySelector('.bg-emerald-500')
       expect(progressBar).toBeInTheDocument()
       expect(progressBar).toHaveStyle({ width: '40%' })
     })

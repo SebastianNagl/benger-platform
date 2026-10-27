@@ -124,10 +124,10 @@ export function QuestionManager({
       {/* Header with controls */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
             {t('tasks.questionManager.title', { count: questions.length })}
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
             {taskType === 'qa'
               ? t('tasks.questionManager.hintQa')
               : taskType === 'multiple_choice'
@@ -161,7 +161,8 @@ export function QuestionManager({
           <Button
             type="button"
             onClick={handleAddQuestion}
-            className="bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+            variant="filled"
+            className="px-3 py-1 text-sm"
           >
             + {t('tasks.questionManager.addQuestion')}
           </Button>
@@ -170,10 +171,10 @@ export function QuestionManager({
 
       {/* Questions List */}
       {questions.length === 0 ? (
-        <div className="rounded-lg border-2 border-dashed border-gray-300 py-12 text-center dark:border-gray-600">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-700">
+        <div className="rounded-lg border-2 border-dashed border-zinc-300 py-12 text-center dark:border-zinc-600">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-700">
             <svg
-              className="h-6 w-6 text-gray-500 dark:text-gray-400"
+              className="h-6 w-6 text-zinc-500 dark:text-zinc-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -186,19 +187,15 @@ export function QuestionManager({
               />
             </svg>
           </div>
-          <h3 className="mb-2 text-lg font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="mb-2 text-lg font-medium text-zinc-900 dark:text-zinc-100">
             {t('tasks.questionManager.empty')}
           </h3>
-          <p className="mb-4 text-gray-600 dark:text-gray-400">
+          <p className="mb-4 text-zinc-600 dark:text-zinc-400">
             {taskType === 'qa'
               ? t('tasks.questionManager.emptyHintQa')
               : t('tasks.questionManager.emptyHint')}
           </p>
-          <Button
-            type="button"
-            onClick={handleAddQuestion}
-            className="bg-blue-600 text-white hover:bg-blue-700"
-          >
+          <Button type="button" onClick={handleAddQuestion} variant="filled">
             {t('tasks.questionManager.addQuestion')}
           </Button>
         </div>

@@ -327,10 +327,10 @@ WORDING = {
     "immediate": ("KI-Korrektur fertig", "KI-Korrektur", "Korrektur ansehen"),
     "batch": ("Neue Evaluierung", "Evaluierungslauf", "Ergebnisse ansehen"),
 }
-# Vertretbar says "du", BenGER "Sie": (expected footer, the other brand's footer).
+# Both brands say "du": (expected footer, the formal footer that must not appear).
 VOICE = {
     "vertretbar.net": ("Du kannst E-Mails", "Sie können E-Mails"),
-    None: ("Sie können E-Mails", "Du kannst E-Mails"),
+    None: ("Du kannst E-Mails", "Sie können E-Mails"),
 }
 
 
@@ -364,7 +364,7 @@ class TestGradingEmail:
         kwargs = _send(email_svc, _grading_notification())
         assert "from_address" not in kwargs
         assert "from_name" not in kwargs
-        assert "Sie können E-Mails" in kwargs["html_body"]
+        assert "Du kannst E-Mails" in kwargs["html_body"]
 
     def test_without_a_link_there_is_no_button(self, email_svc):
         html = _send(email_svc, _grading_notification("batch"))["html_body"]

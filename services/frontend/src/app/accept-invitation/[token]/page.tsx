@@ -156,7 +156,7 @@ export default function AcceptInvitationPage({
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
         <div className="mx-auto w-full max-w-md">
           <div className="rounded-lg bg-white p-8 text-center shadow-sm ring-1 ring-zinc-900/5 dark:bg-zinc-800 dark:ring-white/10">
-            <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-green-500" />
+            <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
             <h1 className="mb-2 text-xl font-semibold text-zinc-900 dark:text-white">
               {t('invitation.welcomeTo', {
                 organizationName: invitation.organization_name,
@@ -273,10 +273,10 @@ export default function AcceptInvitationPage({
 
             {/* Email Mismatch Warning */}
             {user && user.email !== invitation.email && (
-              <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-900/20">
+              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
                 <div className="flex">
-                  <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-yellow-400" />
-                  <div className="text-yellow-800 dark:text-yellow-200">
+                  <ExclamationTriangleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-amber-400" />
+                  <div className="text-amber-800 dark:text-amber-200">
                     {t('invitation.emailMismatch', {
                       invitedEmail: invitation.email,
                       currentEmail: user.email,

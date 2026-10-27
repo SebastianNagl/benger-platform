@@ -14,7 +14,7 @@ describe('Separator', () => {
       const { container } = render(<Separator />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('bg-gray-200', 'dark:bg-gray-700')
+      expect(separator).toHaveClass('bg-zinc-200', 'dark:bg-zinc-700')
     })
   })
 
@@ -69,8 +69,8 @@ describe('Separator', () => {
       const separator = container.querySelector('div')
       expect(separator).toHaveClass(
         'custom-class',
-        'bg-gray-200',
-        'dark:bg-gray-700',
+        'bg-zinc-200',
+        'dark:bg-zinc-700',
         'h-px',
         'w-full',
       )
@@ -84,8 +84,8 @@ describe('Separator', () => {
       const separator = container.querySelector('div')
       expect(separator).toHaveClass(
         'custom-vertical',
-        'bg-gray-200',
-        'dark:bg-gray-700',
+        'bg-zinc-200',
+        'dark:bg-zinc-700',
         'w-px',
         'h-full',
       )
@@ -95,7 +95,7 @@ describe('Separator', () => {
       const { container } = render(<Separator className="bg-red-500" />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('bg-red-500', 'bg-gray-200')
+      expect(separator).toHaveClass('bg-red-500', 'bg-zinc-200')
     })
   })
 
@@ -131,21 +131,21 @@ describe('Separator', () => {
       const { container } = render(<Separator />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('dark:bg-gray-700')
+      expect(separator).toHaveClass('dark:bg-zinc-700')
     })
 
     it('maintains dark mode classes with custom styling', () => {
       const { container } = render(<Separator className="custom-class" />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('dark:bg-gray-700', 'custom-class')
+      expect(separator).toHaveClass('dark:bg-zinc-700', 'custom-class')
     })
 
     it('maintains dark mode classes with vertical orientation', () => {
       const { container } = render(<Separator orientation="vertical" />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('dark:bg-gray-700')
+      expect(separator).toHaveClass('dark:bg-zinc-700')
     })
   })
 
@@ -218,7 +218,7 @@ describe('Separator', () => {
       const { container } = render(<Separator />)
 
       const separator = container.querySelector('div')
-      expect(separator).toHaveClass('bg-gray-200', 'dark:bg-gray-700')
+      expect(separator).toHaveClass('bg-zinc-200', 'dark:bg-zinc-700')
     })
   })
 
@@ -228,7 +228,7 @@ describe('Separator', () => {
 
       const separator = container.querySelector('div')
       expect(separator).toBeInTheDocument()
-      expect(separator).toHaveClass('bg-gray-200')
+      expect(separator).toHaveClass('bg-zinc-200')
     })
 
     it('handles empty className gracefully', () => {
@@ -236,7 +236,7 @@ describe('Separator', () => {
 
       const separator = container.querySelector('div')
       expect(separator).toBeInTheDocument()
-      expect(separator).toHaveClass('bg-gray-200')
+      expect(separator).toHaveClass('bg-zinc-200')
     })
 
     it('handles multiple custom classes', () => {

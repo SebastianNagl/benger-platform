@@ -93,10 +93,10 @@ export default function GenerationPage() {
     return (
       <ResponsiveContainer size="xl" className="pt-8 pb-10">
         <div className="text-center">
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
             {t('dataManagement.accessDenied')}
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             {t('dataManagement.accessDeniedDescription')}
           </p>
           <div className="mt-6">

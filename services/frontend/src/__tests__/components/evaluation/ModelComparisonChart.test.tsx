@@ -686,7 +686,7 @@ describe('ModelComparisonChart', () => {
       )
 
       const title = screen.getByText('Test Title')
-      expect(title).toHaveClass('text-lg', 'font-medium', 'text-gray-900')
+      expect(title).toHaveClass('text-lg', 'font-medium', 'text-zinc-900')
     })
 
     it('should apply table styling for bar chart', () => {
@@ -713,7 +713,7 @@ describe('ModelComparisonChart', () => {
 
       const rows = container.querySelectorAll('tbody tr')
       rows.forEach((row) => {
-        expect(row).toHaveClass('hover:bg-gray-50')
+        expect(row).toHaveClass('hover:bg-zinc-50')
       })
     })
 

@@ -232,35 +232,35 @@ export function TaskAnnotationComparisonModal({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'submitted':
-        return <CheckCircleIcon className="h-4 w-4 text-green-600" />
+        return <CheckCircleIcon className="h-4 w-4 text-amber-600" />
       case 'approved':
-        return <CheckCircleIcon className="h-4 w-4 text-blue-600" />
+        return <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
       case 'rejected':
         return <ExclamationTriangleIcon className="h-4 w-4 text-red-600" />
       case 'draft':
       default:
-        return <ClockIcon className="h-4 w-4 text-gray-500" />
+        return <ClockIcon className="h-4 w-4 text-zinc-500" />
     }
   }
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'submitted':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
       case 'approved':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
       case 'rejected':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
       case 'draft':
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+        return 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900/20 dark:text-zinc-400'
     }
   }
 
   const renderAnnotationResult = (result: AnnotationResult[]) => {
     if (!result || result.length === 0) {
       return (
-        <div className="py-8 text-center text-gray-500">
+        <div className="py-8 text-center text-zinc-500">
           {t('annotation.comparison.messages.noData')}
         </div>
       )
@@ -271,15 +271,15 @@ export function TaskAnnotationComparisonModal({
         {result.map((item, index) => (
           <div
             key={index}
-            className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+            className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
           >
             <div className="mb-2">
-              <label className="font-medium text-gray-900 dark:text-white">
+              <label className="font-medium text-zinc-900 dark:text-white">
                 {item.from_name}
               </label>
-              <span className="ml-2 text-sm text-gray-500">({item.type})</span>
+              <span className="ml-2 text-sm text-zinc-500">({item.type})</span>
             </div>
-            <div className="text-gray-700 dark:text-gray-300">
+            <div className="text-zinc-700 dark:text-zinc-300">
               {renderAnnotationValue(item.value, item.from_name)}
             </div>
           </div>
@@ -294,7 +294,7 @@ export function TaskAnnotationComparisonModal({
   ): React.ReactNode => {
     if (value === null || value === undefined) {
       return (
-        <span className="text-gray-500 italic">
+        <span className="text-zinc-500 italic">
           {t('annotation.comparison.result.notAnswered')}
         </span>
       )
@@ -302,7 +302,7 @@ export function TaskAnnotationComparisonModal({
 
     if (typeof value === 'boolean') {
       return (
-        <span className={value ? 'text-green-600' : 'text-red-600'}>
+        <span className={value ? 'text-emerald-600' : 'text-red-600'}>
           {value
             ? t('annotation.comparison.result.yes')
             : t('annotation.comparison.result.no')}
@@ -324,7 +324,7 @@ export function TaskAnnotationComparisonModal({
 
     if (typeof value === 'object') {
       return (
-        <div className="mt-1 rounded bg-gray-50 p-2 dark:bg-gray-800">
+        <div className="mt-1 rounded bg-zinc-50 p-2 dark:bg-zinc-800">
           <pre className="overflow-x-auto text-xs">
             {JSON.stringify(value, null, 2)}
           </pre>
@@ -345,7 +345,7 @@ export function TaskAnnotationComparisonModal({
             {stringValue.substring(0, 200)}...
           </p>
           <details className="cursor-pointer">
-            <summary className="text-sm text-blue-600 hover:text-blue-800">
+            <summary className="text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300">
               {t('annotation.comparison.result.showFullText')}
             </summary>
             <p className="mt-2 wrap-break-word whitespace-pre-wrap">
@@ -374,9 +374,9 @@ export function TaskAnnotationComparisonModal({
       <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
         <DialogPanel className="flex max-h-[95vh] w-full max-w-6xl flex-col rounded-lg bg-white shadow-xl sm:max-h-[90vh] dark:bg-zinc-900">
           {/* Header - responsive padding and text size */}
-          <div className="flex items-start justify-between border-b border-gray-200 p-4 sm:items-center sm:p-6 dark:border-gray-700">
+          <div className="flex items-start justify-between border-b border-zinc-200 p-4 sm:items-center sm:p-6 dark:border-zinc-700">
             <div className="mr-2 min-w-0 flex-1">
-              <DialogTitle className="truncate text-base font-semibold text-gray-900 sm:text-lg dark:text-white">
+              <DialogTitle className="truncate text-base font-semibold text-zinc-900 sm:text-lg dark:text-white">
                 {t('annotation.comparison.modal.title')}
                 <span className="hidden sm:inline">
                   {' '}
@@ -384,13 +384,13 @@ export function TaskAnnotationComparisonModal({
                   {t('annotation.comparison.modal.taskId', { taskId: task.id })}
                 </span>
               </DialogTitle>
-              <p className="mt-1 text-xs text-gray-600 sm:text-sm dark:text-gray-400">
+              <p className="mt-1 text-xs text-zinc-600 sm:text-sm dark:text-zinc-400">
                 {t('annotation.comparison.description')}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:p-2 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+              className="rounded-lg p-1.5 text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 sm:p-2 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-white"
             >
               <XMarkIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
@@ -401,7 +401,7 @@ export function TaskAnnotationComparisonModal({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-12">
@@ -409,7 +409,7 @@ export function TaskAnnotationComparisonModal({
                 <p className="text-red-600">{error}</p>
                 <button
                   onClick={fetchAnnotations}
-                  className="mt-4 rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+                  className="mt-4 rounded-full bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 >
                   {t('annotation.comparison.modal.retry')}
                 </button>
@@ -419,12 +419,12 @@ export function TaskAnnotationComparisonModal({
               mode === 'create' && project?.label_config ? (
                 // Show annotation creator interface immediately - LabelStudio pattern
                 <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                  <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                    <h3 className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                  <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                    <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
                       <PencilIcon className="h-4 w-4" />
                       {t('annotation.comparison.tabs.createNew')}
                     </h3>
-                    <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                    <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-300">
                       {t('annotation.comparison.empty.noAnnotationsYet')}
                     </p>
                   </div>
@@ -458,7 +458,7 @@ export function TaskAnnotationComparisonModal({
                     }}
                   />
                   {successMessage && (
-                    <div className="mt-4 rounded-lg bg-green-50 p-4 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                    <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
                       {successMessage}
                     </div>
                   )}
@@ -466,19 +466,19 @@ export function TaskAnnotationComparisonModal({
               ) : // Show loading state when just created
               justCreated ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <div className="mb-4 h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
+                  <p className="text-zinc-600 dark:text-zinc-400">
                     {t('annotation.comparison.messages.loadingUserAnnotation')}
                   </p>
-                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-500">
+                  <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-500">
                     {t('annotation.comparison.messages.waitingForAnnotation')}
                   </p>
                 </div>
               ) : (
                 // Fallback empty state (should rarely be seen)
                 <div className="flex flex-col items-center justify-center py-12">
-                  <DocumentTextIcon className="mb-4 h-12 w-12 text-gray-400" />
-                  <p className="text-gray-600 dark:text-gray-400">
+                  <DocumentTextIcon className="mb-4 h-12 w-12 text-zinc-400" />
+                  <p className="text-zinc-600 dark:text-zinc-400">
                     {t('annotation.comparison.empty.noAnnotationsAvailable')}
                   </p>
                 </div>
@@ -486,8 +486,8 @@ export function TaskAnnotationComparisonModal({
             ) : showAddAnnotation && project?.label_config ? (
               // User is adding a new annotation or editing existing one
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <div className="mb-4 rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                  <h3 className="flex items-center gap-2 text-sm font-medium text-blue-900 dark:text-blue-100">
+                <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                  <h3 className="flex items-center gap-2 text-sm font-medium text-zinc-900 dark:text-white">
                     {editingAnnotation ? (
                       <>
                         <PencilIcon className="h-4 w-4" />
@@ -500,7 +500,7 @@ export function TaskAnnotationComparisonModal({
                       </>
                     )}
                   </h3>
-                  <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
+                  <p className="mt-1 text-xs text-zinc-700 dark:text-zinc-300">
                     {editingAnnotation
                       ? t('annotation.comparison.tabs.updateExisting')
                       : t('annotation.comparison.tabs.addNew')}
@@ -541,7 +541,7 @@ export function TaskAnnotationComparisonModal({
                   }}
                 />
                 {successMessage && (
-                  <div className="mt-4 rounded-lg bg-green-50 p-4 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                  <div className="mt-4 rounded-lg bg-emerald-50 p-4 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400">
                     {successMessage}
                   </div>
                 )}
@@ -554,16 +554,16 @@ export function TaskAnnotationComparisonModal({
                 className="flex min-h-0 flex-1 flex-col overflow-hidden"
               >
                 {/* Tab List with horizontal scroll */}
-                <div className="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-                  <Tab.List className="flex scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-200 space-x-1 overflow-x-auto px-4 py-2 sm:px-6 dark:scrollbar-thumb-gray-600 dark:scrollbar-track-gray-800">
+                <div className="border-b border-zinc-200 px-4 py-2 sm:px-6 dark:border-zinc-700">
+                  <Tab.List className="inline-flex max-w-full scrollbar-thin scrollbar-thumb-zinc-400 scrollbar-track-zinc-200 items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:scrollbar-thumb-zinc-600 dark:scrollbar-track-zinc-800 dark:bg-zinc-800">
                     {annotatorTabs.map((tab) => (
                       <Tab
                         key={tab.userId}
                         className={({ selected }) =>
-                          `flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors sm:px-4 sm:text-sm ${
+                          `flex shrink-0 items-center gap-2 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 sm:text-sm ${
                             selected
-                              ? 'border-b-2 border-blue-600 bg-white text-blue-600 dark:bg-zinc-900 dark:text-blue-400'
-                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white'
+                              ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                              : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                           }`
                         }
                       >
@@ -573,7 +573,7 @@ export function TaskAnnotationComparisonModal({
                         </span>
                         {getStatusIcon(tab.status)}
                         {tab.annotations.length > 1 && (
-                          <span className="ml-1 rounded-full bg-gray-200 px-1.5 py-0.5 text-xs dark:bg-gray-700">
+                          <span className="ml-1 rounded-full bg-zinc-200 px-1.5 py-0.5 text-xs dark:bg-zinc-700">
                             {tab.annotations.length}
                           </span>
                         )}
@@ -587,14 +587,14 @@ export function TaskAnnotationComparisonModal({
                   {annotatorTabs.map((tab) => (
                     <Tab.Panel key={tab.userId} className="p-4 sm:p-6">
                       {/* Annotator Info */}
-                      <div className="mb-6 rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                      <div className="mb-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">
+                            <h3 className="font-medium text-zinc-900 dark:text-white">
                               {tab.username}
                             </h3>
                             {tab.email && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                              <p className="text-sm text-zinc-600 dark:text-zinc-400">
                                 {tab.email}
                               </p>
                             )}
@@ -607,7 +607,7 @@ export function TaskAnnotationComparisonModal({
                             {t(`annotation.comparison.status.${tab.status}`)}
                           </span>
                         </div>
-                        <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
                           {t('annotation.comparison.info.lastUpdated', {
                             date: new Date(tab.lastUpdated).toLocaleString(
                               intlTag(locale),
@@ -615,7 +615,7 @@ export function TaskAnnotationComparisonModal({
                           })}
                         </div>
                         {tab.annotations[0]?.metadata?.time_spent && (
-                          <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                             {t('annotation.comparison.info.timeSpent', {
                               seconds: Math.round(
                                 tab.annotations[0].metadata.time_spent / 1000,
@@ -625,7 +625,7 @@ export function TaskAnnotationComparisonModal({
                         )}
                         {tab.annotations[0]?.metadata?.confidence !==
                           undefined && (
-                          <div className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
                             {t('annotation.comparison.info.confidence', {
                               percent: Math.round(
                                 tab.annotations[0].metadata.confidence * 100,
@@ -638,7 +638,7 @@ export function TaskAnnotationComparisonModal({
                       {/* Annotation Data with Lazy Loading */}
                       {tab.annotations.length > 1 ? (
                         <div className="space-y-6">
-                          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                          <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
                             {t('annotation.comparison.info.showingVersions', {
                               count: tab.annotations.length,
                             })}
@@ -648,9 +648,9 @@ export function TaskAnnotationComparisonModal({
                             .map((annotation, index) => (
                               <div
                                 key={annotation.id}
-                                className="border-l-4 border-blue-500 pl-4"
+                                className="border-l-4 border-emerald-500 pl-4"
                               >
-                                <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                                <div className="mb-2 text-sm text-zinc-600 dark:text-zinc-400">
                                   {t(
                                     'annotation.comparison.info.versionLabel',
                                     {
@@ -669,7 +669,7 @@ export function TaskAnnotationComparisonModal({
                             (displayedAnnotations.get(tab.userId) || 5) && (
                             <div className="pt-4 text-center">
                               <button
-                                className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                                className="rounded-full bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                                 onClick={() => {
                                   // Load 5 more annotations for this annotator
                                   setDisplayedAnnotations((prev) => {
@@ -696,11 +696,11 @@ export function TaskAnnotationComparisonModal({
 
                       {/* Notes if available */}
                       {tab.annotations[0]?.metadata?.notes && (
-                        <div className="mt-6 rounded-lg bg-yellow-50 p-4 dark:bg-yellow-900/20">
-                          <h4 className="mb-2 font-medium text-gray-900 dark:text-white">
+                        <div className="mt-6 rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
+                          <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
                             {t('annotation.comparison.info.annotatorNotes')}
                           </h4>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                          <p className="text-sm text-zinc-700 dark:text-zinc-300">
                             {tab.annotations[0].metadata.notes}
                           </p>
                         </div>
@@ -715,12 +715,12 @@ export function TaskAnnotationComparisonModal({
           {/* Footer - responsive layout with enhanced button visibility */}
           {(annotatorTabs.length > 0 ||
             (mode === 'view' && !showAddAnnotation)) && (
-            <div className="border-t border-gray-200 bg-gray-50 p-4 sm:p-6 dark:border-gray-700 dark:bg-gray-800">
+            <div className="border-t border-zinc-200 bg-zinc-50 p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-800">
               <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
                 {/* Left side - statistics and primary action button */}
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                   {/* Statistics */}
-                  <div className="text-center text-xs text-gray-600 sm:text-left sm:text-sm dark:text-gray-400">
+                  <div className="text-center text-xs text-zinc-600 sm:text-left sm:text-sm dark:text-zinc-400">
                     <span className="font-medium">
                       {t('annotation.comparison.info.annotatorCount', {
                         count: annotatorTabs.length,
@@ -779,14 +779,14 @@ export function TaskAnnotationComparisonModal({
                               setShowAddAnnotation(true)
                             }
                           }}
-                          className="group relative flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-blue-700 hover:shadow-md"
+                          className="group relative flex items-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-all hover:bg-zinc-700 hover:shadow-md dark:bg-emerald-500 dark:hover:bg-emerald-400"
                         >
                           <PlusCircleIcon className="h-5 w-5 transition-transform group-hover:scale-110" />
                           {t('annotation.comparison.buttons.addMyAnnotation')}
                           {/* Subtle pulse animation to draw attention */}
                           <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-500"></span>
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500"></span>
                           </span>
                         </button>
                       )
@@ -797,7 +797,7 @@ export function TaskAnnotationComparisonModal({
                 {/* Right side - close button */}
                 <button
                   onClick={onClose}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 sm:w-auto dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
+                  className="w-full rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 sm:w-auto dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-600"
                 >
                   {t('annotation.comparison.modal.close')}
                 </button>

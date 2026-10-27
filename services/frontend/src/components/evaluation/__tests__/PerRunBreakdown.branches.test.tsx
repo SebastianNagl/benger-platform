@@ -50,8 +50,8 @@ describe('PerRunBreakdown branch coverage', () => {
     const pending = screen.getByText('Ausstehend')
     expect(running).toBeInTheDocument()
     expect(pending).toBeInTheDocument()
-    // 'running' → blue palette
-    expect(running.className).toContain('bg-blue-100')
+    // 'running' → neutral info pill (text-zinc-800, unlike the default's zinc-700)
+    expect(running.className).toContain('text-zinc-800')
     // unknown status → neutral zinc default palette
     expect(pending.className).toContain('bg-zinc-100')
   })

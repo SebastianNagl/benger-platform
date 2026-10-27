@@ -1,7 +1,10 @@
 import clsx from 'clsx'
-import { ReactNode } from 'react'
+import { HTMLAttributes, ReactNode } from 'react'
 
-interface BadgeProps {
+interface BadgeProps extends Omit<
+  HTMLAttributes<HTMLElement>,
+  'onClick' | 'children' | 'className'
+> {
   children: ReactNode
   variant?: 'default' | 'secondary' | 'destructive' | 'outline'
   className?: string
@@ -19,7 +22,7 @@ export function Badge({
 }: BadgeProps) {
   const Component = onClick ? 'button' : 'span'
   const interactiveClasses = onClick
-    ? 'cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500'
+    ? 'cursor-pointer hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500'
     : ''
 
   return (

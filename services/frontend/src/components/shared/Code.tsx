@@ -234,14 +234,14 @@ function CodeGroupHeader({
         </h3>
       )}
       {hasTabs && (
-        <TabList className="-mb-px flex gap-4 text-xs font-medium">
+        <TabList className="my-2.5 inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-900 p-0.5 text-xs font-medium">
           {Children.map(children, (child, childIndex) => (
             <Tab
               className={clsx(
-                'border-b py-3 transition data-selected:not-data-focus:outline-hidden',
+                'rounded-full px-3 py-1 whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 data-selected:not-data-focus:outline-hidden',
                 childIndex === selectedIndex
-                  ? 'border-emerald-500 text-emerald-400'
-                  : 'border-transparent text-zinc-400 hover:text-zinc-300',
+                  ? 'bg-zinc-700 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-white',
               )}
             >
               {getPanelTitle(

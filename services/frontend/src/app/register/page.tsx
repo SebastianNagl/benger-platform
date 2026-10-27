@@ -390,10 +390,10 @@ export default function RegisterPage() {
   // Shown atop steps 2–5: these pages collect optional research data.
   const OptionalNotice = () => (
     <div
-      className="rounded-md bg-blue-50 p-4 dark:bg-blue-900/20"
+      className="rounded-md border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50"
       data-testid="register-optional-notice"
     >
-      <p className="text-sm text-blue-700 dark:text-blue-300">
+      <p className="text-sm text-zinc-700 dark:text-zinc-300">
         {t('register.optionalPageNotice')}
       </p>
     </div>
@@ -1089,7 +1089,7 @@ export default function RegisterPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white"
+              className="hidden text-sm whitespace-nowrap text-zinc-600 hover:text-zinc-900 sm:inline dark:text-zinc-400 dark:hover:text-white"
             >
               {t('register.backToLanding')}
             </Link>
@@ -1240,7 +1240,7 @@ export default function RegisterPage() {
                   key="next"
                   type="button"
                   onClick={handleNext}
-                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
+                  className="rounded-full bg-zinc-900 px-6 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
                   data-testid="register-next-button"
                 >
                   {t('register.stepNext')}
@@ -1250,7 +1250,7 @@ export default function RegisterPage() {
                   key="submit"
                   type="submit"
                   disabled={isLoading}
-                  className="bg-emerald-600 px-6 py-2 text-white shadow-sm hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:focus:ring-offset-zinc-900"
+                  className="rounded-full bg-zinc-900 px-6 py-2 text-white shadow-sm hover:bg-zinc-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:outline-none dark:bg-emerald-500 dark:hover:bg-emerald-400 dark:focus:ring-offset-zinc-900"
                   data-testid="auth-register-submit-button"
                 >
                   {isLoading ? (

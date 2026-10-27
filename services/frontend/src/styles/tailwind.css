@@ -50,7 +50,23 @@
   ::before,
   ::backdrop,
   ::file-selector-button {
-    border-color: var(--color-gray-200, currentcolor);
+    border-color: var(--color-zinc-200, currentcolor);
+  }
+
+  /* @tailwindcss/forms runs in class strategy, so plain checkboxes and radios
+     are browser-drawn: give them the emerald accent and dark native chrome. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    accent-color: var(--color-emerald-600);
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  .dark input[type='checkbox'],
+  .dark input[type='radio'] {
+    accent-color: var(--color-emerald-500);
   }
 }
 

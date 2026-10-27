@@ -374,7 +374,7 @@ export function PromptManager({
             <Button
               onClick={handleAddPrompt}
               disabled={!newPrompt.prompt.trim()}
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              variant="filled"
             >
               {t('tasks.prompts.addPrompt')}
             </Button>

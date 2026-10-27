@@ -135,7 +135,7 @@ export default function CompleteProfilePage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900">
         <div className="text-center">
-          <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-green-500" />
+          <CheckCircleIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
           <p className="text-zinc-600 dark:text-zinc-400">
             {t('completeProfile.alreadyCompleted')}
           </p>

@@ -615,14 +615,14 @@ describe('EditableAnnotationGuidelines', () => {
         <EditableAnnotationGuidelines task={taskWithGuidelines} />,
       )
 
-      const guidelinesContainer = container.querySelector('.bg-blue-50')
+      const guidelinesContainer = container.querySelector('.bg-zinc-50')
       expect(guidelinesContainer).toBeInTheDocument()
       expect(guidelinesContainer).toHaveClass(
-        'dark:bg-blue-900/20',
+        'dark:bg-zinc-800/50',
         'rounded-lg',
         'p-4',
         'border',
-        'border-blue-200',
+        'border-zinc-200',
       )
     })
 
@@ -701,10 +701,10 @@ describe('EditableAnnotationGuidelines', () => {
         <EditableAnnotationGuidelines task={taskWithGuidelines} />,
       )
 
-      const guidelinesContainer = container.querySelector('.bg-blue-50')
+      const guidelinesContainer = container.querySelector('.bg-zinc-50')
       expect(guidelinesContainer).toHaveClass(
-        'dark:bg-blue-900/20',
-        'dark:border-blue-800',
+        'dark:bg-zinc-800/50',
+        'dark:border-zinc-700',
       )
 
       const guidelinesText = container.querySelector('.whitespace-pre-wrap')

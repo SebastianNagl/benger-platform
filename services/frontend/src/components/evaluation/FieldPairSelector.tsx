@@ -103,7 +103,7 @@ export function FieldPairSelector({
 
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
-      <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+      <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
         {t('evaluation.fieldPair.label')}
       </label>
 
@@ -126,9 +126,9 @@ export function FieldPairSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-72 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+        <div className="absolute z-50 mt-1 w-72 rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
           {/* Quick actions */}
-          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2 dark:border-gray-700">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-700">
             <button
               type="button"
               onClick={selectAll}
@@ -139,7 +139,7 @@ export function FieldPairSelector({
             <button
               type="button"
               onClick={clearAll}
-              className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400"
+              className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"
             >
               {t('evaluation.fieldPair.clear')}
             </button>
@@ -149,7 +149,7 @@ export function FieldPairSelector({
             {/* Model response pairs */}
             {modelPairs.length > 0 && (
               <div>
-                <div className="bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
+                <div className="bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-500 dark:bg-zinc-900/50 dark:text-zinc-400">
                   {t('evaluation.fieldPair.modelResponses')}
                 </div>
                 {modelPairs.map((pair) => (
@@ -166,7 +166,7 @@ export function FieldPairSelector({
             {/* Human annotation pairs */}
             {humanPairs.length > 0 && (
               <div>
-                <div className="bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
+                <div className="bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-500 dark:bg-zinc-900/50 dark:text-zinc-400">
                   {t('evaluation.fieldPair.humanAnnotations')}
                 </div>
                 {humanPairs.map((pair) => (
@@ -194,7 +194,7 @@ export function FieldPairSelector({
           </div>
 
           {/* Selected count */}
-          <div className="border-t border-gray-100 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
+          <div className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
             {t('evaluation.fieldPair.selectedCount', {
               selected: selectedPairs.length,
               total: fieldPairs.length,
@@ -218,14 +218,14 @@ function FieldPairOption({ pair, isSelected, onToggle }: FieldPairOptionProps) {
     <button
       type="button"
       onClick={onToggle}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''} ${pair.hasResults === false ? 'opacity-50' : ''} `}
+      className={`flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-zinc-50 dark:hover:bg-zinc-700 ${isSelected ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''} ${pair.hasResults === false ? 'opacity-50' : ''} `}
     >
       {/* Checkbox indicator */}
       <div
         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
           isSelected
             ? 'border-emerald-500 bg-emerald-500'
-            : 'border-gray-300 dark:border-gray-600'
+            : 'border-zinc-300 dark:border-zinc-600'
         } `}
       >
         {isSelected && <CheckIcon className="h-3 w-3 text-white" />}
@@ -235,19 +235,19 @@ function FieldPairOption({ pair, isSelected, onToggle }: FieldPairOptionProps) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1 text-sm">
           <span
-            className={`truncate font-medium ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}
+            className={`truncate font-medium ${isSelected ? 'text-emerald-700 dark:text-emerald-300' : 'text-zinc-700 dark:text-zinc-300'}`}
           >
             {getFieldLabel(pair.predictionField, t)}
           </span>
-          <ArrowRightIcon className="h-3 w-3 shrink-0 text-gray-400" />
+          <ArrowRightIcon className="h-3 w-3 shrink-0 text-zinc-400" />
           <span
-            className={`truncate ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-600 dark:text-gray-400'}`}
+            className={`truncate ${isSelected ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-600 dark:text-zinc-400'}`}
           >
             {pair.referenceField}
           </span>
         </div>
         {pair.resultCount !== undefined && (
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-zinc-400">
             {t('evaluation.fieldPair.resultCount', { count: pair.resultCount })}
           </div>
         )}

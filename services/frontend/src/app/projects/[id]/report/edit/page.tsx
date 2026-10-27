@@ -600,7 +600,7 @@ export default function ReportEditorPage({ params }: ReportEditorPageProps) {
               href={`/reports/${report.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="inline-flex items-center rounded-full border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               <ArrowTopRightOnSquareIcon className="mr-2 h-4 w-4" />
               {t('reports.editor.preview')}

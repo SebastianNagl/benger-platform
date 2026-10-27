@@ -22,15 +22,15 @@ interface AlertProps {
 const variantStyles = {
   info: {
     container:
-      'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800',
+      'bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700',
     icon: InformationCircleIcon,
-    iconColor: 'text-blue-600 dark:text-blue-400',
+    iconColor: 'text-zinc-500 dark:text-zinc-400',
   },
   success: {
     container:
-      'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
+      'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800',
     icon: CheckCircleIcon,
-    iconColor: 'text-green-600 dark:text-green-400',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
   },
   warning: {
     container:

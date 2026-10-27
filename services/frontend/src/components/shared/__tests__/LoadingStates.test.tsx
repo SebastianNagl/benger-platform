@@ -80,7 +80,7 @@ describe('LoadingStates Components', () => {
           'rounded-full',
           'border-2',
           'border-zinc-300',
-          'border-t-blue-600',
+          'border-t-emerald-500',
         )
       })
 
@@ -90,7 +90,7 @@ describe('LoadingStates Components', () => {
         const spinner = container.firstChild as HTMLElement
         expect(spinner).toHaveClass(
           'dark:border-zinc-600',
-          'dark:border-t-blue-400',
+          'dark:border-t-emerald-400',
         )
       })
 
@@ -490,7 +490,7 @@ describe('LoadingStates Components', () => {
       const spinner = container.firstChild as HTMLElement
       expect(spinner).toHaveClass(
         'dark:border-zinc-600',
-        'dark:border-t-blue-400',
+        'dark:border-t-emerald-400',
       )
     })
 

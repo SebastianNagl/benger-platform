@@ -717,7 +717,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       : ''
     return (
       <div
-        className="bg-background flex min-h-screen flex-col"
+        className="flex min-h-screen flex-col"
         data-testid="project-window-upcoming"
       >
         <div className="border-b px-6 py-4">
@@ -736,7 +736,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               <h2 className="text-2xl font-bold">
                 {t('annotation.window.notOpenTitle')}
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-zinc-500 dark:text-zinc-400">
                 {t('annotation.window.notOpenDescription', {
                   date: opensAt,
                 })}
@@ -758,7 +758,9 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <h2 className="mb-2 text-2xl font-bold text-red-600">
               {t('annotation.errors.initializationError')}
             </h2>
-            <p className="text-muted-foreground mb-6">{initializationError}</p>
+            <p className="mb-6 text-zinc-500 dark:text-zinc-400">
+              {initializationError}
+            </p>
             <div className="space-x-4">
               <Button onClick={() => window.location.reload()}>
                 {t('annotation.errors.tryAgain')}
@@ -779,7 +781,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
   if (loading && !currentTask) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
       </div>
     )
   }
@@ -789,11 +791,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
       <div className="container mx-auto px-4 py-8">
         <Card className="mx-auto max-w-2xl">
           <div className="py-12 text-center">
-            <CheckIcon className="mx-auto mb-4 h-12 w-12 text-green-500" />
+            <CheckIcon className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
             <h2 className="mb-2 text-2xl font-bold">
               {t('annotation.allTasksCompleted')}
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="mb-6 text-zinc-500 dark:text-zinc-400">
               {t('annotation.allTasksCompletedDescription')}
             </p>
             <Button onClick={() => router.push(`/projects/${projectId}`)}>
@@ -819,7 +821,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     )
     return (
       <div
-        className="bg-background flex min-h-screen flex-col"
+        className="flex min-h-screen flex-col"
         data-testid="klausur-pre-start"
       >
         <div className="border-b px-6 py-4">
@@ -848,12 +850,12 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   </p>
                 </div>
               )}
-              <p className="text-muted-foreground">
+              <p className="text-zinc-500 dark:text-zinc-400">
                 {t('annotation.strictTimer.readyDescription', {
                   minutes,
                 })}
               </p>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {t('annotation.strictTimer.readyWarning')}
               </p>
               <Button variant="filled" onClick={handleStrictTimerStart}>
@@ -876,7 +878,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
     !allTasksCompleted
   ) {
     return (
-      <div className="bg-background flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col">
         <div className="border-b px-6 py-4">
           <Button
             variant="text"
@@ -893,7 +895,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
               <h2 className="text-2xl font-bold">
                 {t('annotation.strictTimer.timeOverTitle')}
               </h2>
-              <p className="text-muted-foreground">
+              <p className="text-zinc-500 dark:text-zinc-400">
                 {t('annotation.strictTimer.timeOverDescription')}
               </p>
               <div className="flex flex-col gap-3">
@@ -1024,7 +1026,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         }}
       />
     ) : variant === 'state' ? null : (
-      <div className="text-muted-foreground flex items-center gap-2 text-sm">
+      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <ClockIcon className="h-4 w-4" />
         {formatDistanceToNow(startTime, {
           locale: dateFnsLocale(locale),
@@ -1042,7 +1044,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
         // page's true modals (skip/instructions/eval, z-50) above it.
         modernExamLayoutActive
           ? 'fixed inset-0 z-40 flex overflow-hidden bg-white dark:bg-zinc-900'
-          : 'bg-background flex min-h-screen'
+          : 'flex min-h-screen'
       }
       data-testid={modernExamLayoutActive ? 'labeling-fullscreen' : undefined}
     >
@@ -1065,7 +1067,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                   <h1 className="text-lg font-semibold">
                     {currentProject?.title}
                   </h1>
-                  <p className="text-muted-foreground text-sm">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
                     {(() => {
                       // Show "absolute" progress: <completed-so-far + 1> of
                       // <project total>. The store's currentTaskTotal shrinks
@@ -1315,7 +1317,7 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary">{modelId}</Badge>
                           </div>
-                          <div className="bg-muted rounded-lg p-3">
+                          <div className="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
                             <p className="text-sm">{String(response)}</p>
                           </div>
                         </div>

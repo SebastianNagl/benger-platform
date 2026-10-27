@@ -80,6 +80,72 @@ describe('ProjectTypeSelector', () => {
       expect(screen.queryByTestId('project-kind-fr-dissertation')).toBeNull()
     })
 
+    it('shows the types of other jurisdictions behind a toggle', () => {
+      const onChange = jest.fn()
+      render(<ProjectTypeSelector projectKind="generic" onChange={onChange} />)
+      const toggle = screen.getByTestId('project-kind-show-all')
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(toggle).toHaveTextContent('Alle Projekttypen anzeigen (+1)')
+
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(toggle).toHaveTextContent('Weniger Projekttypen anzeigen')
+      fireEvent.click(screen.getByTestId('project-kind-fr-dissertation'))
+      expect(onChange).toHaveBeenCalledWith({
+        projectKind: 'exam',
+        projectTypeId: 'fr-dissertation',
+      })
+
+      fireEvent.click(toggle)
+      expect(screen.queryByTestId('project-kind-fr-dissertation')).toBeNull()
+    })
+
+    it('opens expanded when the selected type is of another jurisdiction', () => {
+      render(
+        <ProjectTypeSelector
+          projectKind="exam"
+          projectTypeId="fr-dissertation"
+          onChange={jest.fn()}
+        />,
+      )
+      expect(screen.getByTestId('project-kind-show-all')).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      )
+      expect(
+        screen.getByTestId('project-kind-fr-dissertation'),
+      ).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it('keeps a selected type of another jurisdiction visible when collapsed', () => {
+      const { rerender } = render(
+        <ProjectTypeSelector
+          projectKind="exam"
+          projectTypeId="fr-dissertation"
+          jurisdictions={['FR']}
+          onChange={jest.fn()}
+        />,
+      )
+      // Offered for FR: no toggle; switching the target org to DE keeps
+      // the selection on screen.
+      expect(screen.queryByTestId('project-kind-show-all')).toBeNull()
+      rerender(
+        <ProjectTypeSelector
+          projectKind="exam"
+          projectTypeId="fr-dissertation"
+          jurisdictions={['DE']}
+          onChange={jest.fn()}
+        />,
+      )
+      expect(screen.getByTestId('project-kind-show-all')).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      )
+      expect(
+        screen.getByTestId('project-kind-fr-dissertation'),
+      ).toHaveAttribute('aria-checked', 'true')
+    })
+
     it('offers a jurisdiction type and picks it as its base kind', () => {
       const onChange = jest.fn()
       render(

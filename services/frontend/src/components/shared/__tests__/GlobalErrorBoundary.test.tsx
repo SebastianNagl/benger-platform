@@ -265,8 +265,8 @@ describe('GlobalErrorBoundary', () => {
       )
 
       const reloadButton = screen.getByText('Reload Page')
-      expect(reloadButton.className).toContain('bg-emerald-600')
-      expect(reloadButton.className).toContain('hover:bg-emerald-700')
+      expect(reloadButton.className).toContain('bg-zinc-900')
+      expect(reloadButton.className).toContain('hover:bg-zinc-700')
     })
 
     it('reload button has onClick handler', () => {

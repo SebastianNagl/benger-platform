@@ -14,10 +14,10 @@
 
 import { CloudImportPanel } from '@/components/projects/import/CloudImportPanel'
 import { ImportSourceTabs } from '@/components/projects/import/ImportSourceTabs'
+import { Button } from '@/components/shared/Button'
 import { Dialog } from '@/components/shared/Dialog'
 import { useToast } from '@/components/shared/Toast'
 import { ImportPreviewWithMapping } from '@/components/tasks/ImportPreviewWithMapping'
-import { Button } from '@/components/ui/button'
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { projectsAPI } from '@/lib/api/projects'
@@ -29,7 +29,10 @@ import {
 } from '@/lib/import/parseImportData'
 import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import {
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline'
 import React, { useCallback, useEffect, useState } from 'react'
 
 interface ImportDataModalProps {
@@ -442,9 +445,10 @@ export function ImportDataModal({
               }
             }}
             disabled={!canImport || loading}
-            loading={loading}
+            variant="filled"
             type="button"
           >
+            {loading && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
             {t('projects.data.import')}
           </Button>
         </div>

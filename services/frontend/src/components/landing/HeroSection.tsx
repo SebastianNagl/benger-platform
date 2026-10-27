@@ -46,7 +46,7 @@ export function HeroSection() {
           <div className="mt-12 flex items-center justify-center sm:mt-16">
             <Button
               href="/login"
-              className="bg-emerald-600 px-12 py-4 text-xl font-semibold text-white shadow-lg transition-all duration-200 hover:bg-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:px-16 sm:py-5 sm:text-2xl"
+              className="rounded-full bg-zinc-900 px-12 py-4 text-xl font-semibold text-white shadow-lg transition-all duration-200 hover:bg-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:px-16 sm:py-5 sm:text-2xl dark:bg-emerald-500 dark:hover:bg-emerald-400"
             >
               {t('landing.cta.primary')}
             </Button>

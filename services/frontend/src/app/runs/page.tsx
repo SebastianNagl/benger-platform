@@ -220,16 +220,16 @@ export default function RunsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="mb-4 border-b border-zinc-200 dark:border-zinc-800">
-        <nav className="-mb-px flex gap-6">
+      <div className="mb-4">
+        <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
           {(['evaluation', 'generation'] as RunType[]).map((tname) => (
             <button
               key={tname}
               onClick={() => handleTabChange(tname)}
-              className={`border-b-2 py-3 text-sm font-medium whitespace-nowrap ${
+              className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                 tab === tname
-                  ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                  : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
               }`}
             >
               {tname === 'evaluation'

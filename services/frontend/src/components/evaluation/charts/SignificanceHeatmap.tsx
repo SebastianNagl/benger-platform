@@ -34,7 +34,7 @@ const SIGNIFICANCE_COLORS = {
   p001: '#1e40af',
   p01: '#3b82f6',
   p05: '#93c5fd',
-  ns: '#e5e7eb',
+  ns: '#e4e4e7',
 }
 
 export function SignificanceHeatmap({
@@ -230,13 +230,13 @@ export function SignificanceHeatmap({
         />
       </div>
 
-      <div className="rounded-lg border bg-gray-50 p-4">
+      <div className="rounded-lg border bg-zinc-50 p-4">
         <h4 className="mb-3 font-medium">
           {t('evaluation.charts.significance.legend')}
         </h4>
         <div className="space-y-3">
           <div>
-            <h5 className="mb-2 text-sm font-medium text-gray-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700">
               {t('evaluation.charts.significance.colorScale')}
             </h5>
             <div className="space-y-1 text-sm">
@@ -254,7 +254,7 @@ export function SignificanceHeatmap({
                   className="h-4 w-4 rounded"
                   style={{
                     backgroundColor: '#ffffff',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid #d4d4d8',
                   }}
                 />
                 <span>{t('evaluation.charts.significance.noEffect')}</span>
@@ -272,7 +272,7 @@ export function SignificanceHeatmap({
           </div>
 
           <div>
-            <h5 className="mb-2 text-sm font-medium text-gray-700">
+            <h5 className="mb-2 text-sm font-medium text-zinc-700">
               {t('evaluation.charts.significance.significanceStars')}
             </h5>
             <div className="space-y-1 text-sm">
@@ -297,8 +297,8 @@ export function SignificanceHeatmap({
             </div>
           </div>
 
-          <div className="rounded border-l-4 border-blue-500 bg-blue-50 p-3 text-sm">
-            <p className="text-gray-700">
+          <div className="rounded border-l-4 border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-700 dark:bg-zinc-800/50">
+            <p className="text-zinc-700 dark:text-zinc-300">
               <strong>{t('evaluation.charts.significance.noteLabel')}:</strong>{' '}
               {t('evaluation.charts.significance.noteText')}
             </p>

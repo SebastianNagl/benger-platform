@@ -128,7 +128,7 @@ export function DynamicChartRenderer({
   if (!hasData) {
     return (
       <div
-        className={`flex items-center justify-center text-gray-500 dark:text-gray-400 ${className}`}
+        className={`flex items-center justify-center text-zinc-500 dark:text-zinc-400 ${className}`}
         style={{ height }}
       >
         {resolvedEmptyMessage}
@@ -171,7 +171,7 @@ export function DynamicChartRenderer({
         if (boxPlotData.length === 0) {
           return (
             <div
-              className="flex items-center justify-center text-gray-500 dark:text-gray-400"
+              className="flex items-center justify-center text-zinc-500 dark:text-zinc-400"
               style={{ height }}
             >
               {t('evaluation.charts.noDistributionData')}
@@ -191,7 +191,7 @@ export function DynamicChartRenderer({
         if (!hasMultipleModels) {
           return (
             <div
-              className="flex items-center justify-center text-gray-500 dark:text-gray-400"
+              className="flex items-center justify-center text-zinc-500 dark:text-zinc-400"
               style={{ height }}
             >
               {t('evaluation.charts.heatmapRequiresMultipleModels')}
@@ -229,7 +229,7 @@ export function DynamicChartRenderer({
       default:
         return (
           <div
-            className="flex items-center justify-center text-gray-500 dark:text-gray-400"
+            className="flex items-center justify-center text-zinc-500 dark:text-zinc-400"
             style={{ height }}
           >
             {t('evaluation.charts.unknownChartType', {
@@ -266,13 +266,13 @@ function ScoreHeatmap({
     if (colorScheme === 'accessible') {
       // Blue-white-red diverging scale
       if (value >= 0.7) return 'bg-blue-500 text-white'
-      if (value >= 0.5) return 'bg-blue-200 text-gray-900'
-      if (value >= 0.3) return 'bg-red-200 text-gray-900'
+      if (value >= 0.5) return 'bg-blue-200 text-zinc-900'
+      if (value >= 0.3) return 'bg-red-200 text-zinc-900'
       return 'bg-red-500 text-white'
     }
     // Default green-yellow-red
-    if (value >= 0.7) return 'bg-green-500 text-white'
-    if (value >= 0.5) return 'bg-yellow-400 text-gray-900'
+    if (value >= 0.7) return 'bg-emerald-500 text-white'
+    if (value >= 0.5) return 'bg-amber-400 text-zinc-900'
     if (value >= 0.3) return 'bg-orange-400 text-white'
     return 'bg-red-500 text-white'
   }
@@ -282,13 +282,13 @@ function ScoreHeatmap({
       <table className="min-w-full text-sm">
         <thead>
           <tr>
-            <th className="sticky top-0 left-0 z-20 bg-white px-3 py-2 text-left font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+            <th className="sticky top-0 left-0 z-20 bg-white px-3 py-2 text-left font-medium text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
               {t('evaluation.charts.model')}
             </th>
             {metrics.map((metric) => (
               <th
                 key={metric}
-                className="sticky top-0 z-10 bg-white px-3 py-2 text-center font-medium whitespace-nowrap text-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                className="sticky top-0 z-10 bg-white px-3 py-2 text-center font-medium whitespace-nowrap text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
               >
                 {metric.replace(/_/g, ' ')}
               </th>
@@ -298,7 +298,7 @@ function ScoreHeatmap({
         <tbody>
           {models.map((model) => (
             <tr key={model.model_id}>
-              <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium whitespace-nowrap text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+              <td className="sticky left-0 z-10 bg-white px-3 py-2 font-medium whitespace-nowrap text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
                 {model.model_name || model.model_id}
               </td>
               {metrics.map((metric) => {
@@ -309,7 +309,7 @@ function ScoreHeatmap({
                     className={`px-3 py-2 text-center font-mono ${
                       value !== undefined
                         ? getScoreColor(value)
-                        : 'bg-gray-100 text-gray-400 dark:bg-gray-800'
+                        : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'
                     }`}
                   >
                     {value !== undefined

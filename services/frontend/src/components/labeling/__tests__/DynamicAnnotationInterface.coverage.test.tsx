@@ -253,7 +253,7 @@ describe('DynamicAnnotationInterface - handleAnnotation path', () => {
 
     const submit = screen
       .getAllByRole('button', { name: /submit/i })
-      .find((b) => b.classList.contains('bg-emerald-600'))
+      .find((b) => b.classList.contains('bg-zinc-900'))
     fireEvent.click(submit!)
 
     await waitFor(() => {
@@ -274,7 +274,7 @@ describe('DynamicAnnotationInterface - empty submit', () => {
 
     const submit = screen
       .getAllByRole('button', { name: /submit/i })
-      .find((b) => b.classList.contains('bg-emerald-600'))
+      .find((b) => b.classList.contains('bg-zinc-900'))
     // The button is disabled with no data; invoke handleSubmit via Ctrl+Enter
     // which is NOT gated (requireConfirmBeforeSubmit is false here).
     fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })

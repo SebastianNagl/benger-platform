@@ -69,19 +69,21 @@ function SimpleBarChart({
   const maxValue = Math.max(...data.map((item) => item.value))
 
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md">
-      <h3 className="mb-4 text-lg font-medium text-gray-900">{title}</h3>
+    <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
+      <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
+        {title}
+      </h3>
       <div className="space-y-3">
         {data.map((item, index) => (
           <div key={index} className="flex items-center">
             <div
-              className="w-24 truncate text-sm text-gray-600"
+              className="w-24 truncate text-sm text-zinc-600 dark:text-zinc-400"
               title={item.name}
             >
               {item.name}
             </div>
             <div className="mx-3 flex-1">
-              <div className="relative h-4 rounded-full bg-gray-200">
+              <div className="relative h-4 rounded-full bg-zinc-200 dark:bg-zinc-700">
                 <div
                   className="h-4 rounded-full"
                   style={{
@@ -91,13 +93,15 @@ function SimpleBarChart({
                 />
               </div>
             </div>
-            <div className="w-12 text-right text-sm font-medium text-gray-900">
+            <div className="w-12 text-right text-sm font-medium text-zinc-900 dark:text-white">
               {item.value}
             </div>
           </div>
         ))}
         {data.length === 0 && (
-          <div className="py-4 text-center text-gray-500">{noDataText}</div>
+          <div className="py-4 text-center text-zinc-500 dark:text-zinc-400">
+            {noDataText}
+          </div>
         )}
       </div>
     </div>
@@ -118,15 +122,23 @@ function StatCard({
   color: string
 }) {
   return (
-    <div className="rounded-lg bg-white p-6 shadow-md">
+    <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
       <div className="flex items-center">
         <div className={`rounded-lg p-2 ${color}`}>
           <Icon className="h-6 w-6 text-white" />
         </div>
         <div className="ml-4">
-          <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-          {subtitle && <p className="text-sm text-gray-600">{subtitle}</p>}
+          <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            {title}
+          </h3>
+          <p className="text-2xl font-bold text-zinc-900 dark:text-white">
+            {value}
+          </p>
+          {subtitle && (
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -207,7 +219,7 @@ export default function NotificationAnalyticsPage() {
       .map(([type, count]) => ({
         name: formatTypeLabel(type),
         value: count,
-        color: typeColors[type] || '#6b7280',
+        color: typeColors[type] || '#71717a',
       }))
       .sort((a, b) => b.value - a.value)
   }
@@ -219,7 +231,7 @@ export default function NotificationAnalyticsPage() {
       .map(([key, notifications]) => ({
         name: groupBy === 'type' ? formatTypeLabel(key) : key,
         value: notifications.length,
-        color: groupBy === 'type' ? typeColors[key] || '#6b7280' : '#3b82f6',
+        color: groupBy === 'type' ? typeColors[key] || '#71717a' : '#3b82f6',
       }))
       .sort((a, b) => b.value - a.value)
   }
@@ -235,15 +247,21 @@ export default function NotificationAnalyticsPage() {
     return (
       <div className="mx-auto max-w-7xl p-6">
         <div className="animate-pulse">
-          <div className="mb-6 h-8 w-1/3 rounded bg-gray-200"></div>
+          <div className="mb-6 h-8 w-1/3 rounded bg-zinc-200 dark:bg-zinc-700"></div>
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 rounded bg-gray-200"></div>
+              <div
+                key={i}
+                className="h-32 rounded bg-zinc-200 dark:bg-zinc-700"
+              ></div>
             ))}
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {[1, 2].map((i) => (
-              <div key={i} className="h-64 rounded bg-gray-200"></div>
+              <div
+                key={i}
+                className="h-64 rounded bg-zinc-200 dark:bg-zinc-700"
+              ></div>
             ))}
           </div>
         </div>
@@ -255,10 +273,10 @@ export default function NotificationAnalyticsPage() {
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-white">
             {t('notifications.analyticsTitle')}
           </h1>
-          <p className="mt-1 text-gray-600">
+          <p className="mt-1 text-zinc-600 dark:text-zinc-400">
             {t('notifications.analytics.subtitle')}
           </p>
         </div>
@@ -307,10 +325,10 @@ export default function NotificationAnalyticsPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4">
+        <div className="mb-6 rounded-md border border-red-200 bg-red-50 p-4 dark:border-zinc-700 dark:bg-red-900/20">
           <div className="flex">
             <ExclamationTriangleIcon className="mr-2 h-5 w-5 text-red-400" />
-            <p className="text-red-700">{error}</p>
+            <p className="text-red-700 dark:text-red-300">{error}</p>
           </div>
         </div>
       )}
@@ -353,7 +371,7 @@ export default function NotificationAnalyticsPage() {
                 percent: getReadRate(),
               })}
               icon={CheckCircleIcon}
-              color="bg-green-500"
+              color="bg-emerald-500"
             />
 
             <StatCard
@@ -384,14 +402,14 @@ export default function NotificationAnalyticsPage() {
           </div>
 
           {/* Recent Activity by Type */}
-          <div className="rounded-lg bg-white p-6 shadow-md">
-            <h3 className="mb-4 text-lg font-medium text-gray-900">
+          <div className="rounded-lg bg-white p-6 shadow-md dark:bg-zinc-900">
+            <h3 className="mb-4 text-lg font-medium text-zinc-900 dark:text-white">
               {t('notifications.analytics.recentActivityDetails')}
             </h3>
 
             {Object.keys(summary.notifications_by_type).length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
-                <BellIcon className="mx-auto mb-3 h-12 w-12 text-gray-400" />
+              <div className="py-8 text-center text-zinc-500 dark:text-zinc-400">
+                <BellIcon className="mx-auto mb-3 h-12 w-12 text-zinc-400 dark:text-zinc-500" />
                 <p>{t('notifications.analytics.noNotifications')}</p>
                 <p className="text-sm">
                   {t('notifications.analytics.tryLongerRange')}
@@ -406,21 +424,21 @@ export default function NotificationAnalyticsPage() {
                     return (
                       <div
                         key={type}
-                        className="flex items-center rounded-lg border border-gray-200 p-3"
+                        className="flex items-center rounded-lg border border-zinc-200 p-3 dark:border-zinc-700"
                       >
                         <div
                           className="mr-3 rounded-lg p-2"
                           style={{
-                            backgroundColor: typeColors[type] || '#6b7280',
+                            backgroundColor: typeColors[type] || '#71717a',
                           }}
                         >
                           <IconComponent className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">
+                          <p className="font-medium text-zinc-900 dark:text-white">
                             {formatTypeLabel(type)}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-zinc-600 dark:text-zinc-400">
                             {t('notifications.analytics.notificationCount', {
                               count,
                             })}
@@ -434,8 +452,8 @@ export default function NotificationAnalyticsPage() {
           </div>
 
           {/* Summary Information */}
-          <div className="mt-6 rounded-lg bg-gray-50 p-4">
-            <div className="flex items-center text-sm text-gray-600">
+          <div className="mt-6 rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
+            <div className="flex items-center text-sm text-zinc-600 dark:text-zinc-400">
               <ClockIcon className="mr-2 h-4 w-4" />
               <span>
                 {t('notifications.analytics.generatedAt', {

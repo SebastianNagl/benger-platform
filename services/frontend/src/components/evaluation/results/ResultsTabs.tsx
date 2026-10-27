@@ -191,16 +191,16 @@ export function ResultsTabs({
           <div className="space-y-6">
             {/* Structure Tabs (if multiple structures) */}
             {generationData.length > 1 && (
-              <div className="border-b border-zinc-200 dark:border-zinc-700">
-                <nav className="-mb-px flex space-x-4">
+              <div>
+                <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                   {generationData.map((result, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedStructureIndex(index)}
-                      className={`border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap ${
+                      className={`rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         selectedStructureIndex === index
-                          ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                          : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+                          ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
                       }`}
                     >
                       {result.structure_key ||
@@ -252,8 +252,8 @@ export function ResultsTabs({
                       <h4 className="mb-2 font-medium text-zinc-900 dark:text-white">
                         {t('evaluation.multiFieldResults.promptUsed')}
                       </h4>
-                      <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
-                        <pre className="text-sm whitespace-pre-wrap text-blue-800 dark:text-blue-200">
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <pre className="text-sm whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                           {selectedGen.prompt_used}
                         </pre>
                       </div>
@@ -371,7 +371,7 @@ export function ResultsTabs({
                             result.passed === null
                               ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400'
                               : result.passed
-                                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                                 : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           }`}
                         >
@@ -537,8 +537,8 @@ export function ResultsTabs({
                       <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {t('evaluation.multiFieldResults.groundTruth')}
                       </h5>
-                      <div className="rounded-lg bg-green-50 p-3 dark:bg-green-900/20">
-                        <pre className="text-xs whitespace-pre-wrap text-green-800 dark:text-green-200">
+                      <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
+                        <pre className="text-xs whitespace-pre-wrap text-emerald-800 dark:text-emerald-200">
                           {typeof result.ground_truth === 'string'
                             ? result.ground_truth
                             : JSON.stringify(result.ground_truth, null, 2)}
@@ -549,8 +549,8 @@ export function ResultsTabs({
                       <h5 className="mb-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         {t('evaluation.multiFieldResults.modelPrediction')}
                       </h5>
-                      <div className="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/20">
-                        <pre className="text-xs whitespace-pre-wrap text-blue-800 dark:text-blue-200">
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-800/50">
+                        <pre className="text-xs whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                           {typeof result.prediction === 'string'
                             ? result.prediction
                             : JSON.stringify(result.prediction, null, 2)}

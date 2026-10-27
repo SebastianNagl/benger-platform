@@ -12,13 +12,13 @@ describe('Alert', () => {
   it('renders with info variant by default', () => {
     const { container } = render(<Alert>{defaultText}</Alert>)
     const alertElement = container.firstChild as HTMLElement
-    expect(alertElement).toHaveClass('bg-blue-50')
+    expect(alertElement).toHaveClass('bg-zinc-50')
   })
 
   it('renders with success variant', () => {
     const { container } = render(<Alert variant="success">{defaultText}</Alert>)
     const alertElement = container.firstChild as HTMLElement
-    expect(alertElement).toHaveClass('bg-green-50')
+    expect(alertElement).toHaveClass('bg-emerald-50')
     expect(screen.getByText(defaultText)).toBeInTheDocument()
   })
 
@@ -90,13 +90,13 @@ describe('Alert', () => {
       <Alert variant="info">Info</Alert>,
     )
     const infoIcon = infoContainer.querySelector('svg')
-    expect(infoIcon).toHaveClass('text-blue-600')
+    expect(infoIcon).toHaveClass('text-zinc-500')
 
     const { container: successContainer } = render(
       <Alert variant="success">Success</Alert>,
     )
     const successIcon = successContainer.querySelector('svg')
-    expect(successIcon).toHaveClass('text-green-600')
+    expect(successIcon).toHaveClass('text-emerald-600')
 
     const { container: warningContainer } = render(
       <Alert variant="warning">Warning</Alert>,

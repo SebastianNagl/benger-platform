@@ -629,7 +629,7 @@ export function ProjectListTable({
   if (loading && (!projects || projects.length === 0)) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <div className="border-primary h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-emerald-500"></div>
       </div>
     )
   }

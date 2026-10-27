@@ -1,14 +1,14 @@
 'use client'
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Alert } from '@/components/shared/Alert'
+import { Button } from '@/components/shared/Button'
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card'
+} from '@/components/shared/Card'
 import { useI18n } from '@/contexts/I18nContext'
 import { CheckCircle, Loader2, XCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -111,17 +111,17 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
 
   if (isVerifying) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           <Card>
             <CardHeader className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/20">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-600 dark:text-emerald-400" />
               </div>
-              <CardTitle className="text-2xl font-bold text-gray-900">
+              <CardTitle className="text-2xl font-bold text-zinc-900">
                 {t('emailVerification.verifying')}
               </CardTitle>
-              <CardDescription className="text-gray-600">
+              <CardDescription className="text-zinc-600">
                 {t('emailVerification.checkInboxDescription')}
               </CardDescription>
             </CardHeader>
@@ -132,27 +132,27 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
         <Card>
           <CardHeader className="text-center">
             <div
               className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${
-                isSuccess ? 'bg-green-100' : 'bg-red-100'
+                isSuccess ? 'bg-emerald-100' : 'bg-red-100'
               }`}
             >
               {isSuccess ? (
-                <CheckCircle className="h-6 w-6 text-green-600" />
+                <CheckCircle className="h-6 w-6 text-emerald-600" />
               ) : (
                 <XCircle className="h-6 w-6 text-red-600" />
               )}
             </div>
-            <CardTitle className="text-2xl font-bold text-gray-900">
+            <CardTitle className="text-2xl font-bold text-zinc-900">
               {isSuccess
                 ? t('emailVerification.verified')
                 : t('emailVerification.invalid')}
             </CardTitle>
-            <CardDescription className="text-gray-600">
+            <CardDescription className="text-zinc-600">
               {isSuccess
                 ? t('emailVerification.verifiedDescription')
                 : t('emailVerification.invalidDescription')}
@@ -160,27 +160,21 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            <Alert
-              className={
-                isSuccess
-                  ? 'border-green-200 bg-green-50'
-                  : 'border-red-200 bg-red-50'
-              }
-            >
-              <AlertDescription
-                className={isSuccess ? 'text-green-700' : 'text-red-700'}
+            <Alert variant={isSuccess ? 'success' : 'error'}>
+              <p
+                className={`text-sm ${isSuccess ? 'text-emerald-700' : 'text-red-700'}`}
               >
                 {message}
-              </AlertDescription>
+              </p>
             </Alert>
 
             {isSuccess ? (
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm text-zinc-600">
                 <p>{t('emailVerification.redirectingToLogin')}</p>
                 <p className="mt-2">{t('emailVerification.canNowLogIn')}</p>
               </div>
             ) : (
-              <div className="text-center text-sm text-gray-600">
+              <div className="text-center text-sm text-zinc-600">
                 <p>{t('emailVerification.expiredDescription')}</p>
               </div>
             )}
@@ -189,6 +183,7 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
           <div className="p-6 pt-0">
             {isSuccess ? (
               <Button
+                variant="filled"
                 onClick={() =>
                   router.push(
                     '/login?message=Email verified! You can now log in.',
@@ -201,6 +196,7 @@ export default function VerifyTokenPage({ params }: VerifyTokenPageProps) {
             ) : (
               <div className="space-y-3">
                 <Button
+                  variant="filled"
                   onClick={() => router.push('/verify-email')}
                   className="w-full"
                 >

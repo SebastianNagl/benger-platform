@@ -355,14 +355,14 @@ export function GenerationTaskList({
   const getStatusIcon = (status: string | null) => {
     switch (status) {
       case 'completed':
-        return <CheckCircleIcon className="h-5 w-5 text-green-600" />
+        return <CheckCircleIcon className="h-5 w-5 text-emerald-600" />
       case 'failed':
         return <XCircleIcon className="h-5 w-5 text-red-600" />
       case 'running':
       case 'pending':
-        return <ClockIcon className="h-5 w-5 animate-pulse text-yellow-600" />
+        return <ClockIcon className="h-5 w-5 animate-pulse text-amber-600" />
       default:
-        return <XCircleIcon className="h-5 w-5 text-gray-400" />
+        return <XCircleIcon className="h-5 w-5 text-zinc-400" />
     }
   }
 
@@ -565,7 +565,7 @@ export function GenerationTaskList({
       <div className="space-y-4">
         {filterToolbar}
         <div className="flex h-64 items-center justify-center">
-          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-emerald-500"></div>
         </div>
       </div>
     )
@@ -759,7 +759,7 @@ export function GenerationTaskList({
                           title={tooltip}
                         >
                           {isGenerating ? (
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
                           ) : (
                             getStatusIcon(status)
                           )}

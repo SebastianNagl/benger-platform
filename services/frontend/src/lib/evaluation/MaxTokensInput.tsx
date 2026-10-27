@@ -37,7 +37,7 @@ export function MaxTokensInput({
 
   return (
     <div>
-      <label className="mb-2 block text-xs font-medium text-gray-700 dark:text-gray-300">
+      <label className="mb-2 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
         {t('evaluationBuilder.parameters.maxTokens')}
       </label>
       <input
@@ -46,9 +46,9 @@ export function MaxTokensInput({
         max={max}
         value={current}
         onChange={(e) => onChange(parseInt(e.target.value) || fallback)}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800"
       />
-      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         {t('evaluationBuilder.parameters.maxTokensRange', { min, max })}
       </p>
       <div className="mt-1 text-xs">
@@ -59,7 +59,7 @@ export function MaxTokensInput({
               <button
                 type="button"
                 onClick={() => onChange(recNumber)}
-                className="ml-2 text-blue-600 hover:underline"
+                className="ml-2 text-emerald-600 hover:text-emerald-700 hover:underline dark:text-emerald-400 dark:hover:text-emerald-300"
               >
                 {t('evaluationBuilder.parameters.resetToRecommended')}
               </button>

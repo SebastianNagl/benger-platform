@@ -346,7 +346,9 @@
             "exam": "Examen",
             "examDescription": "Résolution de cas avec énoncé, corrigé type et correction par IA ; peut être traitée par les étudiants",
             "deck": "Paquet de fiches",
-            "deckDescription": "Fiches recto/verso avec plan de révision espacée (SRS)"
+            "deckDescription": "Fiches recto/verso avec plan de révision espacée (SRS)",
+            "showAll": "Afficher tous les types de projet (+{count})",
+            "showLess": "Afficher moins de types de projet"
           },
           "icon": {
             "title": "Icône",
@@ -10209,6 +10211,7 @@
     "dashboard": {
       "dueToday": {
         "empty": "Aucune fiche à réviser aujourd'hui. Bravo !",
+        "showAll": "Tout afficher",
         "title": "À réviser aujourd'hui"
       },
       "dueExams": {
@@ -10236,6 +10239,35 @@
         "exams": "Examens",
         "decks": "Paquets",
         "avgScore": "Ø points de note"
+      },
+      "activity": {
+        "less": "Moins",
+        "more": "Plus",
+        "rangeHalfYear": "sur les 6 derniers mois",
+        "rangeYear": "sur les 12 derniers mois",
+        "flashcards": {
+          "title": "Activité des fiches",
+          "subtitle": "Révisions par jour",
+          "cell": "{date} : {count} révisions",
+          "cellOne": "{date} : 1 révision",
+          "summary": "{count} révisions {range}",
+          "summaryOne": "1 révision {range}",
+          "activeDays": "{count} jours de révision",
+          "activeDaysOne": "1 jour de révision",
+          "streak": "{count} jours d'affilée",
+          "streakOne": "1 jour d'affilée"
+        },
+        "exams": {
+          "title": "Activité des examens",
+          "subtitle": "Objectif : un examen par semaine",
+          "cell": "Semaine du {date} : {count} examens",
+          "cellOne": "Semaine du {date} : 1 examen",
+          "summary": "{count} examens {range}",
+          "summaryOne": "1 examen {range}",
+          "weeksMet": "{count} semaines sur {total} avec un examen",
+          "streak": "{count} semaines d'affilée",
+          "streakOne": "1 semaine d'affilée"
+        }
       }
     },
     "deck": {
@@ -10584,7 +10616,7 @@
       "score": "Meilleur score",
       "selectExam": "Choisir un examen",
       "tabCohort": "Cohorte d'examen",
-      "tabHuman": "Annotateurs",
+      "tabHuman": "Tous les participants",
       "title": "Classement",
       "you": "Vous"
     },

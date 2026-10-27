@@ -114,7 +114,7 @@ describe('Locale Files Text Updates (Issue #105)', () => {
 
     test('should maintain all other German register keys', () => {
       // Verify essential German keys are still present
-      expect(germanLocale.register.title).toBe('Ihr Konto erstellen')
+      expect(germanLocale.register.title).toBe('Dein Konto erstellen')
       expect(germanLocale.register.name).toBeDefined()
       expect(germanLocale.register.username).toBeDefined()
       expect(germanLocale.register.email).toBeDefined()

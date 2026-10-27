@@ -66,7 +66,7 @@ const notificationIcons = {
 const notificationColors = {
   task_created: 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
   task_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   task_assigned:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   korrektur_assigned:
@@ -74,29 +74,29 @@ const notificationColors = {
   annotation_assigned:
     'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   llm_generation_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_failed:
     'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
   evaluation_received_human:
     'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900',
   evaluation_received_immediate:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   evaluation_received_batch:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   annotation_completed:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   data_upload_completed:
     'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900',
   organization_invitation_sent:
     'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900',
   organization_invitation_accepted:
-    'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900',
+    'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900',
   member_joined:
     'text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900',
   system_alert:
-    'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900',
+    'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-900',
   error_occurred: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900',
 }
 
@@ -308,7 +308,7 @@ export function NotificationDropdown({
         <div className="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700">
           <button
             type="button"
-            className="w-full text-center text-sm font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+            className="w-full text-center text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
             onClick={() => {
               onClose()
               window.location.href = '/notifications'

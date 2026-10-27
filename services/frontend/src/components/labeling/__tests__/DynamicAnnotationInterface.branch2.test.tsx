@@ -254,7 +254,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
       // Submit button should be disabled (not confirmed)
       const submitButtons = screen.getAllByRole('button', { name: /submit/i })
       const mainSubmit = submitButtons.find((b) =>
-        b.classList.contains('bg-emerald-600'),
+        b.classList.contains('bg-zinc-900'),
       )
       expect(mainSubmit).toBeDisabled()
 
@@ -373,7 +373,7 @@ describe('DynamicAnnotationInterface - branch coverage', () => {
       // Submit - should build from componentValues since no onAnnotation was called
       const submitButtons = screen.getAllByRole('button', { name: /submit/i })
       const mainSubmit = submitButtons.find((b) =>
-        b.classList.contains('bg-emerald-600'),
+        b.classList.contains('bg-zinc-900'),
       )
       fireEvent.click(mainSubmit!)
 

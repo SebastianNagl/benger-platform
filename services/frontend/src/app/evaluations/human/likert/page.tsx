@@ -234,13 +234,13 @@ export default function LikertEvaluation() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium">{dimension.name}</label>
-          <span className="text-xs text-gray-500">
+          <span className="text-xs text-zinc-500">
             {rating > 0
               ? `${rating}/5`
               : t('evaluations.human.likert.notRated')}
           </span>
         </div>
-        <p className="text-xs text-gray-600">{dimension.description}</p>
+        <p className="text-xs text-zinc-600">{dimension.description}</p>
         <div className="flex space-x-1">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -252,9 +252,9 @@ export default function LikertEvaluation() {
               })}
             >
               {star <= rating ? (
-                <StarIconSolid className="h-8 w-8 text-yellow-400" />
+                <StarIconSolid className="h-8 w-8 text-amber-400" />
               ) : (
-                <StarIcon className="h-8 w-8 text-gray-300 hover:text-yellow-200" />
+                <StarIcon className="h-8 w-8 text-zinc-300 hover:text-amber-200" />
               )}
             </button>
           ))}
@@ -276,11 +276,11 @@ export default function LikertEvaluation() {
       <>
         <div className="container mx-auto max-w-4xl px-4 py-8">
           <Card className="p-8 text-center">
-            <CheckCircleIcon className="mx-auto mb-4 h-16 w-16 text-green-500" />
+            <CheckCircleIcon className="mx-auto mb-4 h-16 w-16 text-emerald-500" />
             <h2 className="mb-2 text-2xl font-bold">
               {t('evaluation.human.likert.complete')}
             </h2>
-            <p className="mb-6 text-gray-600">
+            <p className="mb-6 text-zinc-600">
               {t('evaluation.human.likert.description')}
             </p>
             <div className="mb-6 space-y-2">
@@ -325,16 +325,16 @@ export default function LikertEvaluation() {
           </div>
           {session && (
             <div>
-              <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+              <div className="mb-2 flex items-center justify-between text-sm text-zinc-600">
                 <span>{session.project_name}</span>
                 <span>
                   {t('evaluation.human.preference.progress')}:{' '}
                   {session.evaluated_items + 1} / {session.total_items}
                 </span>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-200">
+              <div className="h-2 w-full rounded-full bg-zinc-200">
                 <div
-                  className="h-2 rounded-full bg-blue-600 transition-all"
+                  className="h-2 rounded-full bg-emerald-600 transition-all"
                   style={{
                     width: `${((session.evaluated_items + 1) / session.total_items) * 100}%`,
                   }}
@@ -351,7 +351,7 @@ export default function LikertEvaluation() {
               <h3 className="mb-3 font-medium">
                 {t('evaluations.human.likert.taskData')}
               </h3>
-              <div className="rounded-lg bg-gray-50 p-4">
+              <div className="rounded-lg bg-zinc-50 p-4">
                 <pre className="text-sm whitespace-pre-wrap">
                   {currentItem &&
                     JSON.stringify(currentItem.task_data, null, 2)}
@@ -366,7 +366,7 @@ export default function LikertEvaluation() {
                 </h3>
                 <Badge variant="outline">{currentItem?.model_id}</Badge>
               </div>
-              <div className="rounded-lg bg-blue-50 p-4">
+              <div className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800/50">
                 <p className="text-sm whitespace-pre-wrap">
                   {currentItem?.response_content}
                 </p>
@@ -414,11 +414,11 @@ export default function LikertEvaluation() {
             </div>
 
             {/* Instructions */}
-            <Card className="border-yellow-200 bg-yellow-50 p-4">
+            <Card className="border-amber-200 bg-amber-50 p-4">
               <h4 className="mb-2 text-sm font-medium">
                 {t('evaluations.human.likert.ratingGuidelines')}
               </h4>
-              <ul className="space-y-1 text-xs text-gray-600">
+              <ul className="space-y-1 text-xs text-zinc-600">
                 <li>• {t('evaluations.human.likert.guidelineRate')}</li>
                 <li>• {t('evaluations.human.likert.guidelineConsider')}</li>
                 <li>• {t('evaluations.human.likert.guidelineConsistent')}</li>

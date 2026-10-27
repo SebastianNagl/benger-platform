@@ -368,7 +368,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
                     className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${
                       task.is_labeled
                         ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/10 dark:text-emerald-400 dark:ring-emerald-400/30'
-                        : 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-600/20 ring-inset dark:bg-yellow-400/10 dark:text-yellow-400 dark:ring-yellow-400/30'
+                        : 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20 ring-inset dark:bg-amber-400/10 dark:text-amber-400 dark:ring-amber-400/30'
                     }`}
                   >
                     {task.is_labeled

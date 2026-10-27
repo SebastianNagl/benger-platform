@@ -96,7 +96,7 @@ export function EditableAnnotationGuidelines({
           title={canEdit ? t('tasks.guidelines.clickToEdit') : undefined}
         >
           {hasGuidelines ? (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
               <p className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
                 {task.annotation_guidelines}
               </p>

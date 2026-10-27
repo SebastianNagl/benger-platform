@@ -449,7 +449,9 @@ export function GenerationProgress({
       case 'pending':
         return <ArrowPathIcon className="h-5 w-5 animate-pulse text-zinc-400" />
       case 'running':
-        return <ArrowPathIcon className="h-5 w-5 animate-spin text-blue-500" />
+        return (
+          <ArrowPathIcon className="h-5 w-5 animate-spin text-emerald-500" />
+        )
       case 'completed':
         return <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
       case 'failed':
@@ -457,7 +459,9 @@ export function GenerationProgress({
       case 'stopped':
         return <StopIcon className="h-5 w-5 text-amber-500" />
       case 'paused':
-        return <PauseIcon className="h-5 w-5 text-indigo-500" />
+        return (
+          <PauseIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+        )
       default:
         return null
     }
@@ -468,7 +472,7 @@ export function GenerationProgress({
       case 'pending':
         return 'bg-zinc-100 dark:bg-zinc-800'
       case 'running':
-        return 'bg-blue-50 dark:bg-blue-900/20'
+        return 'bg-zinc-50 dark:bg-zinc-800/50'
       case 'completed':
         return 'bg-emerald-50 dark:bg-emerald-900/20'
       case 'failed':
@@ -476,7 +480,7 @@ export function GenerationProgress({
       case 'stopped':
         return 'bg-amber-50 dark:bg-amber-900/20'
       case 'paused':
-        return 'bg-indigo-50 dark:bg-indigo-900/20'
+        return 'bg-zinc-100 dark:bg-zinc-800'
       default:
         return 'bg-zinc-100 dark:bg-zinc-800'
     }
@@ -641,7 +645,7 @@ export function GenerationProgress({
                 <div className="mt-3">
                   <div className="h-1 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                     <div
-                      className="h-full bg-blue-500 transition-all"
+                      className="h-full bg-emerald-500 transition-all"
                       style={{ width: `${status.progress}%` }}
                     />
                   </div>

@@ -247,7 +247,7 @@ export function TaskDataViewModal({
                   <button
                     onClick={handleSave}
                     disabled={saving}
-                    className="flex items-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                   >
                     {saving
                       ? t('tasks.dataView.saving')
@@ -256,7 +256,7 @@ export function TaskDataViewModal({
                   <button
                     onClick={cancelEdit}
                     disabled={saving}
-                    className="rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-60 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    className="rounded-full bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 disabled:opacity-60 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                   >
                     {t('tasks.dataView.cancel')}
                   </button>
@@ -264,10 +264,10 @@ export function TaskDataViewModal({
               ) : (
                 <>
                   {/* View mode toggle */}
-                  <div className="flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+                  <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
                     <button
                       onClick={() => setViewMode('formatted')}
-                      className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         viewMode === 'formatted'
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -277,7 +277,7 @@ export function TaskDataViewModal({
                     </button>
                     <button
                       onClick={() => setViewMode('json')}
-                      className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
                         viewMode === 'json'
                           ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
                           : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
@@ -291,7 +291,7 @@ export function TaskDataViewModal({
                   {canEdit && (
                     <button
                       onClick={enterEditMode}
-                      className="flex items-center gap-2 rounded-md bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                      className="flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                     >
                       <PencilSquareIcon className="h-4 w-4" />
                       {t('tasks.dataView.edit')}
@@ -301,9 +301,9 @@ export function TaskDataViewModal({
                   {/* Copy button */}
                   <button
                     onClick={handleCopyToClipboard}
-                    className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
                       copySuccess
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400'
                         : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
                     }`}
                   >
@@ -342,7 +342,7 @@ export function TaskDataViewModal({
                   placeholder={t('tasks.dataView.searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white py-2 pr-4 pl-10 text-zinc-900 placeholder-zinc-500 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-blue-400"
+                  className="w-full rounded-lg border border-zinc-300 bg-white py-2 pr-4 pl-10 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400"
                 />
               </div>
             </div>
@@ -492,10 +492,10 @@ function EditableDataView({
               onChange={(e) => onChange(key, e.target.value)}
               rows={isString ? 3 : 5}
               spellCheck={false}
-              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-blue-500 dark:bg-zinc-800 dark:text-white ${
+              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 dark:bg-zinc-800 dark:text-white ${
                 error
                   ? 'border-red-400 focus:border-red-500 dark:border-red-500'
-                  : 'border-zinc-300 focus:border-blue-500 dark:border-zinc-600 dark:focus:border-blue-400'
+                  : 'border-zinc-300 focus:border-emerald-500 dark:border-zinc-600 dark:focus:border-emerald-400'
               } ${isString ? '' : 'font-mono'}`}
             />
             {error && (
@@ -516,7 +516,7 @@ function highlightMatch(text: string, searchTerm: string) {
   const parts = text.split(new RegExp(`(${searchTerm})`, 'gi'))
   return parts.map((part, index) =>
     part.toLowerCase() === searchTerm.toLowerCase() ? (
-      <mark key={index} className="bg-yellow-200 dark:bg-yellow-800">
+      <mark key={index} className="bg-amber-200 dark:bg-amber-800">
         {part}
       </mark>
     ) : (

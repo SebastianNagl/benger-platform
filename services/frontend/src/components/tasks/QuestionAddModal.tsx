@@ -261,7 +261,7 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'question', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.questionPlaceholder')}
                           data-testid={`add-question-${qIndex}`}
                         />
@@ -288,7 +288,7 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'case', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.casePlaceholder')}
                           data-testid={`add-case-${qIndex}`}
                         />
@@ -302,7 +302,7 @@ export function QuestionAddModal({
                           </label>
                           <button
                             onClick={() => addReferenceAnswer(qIndex)}
-                            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                            className="flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300"
                           >
                             <PlusIcon className="h-4 w-4" />
                             {t('tasks.questions.addAnswer')}
@@ -323,7 +323,7 @@ export function QuestionAddModal({
                                     e.target.value,
                                   )
                                 }
-                                className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                                 placeholder={t(
                                   'tasks.questions.answerPlaceholder',
                                   { number: aIndex + 1 },
@@ -373,7 +373,7 @@ export function QuestionAddModal({
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                             placeholder={t(
                               'tasks.questions.reasoningPlaceholder',
                             )}
@@ -404,7 +404,7 @@ export function QuestionAddModal({
                   <Button
                     type="button"
                     onClick={handleSave}
-                    className="bg-blue-600 text-white hover:bg-blue-700"
+                    variant="filled"
                     data-testid="add-questions-button"
                   >
                     {t('tasks.questions.addCount', { count: questions.length })}

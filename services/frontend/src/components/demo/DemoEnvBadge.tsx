@@ -44,21 +44,21 @@ export function DemoEnvBadge() {
       </div>
       {open && (
         <div className="fixed right-4 bottom-16 z-50">
-          <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+          <div className="max-w-sm rounded-lg border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
             <div className="mb-2 flex items-start justify-between gap-4">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <h3 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                 {label}
               </h3>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400"
+                className="text-zinc-400 hover:text-zinc-500 dark:text-zinc-500 dark:hover:text-zinc-400"
                 aria-label={t('common.close')}
               >
                 <XMarkIcon className="h-4 w-4" />
               </button>
             </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400">{body}</p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{body}</p>
           </div>
         </div>
       )}

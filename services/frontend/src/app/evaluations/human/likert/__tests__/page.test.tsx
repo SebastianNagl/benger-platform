@@ -410,7 +410,7 @@ describe('LikertEvaluation', () => {
         expect(progressText).toBeInTheDocument()
         const progressBar =
           progressText.parentElement?.parentElement?.querySelector(
-            '.bg-blue-600',
+            '.bg-emerald-600',
           )
         expect(progressBar).toBeInTheDocument()
       })

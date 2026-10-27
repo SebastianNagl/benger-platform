@@ -447,7 +447,7 @@ export function ProjectPermissionsPanel({
 
       {lmsOrganizations.length > 0 && (
         <div
-          className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-200"
+          className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800/50 dark:text-zinc-300"
           data-testid="project-permissions-lms-note"
         >
           {t('project.permissions.lmsNote', {

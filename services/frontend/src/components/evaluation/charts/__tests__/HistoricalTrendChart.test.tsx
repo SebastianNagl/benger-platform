@@ -120,7 +120,7 @@ describe('HistoricalTrendChart', () => {
     render(<HistoricalTrendChart data={data} modelIds={modelIds} metric="F1" />)
     // The "all" button should have the active class
     const allButton = screen.getByText('evaluation.charts.trend.rangeAll')
-    expect(allButton.className).toContain('bg-blue-600')
+    expect(allButton.className).toContain('bg-white')
   })
 
   it('passes all data points when "all" range is selected', () => {
@@ -276,9 +276,9 @@ describe('HistoricalTrendChart', () => {
     render(<HistoricalTrendChart data={data} modelIds={modelIds} metric="F1" />)
     fireEvent.click(screen.getByText('evaluation.charts.trend.range30d'))
     const button30d = screen.getByText('evaluation.charts.trend.range30d')
-    expect(button30d.className).toContain('bg-blue-600')
+    expect(button30d.className).toContain('bg-white')
     // "all" button should no longer be active
     const allButton = screen.getByText('evaluation.charts.trend.rangeAll')
-    expect(allButton.className).not.toContain('bg-blue-600')
+    expect(allButton.className).not.toContain('bg-white')
   })
 })

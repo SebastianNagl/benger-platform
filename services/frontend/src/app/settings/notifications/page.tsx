@@ -397,7 +397,7 @@ function NotificationSettingsContent() {
           <p className="mb-4 text-red-600">{loadingErrorText}</p>
           <button
             onClick={() => window.location.reload()}
-            className="rounded bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700"
+            className="rounded-full bg-zinc-900 px-4 py-2 text-white hover:bg-zinc-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
           >
             {reloadPageText}
           </button>
@@ -578,10 +578,12 @@ function NotificationSettingsContent() {
       )}
 
       {success && (
-        <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20">
+        <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-900/20">
           <div className="flex">
-            <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-green-400" />
-            <div className="text-green-800 dark:text-green-200">{success}</div>
+            <CheckCircleIcon className="mt-0.5 mr-2 h-5 w-5 shrink-0 text-emerald-400" />
+            <div className="text-emerald-800 dark:text-emerald-200">
+              {success}
+            </div>
           </div>
         </div>
       )}

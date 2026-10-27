@@ -574,7 +574,7 @@ export function DynamicAnnotationInterface({
                   type="button"
                   onClick={onSkip}
                   disabled={requireConfirmBeforeSubmit && !confirmedDone}
-                  className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  className="rounded-full border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                 >
                   {t('annotation.interface.skip')}{' '}
                   <span className="ml-2 text-xs opacity-60">
@@ -602,7 +602,7 @@ export function DynamicAnnotationInterface({
                     (annotations.size === 0 && componentValues.size === 0) ||
                     (requireConfirmBeforeSubmit && !confirmedDone)
                   }
-                  className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-500 dark:hover:bg-emerald-400"
                 >
                   {t('annotation.interface.submit')}{' '}
                   <span className="ml-2 text-xs opacity-90">

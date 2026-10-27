@@ -233,11 +233,11 @@ export function InflightRunsBanner({
     return (
       <li
         key={e.evaluation_id}
-        className="flex items-center justify-between gap-2 rounded bg-white/60 px-2 py-1 text-xs text-gray-700 dark:bg-zinc-900/40 dark:text-gray-300"
+        className="flex items-center justify-between gap-2 rounded bg-white/60 px-2 py-1 text-xs text-zinc-700 dark:bg-zinc-900/40 dark:text-zinc-300"
       >
         <span className="font-mono">
           {e.evaluation_id.slice(0, 8)}
-          <span className="ml-2 text-gray-500 dark:text-gray-400">
+          <span className="ml-2 text-zinc-500 dark:text-zinc-400">
             ({e.status}
             {progress})
           </span>

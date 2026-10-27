@@ -348,8 +348,8 @@ export default function UserApiKeys({
   return (
     <div className="space-y-6">
       {disabled && disabledMessage ? (
-        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/30">
-          <p className="text-sm text-blue-700 dark:text-blue-400">
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
             {disabledMessage}
           </p>
         </div>
@@ -432,7 +432,7 @@ export default function UserApiKeys({
                     variant="outline"
                     onClick={() => testSavedApiKey(provider.id)}
                     disabled={testLoading[provider.id] || loading[provider.id]}
-                    className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                    className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   >
                     {testLoading[provider.id]
                       ? t('shared.userApiKeys.testing')
@@ -509,7 +509,7 @@ export default function UserApiKeys({
                       loading[provider.id] ||
                       !newApiKeys[provider.id]
                     }
-                    className="text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/50"
+                    className="text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
                   >
                     {testLoading[provider.id]
                       ? t('shared.userApiKeys.testing')

@@ -69,7 +69,7 @@ export function PostAnnotationQuestionnaireModal({
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-gray-500/75 transition-opacity dark:bg-zinc-900/80" />
+          <div className="fixed inset-0 bg-zinc-500/75 transition-opacity dark:bg-zinc-900/80" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-10 overflow-y-auto">
@@ -87,8 +87,8 @@ export function PostAnnotationQuestionnaireModal({
                 {/* Fixed header */}
                 <div className="shrink-0 px-4 pt-5 sm:px-6 sm:pt-6">
                   <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                      <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800">
+                      <ClipboardDocumentListIcon className="h-6 w-6 text-zinc-500 dark:text-zinc-400" />
                     </div>
                     <div>
                       <Dialog.Title
@@ -118,7 +118,7 @@ export function PostAnnotationQuestionnaireModal({
                   {isSubmitting && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80 dark:bg-zinc-800/80">
                       <div className="text-center">
-                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent" />
                         <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">
                           {t('annotation.questionnaire.submitting')}
                         </p>

@@ -23,10 +23,10 @@ function LeaderboardsContent() {
   )
 
   const tabClass = (tab: LeaderboardTab) =>
-    `border-b-2 py-3 text-sm font-medium transition ${
+    `rounded-full px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
       activeTab === tab
-        ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400'
-        : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300'
+        ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+        : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
     }`
 
   return (
@@ -51,8 +51,8 @@ function LeaderboardsContent() {
           {t('leaderboards.title') || 'Leaderboards'}
         </h1>
 
-        <div className="mb-6 flex items-end justify-between border-b border-zinc-200 dark:border-zinc-700">
-          <nav className="-mb-px flex space-x-8">
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <nav className="inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-zinc-100 p-0.5 dark:bg-zinc-800">
             {AnnotatorLeaderboardTab && (
               <button
                 onClick={() => setActiveTab('human')}
@@ -80,7 +80,7 @@ function LeaderboardsContent() {
               beat (10:00 + 22:00 UTC = 12:00 + 00:00 CEST). Static copy
               keeps the contract visible without forcing the page to query
               `computed_at` on every tab. */}
-          <span className="pb-3 text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
             {t('leaderboards.refreshHint') ||
               'Updated daily at 00:00 and 12:00 (CEST)'}
           </span>

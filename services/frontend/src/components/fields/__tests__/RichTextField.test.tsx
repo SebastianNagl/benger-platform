@@ -219,8 +219,8 @@ describe('RichTextField Component', () => {
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
         'cursor-not-allowed',
-        'bg-gray-50',
-        'dark:bg-gray-800',
+        'bg-zinc-50',
+        'dark:bg-zinc-800',
       )
     })
 
@@ -278,10 +278,10 @@ describe('RichTextField Component', () => {
 
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass(
-        'border-gray-300',
-        'focus:border-blue-500',
-        'focus:ring-blue-500',
-        'dark:border-gray-600',
+        'border-zinc-300',
+        'focus:border-emerald-500',
+        'focus:ring-emerald-500',
+        'dark:border-zinc-600',
       )
     })
   })
@@ -432,8 +432,8 @@ describe('RichTextField Component', () => {
       expect(message).toBeInTheDocument()
       expect(message).toHaveClass(
         'text-xs',
-        'text-gray-500',
-        'dark:text-gray-400',
+        'text-zinc-500',
+        'dark:text-zinc-400',
       )
     })
   })

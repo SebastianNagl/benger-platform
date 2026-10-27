@@ -83,7 +83,8 @@ function getMetricLabel(
 }
 
 const providerColors: Record<string, string> = {
-  openai: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+  openai:
+    'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300',
   anthropic:
     'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
   google: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -94,7 +95,7 @@ const providerColors: Record<string, string> = {
   alibaba: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300',
   deepseek: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
   cohere: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300',
-  other: 'bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-300',
+  other: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-300',
   unknown: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-300',
 }
 

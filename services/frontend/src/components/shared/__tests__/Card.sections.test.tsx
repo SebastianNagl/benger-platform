@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '../card'
+} from '../Card'
 
 describe('Card Components', () => {
   describe('Card', () => {
