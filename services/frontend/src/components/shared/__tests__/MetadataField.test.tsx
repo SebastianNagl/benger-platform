@@ -370,14 +370,7 @@ describe('MetadataField', () => {
       await user.click(addButton)
 
       const input = screen.getByRole('textbox')
-      expect(input).toHaveClass(
-        'rounded-full',
-        'ring-1',
-        'focus:outline-none',
-        'focus:ring-2',
-        'focus:ring-emerald-500',
-        'h-7',
-      )
+      expect(input).toHaveClass('ui-input', 'h-7')
     })
   })
 

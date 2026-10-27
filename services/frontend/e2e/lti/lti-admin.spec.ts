@@ -95,7 +95,10 @@ test.describe('LTI registrations admin @extended', () => {
     await expect(form).toBeVisible()
 
     // Moodle is the default family of a new connection.
-    await expect(page.getByTestId('lti-form-lms_family')).toHaveValue('moodle')
+    await expect(page.getByTestId('lti-form-lms_family')).toHaveAttribute(
+      'data-value',
+      'moodle',
+    )
     await page.getByTestId('lti-form-organization_id').fill(organizationId!)
     await page.getByTestId('lti-form-name').fill(registrationName)
     await page.getByTestId('lti-form-issuer').fill(E2E_ISSUER)
@@ -206,7 +209,10 @@ test.describe('LTI registrations admin @extended', () => {
       organizationId!,
     )
 
-    await page.getByTestId('lti-form-status').selectOption('disabled')
+    // The status field is the shared HeadlessUI Select: open it, then pick
+    // the option by its value (labels render in German on the e2e stack).
+    await page.getByTestId('lti-form-status').click()
+    await page.locator('[role="option"][data-value="disabled"]').click()
     await page.getByTestId('lti-form-submit').click()
     // The edit panel closes once the PUT has landed.
     await expect(form).toBeHidden({ timeout: 15_000 })

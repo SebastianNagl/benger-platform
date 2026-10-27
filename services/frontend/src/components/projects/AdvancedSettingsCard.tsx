@@ -380,7 +380,7 @@ export function AdvancedSettingsCard({
                             }))
                           }
                           disabled={!editing}
-                          className="w-20!"
+                          className="w-20"
                         />
                         <span className="text-sm text-zinc-500">
                           {t('projects.creation.wizard.stepSettings.minutes')}

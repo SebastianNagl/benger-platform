@@ -55,7 +55,7 @@ export function TemperatureInput({ judgeModelId, value, onChange }: Props) {
           onChange(e.target.value ? parseFloat(e.target.value) : undefined)
         }
         className={clsx(
-          tempValidation.type === 'error' && 'ring-red-500! dark:ring-red-400!',
+          tempValidation.type === 'error' && 'ring-red-500 dark:ring-red-400',
         )}
       />
       {tempValidation.type && (

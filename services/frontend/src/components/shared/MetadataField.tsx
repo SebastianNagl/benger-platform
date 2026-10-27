@@ -157,7 +157,7 @@ export function MetadataField({
             setEditValue(newValue)
           }}
           onKeyDown={handleKeyDown}
-          className="h-7 w-auto!"
+          className="h-7 w-auto"
           placeholder={t('shared.metadata.enterCommaSeparated', {
             field: fieldName,
           })}
@@ -191,7 +191,7 @@ export function MetadataField({
           value={editValue || ''}
           onChange={(e) => setEditValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="h-7 w-auto!"
+          className="h-7 w-auto"
           placeholder={t('shared.metadata.enterField', { field: fieldName })}
           disabled={isLoading}
         />

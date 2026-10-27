@@ -219,7 +219,7 @@ export function FieldMappingEditor({
                     placeholder={t('fieldMapping.variablePlaceholder')}
                     className={clsx(
                       hasError &&
-                        'ring-red-300! focus:ring-red-500! dark:ring-red-700!',
+                        'ring-red-300 focus:ring-red-500 dark:ring-red-700',
                     )}
                   />
                   {row.variableName && (

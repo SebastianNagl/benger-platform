@@ -100,7 +100,7 @@ export function JudgeEnsembleControl<S extends BuilderStateWithParameters>({
             const r = Math.max(1, Math.min(25, parseInt(e.target.value) || 1))
             writeJudges(additionalJudges, r)
           }}
-          className="h-8 w-24!"
+          className="h-8 w-24"
         />
         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
           {t('evaluationBuilder.parameters.runsPerJudgeHelp')}

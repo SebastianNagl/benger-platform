@@ -490,7 +490,7 @@ function EditableDataView({
               rows={isString ? 3 : 5}
               spellCheck={false}
               className={clsx(
-                error && 'ring-red-400! dark:ring-red-500!',
+                error && 'ring-red-400 dark:ring-red-500',
                 !isString && 'font-mono',
               )}
             />

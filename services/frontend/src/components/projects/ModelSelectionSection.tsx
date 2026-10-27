@@ -274,7 +274,7 @@ export function ModelSelectionSection({
                                                 : undefined,
                                             )
                                           }
-                                          className="h-7 w-16! px-2! py-0! text-xs sm:text-xs"
+                                          className="h-7 w-16 px-2 py-0 text-xs sm:text-xs"
                                         />
                                       </Tooltip>
                                     )
@@ -310,7 +310,7 @@ export function ModelSelectionSection({
                                           : undefined,
                                       )
                                     }
-                                    className="h-7 w-20! px-2! py-0! text-xs sm:text-xs"
+                                    className="h-7 w-20 px-2 py-0 text-xs sm:text-xs"
                                   />
                                 </div>
 
@@ -501,7 +501,7 @@ export function ModelSelectionSection({
                                                           : undefined,
                                                       )
                                                     }
-                                                    className="h-7 w-24! px-2! py-0! text-xs sm:text-xs"
+                                                    className="h-7 w-24 px-2 py-0 text-xs sm:text-xs"
                                                   />
                                                 )}
                                               </>

@@ -184,7 +184,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('w-full')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -276,11 +276,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} errors={[]} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'ring-zinc-900/10',
-        'focus:ring-emerald-500',
-        'dark:ring-white/10',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -289,7 +285,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('rounded-2xl', 'ring-1')
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies custom className to wrapper', () => {
@@ -303,7 +299,7 @@ describe('RichTextField Component', () => {
       render(<RichTextField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('focus:outline-none', 'focus:ring-2')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
