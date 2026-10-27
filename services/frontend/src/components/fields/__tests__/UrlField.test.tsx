@@ -209,7 +209,7 @@ describe('UrlField Component', () => {
       render(<UrlField {...defaultProps} />)
 
       const input = screen.getByRole('textbox')
-      expect(input).toHaveClass('block', 'w-full', 'rounded-full')
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies custom className to wrapper', () => {

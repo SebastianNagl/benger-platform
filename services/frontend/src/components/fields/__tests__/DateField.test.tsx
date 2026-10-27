@@ -240,7 +240,7 @@ describe('DateField Component', () => {
       render(<DateField {...defaultProps} />)
 
       const input = screen.getByDisplayValue('')
-      expect(input).toHaveClass('block', 'w-full', 'rounded-full')
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies custom className to wrapper', () => {

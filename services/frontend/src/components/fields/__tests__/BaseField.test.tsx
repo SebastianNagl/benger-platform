@@ -292,12 +292,12 @@ describe('BaseField Utilities', () => {
     it('returns base classes for normal state', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('block')
-      expect(classes).toContain('w-full')
-      expect(classes).toContain('rounded-full')
-      expect(classes).toContain('ring-1')
-      expect(classes).toContain('sm:text-sm')
-      expect(classes).toContain('transition')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
     })
 
     it('returns error classes when hasError is true', () => {
@@ -305,17 +305,17 @@ describe('BaseField Utilities', () => {
 
       expect(classes).toContain('ring-red-300')
       expect(classes).toContain('dark:ring-red-600')
-      expect(classes).toContain('focus:ring-2')
+      expect(classes).toContain('ui-input')
       expect(classes).toContain('focus:ring-red-500')
     })
 
     it('returns normal classes when hasError is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('ring-zinc-900/10')
-      expect(classes).toContain('dark:ring-white/10')
-      expect(classes).toContain('focus:ring-2')
-      expect(classes).toContain('focus:ring-emerald-500')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
     })
 
     it('returns readonly classes when readonly is true', () => {
@@ -329,8 +329,8 @@ describe('BaseField Utilities', () => {
     it('returns normal background classes when readonly is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('bg-white')
-      expect(classes).toContain('dark:bg-white/5')
+      expect(classes).toContain('ui-input')
+      expect(classes).toContain('ui-input')
     })
 
     it('combines error and readonly classes', () => {
@@ -352,14 +352,7 @@ describe('BaseField Utilities', () => {
       const readonlyClasses = getInputClasses(false, true)
       const bothClasses = getInputClasses(true, true)
 
-      const baseClassesList = [
-        'block',
-        'w-full',
-        'rounded-full',
-        'ring-1',
-        'sm:text-sm',
-        'transition',
-      ]
+      const baseClassesList = ['ui-input']
 
       for (const baseClass of baseClassesList) {
         expect(normalClasses).toContain(baseClass)

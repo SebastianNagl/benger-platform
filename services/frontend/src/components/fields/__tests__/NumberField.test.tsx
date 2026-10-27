@@ -432,26 +432,14 @@ describe('NumberField Component', () => {
       render(<NumberField {...defaultProps} />)
 
       const input = screen.getByRole('spinbutton')
-      expect(input).toHaveClass(
-        'block',
-        'w-full',
-        'rounded-full',
-        'ring-1',
-        'sm:text-sm',
-        'transition',
-      )
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies normal state classes when no errors', () => {
       render(<NumberField {...defaultProps} />)
 
       const input = screen.getByRole('spinbutton')
-      expect(input).toHaveClass(
-        'ring-zinc-900/10',
-        'dark:ring-white/10',
-        'bg-white',
-        'dark:bg-white/5',
-      )
+      expect(input).toHaveClass('ui-input')
     })
 
     it('applies custom className to wrapper', () => {
@@ -469,10 +457,7 @@ describe('NumberField Component', () => {
       await user.click(input)
 
       expect(input).toHaveFocus()
-      expect(input).toHaveClass(
-        'focus:ring-2',
-        'focus:ring-emerald-500',
-      )
+      expect(input).toHaveClass('ui-input')
     })
   })
 

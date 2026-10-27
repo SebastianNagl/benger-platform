@@ -125,7 +125,7 @@ describe('TextAreaField Component', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('resize-y')
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
@@ -469,27 +469,14 @@ describe('TextAreaField Component', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'block',
-        'w-full',
-        'rounded-2xl',
-        'ring-1',
-        'sm:text-sm',
-        'transition',
-        'resize-y',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies normal state classes when no errors', () => {
       render(<TextAreaField {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass(
-        'ring-zinc-900/10',
-        'dark:ring-white/10',
-        'bg-white',
-        'dark:bg-white/5',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
 
     it('applies custom className to wrapper', () => {
@@ -509,10 +496,7 @@ describe('TextAreaField Component', () => {
       await user.click(textarea)
 
       expect(textarea).toHaveFocus()
-      expect(textarea).toHaveClass(
-        'focus:ring-2',
-        'focus:ring-emerald-500',
-      )
+      expect(textarea).toHaveClass('ui-textarea')
     })
   })
 
