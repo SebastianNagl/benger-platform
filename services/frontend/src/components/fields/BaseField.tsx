@@ -82,19 +82,26 @@ export function FieldWrapper({
 /**
  * Get common input classes based on state
  */
-export function getInputClasses(hasError: boolean, readonly: boolean): string {
+export function getInputClasses(
+  hasError: boolean,
+  readonly: boolean,
+  multiline = false,
+): string {
+  // Same field style as the shared Input (a ring; preflight zeroes borders).
   const baseClasses =
-    'block w-full rounded-md shadow-sm sm:text-sm transition-colors'
+    'block w-full px-4 py-2 text-base text-zinc-900 ring-1 transition placeholder:text-zinc-500 focus:ring-2 focus:outline-none sm:text-sm dark:text-white dark:ring-inset dark:placeholder:text-zinc-400'
 
   const stateClasses = hasError
-    ? 'border-red-300 dark:border-red-600 focus:border-red-500 focus:ring-red-500'
-    : 'border-zinc-300 dark:border-zinc-600 focus:border-emerald-500 focus:ring-emerald-500'
+    ? 'ring-red-300 focus:ring-red-500 dark:ring-red-600'
+    : 'ring-zinc-900/10 hover:ring-zinc-900/20 focus:ring-emerald-500 dark:ring-white/10 dark:hover:ring-white/20 dark:focus:ring-emerald-400'
 
   const readonlyClasses = readonly
-    ? 'bg-zinc-50 dark:bg-zinc-800 cursor-not-allowed'
-    : 'bg-white dark:bg-zinc-700'
+    ? 'bg-zinc-50 dark:bg-white/2.5 cursor-not-allowed'
+    : 'bg-white dark:bg-white/5'
 
-  return `${baseClasses} ${stateClasses} ${readonlyClasses}`
+  const shapeClasses = multiline ? 'rounded-2xl' : 'rounded-full'
+
+  return `${baseClasses} ${shapeClasses} ${stateClasses} ${readonlyClasses}`
 }
 
 /**

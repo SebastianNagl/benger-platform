@@ -124,8 +124,8 @@ describe('Input Component', () => {
     const input = screen.getByRole('textbox')
     expect(input).toHaveClass('block')
     expect(input).toHaveClass('w-full')
-    expect(input).toHaveClass('rounded-md')
-    expect(input).toHaveClass('border-zinc-300')
+    expect(input).toHaveClass('rounded-full')
+    expect(input).toHaveClass('ring-zinc-900/10')
   })
 
   it('blurs a number input on wheel so scrolling never changes the value', () => {

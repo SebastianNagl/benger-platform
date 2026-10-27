@@ -294,27 +294,27 @@ describe('BaseField Utilities', () => {
 
       expect(classes).toContain('block')
       expect(classes).toContain('w-full')
-      expect(classes).toContain('rounded-md')
-      expect(classes).toContain('shadow-sm')
+      expect(classes).toContain('rounded-full')
+      expect(classes).toContain('ring-1')
       expect(classes).toContain('sm:text-sm')
-      expect(classes).toContain('transition-colors')
+      expect(classes).toContain('transition')
     })
 
     it('returns error classes when hasError is true', () => {
       const classes = getInputClasses(true, false)
 
-      expect(classes).toContain('border-red-300')
-      expect(classes).toContain('dark:border-red-600')
-      expect(classes).toContain('focus:border-red-500')
+      expect(classes).toContain('ring-red-300')
+      expect(classes).toContain('dark:ring-red-600')
+      expect(classes).toContain('focus:ring-2')
       expect(classes).toContain('focus:ring-red-500')
     })
 
     it('returns normal classes when hasError is false', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).toContain('border-zinc-300')
-      expect(classes).toContain('dark:border-zinc-600')
-      expect(classes).toContain('focus:border-emerald-500')
+      expect(classes).toContain('ring-zinc-900/10')
+      expect(classes).toContain('dark:ring-white/10')
+      expect(classes).toContain('focus:ring-2')
       expect(classes).toContain('focus:ring-emerald-500')
     })
 
@@ -322,7 +322,7 @@ describe('BaseField Utilities', () => {
       const classes = getInputClasses(false, true)
 
       expect(classes).toContain('bg-zinc-50')
-      expect(classes).toContain('dark:bg-zinc-800')
+      expect(classes).toContain('dark:bg-white/2.5')
       expect(classes).toContain('cursor-not-allowed')
     })
 
@@ -330,19 +330,19 @@ describe('BaseField Utilities', () => {
       const classes = getInputClasses(false, false)
 
       expect(classes).toContain('bg-white')
-      expect(classes).toContain('dark:bg-zinc-700')
+      expect(classes).toContain('dark:bg-white/5')
     })
 
     it('combines error and readonly classes', () => {
       const classes = getInputClasses(true, true)
 
       // Should have error classes
-      expect(classes).toContain('border-red-300')
-      expect(classes).toContain('dark:border-red-600')
+      expect(classes).toContain('ring-red-300')
+      expect(classes).toContain('dark:ring-red-600')
 
       // Should have readonly classes
       expect(classes).toContain('bg-zinc-50')
-      expect(classes).toContain('dark:bg-zinc-800')
+      expect(classes).toContain('dark:bg-white/2.5')
       expect(classes).toContain('cursor-not-allowed')
     })
 
@@ -355,10 +355,10 @@ describe('BaseField Utilities', () => {
       const baseClassesList = [
         'block',
         'w-full',
-        'rounded-md',
-        'shadow-sm',
+        'rounded-full',
+        'ring-1',
         'sm:text-sm',
-        'transition-colors',
+        'transition',
       ]
 
       for (const baseClass of baseClassesList) {
@@ -372,8 +372,8 @@ describe('BaseField Utilities', () => {
     it('does not include error classes in normal state', () => {
       const classes = getInputClasses(false, false)
 
-      expect(classes).not.toContain('border-red-300')
-      expect(classes).not.toContain('dark:border-red-600')
+      expect(classes).not.toContain('ring-red-300')
+      expect(classes).not.toContain('dark:ring-red-600')
     })
 
     it('does not include readonly classes in editable state', () => {

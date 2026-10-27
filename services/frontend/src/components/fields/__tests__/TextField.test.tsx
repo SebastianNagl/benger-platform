@@ -224,7 +224,7 @@ describe('TextField Component', () => {
       expect(input).toBeDisabled()
       expect(input).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -245,7 +245,7 @@ describe('TextField Component', () => {
       const input = screen.getByRole('textbox')
       expect(input).toHaveClass(
         'bg-zinc-50',
-        'dark:bg-zinc-800',
+        'dark:bg-white/2.5',
         'cursor-not-allowed',
       )
     })
@@ -285,7 +285,7 @@ describe('TextField Component', () => {
       render(<TextField {...defaultProps} errors={errors} />)
 
       const input = screen.getByRole('textbox')
-      expect(input).toHaveClass('border-red-300', 'dark:border-red-600')
+      expect(input).toHaveClass('ring-red-300', 'dark:ring-red-600')
     })
 
     it('does not show errors when errors array is empty', () => {
@@ -338,10 +338,10 @@ describe('TextField Component', () => {
       expect(input).toHaveClass(
         'block',
         'w-full',
-        'rounded-md',
-        'shadow-sm',
+        'rounded-full',
+        'ring-1',
         'sm:text-sm',
-        'transition-colors',
+        'transition',
       )
     })
 
@@ -350,10 +350,10 @@ describe('TextField Component', () => {
 
       const input = screen.getByRole('textbox')
       expect(input).toHaveClass(
-        'border-zinc-300',
-        'dark:border-zinc-600',
+        'ring-zinc-900/10',
+        'dark:ring-white/10',
         'bg-white',
-        'dark:bg-zinc-700',
+        'dark:bg-white/5',
       )
     })
 
@@ -373,7 +373,7 @@ describe('TextField Component', () => {
 
       expect(input).toHaveFocus()
       expect(input).toHaveClass(
-        'focus:border-emerald-500',
+        'focus:ring-2',
         'focus:ring-emerald-500',
       )
     })

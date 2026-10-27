@@ -192,7 +192,7 @@ describe('UrlField Component', () => {
       render(<UrlField {...defaultProps} errors={errors} />)
 
       const input = screen.getByRole('textbox')
-      expect(input).toHaveClass('border-red-300', 'dark:border-red-600')
+      expect(input).toHaveClass('ring-red-300', 'dark:ring-red-600')
     })
 
     it('displays multiple errors', () => {
@@ -209,7 +209,7 @@ describe('UrlField Component', () => {
       render(<UrlField {...defaultProps} />)
 
       const input = screen.getByRole('textbox')
-      expect(input).toHaveClass('block', 'w-full', 'rounded-md')
+      expect(input).toHaveClass('block', 'w-full', 'rounded-full')
     })
 
     it('applies custom className to wrapper', () => {

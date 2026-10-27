@@ -1,5 +1,6 @@
 'use client'
 
+import { ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
 import { Button } from '@/components/shared/Button'
@@ -123,16 +124,16 @@ export function ProjectTypeSelector({
         <span className="text-red-600 dark:text-red-400">*</span>
       </Label>
       <div
-        className="mt-2 grid grid-cols-3 gap-2"
+        className="mt-2 flex flex-wrap items-center gap-2"
         role="radiogroup"
         aria-label={t('projects.creation.wizard.step1.kind.title')}
       >
         {options.map((opt) => {
           const isSelected = selectedId === opt.id
           return (
-            <button
+            <Button
               key={opt.id}
-              type="button"
+              variant={isSelected ? 'filled' : 'outline'}
               role="radio"
               aria-checked={isSelected}
               title={t(opt.descriptionKey)}
@@ -140,36 +141,36 @@ export function ProjectTypeSelector({
                 onChange({ projectKind: opt.kind, projectTypeId: opt.id })
               }
               data-testid={`project-kind-${opt.id}`}
-              className={cn(
-                'flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500',
-                isSelected
-                  ? 'border-emerald-500 bg-emerald-50 text-zinc-900 ring-1 ring-emerald-500 dark:bg-emerald-900/20 dark:text-white'
-                  : 'border-zinc-200 text-zinc-700 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-zinc-600',
-              )}
+              className="px-4 py-2"
             >
-              <span className="text-lg" aria-hidden>
-                {opt.icon}
-              </span>
+              <span aria-hidden>{opt.icon}</span>
               {t(opt.nameKey)}
-            </button>
+            </Button>
           )
         })}
+        {others.length > 0 && (
+          <Button
+            variant="text"
+            onClick={() => setShowAll((v) => !v)}
+            aria-expanded={showAll}
+            data-testid="project-kind-show-all"
+            className="gap-1 px-2"
+          >
+            {showAll
+              ? t('projects.creation.wizard.step1.kind.showLess')
+              : t('projects.creation.wizard.step1.kind.showAll', {
+                  count: others.length,
+                })}
+            <ChevronDownIcon
+              className={cn(
+                'h-4 w-4 transition-transform',
+                showAll && 'rotate-180',
+              )}
+              aria-hidden
+            />
+          </Button>
+        )}
       </div>
-      {others.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setShowAll((v) => !v)}
-          aria-expanded={showAll}
-          data-testid="project-kind-show-all"
-          className="mt-2 rounded-full border border-zinc-200 px-3 py-1 text-xs font-medium text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-white"
-        >
-          {showAll
-            ? t('projects.creation.wizard.step1.kind.showLess')
-            : t('projects.creation.wizard.step1.kind.showAll', {
-                count: others.length,
-              })}
-        </button>
-      )}
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
         {selected ? `${t(selected.descriptionKey)} · ` : ''}
         {t('projects.creation.wizard.step1.kind.locked')}

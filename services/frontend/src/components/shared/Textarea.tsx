@@ -11,8 +11,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         className={clsx(
-          'block w-full rounded-md border-zinc-300 bg-white px-3 py-2 text-zinc-900 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white',
-          'disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 dark:disabled:bg-zinc-900',
+          // Same field style as Input; rounded corners instead of a pill.
+          'rounded-2xl px-4 py-2',
+          'block w-full bg-white text-base text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400',
+          'disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:ring-zinc-900/10 dark:disabled:bg-white/2.5',
           'resize-vertical',
           className,
         )}

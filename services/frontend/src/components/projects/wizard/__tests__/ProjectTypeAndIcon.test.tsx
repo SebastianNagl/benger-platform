@@ -22,13 +22,16 @@ jest.mock('@/components/shared/Dialog', () => ({
 }))
 
 describe('ProjectTypeSelector', () => {
-  it('renders the three options in one row and selects a type', () => {
+  it('renders the three options as pill buttons and selects a type', () => {
     const onChange = jest.fn()
-    const { container } = render(
-      <ProjectTypeSelector projectKind="generic" onChange={onChange} />,
+    render(<ProjectTypeSelector projectKind="generic" onChange={onChange} />)
+    // Selected = filled, the rest outline (shared Button variants).
+    expect(screen.getByTestId('project-kind-generic')).toHaveClass(
+      'rounded-full',
+      'bg-zinc-900',
     )
-    expect(container.querySelector('[role="radiogroup"]')).toHaveClass(
-      'grid-cols-3',
+    expect(screen.getByTestId('project-kind-exam')).not.toHaveClass(
+      'bg-zinc-900',
     )
     expect(screen.getByTestId('project-kind-generic')).toHaveAttribute(
       'aria-checked',

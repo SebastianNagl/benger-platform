@@ -126,9 +126,12 @@ export function SelectTrigger({
 
 export function SelectContent({ children, className }: SelectContentProps) {
   return (
+    // Anchored: rendered in a portal and flipped upward when there is no room
+    // below, so dialogs and scroll containers never clip the list.
     <Listbox.Options
+      anchor="bottom start"
       className={clsx(
-        'absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
+        'z-60 max-h-60 w-(--button-width) overflow-auto rounded-lg bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 transition duration-100 ease-in [--anchor-gap:4px] focus:outline-none data-closed:opacity-0 dark:bg-zinc-800',
         className,
       )}
     >

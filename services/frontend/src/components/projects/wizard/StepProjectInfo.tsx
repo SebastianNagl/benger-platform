@@ -279,7 +279,7 @@ export function StepProjectInfo({
             )}
             value={data.title}
             onChange={(e) => onChange({ title: e.target.value })}
-            className={cn(errors.title && 'border-red-500 dark:border-red-400')}
+            className={cn(errors.title && 'ring-red-500 dark:ring-red-400')}
             data-testid="project-create-name-input"
           />
           {errors.title && (

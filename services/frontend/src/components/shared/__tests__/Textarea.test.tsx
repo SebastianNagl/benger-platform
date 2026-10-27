@@ -194,8 +194,8 @@ describe('Textarea Component', () => {
       const textarea = screen.getByRole('textbox')
       expect(textarea).toHaveClass('block')
       expect(textarea).toHaveClass('w-full')
-      expect(textarea).toHaveClass('rounded-md')
-      expect(textarea).toHaveClass('border-zinc-300')
+      expect(textarea).toHaveClass('rounded-2xl')
+      expect(textarea).toHaveClass('ring-zinc-900/10')
       expect(textarea).toHaveClass('bg-white')
       expect(textarea).toHaveClass('text-zinc-900')
     })
@@ -204,7 +204,7 @@ describe('Textarea Component', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('focus:border-emerald-500')
+      expect(textarea).toHaveClass('focus:ring-2')
       expect(textarea).toHaveClass('focus:ring-emerald-500')
     })
 
@@ -212,8 +212,8 @@ describe('Textarea Component', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('dark:border-zinc-700')
-      expect(textarea).toHaveClass('dark:bg-zinc-800')
+      expect(textarea).toHaveClass('dark:ring-white/10')
+      expect(textarea).toHaveClass('dark:bg-white/5')
       expect(textarea).toHaveClass('dark:text-white')
     })
 
@@ -221,7 +221,7 @@ describe('Textarea Component', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('dark:disabled:bg-zinc-900')
+      expect(textarea).toHaveClass('dark:disabled:bg-white/2.5')
     })
 
     it('applies resize-vertical class', () => {
@@ -251,7 +251,7 @@ describe('Textarea Component', () => {
       render(<Textarea {...defaultProps} />)
 
       const textarea = screen.getByRole('textbox')
-      expect(textarea).toHaveClass('px-3')
+      expect(textarea).toHaveClass('px-4')
       expect(textarea).toHaveClass('py-2')
     })
   })
