@@ -545,7 +545,7 @@ class TestSendVerificationEmail:
         assert result is True
         call_args = email_service.mail_client.send_message.call_args
         subject = call_args[1]["subject"]
-        assert "Bestätigen" in subject or "bestätigen" in subject
+        assert "Bestätige deine E-Mail-Adresse" in subject
 
     @pytest.mark.asyncio
     async def test_send_verification_email_mail_disabled(self, email_service):
