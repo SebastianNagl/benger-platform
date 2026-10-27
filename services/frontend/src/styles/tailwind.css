@@ -74,11 +74,12 @@
    live in the components layer so any utility a caller passes (w-24, px-3,
    text-xs, ring-red-500, ...) overrides them; as utilities they would win
    or lose by Tailwind's sort order instead. Rings, not borders: preflight
-   zeroes border widths. */
+   zeroes border widths. Text fields and the Select trigger share one
+   height (36px at sm and up) so they line up in forms. */
 @layer components {
   .ui-input,
   .ui-textarea {
-    @apply block w-full bg-white px-4 py-2 text-base text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm;
+    @apply block w-full bg-white px-4 py-1.5 text-base text-zinc-900 ring-1 ring-zinc-900/10 transition placeholder:text-zinc-500 hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none sm:text-sm;
     @apply dark:bg-white/5 dark:text-white dark:ring-white/10 dark:ring-inset dark:placeholder:text-zinc-400 dark:hover:ring-white/20 dark:focus:ring-emerald-400;
     @apply disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500 disabled:hover:ring-zinc-900/10 dark:disabled:bg-white/2.5;
   }
@@ -88,11 +89,11 @@
   }
 
   .ui-textarea {
-    @apply resize-y rounded-2xl;
+    @apply resize-y rounded-2xl py-2;
   }
 
   .ui-select-trigger {
-    @apply relative h-8 w-full cursor-default rounded-full bg-white pr-8 pl-3 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none;
+    @apply relative h-9 w-full cursor-default rounded-full bg-white pr-8 pl-4 text-left text-sm text-zinc-900 ring-1 ring-zinc-900/10 transition hover:ring-zinc-900/20 focus:ring-2 focus:ring-emerald-500 focus:outline-none;
     @apply dark:bg-white/5 dark:text-zinc-100 dark:ring-white/10 dark:ring-inset dark:hover:ring-white/20 dark:focus:ring-emerald-400;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
