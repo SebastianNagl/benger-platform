@@ -2,6 +2,13 @@
 
 import { Input } from '@/components/shared/Input'
 import { Label } from '@/components/shared/Label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { Textarea } from '@/components/shared/Textarea'
 import { useOptionalAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -22,6 +29,9 @@ import {
   WizardPublicRole,
   WizardVisibility,
 } from './types'
+
+// Select item for "whole organization" (a null group id).
+const ORG_WIDE = '__org__'
 
 interface StepProjectInfoProps {
   data: WizardData
@@ -497,28 +507,37 @@ export function StepProjectInfo({
                               'projects.creation.wizard.step1.groupScopeLabel',
                             )}
                           </label>
-                          <select
-                            id={`wizard-organization-group-${org.id}`}
-                            value={data.organizationGroupIds[org.id] ?? ''}
-                            onChange={(e) =>
-                              setOrgGroup(org.id, e.target.value || null)
+                          <Select
+                            value={
+                              data.organizationGroupIds[org.id] ||
+                              (orgWideAllowed ? ORG_WIDE : '')
                             }
-                            data-testid={`wizard-organization-group-select-${org.id}`}
-                            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+                            onValueChange={(v) =>
+                              setOrgGroup(org.id, v === ORG_WIDE ? null : v)
+                            }
                           >
-                            {orgWideAllowed && (
-                              <option value="">
-                                {t(
-                                  'projects.creation.wizard.step1.groupScopeOrgWide',
-                                )}
-                              </option>
-                            )}
-                            {groupOptions.map((group) => (
-                              <option key={group.id} value={group.id}>
-                                {group.name}
-                              </option>
-                            ))}
-                          </select>
+                            <SelectTrigger
+                              id={`wizard-organization-group-${org.id}`}
+                              data-testid={`wizard-organization-group-select-${org.id}`}
+                              className="mt-1"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {orgWideAllowed && (
+                                <SelectItem value={ORG_WIDE}>
+                                  {t(
+                                    'projects.creation.wizard.step1.groupScopeOrgWide',
+                                  )}
+                                </SelectItem>
+                              )}
+                              {groupOptions.map((group) => (
+                                <SelectItem key={group.id} value={group.id}>
+                                  {group.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                             {t('projects.creation.wizard.step1.groupScopeHelp')}
                           </p>

@@ -4,6 +4,7 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -11,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { useDefaultConfig } from '@/hooks/useDefaultConfig'
@@ -163,13 +165,12 @@ export function PromptManager({
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.prompts.promptText')}
                 </label>
-                <textarea
+                <Textarea
                   value={prompt.prompt}
                   onChange={(e) =>
                     handleUpdatePrompt(index, 'prompt', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.promptPlaceholder')}
                 />
               </div>
@@ -178,13 +179,12 @@ export function PromptManager({
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.prompts.expectedOutput')}
                 </label>
-                <textarea
+                <Textarea
                   value={prompt.expected_output || ''}
                   onChange={(e) =>
                     handleUpdatePrompt(index, 'expected_output', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.expectedOutputPlaceholder')}
                 />
               </div>
@@ -231,7 +231,7 @@ export function PromptManager({
                   <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.prompts.maxTokens')}
                   </label>
-                  <input
+                  <Input
                     type="number"
                     value={prompt.metadata?.max_tokens || 500}
                     onChange={(e) =>
@@ -239,14 +239,13 @@ export function PromptManager({
                         max_tokens: parseInt(e.target.value),
                       })
                     }
-                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                     {t('tasks.prompts.temperature')}
                   </label>
-                  <input
+                  <Input
                     type="number"
                     step="0.1"
                     min="0"
@@ -259,7 +258,6 @@ export function PromptManager({
                         temperature: parseFloat(e.target.value),
                       })
                     }
-                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   />
                 </div>
               </div>
@@ -268,7 +266,7 @@ export function PromptManager({
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.prompts.context')}
                 </label>
-                <input
+                <Input
                   type="text"
                   value={prompt.metadata?.context || ''}
                   onChange={(e) =>
@@ -276,7 +274,6 @@ export function PromptManager({
                       context: e.target.value,
                     })
                   }
-                  className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-zinc-600 dark:bg-zinc-900 dark:text-white dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
                   placeholder={t('tasks.prompts.contextPlaceholder')}
                 />
               </div>
@@ -296,13 +293,12 @@ export function PromptManager({
             <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
               {t('tasks.prompts.promptText')}
             </label>
-            <textarea
+            <Textarea
               value={newPrompt.prompt}
               onChange={(e) =>
                 setNewPrompt({ ...newPrompt, prompt: e.target.value })
               }
               rows={3}
-              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
               placeholder={t('tasks.prompts.promptPlaceholder')}
             />
           </div>
@@ -311,13 +307,12 @@ export function PromptManager({
             <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
               {t('tasks.prompts.expectedOutput')}
             </label>
-            <textarea
+            <Textarea
               value={newPrompt.expected_output}
               onChange={(e) =>
                 setNewPrompt({ ...newPrompt, expected_output: e.target.value })
               }
               rows={3}
-              className="block w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:text-sm dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-100 dark:focus:border-emerald-400 dark:focus:ring-emerald-400/20"
               placeholder={t('tasks.prompts.expectedOutputPlaceholder')}
             />
           </div>

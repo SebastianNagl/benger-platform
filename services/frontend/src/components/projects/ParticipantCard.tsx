@@ -114,7 +114,7 @@ export function ParticipantCard({ projectId, via, onLeft }: Props) {
       data-testid="participant-card"
     >
       <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-zinc-900 dark:text-white">
-        <UserGroupIcon className="h-5 w-5 text-sky-500 dark:text-sky-400" />
+        <UserGroupIcon className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
         {t('project.participant.title')}
       </h2>
       <p

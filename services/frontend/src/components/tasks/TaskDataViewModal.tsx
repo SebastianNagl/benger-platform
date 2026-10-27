@@ -1,5 +1,7 @@
 'use client'
 
+import { SearchInput } from '@/components/shared/SearchInput'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
 import { Task } from '@/lib/api/types'
@@ -7,10 +9,10 @@ import { intlTag } from '@/lib/i18n/locales'
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react'
 import {
   ClipboardDocumentIcon,
-  MagnifyingGlassIcon,
   PencilSquareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 
 interface TaskDataViewModalProps {
@@ -335,16 +337,11 @@ export function TaskDataViewModal({
           {/* Search bar (only for formatted view) */}
           {!isEditing && viewMode === 'formatted' && (
             <div className="border-b border-zinc-200 p-6 dark:border-zinc-700">
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-zinc-400" />
-                <input
-                  type="text"
-                  placeholder={t('tasks.dataView.searchPlaceholder')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-300 bg-white py-2 pr-4 pl-10 text-zinc-900 placeholder-zinc-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-white dark:placeholder-zinc-400 dark:focus:border-emerald-400"
-                />
-              </div>
+              <SearchInput
+                placeholder={t('tasks.dataView.searchPlaceholder')}
+                value={searchTerm}
+                onChange={setSearchTerm}
+              />
             </div>
           )}
 
@@ -486,17 +483,16 @@ function EditableDataView({
                 {getValueType(value)}
               </span>
             </div>
-            <textarea
+            <Textarea
               aria-label={key}
               value={editValues[key] ?? ''}
               onChange={(e) => onChange(key, e.target.value)}
               rows={isString ? 3 : 5}
               spellCheck={false}
-              className={`w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 dark:bg-zinc-800 dark:text-white ${
-                error
-                  ? 'border-red-400 focus:border-red-500 dark:border-red-500'
-                  : 'border-zinc-300 focus:border-emerald-500 dark:border-zinc-600 dark:focus:border-emerald-400'
-              } ${isString ? '' : 'font-mono'}`}
+              className={clsx(
+                error && 'ring-red-400! dark:ring-red-500!',
+                !isString && 'font-mono',
+              )}
             />
             {error && (
               <p className="mt-1 text-xs text-red-600 dark:text-red-400">

@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/shared/Select'
+import { Textarea } from '@/components/shared/Textarea'
 import { isoToLocalInput, localInputToIso } from '@/utils/projectWindow'
 import { type ComponentType, type Dispatch, type SetStateAction } from 'react'
 
@@ -379,7 +380,7 @@ export function AdvancedSettingsCard({
                             }))
                           }
                           disabled={!editing}
-                          className="w-20 text-sm"
+                          className="w-20!"
                         />
                         <span className="text-sm text-zinc-500">
                           {t('projects.creation.wizard.stepSettings.minutes')}
@@ -845,7 +846,7 @@ export function AdvancedSettingsCard({
 
                     <div>
                       <Label>{t('project.settings.questionnaireConfig')}</Label>
-                      <textarea
+                      <Textarea
                         value={advancedSettings.questionnaire_config}
                         onChange={(e) =>
                           setAdvancedSettings((prev: any) => ({
@@ -855,7 +856,7 @@ export function AdvancedSettingsCard({
                         }
                         disabled={!editing}
                         rows={10}
-                        className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                        className="mt-1 font-mono"
                         placeholder={`<View>\n  <Header value="Post-Annotation Feedback"/>\n  <Rating name="confidence" toName="confidence" maxRating="5" required="true"/>\n</View>`}
                       />
                     </div>

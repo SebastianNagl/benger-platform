@@ -371,16 +371,12 @@ describe('MetadataField', () => {
 
       const input = screen.getByRole('textbox')
       expect(input).toHaveClass(
-        'rounded-md',
-        'border',
-        'px-2',
-        'py-1',
-        'text-sm',
+        'rounded-full',
+        'ring-1',
         'focus:outline-none',
         'focus:ring-2',
         'focus:ring-emerald-500',
-        'dark:border-zinc-700',
-        'dark:bg-zinc-800',
+        'h-7',
       )
     })
   })

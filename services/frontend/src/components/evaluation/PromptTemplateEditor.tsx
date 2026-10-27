@@ -1,5 +1,6 @@
 'use client'
 
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { InformationCircleIcon } from '@heroicons/react/24/outline'
 import clsx from 'clsx'
@@ -81,7 +82,7 @@ export function PromptTemplateEditor({
         {t('evaluationBuilder.parameters.customPromptTemplate')}
       </label>
 
-      <textarea
+      <Textarea
         ref={textareaRef}
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
@@ -91,7 +92,7 @@ export function PromptTemplateEditor({
         }
         rows={14}
         spellCheck={false}
-        className="w-full rounded-md border border-zinc-300 px-3 py-2 font-mono text-xs leading-relaxed dark:border-zinc-600 dark:bg-zinc-800"
+        className="font-mono text-xs leading-relaxed sm:text-xs"
       />
 
       <div className="flex flex-wrap gap-2">

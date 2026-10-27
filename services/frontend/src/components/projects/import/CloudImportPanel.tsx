@@ -17,6 +17,13 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -371,42 +378,47 @@ export function CloudImportPanel({
           <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
             {t('dataImport.cloud.organization')}
           </label>
-          <select
-            value={organizationId}
-            onChange={(e) => handleOrgChange(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-            data-testid="cloud-import-org-select"
-          >
-            <option value="">{t('dataImport.cloud.selectOrganization')}</option>
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.display_name || org.name}
-              </option>
-            ))}
-          </select>
+          <Select value={organizationId} onValueChange={handleOrgChange}>
+            <SelectTrigger data-testid="cloud-import-org-select">
+              <SelectValue
+                placeholder={t('dataImport.cloud.selectOrganization')}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {organizations.map((org) => (
+                <SelectItem key={org.id} value={org.id}>
+                  {org.display_name || org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
             {t('dataImport.cloud.connection')}
           </label>
-          <select
+          <Select
             value={connectionId}
-            onChange={(e) => handleConnectionChange(e.target.value)}
+            onValueChange={handleConnectionChange}
             disabled={!organizationId || connectionsLoading}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none disabled:opacity-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-            data-testid="cloud-import-connection-select"
           >
-            <option value="">
-              {connectionsLoading
-                ? t('dataImport.cloud.loadingConnections')
-                : t('dataImport.cloud.selectConnection')}
-            </option>
-            {connections.map((conn) => (
-              <option key={conn.id} value={conn.id}>
-                {conn.name} ({conn.bucket})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger data-testid="cloud-import-connection-select">
+              <SelectValue
+                placeholder={
+                  connectionsLoading
+                    ? t('dataImport.cloud.loadingConnections')
+                    : t('dataImport.cloud.selectConnection')
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {connections.map((conn) => (
+                <SelectItem key={conn.id} value={conn.id}>
+                  {conn.name} ({conn.bucket})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

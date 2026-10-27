@@ -1,4 +1,6 @@
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { useState } from 'react'
 
@@ -106,11 +108,10 @@ export function QuestionCard({
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.caseOptional')}
                 </label>
-                <textarea
+                <Textarea
                   value={localQuestion.case || ''}
                   onChange={(e) => handleFieldChange('case', e.target.value)}
                   rows={3}
-                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderCase')}
                 />
               </div>
@@ -120,13 +121,12 @@ export function QuestionCard({
                   {t('tasks.questionCard.question')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
-                <textarea
+                <Textarea
                   value={localQuestion.question}
                   onChange={(e) =>
                     handleFieldChange('question', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderQuestion')}
                 />
               </div>
@@ -136,13 +136,12 @@ export function QuestionCard({
                   {t('tasks.questionCard.referenceAnswer')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
-                <textarea
+                <Textarea
                   value={localQuestion.reference_answer || ''}
                   onChange={(e) =>
                     handleFieldChange('reference_answer', e.target.value)
                   }
                   rows={4}
-                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t(
                     'tasks.questionCard.placeholderExpectedAnswer',
                   )}
@@ -249,13 +248,12 @@ export function QuestionCard({
                   {t('tasks.questionCard.question')}{' '}
                   <span className="text-red-500">*</span>
                 </label>
-                <textarea
+                <Textarea
                   value={localQuestion.question || ''}
                   onChange={(e) =>
                     handleFieldChange('question', e.target.value)
                   }
                   rows={3}
-                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderMcq')}
                 />
               </div>
@@ -264,11 +262,10 @@ export function QuestionCard({
                 <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                   {t('tasks.questionCard.contextOptional')}
                 </label>
-                <textarea
+                <Textarea
                   value={localQuestion.case || ''}
                   onChange={(e) => handleFieldChange('case', e.target.value)}
                   rows={2}
-                  className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                   placeholder={t('tasks.questionCard.placeholderContext')}
                 />
               </div>
@@ -326,7 +323,7 @@ export function QuestionCard({
                       </label>
                     </div>
                     <div className="flex-1">
-                      <input
+                      <Input
                         type="text"
                         value={String(
                           localQuestion[
@@ -336,7 +333,6 @@ export function QuestionCard({
                         onChange={(e) =>
                           handleFieldChange(`choice_${option}`, e.target.value)
                         }
-                        className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 transition-colors focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         placeholder={t('tasks.questionCard.optionPlaceholder', {
                           option: option.toUpperCase(),
                         })}
@@ -482,11 +478,10 @@ export function QuestionCard({
               <label className="mb-1 block text-sm font-medium text-emerald-700 dark:text-emerald-300">
                 {t('tasks.questionCard.caseOptional')}
               </label>
-              <textarea
+              <Textarea
                 value={localQuestion.case || ''}
                 onChange={(e) => handleFieldChange('case', e.target.value)}
                 rows={3}
-                className="block w-full rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-100"
                 placeholder={t('tasks.questionCard.placeholderLegalCase')}
               />
             </div>
@@ -496,11 +491,10 @@ export function QuestionCard({
                 {t('tasks.questionCard.question')}{' '}
                 <span className="text-red-500">*</span>
               </label>
-              <textarea
+              <Textarea
                 value={localQuestion.question || ''}
                 onChange={(e) => handleFieldChange('question', e.target.value)}
                 rows={3}
-                className="block w-full rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-100"
                 placeholder={t('tasks.questionCard.placeholderLegalQuestion')}
               />
             </div>
@@ -512,13 +506,12 @@ export function QuestionCard({
               </label>
 
               {/* QAR tasks always use text input (no radio buttons) */}
-              <textarea
+              <Textarea
                 value={localQuestion.reference_answer || ''}
                 onChange={(e) =>
                   handleFieldChange('reference_answer', e.target.value)
                 }
                 rows={3}
-                className="block w-full rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-100"
                 placeholder={t('tasks.questionCard.placeholderLegalAnswer')}
               />
 
@@ -533,11 +526,10 @@ export function QuestionCard({
                 {t('tasks.questionCard.reasoning')}{' '}
                 <span className="text-red-500">*</span>
               </label>
-              <textarea
+              <Textarea
                 value={localQuestion.reasoning || ''}
                 onChange={(e) => handleFieldChange('reasoning', e.target.value)}
                 rows={8}
-                className="block w-full rounded-md border border-emerald-300 bg-white px-3 py-2 text-sm text-emerald-900 transition-colors focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-100"
                 placeholder={t('tasks.questionCard.placeholderReasoning')}
               />
             </div>

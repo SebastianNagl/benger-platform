@@ -17,6 +17,13 @@
 
 import { Button } from '@/components/shared/Button'
 import { Label } from '@/components/shared/Label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -27,6 +34,9 @@ import {
 import { projectsAPI } from '@/lib/api/projects'
 import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { useEffect, useRef, useState } from 'react'
+
+// Select item for "whole organization" (stored as a null group id).
+const ORG_WIDE = '__org__'
 
 interface Organization {
   id: string
@@ -514,7 +524,7 @@ export function ProjectPermissionsPanel({
                         )}
                         {locked && (
                           <span
-                            className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-xs text-sky-800 dark:bg-sky-900/50 dark:text-sky-200"
+                            className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                             data-testid={`organization-lms-badge-${org.id}`}
                           >
                             {t('project.permissions.lmsBadge')}
@@ -533,30 +543,39 @@ export function ProjectPermissionsPanel({
                         >
                           {t('project.permissions.groupScopeLabel')}
                         </label>
-                        <select
-                          id={`organization-group-${org.id}`}
+                        <Select
                           disabled={locked}
-                          value={selectedGroupByOrg[org.id] ?? ''}
-                          onChange={(e) =>
+                          value={
+                            selectedGroupByOrg[org.id] ||
+                            (orgWideAllowed ? ORG_WIDE : '')
+                          }
+                          onValueChange={(v) =>
                             setSelectedGroupByOrg((prev) => ({
                               ...prev,
-                              [org.id]: e.target.value || null,
+                              [org.id]: v === ORG_WIDE ? null : v,
                             }))
                           }
-                          data-testid={`organization-group-select-${org.id}`}
-                          className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
                         >
-                          {orgWideAllowed && (
-                            <option value="">
-                              {t('project.permissions.groupScopeOrgWide')}
-                            </option>
-                          )}
-                          {groupOptions.map((group) => (
-                            <option key={group.id} value={group.id}>
-                              {group.name}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger
+                            id={`organization-group-${org.id}`}
+                            data-testid={`organization-group-select-${org.id}`}
+                            className="mt-1"
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {orgWideAllowed && (
+                              <SelectItem value={ORG_WIDE}>
+                                {t('project.permissions.groupScopeOrgWide')}
+                              </SelectItem>
+                            )}
+                            {groupOptions.map((group) => (
+                              <SelectItem key={group.id} value={group.id}>
+                                {group.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                           {t('project.permissions.groupScopeHelp')}
                         </p>

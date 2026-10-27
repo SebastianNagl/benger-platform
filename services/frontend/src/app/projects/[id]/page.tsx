@@ -1725,7 +1725,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                   )}
                   {isParticipant && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"
+                      className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                       data-testid="project-participant-badge"
                     >
                       <UserGroupIcon className="h-3.5 w-3.5" />
@@ -2030,7 +2030,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                               'project.conditionalInstructions.variantId',
                                             )}
                                           </label>
-                                          <input
+                                          <Input
                                             type="text"
                                             value={variant.id}
                                             onChange={(e) => {
@@ -2048,7 +2048,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                             placeholder={t(
                                               'project.conditionalInstructions.variantIdPlaceholder',
                                             )}
-                                            className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                            className="mt-1 h-8"
                                           />
                                         </div>
                                         <div className="w-24">
@@ -2057,7 +2057,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                               'project.conditionalInstructions.weight',
                                             )}
                                           </label>
-                                          <input
+                                          <Input
                                             type="number"
                                             min="1"
                                             max="100"
@@ -2075,7 +2075,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                                 updated,
                                               )
                                             }}
-                                            className="mt-1 block w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                            className="mt-1 h-8"
                                           />
                                         </div>
                                         <div className="mt-5 flex items-center gap-1">
@@ -2127,7 +2127,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                             'project.conditionalInstructions.content',
                                           )}
                                         </label>
-                                        <textarea
+                                        <Textarea
                                           value={variant.content}
                                           onChange={(e) => {
                                             const updated = [
@@ -2140,7 +2140,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                             setConditionalInstructions(updated)
                                           }}
                                           rows={2}
-                                          className="mt-1 block w-full resize-none rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+                                          className="mt-1 resize-none"
                                         />
                                       </div>
                                     </div>
@@ -2376,7 +2376,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400">
                             {t('project.generationDefaults.defaultRunsPerTask')}
                           </label>
-                          <input
+                          <Input
                             type="number"
                             min={1}
                             max={25}
@@ -2391,7 +2391,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   : undefined,
                               )
                             }}
-                            className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                            className="mt-1 h-8"
                           />
                           <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                             {t('project.generationDefaults.runsPerTaskHelp')}
@@ -2514,7 +2514,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                   'project.evaluationDefaults.defaultRunsPerTask',
                                 )}
                               </label>
-                              <input
+                              <Input
                                 type="number"
                                 min={1}
                                 max={25}
@@ -2529,7 +2529,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
                                       : undefined,
                                   )
                                 }}
-                                className="mt-1 h-8 w-full rounded-md border border-zinc-300 px-2 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+                                className="mt-1 h-8"
                               />
                               <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
                                 {t(

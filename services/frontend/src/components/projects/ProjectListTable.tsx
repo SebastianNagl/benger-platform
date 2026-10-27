@@ -1070,7 +1070,7 @@ export function ProjectListTable({
                             {(project.access_tier === 'participant' ||
                               project.access_tier === 'attempted') && (
                               <span
-                                className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-1.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-400/10 dark:text-sky-400"
+                                className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                                 data-testid={`project-participant-badge-${project.id}`}
                                 title={t(
                                   `projects.list.participantVia.${

@@ -7,6 +7,8 @@
  */
 
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
+import { Textarea } from '@/components/shared/Textarea'
 import { useI18n } from '@/contexts/I18nContext'
 import { Dialog, Transition } from '@headlessui/react'
 import { PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline'
@@ -253,7 +255,7 @@ export function QuestionAddModal({
                         >
                           {t('tasks.questions.questionLabel')}
                         </label>
-                        <textarea
+                        <Textarea
                           id={`question-${qIndex}`}
                           name={`questions.${qIndex}.question`}
                           rows={2}
@@ -261,7 +263,6 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'question', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.questionPlaceholder')}
                           data-testid={`add-question-${qIndex}`}
                         />
@@ -280,7 +281,7 @@ export function QuestionAddModal({
                         >
                           {t('tasks.questions.caseLabel')}
                         </label>
-                        <textarea
+                        <Textarea
                           id={`case-${qIndex}`}
                           name={`questions.${qIndex}.case`}
                           rows={2}
@@ -288,7 +289,6 @@ export function QuestionAddModal({
                           onChange={(e) =>
                             updateQuestion(qIndex, 'case', e.target.value)
                           }
-                          className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                           placeholder={t('tasks.questions.casePlaceholder')}
                           data-testid={`add-case-${qIndex}`}
                         />
@@ -312,7 +312,7 @@ export function QuestionAddModal({
                         <div className="space-y-2">
                           {question.answer.map((answer, aIndex) => (
                             <div key={aIndex} className="flex gap-2">
-                              <input
+                              <Input
                                 type="text"
                                 name={`questions.${qIndex}.answer.${aIndex}`}
                                 value={answer}
@@ -323,7 +323,7 @@ export function QuestionAddModal({
                                     e.target.value,
                                   )
                                 }
-                                className="flex-1 rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                className="flex-1"
                                 placeholder={t(
                                   'tasks.questions.answerPlaceholder',
                                   { number: aIndex + 1 },
@@ -361,7 +361,7 @@ export function QuestionAddModal({
                           >
                             {t('tasks.questions.reasoningLabel')}
                           </label>
-                          <textarea
+                          <Textarea
                             id={`reasoning-${qIndex}`}
                             name={`questions.${qIndex}.reasoning`}
                             rows={3}
@@ -373,7 +373,6 @@ export function QuestionAddModal({
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-md border border-zinc-300 px-3 py-2 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
                             placeholder={t(
                               'tasks.questions.reasoningPlaceholder',
                             )}

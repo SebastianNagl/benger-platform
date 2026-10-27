@@ -11,6 +11,7 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Separator } from '@/components/shared/Separator'
+import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useAuth } from '@/contexts/AuthContext'
 import { useI18n } from '@/contexts/I18nContext'
@@ -1340,11 +1341,11 @@ export function LabelingInterface({ projectId }: LabelingInterfaceProps) {
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
               {t('annotation.interface.skipCommentMessage')}
             </p>
-            <textarea
+            <Textarea
               value={skipComment}
               onChange={(e) => setSkipComment(e.target.value)}
               placeholder={t('annotation.interface.skipCommentPlaceholder')}
-              className="mt-4 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-white"
+              className="mt-4"
               rows={4}
             />
             <div className="mt-6 flex justify-end gap-3">

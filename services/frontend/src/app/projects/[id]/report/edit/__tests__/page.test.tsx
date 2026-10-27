@@ -388,7 +388,7 @@ describe('ReportEditorPage', () => {
       expect(select.value).toBe('llm_judge_falloesung')
       const values = Array.from(select.options).map((o) => o.value)
       expect(values).toEqual([
-        '',
+        '__none__',
         'llm_judge_falloesung',
         'korrektur_falloesung',
         'bleu',

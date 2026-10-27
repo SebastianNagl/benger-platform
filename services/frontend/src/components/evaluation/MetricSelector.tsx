@@ -14,17 +14,14 @@ import { Badge } from '@/components/shared/Badge'
 import { Button } from '@/components/shared/Button'
 import { Card } from '@/components/shared/Card'
 import { Checkbox } from '@/components/shared/Checkbox'
+import { SearchInput } from '@/components/shared/SearchInput'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   metricGroupDescription,
   metricGroupLabel,
   type MetricCategory,
 } from '@/lib/api/evaluation-types'
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline'
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { useState } from 'react'
 
 interface MetricSelectorProps {
@@ -237,16 +234,11 @@ export function MetricSelector({
         </div>
 
         {/* Search Input */}
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-          <input
-            type="text"
-            placeholder={t('evaluation.metricSelector.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 bg-white py-2 pr-4 pl-10 text-sm text-zinc-900 placeholder-zinc-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder-zinc-500"
-          />
-        </div>
+        <SearchInput
+          placeholder={t('evaluation.metricSelector.searchPlaceholder')}
+          value={searchQuery}
+          onChange={setSearchQuery}
+        />
 
         {/* Preset Selections */}
         <div>

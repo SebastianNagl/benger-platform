@@ -15,6 +15,7 @@
 
 import { CustomBadge } from '@/components/models/ModelBadges'
 import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import {
   Select,
   SelectContent,
@@ -253,7 +254,7 @@ export function ModelSelectionSection({
                                                 )
                                         }
                                       >
-                                        <input
+                                        <Input
                                           type="number"
                                           min={tc.min}
                                           max={tc.max}
@@ -273,11 +274,7 @@ export function ModelSelectionSection({
                                                 : undefined,
                                             )
                                           }
-                                          className={`h-7 w-16 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800 ${
-                                            tc.fixed
-                                              ? 'cursor-not-allowed bg-zinc-100 dark:bg-zinc-900'
-                                              : ''
-                                          }`}
+                                          className="h-7 w-16! px-2! py-0! text-xs sm:text-xs"
                                         />
                                       </Tooltip>
                                     )
@@ -289,7 +286,7 @@ export function ModelSelectionSection({
                                   <label className="text-xs text-zinc-600 dark:text-zinc-400">
                                     {t('project.modelSelection.maxTokens')}:
                                   </label>
-                                  <input
+                                  <Input
                                     type="number"
                                     min={100}
                                     max={128000}
@@ -313,7 +310,7 @@ export function ModelSelectionSection({
                                           : undefined,
                                       )
                                     }
-                                    className="h-7 w-20 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                                    className="h-7 w-20! px-2! py-0! text-xs sm:text-xs"
                                   />
                                 </div>
 
@@ -488,7 +485,7 @@ export function ModelSelectionSection({
                                                   </SelectContent>
                                                 </Select>
                                                 {showCustomInput && (
-                                                  <input
+                                                  <Input
                                                     type="number"
                                                     min={reasoningConfig.min}
                                                     max={reasoningConfig.max}
@@ -504,7 +501,7 @@ export function ModelSelectionSection({
                                                           : undefined,
                                                       )
                                                     }
-                                                    className="h-7 w-24 rounded-md border border-zinc-300 px-2 text-xs dark:border-zinc-700 dark:bg-zinc-800"
+                                                    className="h-7 w-24! px-2! py-0! text-xs sm:text-xs"
                                                   />
                                                 )}
                                               </>

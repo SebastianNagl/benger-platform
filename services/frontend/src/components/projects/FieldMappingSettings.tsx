@@ -16,6 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/shared/Card'
+import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
 import { projectsAPI } from '@/lib/api/projects'
@@ -208,10 +209,10 @@ export function FieldMappingSettings({
                 {t('projects.fieldMapping.generateFromData')}
               </Button>
             </div>
-            <textarea
+            <Textarea
               value={newTemplate}
               onChange={(e) => setNewTemplate(e.target.value)}
-              className="h-48 w-full rounded border p-3 font-mono text-sm"
+              className="h-48 font-mono"
               placeholder={t('projects.fieldMapping.placeholder')}
             />
             <div className="flex justify-end space-x-2">

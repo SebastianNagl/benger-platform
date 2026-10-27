@@ -2,6 +2,13 @@
 
 import { Button } from '@/components/shared/Button'
 import { Dialog } from '@/components/shared/Dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/shared/Select'
 import { useI18n } from '@/contexts/I18nContext'
 import {
   organizationsAPI,
@@ -10,6 +17,9 @@ import {
 import type { OrganizationRole } from '@/lib/api/types'
 import { canScopeOrgWide, scopeableGroups } from '@/lib/permissions/groupScope'
 import { useEffect, useState } from 'react'
+
+// Select item for "whole organization" (a null group id).
+const ORG_WIDE = '__org__'
 
 export interface ImportTargetOrganization {
   id: string
@@ -172,24 +182,30 @@ export function ProjectImportTargetDialog({
           >
             {t('projects.list.importTargetGroupLabel')}
           </label>
-          <select
-            id="project-import-target-group"
-            value={groupId ?? ''}
-            onChange={(e) => onGroupChange?.(e.target.value || null)}
-            data-testid="project-import-target-group-select"
-            className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-700 dark:text-zinc-100"
+          <Select
+            value={groupId || (orgWideAllowed ? ORG_WIDE : '')}
+            onValueChange={(v) => onGroupChange?.(v === ORG_WIDE ? null : v)}
           >
-            {orgWideAllowed && (
-              <option value="">
-                {t('projects.list.importTargetGroupOrgWide')}
-              </option>
-            )}
-            {groupOptions.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="project-import-target-group"
+              data-testid="project-import-target-group-select"
+              className="mt-1"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {orgWideAllowed && (
+                <SelectItem value={ORG_WIDE}>
+                  {t('projects.list.importTargetGroupOrgWide')}
+                </SelectItem>
+              )}
+              {groupOptions.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  {group.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
       <div className="mt-6 flex justify-end gap-2">
