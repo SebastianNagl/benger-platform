@@ -5,7 +5,9 @@
  *
  * Presentational component owning the tab DOM shared by the project-creation
  * wizard (step 2) and the project-page ImportDataModal: a file-upload
- * dropzone, a paste textarea with text extraction / validate / clear, an
+ * dropzone (data files as-is; .docx/.pdf/.md documents go through the text
+ * extractor and become one `{text}` row, like the paste tab's extract
+ * button), a paste textarea with text extraction / validate / clear, an
  * injected cloud-storage panel, and an optional injected structured-entry tab
  * (the extended edition's typed exam editor). Kind-aware ordering: exam
  * projects lead with the structured tab.
@@ -23,9 +25,24 @@ import {
 import { Textarea } from '@/components/shared/Textarea'
 import { useToast } from '@/components/shared/Toast'
 import { useI18n } from '@/contexts/I18nContext'
+import { filesAPI } from '@/lib/api/files'
 import { detectFormat, extractColumns } from '@/lib/import/parseImportData'
 import { CheckCircleIcon, CloudArrowUpIcon } from '@heroicons/react/24/outline'
-import React, { ReactNode, useCallback } from 'react'
+import React, { ReactNode, useCallback, useState } from 'react'
+
+/** Data files the import parser reads directly. */
+const DATA_FILE_ACCEPT = '.json,.csv,.tsv,.txt'
+/** Documents whose text is extracted server-side into a single task row. */
+const DOCUMENT_EXTENSIONS = ['docx', 'pdf', 'md']
+const UPLOAD_ACCEPT = [
+  DATA_FILE_ACCEPT,
+  ...DOCUMENT_EXTENSIONS.map((ext) => `.${ext}`),
+].join(',')
+
+export function isExtractableDocument(file: File): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  return DOCUMENT_EXTENSIONS.includes(ext)
+}
 
 export type ImportTabId = 'upload' | 'paste' | 'cloud' | 'structured'
 
@@ -82,6 +99,7 @@ export function ImportSourceTabs({
   const { addToast } = useToast()
   const p = testIdPrefix
   const fileInputId = `${p}-file-upload`
+  const [extracting, setExtracting] = useState(false)
 
   const { order, defaultTab } = getImportTabConfig(projectKind, !!structuredTab)
 
@@ -111,25 +129,55 @@ export function ImportSourceTabs({
     [onFileChange, onColumnsDetected],
   )
 
+  // A document becomes a JSON file holding one `{text}` row. It keeps the
+  // document's name for display; detectFormat sniffs the JSON content since
+  // the extension names no data format.
+  const acceptFile = useCallback(
+    async (file: File) => {
+      if (!isExtractableDocument(file)) {
+        handleFileWithColumns(file)
+        return
+      }
+      setExtracting(true)
+      try {
+        const res = await filesAPI.extractText(file)
+        const rows = JSON.stringify([{ text: res.text }], null, 2)
+        handleFileWithColumns(
+          new File([rows], file.name, { type: 'application/json' }),
+        )
+        if (res.warnings?.length) addToast(res.warnings.join(' '), 'warning')
+      } catch (err: any) {
+        addToast(
+          err?.message || t('tasks.importModal.extractText.failed'),
+          'error',
+        )
+      } finally {
+        setExtracting(false)
+      }
+    },
+    [handleFileWithColumns, addToast, t],
+  )
+
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]
+      e.target.value = ''
       if (file) {
-        handleFileWithColumns(file)
+        acceptFile(file)
       }
     },
-    [handleFileWithColumns],
+    [acceptFile],
   )
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
       e.preventDefault()
       const file = e.dataTransfer.files?.[0]
-      if (file) {
-        handleFileWithColumns(file)
+      if (file && !extracting) {
+        acceptFile(file)
       }
     },
-    [handleFileWithColumns],
+    [acceptFile, extracting],
   )
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -179,10 +227,16 @@ export function ImportSourceTabs({
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onClick={() =>
-            !selectedFile && document.getElementById(fileInputId)?.click()
+            !selectedFile &&
+            !extracting &&
+            document.getElementById(fileInputId)?.click()
           }
           onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !selectedFile) {
+            if (
+              (e.key === 'Enter' || e.key === ' ') &&
+              !selectedFile &&
+              !extracting
+            ) {
               e.preventDefault()
               document.getElementById(fileInputId)?.click()
             }
@@ -225,19 +279,22 @@ export function ImportSourceTabs({
             ) : (
               <Button
                 variant="outline"
+                disabled={extracting}
                 onClick={(e) => {
                   e.stopPropagation()
                   document.getElementById(fileInputId)?.click()
                 }}
                 data-testid={`${p}-choose-files-button`}
               >
-                {t('projects.creation.wizard.step2.upload.chooseFiles')}
+                {extracting
+                  ? t('tasks.importModal.extractText.busy')
+                  : t('projects.creation.wizard.step2.upload.chooseFiles')}
               </Button>
             )}
             <input
               id={fileInputId}
               type="file"
-              accept=".json,.csv,.tsv,.txt"
+              accept={UPLOAD_ACCEPT}
               className="hidden"
               onChange={handleFileSelect}
               data-testid={`${p}-file-input`}

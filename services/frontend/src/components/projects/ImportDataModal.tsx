@@ -2,9 +2,11 @@
  * ImportDataModal - Modal for importing data into a project
  *
  * Supports multiple import methods:
- * - File upload (JSON, CSV, TSV, TXT)
+ * - File upload (JSON, CSV, TSV, TXT; DOCX/PDF/MD via text extraction)
  * - Paste data directly
  * - Cloud storage (org S3 storage connections, immediate-mode panel)
+ * - Structured exam entry (extended slot `ImportDataStructuredEntry`) on
+ *   exam projects, as in the wizard
  *
  * Parsing/format detection and the tab DOM are shared with the
  * project-creation wizard (lib/import/parseImportData + ImportSourceTabs).
@@ -21,19 +23,22 @@ import { ImportPreviewWithMapping } from '@/components/tasks/ImportPreviewWithMa
 import { useI18n } from '@/contexts/I18nContext'
 import { useProgress } from '@/contexts/ProgressContext'
 import { projectsAPI } from '@/lib/api/projects'
+import { useSlot } from '@/lib/extensions/slots'
 import {
   buildImportFile,
   detectFormat,
   ImportParseError,
   parseImportData,
 } from '@/lib/import/parseImportData'
+import { isExamShapedConfig } from '@/lib/labelConfig/examLayout'
+import { parseLabelConfig } from '@/lib/labelConfig/parser'
 import { logger } from '@/lib/utils/logger'
 import { useProjectStore } from '@/stores/projectStore'
 import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 interface ImportDataModalProps {
   isOpen: boolean
@@ -47,6 +52,13 @@ interface ImportDataModalProps {
 /** Code the API and the import worker use when an import would give an exam
  * linked to a learning platform activity a second task. */
 const MULTI_TASK_UNSUPPORTED = 'multi_task_unsupported'
+
+function isExamShapedLabelConfig(labelConfig: string | null): boolean {
+  if (!labelConfig) return false
+  const parsed = parseLabelConfig(labelConfig)
+  if ('message' in parsed) return false
+  return isExamShapedConfig(parsed)
+}
 
 function isLinkedExamTaskLimit(error: any): boolean {
   const detail = error?.response?.data?.detail
@@ -77,6 +89,15 @@ export function ImportDataModal({
   const [templateFields, setTemplateFields] = useState<string[]>([])
   const [parsedData, setParsedData] = useState<any[]>([])
   const [validationErrors, setValidationErrors] = useState<string[]>([])
+  const [labelConfig, setLabelConfig] = useState<string | null>(null)
+  // Extended: the wizard's structured exam entry, writing one exam task into
+  // the paste buffer. Offered on exam projects only: the modal cannot switch
+  // the labeling template the way the wizard does.
+  const StructuredEntry = useSlot('ImportDataStructuredEntry')
+  const examProject = useMemo(
+    () => projectKind === 'exam' || isExamShapedLabelConfig(labelConfig),
+    [projectKind, labelConfig],
+  )
 
   // The two sources are mutually exclusive: picking one clears the other.
   const handleFileChange = useCallback((file: File | null) => {
@@ -96,6 +117,7 @@ export function ImportDataModal({
   const fetchProjectTemplate = useCallback(async () => {
     try {
       const project = await fetchProject(projectId)
+      setLabelConfig((project as any)?.label_config ?? null)
       if ((project as any)?.label_config) {
         // Extract required fields from label config
         const fieldRegex = /\$([a-zA-Z_][a-zA-Z0-9_]*)/g
@@ -421,7 +443,7 @@ export function ImportDataModal({
           pastedData={pastedData}
           onFileChange={handleFileChange}
           onPastedDataChange={handlePastedDataChange}
-          projectKind={projectKind}
+          projectKind={examProject ? 'exam' : projectKind}
           testIdPrefix="import-modal"
           cloudPanel={
             <CloudImportPanel
@@ -429,6 +451,22 @@ export function ImportDataModal({
               projectId={projectId}
               onImportComplete={onImportComplete}
             />
+          }
+          structuredTab={
+            StructuredEntry && examProject
+              ? {
+                  label: t('dataImport.tabs.structured'),
+                  content: (
+                    <div data-testid="import-modal-structured-entry">
+                      <StructuredEntry
+                        projectId={projectId}
+                        pastedData={pastedData}
+                        onPastedDataChange={handlePastedDataChange}
+                      />
+                    </div>
+                  ),
+                }
+              : undefined
           }
         />
 

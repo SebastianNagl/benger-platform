@@ -1021,4 +1021,75 @@ describe('ImportDataModal', () => {
       })
     })
   })
+
+  describe('Structured exam tab', () => {
+    const { registerSlot } = jest.requireActual('@/lib/extensions/slots')
+    const examConfig =
+      '<View><Text name="sachverhalt" value="$sachverhalt"/>' +
+      '<Loesung name="loesung" toName="sachverhalt"/></View>'
+
+    beforeEach(() => {
+      registerSlot(
+        'ImportDataStructuredEntry',
+        ({ projectId, onPastedDataChange }: any) => (
+          <button
+            data-testid="structured-entry-stub"
+            data-project-id={projectId}
+            onClick={() =>
+              onPastedDataChange(
+                JSON.stringify([{ sachverhalt: 'Fall', musterloesung: 'Lsg' }]),
+              )
+            }
+          >
+            exam form
+          </button>
+        ),
+      )
+    })
+
+    afterEach(() => {
+      registerSlot('ImportDataStructuredEntry', null as any)
+    })
+
+    it('leads with the structured tab on exam projects and imports its task', async () => {
+      const user = userEvent.setup()
+      mockFetchProject.mockResolvedValue({
+        ...mockProject,
+        label_config: examConfig,
+      })
+      render(<ImportDataModal {...defaultProps} projectKind="exam" />)
+
+      const stub = await screen.findByTestId('structured-entry-stub')
+      expect(stub).toHaveAttribute('data-project-id', 'test-project-123')
+      await user.click(stub)
+      await user.click(screen.getByRole('button', { name: /Import Data/i }))
+
+      await waitFor(() =>
+        expect(projectsAPI.runNestedImportJob).toHaveBeenCalled(),
+      )
+      const envelope = await uploadedImportEnvelope()
+      expect(JSON.stringify(envelope)).toContain('"sachverhalt":"Fall"')
+    })
+
+    it('offers the tab when only the label config is exam-shaped', async () => {
+      mockFetchProject.mockResolvedValue({
+        ...mockProject,
+        label_config: examConfig,
+      })
+      render(<ImportDataModal {...defaultProps} />)
+
+      expect(
+        await screen.findByTestId('import-modal-structured-tab'),
+      ).toBeInTheDocument()
+    })
+
+    it('has no structured tab on non-exam projects', async () => {
+      render(<ImportDataModal {...defaultProps} projectKind="generic" />)
+
+      await waitFor(() => expect(mockFetchProject).toHaveBeenCalled())
+      expect(
+        screen.queryByTestId('import-modal-structured-tab'),
+      ).not.toBeInTheDocument()
+    })
+  })
 })

@@ -364,7 +364,7 @@
           "syntheticNoticeColumns": "Colonnes attendues :",
           "upload": {
             "dropzone": "Déposez des fichiers ici ou cliquez pour téléverser",
-            "supportedFormats": "Formats pris en charge : JSON, CSV, TSV, TXT",
+            "supportedFormats": "Formats pris en charge : JSON, CSV, TSV, TXT, DOCX, PDF, MD",
             "selectedFile": "Sélectionné : {filename}",
             "removeFile": "Retirer le fichier",
             "chooseFiles": "Choisir des fichiers"
@@ -2024,7 +2024,7 @@
       "metricsWillAppear": "Les métriques d'évaluation apparaîtront ici dès que des tâches auront été évaluées"
     },
     "importModal": {
-      "description": "Importez des données pour créer des tâches dans votre projet. BenGER prend en charge pratiquement toute structure de données textuelles grâce à son système d'annotation aligné sur Label Studio. Formats pris en charge : JSON, CSV, TSV, TXT",
+      "description": "Importez des données pour créer des tâches dans votre projet. BenGER prend en charge pratiquement toute structure de données textuelles grâce à son système d'annotation aligné sur Label Studio. Formats pris en charge : JSON, CSV, TSV, TXT, DOCX, PDF, MD",
       "fieldRequirements": "Exigences relatives aux données",
       "fieldRequirementsDescription": "Vos données importées doivent contenir ces champs pour correspondre à la configuration d'étiquetage :",
       "missingFieldsWarning": "Les champs manquants provoquent une erreur de validation lors de l'importation.",
@@ -2036,6 +2036,10 @@
         "button": "Texte d'un document (PDF/DOCX)",
         "busy": "Extraction…",
         "failed": "Impossible d'extraire le texte."
+      },
+      "structuredExam": {
+        "hint": "Importer le sujet, le corrigé et les parties facultatives comme une tâche d'examen dans ce projet. Téléversez ensuite la grille d'évaluation sur la page de la tâche.",
+        "ready": "L'examen est créé comme tâche lors de l'import."
       }
     },
     "taskAssignment": {

@@ -16,6 +16,7 @@ jest.mock('@/lib/api', () => ({
     patch: jest.fn(),
     delete: jest.fn(),
     put: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
