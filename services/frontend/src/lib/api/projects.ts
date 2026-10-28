@@ -102,6 +102,14 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const nextPollDelay = (attempt: number, overrideMs?: number): number =>
   overrideMs ?? Math.min(1500, 250 * 2 ** Math.min(attempt, 3))
 
+// Job status must be read fresh on every poll: the client's 30s GET cache
+// would otherwise replay the first "running" answer and hold a finished
+// import/export at its last progress step until the entry expires.
+const getJobStatus = (endpoint: string) => {
+  apiClient.invalidateCache(endpoint)
+  return apiClient.get(endpoint)
+}
+
 export const projectsAPI = {
   /**
    * List all projects
@@ -542,7 +550,7 @@ export const projectsAPI = {
     projectId: string,
     jobId: string,
   ): Promise<ExportJobStatus> => {
-    return apiClient.get(`/projects/${projectId}/exports/${jobId}`)
+    return getJobStatus(`/projects/${projectId}/exports/${jobId}`)
   },
 
   /**
@@ -701,12 +709,12 @@ export const projectsAPI = {
     projectId: string,
     jobId: string,
   ): Promise<ImportJobStatus> => {
-    return apiClient.get(`/projects/${projectId}/imports/${jobId}`)
+    return getJobStatus(`/projects/${projectId}/imports/${jobId}`)
   },
 
   /** Poll the status of a full-project import job. */
   getFullImportJob: async (jobId: string): Promise<ImportJobStatus> => {
-    return apiClient.get(`/projects/project-imports/${jobId}`)
+    return getJobStatus(`/projects/project-imports/${jobId}`)
   },
 
   /**

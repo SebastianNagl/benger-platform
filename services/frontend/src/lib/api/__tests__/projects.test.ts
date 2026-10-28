@@ -20,6 +20,7 @@ jest.mock('@/lib/api', () => ({
     patch: jest.fn(),
     delete: jest.fn(),
     put: jest.fn(),
+    invalidateCache: jest.fn(),
   },
 }))
 
@@ -845,6 +846,29 @@ describe('projectsAPI', () => {
       expect(apiClient.get).toHaveBeenCalledWith(
         '/projects/project-imports/job-2',
       )
+    })
+
+    it('job status polls bypass the GET cache', async () => {
+      ;(apiClient.get as jest.Mock).mockResolvedValue({ status: 'running' })
+
+      await projectsAPI.getImportJob('proj-1', 'job-1')
+      await projectsAPI.getFullImportJob('job-2')
+      await projectsAPI.getExportJob('proj-1', 'job-3')
+
+      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+        '/projects/proj-1/imports/job-1',
+      )
+      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+        '/projects/project-imports/job-2',
+      )
+      expect(apiClient.invalidateCache).toHaveBeenCalledWith(
+        '/projects/proj-1/exports/job-3',
+      )
+      // Each invalidation precedes its read.
+      const invalidated = (apiClient.invalidateCache as jest.Mock).mock
+        .invocationCallOrder
+      const read = (apiClient.get as jest.Mock).mock.invocationCallOrder
+      invalidated.forEach((order, i) => expect(order).toBeLessThan(read[i]))
     })
 
     it('runNestedImportJob presigns, uploads, enqueues, then polls to completion', async () => {
