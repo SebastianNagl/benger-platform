@@ -364,7 +364,7 @@
           "syntheticNoticeColumns": "Expected columns:",
           "upload": {
             "dropzone": "Drop files here or click to upload",
-            "supportedFormats": "Supported formats: JSON, CSV, TSV, TXT",
+            "supportedFormats": "Supported formats: JSON, CSV, TSV, TXT, DOCX, PDF, MD",
             "selectedFile": "Selected: {filename}",
             "removeFile": "Remove File",
             "chooseFiles": "Choose Files"
@@ -2024,7 +2024,7 @@
       "metricsWillAppear": "Evaluation metrics will appear here once tasks are evaluated"
     },
     "importModal": {
-      "description": "Import data to create tasks in your project. BenGER supports virtually any text data structure with our Label Studio aligned annotation system. Supported formats: JSON, CSV, TSV, TXT",
+      "description": "Import data to create tasks in your project. BenGER supports virtually any text data structure with our Label Studio aligned annotation system. Supported formats: JSON, CSV, TSV, TXT, DOCX, PDF, MD",
       "fieldRequirements": "Data Field Requirements",
       "fieldRequirementsDescription": "Your imported data must contain these fields to match the labeling configuration:",
       "missingFieldsWarning": "Missing fields will cause a validation error during import.",
@@ -2036,6 +2036,10 @@
         "button": "Text from document (PDF/DOCX)",
         "busy": "Extracting…",
         "failed": "Text could not be extracted."
+      },
+      "structuredExam": {
+        "hint": "Import the facts, model solution and optional parts as one exam task into this project. Upload the grading sheet on the task page afterwards.",
+        "ready": "The exam is created as a task when you import."
       }
     },
     "taskAssignment": {

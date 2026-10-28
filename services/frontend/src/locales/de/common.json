@@ -364,7 +364,7 @@
           "syntheticNoticeColumns": "Erwartete Spalten:",
           "upload": {
             "dropzone": "Dateien hier ablegen oder klicken zum Hochladen",
-            "supportedFormats": "Unterstützte Formate: JSON, CSV, TSV, TXT",
+            "supportedFormats": "Unterstützte Formate: JSON, CSV, TSV, TXT, DOCX, PDF, MD",
             "selectedFile": "Ausgewählt: {filename}",
             "removeFile": "Datei entfernen",
             "chooseFiles": "Dateien auswählen"
@@ -2024,7 +2024,7 @@
       "metricsWillAppear": "Auswertungsmetriken erscheinen hier, sobald Aufgaben ausgewertet wurden"
     },
     "importModal": {
-      "description": "Importiere Daten, um Aufgaben in deinem Projekt zu erstellen. BenGER unterstützt praktisch jede Textdatenstruktur mit unserem an Label Studio ausgerichteten Annotationssystem. Unterstützte Formate: JSON, CSV, TSV, TXT",
+      "description": "Importiere Daten, um Aufgaben in deinem Projekt zu erstellen. BenGER unterstützt praktisch jede Textdatenstruktur mit unserem an Label Studio ausgerichteten Annotationssystem. Unterstützte Formate: JSON, CSV, TSV, TXT, DOCX, PDF, MD",
       "fieldRequirements": "Datenanforderungen",
       "fieldRequirementsDescription": "Deine importierten Daten müssen diese Felder enthalten, um der Labeling-Konfiguration zu entsprechen:",
       "missingFieldsWarning": "Fehlende Felder verursachen einen Validierungsfehler beim Import.",
@@ -2036,6 +2036,10 @@
         "button": "Text aus Dokument (PDF/DOCX)",
         "busy": "Extrahiere…",
         "failed": "Text konnte nicht extrahiert werden."
+      },
+      "structuredExam": {
+        "hint": "Sachverhalt, Musterlösung und optionale Teile als eine Klausur-Aufgabe in dieses Projekt importieren. Den Bewertungsbogen lädst du danach auf der Aufgabenseite hoch.",
+        "ready": "Die Klausur wird beim Import als Aufgabe angelegt."
       }
     },
     "taskAssignment": {

@@ -29,6 +29,12 @@ jest.mock('@/components/projects/ExtractTextButton', () => ({
   ),
 }))
 
+const mockExtractText = jest.fn()
+
+jest.mock('@/lib/api/files', () => ({
+  filesAPI: { extractText: (file: File) => mockExtractText(file) },
+}))
+
 jest.mock('@/contexts/I18nContext', () => ({
   useI18n: () => ({
     t: (key: string, fallbackOrParams?: any, maybeParams?: any) => {
@@ -305,5 +311,77 @@ describe('ImportSourceTabs — upload tab', () => {
     fireEvent.drop(dropzone, { dataTransfer: { files: [file] } })
 
     expect(onFileChange).toHaveBeenCalledWith(file)
+  })
+})
+
+describe('ImportSourceTabs — document upload', () => {
+  beforeEach(() => {
+    mockExtractText.mockReset()
+    mockAddToast.mockReset()
+  })
+
+  it('offers documents next to data files in the file picker', () => {
+    setup()
+    expect(screen.getByTestId('test-import-file-input')).toHaveAttribute(
+      'accept',
+      '.json,.csv,.tsv,.txt,.docx,.pdf,.md',
+    )
+  })
+
+  it('turns an uploaded Word document into one text task', async () => {
+    const user = userEvent.setup()
+    mockExtractText.mockResolvedValue({
+      text: 'Sachverhalt aus Word',
+      source_format: 'docx',
+      warnings: [],
+    })
+    const { onFileChange, onColumnsDetected } = setup()
+    const doc = new File(['PK'], 'klausur.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    })
+
+    await user.upload(screen.getByTestId('test-import-file-input'), doc)
+
+    await waitFor(() => expect(onFileChange).toHaveBeenCalled())
+    expect(mockExtractText).toHaveBeenCalledWith(doc)
+    const converted = onFileChange.mock.calls[0][0] as File
+    expect(converted.name).toBe('klausur.docx')
+    expect(converted.type).toBe('application/json')
+    expect(JSON.parse(await converted.text())).toEqual([
+      { text: 'Sachverhalt aus Word' },
+    ])
+    await waitFor(() =>
+      expect(onColumnsDetected).toHaveBeenCalledWith(['text']),
+    )
+  })
+
+  it('extracts a dropped PDF and toasts extractor warnings', async () => {
+    mockExtractText.mockResolvedValue({
+      text: 'Seite 1',
+      source_format: 'pdf',
+      warnings: ['Page 2 skipped'],
+    })
+    const { onFileChange } = setup()
+    const dropzone = screen.getByRole('button', { name: 'Drop files here' })
+    const doc = new File(['%PDF'], 'scan.pdf', { type: 'application/pdf' })
+
+    fireEvent.drop(dropzone, { dataTransfer: { files: [doc] } })
+
+    await waitFor(() => expect(onFileChange).toHaveBeenCalled())
+    expect(mockAddToast).toHaveBeenCalledWith('Page 2 skipped', 'warning')
+  })
+
+  it('toasts a failed extraction and selects nothing', async () => {
+    const user = userEvent.setup()
+    mockExtractText.mockRejectedValue(new Error('Image-only PDF'))
+    const { onFileChange } = setup()
+    const doc = new File(['%PDF'], 'scan.pdf', { type: 'application/pdf' })
+
+    await user.upload(screen.getByTestId('test-import-file-input'), doc)
+
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('Image-only PDF', 'error'),
+    )
+    expect(onFileChange).not.toHaveBeenCalled()
   })
 })
